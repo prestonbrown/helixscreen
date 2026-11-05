@@ -212,6 +212,11 @@ To tell the user something, `src/printer` publishes a plain `helix::Notice`
 (`include/notice.h`) with `publish_notice()`, which delivers on the calling thread.
 `src/ui/notify/ui_toast_manager.cpp` subscribes during static initialization and
 shows the toast; `ToastManager` marshals its own widget work to the main thread.
+What is more than a toast (a prompt, a navigation, a recovery window) is a
+`helix::UiRequest` of a typed `UiRequestKind`, published with `publish_ui_request()`.
+The UI file that owns the action installs that kind's handler with a
+`UiRequestRegistration`. Delivery is synchronous and returns nothing, so a request
+keeps its caller's thread and order, and each kind states the thread it needs.
 
 ## The rules with teeth
 

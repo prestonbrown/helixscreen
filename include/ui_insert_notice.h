@@ -18,8 +18,8 @@ namespace ui {
  * five minutes, so a flapping gate sensor raises one notice, not one per edge.
  * Main thread only.
  *
- * Declared here, apart from ui_ams_detail.h, so a printer backend can post the
- * notice from its parse thread without pulling the LVGL panel world in.
+ * A printer backend asks through UiRequestKind::OfferClearAfterUnverifiedInsert
+ * (notice.h), from the update queue.
  *
  * @param slot Slot index the spool went into
  */

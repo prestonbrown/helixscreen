@@ -10,13 +10,12 @@
 
 #include "power_device_state.h"
 
-#include "ui_emergency_stop.h"
-
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -214,7 +213,7 @@ void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
         // Must set BEFORE queue_update() — notify_klippy_disconnected arrives on the same
         // WebSocket thread and checks suppression synchronously.
         if (new_raw == 0) {
-            EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
+            publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
         }
 
         tok.defer("PowerDeviceState::on_power_changed", [this, device_name, new_raw]() {

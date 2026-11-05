@@ -12,6 +12,7 @@ namespace {
 // Constant-initialized, so a subscriber installed by another translation unit's
 // static initializer cannot be overwritten by this one's.
 NoticeSubscriber s_subscriber = nullptr;
+UiRequestHandler s_ui_request_handlers[static_cast<int>(UiRequestKind::kCount)] = {};
 
 } // namespace
 
@@ -27,6 +28,23 @@ void publish_notice(const Notice& notice) {
         return;
     }
     s_subscriber(notice);
+}
+
+UiRequestHandler set_ui_request_handler(UiRequestKind kind, UiRequestHandler handler) {
+    UiRequestHandler& slot = s_ui_request_handlers[static_cast<int>(kind)];
+    UiRequestHandler previous = slot;
+    slot = handler;
+    return previous;
+}
+
+void publish_ui_request(const UiRequest& request) {
+    UiRequestHandler handler = s_ui_request_handlers[static_cast<int>(request.kind)];
+    if (!handler) {
+        spdlog::warn("[Notice] No handler for UI request {}; dropping",
+                     static_cast<int>(request.kind));
+        return;
+    }
+    handler(request);
 }
 
 } // namespace helix

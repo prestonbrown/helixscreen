@@ -3,8 +3,6 @@
 
 #include "ams_backend_qidi.h"
 
-#include "ui_insert_notice.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -18,6 +16,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "macro_param_cache.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
@@ -957,15 +956,16 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         helix::ams::fold_tag_frame_into(tag_readings_, i, stated, cache, profile_nozzle_min,
                                         profile_nozzle_max);
 
-        // An insert the ids did not vouch for: the table rows are the Box's
-        // memory of the last spool, so a spool that goes in without moving
-        // them is one nothing was read of, and the details standing on the
-        // lane may describe it or not. The ask re-checks every guard on the
-        // main thread; this loop holds mutex_.
+        // An insert the ids did not vouch for: the table rows are the Box's memory of
+        // the last spool, so a spool that goes in without moving them is one nothing was
+        // read of, and the details standing on the lane may describe it or not. The ask
+        // re-checks every guard on the main thread; this loop holds mutex_.
         if (was_empty[i] && stated_slot[i] && slot_status_reports_filament(slot->status) &&
             verdict == helix::ams::InsertVerdict::NoEvidence) {
-            helix::ui::queue_update("AmsBackendQidi::parse_save_variables",
-                                    [i] { helix::ui::offer_clear_after_unverified_insert(i); });
+            helix::ui::queue_update("AmsBackendQidi::parse_save_variables", [i] {
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, i});
+            });
         }
     }
 

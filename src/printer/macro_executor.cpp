@@ -3,8 +3,6 @@
 
 #include "macro_executor.h"
 
-#include "ui_emergency_stop.h"
-
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "core/text_io.h"
@@ -185,10 +183,8 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
                 // Klipper went down and suppressed nothing. Also completes the
                 // contract: the klippy-READY observer says "Printer ready" when
                 // it comes back, and the recovery dialog still appears if it
-                // does not. The literal is the one the PID and input-shaper
-                // saves already use for this event, so it costs no new
-                // translation key.
-                helix::ui::begin_expected_klippy_restart("Firmware restarting...", api);
+                // does not.
+                publish_ui_request({UiRequestKind::ExpectKlippyRestart, -1, api});
                 return;
             }
             spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);

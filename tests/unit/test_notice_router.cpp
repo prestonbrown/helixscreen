@@ -7,6 +7,7 @@
  */
 
 #include "ui_button.h"
+#include "ui_emergency_stop.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -24,6 +25,9 @@
 using helix::Notice;
 using helix::NoticeSeverity;
 using helix::publish_notice;
+using helix::publish_ui_request;
+using helix::UiRequest;
+using helix::UiRequestKind;
 using helix::test::ToastLog;
 
 namespace {
@@ -46,6 +50,25 @@ struct CapturedNotices {
     }
     ~CapturedNotices() {
         helix::set_notice_subscriber(previous);
+    }
+};
+
+std::vector<UiRequest> g_requests;
+std::thread::id g_request_thread;
+
+/// Swaps @p kind's handler out for one that keeps the requests as data.
+struct CapturedRequests {
+    UiRequestKind kind;
+    helix::UiRequestHandler previous;
+    explicit CapturedRequests(UiRequestKind k)
+        : kind(k), previous(helix::set_ui_request_handler(k, [](const UiRequest& request) {
+              g_requests.push_back(request);
+              g_request_thread = std::this_thread::get_id();
+          })) {
+        g_requests.clear();
+    }
+    ~CapturedRequests() {
+        helix::set_ui_request_handler(kind, previous);
     }
 };
 
@@ -159,6 +182,54 @@ TEST_CASE_METHOD(LVGLTestFixture, "Hardware validation publishes its notice with
 
     CHECK(g_captured[0].duration_ms == 8000);
     CHECK(g_captured[0].action_text == "View");
-    CHECK(g_captured[0].action != nullptr);
+    REQUIRE(g_captured[0].action != nullptr);
     CHECK(g_captured[0].action_user_data == nullptr);
+
+    CapturedRequests requests(UiRequestKind::OpenHardwareHealth);
+    g_captured[0].action(g_captured[0].action_user_data);
+    CHECK(g_requests.size() == 1);
+}
+
+TEST_CASE("A UI request reaches its kind's handler with its fields, on the calling thread",
+          "[notification][notice]") {
+    CapturedRequests requests(UiRequestKind::OfferClearAfterUnverifiedInsert);
+    auto* const api = reinterpret_cast<helix::IMoonrakerAPI*>(&g_requests);
+
+    std::thread([api] {
+        publish_ui_request({UiRequestKind::OfferClearAfterUnverifiedInsert, 3, api});
+    }).join();
+
+    REQUIRE(g_requests.size() == 1);
+    CHECK(g_requests[0].kind == UiRequestKind::OfferClearAfterUnverifiedInsert);
+    CHECK(g_requests[0].slot == 3);
+    CHECK(g_requests[0].api == api);
+    CHECK(g_request_thread != std::this_thread::get_id());
+
+    // A kind with no handler is dropped, and reaches no other kind's.
+    const auto previous = helix::set_ui_request_handler(UiRequestKind::OpenHardwareHealth, nullptr);
+    publish_ui_request({UiRequestKind::OpenHardwareHealth});
+    helix::set_ui_request_handler(UiRequestKind::OpenHardwareHealth, previous);
+    CHECK(g_requests.size() == 1);
+}
+
+TEST_CASE("The UI installs a handler for every request kind", "[notification][notice]") {
+    for (int k = 0; k < static_cast<int>(UiRequestKind::kCount); ++k) {
+        const auto kind = static_cast<UiRequestKind>(k);
+        const auto installed = helix::set_ui_request_handler(kind, nullptr);
+        helix::set_ui_request_handler(kind, installed);
+        CAPTURE(k);
+        CHECK(installed != nullptr);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",
+                 "[notification][notice][recovery]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    estop.suppress_recovery_dialog(0);
+    REQUIRE_FALSE(estop.is_recovery_suppressed());
+
+    publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
+
+    CHECK(estop.is_recovery_suppressed());
+    estop.suppress_recovery_dialog(0);
 }

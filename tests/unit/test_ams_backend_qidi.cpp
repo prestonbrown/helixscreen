@@ -11,11 +11,13 @@
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "notice.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/backend_harness.h"
@@ -1952,6 +1954,24 @@ TEST_CASE("QIDI Box unchanged tag fingerprint keeps a user edit", "[ams][qidi_bo
     fire_vars(backend, tag);
 
     CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
+}
+
+TEST_CASE("QIDI Box asks about an insert the ids do not vouch for, from the queue",
+          "[ams][qidi_box]") {
+    static int s_offered_slot = -1;
+    s_offered_slot = -1;
+    const auto previous = helix::set_ui_request_handler(
+        helix::UiRequestKind::OfferClearAfterUnverifiedInsert,
+        [](const helix::UiRequest& request) { s_offered_slot = request.slot; });
+    MockPrinter mock_printer;
+    helix::test::RegisteredWired<AmsBackendQidi> harness(&mock_printer.api);
+
+    fire_vars(*harness, json{{"slot1", 0}});
+    fire_vars(*harness, json{{"slot1", 1}});
+    CHECK(s_offered_slot == -1);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(s_offered_slot == 1);
+    helix::set_ui_request_handler(helix::UiRequestKind::OfferClearAfterUnverifiedInsert, previous);
 }
 
 TEST_CASE("QIDI Box first tag observation is a baseline, not a clear", "[ams][qidi_box]") {

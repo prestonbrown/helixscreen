@@ -8,6 +8,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
+#include "notice.h"
 #include "power_device_state.h"
 #include "printer_state.h"
 
@@ -357,4 +358,28 @@ TEST_CASE_METHOD(RediscoveryFixture,
 
     notify("chamber_heater", "off");
     CHECK(lv_subject_get_int(heater) == 0);
+}
+
+TEST_CASE_METHOD(
+    RediscoveryFixture,
+    "PowerDeviceState: a device going off expects the disconnect before the frame ends",
+    "[power_device_state][recovery]") {
+    static int s_expected = 0;
+    s_expected = 0;
+    const auto previous = set_ui_request_handler(UiRequestKind::ExpectKlippyDisconnect,
+                                                 [](const UiRequest&) { ++s_expected; });
+    auto frame = [this](const char* status) {
+        client_.dispatch_method_callback(
+            "notify_power_changed",
+            {{"method", "notify_power_changed"},
+             {"params", nlohmann::json::array({{{"device", "psu"}, {"status", status}}})}});
+    };
+
+    frame("on");
+    CHECK(s_expected == 0);
+    frame("off");
+    CHECK(s_expected == 1); // No drain: the klippy disconnect is judged on this same thread.
+
+    drain_queue();
+    set_ui_request_handler(UiRequestKind::ExpectKlippyDisconnect, previous);
 }

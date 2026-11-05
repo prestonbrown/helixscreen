@@ -46,6 +46,7 @@
 #include "input_settings_manager.h"
 #include "lvgl.h"
 #include "moonraker_manager.h"
+#include "notice.h"
 #include "platform_info.h"
 #include "printer_hardware.h"
 #include "printer_state.h"
@@ -317,6 +318,14 @@ void SettingsPanel::show_restart_prompt() {
         InputSettingsManager::instance().clear_restart_pending();
     }
 }
+
+namespace {
+const UiRequestRegistration s_hardware_health_registration{
+    UiRequestKind::OpenHardwareHealth, [](const UiRequest&) {
+        helix::nav::set_active(PanelId::Settings);
+        get_global_settings_panel().handle_hardware_health_clicked();
+    }};
+} // namespace
 
 void SettingsPanel::handle_hardware_health_clicked() {
     spdlog::debug("[{}] Hardware Health clicked - delegating to HardwareHealthOverlay", get_name());

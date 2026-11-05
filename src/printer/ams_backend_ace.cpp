@@ -13,8 +13,6 @@
 
 #include "ams_backend_ace.h"
 
-#include "ui_insert_notice.h"
-
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
@@ -2682,13 +2680,14 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
         // An insert the hardware read nothing about: the bay said no rfid, or
         // the previous occupant left no reading. Nothing contradicts the
         // record and nothing confirms it either, so ask rather than clear.
-        // offer_clear_after_unverified_insert() re-checks every guard
+        // The UI re-checks every guard
         // (print-feeding lane, lane with nothing to clear) on the UI thread.
         spdlog::debug("[ACE] Slot {} inserted with no comparable tag reading; "
                       "offering the same-spool notice",
                       slot_index);
         helix::ui::queue_update("AmsBackendAce::judge_insert_locked", [slot_index]() {
-            helix::ui::offer_clear_after_unverified_insert(slot_index);
+            helix::publish_ui_request(
+                {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
         });
         return;
     }

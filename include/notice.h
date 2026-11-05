@@ -18,6 +18,8 @@
 
 namespace helix {
 
+class IMoonrakerAPI;
+
 enum class NoticeSeverity { INFO, SUCCESS, WARNING, ERROR };
 
 /// Runs on the main thread when the user takes the notice's action.
@@ -48,5 +50,47 @@ NoticeSubscriber set_notice_subscriber(NoticeSubscriber subscriber);
 /// Hand @p notice to the subscriber on this thread. With none installed the
 /// notice is logged and dropped.
 void publish_notice(const Notice& notice);
+
+/// Something only the UI can do, named here so the layer asking for it includes
+/// no UI header. The file that owns the UI installs the handler.
+enum class UiRequestKind {
+    OfferClearAfterUnverifiedInsert,      ///< Main thread; @ref UiRequest::slot is the lane
+    PromptEndHeldNozzleOffsetCalibration, ///< Main thread
+    OpenHardwareHealth,                   ///< Main thread
+    ExpectKlippyDisconnect,               ///< Any thread; in effect before publish returns
+    ExpectKlippyRestart, ///< Any thread; @ref UiRequest::api is the connection about to drop
+    kCount
+};
+
+struct UiRequest {
+    UiRequestKind kind;
+    int slot = -1;
+    IMoonrakerAPI* api = nullptr;
+};
+
+using UiRequestHandler = void (*)(const UiRequest&);
+
+/**
+ * @brief Install the one handler for @p kind and return the previous one; nullptr
+ *        removes it.
+ *
+ * Not synchronized, for the reason set_notice_subscriber() is not.
+ */
+UiRequestHandler set_ui_request_handler(UiRequestKind kind, UiRequestHandler handler);
+
+/// Run the handler for @p request on this thread, before returning. No result
+/// comes back, so a caller cannot make its flow wait on the UI. The thread stated
+/// on each kind is the caller's to honor. With no handler the request is logged
+/// and dropped.
+void publish_ui_request(const UiRequest& request);
+
+/// Installs a handler from a namespace-scope object, so no boot path (desktop,
+/// firmware, tests) has a step to forget. Its file must be linked by another
+/// reference: the firmware's archive drops a translation unit nothing names.
+struct UiRequestRegistration {
+    UiRequestRegistration(UiRequestKind kind, UiRequestHandler handler) {
+        set_ui_request_handler(kind, handler);
+    }
+};
 
 } // namespace helix

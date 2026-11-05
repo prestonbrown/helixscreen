@@ -3,8 +3,6 @@
 
 #include "ams_backend_openams.h"
 
-#include "ui_insert_notice.h"
-
 #include "ams_fault_event.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
@@ -13,6 +11,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "openams_api.h"
 #include "openams_status_parse.h"
 #include "printer_discovery.h"
@@ -370,7 +369,8 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
             if (present && before != present_by_slot_id_.end() && !before->second) {
                 const int slot_index = slot.global_index;
                 helix::ui::queue_update("AmsBackendOpenAms::parse_snapshot_locked", [slot_index] {
-                    helix::ui::offer_clear_after_unverified_insert(slot_index);
+                    helix::publish_ui_request(
+                        {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, slot_index});
                 });
             }
             present_now[slot_id] = present;

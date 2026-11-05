@@ -3,9 +3,6 @@
 
 #include "hardware_validator.h"
 
-#include "ui_nav.h"
-#include "ui_panel_settings.h"
-
 #include "ams_types.h" // ams_type_for_expected_hardware
 #include "config.h"
 #include "core/text_io.h"
@@ -253,8 +250,7 @@ HardwareValidationResult HardwareValidator::validate(Config* config,
 // Static callback for toast action button - navigates to Settings and opens overlay
 static void on_hardware_toast_view_clicked(void* /*user_data*/) {
     spdlog::debug("[HardwareValidator] Toast 'View' clicked - opening Hardware Health overlay");
-    helix::nav::set_active(PanelId::Settings);
-    get_global_settings_panel().handle_hardware_health_clicked();
+    helix::publish_ui_request({helix::UiRequestKind::OpenHardwareHealth});
 }
 
 void HardwareValidator::notify_user(const HardwareValidationResult& result) {
