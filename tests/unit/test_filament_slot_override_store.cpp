@@ -4465,6 +4465,7 @@ TEST_CASE("the read that lands merges held saves onto the real records",
     FilamentSlotOverride edit;
     edit.color_rgb = 0x00FF00;
     edit.color_set = true;
+    edit.declared = helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb"}));
     store.save_async(3, edit, nullptr);
     // Cleared while held, however the save before it read.
     store.save_async(4, edit, nullptr);
@@ -4513,15 +4514,41 @@ TEST_CASE("merge_held_save moves only what the held save changed",
                        {"helix_locked_color", true}};
     const json blank = {{"lane", "0"}, {"helix_declared", json::array()}};
 
-    SECTION("a reading does not move a colour the record declares") {
+    SECTION("a reading moves neither a colour nor a material the record holds") {
         json held = blank;
         held["color"] = "#00FF00";
         held["material"] = "PLA";
         const json merged = merge_held_save(blank, held, live);
         CHECK(merged["color"] == "#FF9800");
         CHECK(merged["helix_locked_color"] == true);
-        CHECK(merged["material"] == "PLA");
+        CHECK(merged["material"] == "ASA");
         CHECK(merged["vendor"] == "Polymaker");
+    }
+    SECTION("a colour locked by the older key is held the same way") {
+        const json older = {{"lane", "0"}, {"color", "#FF9800"}, {"helix_locked_color", true}};
+        json held = blank;
+        held["color"] = "#00FF00";
+        const json merged = merge_held_save(blank, held, older);
+        CHECK(merged["color"] == "#FF9800");
+        CHECK(merged == older);
+    }
+    SECTION("a reading fills a colour the record does not have") {
+        const json bare = {{"lane", "0"}, {"vendor", "Polymaker"}};
+        json held = blank;
+        held["color"] = "#00FF00";
+        CHECK(merge_held_save(blank, held, bare)["color"] == "#00FF00");
+    }
+    SECTION("linking a different spool replaces the colour too") {
+        json held = blank;
+        held["spool_id"] = 77;
+        held["color"] = "#00FF00";
+        const json merged = merge_held_save(blank, held, live);
+        CHECK(merged["spool_id"] == 77);
+        CHECK(merged["color"] == "#00FF00");
+    }
+    SECTION("another tool's record stays exactly as it is when nothing changed") {
+        const json foreign = {{"lane", "0"}, {"color", "#FF9800"}, {"vendor", "Polymaker"}};
+        CHECK(merge_held_save(blank, blank, foreign) == foreign);
     }
     SECTION("an edit declaring the colour does") {
         json held = blank;

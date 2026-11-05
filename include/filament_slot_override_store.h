@@ -127,9 +127,9 @@ inline std::string& slot_override_cache_dir_ref() {
 /// @p live with the changes @p held makes to @p base, all three lane_data records:
 /// only a field that differs between @p base and @p held moves, so what the
 /// printer's record says beyond that survives a save built without seeing it. A
-/// colour or material @p live declares stays unless @p held declares it too,
-/// declarations combine, and a marker unlinking the spool @p live links cuts that
-/// link. Pure.
+/// colour or material @p live holds stays unless @p held declares it or links a
+/// different spool, declarations combine, and a marker unlinking the spool @p live
+/// links cuts that link. Pure.
 [[nodiscard]] nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
                                              const nlohmann::json& live);
 

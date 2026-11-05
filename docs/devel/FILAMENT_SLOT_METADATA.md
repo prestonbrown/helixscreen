@@ -171,7 +171,7 @@ again from status frames, at most every 10 seconds, until a read lands. Then
 `FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and
 merges each held save onto the real record (`merge_held_save()`): only what the
 save changed from the failed load's cache moves, and a colour or material the record
-declares stays unless the save declares it too. `adopt_unread_lane_records()`
+holds stays unless the save declares it or links a different spool. `adopt_unread_lane_records()`
 replaces `overrides_`, files the result onto the lanes, sends what changed and
 repaints.
 
