@@ -9,8 +9,9 @@
 #include "tool_state.h"
 #include "tune_controller.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <algorithm>
-#include <fmt/format.h>
 
 namespace helix {
 
