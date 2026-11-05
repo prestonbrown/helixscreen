@@ -196,25 +196,22 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendAd5xIfs> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendAd5xIfs> harness;
         // The standalone IFS module's own objects. loaded_channels is the
         // decoded silk bitmask (1-based), and ifs_materials is the module's
         // slot table; between them this is everything an AD5X states.
-        Ad5xIfsTestAccess::handle_status(
-            *harness, nlohmann::json{{"ifs",
-                                      {{"connected", true},
-                                       {"channel_count", 4},
-                                       {"activity", "ready"},
-                                       {"active_channel", 1},
-                                       {"loaded_channels", nlohmann::json::array({1})}}}});
-        Ad5xIfsTestAccess::handle_status(
-            *harness,
-            nlohmann::json{
-                {"ifs_materials",
-                 {{"available", true},
-                  {"channel_count", 4},
-                  {"enabled", true},
-                  {"slots", {{"1", {{"type", "PETG"}, {"color", "#ED2C2C"}, {"temp", 250.0}}}}}}}});
+        harness->fire_status(nlohmann::json{{"ifs",
+                                             {{"connected", true},
+                                              {"channel_count", 4},
+                                              {"activity", "ready"},
+                                              {"active_channel", 1},
+                                              {"loaded_channels", nlohmann::json::array({1})}}}});
+        harness->fire_status(nlohmann::json{
+            {"ifs_materials",
+             {{"available", true},
+              {"channel_count", 4},
+              {"enabled", true},
+              {"slots", {{"1", {{"type", "PETG"}, {"color", "#ED2C2C"}, {"temp", 250.0}}}}}}}});
         out.push_back({"AD5X IFS", filed_on(harness.lane(0))});
     }
 

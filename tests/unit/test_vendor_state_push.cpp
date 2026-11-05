@@ -14,6 +14,7 @@
 #include "app_globals.h"
 #include "helix_plugin_features.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "vendor_state_push.h"
 
 #include <chrono>
@@ -193,15 +194,15 @@ TEST_CASE("AD5X IFS ignores a push while it polls", "[plugin_vendor][ad5x_ifs]")
 TEST_CASE_METHOD(PluginStateFixture,
                  "AD5X IFS takes the plugin's push while ready and polls again without it",
                  "[plugin_vendor][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
+    helix::test::RegisteredWired<AmsBackendAd5xIfs> backend_reg;
+    auto& backend = *backend_reg;
     Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
     const auto long_ago = std::chrono::steady_clock::now() - std::chrono::minutes(5);
     const json frame = {{"extruder", {{"temperature", 25.0}}}};
 
     set_plugin(true, {{"vendor_ad5x", entry(1, true, true)}});
     Ad5xIfsTestAccess::set_last_json_poll_kick(backend, long_ago);
-    Ad5xIfsTestAccess::handle_status(backend, frame);
+    backend.fire_status(frame);
     REQUIRE(Ad5xIfsTestAccess::vendor_pushing(backend));
     // Starting the push read the file once
     CHECK(Ad5xIfsTestAccess::last_json_poll_kick(backend) > long_ago);
@@ -209,7 +210,7 @@ TEST_CASE_METHOD(PluginStateFixture,
     // Past the idle cadence but inside the backstop: no poll while pushing
     const auto ten_s_ago = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     Ad5xIfsTestAccess::set_last_json_poll_kick(backend, ten_s_ago);
-    Ad5xIfsTestAccess::handle_status(backend, frame);
+    backend.fire_status(frame);
     CHECK(Ad5xIfsTestAccess::last_json_poll_kick(backend) == ten_s_ago);
 
     SECTION("a push lands through the poll's apply: parse, then the GET_ZCOLOR follow-up") {
@@ -236,7 +237,7 @@ TEST_CASE_METHOD(PluginStateFixture,
 
     SECTION("the backstop polls once its interval passes") {
         Ad5xIfsTestAccess::set_last_json_poll_kick(backend, long_ago);
-        Ad5xIfsTestAccess::handle_status(backend, frame);
+        backend.fire_status(frame);
         CHECK(Ad5xIfsTestAccess::vendor_pushing(backend));
         CHECK(Ad5xIfsTestAccess::last_json_poll_kick(backend) > long_ago);
     }
@@ -248,7 +249,7 @@ TEST_CASE_METHOD(PluginStateFixture,
 
     SECTION("losing the plugin brings the poll back on the next frame") {
         set_plugin(false, {});
-        Ad5xIfsTestAccess::handle_status(backend, frame);
+        backend.fire_status(frame);
         CHECK_FALSE(Ad5xIfsTestAccess::vendor_pushing(backend));
         CHECK(Ad5xIfsTestAccess::last_json_poll_kick(backend) > ten_s_ago);
 
@@ -259,7 +260,7 @@ TEST_CASE_METHOD(PluginStateFixture,
 
     SECTION("a plugin that reconnects without the feature falls back too") {
         set_plugin(true, {});
-        Ad5xIfsTestAccess::handle_status(backend, frame);
+        backend.fire_status(frame);
         CHECK_FALSE(Ad5xIfsTestAccess::vendor_pushing(backend));
         CHECK(Ad5xIfsTestAccess::last_json_poll_kick(backend) > ten_s_ago);
     }
@@ -268,22 +269,21 @@ TEST_CASE_METHOD(PluginStateFixture,
 TEST_CASE_METHOD(PluginStateFixture,
                  "AD5X IFS takes a push through the client from start until it stops",
                  "[plugin_vendor][ad5x_ifs]") {
-    helix::test::FakeMoonrakerClient client;
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, &client);
-    AmsBackendAd5xIfs& backend = *backend_reg;
+    helix::test::RegisteredWired<AmsBackendAd5xIfs> backend_reg;
+    auto& backend = *backend_reg;
+    auto& client = backend.wire().fake_client();
     Ad5xIfsTestAccess::set_zcolor_query_active(backend, false);
     const json push = notification({{"vendor", "ad5x"}, {"payload", {{"content", kJsonA}}}});
 
     // Nothing listens until the backend's first state query answers.
     CHECK_FALSE(client.fire_notification(kVendorStateNotifyMethod, push));
 
-    Ad5xIfsTestAccess::on_started(backend);
     REQUIRE_FALSE(client.rpc_calls.empty());
-    client.rpc_calls.front().success_cb(json{{"result", {{"status", json::object()}}}});
+    client.rpc_calls.back().success_cb(json{{"result", {{"status", json::object()}}}});
     helix::ui::UpdateQueue::instance().drain();
 
     set_plugin(true, {{"vendor_ad5x", entry(1, true, true)}});
-    Ad5xIfsTestAccess::handle_status(backend, {{"extruder", {{"temperature", 25.0}}}});
+    backend.fire_status({{"extruder", {{"temperature", 25.0}}}});
     REQUIRE(Ad5xIfsTestAccess::vendor_pushing(backend));
 
     REQUIRE(client.fire_notification(kVendorStateNotifyMethod, push));

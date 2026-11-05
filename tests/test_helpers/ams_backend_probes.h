@@ -47,6 +47,7 @@ class CfsProbe : public helix::printer::AmsBackendCfs {
 
 class Ad5xIfsProbe : public helix::AmsBackendAd5xIfs {
   public:
+    using helix::AmsBackendAd5xIfs::AmsBackendAd5xIfs;
     Ad5xIfsProbe() : helix::AmsBackendAd5xIfs(nullptr, nullptr) {}
 };
 

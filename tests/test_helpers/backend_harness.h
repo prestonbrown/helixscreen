@@ -116,6 +116,10 @@ template <typename Backend> class WiredBackend : private HarnessHolder, public B
     WiredBackend() : Backend(harness.api(), harness.client()) {}
     /// For a test whose API is a mock holding its data; the wire stays the harness's.
     explicit WiredBackend(IMoonrakerAPI* api) : Backend(api, harness.client()) {}
+    /// What the last frame's handling queued runs against the backend it was queued for.
+    ~WiredBackend() override {
+        helix::ui::UpdateQueue::instance().drain();
+    }
 
     BackendHarness& wire() {
         return harness;

@@ -15,6 +15,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/ams_sidebar_xml.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/filament_runout_handler_test_access.h"
 #include "test_helpers/filament_sensor_widget_test_access.h"
 #include "test_helpers/modal_answer.h"
@@ -76,23 +77,21 @@ namespace {
 
 /// The standalone IFS module with filament in the head that no lane claims,
 /// recording what it would send.
-class UnaccountedModuleBackend : public helix::AmsBackendAd5xIfs {
+class UnaccountedModuleBackend : public helix::test::StartedBackend<helix::AmsBackendAd5xIfs> {
   public:
-    UnaccountedModuleBackend() : AmsBackendAd5xIfs(nullptr, nullptr) {
-        helix::Ad5xIfsTestAccess::set_running(*this, true);
-        helix::Ad5xIfsTestAccess::handle_status(
-            *this, nlohmann::json{{"ifs",
-                                   {{"connected", true},
-                                    {"error", nullptr},
-                                    {"channel_count", 4},
-                                    {"state", 5},
-                                    {"activity", "ready"},
-                                    {"activity_channel", 0},
-                                    {"active_channel", 0},
-                                    {"loaded_channels", {1, 2, 3, 4}},
-                                    {"moving_channels", nlohmann::json::array()},
-                                    {"pending_insert_channels", nlohmann::json::array()},
-                                    {"params", nlohmann::json::object()}}}});
+    UnaccountedModuleBackend() {
+        fire_status(nlohmann::json{{"ifs",
+                                    {{"connected", true},
+                                     {"error", nullptr},
+                                     {"channel_count", 4},
+                                     {"state", 5},
+                                     {"activity", "ready"},
+                                     {"activity_channel", 0},
+                                     {"active_channel", 0},
+                                     {"loaded_channels", {1, 2, 3, 4}},
+                                     {"moving_channels", nlohmann::json::array()},
+                                     {"pending_insert_channels", nlohmann::json::array()},
+                                     {"params", nlohmann::json::object()}}}});
         helix::Ad5xIfsTestAccess::set_head_switch(*this, true, true);
         helix::Ad5xIfsTestAccess::set_head_filament(*this, true);
         helix::Ad5xIfsTestAccess::set_zcolor_supported(*this, false);
@@ -212,8 +211,8 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture,
 
 TEST_CASE_METHOD(UnloadLaneSidebarFixture,
                  "One lane holding filament still gets the three-way picker", "[ams][1324]") {
-    helix::Ad5xIfsTestAccess::handle_status(
-        *backend_, nlohmann::json{{"ifs", {{"loaded_channels", {3}}, {"active_channel", 0}}}});
+    backend_->fire_status(
+        nlohmann::json{{"ifs", {{"loaded_channels", {3}}, {"active_channel", 0}}}});
     AmsState::instance().sync_from_backend();
     REQUIRE(backend_->unload_lane_question().lanes == std::vector<int>{2});
 
@@ -230,10 +229,8 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture,
 
 TEST_CASE_METHOD(UnloadLaneSidebarFixture,
                  "No lane holding filament asks to confirm the extruder clear", "[ams][1324]") {
-    helix::Ad5xIfsTestAccess::handle_status(
-        *backend_,
-        nlohmann::json{
-            {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
+    backend_->fire_status(nlohmann::json{
+        {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
     AmsState::instance().sync_from_backend();
     REQUIRE(backend_->unload_lane_question().confirm_clear_toolhead);
 
@@ -268,10 +265,8 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture, "The runout dialog's Unload asks the 
         CHECK(backend_->sent.empty());
     }
     SECTION("no lane holding filament asks to confirm the clear, which then runs") {
-        helix::Ad5xIfsTestAccess::handle_status(
-            *backend_,
-            nlohmann::json{
-                {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
+        backend_->fire_status(nlohmann::json{
+            {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
         AmsState::instance().sync_from_backend();
         helix::ui::FilamentRunoutHandlerTestAccess::dispatch_unload(handler);
         REQUIRE(ModalStack::instance().top_dialog() != nullptr);
@@ -285,10 +280,8 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture, "The runout dialog's Unload asks the 
 namespace {
 
 void empty_every_lane(UnaccountedModuleBackend& backend) {
-    helix::Ad5xIfsTestAccess::handle_status(
-        backend,
-        nlohmann::json{
-            {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
+    backend.fire_status(nlohmann::json{
+        {"ifs", {{"loaded_channels", nlohmann::json::array()}, {"active_channel", 0}}}});
     AmsState::instance().sync_from_backend();
 }
 
