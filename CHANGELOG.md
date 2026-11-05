@@ -5,6 +5,58 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.16] - 2026-11-04
+
+The sixteenth beta of 1.1 is mostly fixes as we near 1.1.0. Filament slots keep their details when Moonraker is slow, slow print starts no longer end as failures, the AD5X starts without pegging Moonraker, and new installs of the helper macros stay out of your Fluidd and Mainsail macro list.
+
+### Added
+
+- **Set each Snapmaker U1 toolhead's nozzle** (#1927) - after a swap, pick its size and Standard or High Flow in the filament system's Toolhead settings. High Flow is available at 0.4 mm only, and a refused change is reported and the setting goes back. Thanks to Roman Lisunov.
+- **Orca filament ids from Spoolman** (#2002, #1923) - a Spoolman filament with an `orca_filament_id` extra publishes that id for the slot its spool is linked to, so OrcaSlicer can pick that exact preset. It clears when the spool or the extra is removed. The id must be a single token with a letter, so a record id or preset name typed into the field does not replace a good catalog id. Thanks to Roman Lisunov.
+
+### Changed
+
+- **HelixScreen's print signals stay out of your macro list** - a new install of the helper macros names its signals with a leading underscore (`_HELIX_READY`, `_HELIX_ENDED`, `_HELIX_RESET` and `_HELIX_PHASE_*`). A printer that already has the macros keeps the old names, including when it updates, so an existing `PRINT_START` needs no change. On a new install, add `_HELIX_READY` to the end of `PRINT_START`; a guide that still says `HELIX_READY` gets you an `Unknown command` message and no ready signal.
+- **AD5M Pro fan names and sound** - aux is the side fan and chamber is circulation, existing Forge-X and Z-Mod settings are corrected, and the KlipperMod AD5M Pro ships with sound off.
+- **The runout dialog leads with Load on an AD5X** - a paused, homed AD5X can now load, so that is the first choice offered.
+
+### Fixed
+
+**Printing**
+
+- **A slow print start stays preparing** (#1898) - a printer that runs a long start sequence before answering no longer has the job marked failed while it carries on. Stop can still cancel it, and a start refused with the connection down fails right away.
+- **Print start collector** (#1875) - fixed a crash risk from its timer being deleted off the UI thread.
+
+**Filament**
+
+- **Filament slots keep their details when Moonraker is slow to answer** (#2008) - if the printer's saved lane records could not be read within 5 seconds of connecting, HelixScreen could overwrite them with what the firmware reports, losing the catalog product, color name, vendor and any color or material you set. It now holds its writes until it has read them.
+- **AD5X paused loads** - a load refuses while filament sits at the toolhead, the refusal names homing only when homing is the reason, and the runout Load sends the right channel.
+- **A purge that timed out does not run late** - a slow home no longer times out the purge on screen and then runs it anyway, and a purge that failed on the way to the bin stays cancelled.
+
+**Calibration**
+
+- **A failed Z-offset run closes its probe session** (#1994) - Mainsail and Fluidd no longer keep a manual probe dialog open after the failure, and the error stays on screen.
+- **Purge chute calibration never moves the head unasked** - on a K1 with a CFS, Cancel, Back or a sleeping screen could move the toolhead, even after a print had started from another client. These now send nothing during a print, sleep keeps your session, and Save refuses when the printer is not homed.
+
+**Startup**
+
+- **Moonraker stays responsive on a large config folder** - each HelixScreen start walked the whole config folder three times, which held Moonraker near 100% for about 4 minutes on an AD5X. It now lists only the folders it needs.
+
+**Sound**
+
+- **`M300` stays silent during a print** - on a printer whose only speaker is its `M300` beeper, such as the KlipperMod AD5M Pro, a tune played mid-print stalled the toolhead. A paused or idle printer still beeps, and a preset's sound default now applies at once.
+
+**Installer**
+
+- **K1 with the Guilouz Helper Script** (#1894) - the installer no longer mistakes these printers for Simple AF, so the Creality backend stays available to Creality Print and Creality Cloud, and uninstall can restore what it disabled.
+
+**Interface and sensors**
+
+- **Humidity chips name their temperature** (#1922) - a humidity chip's temperature reading now names its chip.
+- **Color picker leak** - each close of the color picker no longer leaks memory.
+- **Plugin install result icon** - the result screen shows its icon correctly.
+- **Sample Bed Level button** - the settings template and configuration guide named a macro that does not exist. They now use `HELIX_BED_MESH_IF_NEEDED`.
+
 ## [1.1.0-beta.15] - 2026-11-02
 
 The fifteenth beta of 1.1 is almost all fixes as we near 1.1.0. Lua plugins that send G-code or register callbacks no longer crash the screen at startup, and builds without a camera view no longer show a Camera button that does nothing. The WiFi radio gets its country back after a firmware update resets it, so 5 GHz networks reconnect on their own. A printer whose Moonraker requires a login can now take its API key on the screen. A K2 Pro running k2-improvements is recognized as a K2 Pro with its stock probe, a QIDI Box shows the material and color its own screen saved, and the Snapmaker U1 checks its heads before pressure advance calibration instead of pausing two minutes into a print.
@@ -10108,6 +10160,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-beta.16]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.15...v1.1.0-beta.16
 [1.1.0-beta.15]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.14...v1.1.0-beta.15
 [1.1.0-beta.14]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.13...v1.1.0-beta.14
 [1.1.0-beta.13]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.12...v1.1.0-beta.13
