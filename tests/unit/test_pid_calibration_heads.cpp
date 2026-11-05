@@ -8,6 +8,9 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/printer_state_test_access.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -199,4 +202,34 @@ TEST_CASE_METHOD(PidHeadsFixture, "An open panel hides the fan when its tool is 
     Access::activate(panel);
     set_active_tool(0);
     CHECK(subject_int("cal_show_pid_fan") == 0);
+}
+
+// Klipper runs one command at a time, so a print running means no calibration
+// is: TURN_OFF_HEATERS on the way out would stop that print's heaters.
+TEST_CASE_METHOD(PidHeadsFixture,
+                 "Leaving a calibrating panel turns heaters off only when no print is running",
+                 "[pid][pid_heads]") {
+    helix::PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    Access::activate(panel);
+    start();
+    REQUIRE(sent("PID_CALIBRATE HEATER=extruder "));
+    client.clear_gcode_script_history();
+
+    SECTION("idle printer: the abandoned calibration's heaters go off") {
+        Access::navigate_away(panel);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent("TURN_OFF_HEATERS"));
+    }
+    SECTION("a print is running: its heaters are left alone") {
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(get_printer_state().print_state().get_print_lifecycle() == PrintState::Printing);
+        Access::navigate_away(panel);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(sent("TURN_OFF_HEATERS"));
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
+        helix::ui::UpdateQueue::instance().drain();
+    }
 }
