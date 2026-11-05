@@ -275,6 +275,9 @@ void FanControlOverlay::on_deactivating(DeactivateReason) {
     chamber_air_observer_.reset();
     anim_settings_observer_.reset();
     unsubscribe_from_fan_speeds();
+    // Deactivation drops the confirmation's callbacks (its owner token), so none
+    // of them would clear this.
+    owned_confirm_open_ = false;
 
     spdlog::debug("[{}] Deactivated", get_name());
 }
@@ -375,6 +378,7 @@ void FanControlOverlay::populate_fans() {
 
             // Set callback for user-initiated speed changes (dial interaction)
             if (role) {
+                afd.dial->set_hold_until_release(true);
                 afd.dial->set_on_speed_changed(
                     [this, r = *role](const std::string& fan_id, int speed_percent) {
                         handle_owned_fan_change(fan_id, r, false, speed_percent);
@@ -417,6 +421,7 @@ void FanControlOverlay::populate_fans() {
             afd.synthetic = true;
             afd.dial = std::make_unique<FanDial>(fans_container_, name, f.id,
                                                  printer_state_.chamber_air().speed_pct(f.role));
+            afd.dial->set_hold_until_release(true);
             afd.dial->set_on_speed_changed(
                 [this, r = f.role](const std::string& fan_id, int speed_percent) {
                     handle_owned_fan_change(fan_id, r, true, speed_percent);
@@ -630,11 +635,23 @@ void FanControlOverlay::handle_owned_fan_change(const std::string& dial_id,
                                    "turned on"));
         return;
     case FanGuardAction::Confirm: {
+        // One question at a time: a second change while it is open puts the dial back.
+        if (owned_confirm_open_) {
+            restore_dial(dial_id, current);
+            return;
+        }
+        owned_confirm_open_ = true;
         const int pct = guard.pct;
         helix::ui::ConfirmOptions opts;
         opts.owner_token = lifetime_.token();
-        opts.on_cancel = [this, dial_id, current]() { restore_dial(dial_id, current); };
-        opts.on_dismiss = [this, dial_id, current]() { restore_dial(dial_id, current); };
+        opts.on_cancel = [this, dial_id, current]() {
+            owned_confirm_open_ = false;
+            restore_dial(dial_id, current);
+        };
+        opts.on_dismiss = [this, dial_id, current]() {
+            owned_confirm_open_ = false;
+            restore_dial(dial_id, current);
+        };
         helix::ui::modal_confirm(
             lv_tr("Lower fan speed?"),
             role == FanRole::Exhaust
@@ -644,6 +661,7 @@ void FanControlOverlay::handle_owned_fan_change(const std::string& dial_id,
                         "want to continue?"),
             ModalSeverity::Warning, lv_tr("Lower"),
             [this, dial_id, role, synthetic, pct]() {
+                owned_confirm_open_ = false;
                 send_owned_fan_speed(dial_id, role, synthetic, pct);
             },
             opts);

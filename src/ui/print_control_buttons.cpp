@@ -213,11 +213,29 @@ void PrintControlButtons::request_resume() {
                                                       chamber_c, air.critical_temp_c())) {
         spdlog::info("[PrintControl] Chamber {:.1f}C above its {:.1f}C alarm - confirming resume",
                      chamber_c.value_or(0.0), air.critical_temp_c().value_or(0.0));
-        ui::modal_confirm(lv_tr("Chamber too hot"),
-                          lv_tr("The chamber temperature is too high. This may cause extruder "
-                                "clogging. Continue printing?"),
-                          ModalSeverity::Warning, lv_tr("Resume"),
-                          []() { PrintControlButtons::instance().dispatch_resume(); });
+        // One question at a time, and the answer applies only to a print still paused:
+        // it may have been cancelled or resumed elsewhere while the question was up.
+        static bool s_confirm_open = false;
+        if (s_confirm_open) {
+            return;
+        }
+        s_confirm_open = true;
+        ConfirmOptions opts;
+        opts.on_cancel = []() { s_confirm_open = false; };
+        opts.on_dismiss = []() { s_confirm_open = false; };
+        ui::modal_confirm(
+            lv_tr("Chamber too hot"),
+            lv_tr("The chamber temperature is too high. This may cause extruder clogging. "
+                  "Continue printing?"),
+            ModalSeverity::Warning, lv_tr("Resume"),
+            []() {
+                s_confirm_open = false;
+                if (get_printer_state().print_state().get_print_job_state() ==
+                    helix::PrintJobState::PAUSED) {
+                    PrintControlButtons::instance().dispatch_resume();
+                }
+            },
+            opts);
         return;
     }
     dispatch_resume();

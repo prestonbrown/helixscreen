@@ -138,7 +138,7 @@ FanDial::FanDial(FanDial&& other) noexcept
       fan_id_(std::move(other.fan_id_)), current_speed_(other.current_speed_),
       on_speed_changed_(std::move(other.on_speed_changed_)),
       on_icon_clicked_(std::move(other.on_icon_clicked_)), syncing_(other.syncing_),
-      last_user_input_(other.last_user_input_) {
+      last_user_input_(other.last_user_input_), hold_until_release_(other.hold_until_release_) {
     // Drop any pending debounce timer on the source — its user_data still points
     // at the moved-from instance and we don't bother re-targeting it (drag
     // straddling a move is not a real use case).
@@ -206,6 +206,7 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         on_speed_changed_ = std::move(other.on_speed_changed_);
         on_icon_clicked_ = std::move(other.on_icon_clicked_);
         syncing_ = other.syncing_;
+        hold_until_release_ = other.hold_until_release_;
         last_user_input_ = other.last_user_input_;
 
         // Stop animations on the source before clearing its pointers
@@ -432,6 +433,15 @@ void FanDial::on_debounce_timer(lv_timer_t* t) {
     // One-shot timer auto-deletes after firing; clear our pointer first so
     // flush_pending_send → cancel_pending_send doesn't double-delete.
     self->debounce_timer_ = nullptr;
+    if (self->hold_until_release_ && self->arc_ &&
+        (lv_obj_get_state(self->arc_) & LV_STATE_PRESSED)) {
+        // Still held: try again later rather than send under the finger. A release that
+        // never arrives still clears the pressed state, so the send is not lost.
+        constexpr uint32_t kHeldRetryMs = 500;
+        self->debounce_timer_ = lv_timer_create(on_debounce_timer, kHeldRetryMs, self);
+        lv_timer_set_repeat_count(self->debounce_timer_, 1);
+        return;
+    }
     self->flush_pending_send();
 }
 

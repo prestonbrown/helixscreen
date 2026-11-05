@@ -541,6 +541,7 @@ src/ui/ui_bypass_spool_widget.cpp
 src/ui/ui_bypass_toggle_controller.cpp
 src/ui/ui_card.cpp
 src/ui/ui_carousel.cpp
+src/ui/ui_chamber_air_notices.cpp
 src/ui/ui_chamber_dryer_modal.cpp
 src/ui/ui_bed_drying_modal.cpp
 src/ui/ui_change_host_modal.cpp

@@ -26,6 +26,7 @@
 #include "print_history_manager.h"
 #include "print_start_collector.h"
 #include "print_stop_reason.h"
+#include "printer_discovery.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "sound_manager.h"
@@ -221,6 +222,23 @@ TEST_CASE_METHOD(RetargetFixture,
     CHECK(lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()) == 0);
     CHECK(history.get_jobs().empty());
     set_print_history_manager(nullptr);
+}
+
+TEST_CASE_METHOD(RetargetFixture, "Retarget: the previous printer's chamber air controls go",
+                 "[multi-printer][retarget][chamber_air]") {
+    auto& ps = get_printer_state();
+    helix::PrinterDiscovery u1;
+    u1.parse_objects(nlohmann::json::array({"purifier", "fm175xx_reader", "tool"}));
+    ps.chamber_air().set_hardware(u1);
+    ps.chamber_air().apply(helix::chamber_air::read_status(
+        u1, nlohmann::json{{"purifier", {{"power_detected", true}, {"mode", 1}}}}));
+    REQUIRE(lv_subject_get_int(ps.chamber_air().available_subject()) == 1);
+
+    helix::retarget_printer_connection();
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK(lv_subject_get_int(ps.chamber_air().available_subject()) == 0);
+    CHECK(lv_subject_get_int(ps.chamber_air().mode_subject()) == -1);
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Retarget: the previous printer's M300 beeper is dropped",

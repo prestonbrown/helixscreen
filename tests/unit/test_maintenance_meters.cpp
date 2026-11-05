@@ -318,3 +318,13 @@ TEST_CASE("an Off filter meter takes no firmware hours", "[maintenance][meters]"
     CHECK(apply_firmware_filter_hours(s, 500.0).empty());
     CHECK(s.meters[0].used_h == Catch::Approx(0.0));
 }
+
+TEST_CASE("a firmware filter counter reset elsewhere re-arms the due notice",
+          "[maintenance][meters]") {
+    State s = default_state();
+    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
+    // Reset on the printer's console: the hours fall without reset_meter() running here.
+    CHECK(apply_firmware_filter_hours(s, 0.0).empty());
+    CHECK_FALSE(s.meters[0].notified);
+    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
+}
