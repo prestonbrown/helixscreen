@@ -5,16 +5,16 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_modal.h"
 #include "ui_panel_input_shaper.h"
-#include "core/update_queue.h"
 
 #include "app_globals.h"
 #include "chamber_air_modes.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "exception_policy.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "core/observer_factory.h"
 #include "printer_state.h"
-#include "core/static_subject_registry.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
