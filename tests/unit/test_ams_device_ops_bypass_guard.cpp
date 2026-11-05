@@ -30,6 +30,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/chaining_mock_backend.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -289,7 +290,7 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
                  "Closing Device Operations mid-chain says the bypass was canceled",
                  "[ui_integration][ams][bypass-device-ops]") {
     std::vector<std::string> surfaced;
-    helix::ui::set_notification_observer(
+    helix::ui::set_test_notification_event_hook(
         [&surfaced](const helix::ui::NotificationEvent& e) { surfaced.push_back(e.message); });
 
     lv_obj_t* toggle = show_and_find_toggle();
@@ -302,7 +303,7 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
         settle();
         process_lvgl(50);
     }
-    helix::ui::set_notification_observer(nullptr);
+    helix::ui::set_test_notification_event_hook(nullptr);
 
     CHECK(std::find(surfaced.begin(), surfaced.end(), "Bypass canceled") != surfaced.end());
 }
