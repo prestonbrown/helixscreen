@@ -22,6 +22,7 @@
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "rest_response.h"
 #include "status_dispatch.h"
 
 #include <spdlog/spdlog.h>

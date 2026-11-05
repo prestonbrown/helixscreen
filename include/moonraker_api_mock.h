@@ -6,6 +6,7 @@
 #include "helix_shared_callback.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
+#include "rest_response.h"
 
 #include <algorithm>
 #include <atomic>

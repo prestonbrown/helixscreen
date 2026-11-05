@@ -12,6 +12,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
 
+#include "rest_response.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
 #include "ui_settings_label_printer.h"
