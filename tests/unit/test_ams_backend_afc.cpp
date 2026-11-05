@@ -6341,10 +6341,8 @@ TEST_CASE("AFC operation_step_model mirrors the narration phase template",
     for (size_t i = 0; i < tmpl.size(); ++i) {
         CHECK(model.steps[i].label == tmpl[i].label);
         CHECK(model.steps[i].optional == tmpl[i].optional);
-    }
-    // No step is flagged for a live temperature readout on a narration model.
-    for (const auto& s : model.steps) {
-        CHECK_FALSE(s.live_temp);
+        // No step is flagged for a live temperature readout on a narration model.
+        CHECK_FALSE(model.steps[i].live_temp);
     }
 }
 

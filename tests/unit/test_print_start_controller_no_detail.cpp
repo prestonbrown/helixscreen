@@ -19,7 +19,7 @@
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/print_start_grace.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/running_op_backend.h"
+#include "../test_helpers/step_operation_helpers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"

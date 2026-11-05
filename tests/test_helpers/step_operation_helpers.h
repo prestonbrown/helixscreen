@@ -6,8 +6,18 @@
 #include "ams_step_model.h"
 
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace helix {
+
+inline std::vector<std::string> step_labels(const OperationStepModel& model) {
+    std::vector<std::string> out;
+    for (const auto& s : model.steps) {
+        out.push_back(s.label);
+    }
+    return out;
+}
 
 /// A mock backend whose action and running operation a test sets directly.
 class RunningOpBackend : public AmsBackendMock, public IStepOperation {

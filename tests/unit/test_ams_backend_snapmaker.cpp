@@ -9,6 +9,7 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/snapmaker_test_access.h"
+#include "../test_helpers/step_operation_helpers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
@@ -324,22 +325,16 @@ TEST_CASE_METHOD(SnapmakerFixture,
         auto model = operation_step_model(backend, StepOperationType::LOAD_FRESH);
         // filament_feed.py sets load_homing, load_picking, load_feeding,
         // load_heating, load_extruding, load_flushing in that order.
+        const char* const labels[] = {"Home",        "Select",  "Feed filament",
+                                      "Heat nozzle", "Extrude", "Purge"};
         REQUIRE(model.steps.size() == 6);
-        CHECK(std::string(model.steps[0].label) == "Home");
-        CHECK(std::string(model.steps[1].label) == "Select");
-        CHECK(std::string(model.steps[2].label) == "Feed filament");
-        CHECK(std::string(model.steps[3].label) == "Heat nozzle");
-        CHECK(std::string(model.steps[4].label) == "Extrude");
-        CHECK(std::string(model.steps[5].label) == "Purge");
-        // phase_id mirrors the firmware operation_phase index the classifier emits.
-        for (int i = 0; i < 6; ++i) {
-            CHECK(model.steps[static_cast<size_t>(i)].phase_id == i);
+        for (size_t i = 0; i < 6; ++i) {
+            CHECK(model.steps[i].label == labels[i]);
+            // phase_id mirrors the firmware operation_phase index the classifier emits.
+            CHECK(model.steps[i].phase_id == static_cast<int>(i));
+            // Only the Heat step shows a live nozzle temperature.
+            CHECK(model.steps[i].live_temp == (i == 3));
         }
-        // Only the Heat step shows a live nozzle temperature.
-        CHECK(model.steps[3].live_temp);
-        CHECK_FALSE(model.steps[0].live_temp);
-        CHECK_FALSE(model.steps[2].live_temp);
-        CHECK_FALSE(model.steps[4].live_temp);
     }
 
     SECTION("LOAD_SWAP also produces the 5-step load-direction model") {
@@ -351,11 +346,8 @@ TEST_CASE_METHOD(SnapmakerFixture,
 
     SECTION("UNLOAD is a 4-step model ending in Retract") {
         auto model = backend.get_operation_step_model(StepOperationType::UNLOAD);
-        REQUIRE(model.steps.size() == 4);
-        CHECK(std::string(model.steps[0].label) == "Home");
-        CHECK(std::string(model.steps[1].label) == "Select");
-        CHECK(std::string(model.steps[2].label) == "Heat nozzle");
-        CHECK(std::string(model.steps[3].label) == "Retract");
+        REQUIRE(step_labels(model) ==
+                std::vector<std::string>{"Home", "Select", "Heat nozzle", "Retract"});
         CHECK(model.steps[0].phase_id == 0);
         CHECK(model.steps[3].phase_id == 3);
         CHECK(model.steps[2].live_temp);
@@ -678,12 +670,11 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
 
     const auto load = backend.get_operation_step_model(StepOperationType::LOAD_FRESH);
-    CHECK(load.action_at(0) == AmsAction::LOADING);
-    CHECK(load.action_at(1) == AmsAction::LOADING);
-    CHECK(load.action_at(2) == AmsAction::LOADING);
-    CHECK(load.action_at(3) == AmsAction::HEATING);
-    CHECK(load.action_at(4) == AmsAction::LOADING);
-    CHECK(load.action_at(5) == AmsAction::PURGING);
+    for (int i = 0; i < 6; ++i) {
+        CHECK(load.action_at(i) == (i == 3   ? AmsAction::HEATING
+                                    : i == 5 ? AmsAction::PURGING
+                                             : AmsAction::LOADING));
+    }
     CHECK_FALSE(load.action_at(-1).has_value());
     CHECK_FALSE(load.action_at(6).has_value());
 

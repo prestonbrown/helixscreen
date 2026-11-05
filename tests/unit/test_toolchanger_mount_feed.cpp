@@ -14,7 +14,7 @@
 #include "../busy_guard_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/running_op_backend.h"
+#include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
@@ -739,11 +739,10 @@ TEST_CASE("MedusaHC sequences a full selection itself even with all-macros defin
 TEST_CASE("MedusaHC's step bar tracks every filament-op action",
           "[toolchanger][mount_feed][medusahc]") {
     AckingChanger tc(4);
-    CHECK(tc.action_tracks_step_operation(AmsAction::SELECTING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::HEATING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::LOADING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::PURGING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::UNLOADING));
+    for (AmsAction action : {AmsAction::SELECTING, AmsAction::HEATING, AmsAction::LOADING,
+                             AmsAction::PURGING, AmsAction::UNLOADING}) {
+        CHECK(tc.action_tracks_step_operation(action));
+    }
     CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::IDLE));
     CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::ERROR));
 }
