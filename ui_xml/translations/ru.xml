@@ -282,6 +282,7 @@
   <translation tag="Add Widget" ru="Добавить виджет"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" ru="Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать"/>
   <translation tag="Add custom filament" ru="Добавить свой филамент"/>
+  <translation tag="Add new" ru="Добавить новый"/>
   <translation tag="Add page" ru="Добавить страницу"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ru="Добавить в веб-камеры Mainsail/Fluidd"/>
   <translation tag="Add to Queue" ru="Добавить в очередь"/>
@@ -3568,6 +3569,7 @@
   <translation tag="Spoolman" ru="Spoolman"/>
   <translation tag="Spoolman Not Available" ru="Spoolman недоступен"/>
   <translation tag="Spoolman Server" ru="Сервер Spoolman"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" ru="В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его или добавить новый филамент?"/>
   <translation tag="Spoolman connected!" ru="Spoolman подключен!"/>
   <translation tag="Spoolman found! Configuring..." ru="Spoolman найден! Настройка..."/>
   <translation tag="Spoolman has no spools configured" ru="В Spoolman нет настроенных катушек"/>
@@ -4277,6 +4279,8 @@
   <translation tag="Use New Address" ru="Использовать новый адрес"/>
   <translation tag="Use Scan" ru="Взять скан"/>
   <translation tag="Use Unload before Eject" ru="Используйте «Выгрузить» перед «Извлечь»"/>
+  <translation tag="Use existing" ru="Использовать имеющийся"/>
+  <translation tag="Use existing filament?" ru="Использовать имеющийся филамент?"/>
   <translation tag="Use first HID scanner found" ru="Использовать первый найденный HID-сканер"/>
   <translation tag="Use printer type to select image" ru="Использовать тип принтера для выбора изображения"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ru="Использовать раскладку главного экрана, заданную на экране принтера"/>

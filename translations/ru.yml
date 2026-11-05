@@ -303,6 +303,7 @@ translations:
   Add Widget: Добавить виджет
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать
   Add custom filament: Добавить свой филамент
+  Add new: "Добавить новый"
   Add page: 'Добавить страницу'
   Add to Mainsail/Fluidd Webcams: 'Добавить в веб-камеры Mainsail/Fluidd'
   Add to Queue: Добавить в очередь
@@ -3878,6 +3879,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman недоступен'
   Spoolman Server: Сервер Spoolman
+  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его или добавить новый филамент?"
   Spoolman connected!: Spoolman подключен!
   Spoolman found! Configuring...: Spoolman найден! Настройка...
   Spoolman has no spools configured: В Spoolman нет настроенных катушек
@@ -4679,6 +4681,8 @@ translations:
   Use G10/G11 firmware retraction: Использовать аппаратный ретракт G10/G11
   Use New Address: 'Использовать новый адрес'
   Use Unload before Eject: 'Используйте «Выгрузить» перед «Извлечь»'
+  Use existing: "Использовать имеющийся"
+  Use existing filament?: "Использовать имеющийся филамент?"
   Use first HID scanner found: 'Использовать первый найденный HID-сканер'
   Use printer type to select image: Использовать тип принтера для выбора изображения
   Use Scan: Взять скан

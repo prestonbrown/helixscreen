@@ -246,6 +246,7 @@
   <translation tag="Add Widget" de="Widget hinzufügen"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" de="Fügt [include helix-plr/*.cfg] zu printer.cfg hinzu, damit ein Fortsetzen das Bettnetz lädt, mit dem der Druck begonnen hat"/>
   <translation tag="Add custom filament" de="Benutzerdefiniertes Filament hinzufügen"/>
+  <translation tag="Add new" de="Neu hinzufügen"/>
   <translation tag="Add page" de="Seite hinzufügen"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" de="Zu Mainsail/Fluidd-Webcams hinzufügen"/>
   <translation tag="Add to Queue" de="Zur Warteschlange hinzufügen"/>
@@ -3511,6 +3512,7 @@
   <translation tag="Spoolman" de="Spoolman"/>
   <translation tag="Spoolman Not Available" de="Spoolman nicht verfügbar"/>
   <translation tag="Spoolman Server" de="Spoolman-Server"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" de="Spoolman hat bereits „{}“ von dieser Marke in einer ähnlichen Farbe. Dieses verwenden oder ein neues Filament hinzufügen?"/>
   <translation tag="Spoolman connected!" de="Spoolman verbunden!"/>
   <translation tag="Spoolman found! Configuring..." de="Spoolman gefunden! Wird konfiguriert..."/>
   <translation tag="Spoolman has no spools configured" de="Spoolman hat keine Spulen konfiguriert"/>
@@ -4214,6 +4216,8 @@
   <translation tag="Use New Address" de="Neue Adresse verwenden"/>
   <translation tag="Use Scan" de="Scan verwenden"/>
   <translation tag="Use Unload before Eject" de="Verwenden Sie Entladen vor Auswerfen"/>
+  <translation tag="Use existing" de="Vorhandenes verwenden"/>
+  <translation tag="Use existing filament?" de="Vorhandenes Filament verwenden?"/>
   <translation tag="Use first HID scanner found" de="Ersten gefundenen HID-Scanner verwenden"/>
   <translation tag="Use printer type to select image" de="Druckertyp zur Bildauswahl verwenden"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" de="Das Startbildschirm-Layout vom Bildschirm des Druckers verwenden"/>

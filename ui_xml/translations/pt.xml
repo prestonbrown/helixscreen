@@ -246,6 +246,7 @@
   <translation tag="Add Widget" pt="Adicionar Widget"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" pt="Adiciona [include helix-plr/*.cfg] ao printer.cfg para que uma retomada recarregue a malha com que a impressão começou"/>
   <translation tag="Add custom filament" pt="Adicionar filamento personalizado"/>
+  <translation tag="Add new" pt="Adicionar novo"/>
   <translation tag="Add page" pt="Adicionar página"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" pt="Adicionar às webcams do Mainsail/Fluidd"/>
   <translation tag="Add to Queue" pt="Adicionar à fila"/>
@@ -3511,6 +3512,7 @@
   <translation tag="Spoolman" pt="Spoolman"/>
   <translation tag="Spoolman Not Available" pt="Spoolman indisponível"/>
   <translation tag="Spoolman Server" pt="Servidor Spoolman"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it, or add a new filament?" pt="O Spoolman já tem &quot;{}&quot; desta marca numa cor próxima. Usá-lo ou adicionar um novo filamento?"/>
   <translation tag="Spoolman connected!" pt="Spoolman conectado!"/>
   <translation tag="Spoolman found! Configuring..." pt="Spoolman encontrado! Configurando..."/>
   <translation tag="Spoolman has no spools configured" pt="Spoolman não tem carretéis configurados"/>
@@ -4214,6 +4216,8 @@
   <translation tag="Use New Address" pt="Usar novo endereço"/>
   <translation tag="Use Scan" pt="Usar leitura"/>
   <translation tag="Use Unload before Eject" pt="Use Descarregar antes de Ejetar"/>
+  <translation tag="Use existing" pt="Usar existente"/>
+  <translation tag="Use existing filament?" pt="Usar um filamento existente?"/>
   <translation tag="Use first HID scanner found" pt="Usar o primeiro leitor HID encontrado"/>
   <translation tag="Use printer type to select image" pt="Usar tipo de impressora para selecionar imagem"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" pt="Usar o layout inicial definido na tela da impressora"/>

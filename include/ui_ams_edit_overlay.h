@@ -510,6 +510,13 @@ class AmsEditOverlay : public OverlayBase {
                               helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
     void prompt_identity_change_then_save();
 
+    /// Ask whether a save should use @p filament_name, an existing Spoolman
+    /// filament close to the one it would create; @p answer gets the reply
+    /// exactly once (a dismissal is a Cancel).
+    void
+    offer_similar_filament(const std::string& filament_name,
+                           std::function<void(helix::SpoolmanSlotSaver::SimilarChoice)> answer);
+
     // A save that wrote nothing leaves the editor where it was.
     void stay_open_after_failed_save();
 

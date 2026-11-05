@@ -258,6 +258,7 @@ translations:
   Add Widget: Agregar widget
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Agrega [include helix-plr/*.cfg] a printer.cfg para que una reanudación vuelva a cargar la malla con la que empezó la impresión
   Add custom filament: Añadir filamento personalizado
+  Add new: "Añadir nuevo"
   Add page: 'Añadir página'
   Add to Mainsail/Fluidd Webcams: 'Añadir a las webcams de Mainsail/Fluidd'
   Add to Queue: Añadir a la cola
@@ -3830,6 +3831,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: 'Spoolman no disponible'
   Spoolman Server: Servidor Spoolman
+  Spoolman already has "{}" from this brand in a close color. Use it, or add a new filament?: "Spoolman ya tiene \"{}\" de esta marca en un color parecido. ¿Usarlo o añadir un filamento nuevo?"
   Spoolman connected!: ¡Spoolman conectado!
   Spoolman found! Configuring...: ¡Spoolman encontrado! Configurando...
   Spoolman has no spools configured: Spoolman no tiene bobinas configuradas
@@ -4636,6 +4638,8 @@ translations:
   Use G10/G11 firmware retraction: Usar retracción de firmware G10/G11
   Use New Address: 'Usar nueva dirección'
   Use Unload before Eject: 'Use Descargar antes de Expulsar'
+  Use existing: "Usar existente"
+  Use existing filament?: "¿Usar un filamento existente?"
   Use first HID scanner found: 'Usar el primer escáner HID encontrado'
   Use printer type to select image: Usar tipo de impresora para seleccionar imagen
   Use Scan: Usar escaneo
