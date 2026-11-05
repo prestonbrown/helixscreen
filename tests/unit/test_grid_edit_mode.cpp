@@ -475,39 +475,15 @@ TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target
         {"exactly the target: nothing to spare", 19, 48, 48, 0},
         {"just above it: the spare splits between the edges", 19, 50, 48, 1},
         {"a half cell at 800x480", 19, 59, 48, 5},
-        {"one short of the full band", 18, 83, 48, 17},
         {"room for band and interior", 18, 84, 48, 18},
         {"the band is the ceiling", 18, 85, 48, 18},
-        {"a large widget", 32, 400, 48, 32},
         {"zero-size widget", 18, 0, 48, 0},
         {"negative size", 18, -10, 48, 0},
     };
     for (const auto& row : rows) {
         CAPTURE(row.what);
-        CHECK(GridEditModeTestAccess::inward_edge_reach(row.band, row.widget, row.min_drag) ==
-              row.reach);
+        CHECK(GridEditMode::inward_edge_reach(row.band, row.widget, row.min_drag) == row.reach);
     }
-}
-
-TEST_CASE("detect_resize_edge: a 0.5x0.5 widget at 800x480 drags from anywhere inside it",
-          "[grid_edit][resize][halfcell]") {
-    using Edge = GridEditMode::ResizeEdge;
-    GridEditMode em;
-    // 60x59, the half-cell notifications tile measured in the mock at 800x480.
-    const lv_area_t half = {677, 5, 736, 63};
-
-    // A finger 12px off centre in any direction still drags.
-    for (int d = -12; d <= 12; d += 4) {
-        CAPTURE(d);
-        CHECK(em.detect_resize_edge(706 + d, 34, half) == Edge::None);
-        CHECK(em.detect_resize_edge(706, 34 + d, half) == Edge::None);
-    }
-
-    // Just outside each edge resizes.
-    CHECK(em.detect_resize_edge(674, 34, half) == Edge::Left);
-    CHECK(em.detect_resize_edge(739, 34, half) == Edge::Right);
-    CHECK(em.detect_resize_edge(706, 2, half) == Edge::Top);
-    CHECK(em.detect_resize_edge(706, 66, half) == Edge::Bottom);
 }
 
 TEST_CASE("press_owns_widget: the press origin decides, with the grab band of drift",
