@@ -188,7 +188,27 @@ FilamentLabelParts resolve_filament_label_parts(const SlotInfo& slot, const Spoo
 std::string slot_card_name(const SlotInfo& slot, const SpoolIdentity* identity) {
     const SpoolIdentity* id = (identity != nullptr && identity->valid()) ? identity : nullptr;
     const std::string_view id_name = id ? std::string_view(id->filament_name) : std::string_view();
-    return normalize_ws(first_non_blank({slot.spool_name, id_name, slot.product_name}));
+    // A name that is only the lane's material says nothing the material line
+    // below it does not, so the next name stands in, and the brand after them.
+    const std::string material = normalize_ws(slot.material);
+    bool repeated = false;
+    for (std::string_view candidate :
+         {std::string_view(slot.spool_name), id_name, std::string_view(slot.product_name)}) {
+        std::string name = normalize_ws(candidate);
+        if (name.empty()) {
+            continue;
+        }
+        if (!material.empty() && text_io::equals_ignore_case(name, material)) {
+            repeated = true;
+            continue;
+        }
+        return name;
+    }
+    if (!repeated) {
+        return {};
+    }
+    std::string brand = normalize_ws(slot.brand);
+    return text_io::equals_ignore_case(brand, material) ? std::string{} : brand;
 }
 
 SlotCardLines slot_card_lines(std::string_view name, std::string_view material,
