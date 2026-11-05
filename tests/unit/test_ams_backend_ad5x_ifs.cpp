@@ -13487,12 +13487,41 @@ TEST_CASE("AD5X IFS takes the printer's records once a late read lands, and neve
     helix::ui::UpdateQueue::instance().drain();
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1") == live);
 
-    SECTION("a read that fails changes nothing") {
+    SECTION("a read that fails changes nothing, and a later status frame retries it") {
         mock_printer.client.fail_next("server.database.get_item", MoonrakerError::unknown("down"));
         Ad5xIfsTestAccess::read_unread_lane_records(backend);
         helix::ui::UpdateQueue::instance().drain();
         CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0)->brand == "Polymaker");
         CHECK(mock_printer.client.mock_db_get("lane_data", "lane1") == live);
+        REQUIRE(Ad5xIfsTestAccess::override_store(backend)->namespace_unread());
+
+        const int reads = mock_printer.client.call_count("server.database.get_item");
+        Ad5xIfsTestAccess::status_frame(backend);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(mock_printer.client.call_count("server.database.get_item") == reads);
+
+        Ad5xIfsTestAccess::age_unread_read(backend);
+        Ad5xIfsTestAccess::status_frame(backend);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(mock_printer.client.call_count("server.database.get_item") == reads + 1);
+        CHECK_FALSE(Ad5xIfsTestAccess::override_store(backend)->namespace_unread());
+        CHECK(Ad5xIfsTestAccess::get_override(backend, 0)->brand == "Polymaker");
+    }
+    SECTION("an edit made during the hold reaches the record, the lane and the printer") {
+        helix::ams::FilamentSlotOverride edit;
+        edit.spool_name = "Edited During Hold";
+        Ad5xIfsTestAccess::override_store(backend)->save_async(0, edit, nullptr);
+        Ad5xIfsTestAccess::read_unread_lane_records(backend);
+        helix::ui::UpdateQueue::instance().drain();
+        const auto after = mock_printer.client.mock_db_get("lane_data", "lane1");
+        CHECK(after.value("vendor", "") == "Polymaker");
+        CHECK(after.value("spool_name", "") == "Edited During Hold");
+        CHECK(Ad5xIfsTestAccess::get_override(backend, 0)->spool_name == "Edited During Hold");
+        CHECK(backend.get_slot_info(0).spool_name == "Edited During Hold");
+        // The lane itself holds the record, not only the slot painted from it.
+        const auto lane = helix::ams::lane_id_for(backend.backend_index(), 0);
+        const auto resolved = helix::ams::resolve(helix::ams::lane_sources(lane));
+        CHECK(resolved.brand == std::optional<std::string>("Polymaker"));
     }
     SECTION("a read that lands restores the record, and later writes keep it") {
         Ad5xIfsTestAccess::read_unread_lane_records(backend);
