@@ -34,7 +34,8 @@ HelixScreen-specific.
 preset (wrong temperatures), not a near miss. So `to_lane_data_record()` emits
 `material` as a **slicer-matchable** string produced by
 `filament::orca_match_type()` (`src/printer/filament_variants.cpp`) — explicit
-`orca_type_overrides` entry → exact `orca_library_types` entry →
+`orca_type_overrides` entry → exact `orca_library_types` entry → the base
+polymer with the type's one filler (`PA12-CF` → `PA-CF`) →
 `extract_base_material()` base polymer → the field is **omitted** when nothing
 matches — and separately emits `helix_material`, the user's precise identity
 (`ASA-GF`, `PLA Silk`), written unconditionally. `from_lane_data_record()`
