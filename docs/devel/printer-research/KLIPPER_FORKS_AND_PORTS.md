@@ -107,7 +107,7 @@ those nor flashes MCU firmware.
 **"Kobrian" (unpublished, provenance unknown).** No public project found uses the name.
 The only evidence is one tester's debug bundle (JYTPVPP9), from a **Kobra X**:
 
-- hostname `kobrian-kx-fb77a9`, Moonraker user name `KX`
+- hostname `kobrian-kx-` followed by a six-hex-digit device suffix (redacted here), Moonraker user name `KX`
 - Debian GNU/Linux 13 (trixie), armv7l, 1 core, 237 MB RAM, 480x320 fbdev,
   tlsc6x touch
 - vanilla Python Klipper `6af413d-dirty` and Moonraker running **on the Kobra
