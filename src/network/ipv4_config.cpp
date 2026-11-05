@@ -846,6 +846,10 @@ Ipv4ChangeFlow::Action Ipv4ChangeFlow::keep() {
     return Action::Kept;
 }
 
+Ipv4ChangeFlow::Action Ipv4ChangeFlow::job_started() {
+    return keep() == Action::Kept ? Action::KeptForJob : Action::None;
+}
+
 Ipv4ChangeFlow::Action Ipv4ChangeFlow::reject() {
     if (state_ != State::Confirming) {
         return Action::None;

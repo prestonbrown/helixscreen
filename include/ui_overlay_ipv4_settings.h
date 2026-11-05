@@ -20,6 +20,7 @@
 #pragma once
 
 #include "ui_modal.h"
+#include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
 
 #include "ethernet_manager.h"
@@ -160,6 +161,8 @@ class Ipv4SettingsOverlay : public OverlayBase {
     helix::ui::LvglTimerGuard countdown_timer_;
     uint32_t shown_seconds_ = 0;
     Ipv4KeepModal keep_modal_;
+    /// A print starting mid-countdown keeps the change.
+    ObserverGuard job_observer_;
 
     std::unique_ptr<EthernetManager> ethernet_manager_;
 };

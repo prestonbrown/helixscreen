@@ -609,6 +609,13 @@ TEST_CASE("Ipv4ChangeFlow: Keep makes a change final, everything else reverts", 
         CHECK(f.abandoned()->load());
         CHECK(f.applied(true, 0) == A::None);
     }
+    SECTION("a print starting while asked keeps the change") {
+        CHECK(f.job_started() == A::None); // still applying
+        REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
+        CHECK(f.job_started() == A::KeptForJob);
+        CHECK(f.tick(kIpv4ConfirmSeconds * 1000) == A::None); // no revert after
+        CHECK(f.job_started() == A::None);
+    }
     SECTION("leaving while asked reverts") {
         REQUIRE(f.applied(true, 0) == A::ShowKeepPrompt);
         CHECK(f.teardown() == A::Revert);

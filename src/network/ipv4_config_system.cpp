@@ -3,12 +3,12 @@
 
 #include "ipv4_config_system.h"
 
+#include <spdlog/spdlog.h>
+
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(ESP_PLATFORM)
 
 #include "core/text_io.h"
 #include "system/child_process.h"
-
-#include <spdlog/spdlog.h>
 
 #include <cerrno>
 #include <chrono>

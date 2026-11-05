@@ -2102,6 +2102,7 @@ translations:
   Keep the bypass spool visible when bypass is off: Bypass-Spule sichtbar halten, wenn Bypass deaktiviert ist
   Keep Tuning: "Weiter einstellen"
   Keep waiting: 'Weiter warten'
+  'Kept {}: a print started.': '{} behalten: Ein Druck hat begonnen.'
   Kick away: 'Wegschieben'
   Kinematics: Kinematik
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.

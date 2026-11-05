@@ -1979,6 +1979,7 @@ translations:
   Keep the bypass spool visible when bypass is off: 旁路关闭时保持料盘可见
   Keep Tuning: "继续调整"
   Keep waiting: '继续等待'
+  'Kept {}: a print started.': '已保留 {}：打印已开始。'
   Kick away: '拨除废料'
   Kinematics: 运动学
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.

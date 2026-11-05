@@ -427,6 +427,7 @@ class Ipv4ChangeFlow {
         ShowKeepPrompt, ///< Ask Keep or revert; the countdown has started
         Revert,         ///< Restore the snapshot; answer with reverted()
         Kept,           ///< Final: drop the record and leave the screen
+        KeptForJob,     ///< Kept because a job took the machine: close the dialog, then as Kept
         Restored,       ///< The previous config is back
         RestoreFailed,  ///< Still unconfirmed; the record stays for the next start
     };
@@ -453,6 +454,9 @@ class Ipv4ChangeFlow {
     /// Revert now, ESC, or the dialog closed without an answer.
     Action reject();
     Action reverted(bool ok);
+    /// A job started holding the machine. While asked, the change is kept:
+    /// reverting mid-print could drop what the print depends on.
+    Action job_started();
     /// The screen is going away for good.
     Action teardown();
 

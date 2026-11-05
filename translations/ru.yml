@@ -2139,6 +2139,7 @@ translations:
   Keep the bypass spool visible when bypass is off: Показывать катушку байпаса, даже когда байпас выключен
   Keep Tuning: Продолжить
   Keep waiting: 'Продолжить ожидание'
+  'Kept {}: a print started.': '{} оставлен: началась печать.'
   Kick away: 'Сброс остатка'
   Kinematics: Кинематика
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.

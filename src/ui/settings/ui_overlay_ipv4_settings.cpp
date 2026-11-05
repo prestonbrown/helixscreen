@@ -9,10 +9,13 @@
 #include "ui_keyboard_manager.h"
 #include "ui_toast_manager.h"
 
+#include "app_globals.h"
 #include "core/http_executor.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "ethernet_manager.h"
 #include "ipv4_config_system.h"
+#include "printer_state.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"
 
@@ -151,6 +154,15 @@ void Ipv4SettingsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(keep_title_, keep_title_buf_, "", "ipv4_keep_title", subjects_);
         UI_MANAGED_SUBJECT_STRING(keep_message_, keep_message_buf_, "", "ipv4_keep_message",
                                   subjects_);
+        auto& state = get_printer_state();
+        job_observer_ = helix::ui::observe<int>(
+            state.print_state().get_job_holds_machine_subject(), this,
+            [](Ipv4SettingsOverlay* self, int holds) {
+                if (holds) {
+                    self->perform(self->flow_.job_started());
+                }
+            },
+            state.get_subjects_lifetime());
     });
 }
 
@@ -378,14 +390,25 @@ void Ipv4SettingsOverlay::perform(helix::net::Ipv4ChangeFlow::Action action) {
         }
         run_revert();
         return;
+    case Action::KeptForJob:
     case Action::Kept:
         stop_countdown();
+        if (action == Action::KeptForJob) {
+            keep_modal_.set_callbacks(nullptr, nullptr);
+            if (keep_modal_.is_visible()) {
+                keep_modal_.hide();
+            }
+        }
         current_config_ = flow_.next();
         set_busy(false);
         spdlog::info("[{}] Kept {}", get_name(), helix::net::ipv4_config_text(current_config_));
         if (!helix::net::clear_pending_ipv4_revert()) {
             NOTIFY_ERROR("{}", lv_tr("The new IPv4 settings could not be marked as kept, so the "
                                      "next start undoes them."));
+        } else if (action == Action::KeptForJob) {
+            NOTIFY_INFO(lv_tr("Kept {}: a print started."), current_config_.dhcp
+                                                                ? std::string(lv_tr("DHCP"))
+                                                                : current_config_.address);
         } else {
             ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("IPv4 settings saved"),
                                           2500);
