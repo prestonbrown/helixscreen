@@ -943,10 +943,16 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
         },
         mgr().subjects_lifetime(), helix::ui::Dispatch::Immediate);
 
+    // Deferred publishing keeps the worker's refresh off LVGL: it queues, and the
+    // main thread runs it after the join.
+    mgr().set_sync_mode(false);
     update_sensor_state("filament_switch_sensor runout", false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     if (probe.worker.joinable()) {
         probe.worker.join();
     }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    mgr().set_sync_mode(true);
     observer.reset();
 
     REQUIRE(probe.fired);
