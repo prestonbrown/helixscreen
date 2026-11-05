@@ -116,13 +116,25 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
     // Live toolhead X and Y: the save step writes whatever position the head is
     // in, so the readouts are the values being calibrated.
     auto& ps = get_printer_state();
-    x_observer_ = observe<int>(
-        ps.motion_state().get_position_x_subject(), this,
-        [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_x_display(centimm); },
+    print_takeover_observer_ = observe<int>(
+        ps.print_state().get_machine_motion_blocked_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int blocked) {
+            // A print owns the machine now, and nothing in the session still holds
+            // once it ends: the head will not be where the flow left it.
+            if (blocked != 0 &&
+                lv_subject_get_int(&s_cfs_chute_state) == static_cast<int>(State::ADJUSTING)) {
+                NOTIFY_INFO(lv_tr("Printer is busy with a print"));
+                self->set_state(State::IDLE);
+            }
+        },
         ps.get_subjects_lifetime());
     y_observer_ = observe<int>(
         ps.motion_state().get_position_y_subject(), this,
         [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_y_display(centimm); },
+        ps.get_subjects_lifetime());
+    x_observer_ = observe<int>(
+        ps.motion_state().get_position_x_subject(), this,
+        [](CfsChuteCalibrationOverlay* self, int centimm) { self->update_x_display(centimm); },
         ps.get_subjects_lifetime());
 
     // The Motion panel's jog pad, with no home button and no diagonals: the flow
@@ -152,20 +164,31 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
 
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
-    cancel_requested_->store(false);
+    if (suspended_) {
+        // A wake, not a fresh open: the session carries on where it was.
+        suspended_ = false;
+        return;
+    }
+    set_state(State::IDLE);
     // A coarse mode left selected from an earlier session must not carry over.
     set_jog_mode(helix::JogMode::Fine);
     jog_guard_.disarm();
-    set_state(State::IDLE);
 }
 
 void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
-    // Leaving mid-flow must stop the step chain: the flag first, so a cancel
-    // during the home is already visible when the home-done defer runs.
-    cancel_requested_->store(true);
     if (jog_pad_) {
         ui_jog_pad_stop_repeat(jog_pad_);
     }
+    // Nobody walked away from a blanked screen: the head stays where it is, and
+    // a home under way carries on.
+    if (reason == DeactivateReason::Suspended) {
+        suspended_ = true;
+        return;
+    }
+    suspended_ = false;
+    // Leaving mid-flow must stop the step chain: the flag first, so a cancel
+    // during the home is already visible when the home-done defer runs.
+    cancel_requested_->store(true);
     // Leaving while adjusting leaves the toolhead off-park; re-park it. Before
     // ADJUSTING there is nothing to unwind (the home cannot be aborted); during
     // SAVING the park is idempotent, so sending it again is safe.
@@ -199,11 +222,12 @@ void CfsChuteCalibrationOverlay::start_calibration() {
         return;
     }
     set_state(State::HOMING);
-    cancel_requested_->store(false);
+    // One flag per run: a chain still waiting on its home keeps the one it was
+    // cancelled with, so no later session can revive it.
+    cancel_requested_ = std::make_shared<std::atomic<bool>>(false);
     auto err = backend->start_chute_calibration(
         [this]() {
-            // Armed here and not in set_state(): a refused save also returns to
-            // ADJUSTING, with the head possibly past park.
+            // Armed only here: the prepare ack is what puts the head at park.
             jog_guard_.arm(lv_tick_get());
             set_state(State::ADJUSTING);
         },
@@ -238,23 +262,23 @@ void CfsChuteCalibrationOverlay::set_jog_mode(helix::JogMode mode) {
 }
 
 bool CfsChuteCalibrationOverlay::jog_pad_jog_cb(helix::JogDirection direction, float distance_mm,
-                                                bool /*is_repeat*/, void* user_data) {
+                                                bool is_repeat, void* user_data) {
     auto* self = static_cast<CfsChuteCalibrationOverlay*>(user_data);
     switch (direction) {
     case helix::JogDirection::N:
-        return self->jog(Axis::Y, distance_mm);
+        return self->jog(Axis::Y, distance_mm, is_repeat);
     case helix::JogDirection::S:
-        return self->jog(Axis::Y, -static_cast<double>(distance_mm));
+        return self->jog(Axis::Y, -static_cast<double>(distance_mm), is_repeat);
     case helix::JogDirection::E:
-        return self->jog(Axis::X, distance_mm);
+        return self->jog(Axis::X, distance_mm, is_repeat);
     case helix::JogDirection::W:
-        return self->jog(Axis::X, -static_cast<double>(distance_mm));
+        return self->jog(Axis::X, -static_cast<double>(distance_mm), is_repeat);
     default:
         return false; // A cardinal-only pad never offers a diagonal.
     }
 }
 
-bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
+bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm, bool is_repeat) {
     auto* backend = chute_backend();
     if (!backend) {
         return false;
@@ -272,7 +296,7 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
     const uint32_t now = lv_tick_get();
     const auto decision =
         axis == Axis::X
-            ? jog_guard_.jog_x(delta_mm, now, current_x_mm_, current_y_mm_,
+            ? jog_guard_.jog_x(delta_mm, is_repeat, now, current_x_mm_, current_y_mm_,
                                static_cast<double>(bounds.x_min), static_cast<double>(bounds.x_max))
             : jog_guard_.jog_y(delta_mm, now, current_x_mm_, current_y_mm_,
                                static_cast<double>(bounds.y_min),
@@ -293,8 +317,14 @@ bool CfsChuteCalibrationOverlay::jog(Axis axis, double delta_mm) {
                                         : lv_tr("Y axis limit reached"));
         }
         break;
-    case helix::ChuteJogGuard::Outcome::PastPark:
-        NOTIFY_INFO(lv_tr("Jog Y back to {:.1f} mm before moving X"), jog_guard_.park_y());
+    case helix::ChuteJogGuard::Outcome::CoarsePastPark:
+        NOTIFY_INFO(lv_tr("Past Y {:.1f} mm, X moves only in {:.1f} mm steps"), jog_guard_.park_y(),
+                    helix::ChuteJogGuard::kFineStepMm);
+        break;
+    case helix::ChuteJogGuard::Outcome::RepeatPastPark:
+        break;
+    case helix::ChuteJogGuard::Outcome::XDisplaced:
+        NOTIFY_INFO(lv_tr("Jog X back to {:.1f} mm before moving Y further"), jog_guard_.park_x());
         break;
     }
     return false;
@@ -324,7 +354,9 @@ void CfsChuteCalibrationOverlay::save_position() {
             set_state(State::IDLE);
         });
     if (!err.success()) {
-        set_state(State::ADJUSTING);
+        // Refused because a print holds the machine or homing was lost: either
+        // way the session has to start over.
+        set_state(State::IDLE);
         notify_ams_error(err);
     }
 }

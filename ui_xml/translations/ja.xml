@@ -1859,7 +1859,7 @@
   <translation tag="Jog Pad" ja="ジョグパッド"/>
   <translation tag="Jog Speed XY" ja="XY ジョグ速度"/>
   <translation tag="Jog Speed Z" ja="Z ジョグ速度"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" ja="Xを動かす前にYを{:.1f} mmまでジョグして戻します"/>
+  <translation tag="Jog X back to {:.1f} mm before moving Y further" ja="Yをさらに動かす前にXを{:.1f} mmまでジョグして戻します"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ja="Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。"/>
   <translation tag="Jog failed: {}" ja="ジョグに失敗しました: {}"/>
   <translation tag="Jog layout, speeds and step distances" ja="ジョグのレイアウト、速度とステップ距離"/>
@@ -2589,6 +2589,7 @@
   <translation tag="Password" ja="パスワード"/>
   <translation tag="Password cannot be empty" ja="パスワードを入力してください"/>
   <translation tag="Password is required for secured networks" ja="セキュリティ保護されたネットワークにはパスワードが必要です"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" ja="Y {:.1f} mmを超えると、Xは{:.1f} mm単位でのみ移動します"/>
   <translation tag="Path A" ja="パスA"/>
   <translation tag="Path B" ja="パスB"/>
   <translation tag="Pause" ja="一時停止"/>
@@ -3514,6 +3515,7 @@
   <translation tag="Start next: {}" ja="次を開始：{}"/>
   <translation tag="Start options for prints from other apps" ja="他のアプリからの印刷の開始オプション"/>
   <translation tag="Start print anyway?" ja="それでも印刷を開始しますか？"/>
+  <translation tag="Start the calibration again" ja="キャリブレーションをやり直してください"/>
   <translation tag="Started" ja="開始"/>
   <translation tag="Starting Print..." ja="印刷開始中..."/>
   <translation tag="Starting download..." ja="ダウンロードを開始中..."/>
@@ -3988,6 +3990,7 @@
   <translation tag="Toolhead X" ja="ツールヘッド X"/>
   <translation tag="Toolhead Y" ja="ツールヘッド Y"/>
   <translation tag="Toolhead jam" ja="ツールヘッドの詰まり"/>
+  <translation tag="Toolhead lost homing" ja="ツールヘッドのホーミングが解除されました"/>
   <translation tag="Toolhead offset calibration" ja="ツールヘッドオフセットのキャリブレーション"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" ja="ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"/>
   <translation tag="Toolhead position unknown" ja="ツールヘッドの位置が不明です"/>

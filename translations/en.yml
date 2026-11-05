@@ -1990,7 +1990,7 @@ translations:
   Jog Pad: Jog Pad
   Jog Speed XY: Jog Speed XY
   Jog Speed Z: Jog Speed Z
-  Jog Y back to {:.1f} mm before moving X: Jog Y back to {:.1f} mm before moving X
+  Jog X back to {:.1f} mm before moving Y further: Jog X back to {:.1f} mm before moving Y further
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Jog Y until the nozzle is centered over the chute opening, then tap Save.
   'Jog failed: {}': 'Jog failed: {}'
   Jog layout, speeds and step distances: Jog layout, speeds and step distances
@@ -2764,6 +2764,7 @@ translations:
   Password: Password
   Password cannot be empty: Password cannot be empty
   Password is required for secured networks: Password is required for secured networks
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Past Y {:.1f} mm, X moves only in {:.1f} mm steps
   Path A: Path A
   Path B: Path B
   Pause: Pause
@@ -3754,6 +3755,7 @@ translations:
   'Start next: {}': 'Start next: {}'
   Start options for prints from other apps: Start options for prints from other apps
   Start print anyway?: Start print anyway?
+  Start the calibration again: Start the calibration again
   Started: Started
   Starting Print...: Starting Print...
   Starting download...: Starting download...
@@ -4307,6 +4309,7 @@ translations:
   Toolhead X: Toolhead X
   Toolhead Y: Toolhead Y
   Toolhead jam: Toolhead jam
+  Toolhead lost homing: Toolhead lost homing
   Toolhead offset calibration: Toolhead offset calibration
   Toolhead position and homing, with a plate view and Home All: Toolhead position and homing, with a plate view and Home All
   Toolhead position unknown: Toolhead position unknown

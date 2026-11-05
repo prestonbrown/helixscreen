@@ -1859,7 +1859,7 @@
   <translation tag="Jog Pad" es="Pad de jog"/>
   <translation tag="Jog Speed XY" es="Velocidad de movimiento XY"/>
   <translation tag="Jog Speed Z" es="Velocidad de movimiento Z"/>
-  <translation tag="Jog Y back to {:.1f} mm before moving X" es="Regrese Y a {:.1f} mm antes de mover X"/>
+  <translation tag="Jog X back to {:.1f} mm before moving Y further" es="Regrese X a {:.1f} mm antes de seguir moviendo Y"/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." es="Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto y toque Guardar."/>
   <translation tag="Jog failed: {}" es="Error en movimiento: {}"/>
   <translation tag="Jog layout, speeds and step distances" es="Distribución, velocidades y distancias de paso del movimiento"/>
@@ -2589,6 +2589,7 @@
   <translation tag="Password" es="Contraseña"/>
   <translation tag="Password cannot be empty" es="La contraseña no puede estar vacía"/>
   <translation tag="Password is required for secured networks" es="Se requiere contraseña para redes protegidas"/>
+  <translation tag="Past Y {:.1f} mm, X moves only in {:.1f} mm steps" es="Más allá de Y {:.1f} mm, X solo se mueve en pasos de {:.1f} mm"/>
   <translation tag="Path A" es="Ruta A"/>
   <translation tag="Path B" es="Ruta B"/>
   <translation tag="Pause" es="Pausar"/>
@@ -3514,6 +3515,7 @@
   <translation tag="Start next: {}" es="Iniciar siguiente: {}"/>
   <translation tag="Start options for prints from other apps" es="Opciones de inicio para impresiones de otras apps"/>
   <translation tag="Start print anyway?" es="¿Iniciar la impresión de todos modos?"/>
+  <translation tag="Start the calibration again" es="Inicie la calibración de nuevo"/>
   <translation tag="Started" es="Iniciado"/>
   <translation tag="Starting Print..." es="Iniciando impresión..."/>
   <translation tag="Starting download..." es="Iniciando descarga..."/>
@@ -3988,6 +3990,7 @@
   <translation tag="Toolhead X" es="Cabezal X"/>
   <translation tag="Toolhead Y" es="Cabezal Y"/>
   <translation tag="Toolhead jam" es="Atasco del cabezal"/>
+  <translation tag="Toolhead lost homing" es="El cabezal perdió el posicionamiento"/>
   <translation tag="Toolhead offset calibration" es="Calibración de offsets de cabezales"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" es="Posición y posicionamiento del cabezal, con vista de la placa y Posicionar todo"/>
   <translation tag="Toolhead position unknown" es="Posición del cabezal desconocida"/>

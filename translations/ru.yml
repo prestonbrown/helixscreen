@@ -2082,7 +2082,7 @@ translations:
   Jog Pad: 'Джог-панель'
   Jog Speed XY: Скорость перемещения XY
   Jog Speed Z: Скорость перемещения Z
-  Jog Y back to {:.1f} mm before moving X: Верните Y на {:.1f} мм, прежде чем двигать X
+  Jog X back to {:.1f} mm before moving Y further: Верните X на {:.1f} мм, прежде чем двигать Y дальше
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить».
 
   'Jog failed: {}': 'Перемещение не удалось: {}'
@@ -2866,6 +2866,7 @@ translations:
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: За Y {:.1f} мм X движется только шагами {:.1f} мм
   Path A: "Путь A"
   Path B: "Путь B"
   Pause: Пауза
@@ -3889,6 +3890,7 @@ translations:
   'Start next: {}': 'Запустить следующую: {}'
   Start options for prints from other apps: 'Параметры запуска для печати из других приложений'
   Start print anyway?: Всё равно начать печать?
+  Start the calibration again: Запустите калибровку снова
   Started: Начато
   Starting Print...: Запуск печати...
   Starting download...: Начало загрузки...
@@ -4447,6 +4449,7 @@ translations:
   Toolhead X: Печатающая головка X
   Toolhead Y: Печатающая головка Y
   Toolhead jam: Замятие в печатающей головке
+  Toolhead lost homing: Печатающая головка потеряла парковку
   Toolhead offset calibration: Калибровка смещений головок
   Toolhead position and homing, with a plate view and Home All: "Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"
   Toolhead position unknown: Положение печатающей головки неизвестно

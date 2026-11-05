@@ -1927,7 +1927,7 @@ translations:
   Jog Pad: '点动盘'
   Jog Speed XY: XY 移动速度
   Jog Speed Z: Z 移动速度
-  Jog Y back to {:.1f} mm before moving X: 移动 X 轴前，请将 Y 轴点动回 {:.1f} mm
+  Jog X back to {:.1f} mm before moving Y further: 继续移动 Y 轴前，请将 X 轴点动回 {:.1f} mm
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: 点动 Y 轴，直到喷嘴位于排料口开口中心，然后点击保存。
 
   'Jog failed: {}': '移动失败: {}'
@@ -2684,6 +2684,7 @@ translations:
   Password: 密码
   Password cannot be empty: 密码不能为空
   Password is required for secured networks: 加密网络需要密码
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: 超过 Y {:.1f} mm 后，X 轴只能以 {:.1f} mm 步进移动
   Path A: "路径 A"
   Path B: "路径 B"
   Pause: 暂停
@@ -3633,6 +3634,7 @@ translations:
   'Start next: {}': '开始下一个：{}'
   Start options for prints from other apps: '其他应用发起的打印的启动选项'
   Start print anyway?: 仍要开始打印吗？
+  Start the calibration again: 请重新开始校准
   Started: 已开始
   Starting Print...: 正在启动打印...
   Starting download...: 正在开始下载...
@@ -4160,6 +4162,7 @@ translations:
   Toolhead X: 工具头 X
   Toolhead Y: 工具头 Y
   Toolhead jam: 工具头堵塞
+  Toolhead lost homing: 工具头已失去归位
   Toolhead offset calibration: 工具头偏移校准
   Toolhead position and homing, with a plate view and Home All: "工具头位置与归位，含热床视图和全部归位"
   Toolhead position unknown: 工具头位置未知

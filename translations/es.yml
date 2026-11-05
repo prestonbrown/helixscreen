@@ -2041,7 +2041,7 @@ translations:
   Jog Pad: 'Pad de jog'
   Jog Speed XY: Velocidad de movimiento XY
   Jog Speed Z: Velocidad de movimiento Z
-  Jog Y back to {:.1f} mm before moving X: Regrese Y a {:.1f} mm antes de mover X
+  Jog X back to {:.1f} mm before moving Y further: Regrese X a {:.1f} mm antes de seguir moviendo Y
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto y toque Guardar.
 
   'Jog failed: {}': 'Error en movimiento: {}'
@@ -2829,6 +2829,7 @@ translations:
   Password: Contraseña
   Password cannot be empty: La contraseña no puede estar vacía
   Password is required for secured networks: Se requiere contraseña para redes protegidas
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Más allá de Y {:.1f} mm, X solo se mueve en pasos de {:.1f} mm
   Path A: "Ruta A"
   Path B: "Ruta B"
   Pause: Pausar
@@ -3838,6 +3839,7 @@ translations:
   'Start next: {}': 'Iniciar siguiente: {}'
   Start options for prints from other apps: 'Opciones de inicio para impresiones de otras apps'
   Start print anyway?: ¿Iniciar la impresión de todos modos?
+  Start the calibration again: Inicie la calibración de nuevo
   Started: Iniciado
   Starting Print...: Iniciando impresión...
   Starting download...: Iniciando descarga...
@@ -4407,6 +4409,7 @@ translations:
   Toolhead X: Cabezal X
   Toolhead Y: Cabezal Y
   Toolhead jam: Atasco del cabezal
+  Toolhead lost homing: El cabezal perdió el posicionamiento
   Toolhead offset calibration: Calibración de offsets de cabezales
   Toolhead position and homing, with a plate view and Home All: "Posición y posicionamiento del cabezal, con vista de la placa y Posicionar todo"
   Toolhead position unknown: Posición del cabezal desconocida

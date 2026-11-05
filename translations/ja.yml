@@ -1932,7 +1932,7 @@ translations:
   Jog Pad: 'ジョグパッド'
   Jog Speed XY: XY ジョグ速度
   Jog Speed Z: Z ジョグ速度
-  Jog Y back to {:.1f} mm before moving X: Xを動かす前にYを{:.1f} mmまでジョグして戻します
+  Jog X back to {:.1f} mm before moving Y further: Yをさらに動かす前にXを{:.1f} mmまでジョグして戻します
   Jog Y until the nozzle is centered over the chute opening, then tap Save.: Yをジョグしてノズルがシュートの開口部の中心に来たら、保存をタップします。
 
   'Jog failed: {}': 'ジョグに失敗しました: {}'
@@ -2691,6 +2691,7 @@ translations:
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
   Password is required for secured networks: セキュリティ保護されたネットワークにはパスワードが必要です
+  Past Y {:.1f} mm, X moves only in {:.1f} mm steps: Y {:.1f} mmを超えると、Xは{:.1f} mm単位でのみ移動します
   Path A: "パスA"
   Path B: "パスB"
   Pause: 一時停止
@@ -3642,6 +3643,7 @@ translations:
   'Start next: {}': '次を開始：{}'
   Start options for prints from other apps: '他のアプリからの印刷の開始オプション'
   Start print anyway?: それでも印刷を開始しますか？
+  Start the calibration again: キャリブレーションをやり直してください
   Started: 開始
   Starting Print...: 印刷開始中...
   Starting download...: ダウンロードを開始中...
@@ -4169,6 +4171,7 @@ translations:
   Toolhead X: ツールヘッド X
   Toolhead Y: ツールヘッド Y
   Toolhead jam: ツールヘッドの詰まり
+  Toolhead lost homing: ツールヘッドのホーミングが解除されました
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション
   Toolhead position and homing, with a plate view and Home All: "ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"
   Toolhead position unknown: ツールヘッドの位置が不明です

@@ -75,11 +75,15 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
         DONE = 4,
     };
 
+    /// True from a Suspended deactivate until the wake's on_activate.
+    bool suspended_ = false;
+    ObserverGuard print_takeover_observer_;
+
     void set_state(State state);
     void start_calibration();
     enum class Axis { X, Y };
     /// True when the jog went out, which is what lets a hold keep repeating.
-    bool jog(Axis axis, double delta_mm);
+    bool jog(Axis axis, double delta_mm, bool is_repeat);
     static bool jog_pad_jog_cb(helix::JogDirection direction, float distance_mm, bool is_repeat,
                                void* user_data);
     void set_jog_mode(helix::JogMode mode);

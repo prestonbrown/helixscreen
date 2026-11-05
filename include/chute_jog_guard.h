@@ -12,10 +12,13 @@ namespace helix {
 /// Decides how far each chute calibration jog may move.
 ///
 /// The park position, where the calibration's prepare step leaves the toolhead,
-/// is the reference for two limits. The rear zone past park Y holds the chute and
-/// the cutter, and the only recorded X there is the stored chute X, so X is
-/// refused while Y is past park. Whatever X is saved is where the firmware sends
-/// the head for every later purge, so X stays within kXReachMm of park.
+/// is the reference for every limit. At or before park Y, X stays within kXReachMm
+/// of park: whatever X is saved is where the firmware sends the head for every
+/// later purge. That reach is per session because no factory chute X is recorded
+/// to bound it absolutely: each save moves the next session's park. The rear zone
+/// past park Y holds the chute and the cutter, so Y enters it only with X within
+/// kFineReachMm of park, and X moves there only by single steps of kFineStepMm
+/// inside that same reach.
 ///
 /// Limits apply to the commanded position as well as the live one. A jog is sent
 /// without waiting for the previous one and the live position lags it, so a live
@@ -24,16 +27,25 @@ namespace helix {
 class ChuteJogGuard {
   public:
     static constexpr double kXReachMm = 15.0;
+    /// How far X may be from park with the head past park Y, in single steps of
+    /// at most kFineStepMm. Both are cautious guesses: the clearances around the
+    /// chute and cutter are unmeasured on hardware.
+    static constexpr double kFineReachMm = 2.0;
+    static constexpr double kFineStepMm = 0.1;
     /// Time for the position feed to report the park after prepare acks.
     static constexpr uint32_t kSettleMs = 1000;
     /// Stored positions truncate to 0.01mm, so a head at park can read a hair off.
     static constexpr double kParkToleranceMm = 0.05;
+    /// The pad's distances arrive as float, so a 0.1 step can read a hair over.
+    static constexpr double kStepToleranceMm = 0.001;
 
     enum class Outcome {
         Move,            ///< Send `delta`.
         PositionUnknown, ///< Not armed, or the park position has not settled.
         AxisLimit,       ///< At a limit; `warn` is set on the first blocked attempt.
-        PastPark,        ///< X refused because Y is past park.
+        CoarsePastPark,  ///< X step larger than kFineStepMm refused past park Y.
+        RepeatPastPark,  ///< X hold repeat refused past park Y; a tap needs no message.
+        XDisplaced,      ///< Y refused past park because X is over kFineReachMm off park.
     };
 
     struct Decision {
@@ -54,16 +66,25 @@ class ChuteJogGuard {
         *this = ChuteJogGuard{};
     }
 
-    Decision jog_x(double delta, uint32_t now_ms, double live_x, double live_y, double axis_min,
-                   double axis_max) {
+    Decision jog_x(double delta, bool is_repeat, uint32_t now_ms, double live_x, double live_y,
+                   double axis_min, double axis_max) {
         if (!latch_park(now_ms, live_x, live_y)) {
             return {0.0, Outcome::PositionUnknown, false};
         }
+        // Past park, a step and a hold can only run on into what cannot be seen,
+        // so X takes single fine steps there.
+        double reach = kXReachMm;
         if (std::max(commanded_y_, live_y) > park_y_ + kParkToleranceMm) {
-            return {0.0, Outcome::PastPark, true};
+            if (is_repeat) {
+                return {0.0, Outcome::RepeatPastPark, false};
+            }
+            if (std::abs(delta) > kFineStepMm + kStepToleranceMm) {
+                return {0.0, Outcome::CoarsePastPark, true};
+            }
+            reach = kFineReachMm;
         }
-        return step(delta, live_x, commanded_x_, std::max(axis_min, park_x_ - kXReachMm),
-                    std::min(axis_max, park_x_ + kXReachMm), warned_x_);
+        return step(delta, live_x, commanded_x_, std::max(axis_min, park_x_ - reach),
+                    std::min(axis_max, park_x_ + reach), warned_x_);
     }
 
     Decision jog_y(double delta, uint32_t now_ms, double live_x, double live_y, double axis_min,
@@ -71,12 +92,25 @@ class ChuteJogGuard {
         if (!latch_park(now_ms, live_x, live_y)) {
             return {0.0, Outcome::PositionUnknown, false};
         }
+        const double x_off_park =
+            std::max(std::abs(commanded_x_ - park_x_), std::abs(live_x - park_x_));
+        if (x_off_park > kFineReachMm + kParkToleranceMm) {
+            if (delta > 0.0 && std::max(commanded_y_, live_y) >= park_y_ - kParkToleranceMm) {
+                return {0.0, Outcome::XDisplaced, true};
+            }
+            axis_max = std::min(axis_max, park_y_);
+        }
         return step(delta, live_y, commanded_y_, axis_min, axis_max, warned_y_);
     }
 
-    /// Park Y of this session; meaningful once a jog has returned PastPark.
+    /// Park Y of this session; meaningful once a jog has returned CoarsePastPark.
     [[nodiscard]] double park_y() const {
         return park_y_;
+    }
+
+    /// Park X of this session; meaningful once a jog has returned XDisplaced.
+    [[nodiscard]] double park_x() const {
+        return park_x_;
     }
 
   private:
