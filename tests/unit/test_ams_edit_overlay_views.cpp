@@ -19,6 +19,7 @@
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/log_capture.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_platform_tier.h"
 #include "../ui_test_utils.h"
@@ -4322,21 +4323,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(true);
     UpdateQueue::instance().drain();
 
+    SlotInfo loaded = untracked_slot();
+    loaded.brand = "eSUN";
+    loaded.material = "ABS+";
+    loaded.color_rgb = 0x4A4A4A;
+    loaded.color_name = "Deep Gray";
     auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), &api,
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, loaded, &api,
                                   [](const AmsEditOverlay::EditResult&) {}));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    SlotInfo edited = access.working_info();
-    edited.brand = "eSUN";
-    edited.material = "ABS+";
-    edited.color_rgb = 0x4A4A4A;
-    edited.color_name = "Deep Gray";
-    access.set_working_info(edited);
-
-    access.call_do_spoolman_save(SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+    lv_obj_t* add = lv_obj_find_by_name(test_screen(), "add_to_spoolman_link");
+    REQUIRE(add != nullptr);
+    lv_obj_send_event(add, LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -4365,6 +4365,29 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(client.spoolman_mock().created_filaments[0]["name"] == "ABS+ Deep Gray");
         REQUIRE(client.spoolman_mock().created_spools.size() == 1);
         CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 117);
+    }
+    // A save the offer is holding blocks the slot's editor until it ends.
+    auto reopens = [&] {
+        return overlay.show_for_slot(test_screen(), 0, loaded, &api,
+                                     [](const AmsEditOverlay::EditResult&) {});
+    };
+    SECTION("a dismissal ends the slot's save with nothing written") {
+        helix::test::dismiss_top_modal();
+        process_lvgl(10);
+        UpdateQueue::instance().drain();
+        CHECK(client.spoolman_mock().created_filaments.empty());
+        CHECK(client.spoolman_mock().created_spools.empty());
+        CHECK(reopens());
+    }
+    SECTION("the editor closing under the offer does not strand the slot's save") {
+        NavigationManager::instance().go_back();
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        REQUIRE_FALSE(ModalStack::instance().stack_empty());
+        helix::test::dismiss_top_modal();
+        process_lvgl(10);
+        UpdateQueue::instance().drain();
+        CHECK(reopens());
     }
 
     if (!ModalStack::instance().stack_empty()) {
