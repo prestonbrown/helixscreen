@@ -38,6 +38,7 @@ void ChamberAirState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_air_exhaust_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_recirculate_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_has_targets, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(chamber_air_filter_minutes, -1, subjects_, register_xml);
     const chamber_air::ModeTargets d{};
     INIT_SUBJECT_INT(chamber_air_target_c, static_cast<int>(d.target_c), subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_exhaust_target_pct, d.exhaust_pct, subjects_, register_xml);
@@ -170,6 +171,11 @@ void ChamberAirState::publish() {
     set_if_changed(&chamber_air_exhaust_pct_, speed_pct(FanRole::Exhaust));
     set_if_changed(&chamber_air_recirculate_pct_, speed_pct(FanRole::Recirculate));
     set_if_changed(&chamber_air_has_targets_, avail && takes_targets_ ? 1 : 0);
+    // The counter is the firmware's and survives the accessory coming off, so it is
+    // published whether or not the accessory is fitted.
+    set_if_changed(
+        &chamber_air_filter_minutes_,
+        last_.filter_seconds ? static_cast<int>(std::max(0.0, *last_.filter_seconds) / 60.0) : -1);
 }
 
 } // namespace helix

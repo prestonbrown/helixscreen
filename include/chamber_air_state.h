@@ -14,6 +14,7 @@
 //   chamber_air_exhaust_pct      owned exhaust fan speed, 0-100
 //   chamber_air_recirculate_pct  owned recirculation fan speed, 0-100
 //   chamber_air_has_targets      1 while available and the modes carry targets
+//   chamber_air_filter_minutes   the firmware filter counter in whole minutes, -1 none
 //   chamber_air_target_c, chamber_air_exhaust_target_pct,
 //   chamber_air_recirculate_target_pct
 //                                the stored mode targets (chamber_air_settings.h),
@@ -70,6 +71,9 @@ class ChamberAirState {
     lv_subject_t* mode_subject() {
         return &chamber_air_mode_;
     }
+    lv_subject_t* filter_minutes_subject() {
+        return &chamber_air_filter_minutes_;
+    }
     lv_subject_t* exhaust_pct_subject() {
         return &chamber_air_exhaust_pct_;
     }
@@ -96,6 +100,7 @@ class ChamberAirState {
     lv_subject_t chamber_air_exhaust_pct_{};
     lv_subject_t chamber_air_recirculate_pct_{};
     lv_subject_t chamber_air_has_targets_{};
+    lv_subject_t chamber_air_filter_minutes_{};
     lv_subject_t chamber_air_target_c_{};
     lv_subject_t chamber_air_exhaust_target_pct_{};
     lv_subject_t chamber_air_recirculate_target_pct_{};

@@ -25,6 +25,7 @@
 #include "core/update_queue.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
@@ -471,4 +472,27 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     settings.set_language("en");
     drain();
     CHECK(subject_text(name.c_str()) == "Nozzle");
+}
+
+TEST_CASE_METHOD(MaintenanceModelFixture,
+                 "maintenance model: a firmware filter counter drives the filter meter",
+                 "[maintenance][model][chamber_air]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"purifier", "fm175xx_reader", "tool", "extruder"}));
+    state().set_hardware(hw);
+    state().update_from_status(json{
+        {"purifier", {{"power_detected", true}, {"mode", 3}, {"inner_fan_work_time", 7200.0}}}});
+    drain();
+    CHECK(meter(kFilter).used_h == Catch::Approx(2.0));
+
+    // Print time no longer moves the filter; the other meters still count it.
+    seed();
+    printed(3600);
+    CHECK(meter(kFilter).used_h == Catch::Approx(2.0));
+    CHECK(meter(kNozzle).used_h == Catch::Approx(1.0));
+
+    state().update_from_status(json{{"purifier", {{"inner_fan_work_time", 10800.0}}}});
+    drain();
+    CHECK(meter(kFilter).used_h == Catch::Approx(3.0));
+    state().set_hardware(PrinterDiscovery{});
 }
