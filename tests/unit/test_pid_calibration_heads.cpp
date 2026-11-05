@@ -206,21 +206,25 @@ TEST_CASE_METHOD(PidHeadsFixture, "An open panel hides the fan when its tool is 
 
 // Klipper runs one command at a time, so a print running means no calibration
 // is: TURN_OFF_HEATERS on the way out would stop that print's heaters.
-TEST_CASE_METHOD(PidHeadsFixture,
-                 "Leaving a calibrating panel turns heaters off only when no print is running",
-                 "[pid][pid_heads]") {
+TEST_CASE_METHOD(
+    PidHeadsFixture,
+    "Leaving a calibrating panel turns heaters and fan off only when no print is running",
+    "[pid][pid_heads]") {
     helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
     Access::activate(panel);
+    Access::set_fan_speed(panel, 50);
     start();
     REQUIRE(sent("PID_CALIBRATE HEATER=extruder "));
+    REQUIRE(sent("M106"));
     client.clear_gcode_script_history();
 
     SECTION("idle printer: the abandoned calibration's heaters go off") {
         Access::navigate_away(panel);
         helix::ui::UpdateQueue::instance().drain();
         CHECK(sent("TURN_OFF_HEATERS"));
+        CHECK(sent("M107"));
     }
     SECTION("a print is running: its heaters are left alone") {
         helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
@@ -229,6 +233,7 @@ TEST_CASE_METHOD(PidHeadsFixture,
         Access::navigate_away(panel);
         helix::ui::UpdateQueue::instance().drain();
         CHECK_FALSE(sent("TURN_OFF_HEATERS"));
+        CHECK_FALSE(sent("M107"));
         helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
         helix::ui::UpdateQueue::instance().drain();
     }
