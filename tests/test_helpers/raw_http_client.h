@@ -7,9 +7,8 @@
 // app's own HTTP servers. libhv's requests:: client starts event-loop threads that
 // outlive a test; this one is a connect, a send and a read to EOF.
 //
-// It reports failure as status 0 for the caller to assert on. Tests also call it from
-// their own client threads, where a Catch2 macro would race the main thread's
-// assertion state.
+// It reports failure as status 0 for the caller to assert on: tests also call it from
+// client threads, where a Catch2 macro races the main thread's assertion state.
 
 #include <arpa/inet.h>
 #include <cctype>
@@ -43,19 +42,6 @@ inline std::string raw_http_lower(std::string s) {
 inline RawHttpReply raw_http(int port, const std::string& method, const std::string& path,
                              const std::vector<std::pair<std::string, std::string>>& headers = {},
                              const std::string& body = "") {
-    int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        return {};
-    }
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(static_cast<uint16_t>(port));
-    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        ::close(fd);
-        return {};
-    }
-
     std::string req =
         method + " " + path + " HTTP/1.0\r\nHost: 127.0.0.1:" + std::to_string(port) + "\r\n";
     for (const auto& [name, value] : headers) {
@@ -65,8 +51,17 @@ inline RawHttpReply raw_http(int port, const std::string& method, const std::str
         req += "Content-Length: " + std::to_string(body.size()) + "\r\n";
     }
     req += "\r\n" + body;
-    if (::send(fd, req.data(), req.size(), 0) != static_cast<ssize_t>(req.size())) {
-        ::close(fd);
+
+    int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (fd < 0 || ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 ||
+        ::send(fd, req.data(), req.size(), 0) != static_cast<ssize_t>(req.size())) {
+        if (fd >= 0) {
+            ::close(fd);
+        }
         return {};
     }
 

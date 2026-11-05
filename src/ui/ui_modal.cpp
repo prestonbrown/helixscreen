@@ -85,10 +85,8 @@ template <typename Fn> static void for_each_in_tree(lv_obj_t* obj, Fn&& fn) {
 // (clog_detection_config_modal.cpp:20), so a slot left set after teardown resolves
 // to a freed instance.
 //
-// ui_button and ui_markdown must be left alone. Each owns its user_data slot (a heap
-// UiButtonData, a heap lv_markdown_data_t plus its text) and its delete handler frees
-// it by reading the slot back - null it here and the allocation is stranded with
-// nothing left to free it.
+// ui_button and ui_markdown own their slot: each delete handler frees a heap
+// allocation by reading it back, so nulling it here strands that allocation.
 static void clear_user_data_in_tree(lv_obj_t* root) {
     for_each_in_tree(root, [](lv_obj_t* obj) {
         if (lv_obj_get_user_data(obj) != nullptr && !ui_button_owns_user_data(obj) &&
