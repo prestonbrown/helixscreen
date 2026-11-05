@@ -177,3 +177,78 @@ TEST_CASE("find_catalog_filament matches one catalog product exactly", "[spoolma
         CHECK(find_catalog_filament(filaments, 7, "Silk PLA Rainbow", "PLA", "E53935") == nullptr);
     }
 }
+
+TEST_CASE("material_for_type records the material the slicer and AFC understand",
+          "[spoolman_db][filament_naming]") {
+    using helix::spoolman::material_for_type;
+    CHECK(material_for_type("ABS+") == "ABS");
+    CHECK(material_for_type("PLA+") == "PLA");
+    CHECK(material_for_type("Silk PLA") == "PLA");
+    CHECK(material_for_type("PLA-CF") == "PLA-CF");
+    CHECK(material_for_type(" PETG ") == "PETG");
+    CHECK(material_for_type("").empty());
+}
+
+TEST_CASE("new_filament_name puts the product before the colour",
+          "[spoolman_db][filament_naming]") {
+    using helix::spoolman::new_filament_name;
+    CHECK(new_filament_name("ABS+", "Deep Gray") == "ABS+ Deep Gray");
+    CHECK(new_filament_name("Silk PLA", " Gold ") == "Silk PLA Gold");
+    CHECK(new_filament_name("PETG", "") == "PETG");
+    CHECK(new_filament_name("", "Red") == "Red");
+    CHECK(new_filament_name(" ", " ").empty());
+}
+
+TEST_CASE("temperature_for_range is the midpoint, or the one end set",
+          "[spoolman_db][filament_naming]") {
+    using helix::spoolman::temperature_for_range;
+    CHECK(temperature_for_range(240, 270) == 255);
+    CHECK(temperature_for_range(0, 230) == 230);
+    CHECK(temperature_for_range(210, 0) == 210);
+    CHECK(temperature_for_range(0, 0) == 0);
+}
+
+TEST_CASE("find_similar_filament offers the nearest colour of the same material",
+          "[spoolman_db][filament_naming]") {
+    using helix::spoolman::find_similar_filament;
+    auto make = [](int id, const char* name, const char* material, const char* hex) {
+        FilamentInfo f;
+        f.id = id;
+        f.filament_name = name;
+        f.material = material;
+        f.color_hex = hex;
+        return f;
+    };
+    // A vendor's records as one Spoolman holds them.
+    const std::vector<FilamentInfo> filaments{
+        make(72, "Black ABS+HS", "ABS", "000000"),
+        make(73, "Grey ABS+HS", "ABS", "636363"),
+        make(20, "Silver ABS+HS", "ABS", "B6B6B6"),
+        make(30, "Grey PETG", "PETG", "4A4A4A"),
+    };
+
+    SECTION("a nearby grey of the same material is offered over a farther one") {
+        const FilamentInfo* f = find_similar_filament(filaments, "ABS", "#4A4A4A");
+        REQUIRE(f != nullptr);
+        CHECK(f->id == 73);
+    }
+
+    SECTION("another material is never offered, however close the colour") {
+        CHECK(find_similar_filament(filaments, "PLA", "4A4A4A") == nullptr);
+    }
+
+    SECTION("a colour past the tolerance is not offered") {
+        CHECK(find_similar_filament(filaments, "ABS", "FF0000") == nullptr);
+    }
+
+    SECTION("a record filed under the precise type still counts as its material") {
+        const std::vector<FilamentInfo> legacy{make(117, "ABS+", "ABS+", "4A4A4A")};
+        const FilamentInfo* f = find_similar_filament(legacy, "ABS", "4A4A4A");
+        REQUIRE(f != nullptr);
+        CHECK(f->id == 117);
+    }
+
+    SECTION("no colour offers nothing") {
+        CHECK(find_similar_filament(filaments, "ABS", "") == nullptr);
+    }
+}
