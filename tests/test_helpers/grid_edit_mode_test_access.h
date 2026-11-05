@@ -95,11 +95,15 @@ struct GridEditModeTestAccess {
     }
 
     /// The pure rules for where a selection pill goes.
+    static lv_area_t delete_page_button_area(const lv_area_t& content) {
+        return GridEditMode::delete_page_button_area(content);
+    }
     static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px) {
         return GridEditMode::pills_go_outside(widget_w, widget_h, pill_inside_px, min_drag_px);
     }
     static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
-                                       int gap, bool top_right, const lv_area_t* avoid = nullptr) {
+                                       int gap, bool top_right,
+                                       const std::vector<lv_area_t>& avoid = {}) {
         return GridEditMode::outside_pill_area(tile, pill_px, bounds, gap,
                                                top_right ? GridEditMode::PillCorner::TopRight
                                                          : GridEditMode::PillCorner::TopLeft,

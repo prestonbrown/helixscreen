@@ -390,13 +390,17 @@ class GridEditMode {
     /// corner square two bands share, so each edge still resizes along the rest
     /// of its length. When the preferred spot leaves @p bounds (the grid
     /// container: a widget at the screen edge, at the top, or beside the
-    /// navbar) or overlaps @p avoid (a pill already placed), the pill flips
-    /// below, then to the other side, then both, then tries the same four spots
-    /// one pill further out. A pill that fits nowhere is clamped into
-    /// @p bounds.
+    /// navbar) or overlaps any of @p avoid (a pill already placed, the
+    /// delete-page button), the pill flips below, then to the other side, then
+    /// both, then tries the same four spots one pill further out. A pill that
+    /// fits nowhere is clamped into @p bounds.
     static lv_area_t outside_pill_area(const lv_area_t& tile, int pill_px, const lv_area_t& bounds,
                                        int gap, PillCorner corner,
-                                       const lv_area_t* avoid = nullptr);
+                                       const std::vector<lv_area_t>& avoid = {});
+
+    /// Screen rect of the delete-page button in the top-right corner of a
+    /// page whose content area is @p content.
+    static lv_area_t delete_page_button_area(const lv_area_t& content);
 
     /// Edge grab band in px, derived from the live grid's cell size. Falls back
     /// to a fixed band before a grid exists (cell_w/cell_h are 0 then).

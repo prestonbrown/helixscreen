@@ -265,6 +265,38 @@ TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget carries its selection pills
     em.exit();
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "a half-cell widget's outside pills leave the delete-page button",
+                 "[grid_edit][edit-chrome][halfcell]") {
+    // Track (10, 1): just left of and below the delete-page button in the
+    // secondary page's top-right corner, where the trash pill would go first.
+    ChromeScene scene(test_screen(), 10, 1, 1);
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_obj_t* del = GridEditModeTestAccess::delete_page_button(em);
+    REQUIRE(del != nullptr);
+    lv_area_t del_area;
+    lv_obj_get_coords(del, &del_area);
+    for (lv_obj_t* pill : {GridEditModeTestAccess::remove_button(em),
+                           GridEditModeTestAccess::configure_button(em)}) {
+        REQUIRE(pill != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(pill, &a);
+        INFO("pill " << a.x1 << "," << a.y1 << "-" << a.x2 << "," << a.y2 << " delete-page "
+                     << del_area.x1 << "," << del_area.y1 << "-" << del_area.x2 << ","
+                     << del_area.y2);
+        CHECK(
+            (a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 || a.y1 > del_area.y2));
+    }
+    lv_point_t centre{(del_area.x1 + del_area.x2) / 2, (del_area.y1 + del_area.y2) / 2};
+    CHECK(lv_indev_search_obj(lv_screen_active(), &centre) == del);
+
+    em.exit();
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "a whole-cell widget keeps its selection pills on its corners",
                  "[grid_edit][edit-chrome][halfcell]") {
     ChromeScene scene(test_screen(), 8, 4);
