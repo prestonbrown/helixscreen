@@ -840,6 +840,17 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             return (any(word in words_of(h) for h in all_headers)
                     and not any(word in live_words_of(h) for h in live_headers))
 
+        live_text = "\n".join(c for _, c in firmware_code_lines(text, defines))
+
+        def qualified_dead(owner_name: str, member: str) -> bool:
+            """The source spells `Owner::member`, and neither that spelling nor `Owner`
+            appears on a line the firmware compiles. A bare member word is no evidence
+            either way: `load` is also every std::atomic's read.
+            """
+            spelled = re.compile(rf"\b{re.escape(owner_name)}\s*::\s*{re.escape(member)}\b")
+            return (bool(spelled.search(text)) and not spelled.search(live_text)
+                    and owner_name not in live_words)
+
         def unnameable(scope: str) -> bool:
             """No code or header the firmware compiles for this source spells `scope`."""
             return (scope not in live_words
@@ -853,6 +864,8 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             elif firmware_defines_symbol(parts, firmware_defined, firmware_namespaces):
                 continue
             if dead(parts[-1].lstrip("~")) or (len(parts) > 1 and unnameable(parts[-2])):
+                continue
+            if len(parts) > 1 and qualified_dead(parts[-2], parts[-1].lstrip("~")):
                 continue
             edge = (f, owner[sym], "::".join(parts))
             if edge not in seen and edge not in baseline:
