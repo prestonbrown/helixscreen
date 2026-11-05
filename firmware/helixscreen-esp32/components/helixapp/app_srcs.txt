@@ -299,6 +299,7 @@ src/printer/toolhead_homing.cpp
 src/printer/tool_offset_calibration.cpp
 src/printer/stepper_resonance_calibration.cpp
 src/printer/chamber_air_modes.cpp
+src/printer/chamber_air_state.cpp
 src/printer/pa_calibration.cpp
 src/printer/pa_tuning.cpp
 src/printer/tool_offsets.cpp

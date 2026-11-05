@@ -789,17 +789,20 @@ TEST_CASE("Subscription: mains-monitor firmware subscribes its power-loss object
     }
 }
 
-TEST_CASE("Subscription: enclosure-top firmware subscribes the one field it reads",
-          "[moonraker][subscription][enclosure_top]") {
-    SECTION("purifier discovered -> power_detected subscribed alone") {
-        // The object's fan readings change every tick; only the flag is read.
+TEST_CASE("Subscription: enclosure-top firmware subscribes the fields it reads",
+          "[moonraker][subscription][enclosure_top][chamber_air]") {
+    SECTION("purifier discovered -> enclosure-top and chamber-air fields, unioned") {
+        // Two modules read the object; a plain assignment would keep only the
+        // later one's fields. The tachometer reading changes every tick and is
+        // never subscribed.
         DiscoveryFixture fx;
         fx.add("purifier");
         fx.add("fm175xx_reader");
         json subs = fx.build();
 
         REQUIRE(subs.contains("purifier"));
-        CHECK(subs["purifier"] == json::array({"power_detected"}));
+        CHECK(subs["purifier"] == json::array({"power_detected", "mode", "critical_chamber_temp",
+                                               "inner_fan_work_time", "exhaust_fan", "inner_fan"}));
     }
 
     SECTION("no purifier -> not subscribed") {
