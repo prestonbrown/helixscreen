@@ -325,18 +325,48 @@ TEST_CASE_METHOD(SensorEdgeToastFixture,
     CHECK(report_head_empty() == 1);
 }
 
-TEST_CASE_METHOD(SensorEdgeToastFixture, "CFS head-empty while idle still toasts",
-                 "[ams][cfs][filament-sensor][job-holds-machine][1388]") {
-    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "a backend that owns the runout surface during the job does not own it idle",
+                 "[ams][filament-sensor][job-holds-machine][1388]") {
+    BackendTraits owns;
+    owns.raises_runout_fault = true;
+    owns.raises_runout_fault_during_job = true;
+    install_backend(std::make_unique<helix::test::TraitProbeBackend>(owns));
     REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
 
-    // The gate is scoped to the job phase: idle, the CFS raises no fault of
+    // The gate is scoped to the job phase: idle, the backend raises no fault of
     // its own and the sensor edge is news again. Dropping the job_holds_machine
     // conjunct from the manager's ownership term makes this 0.
     drive_lifecycle(printer_state, "standby");
     REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
 
     CHECK(report_head_empty() == 1);
+}
+
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "CFS end-of-print retract into the box is not a filament removal",
+                 "[ams][cfs][filament-sensor][job-holds-machine]") {
+    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+    REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
+
+    drive_lifecycle(printer_state, "printing");
+    REQUIRE(published_lifecycle(printer_state) == PrintState::Printing);
+
+    // The CFS cuts and retracts into the box after print_stats reads complete,
+    // so the head-empty edge arrives with no job holding the machine. Clearing
+    // unloads_to_hub_between_prints on the CFS traits makes each of these 1.
+    SECTION("after a completed print") {
+        drive_lifecycle(printer_state, "complete");
+        REQUIRE(published_lifecycle(printer_state) == PrintState::Complete);
+        CHECK(report_head_empty() == 0);
+    }
+
+    SECTION("once the printer is back to idle") {
+        drive_lifecycle(printer_state, "complete");
+        drive_lifecycle(printer_state, "standby");
+        REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
+        CHECK(report_head_empty() == 0);
+    }
 }
 
 // ============================================================================

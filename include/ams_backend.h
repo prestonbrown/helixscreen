@@ -2756,10 +2756,12 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Whether the firmware unloads filament back to the hub between prints.
+     * @brief Whether the firmware parks filament off the toolhead between prints.
      *
-     * The toolhead sensor going empty while the printer is idle is then firmware
-     * behaviour rather than a user-facing event, and its removal toast is not shown.
+     * The firmware pulls the filament back into its hub or box when a job ends and
+     * feeds it again when the next one starts. The toolhead sensor going empty while
+     * the printer is idle is then firmware behaviour rather than a user-facing event,
+     * and its removal toast is not shown.
      */
     [[nodiscard]] bool unloads_to_hub_between_prints() const {
         return traits().unloads_to_hub_between_prints;
