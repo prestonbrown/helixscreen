@@ -177,6 +177,7 @@
   <translation tag="A spool may be tangled or the drive gear is jammed" de="Eine Spule ist möglicherweise verheddert oder das Antriebsrad blockiert"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." de="Ein System, das mehrere Filamente zum Werkzeugkopf führt, angezeigt mit der Slot-Anzahl. Verwalte die Slots im Filamentsystem-Bildschirm."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" de="Eine Werkzeugkopf-Offset-Kalibrierung läuft, möglicherweise von einem anderen Bildschirm. Jetzt beenden?"/>
+  <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." de="Eine obere Abdeckung wurde erkannt. Ihre Lüfter und Luftmodi findest du im Lüfter-Bildschirm."/>
   <translation tag="A upper, B lower" de="A oben, B unten"/>
   <translation tag="ABS" de="ABS"/>
   <translation tag="ACCELEROMETERS" de="BESCHLEUNIGUNGSSENSOREN"/>
@@ -261,6 +262,7 @@
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" de="Passt individuelle Eigenschaften Ihrer Heizungen für optimale Regelung an"/>
   <translation tag="Advanced" de="Erweitert"/>
   <translation tag="After an error" de="Nach einem Fehler"/>
+  <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." de="Nach dem Anschließen von {} empfehlen wir, Input Shaping neu zu kalibrieren, um die Druckqualität zu sichern."/>
   <translation tag="After running the commands, tap Check Again below." de="Tippen Sie nach Ausführung der Befehle unten auf Erneut prüfen."/>
   <translation tag="Alert" de="Alarm"/>
   <translation tag="Alerts" de="Alarme"/>
@@ -504,6 +506,7 @@
   <translation tag="CFS is busy" de="CFS ist beschäftigt"/>
   <translation tag="CFS motor overloaded" de="CFS-Motor überlastet"/>
   <translation tag="CFS system error" de="CFS-Systemfehler"/>
+  <translation tag="CHAMBER AIR" de="KAMMERLUFT"/>
   <translation tag="CHANGED FROM LAST SESSION" de="SEIT LETZTER SITZUNG GEÄNDERT"/>
   <translation tag="CLOG" de="VERSTOPFUNG"/>
   <translation tag="COLOR SENSORS" de="FARBSENSOREN"/>
@@ -533,6 +536,7 @@
   <translation tag="Calibrate Y" de="Y kalibrieren"/>
   <translation tag="Calibrate heater" de="Heizung kalibrieren"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" de="Input Shaping kalibrieren, um Ringing-Artefakte im Druck zu reduzieren"/>
+  <translation tag="Calibrate now" de="Jetzt kalibrieren"/>
   <translation tag="Calibrate part fan" de="Bauteillüfter kalibrieren"/>
   <translation tag="Calibrate tool offsets?" de="Werkzeug-Offsets kalibrieren?"/>
   <translation tag="Calibrate your touchscreen for accurate input" de="Touchscreen für präzise Eingabe kalibrieren"/>
@@ -633,6 +637,7 @@
   <translation tag="Chamber heating to %d°C..." de="Kammer heizt auf %d°C auf..."/>
   <translation tag="Chamber target set to {}°C" de="Kammer-Ziel auf {}°C gesetzt"/>
   <translation tag="Chamber temp must be 0-%d°C" de="Kammertemperatur muss 0-%d°C betragen"/>
+  <translation tag="Chamber too hot" de="Kammer zu heiß"/>
   <translation tag="Change" de="Ändern"/>
   <translation tag="Change Address" de="Adresse ändern"/>
   <translation tag="Change Blade" de="Klinge wechseln"/>
@@ -1236,6 +1241,9 @@
   <translation tag="Execute printer macros" de="Drucker-Makros ausführen"/>
   <translation tag="Exhaust" de="Abluft"/>
   <translation tag="Exhaust Fan" de="Abluftlüfter"/>
+  <translation tag="Exhaust fan" de="Abluftlüfter"/>
+  <translation tag="Exhaust fan speed" de="Abluftlüfter-Drehzahl"/>
+  <translation tag="Exhaust: keep chamber at or below" de="Abluft: Kammer höchstens halten bei"/>
   <translation tag="Exit Code" de="Exit-Code"/>
   <translation tag="Expected boolean" de="Boolescher Wert erwartet"/>
   <translation tag="Expected float" de="Gleitkommazahl erwartet"/>
@@ -1390,6 +1398,7 @@
   <translation tag="Fan Tach" de="Lüfterdrehzahl"/>
   <translation tag="Fan Transfer" de="Lüfterwärmeübertragung"/>
   <translation tag="Fan available but not assigned to any role" de="Lüfter verfügbar, aber keiner Rolle zugewiesen"/>
+  <translation tag="Fan control" de="Lüftersteuerung"/>
   <translation tag="Fan control failed: {}" de="Lüftersteuerung fehlgeschlagen: {}"/>
   <translation tag="FanSelect" de="Lüfter auswählen"/>
   <translation tag="Fans" de="Lüfter"/>
@@ -2056,6 +2065,7 @@
   <translation tag="Low Memory" de="Wenig Speicher"/>
   <translation tag="Lower" de="Senken"/>
   <translation tag="Lower belt" de="Riemen unten"/>
+  <translation tag="Lower fan speed?" de="Lüfterdrehzahl senken?"/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." de="Senken Sie die Düse, bis sie die Oberseite des Drucks gerade berührt, und setzen Sie dann fort."/>
   <translation tag="Lowest notification level that interrupts with a toast" de="Niedrigste Benachrichtigungsstufe, die mit einer Einblendung unterbricht"/>
   <translation tag="M to toggle" de="M zum Umschalten"/>
@@ -2515,6 +2525,7 @@
   <translation tag="Only {} MB of memory is free, and Klipper&apos;s analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled." de="Nur {} MB Speicher sind frei, und die Auswertung von Klipper benötigt etwa {} MB. Der Test würde den Drucker blockieren, bis er aus- und wieder eingeschaltet wird."/>
   <translation tag="Ooze Reduction" de="Ooze-Reduzierung"/>
   <translation tag="Open" de="Öffnen"/>
+  <translation tag="Open Fans" de="Lüfter öffnen"/>
   <translation tag="Open Source Licenses" de="Open-Source-Lizenzen"/>
   <translation tag="Open color and brightness controls" de="Farb- und Helligkeitsregler öffnen"/>
   <translation tag="Open feeder" de="Zuführung öffnen"/>
@@ -2954,11 +2965,14 @@
   <translation tag="Reboot" de="Neustart"/>
   <translation tag="Reboot failed" de="Neustart fehlgeschlagen"/>
   <translation tag="Reboot failed — host is still reachable" de="Neustart fehlgeschlagen — Host ist weiterhin erreichbar"/>
+  <translation tag="Recalibrate input shaping?" de="Input Shaping neu kalibrieren?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." de="Jederzeit in den Einstellungen neu kalibrieren oder detaillierte Ergebnisse anzeigen."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." de="Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen."/>
   <translation tag="Recent Prints" de="Letzte Drucke"/>
   <translation tag="Recently Printed" de="Zuletzt gedruckt"/>
   <translation tag="Recirculate" de="Umwälzen"/>
+  <translation tag="Recirculation fan" de="Umwälzlüfter"/>
+  <translation tag="Recirculation fan speed" de="Umwälzlüfter-Drehzahl"/>
   <translation tag="Reconnect" de="Erneut verbinden"/>
   <translation tag="Record Timelapse" de="Zeitraffer aufnehmen"/>
   <translation tag="Record timelapses of your prints" de="Zeitraffer Ihrer Drucke aufnehmen"/>
@@ -2977,6 +2991,8 @@
   <translation tag="Reduce Sensitivity" de="Empfindlichkeit verringern"/>
   <translation tag="Reduce ringing and ghosting artifacts" de="Klingel- und Geisterartefakte reduzieren"/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" de="Vibrationsartefakte wie Klingeln und Geisterbilder reduzieren"/>
+  <translation tag="Reducing the fan speed may affect filtration performance. Do you want to continue?" de="Eine niedrigere Lüfterdrehzahl kann die Filterleistung beeinträchtigen. Fortfahren?"/>
+  <translation tag="Reducing the fan speed may affect print quality. Do you want to continue?" de="Eine niedrigere Lüfterdrehzahl kann die Druckqualität beeinträchtigen. Fortfahren?"/>
   <translation tag="Refeeding filament — this may take a minute" de="Filament wird erneut zugeführt — dies kann eine Minute dauern"/>
   <translation tag="Refill the spool, then Resume." de="Spule auffüllen, dann Fortsetzen."/>
   <translation tag="Refresh" de="Aktualisieren"/>
@@ -3710,6 +3726,7 @@
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." de="Die Kamera hat etwas auf dem Heizbett erkannt, daher hat der Drucker vor dem Drucken angehalten. Wenn das Heizbett frei ist, war es ein Fehlalarm."/>
   <translation tag="The carriage was not put back: check which tool is mounted" de="Der Wagen wurde nicht zurückgestellt: prüfe, welches Werkzeug montiert ist"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." de="Die Kammerheizung kann einen Filament-Trocknungszyklus ausführen. Starte ihn im Trocknungsdialog."/>
+  <translation tag="The chamber temperature is too high. This may cause extruder clogging. Continue printing?" de="Die Kammertemperatur ist zu hoch. Das kann den Extruder verstopfen. Druck fortsetzen?"/>
   <translation tag="The chamber wait already ended; nothing was stopped." de="Das Warten auf die Kammer ist bereits beendet; es wurde nichts gestoppt."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." de="Die Änderung wird wirksam, nachdem Klipper neu gestartet wurde. Klipper-Firmware wird neu gestartet. Aktive Vorgänge werden unterbrochen."/>
   <translation tag="The connection to Klipper was lost" de="Die Verbindung zu Klipper wurde unterbrochen"/>
@@ -3775,6 +3792,7 @@
   <translation tag="The printer did not change its bed check" de="Der Drucker hat seine Bettprüfung nicht geändert"/>
   <translation tag="The printer did not change its bed check: {}" de="Der Drucker hat seine Bettprüfung nicht geändert: {}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." de="Der Drucker hat den Druckstart nicht bestätigt ({}). Er kann trotzdem noch starten: Prüfe den Drucker, bevor du ihn erneut startest."/>
+  <translation tag="The printer did not reset the filter" de="Der Drucker hat den Filter nicht zurückgesetzt"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." de="Der Drucker extrudiert in einer Ecke und wiederholt, bis die Messwerte übereinstimmen. Du beurteilst nichts mit dem Auge."/>
   <translation tag="The printer finishes this measurement on its own." de="Der Drucker beendet diese Messung selbst."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" de="Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?"/>
@@ -3819,6 +3837,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" de="Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" de="Der Werkzeugkopfsensor zeigt an, dass Filament bereits geladen ist. Trotzdem mit dem Laden fortfahren?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" de="Der Werkzeugkopfsensor zeigt an, dass kein Filament vorhanden ist. Trotzdem mit dem Entladen fortfahren?"/>
+  <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." de="Die obere Abdeckung wurde getrennt. Schließe sie für eine gute Druckqualität wieder an, bevor du fortfährst."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" de="Die Einheit führt bereits einen anderen Vorgang aus. Abwarten, bis er beendet ist, oder das CFS zurücksetzen, falls es hängen bleibt"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" de="Die Einheit hat einen Fehler ohne nähere Angaben gemeldet. Bei Wiederholung den Drucker neu starten"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" de="Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden"/>
@@ -3998,6 +4017,7 @@
   <translation tag="Tools" de="Werkzeuge"/>
   <translation tag="Tools Used" de="Verwendete Werkzeuge"/>
   <translation tag="Tools: " de="Werkzeuge: "/>
+  <translation tag="Top Cover" de="Obere Abdeckung"/>
   <translation tag="Total Prints" de="Gesamte Drucke"/>
   <translation tag="Total print time: {} h" de="Gesamte Druckzeit: {} Std"/>
   <translation tag="Touch &amp; Input" de="Touch &amp; Eingabe"/>
@@ -4277,6 +4297,8 @@
   <translation tag="Wipe nozzle on silicone cleaning strip" de="Düse am Silikon-Reinigungsstreifen abwischen"/>
   <translation tag="Wipe the mounted nozzle on the brush" de="Montierte Düse an der Bürste abwischen"/>
   <translation tag="Wiping {}..." de="{} wird abgewischt..."/>
+  <translation tag="With exhaust cooling on, the recirculation fan cannot be turned on" de="Bei Abluftkühlung kann der Umwälzlüfter nicht eingeschaltet werden"/>
+  <translation tag="With internal circulation on, the exhaust fan cannot be turned on" de="Bei Umwälzung kann der Abluftlüfter nicht eingeschaltet werden"/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" de="Bis auf {0:.1f} Hz gleich bei {1:.0f} Hz"/>
   <translation tag="Wizard Error" de="Assistentenfehler"/>
   <translation tag="Working..." de="Wird verarbeitet..."/>
@@ -4483,8 +4505,10 @@
   <translation tag="{} could not be checked from Home - review it and tap Print" de="{} konnte von der Startseite aus nicht geprüft werden – prüfe die Datei und tippe auf Drucken"/>
   <translation tag="{} critical" de="{} kritisch"/>
   <translation tag="{} critical hardware issues" de="{} kritische Hardwareprobleme"/>
+  <translation tag="{} detected" de="{} erkannt"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." de="{} wurde nicht geladen. Prüfen Sie, ob das Hotend richtig sitzt, und extrudieren Sie testweise, bevor Sie fortsetzen."/>
   <translation tag="{} disabled" de="{} deaktiviert"/>
+  <translation tag="{} disconnected" de="{} getrennt"/>
   <translation tag="{} enabled" de="{} aktiviert"/>
   <translation tag="{} failed: {}" de="{} fehlgeschlagen: {}"/>
   <translation tag="{} filament" de="{} Filament"/>

@@ -181,6 +181,7 @@ translations:
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: A toolhead offset calibration is in progress, possibly from another screen. End it now?
+  A top cover was detected. Its fans and air modes are on the Fans screen.: A top cover was detected. Its fans and air modes are on the Fans screen.
   A upper, B lower: A upper, B lower
   ABS: ABS
   ACCELEROMETERS: ACCELEROMETERS
@@ -269,6 +270,7 @@ translations:
     individual characteristics of your heaters for optimal control
   Advanced: Advanced
   After an error: After an error
+  After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: After connecting the {}, we recommend recalibrating input shaping to ensure print quality.
   After running the commands, tap Check Again below.: After running the commands,
     tap Check Again below.
   Alert: Alert
@@ -529,6 +531,7 @@ translations:
   CFS is busy: CFS is busy
   CFS motor overloaded: CFS motor overloaded
   CFS system error: CFS system error
+  CHAMBER AIR: CHAMBER AIR
   CHANGED FROM LAST SESSION: CHANGED FROM LAST SESSION
   CLOG: CLOG
   COLOR SENSORS: COLOR SENSORS
@@ -561,6 +564,7 @@ translations:
   Calibrate heater: Calibrate heater
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping
     to reduce ringing artifacts in prints
+  Calibrate now: Calibrate now
   Calibrate part fan: Calibrate part fan
   Calibrate tool offsets?: Calibrate tool offsets?
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate
@@ -671,6 +675,7 @@ translations:
   Chamber heating to %d°C...: Chamber heating to %d°C...
   Chamber target set to {}°C: Chamber target set to {}°C
   Chamber temp must be 0-%d°C: Chamber temp must be 0-%d°C
+  Chamber too hot: Chamber too hot
   Change: Change
   Change Address: Change Address
   Change Blade: Change Blade
@@ -1321,6 +1326,9 @@ translations:
   Execute printer macros: Execute printer macros
   Exhaust: Exhaust
   Exhaust Fan: Exhaust Fan
+  Exhaust fan: Exhaust fan
+  Exhaust fan speed: Exhaust fan speed
+  'Exhaust: keep chamber at or below': 'Exhaust: keep chamber at or below'
   Exit Code: Exit Code
   Expected boolean: Expected boolean
   Expected float: Expected float
@@ -1484,6 +1492,7 @@ translations:
   Fan Tach: Fan Tach
   Fan Transfer: Fan Transfer
   Fan available but not assigned to any role: Fan available but not assigned to any role
+  Fan control: Fan control
   'Fan control failed: {}': 'Fan control failed: {}'
   FanSelect: FanSelect
   Fans: Fans
@@ -2201,6 +2210,7 @@ translations:
   Low Memory: Low Memory
   Lower: Lower
   Lower belt: Lower belt
+  Lower fan speed?: Lower fan speed?
   Lower the nozzle until it just touches the top of the print, then resume.: Lower the nozzle until it just touches the top of the print, then resume.
   Lowest notification level that interrupts with a toast: Lowest notification level that interrupts with a toast
   M to toggle: M to toggle
@@ -2686,6 +2696,7 @@ translations:
   : Only {} MB of memory is free, and Klipper's analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled.
   Ooze Reduction: Ooze Reduction
   Open: Open
+  Open Fans: Open Fans
   Open Source Licenses: Open Source Licenses
   Open color and brightness controls: Open color and brightness controls
   Open feeder: Open feeder
@@ -3150,12 +3161,15 @@ translations:
   Reboot: Reboot
   Reboot failed: Reboot failed
   Reboot failed — host is still reachable: Reboot failed — host is still reachable
+  Recalibrate input shaping?: Recalibrate input shaping?
   Recalibrate or view detailed results anytime in Settings.: Recalibrate or view detailed
     results anytime in Settings.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Received oversized data from printer ({} bytes). This may indicate a communication error.
   Recent Prints: Recent Prints
   Recently Printed: Recently Printed
   Recirculate: Recirculate
+  Recirculation fan: Recirculation fan
+  Recirculation fan speed: Recirculation fan speed
   Reconnect: Reconnect
   Record Timelapse: Record Timelapse
   Record timelapses of your prints: Record timelapses of your prints
@@ -3174,6 +3188,8 @@ translations:
   Reduce ringing and ghosting artifacts: Reduce ringing and ghosting artifacts
   Reduce vibration artifacts like ringing and ghosting: Reduce vibration artifacts
     like ringing and ghosting
+  Reducing the fan speed may affect filtration performance. Do you want to continue?: Reducing the fan speed may affect filtration performance. Do you want to continue?
+  Reducing the fan speed may affect print quality. Do you want to continue?: Reducing the fan speed may affect print quality. Do you want to continue?
   Refeeding filament — this may take a minute: Refeeding filament — this may take
     a minute
   Refill the spool, then Resume.: Refill the spool, then Resume.
@@ -3973,6 +3989,7 @@ translations:
   : The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   'The carriage was not put back: check which tool is mounted': 'The carriage was not put back: check which tool is mounted'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: The chamber heater can run a filament drying cycle. Start one from the drying dialog.
+  The chamber temperature is too high. This may cause extruder clogging. Continue printing?: The chamber temperature is too high. This may cause extruder clogging. Continue printing?
   The chamber wait already ended; nothing was stopped.: The chamber wait already ended; nothing was stopped.
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
@@ -4048,6 +4065,7 @@ translations:
   The printer did not change its bed check: The printer did not change its bed check
   'The printer did not change its bed check: {}': 'The printer did not change its bed check: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.'
+  The printer did not reset the filter: The printer did not reset the filter
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.
   The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
   The printer halted this print and cannot resume it. Restart from the beginning?: The
@@ -4101,6 +4119,7 @@ translations:
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The
     toolhead sensor indicates no filament is present. Proceed with unload anyway?
+  The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck
   The unit reported a fault with no further detail. Restart the printer if it repeats: The unit reported a fault with no further detail. Restart the printer if it repeats
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
@@ -4318,6 +4337,7 @@ translations:
   Tools: Tools
   Tools Used: Tools Used
   'Tools: ': 'Tools: '
+  Top Cover: Top Cover
   Total Prints: Total Prints
   'Total print time: {} h': 'Total print time: {} h'
   Touch & Input: Touch & Input
@@ -4605,6 +4625,8 @@ translations:
   Wifi: Wifi
   Will not switch spools on runout: Will not switch spools on runout
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
+  With exhaust cooling on, the recirculation fan cannot be turned on: With exhaust cooling on, the recirculation fan cannot be turned on
+  With internal circulation on, the exhaust fan cannot be turned on: With internal circulation on, the exhaust fan cannot be turned on
   Within {0:.1f} Hz of each other at {1:.0f} Hz: Within {0:.1f} Hz of each other at {1:.0f} Hz
   Wipe the mounted nozzle on the brush: Wipe the mounted nozzle on the brush
   Wiping {}...: Wiping {}...
@@ -4822,8 +4844,10 @@ translations:
   '{} configured items not found': '{} configured items not found'
   '{} critical': '{} critical'
   '{} critical hardware issues': '{} critical hardware issues'
+  '{} detected': '{} detected'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
+  '{} disconnected': '{} disconnected'
   '{} enabled': '{} enabled'
   '{} failed: {}': '{} failed: {}'
   '{} filament': '{} filament'

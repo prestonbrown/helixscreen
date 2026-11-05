@@ -182,6 +182,7 @@ translations:
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: '工具头偏移校准正在进行，可能来自另一个屏幕。现在结束吗?'
+  A top cover was detected. Its fans and air modes are on the Fans screen.: '检测到顶盖。其风扇和空气模式位于风扇界面。'
   A upper, B lower: "A 上,B 下"
   ABS: ABS
   ACCELEROMETERS: 加速度计
@@ -263,6 +264,7 @@ translations:
   Adjusts individual characteristics of your heaters for optimal control: 调整加热器的各项参数以实现最佳控制
   Advanced: 高级
   After an error: 发生错误后
+  After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '连接{}后，建议重新校准输入整形，以确保打印质量。'
   After running the commands, tap Check Again below.: 执行命令后，点击下方的重新检查。
   Alert: 警报
   Alerts: 警报
@@ -511,6 +513,7 @@ translations:
   CFS is busy: CFS 正忙
   CFS motor overloaded: CFS 电机过载
   CFS system error: CFS 系统错误
+  CHAMBER AIR: '腔体空气'
   CHANGED FROM LAST SESSION: 与上次会话相比有更改
   CLOG: 堵料
   COLOR SENSORS: 颜色传感器
@@ -542,6 +545,7 @@ translations:
   Calibrate All Tools: 校准所有工具
   Calibrate heater: 校准加热器
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
+  Calibrate now: '立即校准'
   Calibrate part fan: 校准模型风扇
   Calibrate tool offsets?: 校准工具偏移？
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
@@ -643,6 +647,7 @@ translations:
   Chamber heating to %d°C...: 腔体加热至 %d°C...
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
   Chamber temp must be 0-%d°C: 腔体温度必须为 0-%d°C
+  Chamber too hot: '腔体温度过高'
   Change: 更改
   Change Address: 更改地址
   Change Blade: '更换刀片'
@@ -1282,6 +1287,9 @@ translations:
   Execute printer macros: 执行打印机宏
   Exhaust: 排气
   Exhaust Fan: 排气扇
+  Exhaust fan: '排气风扇'
+  Exhaust fan speed: '排气风扇速度'
+  'Exhaust: keep chamber at or below': '排气：将腔体保持在不高于'
   Exit Code: 退出代码
   Expected boolean: '需要布尔值'
   Expected float: '需要小数值'
@@ -1440,6 +1448,7 @@ translations:
   Fan Tach: '风扇转速'
   Fan Transfer: 风扇传热
   Fan available but not assigned to any role: '风扇可用，但未分配任何角色'
+  Fan control: '风扇控制'
   'Fan control failed: {}': '风扇控制失败: {}'
   FanSelect: 选择风扇
   Fans: 风扇
@@ -2133,6 +2142,7 @@ translations:
   Low Memory: 内存不足
   Lower: 降低
   Lower belt: "下皮带"
+  Lower fan speed?: '降低风扇速度？'
   Lower the nozzle until it just touches the top of the print, then resume.: 降低喷嘴，直到刚好接触打印件顶部，然后恢复。
   Lowest notification level that interrupts with a toast: '以浮层提醒打断的最低通知级别'
   M to toggle: 按 M 切换
@@ -2607,6 +2617,7 @@ translations:
   : "可用内存仅 {} MB，而 Klipper 的分析需要约 {} MB。运行测试会使打印机卡住，直到断电重启。"
   Ooze Reduction: '减少渗漏'
   Open: 打开
+  Open Fans: '打开风扇'
   Open Source Licenses: 开源许可证
   Open color and brightness controls: 打开颜色和亮度控制
   Open feeder macro: 打开送料器宏
@@ -3057,11 +3068,14 @@ translations:
   Reboot: 重启
   Reboot failed: 重启失败
   Reboot failed — host is still reachable: 重启失败 — 主机仍可访问
+  Recalibrate input shaping?: '重新校准输入整形？'
   Recalibrate or view detailed results anytime in Settings.: 可随时在设置中重新校准或查看详细结果。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: 从打印机收到的数据过大（{} 字节）。这可能表示通信错误。
   Recent Prints: 最近打印
   Recently Printed: 最近打印过的
   Recirculate: '内循环'
+  Recirculation fan: '循环风扇'
+  Recirculation fan speed: '循环风扇速度'
   Reconnect: 重新连接
   Record Timelapse: 录制延时摄影
   Record timelapses of your prints: 录制打印延时摄影
@@ -3079,6 +3093,8 @@ translations:
   Reduce Sensitivity: 降低灵敏度
   Reduce ringing and ghosting artifacts: 减少振纹和残影
   Reduce vibration artifacts like ringing and ghosting: 减少振纹和残影等振动伪影
+  Reducing the fan speed may affect filtration performance. Do you want to continue?: '降低风扇速度可能影响过滤效果。是否继续？'
+  Reducing the fan speed may affect print quality. Do you want to continue?: '降低风扇速度可能影响打印质量。是否继续？'
   Refeeding filament — this may take a minute: 正在重新进料 — 这可能需要一分钟
   Refill the spool, then Resume.: 重新装满料盘，然后恢复。
   Refresh: 刷新
@@ -3845,6 +3861,7 @@ translations:
   : '摄像头认为热床上有东西，因此打印机在打印前停止了。如果热床是空的，这是误报。'
   'The carriage was not put back: check which tool is mounted': '打印头未归位：请检查当前装载的是哪个工具'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: '腔体加热器可以运行耗材烘干周期。在烘干对话框中启动。'
+  The chamber temperature is too high. This may cause extruder clogging. Continue printing?: '腔体温度过高，可能导致挤出机堵塞。是否继续打印？'
   The chamber wait already ended; nothing was stopped.: '腔体等待已经结束，未停止任何操作。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
@@ -3920,6 +3937,7 @@ translations:
   The printer did not change its bed check: '打印机未更改热床检查'
   'The printer did not change its bed check: {}': '打印机未更改热床检查：{}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': '打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。'
+  The printer did not reset the filter: '打印机未重置滤网'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
   The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
@@ -3970,6 +3988,7 @@ translations:
   The toolhead is not homed, so this would home into the print: '工具头尚未归位，归位会使喷嘴碰到打印件'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: 工具头传感器显示无耗材。仍要继续卸载吗？
+  The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: '检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
   The unit reported a fault with no further detail. Restart the printer if it repeats: 该单元报告了故障但无更多信息。若反复出现，请重启打印机
   The unit's onboard storage has failed. The CFS mainboard needs replacing: 该单元的板载存储已损坏。需更换 CFS 主板
@@ -4171,6 +4190,7 @@ translations:
   Tools: 工具
   Tools Used: 已使用工具
   'Tools: ': '工具: '
+  Top Cover: '顶盖'
   Total Prints: 总打印数
   'Total print time: {} h': '总打印时间：{} 小时'
   Touch & Input: 触摸和输入
@@ -4444,6 +4464,8 @@ translations:
   Wifi: Wi-Fi
   Will not switch spools on runout: 耗材用尽时不会切换料盘
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
+  With exhaust cooling on, the recirculation fan cannot be turned on: '外循环冷却时无法开启循环风扇'
+  With internal circulation on, the exhaust fan cannot be turned on: '内循环时无法开启排气风扇'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "在 {1:.0f} Hz 处相差 {0:.1f} Hz 以内"
   Wipe the mounted nozzle on the brush: '在刷子上擦拭当前喷嘴'
   Wiping {}...: 正在擦拭{}...
@@ -4661,8 +4683,10 @@ translations:
   '{} configured items not found': 未找到 {} 个已配置的项目
   '{} critical': '{} 个严重'
   '{} critical hardware issues': '{} 个关键硬件问题'
+  '{} detected': '检测到{}'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
+  '{} disconnected': '{}已断开'
   '{} enabled': '已启用{}'
   '{} failed: {}': '{} 失败：{}'
   '{} filament': '耗材 {}'

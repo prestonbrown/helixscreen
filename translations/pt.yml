@@ -187,6 +187,7 @@ translations:
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Um sistema que alimenta vários filamentos ao cabeçote, mostrado com o número de slots. Gerencie os slots na tela do sistema de filamento.'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'Uma calibração de offsets dos cabeçotes está em andamento, talvez de outra tela. Encerrar agora?'
+  A top cover was detected. Its fans and air modes are on the Fans screen.: 'Foi detetada uma cobertura superior. As suas ventoinhas e modos de ar estão no ecrã Ventoinhas.'
   A upper, B lower: "A em cima, B embaixo"
   ABS: ABS
   ACCELEROMETERS: ACELERÔMETROS
@@ -274,6 +275,7 @@ translations:
     individuais dos seus aquecedores para controle ideal
   Advanced: Avançado
   After an error: Após um erro
+  After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Depois de ligar {}, recomendamos recalibrar o Input Shaping para garantir a qualidade de impressão.'
   After running the commands, tap Check Again below.: Após executar os comandos, toque
     em Verificar Novamente abaixo.
   Alert: Alerta
@@ -539,6 +541,7 @@ translations:
   CFS is busy: O CFS está ocupado
   CFS motor overloaded: Motor do CFS sobrecarregado
   CFS system error: Erro de sistema do CFS
+  CHAMBER AIR: 'AR DA CÂMARA'
   CHANGED FROM LAST SESSION: ALTERADO DESDE A ÚLTIMA SESSÃO
   CLOG: OBSTRUÇÃO
   COLOR SENSORS: SENSORES DE COR
@@ -571,6 +574,7 @@ translations:
   Calibrate heater: Calibrar aquecedor
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping
     para reduzir artefatos de ringing nas impressões
+  Calibrate now: 'Calibrar agora'
   Calibrate part fan: Calibrar ventoinha da peça
   Calibrate tool offsets?: Calibrar os offsets de ferramenta?
   Calibrate your touchscreen for accurate input: Calibrar a tela touch para entrada
@@ -687,6 +691,7 @@ translations:
   Chamber heating to %d°C...: Aquecendo câmara a %d°C...
   Chamber target set to {}°C: Alvo da câmara definido para {}°C
   Chamber temp must be 0-%d°C: A temperatura da câmara deve ser 0-%d°C
+  Chamber too hot: 'Câmara demasiado quente'
   Change: Alterar
   Change Address: Alterar Endereço
   Change Blade: 'Trocar lâmina'
@@ -1361,6 +1366,9 @@ translations:
   Execute printer macros: Executar macros da impressora
   Exhaust: Exaustão
   Exhaust Fan: Ventoinha de Exaustão
+  Exhaust fan: 'Ventoinha de exaustão'
+  Exhaust fan speed: 'Velocidade da ventoinha de exaustão'
+  'Exhaust: keep chamber at or below': 'Exaustão: manter a câmara no máximo a'
   Exit Code: Código de Saída
   Expected boolean: 'Esperava-se um valor booleano'
   Expected float: 'Esperava-se um número decimal'
@@ -1526,6 +1534,7 @@ translations:
   Fan Tach: 'Tacômetro do ventilador'
   Fan Transfer: Transferência da Ventoinha
   Fan available but not assigned to any role: 'Ventoinha disponível, mas sem função atribuída'
+  Fan control: 'Controlo de ventoinhas'
   'Fan control failed: {}': 'Falha no controle da ventoinha: {}'
   FanSelect: Selecionar Ventoinha
   Fans: Ventoinhas
@@ -2261,6 +2270,7 @@ translations:
   Low Memory: Pouca Memória
   Lower: Descer
   Lower belt: "Correia inferior"
+  Lower fan speed?: 'Reduzir a velocidade da ventoinha?'
   Lower the nozzle until it just touches the top of the print, then resume.: Desça o bico até que toque levemente o topo da impressão e depois retome.
   Lowest notification level that interrupts with a toast: 'Nível de notificação mais baixo que interrompe com um aviso flutuante'
   M to toggle: M para alternar
@@ -2750,6 +2760,7 @@ translations:
   : "Apenas {} MB de memória estão livres, e a análise do Klipper precisa de cerca de {} MB. O teste deixaria a impressora travada até ser desligada e ligada."
   Ooze Reduction: 'Redução de escorrimento'
   Open: Abrir
+  Open Fans: 'Abrir Ventoinhas'
   Open Source Licenses: Licenças de código aberto
   Open color and brightness controls: Abrir controles de cor e brilho
   Open feeder macro: Macro de abrir alimentador
@@ -3222,12 +3233,15 @@ translations:
   Reboot failed: Falha ao reiniciar
   Reboot failed — host is still reachable: Falha ao reiniciar — o host ainda está
     acessível
+  Recalibrate input shaping?: 'Recalibrar o Input Shaping?'
   Recalibrate or view detailed results anytime in Settings.: Recalibre ou veja resultados
     detalhados a qualquer momento em Configurações.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Dados grandes demais recebidos da impressora ({} bytes). Isso pode indicar um erro de comunicação.
   Recent Prints: Impressões recentes
   Recently Printed: Impressas recentemente
   Recirculate: 'Recircular'
+  Recirculation fan: 'Ventoinha de recirculação'
+  Recirculation fan speed: 'Velocidade da ventoinha de recirculação'
   Reconnect: Reconectar
   Record Timelapse: Gravar Timelapse
   Record timelapses of your prints: Gravar timelapses das suas impressões
@@ -3246,6 +3260,8 @@ translations:
   Reduce ringing and ghosting artifacts: Reduzir artefatos de ringing e ghosting
   Reduce vibration artifacts like ringing and ghosting: Reduzir artefatos de vibração
     como ringing e ghosting
+  Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Reduzir a velocidade da ventoinha pode afetar a filtragem. Quer continuar?'
+  Reducing the fan speed may affect print quality. Do you want to continue?: 'Reduzir a velocidade da ventoinha pode afetar a qualidade de impressão. Quer continuar?'
   Refeeding filament — this may take a minute: Realimentando filamento — isso pode
     levar um minuto
   Refill the spool, then Resume.: Reabasteça a bobina e depois Retome.
@@ -4067,6 +4083,7 @@ translations:
   : 'A câmera achou que viu algo na mesa, então a impressora parou antes de imprimir. Se a mesa estiver livre, foi um alarme falso.'
   'The carriage was not put back: check which tool is mounted': 'O carro não foi devolvido: verifique qual ferramenta está montada'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'O aquecedor da câmara pode executar um ciclo de secagem de filamento. Inicie pelo diálogo de secagem.'
+  The chamber temperature is too high. This may cause extruder clogging. Continue printing?: 'A temperatura da câmara está demasiado alta. Pode entupir a extrusora. Continuar a impressão?'
   The chamber wait already ended; nothing was stopped.: 'A espera da câmara já terminou; nada foi parado.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : A mudança tem efeito depois que o Klipper reiniciar. O firmware Klipper será reiniciado. Operações ativas serão interrompidas.
@@ -4144,6 +4161,7 @@ translations:
   The printer did not change its bed check: 'A impressora não alterou a verificação da mesa'
   'The printer did not change its bed check: {}': 'A impressora não alterou a verificação da mesa: {}'
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'A impressora não confirmou o início da impressão ({}). Ela ainda pode começar: verifique a impressora antes de iniciar de novo.'
+  The printer did not reset the filter: 'A impressora não repôs o filtro'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'A impressora extruda num canto e repete até as leituras coincidirem. Você não julga nada a olho.'
   The printer finishes this measurement on its own.: 'A impressora conclui esta medição por conta própria.'
   The printer halted this print and cannot resume it. Restart from the beginning?: A
@@ -4204,6 +4222,7 @@ translations:
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: O
     sensor do cabeçote indica que não há filamento presente. Prosseguir com o descarregamento
     mesmo assim?
+  The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'A cobertura superior foi desligada. Para garantir a qualidade de impressão, volte a ligá-la antes de continuar.'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: A unidade já está executando outra operação. Aguarde a conclusão, ou reinicie o CFS se ele continuar travado
   The unit reported a fault with no further detail. Restart the printer if it repeats: A unidade relatou uma falha sem mais detalhes. Reinicie a impressora se repetir
   The unit's onboard storage has failed. The CFS mainboard needs replacing: O armazenamento interno da unidade falhou. A placa-mãe do CFS precisa ser substituída
@@ -4422,6 +4441,7 @@ translations:
   Tools: Ferramentas
   Tools Used: Ferramentas Usadas
   'Tools: ': 'Ferramentas: '
+  Top Cover: 'Cobertura superior'
   Total Prints: Total de Impressões
   'Total print time: {} h': 'Tempo total de impressão: {} h'
   Touch & Input: Toque e entrada
@@ -4707,6 +4727,8 @@ translations:
   Wifi: Wi-Fi
   Will not switch spools on runout: Não trocará de carretel ao acabar
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'
+  With exhaust cooling on, the recirculation fan cannot be turned on: 'Com o arrefecimento por exaustão ativo, a ventoinha de recirculação não pode ser ligada'
+  With internal circulation on, the exhaust fan cannot be turned on: 'Com a recirculação ativa, a ventoinha de exaustão não pode ser ligada'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "A {0:.1f} Hz uma da outra em {1:.0f} Hz"
   Wipe the mounted nozzle on the brush: 'Limpar o bico montado na escova'
   Wiping {}...: Limpando {}...
@@ -4930,8 +4952,10 @@ translations:
   '{} configured items not found': '{} itens configurados não encontrados'
   '{} critical': '{} crítico(s)'
   '{} critical hardware issues': '{} problemas críticos de hardware'
+  '{} detected': '{} detetada'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} não carregou. Verifique se o hotend está bem encaixado e faça uma extrusão de teste antes de retomar.'
   '{} disabled': '{} desabilitado'
+  '{} disconnected': '{} desligada'
   '{} enabled': '{} habilitado'
   '{} failed: {}': '{} falhou: {}'
   '{} filament': '{} de filamento'

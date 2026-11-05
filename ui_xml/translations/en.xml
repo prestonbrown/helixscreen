@@ -177,6 +177,7 @@
   <translation tag="A spool may be tangled or the drive gear is jammed" en="A spool may be tangled or the drive gear is jammed"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." en="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" en="A toolhead offset calibration is in progress, possibly from another screen. End it now?"/>
+  <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." en="A top cover was detected. Its fans and air modes are on the Fans screen."/>
   <translation tag="A upper, B lower" en="A upper, B lower"/>
   <translation tag="ABS" en="ABS"/>
   <translation tag="ACCELEROMETERS" en="ACCELEROMETERS"/>
@@ -261,6 +262,7 @@
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" en="Adjusts individual characteristics of your heaters for optimal control"/>
   <translation tag="Advanced" en="Advanced"/>
   <translation tag="After an error" en="After an error"/>
+  <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." en="After connecting the {}, we recommend recalibrating input shaping to ensure print quality."/>
   <translation tag="After running the commands, tap Check Again below." en="After running the commands, tap Check Again below."/>
   <translation tag="Alert" en="Alert"/>
   <translation tag="Alerts" en="Alerts"/>
@@ -504,6 +506,7 @@
   <translation tag="CFS is busy" en="CFS is busy"/>
   <translation tag="CFS motor overloaded" en="CFS motor overloaded"/>
   <translation tag="CFS system error" en="CFS system error"/>
+  <translation tag="CHAMBER AIR" en="CHAMBER AIR"/>
   <translation tag="CHANGED FROM LAST SESSION" en="CHANGED FROM LAST SESSION"/>
   <translation tag="CLOG" en="CLOG"/>
   <translation tag="COLOR SENSORS" en="COLOR SENSORS"/>
@@ -533,6 +536,7 @@
   <translation tag="Calibrate Y" en="Calibrate Y"/>
   <translation tag="Calibrate heater" en="Calibrate heater"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" en="Calibrate input shaping to reduce ringing artifacts in prints"/>
+  <translation tag="Calibrate now" en="Calibrate now"/>
   <translation tag="Calibrate part fan" en="Calibrate part fan"/>
   <translation tag="Calibrate tool offsets?" en="Calibrate tool offsets?"/>
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
@@ -633,6 +637,7 @@
   <translation tag="Chamber heating to %d°C..." en="Chamber heating to %d°C..."/>
   <translation tag="Chamber target set to {}°C" en="Chamber target set to {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" en="Chamber temp must be 0-%d°C"/>
+  <translation tag="Chamber too hot" en="Chamber too hot"/>
   <translation tag="Change" en="Change"/>
   <translation tag="Change Address" en="Change Address"/>
   <translation tag="Change Blade" en="Change Blade"/>
@@ -1236,6 +1241,9 @@
   <translation tag="Execute printer macros" en="Execute printer macros"/>
   <translation tag="Exhaust" en="Exhaust"/>
   <translation tag="Exhaust Fan" en="Exhaust Fan"/>
+  <translation tag="Exhaust fan" en="Exhaust fan"/>
+  <translation tag="Exhaust fan speed" en="Exhaust fan speed"/>
+  <translation tag="Exhaust: keep chamber at or below" en="Exhaust: keep chamber at or below"/>
   <translation tag="Exit Code" en="Exit Code"/>
   <translation tag="Expected boolean" en="Expected boolean"/>
   <translation tag="Expected float" en="Expected float"/>
@@ -1390,6 +1398,7 @@
   <translation tag="Fan Tach" en="Fan Tach"/>
   <translation tag="Fan Transfer" en="Fan Transfer"/>
   <translation tag="Fan available but not assigned to any role" en="Fan available but not assigned to any role"/>
+  <translation tag="Fan control" en="Fan control"/>
   <translation tag="Fan control failed: {}" en="Fan control failed: {}"/>
   <translation tag="FanSelect" en="FanSelect"/>
   <translation tag="Fans" en="Fans"/>
@@ -2056,6 +2065,7 @@
   <translation tag="Low Memory" en="Low Memory"/>
   <translation tag="Lower" en="Lower"/>
   <translation tag="Lower belt" en="Lower belt"/>
+  <translation tag="Lower fan speed?" en="Lower fan speed?"/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." en="Lower the nozzle until it just touches the top of the print, then resume."/>
   <translation tag="Lowest notification level that interrupts with a toast" en="Lowest notification level that interrupts with a toast"/>
   <translation tag="M to toggle" en="M to toggle"/>
@@ -2515,6 +2525,7 @@
   <translation tag="Only {} MB of memory is free, and Klipper&apos;s analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled." en="Only {} MB of memory is free, and Klipper&apos;s analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled."/>
   <translation tag="Ooze Reduction" en="Ooze Reduction"/>
   <translation tag="Open" en="Open"/>
+  <translation tag="Open Fans" en="Open Fans"/>
   <translation tag="Open Source Licenses" en="Open Source Licenses"/>
   <translation tag="Open color and brightness controls" en="Open color and brightness controls"/>
   <translation tag="Open feeder" en="Open feeder"/>
@@ -2954,11 +2965,14 @@
   <translation tag="Reboot" en="Reboot"/>
   <translation tag="Reboot failed" en="Reboot failed"/>
   <translation tag="Reboot failed — host is still reachable" en="Reboot failed — host is still reachable"/>
+  <translation tag="Recalibrate input shaping?" en="Recalibrate input shaping?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." en="Recalibrate or view detailed results anytime in Settings."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
   <translation tag="Recent Prints" en="Recent Prints"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
   <translation tag="Recirculate" en="Recirculate"/>
+  <translation tag="Recirculation fan" en="Recirculation fan"/>
+  <translation tag="Recirculation fan speed" en="Recirculation fan speed"/>
   <translation tag="Reconnect" en="Reconnect"/>
   <translation tag="Record Timelapse" en="Record Timelapse"/>
   <translation tag="Record timelapses of your prints" en="Record timelapses of your prints"/>
@@ -2977,6 +2991,8 @@
   <translation tag="Reduce Sensitivity" en="Reduce Sensitivity"/>
   <translation tag="Reduce ringing and ghosting artifacts" en="Reduce ringing and ghosting artifacts"/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" en="Reduce vibration artifacts like ringing and ghosting"/>
+  <translation tag="Reducing the fan speed may affect filtration performance. Do you want to continue?" en="Reducing the fan speed may affect filtration performance. Do you want to continue?"/>
+  <translation tag="Reducing the fan speed may affect print quality. Do you want to continue?" en="Reducing the fan speed may affect print quality. Do you want to continue?"/>
   <translation tag="Refeeding filament — this may take a minute" en="Refeeding filament — this may take a minute"/>
   <translation tag="Refill the spool, then Resume." en="Refill the spool, then Resume."/>
   <translation tag="Refresh" en="Refresh"/>
@@ -3710,6 +3726,7 @@
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." en="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm."/>
   <translation tag="The carriage was not put back: check which tool is mounted" en="The carriage was not put back: check which tool is mounted"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." en="The chamber heater can run a filament drying cycle. Start one from the drying dialog."/>
+  <translation tag="The chamber temperature is too high. This may cause extruder clogging. Continue printing?" en="The chamber temperature is too high. This may cause extruder clogging. Continue printing?"/>
   <translation tag="The chamber wait already ended; nothing was stopped." en="The chamber wait already ended; nothing was stopped."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." en="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted."/>
   <translation tag="The connection to Klipper was lost" en="The connection to Klipper was lost"/>
@@ -3775,6 +3792,7 @@
   <translation tag="The printer did not change its bed check" en="The printer did not change its bed check"/>
   <translation tag="The printer did not change its bed check: {}" en="The printer did not change its bed check: {}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
+  <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
@@ -3819,6 +3837,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" en="The toolhead is not homed, so this would home into the print"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" en="The toolhead sensor indicates no filament is present. Proceed with unload anyway?"/>
+  <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." en="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" en="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" en="The unit reported a fault with no further detail. Restart the printer if it repeats"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
@@ -3998,6 +4017,7 @@
   <translation tag="Tools" en="Tools"/>
   <translation tag="Tools Used" en="Tools Used"/>
   <translation tag="Tools: " en="Tools: "/>
+  <translation tag="Top Cover" en="Top Cover"/>
   <translation tag="Total Prints" en="Total Prints"/>
   <translation tag="Total print time: {} h" en="Total print time: {} h"/>
   <translation tag="Touch &amp; Input" en="Touch &amp; Input"/>
@@ -4277,6 +4297,8 @@
   <translation tag="Wipe nozzle on silicone cleaning strip" en="Wipe nozzle on silicone cleaning strip"/>
   <translation tag="Wipe the mounted nozzle on the brush" en="Wipe the mounted nozzle on the brush"/>
   <translation tag="Wiping {}..." en="Wiping {}..."/>
+  <translation tag="With exhaust cooling on, the recirculation fan cannot be turned on" en="With exhaust cooling on, the recirculation fan cannot be turned on"/>
+  <translation tag="With internal circulation on, the exhaust fan cannot be turned on" en="With internal circulation on, the exhaust fan cannot be turned on"/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" en="Within {0:.1f} Hz of each other at {1:.0f} Hz"/>
   <translation tag="Wizard Error" en="Wizard Error"/>
   <translation tag="Working..." en="Working..."/>
@@ -4483,8 +4505,10 @@
   <translation tag="{} could not be checked from Home - review it and tap Print" en="{} could not be checked from Home - review it and tap Print"/>
   <translation tag="{} critical" en="{} critical"/>
   <translation tag="{} critical hardware issues" en="{} critical hardware issues"/>
+  <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
+  <translation tag="{} disconnected" en="{} disconnected"/>
   <translation tag="{} enabled" en="{} enabled"/>
   <translation tag="{} failed: {}" en="{} failed: {}"/>
   <translation tag="{} filament" en="{} filament"/>
