@@ -101,6 +101,7 @@ class CfsChuteCalibrationOverlay : public OverlayBase {
 
     helix::ChuteJogGuard jog_guard_;
     /// Child of the overlay tree; on_ui_destroyed() clears it.
+    // WIDGET_PTR_OK: this overlay creates the pad in C++ and clears the pointer when the pad goes
     lv_obj_t* jog_pad_ = nullptr;
 
     /// Set the moment the overlay starts leaving; the backend polls it at
