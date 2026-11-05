@@ -18,6 +18,7 @@
 #include "moonraker_error.h"
 #include "observer_factory.h"
 #include "print_job_ref.h"
+#include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "standard_macros.h"
 #include "static_subject_registry.h"
@@ -230,8 +231,7 @@ void PrintControlButtons::request_resume() {
             ModalSeverity::Warning, lv_tr("Resume"),
             []() {
                 s_confirm_open = false;
-                if (get_printer_state().print_state().get_print_job_state() ==
-                    helix::PrintJobState::PAUSED) {
+                if (get_printer_state().print_state().get_print_lifecycle() == PrintState::Paused) {
                     PrintControlButtons::instance().dispatch_resume();
                 }
             },
