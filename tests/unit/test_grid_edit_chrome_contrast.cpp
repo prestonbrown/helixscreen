@@ -68,7 +68,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     // button in the page's top-right corner; a half cell, too small to share,
     // carries them just outside it: mid-grid, beside the delete-page button,
     // beside a diagonal neighbour whose select tap a pill must not take, or in
-    // a packed 480x272 grid, off every tile's centre.
+    // a packed 480x272 grid under the delete-page button, on its own corner
+    // and no more than a sliver onto any neighbour.
     enum class Scene {
         Whole,
         WholeUnderDeletePage,
@@ -86,11 +87,11 @@ TEST_CASE_METHOD(XMLTestFixture,
     const int col = scene == Scene::Whole                  ? 0
                     : scene == Scene::WholeUnderDeletePage ? 10
                     : scene == Scene::HalfBesideDeletePage ? 10
-                    : micro                                ? 5
+                    : micro                                ? 11
                                                            : 8;
-    const int row = scene == Scene::Whole || scene == Scene::WholeUnderDeletePage ? 0
-                    : scene == Scene::HalfBesideDeletePage                        ? 1
-                                                                                  : 4;
+    const int row = scene == Scene::Whole || scene == Scene::WholeUnderDeletePage || micro ? 0
+                    : scene == Scene::HalfBesideDeletePage                                 ? 1
+                                                                                           : 4;
     const int span = whole ? GridLayout::TRACKS_PER_CELL : 1;
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
@@ -225,6 +226,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     const int quarter = lv_area_get_width(&pill) / 4;
     lv_area_t del_area;
     lv_obj_get_coords(del, &del_area);
+    helix_test::ScopedPointerIndev pointer;
     auto covers_centre_of = [](const lv_area_t& a, lv_obj_t* obj) {
         lv_area_t t;
         lv_obj_get_coords(obj, &t);
@@ -236,10 +238,22 @@ TEST_CASE_METHOD(XMLTestFixture,
         lv_area_t a;
         lv_obj_get_coords(p, &a);
         CAPTURE(a.x1, a.y1, a.x2, a.y2);
-        CHECK(
-            (a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 || a.y1 > del_area.y2));
+        const bool on_del =
+            !(a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 || a.y1 > del_area.y2);
+        // Only a packed corner leaves a pill nowhere but over the delete-page
+        // button, and a tap on that part acts on neither.
+        CHECK((!on_del || micro));
+        if (on_del) {
+            const int32_t x = (std::max(a.x1, del_area.x1) + std::min(a.x2, del_area.x2)) / 2;
+            const int32_t y = (std::max(a.y1, del_area.y1) + std::min(a.y2, del_area.y2)) / 2;
+            pointer.press(x, y);
+            pointer.release(x, y);
+            REQUIRE(config.page_entries(kPageIndex).size() == 1);
+            CHECK(pw.configure_calls == 0);
+            CHECK(delete_page_calls == 0);
+        }
         CHECK_FALSE(covers_centre_of(a, widget));
-        if (!whole) {
+        if (!whole && !micro) {
             CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
         }
         if (scene == Scene::HalfMidGrid) {
@@ -250,13 +264,18 @@ TEST_CASE_METHOD(XMLTestFixture,
             lv_obj_get_coords(neighbour, &n);
             CHECK((a.x2 < n.x1 || a.x1 > n.x2 || a.y2 < n.y1 || a.y1 > n.y2));
         }
+        // A pill deeper into a neighbour than a few px takes its select tap.
         for (lv_obj_t* n : packed) {
-            CAPTURE(lv_obj_get_name(n));
-            CHECK_FALSE(covers_centre_of(a, n));
+            lv_area_t na;
+            lv_obj_get_coords(n, &na);
+            const int32_t ow = std::min(a.x2, na.x2) - std::max(a.x1, na.x1) + 1;
+            const int32_t oh = std::min(a.y2, na.y2) - std::max(a.y1, na.y1) + 1;
+            CAPTURE(lv_obj_get_name(n), ow, oh);
+            CHECK((ow <= 0 || oh <= 0 || std::min(ow, oh) <= 6));
         }
     }
     // Every pixel of the delete-page button is the delete-page button.
-    for (int32_t x = del_area.x1; x <= del_area.x2; ++x) {
+    for (int32_t x = del_area.x1; x <= del_area.x2 && !micro; ++x) {
         for (int32_t y = del_area.y1; y <= del_area.y2; ++y) {
             lv_point_t p{x, y};
             CAPTURE(x, y);
@@ -278,7 +297,6 @@ TEST_CASE_METHOD(XMLTestFixture,
     // A press that starts on a pill or the delete-page button is that
     // button's, even over the outward resize band: sliding off neither resizes
     // the widget nor taps the button.
-    helix_test::ScopedPointerIndev pointer;
     auto centre_of = [](lv_obj_t* obj) {
         lv_area_t a;
         lv_obj_get_coords(obj, &a);

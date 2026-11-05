@@ -617,7 +617,7 @@ TEST_CASE("selection pills: outside a widget too small to share, off its corner,
     }
 }
 
-TEST_CASE("selection pills: off every centre in a packed micro grid, clear of the delete-page "
+TEST_CASE("selection pills: on their own corner in a packed micro grid, clear of the delete-page "
           "button on a corner",
           "[grid_edit][edit-chrome][halfcell]") {
     using Corner = GridEditMode::PillCorner;
@@ -630,45 +630,39 @@ TEST_CASE("selection pills: off every centre in a packed micro grid, clear of th
         return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
     };
 
-    // 480x272: 24px pills, 2px gaps, 34x31 half-cell tiles on a 36x33 pitch,
-    // every track taken. Every first-ring spot off track (5, 4) covers a
-    // neighbour's centre, so the pills go one pill further out, between two.
+    // 480x272: 24px pills overhanging by 6, 2px gaps, every track taken. No
+    // spot outside the tile spares its neighbours, so the pills go on its own
+    // corner, out past its centre, a few px onto the neighbours.
     const lv_area_t micro{42, 4, 471, 267};
-    std::vector<lv_area_t> tiles;
-    lv_area_t tile{};
-    for (int c = 0; c < 12; ++c) {
-        for (int r = 0; r < 8; ++r) {
-            const lv_area_t t{42 + 36 * c, 4 + 33 * r, 42 + 36 * c + 33, 4 + 33 * r + 30};
-            if (c == 5 && r == 4) {
-                tile = t;
-            } else {
-                tiles.push_back(t);
+    struct Grid {
+        int pitch_x, pitch_y, w, h;
+        lv_area_t tile, trash, cfg;
+    };
+    const Grid grids[] = {
+        {36, 33, 34, 31, {222, 136, 255, 166}, {239, 127, 262, 150}, {214, 127, 237, 150}},
+        {72, 66, 70, 64, {186, 70, 255, 133}, {238, 64, 261, 87}, {180, 64, 203, 87}},
+    };
+    for (const auto& g : grids) {
+        CAPTURE(g.w, g.h);
+        std::vector<lv_area_t> others;
+        for (int32_t x = micro.x1; x + g.w - 1 <= micro.x2; x += g.pitch_x) {
+            for (int32_t y = micro.y1; y + g.h - 1 <= micro.y2; y += g.pitch_y) {
+                const lv_area_t t{x, y, x + g.w - 1, y + g.h - 1};
+                if (!same(t, g.tile)) {
+                    others.push_back(t);
+                }
             }
         }
+        CHECK_FALSE(
+            GridEditMode::outside_pill_area(g.tile, 24, micro, 2, Corner::TopRight, {}, others)
+                .has_value());
+        const lv_area_t trash =
+            GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopRight, {}, others);
+        CHECK(same(trash, g.trash));
+        CHECK(
+            same(GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopLeft, {trash}, others),
+                 g.cfg));
     }
-    const auto trash =
-        GridEditMode::outside_pill_area(tile, 24, micro, 2, Corner::TopRight, {}, tiles);
-    REQUIRE(trash.has_value());
-    CHECK(same(*trash, {284, 110, 307, 133}));
-    const auto cfg =
-        GridEditMode::outside_pill_area(tile, 24, micro, 2, Corner::TopLeft, {*trash}, tiles);
-    REQUIRE(cfg.has_value());
-    CHECK(same(*cfg, {170, 110, 193, 133}));
-    for (const lv_area_t& t : tiles) {
-        CHECK_FALSE(covers(*trash, t));
-        CHECK_FALSE(covers(*cfg, t));
-    }
-
-    // A neighbour centred inside every spot: nullopt, the pill goes on its corner.
-    std::vector<lv_area_t> dots;
-    for (int32_t cx : {480, 375, 520, 335}) {
-        for (int32_t cy : {175, 215, 280}) {
-            dots.push_back({cx - 5, cy - 5, cx + 5, cy + 5});
-        }
-    }
-    CHECK_FALSE(GridEditMode::outside_pill_area({400, 200, 459, 258}, 36, {80, 0, 799, 479}, 5,
-                                                Corner::TopRight, {}, dots)
-                    .has_value());
 
     // On the tile's corner: 36px pills overhanging by 9, at 800x480.
     const lv_area_t del = GridEditMode::delete_page_button_area({80, 0, 799, 479});
