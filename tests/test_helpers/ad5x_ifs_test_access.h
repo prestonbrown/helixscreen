@@ -12,7 +12,6 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
-#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <array>
@@ -25,6 +24,8 @@
 #include <utility>
 #include <vector>
 
+#include "hv/json.hpp"
+
 using json = nlohmann::json;
 
 namespace helix {
@@ -32,14 +33,6 @@ namespace helix {
 // Test access helper — friend class for accessing internals
 class Ad5xIfsTestAccess {
   public:
-    /// Takes a notify frame or a bare status object (a query result).
-    static void handle_status(AmsBackendAd5xIfs& b, const json& n) {
-        if (n.contains("params")) {
-            b.handle_status_update(n);
-        } else {
-            b.handle_status(n);
-        }
-    }
     // Put a whole Spoolman link on the live slot — the shape a linked slot
     // carries. The persisted override record has no filament-id field, so
     // the live slot is the only half of a link a test can seed whole.
@@ -58,17 +51,6 @@ class Ad5xIfsTestAccess {
     // Standalone IFS module surface (ifs / ifs_materials objects).
     static bool module_live(const AmsBackendAd5xIfs& b) {
         return b.ifs_module_live_.load();
-    }
-    // Deliver a printer.ifs status frame carrying the identity tool_map — the
-    // fixture every "wire contract detected" test starts from. Shape as the
-    // module serialises it: string tool keys, 1-based lanes.
-    static void deliver_identity_tool_map(AmsBackendAd5xIfs& b) {
-        handle_status(
-            b, json{{"ifs", json{{"tool_map", json{{"0", 1}, {"1", 2}, {"2", 3}, {"3", 4}}}}}});
-    }
-    static void parse_vars(AmsBackendAd5xIfs& b, const json& v) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        b.apply_save_variables_locked(ad5x::parse_save_variables(v, b.var_prefix_));
     }
     static int active_tool(const AmsBackendAd5xIfs& b) {
         return b.active_tool_;
@@ -650,12 +632,6 @@ class Ad5xIfsTestAccess {
 
     // --- Plugin visibility (#1250 B1-4) ---
 
-    // Drive the `gcode_macro _ifs_vars` get_status() dict parse directly.
-    static bool parse_ifs_vars_macro(AmsBackendAd5xIfs& b, const json& macro_status) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        const auto macro = ad5x::parse_ifs_vars_macro(macro_status);
-        return macro && b.apply_ifs_vars_macro_locked(*macro);
-    }
     static int backup_state(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.backup_state_locked();
@@ -675,3 +651,14 @@ class Ad5xIfsTestAccess {
     }
 };
 } // namespace helix
+
+namespace helix::test {
+
+/// A printer.ifs status frame carrying the identity tool_map, the frame every
+/// "wire contract detected" test starts from. Shape as the module serialises
+/// it: string tool keys, 1-based lanes.
+inline nlohmann::json ad5x_identity_tool_map_frame() {
+    return {{"ifs", {{"tool_map", {{"0", 1}, {"1", 2}, {"2", 3}, {"3", 4}}}}}};
+}
+
+} // namespace helix::test

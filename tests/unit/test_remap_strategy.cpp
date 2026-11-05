@@ -31,6 +31,7 @@
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_remap.h"
+#include "test_helpers/backend_harness.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -228,13 +229,13 @@ TEST_CASE("Backends declare remap readiness, defaulting to ready", "[ams][strate
     }
 
     SECTION("AD5X IFS is not ready until the wire tool_map is discovered") {
-        Ad5xIfsProbe ad5x;
+        helix::test::StartedBackend<Ad5xIfsProbe> ad5x;
         REQUIRE(ad5x.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
         REQUIRE_FALSE(ad5x.remap_ready());
         REQUIRE_FALSE(helix::printer::can_remap(ad5x));
 
         // A printer.ifs frame carrying tool_map arms the gate.
-        Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
+        ad5x.fire_status(helix::test::ad5x_identity_tool_map_frame());
 
         REQUIRE(ad5x.remap_ready());
         REQUIRE(helix::printer::can_remap(ad5x));
@@ -345,9 +346,9 @@ TEST_CASE("owns_tool_mapping_table is answered independently of remap capability
     }
 
     SECTION("AD5X IFS owns one only once the wire tool_map is discovered") {
-        Ad5xIfsProbe ad5x;
+        helix::test::StartedBackend<Ad5xIfsProbe> ad5x;
         CHECK_FALSE(ad5x.owns_tool_mapping_table());
-        Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
+        ad5x.fire_status(helix::test::ad5x_identity_tool_map_frame());
         CHECK(ad5x.owns_tool_mapping_table());
     }
 }

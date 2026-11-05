@@ -41,10 +41,6 @@ class CfsTestAccess {
         b.on_started();
     }
 
-    /// Takes a notify frame, the shape the subscription delivers.
-    static void handle_status(helix::printer::AmsBackendCfs& b, const nlohmann::json& n) {
-        b.handle_status_update(n);
-    }
     static void seed_override(helix::printer::AmsBackendCfs& b, int slot_index,
                               const helix::ams::FilamentSlotOverride& ovr) {
         {
@@ -70,6 +66,9 @@ class CfsTestAccess {
     static void inject_override_store(helix::printer::AmsBackendCfs& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
+        // A start bound the tracker's baseline writes to the store this replaces.
+        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_.get(),
+                                                 b.overrides_);
     }
     /// Put a whole Spoolman link on the live slot — the shape a linked slot
     /// carries. The persisted override record has no filament-id field, so

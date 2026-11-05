@@ -23,6 +23,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
+#include "test_helpers/backend_harness.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -372,9 +373,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: an absent unit's bays draw no cel
                  "[ams][mini_status][1464]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(false);
-    auto owned = std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr);
+    auto owned = std::make_unique<helix::test::WiredBackend<helix::printer::AmsBackendCfs>>();
     auto* cfs = owned.get();
     ams.set_backend(std::move(owned));
+    REQUIRE(cfs->start().success());
 
     nlohmann::json box = {{"state", "connect"}, {"filament", 0}, {"map", nlohmann::json::object()}};
     for (const char* unit : {"T1", "T3"}) {
@@ -386,8 +388,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: an absent unit's bays draw no cel
                      {"material_type", {"-1", "-1", "-1", "-1"}}};
     }
     box["T2"] = {{"state", "None"}};
-    helix::CfsTestAccess::handle_status(
-        *cfs, nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{{"box", box}}, 0})}});
+    cfs->fire_status(
+        nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{{"box", box}}, 0})}});
     REQUIRE(cfs->get_system_info().slot_absent(5));
 
     ui_ams_mini_status_init();

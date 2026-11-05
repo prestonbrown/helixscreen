@@ -85,7 +85,7 @@ namespace {
 using Ad5xHarness = RegisteredBackend<AmsBackendAd5xIfs>;
 using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
-using CfsHarness = RegisteredBackend<AmsBackendCfs>;
+using CfsHarness = helix::test::RegisteredWired<AmsBackendCfs>;
 using AceHarness = RegisteredBackend<AmsBackendAce>;
 using SnapmakerHarness = helix::test::RegisteredWired<AmsBackendSnapmaker>;
 using ToolChangerHarness = RegisteredBackend<AmsBackendToolChanger>;
@@ -158,12 +158,8 @@ using RefusedGcodeAfcHarness = RegisteredBackend<RefusedGcodeAfc>;
 /// parsed, and whether the frame counts as a full update at all, are decisions
 /// the production entry point makes, so every CFS case drives that rather than
 /// one of the two static parsers.
-void feed_cfs_box(AmsBackendCfs& backend, const nlohmann::json& box) {
-    nlohmann::json params;
-    params["box"] = box;
-    nlohmann::json notification;
-    notification["params"] = nlohmann::json::array({params, 0.0});
-    CfsTestAccess::handle_status(backend, notification);
+void feed_cfs_box(helix::test::WiredBackend<AmsBackendCfs>& backend, const nlohmann::json& box) {
+    backend.fire_status({{"box", box}});
 }
 
 /// A community-fork `box` payload: a flat self-describing slots[] array.
@@ -2232,7 +2228,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Happy Hare frame with no insert asks nothin
 
 TEST_CASE_METHOD(LVGLTestFixture, "CFS splits bay occupancy from the box's tag memory",
                  "[lane][ingest][cfs]") {
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     feed_cfs_box(*harness,
                  flat_box(nlohmann::json::array({nlohmann::json{{"index", 0},
@@ -2290,7 +2286,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS splits bay occupancy from the box's tag m
 
 TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches CFS's vendor-cache record",
                  "[lane][ingest][cfs]") {
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     const nlohmann::json box = flat_box(nlohmann::json::array(
         {nlohmann::json{{"index", 0}, {"present", false}}, nlohmann::json{{"index", 1},
@@ -2330,7 +2326,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches CFS's vendor-cache 
 
 TEST_CASE_METHOD(LVGLTestFixture, "each CFS bay accumulates its own identity",
                  "[lane][ingest][cfs]") {
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     feed_cfs_box(
         *harness,
@@ -2374,7 +2370,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "each CFS bay accumulates its own identity",
 
 TEST_CASE_METHOD(LVGLTestFixture, "a CFS frame that names one unit leaves the others standing",
                  "[lane][ingest][cfs]") {
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
 
     feed_cfs_box(*harness,
                  stock_box("T1", nlohmann::json{{"vender", nlohmann::json::array({"Creality"})},
@@ -2429,7 +2425,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a CFS frame that names one unit leaves the ot
 TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared grammar",
                  "[lane][ingest][cfs]") {
     SECTION("a stock value with anything after the colour is no colour") {
-        CfsHarness harness(nullptr, nullptr);
+        CfsHarness harness;
         // Creality's own spelling is a leading zero and six hex digits. A value
         // carrying more than that is refused whole rather than read up to its
         // first bad character, which would file a plausible wrong colour.
@@ -2449,7 +2445,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared
     }
 
     SECTION("a stock value the old parse refused now reads") {
-        CfsHarness harness(nullptr, nullptr);
+        CfsHarness harness;
         // Creality's leading-zero "0RRGGBB" is this function's own to strip;
         // what is left is read by the grammar every other lane-shaped producer
         // uses, so the ordinary web spellings mean here what they mean there.
@@ -2482,7 +2478,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS reads both its wire colours by the shared
     }
 
     SECTION("the flat schema reads every spelling the shared grammar accepts") {
-        CfsHarness harness(nullptr, nullptr);
+        CfsHarness harness;
         feed_cfs_box(*harness,
                      flat_box(nlohmann::json::array(
                          {nlohmann::json{{"index", 0}, {"color", "#F00"}, {"present", true}},
@@ -4696,7 +4692,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(db.client.call_count("server.database.get_item") == 0);
     }
     {
-        CfsHarness harness(nullptr, nullptr);
+        CfsHarness harness;
         LaneDataDb db;
         db.seed("lane3", nlohmann::json{{"lane", "2"}, {"material", "PLA-CF"}});
         CfsTestAccess::inject_override_store(*harness,
@@ -4871,7 +4867,7 @@ const CachedSlotBackend kCachedSlotBackends[] = {
      }},
     {"CFS",
      [] {
-         CfsHarness harness(nullptr, nullptr);
+         CfsHarness harness;
          feed_cfs_box(*harness,
                       flat_box(nlohmann::json::array({nlohmann::json{{"index", 0},
                                                                      {"material", "PLA"},
@@ -5075,7 +5071,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker entry with no card behind it is n
 
 TEST_CASE_METHOD(LVGLTestFixture, "a CFS bay's tag reading outlives a user's edit",
                  "[lane][cfs][tag_reading]") {
-    CfsHarness harness(nullptr, nullptr);
+    CfsHarness harness;
     const nlohmann::json box = flat_box(nlohmann::json::array({nlohmann::json{{"index", 0},
                                                                               {"material", "PETG"},
                                                                               {"brand", "Creality"},
@@ -5227,7 +5223,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE's REST bridge keeps the hub's temps under
 TEST_CASE_METHOD(LVGLTestFixture, "a restart forgets the box's tag readings",
                  "[lane][cfs][qidi][tag_reading]") {
     SECTION("CFS") {
-        CfsHarness harness(nullptr, nullptr);
+        CfsHarness harness;
         feed_cfs_box(
             *harness,
             flat_box(nlohmann::json::array({nlohmann::json{

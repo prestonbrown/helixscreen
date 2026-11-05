@@ -22,6 +22,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
@@ -177,8 +178,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Non-id backends: eject rule inert, field merg
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 
-    helix::test::RegisteredBackend<helix::printer::AmsBackendCfs> backend_reg(&api, nullptr);
-    helix::printer::AmsBackendCfs& backend = *backend_reg;
+    helix::test::RegisteredWired<helix::printer::AmsBackendCfs> backend_reg(&api);
+    auto& backend = *backend_reg;
     helix::ams::FilamentSlotOverride ovr;
     ovr.brand = "Polymaker"; // a real user assignment — no id, no locks
     ovr.material = "PLA";
@@ -201,8 +202,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Non-id backends: eject rule inert, field merg
             "change_color_num": ["-1", "-1", "-1", "-1"]
         }
     })");
-    CfsTestAccess::handle_status(
-        backend,
+    backend.fire_status(
         nlohmann::json{{"params", nlohmann::json::array({nlohmann::json{{"box", box}}, 0})}});
 
     const auto info = backend.get_slot_info(0);
