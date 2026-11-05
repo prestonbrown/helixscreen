@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One button of a button_group: square corners (the group rounds its outer ones) and
+     a divider on its left edge. The first item of a group sets style_border_width="0". -->
+<component>
+  <api>
+    <prop name="text" type="string" default=""/>
+    <prop name="icon" type="string" default=""/>
+    <prop name="variant" type="string" default="primary"/>
+  </api>
+  <view extends="ui_button"
+        height="100%" text="$text" icon="$icon" variant="$variant" style_pad_ver="0" style_pad_hor="#space_md"
+        style_radius="0" style_border_width="1" style_border_side="left" style_border_color="#text_muted"
+        style_border_opa="60"/>
+</component>
