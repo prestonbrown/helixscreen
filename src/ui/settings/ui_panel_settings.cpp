@@ -8,7 +8,6 @@
 #include "ui_info_qr_modal.h"
 #include "ui_modal.h"
 #if HELIX_HAS_PLUGINS
-#include "notice.h"
 #include "plugins_overlay.h"
 #endif
 #include "ui_nav.h"
@@ -47,6 +46,7 @@
 #include "input_settings_manager.h"
 #include "lvgl.h"
 #include "moonraker_manager.h"
+#include "notice.h"
 #include "platform_info.h"
 #include "printer_hardware.h"
 #include "printer_state.h"
