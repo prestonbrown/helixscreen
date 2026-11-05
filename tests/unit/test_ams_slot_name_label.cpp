@@ -109,6 +109,36 @@ TEST_CASE("slot_card_name: spool name, then Spoolman name, then product name",
     CHECK(helix::slot_card_name(slot, nullptr) == "PLA+ 2.0");
 }
 
+TEST_CASE("slot_card_name: a name that only repeats the material gives way",
+          "[ams][slot_name][pure]") {
+    // A Spoolman filament named after its material ("ABS+") would print the
+    // material on both lines of the card.
+    SlotInfo slot = named_slot("ABS+", "", "ABS+");
+    slot.brand = "eSUN";
+    CHECK(helix::slot_card_name(slot, nullptr) == "eSUN");
+
+    // The next name in line stands in before the brand does.
+    slot.product_name = "ABS+HS";
+    CHECK(helix::slot_card_name(slot, nullptr) == "ABS+HS");
+
+    // Case and spacing do not make a repeat a name.
+    SpoolIdentity identity;
+    identity.filament_name = " abs+ ";
+    slot = named_slot("", "", "ABS+");
+    CHECK(helix::slot_card_name(slot, &identity).empty());
+
+    // A name that merely contains the material still names the spool.
+    slot = named_slot("ABS+ Deep Gray", "", "ABS+");
+    slot.brand = "eSUN";
+    CHECK(helix::slot_card_name(slot, nullptr) == "ABS+ Deep Gray");
+
+    // With no name at all the card keeps its one line; the brand is a stand-in
+    // for a repeated name, not a name of its own.
+    slot = named_slot("", "", "ABS+");
+    slot.brand = "eSUN";
+    CHECK(helix::slot_card_name(slot, nullptr).empty());
+}
+
 TEST_CASE("slot_card_name: a colour is never the card's name", "[ams][slot_name][pure]") {
     // The spool graphic under the label already shows the colour, so neither a
     // stored colour name nor one computed from the hex reaches the card.

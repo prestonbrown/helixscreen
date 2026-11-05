@@ -168,7 +168,9 @@ bool name_states_material(std::string_view name, std::string_view material);
  *
  * `slot.spool_name` -> `identity->filament_name` -> `slot.product_name`: what
  * the spool IS ("PLA+ 2.0", "Silk PLA+"). Never a colour name: the spool graphic
- * under it already shows the colour.
+ * under it already shows the colour. A name that is just `slot.material` is
+ * skipped, since the card's material line already reads it; when every name
+ * is, the brand names the spool instead.
  *
  * @param slot     Slot to name
  * @param identity Cached Spoolman identity, or nullptr on a miss
