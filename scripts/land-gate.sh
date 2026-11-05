@@ -149,9 +149,9 @@ run_step() {
             fi ;;
         slow)
             if [ "$SWEEP_WHERE" = remote ]; then
-                step slow "$TEST_HOST_RUN" exec -- make --no-print-directory test-slow
+                step slow "$TEST_HOST_RUN" exec -- make --no-print-directory test-slow SHARD_CRASH_FAILS=1
             else
-                step slow "${mk[@]}" test-slow
+                step slow "${mk[@]}" test-slow SHARD_CRASH_FAILS=1
             fi ;;
         bats) step bats "${mk[@]}" test-shell BATS_REQUIRED=1 ;;
         ui) step ui "${mk[@]}" test-ui-ci ;;
@@ -265,7 +265,7 @@ export LAND_GATE_ACTIVE=$$
 resolve_sweep_location || exit $?
 # macOS is a development platform, and the C++ suite has known failures there
 # on the environment alone (#1776): a local run there reds every gate.
-if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ] && { [ -z "$RERUN" ] || reruns ci-shards; }; then
+if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ] && { [ -z "$RERUN" ] || reruns ci-shards || reruns slow; }; then
     if [ -n "${HELIX_TEST_HOST:-}" ]; then
         echo "✗ land-gate does not run the C++ suite on macOS: TEST_HOST=1 make land-gate sends it to $HELIX_TEST_HOST" >&2
     else
@@ -330,7 +330,7 @@ gate_t0=$SECONDS
 # A test-host C++ run copies this tree to the host as it starts, beside the app
 # build that applies patches/ to the submodules. Applied first, the copy always
 # holds fully patched submodules; with the stamp current it is a no-op.
-if [ "$SWEEP_WHERE" = remote ] && { [ -z "$RERUN" ] || reruns ci-shards; }; then
+if [ "$SWEEP_WHERE" = remote ] && { [ -z "$RERUN" ] || reruns ci-shards || reruns slow; }; then
     if ! "$MAKE" --no-print-directory apply-patches >"$LAND_GATE_LOGDIR/apply-patches.log" 2>&1; then
         echo "✗ applying patches/ failed, so the test host would get unpatched submodules:"
         tail -n 25 "$LAND_GATE_LOGDIR/apply-patches.log"

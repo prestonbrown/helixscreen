@@ -150,7 +150,7 @@ row() { # <status> <step>: the table row for step has that status
     : >"$CALLS"
     TEST_HOST=1 run "$GATE"
     [ "$status" -eq 0 ]
-    grep -qx "host-run exec -- make --no-print-directory test-slow" "$CALLS"
+    grep -qx "host-run exec -- make --no-print-directory test-slow SHARD_CRASH_FAILS=1" "$CALLS"
     refute_grep "^make test-slow" "$CALLS"
 }
 
