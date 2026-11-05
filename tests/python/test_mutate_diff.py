@@ -1433,6 +1433,25 @@ def test_a_catch2_baseline_red_once_is_retried_and_its_flake_named(tmp_path):
     assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
 
 
+def test_a_failure_that_does_not_repeat_kills_nothing(tmp_path):
+    work = _fixture(tmp_path)
+    # Green at baseline; the first run against a mutant fails an unrelated budget.
+    (work / "build" / "bin" / "helix-tests").write_text(f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if ! grep -q NEW_BEHAVIOR src/feature.cpp && [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+exit 0
+""")
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "tests/unit/test_budget.cpp:9 failed once and not again" in r.stdout, r.stdout
+    assert re.search(r"SURVIVED\s+src/feature.cpp", r.stdout), r.stdout
+    assert r.returncode == 1, r.stdout
+
+
 def test_a_catch2_baseline_red_twice_still_stops_the_run(tmp_path):
     work = _fixture(tmp_path)
     (work / "build" / "bin" / "helix-tests").write_text(

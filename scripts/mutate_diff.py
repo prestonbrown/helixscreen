@@ -1932,7 +1932,7 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
                for i in plan.order()]
     measuring = plan.limits is None
     running, tokens = [], []
-    detected, unexplained, hung = False, '', ''
+    detected, unexplained, hung = None, '', ''
 
     def reap(entry, kill=False):
         i, who, p, out_f, t0, _ = entry
@@ -1975,7 +1975,7 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
                 if state == DETECTED and sites and sites <= plan.flaky:
                     state = GREEN
                 if state == DETECTED:
-                    detected = True
+                    detected = (entry[0], sites)
                 elif state == INCONCLUSIVE and not unexplained:
                     unexplained = why
             if detected:
@@ -1999,8 +1999,34 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
     if hung:
         return DETECTED, TIMED_OUT, hung
     if detected:
-        return DETECTED, '', ''
+        return DETECTED, '', detected
     return (INCONCLUSIVE, unexplained, '') if unexplained else (GREEN, '', '')
+
+
+def detection_repeats(root, test_bin, filt, plan, shard):
+    """Whether the shard that detected a mutant detects it again, unhurried.
+
+    A wall-clock budget in a test can run out on a machine a pool is loading, with
+    the mutant nowhere near it, and `killed` is the verdict nobody re-checks. Run
+    at normal priority under the shard's own limit; still running at the limit is
+    a repeat, since a hang is a detection too.
+    """
+    argv = catch2_argv(test_bin, filt) + ['-x', '1']
+    if plan.shards > 1:
+        argv += ['--shard-count', str(plan.shards), '--shard-index', str(shard)]
+    with normal_priority(), tempfile.TemporaryFile(mode='w+', encoding='utf-8',
+                                                   errors='replace') as out_f:
+        p = tracked_proc(argv, root, stdout=out_f)
+        try:
+            p.wait(timeout=plan.limits[shard])
+        except subprocess.TimeoutExpired:
+            _signal_procs([p], signal.SIGKILL)
+            p.wait()
+            return True
+        finally:
+            untrack_proc(p)
+        out_f.seek(0)
+        return suite_detected('catch2', out_f.read())
 
 
 def run_confirmed(suites, name):
@@ -2275,6 +2301,14 @@ class Suites:
         the host has no bound on how long it can be starved.
         """
         state, why, who = self._run_once(name, 1.0)
+        if state == DETECTED and not why and name == 'catch2' and self.catch2.limits:
+            shard, sites = who
+            if not detection_repeats(self.root, self.catch2_bin, self.args.tests, self.catch2, shard):
+                # Those assertions judge nothing now, and the shards stopped at the
+                # detection have still to run.
+                self.catch2.flaky |= sites
+                note(f'[{", ".join(sorted(sites))} failed once and not again] ')
+                state, why, who = self._run_once(name, 1.0)
         if why != TIMED_OUT:
             return state, why
         note(f'[{who} hit its limit; re-running at 2x] ')
@@ -3043,8 +3077,6 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         pass
     finally:
         guard.restore(h['file'])
-    # A reverted new file can also build with the old binary left in place, which
-    # judges nothing either.
     revert_judged_nothing = verdict in ('uncompilable', 'unreversible') or note_ == UNBUILT_MUTANT
     if (args.inside and revert_judged_nothing and plan['build']
             and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
