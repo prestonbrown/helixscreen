@@ -278,6 +278,8 @@ COVERAGE = (
 # before COVERAGE, which would otherwise claim them as code.
 GENERATED = (
     ('src/generated/*', 'generated output; mutate the source it is generated from'),
+    ('ui_xml/translations/*', 'generated from translations/*.yml by generate_translations.py, '
+                              'which every build reruns'),
 )
 
 # Content no program reads, so no mutant of it could change behaviour. Named in

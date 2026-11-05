@@ -1146,6 +1146,8 @@ def test_file_tag_filters_turn_on_catch2_file_tags():
 
 def test_generated_output_is_not_mutated_as_code():
     assert md.classify("src/generated/theme_token_table.cpp", False)[0] == "inert"
+    assert md.classify("ui_xml/translations/de.xml", False)[0] == "inert"
+    assert md.classify("ui_xml/print_status_panel.xml", False) == ("mutate", "data")
     assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
 
 
