@@ -885,7 +885,7 @@ void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed) {
     lv_obj_invalidate(obj); // Redraw the center home button in its new color
 }
 
-bool ui_jog_pad_get_homed(lv_obj_t* obj) {
+bool helix::ui::jog_pad_is_homed(lv_obj_t* obj) {
     jog_pad_state_t* state = get_state(obj);
     return state && state->is_homed;
 }
