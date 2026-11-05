@@ -25,23 +25,28 @@
         <bind_flag_if cond="chamber_air_available eq 0 or (printer_has_chamber_air_recirculate eq 0 and printer_has_chamber_air_exhaust eq 0 and printer_has_chamber_air_off eq 0)"
                       flag="hidden"/>
         <text_body text="Chamber air"/>
-        <ui_button name="btn_chamber_air_recirculate"
-                   height="#button_height_sm" icon="sync" text="Recirculate" variant="secondary">
-          <bind_flag_if_eq subject="printer_has_chamber_air_recirculate" flag="hidden" ref_value="0"/>
-          <bind_style_if_eq name="styles.selected_row" subject="chamber_air_mode" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="recirculate"/>
-        </ui_button>
-        <ui_button name="btn_chamber_air_exhaust"
-                   height="#button_height_sm" icon="fan" text="Exhaust" variant="secondary">
-          <bind_flag_if_eq subject="printer_has_chamber_air_exhaust" flag="hidden" ref_value="0"/>
-          <bind_style_if_eq name="styles.selected_row" subject="chamber_air_mode" ref_value="1"/>
-          <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="exhaust"/>
-        </ui_button>
-        <ui_button name="btn_chamber_air_off" height="#button_height_sm" icon="fan_off" text="Off" variant="secondary">
-          <bind_flag_if_eq subject="printer_has_chamber_air_off" flag="hidden" ref_value="0"/>
-          <bind_style_if_eq name="styles.selected_row" subject="chamber_air_mode" ref_value="2"/>
-          <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="off"/>
-        </ui_button>
+        <!-- One choice of three, so one segmented control. -->
+        <button_group name="chamber_air_modes">
+          <button_group_item name="btn_chamber_air_recirculate"
+                             icon="sync" text="Recirculate" variant="secondary" style_border_width="0">
+            <bind_flag_if_eq subject="printer_has_chamber_air_recirculate" flag="hidden" ref_value="0"/>
+            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="0"/>
+            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 0"/>
+            <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="recirculate"/>
+          </button_group_item>
+          <button_group_item name="btn_chamber_air_exhaust" icon="fan" text="Exhaust" variant="secondary">
+            <bind_flag_if_eq subject="printer_has_chamber_air_exhaust" flag="hidden" ref_value="0"/>
+            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="1"/>
+            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 1"/>
+            <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="exhaust"/>
+          </button_group_item>
+          <button_group_item name="btn_chamber_air_off" icon="fan_off" text="Off" variant="secondary">
+            <bind_flag_if_eq subject="printer_has_chamber_air_off" flag="hidden" ref_value="0"/>
+            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="2"/>
+            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 2"/>
+            <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="off"/>
+          </button_group_item>
+        </button_group>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- Single flex-wrap row for all fans (controllable first, then auto) -->
