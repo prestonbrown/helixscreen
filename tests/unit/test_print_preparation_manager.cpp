@@ -1216,11 +1216,11 @@ TEST_CASE("PrintPreparationManager: build_pre_start_gcode_block (join contract)"
  * - Helper methods for waiting on async operations with queue draining
  *
  * The PrintStartAnalyzer flow:
- * 1. Calls api->list_files("config", ...) which sends server.files.list via WebSocket
+ * 1. Lists the config root with server.files.get_directory via WebSocket
  * 2. For each .cfg file found, calls api->download_file() via HTTP
  * 3. Scans each file for [gcode_macro PRINT_START] or similar
  *
- * We can test retry logic by controlling the server.files.list response:
+ * We can test retry logic by controlling the server.files.get_directory response:
  * - Return error to trigger retry
  * - Return empty list to complete with "not found"
  * - Return file list to proceed to download phase
@@ -1389,7 +1389,7 @@ class MacroAnalysisRetryFixture {
         server_->clear_handlers();
 
         // Handler that fails N times, then succeeds
-        server_->on_method("server.files.list", [this](const json& params) -> json {
+        server_->on_method("server.files.get_directory", [this](const json& params) -> json {
             (void)params;
             list_files_call_count_++;
             {
@@ -1403,11 +1403,11 @@ class MacroAnalysisRetryFixture {
             }
 
             // Success: return file list
-            json result = json::array();
+            json files = json::array();
             for (const auto& file : list_files_success_files_) {
-                result.push_back({{"path", file}, {"size", 1024}, {"modified", 1234567890.0}});
+                files.push_back({{"filename", file}, {"size", 1024}, {"modified", 1234567890.0}});
             }
-            return result;
+            return json{{"dirs", json::array()}, {"files", files}};
         });
     }
 
@@ -1418,7 +1418,7 @@ class MacroAnalysisRetryFixture {
         list_files_call_count_ = 0;
 
         server_->clear_handlers();
-        server_->on_method_error("server.files.list", [this](const json&) {
+        server_->on_method_error("server.files.get_directory", [this](const json&) {
             list_files_call_count_++;
             {
                 std::lock_guard<std::mutex> lock(call_times_mutex_);
@@ -1437,13 +1437,13 @@ class MacroAnalysisRetryFixture {
         list_files_call_count_ = 0;
 
         server_->clear_handlers();
-        server_->on_method("server.files.list", [this](const json&) -> json {
+        server_->on_method("server.files.get_directory", [this](const json&) -> json {
             list_files_call_count_++;
             {
                 std::lock_guard<std::mutex> lock(call_times_mutex_);
                 list_files_call_times_.push_back(std::chrono::steady_clock::now());
             }
-            return json::array(); // Empty file list
+            return json{{"dirs", json::array()}, {"files", json::array()}}; // Empty directory
         });
     }
 
