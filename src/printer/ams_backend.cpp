@@ -13,6 +13,7 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
+#include "env_knobs.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #endif
@@ -671,6 +672,8 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");
         } else if (ams_type == "ifs" || ams_type == "ad5x" || ams_type == "ad5x_ifs") {
             mock->set_ifs_mode(true);
+            // Z-Mod with its built-in AFC: the print start carries the map.
+            mock->set_print_start_takes_tool_slots(helix::env_flag("HELIX_MOCK_ZMOD_AFC"));
             spdlog::info("[AMS Backend] Mock AD5X IFS mode enabled");
         } else if (ams_type == "htlf_toolchanger" || ams_type == "htlf_tc" || ams_type == "htlf") {
             mock->set_htlf_toolchanger_mode(true);

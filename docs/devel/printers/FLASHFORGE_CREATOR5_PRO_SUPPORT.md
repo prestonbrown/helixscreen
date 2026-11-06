@@ -173,7 +173,29 @@ the tool changer (`PrinterDiscovery::parse_objects`, the carve-out beside the PA
 rule): the shim reports no extruders and no hubs, so an AFC backend would draw a hub
 topology for four independent heads and send Happy Hare macros the firmware does not have.
 The `zmod_afclite` object also corroborates both Creator 5 database entries and is an
-exclude on the AD5X entry.
+exclude on the AD5X entry. Current Z-Mod replaces the shim with a built-in AFC emulation
+(mod setting `AFC=1`: `AFC`, `AFC_IFS <unit>`, `AFC_lane lane1..4`, no `zmod_afclite`),
+which the AD5X publishes too, so it names neither machine; the same discovery carve-out
+keeps the tool changer, and the AD5X keeps its IFS backend.
+
+**A print's tool map rides on the print start.** With the built-in emulation, Z-Mod no
+longer prints from its lane map: its Moonraker takes the map for one print as a `tools`
+parameter of `printer.print.start` (`"2,,1"`: index the G-code tool, value the 1-based
+slot), and without one opens its own colour prompt. `helix::print_start`
+(`include/print_start_params.h`) owns that knowledge, keyed on the built-in AFC
+(`has_zmod_afc()`): Z-Mod's Moonraker gained `tools` with it and publishes no version that
+says so, so a Z-Mod with `AFC=0` or the afclite shim keeps its own prompt and is sent no
+map. The filament
+backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
+answer. Every print HelixScreen starts there from the file card carries every lane the card
+shows, picked or seeded, so Z-Mod's prompt does not open for it; a tool set to Auto, or one
+past the machine's heads, is left empty for Z-Mod's own default. The tool changer backend
+sends each head as its 1-based slot and remaps Native, never rewriting the job. A reprint
+and a PA tower have no card and send no map, so Z-Mod asks as it always has. `SET_MAP` and the other table writes
+still go out, which is what Z-Mod builds without the `tools` parameter route by; their
+Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
+plugin (a file rewritten for a pre-print option) runs `SDCARD_PRINT_FILE` and carries no
+map.
 
 **The swap routine and its step bar.** A tool change cuts the filament at a station and
 wipes the nozzle on rubber instead of purging bulk filament (FlashForge's own wiki: the
@@ -211,7 +233,8 @@ firmware and all move hardware (heat, feed, cut, wipe), and none of them is call
 contributor's on-device test (prestonbrown/helixscreen#1779, Z-Mod 1.7.4) showed that
 `CHANGE_TOOL LANE=E<n>` is Z-Mod's own Load for head `n`: the afclite shim heats only the
 selected head and feeds it. With `zmod_afclite` present, the UI's Load for head `n` sends
-exactly that command and nothing else. `_T_IN_ZCOLOR` is not called directly: it is defined
+exactly that command and nothing else; with the built-in emulation the lane is
+`lane<n+1>`. `_T_IN_ZCOLOR` is not called directly: it is defined
 in the unpublished `zmod_color` plugin, the C5 configs call it with a 1-based `SLOT`
 (ghzserg/z_c5pro `translate/en/c5pro_display_off.cfg`, `_T_USE`), and the AD5X
 zmod_color.py plugin (its cmd_IN_ZCOLOR handler) reads `NAPR=0` as load, so a guessed `SLOT` or `NAPR` could
@@ -283,7 +306,8 @@ shows no entry. The chamber air row also requires the Z-Mod changer row
 `AmsBackendToolChanger` against mock Z-Mod hardware: the persona publishes `zmod`,
 `zmod_color`, `save_variables`, the 1-based `gcode_button extruder_pos1..4` /
 `extruder_grab1..4`, Z-Mod 1.7.4's afclite shim objects (`zmod_afclite`, `AFC`,
-`AFC_lane E0..E3`, `AFC_unit C5`) and the `fd_ex`/`fm_ex` sensor pairs, answers
+`AFC_lane E0..E3`, `AFC_unit C5`; the built-in emulation's `AFC`, `AFC_IFS IFS`,
+`AFC_lane lane1..4` under `HELIX_MOCK_ZMOD_AFC=1`) and the `fd_ex`/`fm_ex` sensor pairs, answers
 `_T_IN` / `_T_OUT` / `CHANGE_ZCOLOR` — narrating the swap markers the step bar parses —
 answers the calibration and chamber air macros above, and implies `--real-ams` so the mock
 AMS gate does not stand a mock backend in front of it. The `creator5` persona models the Reforge side only. Details in

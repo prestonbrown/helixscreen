@@ -48,13 +48,16 @@ struct RecordingJobAPI : public MoonrakerJobAPI {
 
     int start_print_calls = 0;
     std::string last_filename;
+    helix::PrintStartParams last_params;
     /// Answer start_print with this instead of success.
     std::optional<MoonrakerError> fail_with;
 
     void start_print(const std::string& filename, IMoonrakerAPI::SuccessCallback on_success,
-                     IMoonrakerAPI::ErrorCallback on_error) override {
+                     IMoonrakerAPI::ErrorCallback on_error,
+                     const helix::PrintStartParams& extra_params = {}) override {
         ++start_print_calls;
         last_filename = filename;
+        last_params = extra_params;
         if (fail_with) {
             if (on_error)
                 on_error(*fail_with);
@@ -312,6 +315,28 @@ TEST_CASE_METHOD(PreStartGateFixture, "A start with no preparing job still runs"
     drain();
 
     CHECK(jobs.start_print_calls == 1);
+}
+
+TEST_CASE_METHOD(PreStartGateFixture, "A start's parameters reach printer.print.start once",
+                 "[print_preparation][pre_start][print_start_params][2033]") {
+    set_busy(false);
+
+    manager.start_print("part.gcode", "", []() {}, completion(), {}, {{"tools", "2,,1"}});
+    drain();
+    REQUIRE(api->captured_success);
+    api->captured_success();
+    drain();
+    REQUIRE(jobs.start_print_calls == 1);
+    CHECK(jobs.last_params == helix::PrintStartParams{{"tools", "2,,1"}});
+
+    // The next start names its own, or none.
+    manager.start_print("part.gcode", "", []() {}, completion());
+    drain();
+    REQUIRE(api->captured_success);
+    api->captured_success();
+    drain();
+    REQUIRE(jobs.start_print_calls == 2);
+    CHECK(jobs.last_params.empty());
 }
 
 TEST_CASE_METHOD(PreStartGateFixture, "A start sent to the printer marks the preparing job",

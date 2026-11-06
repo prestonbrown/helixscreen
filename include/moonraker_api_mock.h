@@ -592,7 +592,8 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
     };
 
     void start_print(const std::string& filename, SuccessCallback on_success,
-                     ErrorCallback on_error) override;
+                     ErrorCallback on_error,
+                     const helix::PrintStartParams& extra_params = {}) override;
 
     void start_modified_print(const std::string& original_filename,
                               const std::string& temp_file_path,
@@ -623,6 +624,11 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
         return started_prints_;
     }
 
+    /// The extra parameters each start_print() carried, in call order
+    [[nodiscard]] const std::vector<helix::PrintStartParams>& started_print_params() const {
+        return started_print_params_;
+    }
+
     /// Recorded start_modified_print() calls, in call order
     [[nodiscard]] const std::vector<ModifiedPrintRecord>& modified_prints() const {
         return modified_prints_;
@@ -648,6 +654,7 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
 
   private:
     std::vector<std::string> started_prints_;
+    std::vector<helix::PrintStartParams> started_print_params_;
     std::vector<ModifiedPrintRecord> modified_prints_;
     std::vector<EditedPrintRecord> edited_prints_;
     bool fail_modified_prints_ = false;

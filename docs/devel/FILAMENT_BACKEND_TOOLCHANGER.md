@@ -165,6 +165,19 @@ the shim reports no extruders and no hubs, so an AFC backend would infer a hub t
 for heads that are each their own path, and its op macros (`AFC_RESET`,
 `AFC_LANE_RESET`, `SET_SPOOL_ID`, ...) do not exist on this firmware.
 
+Current Z-Mod replaces the shim with a **built-in AFC emulation**, switched on by the mod
+setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head N-1, and
+no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
+`zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
+
+With the built-in AFC, `print_start_params()` answers the print's map as
+`printer.print.start`'s `tools`, each head as its 1-based slot (`helix::print_start`), so
+Z-Mod's colour prompt does not open for a print HelixScreen starts. The remap strategy is
+then Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and
+Print carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>`
+itself and a rewrite would map every tool twice. Z-Mod without the built-in AFC (the
+afclite shim, or `AFC=0`) keeps the GcodeRewrite remap and is sent no map.
+
 ### Tool reading
 
 `zmod_color.active_tool_id` maps one-to-one onto `ToolReading::current_tool`
@@ -220,7 +233,8 @@ pending hardware verification (prestonbrown/helixscreen#1714).
 ### The afclite shim's status, and what is acted on
 
 Z-Mod 1.7.4+ publishes `zmod_afclite` (aliased `AFC`), and the provider row subscribes
-it. Of its fields, exactly two are acted on, both with semantics a boolean or the
+it; on the built-in emulation it subscribes `AFC`, which carries the same fields
+(`toolchanger_addon::read_afc_state` reads either). Of its fields, exactly two are acted on, both with semantics a boolean or the
 firmware's own string fixes:
 
 | Field | Treatment |
@@ -292,13 +306,15 @@ HelixScreen never calls `_T_IN_ZCOLOR` directly, because its `SLOT` base and `NA
 polarity are not confirmed for the C5 (the plugin is not published, and the AD5X source
 reads the opposite way).
 
-The head-to-lane relation is the **lane name**: head `n` is the shim's `AFC_lane E<n>`.
+The head-to-lane relation is the **lane name**: head `n` is the shim's `AFC_lane E<n>`,
+and the built-in emulation's `AFC_lane lane<n+1>`, which Z-Mod runs as
+`_T_IN_ZCOLOR SLOT=<n+1>`.
 Discovery does not read any field that ties a lane to a head (the `lanes[].map` word is
 logged only), so the name is the whole basis. A lane the shim did not publish yields no
 command and the Load is refused; a lane name is never constructed for an object the
 printer lacks.
 
-Without the shim (Z-Mod older than 1.7.4, or no `zmod_afclite` object) there is no feed:
+Without either (Z-Mod older than 1.7.4, or Z-Mod with `AFC=0`) there is no feed:
 `head_filament_ops()` answers Load Manual, and Load refuses with that reason and sends
 nothing.
 
@@ -321,7 +337,8 @@ is a tool operation: it still sends `_T_OUT`.
 ### Mock
 
 `HELIX_MOCK_PRINTER=creator5_zmod` exercises this path against mock hardware: the persona
-publishes Z-Mod's objects and status (1.7.4 shape, afclite shim included), answers
+publishes Z-Mod's objects and status (1.7.4 shape, afclite shim included; the built-in
+AFC emulation's objects instead under `HELIX_MOCK_ZMOD_AFC=1`), answers
 `_T_IN` / `_T_OUT` by narrating the swap markers, and implies `--real-ams`, so real
 discovery builds this backend under `--test` (see
 `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`). Hardware verification on a real Z-Mod C5 is

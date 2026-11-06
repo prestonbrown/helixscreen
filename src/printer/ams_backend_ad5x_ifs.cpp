@@ -28,6 +28,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "post_op_cooldown_manager.h"
 #include "print_lifecycle_state.h"
+#include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "static_subject_registry.h"
@@ -280,6 +281,7 @@ std::string AmsBackendAd5xIfs::runout_purge_gcode(const BinPurgeMacros& macros) 
 
 void AmsBackendAd5xIfs::set_discovery(const helix::PrinterDiscovery& discovery) {
     bin_purge_macros_ = bin_purge_macros(discovery);
+    print_start_takes_tool_slots_ = helix::print_start::takes_tool_slots(discovery);
     spdlog::debug("{} Purge bin route: _G28={} _GOTO_TRASH={} PURGE_FILAMENT={}", backend_log_tag(),
                   bin_purge_macros_.home_if_needed, bin_purge_macros_.goto_bin,
                   bin_purge_macros_.stock_purge);
@@ -3609,8 +3611,23 @@ bool AmsBackendAd5xIfs::remap_ready() const {
     // built to do. Whether the write can LAND is this question, and two
     // firmware stacks answer it: the Forge-X [ifs] module echoing its
     // tool_map, or ZMOD with the lessWaste/bambufy plugin's _IFS_VARS macro.
-    // Either one alone enables remapping for its population.
-    return ifs_tool_map_live_ || has_ifs_vars_;
+    // Either one alone enables remapping for its population, as does a print
+    // start that carries the map.
+    return ifs_tool_map_live_ || has_ifs_vars_ || print_start_takes_tool_slots_;
+}
+
+helix::PrintStartParams
+AmsBackendAd5xIfs::print_start_params(const std::map<int, int>& tool_slots) const {
+    if (!print_start_takes_tool_slots_) {
+        return {};
+    }
+    std::map<int, int> ports;
+    for (const auto& [tool, slot] : tool_slots) {
+        if (slot >= 0 && slot < kNumPorts) {
+            ports[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based port
+        }
+    }
+    return helix::print_start::tool_slot_params(ports);
 }
 
 bool AmsBackendAd5xIfs::owns_tool_mapping_table() const {
@@ -3702,6 +3719,15 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
         rebuild_slot_tool_mapping_locked();
         if (plugin_backed) {
             tools_val = build_tool_map_value();
+        }
+    }
+    // Z-Mod's built-in AFC keeps its own lane map for the Fluidd/Mainsail AFC
+    // panels, lane N being port N. It does not route the print, which takes
+    // the map at the start (print_start_params()), so it only follows the pick.
+    if (print_start_takes_tool_slots_ && port != kUnmappedPort) {
+        if (auto err = execute_gcode(fmt::format("SET_MAP LANE=lane{} MAP=T{}", port, tool_number));
+            !err.success()) {
+            return err;
         }
     }
     if (!plugin_backed) {

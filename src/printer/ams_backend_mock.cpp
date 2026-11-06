@@ -4235,6 +4235,26 @@ bool AmsBackendMock::firmware_picks_lanes_at_print() const {
     return firmware_picks_lanes_at_print_;
 }
 
+void AmsBackendMock::set_print_start_takes_tool_slots(bool takes) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    print_start_takes_tool_slots_ = takes;
+}
+
+helix::PrintStartParams
+AmsBackendMock::print_start_params(const std::map<int, int>& tool_slots) const {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!print_start_takes_tool_slots_) {
+            return {};
+        }
+    }
+    std::map<int, int> ports;
+    for (const auto& [tool, slot] : tool_slots) {
+        ports[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based port
+    }
+    return helix::print_start::tool_slot_params(ports);
+}
+
 void AmsBackendMock::set_remap_ready(bool ready) {
     std::lock_guard<std::mutex> lock(mutex_);
     remap_ready_ = ready;

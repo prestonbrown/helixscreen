@@ -230,6 +230,9 @@ void PrintStartController::execute_print_start() {
     if (restore_owed) {
         observe_lifecycle_for_restore();
     }
+    // The table writes above keep the printer's lane map in step; where the
+    // print start takes the map, these are what decide this print.
+    helix::PrintStartParams start_params = print_start_params();
 
     // Timelapse application now lives SOLELY in
     // PrintPreparationManager::start_print(), which dispatches the timelapse
@@ -257,7 +260,7 @@ void PrintStartController::execute_print_start() {
 
     auto start_now = [this, ps, prep_manager, filename_to_print, path = path_, thumbnail_path,
                       on_started, on_cancelled, update_button, show_detail, exclude_picks,
-                      scan_key = file_scan_key()]() {
+                      scan_key = file_scan_key(), start_params]() {
         // Navigate to print status panel IMMEDIATELY (optimistic navigation)
         // The busy overlay will show on top during download/upload operations.
         // On failure, we'll navigate back to the detail overlay.
@@ -379,7 +382,7 @@ void PrintStartController::execute_print_start() {
                         }
                     });
             },
-            scan_key);
+            scan_key, start_params);
     };
 
     // Some backends (Snapmaker U1) must emit firmware-native print_task_config
@@ -738,6 +741,10 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         return; // start fires from the send continuation — do NOT also start here
     }
 
+    // A reprint sends no per-print tool map (helix::print_start): it has no card,
+    // and a map guessed from the printer's default lanes would load a lane the
+    // user never chose with the firmware's own prompt switched off. Without one
+    // the firmware asks, or routes by its own table.
     start();
 }
 
@@ -952,6 +959,24 @@ bool restore_landed(const std::vector<int>& saved, const std::vector<int>& live)
     return true;
 }
 } // namespace
+
+helix::PrintStartParams PrintStartController::print_start_params() const {
+    const auto ctx = gather_print_start_context();
+    const int backend_idx = helix::print_start::mapped_backend(ctx.mappings);
+    auto* backend = AmsState::instance().get_backend(backend_idx);
+    if (!backend) {
+        return {};
+    }
+    const auto tool_slots = helix::print_start::full_tool_slots(ctx.mappings, backend_idx);
+    if (tool_slots.empty()) {
+        return {};
+    }
+    auto params = backend->print_start_params(tool_slots);
+    for (const auto& [name, value] : params) {
+        spdlog::info("[PrintStartController] Print start carries {}={}", name, value);
+    }
+    return params;
+}
 
 bool PrintStartController::apply_filament_remaps() {
     const auto mappings = gather_print_start_context().mappings;

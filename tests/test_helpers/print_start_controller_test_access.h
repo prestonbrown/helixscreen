@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -118,6 +119,10 @@ class PrintStartControllerTestAccess {
 
     static bool apply_remaps(helix::ui::PrintStartController& c) {
         return c.apply_filament_remaps();
+    }
+
+    static helix::PrintStartParams print_start_params(const helix::ui::PrintStartController& c) {
+        return c.print_start_params();
     }
 
     /// The pre-print send execute_print_start() makes for a backend that

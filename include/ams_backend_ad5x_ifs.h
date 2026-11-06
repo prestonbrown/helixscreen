@@ -665,8 +665,17 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // local state the firmware ignores, and get_tool_mapping() returns
     // nothing to build a topology from. Defined out-of-line because both
     // latches live under mutex_.
+    //
+    // remap_ready() also holds where the print start carries the map itself
+    // (print_start_params()): the pick lands in that print with no table to
+    // write, so it readies a remap without making a table to own.
     [[nodiscard]] bool remap_ready() const override;
     [[nodiscard]] bool owns_tool_mapping_table() const override;
+
+    /// Each slot as its 1-based IFS port, where the print start takes the map
+    /// (helix::print_start).
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
 
     // IFS retracts filament from the extruder at end-of-print by default, so
     // the toolhead is expected to be empty at the next print-start. Suppresses
@@ -1810,6 +1819,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// zMod's purge-bin macros. Set once by set_discovery() before start() and
     /// read-only afterwards, so any thread may read it unlocked.
     BinPurgeMacros bin_purge_macros_;
+    /// The print start takes this print's tool map (print_start_params()). Set
+    /// once by set_discovery() before start() and read-only afterwards.
+    bool print_start_takes_tool_slots_ = false;
     /// Last `active_channel` an `ifs` frame actually carried (1-based; 0 =
     /// none), re-supplied into Ports-only diff frames for the same reason
     /// zmod_last_chan_ exists. Guarded by mutex_.

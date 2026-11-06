@@ -85,9 +85,11 @@ class MoonrakerJobAPI : public helix::IJobAPI {
      * @param filename Full path to G-code file
      * @param on_success Success callback
      * @param on_error Error callback
+     * @param extra_params Sent beside `filename` (a firmware's per-print tool map)
      */
     void start_print(const std::string& filename, SuccessCallback on_success,
-                     ErrorCallback on_error) override;
+                     ErrorCallback on_error,
+                     const helix::PrintStartParams& extra_params = {}) override;
 
     /**
      * @brief Start printing modified G-code via helix_print plugin (v2.0 API)
