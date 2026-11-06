@@ -732,6 +732,48 @@ TEST_CASE("print start carries the full tool map where the printer takes it",
     h.controller.set_detail_view(nullptr);
 }
 
+TEST_CASE("a reprint carries the tool map Print would send",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"reprint_tools"};
+    ScopedCountingBackend be{{0, 1, 2, 3}};
+    const std::vector<std::string> lanes{"lane1", "lane2", "lane3", "lane4"};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    SECTION("Z-Mod's built-in AFC") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_IFS IFS", "zmod_color"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+
+        // No card: the file's tools on the printer's own lanes, or the routing
+        // the caller recorded.
+        CHECK(PrintStartControllerTestAccess::reprint_start_params({0, 1}, std::nullopt) ==
+              helix::PrintStartParams{{"tools", "1,2"}});
+        CHECK(PrintStartControllerTestAccess::reprint_start_params(
+                  {0, 1}, std::map<int, int>{{0, 3}}) == helix::PrintStartParams{{"tools", "4,2"}});
+
+        h.controller.initiate_reprint("cube.gcode", "", {0, 1}, nullptr, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(h.api.job_mock().started_print_params().size() == 1);
+        CHECK(h.api.job_mock().started_print_params()[0] ==
+              helix::PrintStartParams{{"tools", "1,2"}});
+    }
+
+    SECTION("any other printer") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_BoxTurtle Turtle_1"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+
+        h.controller.initiate_reprint("cube.gcode", "", {0, 1}, nullptr, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(h.api.job_mock().started_print_params().size() == 1);
+        CHECK(h.api.job_mock().started_print_params()[0].empty());
+    }
+}
+
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {
     LVGLTestFixture fx;
     ScopedCountingBackend be{{1, 2}};

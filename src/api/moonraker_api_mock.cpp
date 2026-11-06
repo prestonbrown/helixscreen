@@ -373,6 +373,7 @@ void helix::MoonrakerJobAPIMock::start_print(const std::string& filename,
                                              SuccessCallback on_success, ErrorCallback on_error,
                                              const helix::PrintStartParams& extra_params) {
     started_prints_.push_back(filename);
+    started_print_params_.push_back(extra_params);
     MoonrakerJobAPI::start_print(filename, std::move(on_success), std::move(on_error),
                                  extra_params);
 }

@@ -598,7 +598,8 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     // Lightweight start — the file is already on the printer; no upload/prep.
     // An archive printed as an extracted plate cannot start as itself: it goes
     // the way Print sends it, extracted again through the preparation manager.
-    auto start = [this, filename, on_started, on_error, archive_plate, epoch]() {
+    auto start_with = [this, filename, on_started, on_error, archive_plate,
+                       epoch](const helix::PrintStartParams& start_params) {
         // The pre-print send runs first, and Stop can withdraw the job while it
         // does; a withdrawn job must not reach the printer.
         if (lv_subject_get_int(printer_state_.print_state().get_preparing_epoch_subject()) !=
@@ -664,8 +665,10 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                         on_error();
                     }
                 });
-            });
+            },
+            start_params);
     };
+    auto start = [start_with]() { start_with({}); };
 
     // Backends that need a pre-print send (Snapmaker U1) emit the firmware-native
     // print_task_config gcode BEFORE the reprint starts, same as the normal start
@@ -739,6 +742,21 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             preprint(tools_used);
         }
         return; // start fires from the send continuation — do NOT also start here
+    }
+
+    // A printer that takes the print's tool map at the start gets the one Print
+    // would send, so its own prompt does not open for a reprint. The map needs
+    // the file's tools, read first when the caller has none.
+    if (backend && backend->print_start_takes_tool_map() && archive_plate == 0) {
+        auto start_mapped = [start_with, routing](const std::set<int>& tools) {
+            start_with(reprint_start_params(tools, routing));
+        };
+        if (tools_used.empty()) {
+            read_file_tools(filename, start_mapped);
+        } else {
+            start_mapped(tools_used);
+        }
+        return;
     }
 
     start();
@@ -971,6 +989,35 @@ helix::PrintStartParams PrintStartController::print_start_params() const {
     auto params = backend->print_start_params(tool_slots);
     for (const auto& [name, value] : params) {
         spdlog::info("[PrintStartController] Print start carries {}={}", name, value);
+    }
+    return params;
+}
+
+helix::PrintStartParams
+PrintStartController::reprint_start_params(const std::set<int>& tools_used,
+                                           const std::optional<std::map<int, int>>& routing) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return {};
+    }
+    std::vector<helix::ToolMapping> rows;
+    if (routing) {
+        for (const auto& [tool, slot] : *routing) {
+            helix::ToolMapping m;
+            m.tool_index = tool;
+            m.mapped_slot = slot;
+            m.mapped_backend = 0;
+            rows.push_back(m);
+        }
+    }
+    const auto tool_slots = helix::print_start::full_tool_slots(
+        rows, 0, tools_used, backend->firmware_default_routing());
+    if (tool_slots.empty()) {
+        return {};
+    }
+    auto params = backend->print_start_params(tool_slots);
+    for (const auto& [name, value] : params) {
+        spdlog::info("[PrintStartController] Reprint carries {}={}", name, value);
     }
     return params;
 }
