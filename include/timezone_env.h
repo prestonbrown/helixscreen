@@ -14,8 +14,9 @@ namespace helix::timezone_env {
 // current working directory. Application::setup_data_root() ensures CWD is the
 // install root by the time this is called.
 //
-// Without the TZDIR fallback, glibc silently treats unresolved zone names as
-// UTC, producing times offset by the user's real timezone (#???).
+// An unresolved zone name reads as UTC, producing times offset by the user's
+// real timezone. musl does not read TZDIR, so with the bundled fallback active TZ
+// is set to the zone file's absolute path (prestonbrown/helixscreen#2003).
 void apply(const char* iana_id);
 
 // Test hook: exposes the TZDIR configuration step with injectable probe paths.

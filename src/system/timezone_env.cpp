@@ -65,8 +65,11 @@ const char* configure_tzdir(const char* system_probe, const char* bundled_subdir
 }
 
 void apply(const char* iana_id) {
-    configure_tzdir();
-    ::setenv("TZ", iana_id, 1);
+    // musl ignores TZDIR, and every static device build links musl, so a zone
+    // from the bundled tree is named by its absolute path. glibc reads that the same way.
+    const std::string tzdir = configure_tzdir();
+    const std::string tz = tzdir.empty() ? std::string(iana_id) : tzdir + "/" + iana_id;
+    ::setenv("TZ", tz.c_str(), 1);
     ::tzset();
 }
 
