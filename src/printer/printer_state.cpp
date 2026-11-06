@@ -518,6 +518,16 @@ void PrinterState::update_nav_buttons_enabled() {
     network_state_.update_nav_buttons_enabled();
 }
 
+void PrinterState::set_led_override(OverrideState state) {
+    capability_overrides_.set_override(capability::LED, state);
+    if (!capability_overrides_.save_override_to_config(capability::LED)) {
+        spdlog::warn("[PrinterState] Could not save the led capability override");
+    }
+    capabilities_state_.set_led(discovery_, capability_overrides_);
+    spdlog::info("[PrinterState] led capability set to {}",
+                 CapabilityOverrides::state_to_string(state));
+}
+
 void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // Called directly from the main LVGL thread (hardware discovery callback).
     // No deferral needed — the caller is already inside a queue_update callback.

@@ -641,6 +641,7 @@
   <translation tag="Chamber heater didn&apos;t start" en="Chamber heater didn&apos;t start"/>
   <translation tag="Chamber heater didn&apos;t start. {}" en="Chamber heater didn&apos;t start. {}"/>
   <translation tag="Chamber heating to %d°C..." en="Chamber heating to %d°C..."/>
+  <translation tag="Chamber light fitted" en="Chamber light fitted"/>
   <translation tag="Chamber target set to {}°C" en="Chamber target set to {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" en="Chamber temp must be 0-%d°C"/>
   <translation tag="Chamber too hot" en="Chamber too hot"/>
@@ -3422,6 +3423,7 @@
   <translation tag="Show Touch Points" en="Show Touch Points"/>
   <translation tag="Show a confirmation dialog when tapping a macro" en="Show a confirmation dialog when tapping a macro"/>
   <translation tag="Show instead of dimming" en="Show instead of dimming"/>
+  <translation tag="Show light controls for a light connected to this printer" en="Show light controls for a light connected to this printer"/>
   <translation tag="Show printer icon in navigation bar" en="Show printer icon in navigation bar"/>
   <translation tag="Show sliced colors" en="Show sliced colors"/>
   <translation tag="Show temp for" en="Show temp for"/>

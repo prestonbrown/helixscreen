@@ -683,6 +683,7 @@
   <translation tag="Chamber heater didn&apos;t start" ru="Нагреватель камеры не запустился"/>
   <translation tag="Chamber heater didn&apos;t start. {}" ru="Нагреватель камеры не запустился. {}"/>
   <translation tag="Chamber heating to %d°C..." ru="Нагрев камеры до %d°C..."/>
+  <translation tag="Chamber light fitted" ru="Подсветка камеры установлена"/>
   <translation tag="Chamber target set to {}°C" ru="Целевая температура камеры установлена на {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" ru="Температура камеры должна быть 0-%d°C"/>
   <translation tag="Chamber too hot" ru="Камера перегрета"/>
@@ -3479,6 +3480,7 @@
   <translation tag="Show Touch Points" ru="Показывать точки касания"/>
   <translation tag="Show a confirmation dialog when tapping a macro" ru="Показывать диалог подтверждения при нажатии на макрос"/>
   <translation tag="Show instead of dimming" ru="Показывать вместо затемнения"/>
+  <translation tag="Show light controls for a light connected to this printer" ru="Показывать управление подсветкой, подключённой к этому принтеру"/>
   <translation tag="Show printer icon in navigation bar" ru="Показывать значок принтера в панели навигации"/>
   <translation tag="Show sliced colors" ru="Показать цвета из слайсера"/>
   <translation tag="Show temp for" ru="Показывать темп. для"/>

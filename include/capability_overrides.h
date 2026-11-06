@@ -197,6 +197,16 @@ class CapabilityOverrides {
     }
 
     /**
+     * @brief Whether the led capability is turned off, so every light control hides
+     *
+     * Only DISABLE hides lights the LED controller found (WLED, macro lights);
+     * AUTO leaves them to detection.
+     */
+    [[nodiscard]] bool lights_disabled() const {
+        return get_override(capability::LED) == OverrideState::DISABLE;
+    }
+
+    /**
      * @brief Check if the printer is running Kalico firmware
      *
      * Delegates to the stored PrinterDiscovery's is_kalico() flag,
@@ -233,6 +243,16 @@ class CapabilityOverrides {
      * @return true if save succeeded
      */
     bool save_to_config();
+
+    /**
+     * @brief Save one capability's override to settings.json
+     *
+     * Writes only @p name, so the other capabilities keep whatever settings.json
+     * holds for them (absent means auto).
+     *
+     * @return true if save succeeded
+     */
+    bool save_override_to_config(const std::string& name);
 
     /**
      * @brief Get summary string for logging

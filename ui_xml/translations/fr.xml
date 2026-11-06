@@ -641,6 +641,7 @@
   <translation tag="Chamber heater didn&apos;t start" fr="Le chauffage de la chambre n&apos;a pas démarré"/>
   <translation tag="Chamber heater didn&apos;t start. {}" fr="Le chauffage de la chambre n&apos;a pas démarré. {}"/>
   <translation tag="Chamber heating to %d°C..." fr="Chauffe de la chambre à %d°C..."/>
+  <translation tag="Chamber light fitted" fr="Éclairage de chambre installé"/>
   <translation tag="Chamber target set to {}°C" fr="Cible de chambre définie à {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" fr="La température de l&apos;enceinte doit être entre 0 et %d°C"/>
   <translation tag="Chamber too hot" fr="Chambre trop chaude"/>
@@ -3422,6 +3423,7 @@
   <translation tag="Show Touch Points" fr="Afficher les points de contact"/>
   <translation tag="Show a confirmation dialog when tapping a macro" fr="Afficher une boîte de dialogue de confirmation lors de l&apos;appui sur une macro"/>
   <translation tag="Show instead of dimming" fr="Afficher au lieu d&apos;atténuer"/>
+  <translation tag="Show light controls for a light connected to this printer" fr="Afficher les commandes d&apos;éclairage d&apos;une lumière connectée à cette imprimante"/>
   <translation tag="Show printer icon in navigation bar" fr="Afficher l&apos;icône de l&apos;imprimante dans la barre de navigation"/>
   <translation tag="Show sliced colors" fr="Afficher les couleurs tranchées"/>
   <translation tag="Show temp for" fr="Afficher la température de"/>

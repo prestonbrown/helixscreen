@@ -65,6 +65,7 @@ enum class Capability : uint8_t {
     HasHeatSoak,                 ///< heat soak macro, after the user override
     HasFanFeedback,              ///< fan tachometer feedback (fan_feedback)
     HasLedEffects,               ///< [led_effect] sections
+    HasLedObject,                ///< Klipper reports a light object, whatever the override
     EnclosureTopFitted,          ///< 1 = firmware reports a removable enclosure top fitted;
                                  ///< 0 = removed, not reported yet, or no such report
     HardwareGeneration,          ///< bumped whenever discovery or kinematics changes
@@ -119,6 +120,13 @@ class PrinterCapabilitiesState {
      * @param overrides Capability override layer with effective values
      */
     void set_hardware(const PrinterDiscovery& hardware, const CapabilityOverrides& overrides);
+
+    /**
+     * @brief Publish printer_has_led (after the led override) and printer_has_led_object
+     *
+     * Part of set_hardware(); also called alone when the led override changes.
+     */
+    void set_led(const PrinterDiscovery& hardware, const CapabilityOverrides& overrides);
 
     /**
      * @brief Set spoolman availability (async update from Moonraker query)
