@@ -35,6 +35,8 @@ struct ProbeScript {
     std::vector<bool> fanout;
     std::string scan_main_text;
     std::string scan_subtitle_text;
+    /// Children on the active screen at each keep_backlight_on() call.
+    std::vector<uint32_t> children_at_backlight;
 };
 
 ProbeScript* g_script = nullptr;
@@ -69,12 +71,22 @@ class ProbeFixture : public ApplicationTestFixture {
         lv_indev_set_read_cb(pointer, scripted_read_cb);
         // Config::save() on the result must not write wherever another test left the
         // process-wide singleton pointing.
-        std::string& path = helix::ConfigTestAccess::path(*helix::Config::get_instance());
+        helix::Config* cfg = helix::Config::get_instance();
+        std::string& path = helix::ConfigTestAccess::path(*cfg);
         saved_path = path;
         path.clear();
+        // Every case starts from a first boot nobody has answered.
+        saved_data = helix::ConfigTestAccess::data(*cfg);
+        json& display = cfg->get_json("/display");
+        if (!display.is_object()) {
+            display = json::object();
+        }
+        display.erase("rotate");
+        display.erase("rotation_probed");
     }
 
     ~ProbeFixture() override {
+        helix::ConfigTestAccess::data(*helix::Config::get_instance()) = saved_data;
         helix::ConfigTestAccess::path(*helix::Config::get_instance()) = saved_path;
         lv_indev_delete(pointer);
         g_script = nullptr;
@@ -91,6 +103,9 @@ class ProbeFixture : public ApplicationTestFixture {
                 script.settled.push_back(script.current_degrees);
             },
             [this](bool suspended) { script.fanout.push_back(suspended); },
+            [this] {
+                script.children_at_backlight.push_back(lv_obj_get_child_count(lv_screen_active()));
+            },
             /*scan_timeout_ms=*/40,
             /*confirm_timeout_ms=*/400};
         return helix::RotationProbe(std::move(host)).run();
@@ -99,6 +114,7 @@ class ProbeFixture : public ApplicationTestFixture {
     ProbeScript script;
     lv_indev_t* pointer = nullptr;
     std::string saved_path;
+    json saved_data;
 };
 
 } // namespace
@@ -114,6 +130,7 @@ TEST_CASE_METHOD(ProbeFixture, "rotation probe confirms the rotation that was ta
     helix::Config* cfg = helix::Config::get_instance();
     CHECK(cfg->get<int>("/display/rotate", -1) == 180);
     CHECK(cfg->get<bool>("/display/rotation_probed", false));
+    CHECK_FALSE(helix::rotation_probe_unanswered(*cfg));
 
     // The prompt text came through the XML screen's subject bindings.
     CHECK(script.scan_main_text == "Tap anywhere if this text is right-side up");
@@ -124,20 +141,61 @@ TEST_CASE_METHOD(ProbeFixture, "rotation probe confirms the rotation that was ta
     CHECK(lv_indev_get_read_cb(pointer) == scripted_read_cb);
 }
 
-TEST_CASE_METHOD(ProbeFixture, "rotation probe gives up after three sweeps and saves 0",
+TEST_CASE_METHOD(ProbeFixture,
+                 "an unanswered rotation probe uses 0 for the session and asks again next boot",
                  "[application][display][rotation][probe]") {
+    helix::Config* cfg = helix::Config::get_instance();
+    REQUIRE(helix::rotation_probe_unanswered(*cfg));
+
     CHECK(run(/*is_sdl=*/false, /*tap_at_degrees=*/-1) == 0);
 
-    // Three full sweeps of four rotations, then the default is applied.
+    // Three full sweeps of four rotations, then 0 is applied.
     REQUIRE(script.settled.size() == 13);
     for (size_t i = 0; i < 12; ++i) {
         CHECK(script.settled[i] == static_cast<int>(i % 4) * 90);
     }
     CHECK(script.settled.back() == 0);
 
+    // Nobody answered, so nothing is recorded and the next start probes again.
+    CHECK_FALSE(cfg->exists("/display/rotate"));
+    CHECK_FALSE(cfg->exists("/display/rotation_probed"));
+    CHECK(helix::rotation_probe_unanswered(*cfg));
+}
+
+TEST_CASE_METHOD(ProbeFixture,
+                 "every rotation probe prompt lights the backlight before it is built",
+                 "[application][display][rotation][probe]") {
+    SECTION("unanswered: twelve scan prompts") {
+        run(/*is_sdl=*/false, /*tap_at_degrees=*/-1);
+        CHECK(script.children_at_backlight.size() == 12);
+    }
+    SECTION("answered at 90: two scan prompts and one confirm prompt") {
+        run(/*is_sdl=*/false, /*tap_at_degrees=*/90);
+        CHECK(script.children_at_backlight.size() == 3);
+    }
+    // The first prompt is lit before the probe has put anything on the screen.
+    REQUIRE_FALSE(script.children_at_backlight.empty());
+    CHECK(script.children_at_backlight.front() == 0);
+}
+
+TEST_CASE("a configured rotation answers the probe even without the probed flag",
+          "[application][display][rotation][probe]") {
     helix::Config* cfg = helix::Config::get_instance();
-    CHECK(cfg->get<int>("/display/rotate", -1) == 0);
-    CHECK(cfg->get<bool>("/display/rotation_probed", false));
+    const json saved = helix::ConfigTestAccess::data(*cfg);
+    json& display = cfg->get_json("/display");
+    display = json::object();
+
+    display["rotate"] = 0;
+    CHECK_FALSE(helix::rotation_probe_unanswered(*cfg));
+
+    display.erase("rotate");
+    display["rotation_probed"] = true;
+    CHECK_FALSE(helix::rotation_probe_unanswered(*cfg));
+
+    display.erase("rotation_probed");
+    CHECK(helix::rotation_probe_unanswered(*cfg));
+
+    helix::ConfigTestAccess::data(*cfg) = saved;
 }
 
 TEST_CASE_METHOD(ProbeFixture, "rotation probe on SDL never rotates the display",
