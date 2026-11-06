@@ -3488,6 +3488,66 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     REQUIRE(result.margin() >= PrinterDetector::kDetectMinMargin);
 }
 
+namespace {
+
+/// A Creator 5 on OpenCreator, from opencreator-fs fs/usr/data/config:
+/// creator5_toolchanger (printer.creator5.cfg), AFC standalone with its
+/// tool_start runout switches (printer.afc-standalone.cfg), the wheel motion
+/// sensors (printer.filament.cfg) and the stock dock/grab buttons
+/// (printer.base.cfg). @p pro adds printer.pro.cfg's chamber hardware.
+PrinterHardwareData opencreator_c5_hardware(bool pro) {
+    PrinterHardwareData hardware{
+        .heaters = {"extruder", "extruder1", "extruder2", "extruder3", "heater_bed"},
+        .sensors = {},
+        .fans = {"heater_fan heat_fan", "fan_generic fanM106"},
+        .leds = {"led chamber_led"},
+        .hostname = "creator5",
+        .printer_objects = {"creator5_toolchanger", "AFC", "AFC_Toolchanger Tools"},
+        .steppers = {},
+        .kinematics = "corexy",
+        .cpu_arch = "mips",
+        .objects_reported = true};
+    for (int i = 0; i < 4; ++i) {
+        const std::string n = std::to_string(i);
+        hardware.printer_objects.push_back("AFC_extruder extruder" + n);
+        hardware.printer_objects.push_back("AFC_lane extruder" + n);
+        hardware.printer_objects.push_back("filament_switch_sensor extruder" + n + "_tool_start");
+        hardware.printer_objects.push_back("filament_motion_sensor fm_ex" + n);
+    }
+    for (int i = 1; i <= 4; ++i) {
+        hardware.printer_objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        hardware.printer_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    if (pro) {
+        hardware.heaters.push_back("heater_generic chamber_heater");
+        hardware.fans.insert(hardware.fans.end(),
+                             {"fan_generic chamber_fan", "fan_generic chamber_loop_fan",
+                              "fan_generic chamber_cool_fan"});
+        hardware.printer_objects.insert(hardware.printer_objects.end(),
+                                        {"heater_generic chamber_heater",
+                                         "heater_fan_throttled chamber_heat_fan"});
+    }
+    return hardware;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: OpenCreator's creator5_toolchanger establishes both models",
+                 "[printer][heuristics][creator5]") {
+    const bool pro = GENERATE(false, true);
+    CAPTURE(pro);
+    auto result = PrinterDetector::detect(opencreator_c5_hardware(pro));
+    CAPTURE(result.type_name, result.confidence, result.reason, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+
+    REQUIRE(result.detected());
+    REQUIRE(result.type_name == (pro ? "FlashForge Creator 5 Pro" : "FlashForge Creator 5"));
+    REQUIRE(result.margin() >= PrinterDetector::kDetectMinMargin);
+    // The changer extra itself identifies the machine, not the grab buttons.
+    CHECK(result.best_single_confidence == 99);
+}
+
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: Creator 5 on Z-Mod firmware (no chamber heater)",
                  "[printer][heuristics][creator5]") {
