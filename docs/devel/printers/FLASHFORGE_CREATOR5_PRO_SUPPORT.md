@@ -4,7 +4,7 @@ The FlashForge Creator 5 line is served by the **unified MIPS32 target**: `make 
 is an alias of `make mips`, so its binary, toolchain and release asset are the K1/AD5X
 one. The board is told apart at runtime, never at compile time (see the unified-block
 comment in `mk/cross.mk`). This page covers what is specific to the printers: a 4-tool
-toolchanger running a FlashForge Klipper fork on an Ingenic X2000 MIPS host. HelixScreen
+toolchanger running a FlashForge Klipper fork on an Ingenic X2600 MIPS host. HelixScreen
 carries two entries for the line: the **Creator 5 Pro**, which adds a chamber heater and
 chamber fans over the base machine, and the heater-free **Creator 5**. Each is detected
 on its own and gets its own preset (see "Printer detection and preset"); everything else
@@ -36,9 +36,9 @@ wording, the bar stays silently suppressed until the parser learns it.
 
 | Spec | Value |
 |------|-------|
-| SoC | Ingenic X2000 (XBurst2, MIPS32r2, 2x 1.2 GHz) - same family as the Creality K1's X2000E |
+| SoC | Ingenic X2600 (XBurst2, MIPS32r2, 2 cores), the AD5X's SoC: the device tree reports `ingenic,x2600` |
 | FPU / ABI | Hard float, 64-bit FPU (`-mfp64`), **NaN2008** (`/lib/ld-linux-mipsn8.so.1`) |
-| RAM | 512 MB (MemTotal ~473 MB, as reported by Creator 5 Pro installs in telemetry) |
+| RAM | 512 MB (MemTotal ~473 MB on 59 of 61 Creator 5 devices in telemetry). U-Boot sets `mem=` from the DRAM it detects; a unit that detects 256 MB boots with about 228 MB (see `../PERFORMANCE.md`) |
 | Display | 800x480 panel; the framebuffer is exposed **portrait (480x800)**, so the preset sets `display.rotate = 90` (verified on the printer); fbdev `/dev/fb0`, no X11/Wayland/DRM |
 | Touch | evdev, `/dev/input/event2` (auto-detected; override with `HELIX_TOUCH_DEVICE`) |
 | Stock UI | `firmwareExe` - LVGL 8 on fbdev. **Also** hosts the port-8898 REST API, the MQTT cloud link, and the tool-pickup orchestration for UI-started prints |
