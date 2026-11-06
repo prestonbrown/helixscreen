@@ -146,8 +146,13 @@
           <text_tiny name="clog_value_text" bind_text="clog_meter_center_text" style_text_align="center">
             <bind_style_if name="reading_value" cond="ams_loaded_tiles"/>
           </text_tiny>
+          <!-- A motion sensor's reading is a state ("Disarmed"), so its caption
+               names the detector; a bare "Clog" under it reads as the status. -->
           <text_tiny name="clog_caption" text="Clog" style_text_color="#text_muted">
-            <bind_flag_if cond="ui_breakpoint lt 3" flag="hidden"/>
+            <bind_flag_if cond="ui_breakpoint lt 3 or clog_meter_mode eq 4" flag="hidden"/>
+          </text_tiny>
+          <text_tiny name="clog_caption_motion" text="Clog detection" style_text_color="#text_muted">
+            <bind_flag_if cond="ui_breakpoint lt 3 or clog_meter_mode ne 4" flag="hidden"/>
           </text_tiny>
         </lv_obj>
       </lv_obj>
