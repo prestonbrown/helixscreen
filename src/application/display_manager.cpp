@@ -1118,6 +1118,11 @@ void DisplayManager::run_rotation_probe() {
                 m_backlight->set_brightness(DisplaySettingsManager::instance().user_brightness());
             }
         }};
+    // Relighting every second is a sysfs write on the boards whose firmware dims the panel;
+    // elsewhere nothing dims it, and one backend relights by running a shell command.
+    if (helix::board::current_info().firmware_dims_backlight_after_boot) {
+        host.backlight_reassert_ms = 1000;
+    }
     helix::RotationProbe(std::move(host)).run();
 }
 
