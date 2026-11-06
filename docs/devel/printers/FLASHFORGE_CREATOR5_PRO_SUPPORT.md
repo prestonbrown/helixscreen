@@ -182,15 +182,19 @@ keeps the tool changer, and the AD5X keeps its IFS backend.
 longer prints from its lane map: its Moonraker takes the map for one print as a `tools`
 parameter of `printer.print.start` (`"2,,1"`: index the G-code tool, value the 1-based
 slot), and without one opens its own colour prompt. `helix::print_start`
-(`include/print_start_params.h`) owns that knowledge, keyed on `zmod_color`; the filament
+(`include/print_start_params.h`) owns that knowledge, keyed on the built-in AFC
+(`has_zmod_afc()`): Z-Mod's Moonraker gained `tools` with it and publishes no version that
+says so, so a Z-Mod with `AFC=0` or the afclite shim keeps its own prompt and is sent no
+map. The filament
 backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
-answer. Every print HelixScreen starts on Z-Mod carries the full map, a tool the card leaves
-untouched on the backend's own default lane, so Z-Mod's prompt never opens for it; the tool
-changer backend sends each head as its 1-based slot. `SET_MAP` and the other table writes
+answer. Every print HelixScreen starts there, a reprint included, carries the full map, a
+tool the card leaves untouched on the backend's own default lane, so Z-Mod's prompt never
+opens for it; the tool changer backend sends each head as its 1-based slot and remaps
+Native, never rewriting the job. `SET_MAP` and the other table writes
 still go out, which is what Z-Mod builds without the `tools` parameter route by; their
 Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
-plugin (a file rewritten for a pre-print option or a tool remap) runs `SDCARD_PRINT_FILE`
-and carries no map.
+plugin (a file rewritten for a pre-print option) runs `SDCARD_PRINT_FILE` and carries no
+map.
 
 **The swap routine and its step bar.** A tool change cuts the filament at a station and
 wipes the nozzle on rubber instead of purging bulk filament (FlashForge's own wiki: the
