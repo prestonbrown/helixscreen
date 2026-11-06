@@ -19,11 +19,14 @@
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/gcode_recording_api.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "lvgl.h"
+#include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -494,5 +497,38 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     state().update_from_status(json{{"purifier", {{"inner_fan_work_time", 10800.0}}}});
     drain();
     CHECK(meter(kFilter).used_h == Catch::Approx(3.0));
+    state().set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(
+    MaintenanceModelFixture,
+    "maintenance model: resetting a firmware filter counter clears it on the printer first",
+    "[maintenance][model][chamber_air]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
+    helix::test::GcodeRecordingApi api(client, state());
+    helix::IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"purifier", "fm175xx_reader", "tool", "extruder"}));
+    state().set_hardware(hw);
+    state().update_from_status(
+        json{{"purifier", {{"power_detected", true}, {"inner_fan_work_time", 7200.0}}}});
+    drain();
+    REQUIRE(meter(kFilter).used_h == Catch::Approx(2.0));
+
+    SECTION("the printer refuses: the meter keeps its hours") {
+        api.fail.insert("SET_PURIFIER FAN=inner WORK=0");
+        maintenance_model::reset_meter(kFilter);
+        drain();
+        CHECK(api.sent == std::vector<std::string>{"SET_PURIFIER FAN=inner WORK=0"});
+        CHECK(meter(kFilter).used_h == Catch::Approx(2.0));
+    }
+    SECTION("the printer takes it: the meter starts over") {
+        maintenance_model::reset_meter(kFilter);
+        drain();
+        CHECK(api.sent == std::vector<std::string>{"SET_PURIFIER FAN=inner WORK=0"});
+        CHECK(meter(kFilter).used_h == Catch::Approx(0.0));
+    }
+    set_moonraker_api(previous);
     state().set_hardware(PrinterDiscovery{});
 }
