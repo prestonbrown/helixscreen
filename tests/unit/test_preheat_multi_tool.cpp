@@ -35,6 +35,10 @@
 
 using namespace helix;
 
+namespace helix {
+void register_preheat_widget();
+} // namespace helix
+
 // ============================================================================
 // Helper: build a vector of ToolInfo for testing
 // ============================================================================
@@ -293,6 +297,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLUITestFixture, "PreheatWidget: the tool target button cycles its own widget",
                  "[preheat][panel_widget][from_event]") {
+    // XML resolves preheat_tool_target_cb at parse time, so it must be registered first.
+    register_preheat_widget();
     seed_extruders(3);
     PanelWidgetHarness<PreheatWidget> a(test_screen(), get_printer_state());
     PanelWidgetHarness<PreheatWidget> b(test_screen(), get_printer_state());
