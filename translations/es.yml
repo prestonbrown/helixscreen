@@ -696,6 +696,7 @@ translations:
   Chamber heater didn't start: 'El calentador de la cámara no arrancó'
   Chamber heater didn't start. {}: 'El calentador de la cámara no arrancó. {}'
   Chamber heating to %d°C...: Calentando cámara a %d°C...
+  Chamber light fitted: 'Luz de cámara instalada'
   Chamber target set to {}°C: Objetivo de cámara establecido en {}°C
   Chamber temp must be 0-%d°C: La temperatura de la cámara debe ser 0-%d°C
   Chamber too hot: 'Cámara demasiado caliente'
@@ -3732,6 +3733,7 @@ translations:
   Show a confirmation dialog when tapping a macro: Mostrar un diálogo de confirmación
     al tocar una macro
   Show instead of dimming: Mostrar en lugar de atenuar
+  Show light controls for a light connected to this printer: 'Mostrar los controles de luz de una luz conectada a esta impresora'
   Show printer icon in navigation bar: Mostrar icono de impresora en la barra de navegación
   Show sliced colors: Mostrar colores laminados
   Show temp for: Mostrar temperatura de

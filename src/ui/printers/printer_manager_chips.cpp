@@ -409,6 +409,7 @@ CapabilityChipFacts gather_capability_chip_facts() {
         {C::BedMesh, capability::BED_MESH},   {C::Qgl, capability::QGL},
         {C::ZTilt, capability::Z_TILT},       {C::NozzleClean, capability::NOZZLE_CLEAN},
         {C::HeatSoak, capability::HEAT_SOAK}, {C::Speaker, capability::SPEAKER},
+        {C::Leds, capability::LED},
     };
     for (const auto& [chip, name] : overridable) {
         if (overrides.is_forced_on(name)) {

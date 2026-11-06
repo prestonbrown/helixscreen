@@ -210,3 +210,16 @@ TEST_CASE("the stock Creator 5 Pro preset names chamber_heat_fan as a fan_generi
     const std::string expected = pro["printer"]["hardware"]["expected"].dump();
     CHECK(expected.find("\"fan_generic chamber_heat_fan\"") != std::string::npos);
 }
+
+// Z-Mod declares [led chamber_light] on every AD5X whether or not a light is
+// wired, and a stock AD5X has none, so the preset turns the led capability off.
+TEST_CASE("the AD5X preset turns the light capability off and names its led object",
+          "[printer_detector][presets][assets]") {
+    const json ad5x = load_json(std::string(kPresetDir) + "/ad5x.json");
+    const json& printer = ad5x["printer"];
+    REQUIRE(printer.contains("capability_overrides"));
+    CHECK(printer["capability_overrides"].value("led", "") == "disable");
+    const json& expected = printer["hardware"]["expected"];
+    REQUIRE(expected.is_array());
+    CHECK(std::find(expected.begin(), expected.end(), "led chamber_light") != expected.end());
+}

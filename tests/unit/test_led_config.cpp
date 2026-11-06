@@ -872,3 +872,30 @@ TEST_CASE_METHOD(LedConfigFixture, "apply_startup_preference with no targets def
     CHECK(ctrl.last_brightness() == 40);
     ctrl.deinit();
 }
+
+TEST_CASE_METHOD(LedConfigFixture,
+                 "LedController: disabled lights publish no controllable light or device",
+                 "[led][config]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+    helix::PrinterDiscovery discovery;
+    discovery.parse_objects(nlohmann::json::array({"led chamber_light", "extruder"}));
+    ctrl.discover_from_hardware(discovery);
+    REQUIRE(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 1);
+    lv_subject_t* has_devices = ctrl.get_led_has_devices_subject();
+    REQUIRE(lv_subject_get_int(has_devices) == 1);
+
+    ctrl.set_lights_disabled(true);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 0);
+    CHECK(lv_subject_get_int(has_devices) == 0);
+    ctrl.discover_from_hardware(discovery);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 0);
+
+    ctrl.set_lights_disabled(false);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 1);
+    CHECK(lv_subject_get_int(has_devices) == 1);
+    ctrl.deinit();
+    clear_led_config_paths();
+}

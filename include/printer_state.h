@@ -536,6 +536,14 @@ class PrinterState {
     void set_hardware(helix::PrinterDiscovery hardware);
 
     /**
+     * @brief Set the led capability override, save it, and republish printer_has_led
+     *
+     * Main thread only. The light controls LedController publishes follow
+     * separately (LedController::set_lights_disabled()).
+     */
+    void set_led_override(OverrideState state);
+
+    /**
      * @brief Set Klipper software version from printer.info
      *
      * Updates klipper_version_ subject for Settings panel About section.

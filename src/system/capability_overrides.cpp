@@ -14,20 +14,22 @@
 
 using namespace helix;
 
+namespace {
+
+/// {df()}capability_overrides/<name>, as a JSON pointer.
+std::string override_path(Config* cfg, const std::string& name) {
+    const std::string prefix = cfg->df();
+    return (prefix.empty() || prefix[0] != '/') ? "/" + prefix + "capability_overrides/" + name
+                                                : prefix + "capability_overrides/" + name;
+}
+
+} // namespace
+
 void CapabilityOverrides::load_from_config() {
     Config* cfg = Config::get_instance();
 
-    // Get printer-specific path prefix
-    std::string prefix = cfg->df();
-
-    // Try to read capability_overrides from config
-    // Path: {df()}capability_overrides/<capability>
     auto read_override = [&](const std::string& name) {
-        // Ensure path starts with '/' for valid JSON pointer
-        std::string path = (prefix.empty() || prefix[0] != '/')
-                               ? "/" + prefix + "capability_overrides/" + name
-                               : prefix + "capability_overrides/" + name;
-        std::string value = cfg->get<std::string>(path, "auto");
+        std::string value = cfg->get<std::string>(override_path(cfg, name), "auto");
         overrides_[name] = parse_state(value);
     };
 
@@ -38,6 +40,7 @@ void CapabilityOverrides::load_from_config() {
     read_override(capability::HEAT_SOAK);
     read_override(capability::CHAMBER);
     read_override(capability::SPEAKER);
+    read_override(capability::LED);
 
     spdlog::debug("[CapabilityOverrides] Loaded: {}", summary());
 }
@@ -106,6 +109,8 @@ bool CapabilityOverrides::get_auto_value(const std::string& name) const {
         return hardware_.supports_chamber();
     } else if (name == capability::SPEAKER) {
         return hardware_.has_speaker() || SoundManager::instance().has_backend();
+    } else if (name == capability::LED) {
+        return hardware_.has_led();
     }
 
     // Unknown capability, default to false
@@ -116,16 +121,16 @@ bool CapabilityOverrides::get_auto_value(const std::string& name) const {
 bool CapabilityOverrides::save_to_config() {
     Config* cfg = Config::get_instance();
 
-    std::string prefix = cfg->df();
-
     for (const auto& [name, state] : overrides_) {
-        // Ensure path starts with '/' for valid JSON pointer
-        std::string path = (prefix.empty() || prefix[0] != '/')
-                               ? "/" + prefix + "capability_overrides/" + name
-                               : prefix + "capability_overrides/" + name;
-        cfg->set<std::string>(path, state_to_string(state));
+        cfg->set<std::string>(override_path(cfg, name), state_to_string(state));
     }
 
+    return cfg->save();
+}
+
+bool CapabilityOverrides::save_override_to_config(const std::string& name) {
+    Config* cfg = Config::get_instance();
+    cfg->set<std::string>(override_path(cfg, name), state_to_string(get_override(name)));
     return cfg->save();
 }
 
@@ -160,6 +165,7 @@ std::string CapabilityOverrides::summary() const {
     append(capability::HEAT_SOAK);
     append(capability::CHAMBER);
     append(capability::SPEAKER);
+    append(capability::LED);
 
     return result;
 }
