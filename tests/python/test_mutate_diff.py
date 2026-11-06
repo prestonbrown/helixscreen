@@ -202,7 +202,7 @@ def _git(work, *args):
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout
 
 
-def _fixture(tmp_path, makefile=FAST_MAKEFILE):
+def _fixture(tmp_path, makefile=FAST_MAKEFILE, other=False):
     work = tmp_path / "repo"
     (work / "scripts").mkdir(parents=True)
     (work / "src").mkdir()
@@ -210,6 +210,8 @@ def _fixture(tmp_path, makefile=FAST_MAKEFILE):
     shutil.copy(SCRIPTS_DIR / "mutate_diff.py", work / "scripts")
     shutil.copy(SCRIPTS_DIR / "diff_base.py", work / "scripts")
     (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    if other:
+        (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
     (work / ".gitignore").write_text("build/\n.mutant-*\n")
     _git(work, "init", "-q", "-b", "main")
     _git(work, "config", "user.email", "t@t")
@@ -471,13 +473,16 @@ def test_no_record_writes_nothing(tmp_path):
 def _commit_other_fix(work, msg="the fix"):
     """Commit a new src/other.cpp the stub suite checks for."""
     (work / ".mutant-expect-other").write_text("1\n")
+    (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
+    _git(work, "add", "src/other.cpp")
+    _git(work, "commit", "--allow-empty", "-qm", f"{msg}: the file it edits")
     (work / "src" / "other.cpp").write_text("int g() { return 2; }  // NEW_TOO\n")
     _git(work, "add", "src/other.cpp")
     _git(work, "commit", "-qm", msg)
 
 
 def _proven_then_new_change(tmp_path):
-    work = _fixture(tmp_path)
+    work = _fixture(tmp_path, other=True)
     _git(work, "commit", "-qam", "change")
     assert _mutate(work).returncode == 0
     _commit_other_fix(work)
@@ -972,7 +977,8 @@ def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
         timeout=120, env=PARALLEL_ENV)
     assert r.returncode == 1, r.stdout
     runs = [ln.split() for ln in seen.read_text().splitlines()]
-    mutant_runs = [ln for ln in runs if len(ln) > 1]
+    # A detection repeats once before it counts, so a mutant can run twice.
+    mutant_runs = sorted({tuple(ln) for ln in runs if len(ln) > 1})
     assert len(mutant_runs) == PARALLEL_FILES, runs
     trees = {ln[0] for ln in mutant_runs}
     assert str(work) not in trees, "a mutant ran in the tree the run started in"
