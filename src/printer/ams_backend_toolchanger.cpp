@@ -3075,9 +3075,15 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
         if (auto err = can_set_tool_mapping_locked(tool_number, slot_index); !err.success()) {
             return err;
         }
-        // No ASSIGN_TOOL to send, so the table stays as the firmware has it.
+        // No ASSIGN_TOOL to send. Where the print start carries the map, the
+        // pick is this print's table and lands through print_start_params();
+        // otherwise the table stays as the firmware has it.
         if (tool_commands_.present) {
-            return AmsErrorHelper::not_supported("Tool remapping");
+            if (!print_start_takes_tool_slots_) {
+                return AmsErrorHelper::not_supported("Tool remapping");
+            }
+            helix::printer::assign_tool_slot(system_info_, tool_number, slot_index);
+            return AmsErrorHelper::success();
         }
 
         // The physical tool to assign (slot_index maps to tool_names_[slot_index])

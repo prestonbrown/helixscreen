@@ -4,6 +4,7 @@
 
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
+#include "ams_remap.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
@@ -872,15 +873,30 @@ TEST_CASE("The built-in AFC's list lane map reads as its tools", "[toolchanger][
     CHECK(r->lane_maps == std::vector<std::string>{"T0,T2"});
 }
 
-TEST_CASE("Z-Mod on a Creator 5 starts the print with each head as its slot",
+TEST_CASE("Z-Mod's built-in AFC on a Creator 5 maps tools at the start, not in the file",
           "[toolchanger][zmod][print_start_params][2033]") {
-    // Every Z-Mod build: the built-in AFC, the afclite shim, and neither.
-    for (const auto& hw :
-         {zmod_c5_builtin_afc_discovery(), zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
-        AmsBackendToolChanger backend(nullptr, nullptr);
-        backend.set_discovery(hw);
-        CHECK(backend.print_start_params({{0, 1}, {2, 0}}) ==
-              helix::PrintStartParams{{"tools", "2,,1"}});
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+
+    // Each head as its 1-based slot.
+    CHECK(tc.print_start_params({{0, 1}, {2, 0}}) == helix::PrintStartParams{{"tools", "2,,1"}});
+    // Native: a pick is stored and carried by Print, and no job rewrite runs.
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helix::printer::can_write_mapping_table(tc));
+    REQUIRE(tc.set_tool_mapping(0, 1).success());
+    CHECK(tc.get_tool_mapping().at(0) == 1);
+    // Z-Mod has no ASSIGN_TOOL: the pick sends nothing on its own.
+    CHECK(tc.sent().empty());
+}
+
+TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    for (const auto& hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
+        ToolChangerHelper tc(4);
+        tc.set_discovery(hw);
+        CHECK(tc.print_start_params({{0, 1}}).empty());
+        CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+        CHECK(tc.set_tool_mapping(0, 1).result == AmsResult::NOT_SUPPORTED);
     }
 }
 

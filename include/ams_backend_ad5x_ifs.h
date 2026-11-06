@@ -676,6 +676,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// (helix::print_start).
     [[nodiscard]] helix::PrintStartParams
     print_start_params(const std::map<int, int>& tool_slots) const override;
+    [[nodiscard]] bool print_start_takes_tool_map() const override {
+        return print_start_takes_tool_slots_;
+    }
 
     // IFS retracts filament from the extruder at end-of-print by default, so
     // the toolhead is expected to be empty at the next print-start. Suppresses

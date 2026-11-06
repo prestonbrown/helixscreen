@@ -227,7 +227,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// the same answer the pre-print options use, so the picker is never offered
     /// when the rewrite cannot land.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
-        return tool_commands_.present ? RemapStrategy::GcodeRewrite : RemapStrategy::Native;
+        // Where the print start carries the map, the firmware routes each T<n>
+        // itself: rewriting the job too would map every tool twice.
+        return tool_commands_.present && !print_start_takes_tool_slots_
+                   ? RemapStrategy::GcodeRewrite
+                   : RemapStrategy::Native;
     }
 
     /// A tool changer has one extruder per tool, so its table is identity — but it
@@ -241,6 +245,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// (helix::print_start).
     [[nodiscard]] helix::PrintStartParams
     print_start_params(const std::map<int, int>& tool_slots) const override;
+    [[nodiscard]] bool print_start_takes_tool_map() const override {
+        return print_start_takes_tool_slots_;
+    }
 
     /// Klipper tool-changers have one extruder per tool. Tool N sources slot N
     /// directly — identity mapping — which activates per-extruder consumption

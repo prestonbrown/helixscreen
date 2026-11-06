@@ -30,8 +30,11 @@ using PrintStartParams = std::map<std::string, std::string>;
 namespace print_start {
 
 /// Whether this printer's print start takes a per-print tool -> slot map.
-/// Z-Mod is recognised by its `zmod_color` object, which both the AD5X and the
-/// Creator 5 Pro publish whatever their AFC setting.
+/// Z-Mod's Moonraker gained `tools` together with its built-in AFC emulation,
+/// and publishes no version or field that says so on its own, so the built-in
+/// AFC (PrinterDiscovery::has_zmod_afc()) is the signal. A Z-Mod build with
+/// `AFC=0`, or one older than the emulation, keeps routing by its own prompt
+/// and tables, and is sent no map.
 [[nodiscard]] bool takes_tool_slots(const PrinterDiscovery& hw);
 
 /// The physical slot a lane name carries in its trailing digits: Z-Mod's lane

@@ -474,6 +474,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// where the print start takes the map (helix::print_start).
     [[nodiscard]] helix::PrintStartParams
     print_start_params(const std::map<int, int>& tool_slots) const override;
+    [[nodiscard]] bool print_start_takes_tool_map() const override {
+        return print_start_takes_tool_slots_.load(std::memory_order_relaxed);
+    }
 
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
     [[nodiscard]] bool owns_tool_mapping_table() const override {

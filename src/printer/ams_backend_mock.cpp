@@ -4255,6 +4255,11 @@ AmsBackendMock::print_start_params(const std::map<int, int>& tool_slots) const {
     return helix::print_start::tool_slot_params(ports);
 }
 
+bool AmsBackendMock::print_start_takes_tool_map() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return print_start_takes_tool_slots_;
+}
+
 void AmsBackendMock::set_remap_ready(bool ready) {
     std::lock_guard<std::mutex> lock(mutex_);
     remap_ready_ = ready;

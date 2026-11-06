@@ -5,21 +5,12 @@
 #include "firmware_routing.h"
 #include "printer_discovery.h"
 
-#include <algorithm>
 #include <cctype>
 
 namespace helix::print_start {
 
-namespace {
-
-/// Z-Mod's own extra, present on every Z-Mod printer.
-constexpr const char* kZmodColorObject = "zmod_color";
-
-} // namespace
-
 bool takes_tool_slots(const PrinterDiscovery& hw) {
-    const auto& objects = hw.printer_objects();
-    return std::find(objects.begin(), objects.end(), kZmodColorObject) != objects.end();
+    return hw.has_zmod_afc();
 }
 
 std::optional<int> slot_number_of_lane(std::string_view lane) {

@@ -47,10 +47,21 @@ TEST_CASE("a lane name's trailing digits are its slot", "[print_start_params][20
     CHECK_FALSE(slot_number_of_lane("").has_value());
 }
 
-TEST_CASE("only a printer with zmod_color takes the tools map", "[print_start_params][2033]") {
+TEST_CASE("only Z-Mod with its built-in AFC takes the tools map", "[print_start_params][2033]") {
     helix::PrinterDiscovery zmod;
     zmod.parse_objects(nlohmann::json::array({"AFC", "AFC_lane lane1", "zmod_color"}));
     CHECK(takes_tool_slots(zmod));
+
+    // AFC=0, or a build older than the emulation: nothing says its Moonraker
+    // reads `tools`, so it keeps its own prompt.
+    helix::PrinterDiscovery plain;
+    plain.parse_objects(nlohmann::json::array({"zmod_color", "zmod_ifs"}));
+    CHECK_FALSE(takes_tool_slots(plain));
+
+    helix::PrinterDiscovery afclite;
+    afclite.parse_objects(
+        nlohmann::json::array({"AFC", "AFC_lane E0", "zmod_afclite", "zmod_color"}));
+    CHECK_FALSE(takes_tool_slots(afclite));
 
     helix::PrinterDiscovery afc;
     afc.parse_objects(nlohmann::json::array({"AFC", "AFC_lane lane1", "AFC_BoxTurtle Turtle_1"}));

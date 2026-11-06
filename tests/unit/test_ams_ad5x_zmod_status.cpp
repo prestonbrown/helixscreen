@@ -243,7 +243,8 @@ TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
           "[ams][ad5x_ifs][print_start_params][2033]") {
     AmsBackendAd5xIfs backend(nullptr, nullptr);
     helix::PrinterDiscovery hw;
-    hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"}));
+    hw.parse_objects(json::array(
+        {"zmod", "zmod_color", "zmod_ifs", "AFC", "AFC_IFS IFS", "AFC_lane lane1", "extruder"}));
     backend.set_discovery(hw);
 
     CHECK(backend.print_start_params({{0, 2}}) == helix::PrintStartParams{{"tools", "3"}});
@@ -253,6 +254,19 @@ TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
     CHECK(backend.print_start_params({{0, 4}}).empty());
     // Where the start carries the map, a pick lands without a plugin table.
     CHECK(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS on Z-Mod without the built-in AFC keeps today's routing",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"}));
+    backend.set_discovery(hw);
+
+    // No map at the start, and no picker whose pick nothing would carry.
+    CHECK(backend.print_start_params({{0, 2}}).empty());
+    CHECK_FALSE(backend.print_start_takes_tool_map());
+    CHECK_FALSE(backend.remap_ready());
 }
 
 TEST_CASE("AD5X IFS off Z-Mod starts the print with its filename alone",
