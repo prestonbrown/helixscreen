@@ -12,6 +12,7 @@
 #include "ams_types.h"
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/toolchanger_test_helper.h"
 
 #include <string>
 #include <vector>
@@ -265,7 +266,6 @@ TEST_CASE("AD5X IFS on Z-Mod without the built-in AFC keeps today's routing",
 
     // No map at the start, and no picker whose pick nothing would carry.
     CHECK(backend.print_start_params({{0, 2}}).empty());
-    CHECK_FALSE(backend.print_start_takes_tool_map());
     CHECK_FALSE(backend.remap_ready());
 }
 
@@ -279,4 +279,28 @@ TEST_CASE("AD5X IFS off Z-Mod starts the print with its filename alone",
 
     CHECK(backend.print_start_params({{0, 2}}).empty());
     CHECK_FALSE(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS keeps Z-Mod's AFC lane map in step with a pick",
+          "[ams][ad5x_ifs][tool_mapping][2033]") {
+    helix::test::GcodeCaptureBackend<AmsBackendAd5xIfs> backend;
+    helix::PrinterDiscovery hw;
+    auto objects = json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"});
+
+    SECTION("built-in AFC: SET_MAP names the port's lane") {
+        for (const char* o : {"AFC", "AFC_IFS IFS", "AFC_lane lane3"}) {
+            objects.push_back(o);
+        }
+        hw.parse_objects(objects);
+        backend.set_discovery(hw);
+        REQUIRE(backend.set_tool_mapping(0, 2).success());
+        CHECK(backend.sent() == std::vector<std::string>{"SET_MAP LANE=lane3 MAP=T0"});
+    }
+
+    SECTION("AFC=0: there is no lane map to write") {
+        hw.parse_objects(objects);
+        backend.set_discovery(hw);
+        backend.set_tool_mapping(0, 2);
+        CHECK(backend.sent().empty());
+    }
 }

@@ -3721,6 +3721,15 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
             tools_val = build_tool_map_value();
         }
     }
+    // Z-Mod's built-in AFC keeps its own lane map for the Fluidd/Mainsail AFC
+    // panels, lane N being port N. It does not route the print, which takes
+    // the map at the start (print_start_params()), so it only follows the pick.
+    if (print_start_takes_tool_slots_ && port != kUnmappedPort) {
+        if (auto err = execute_gcode(fmt::format("SET_MAP LANE=lane{} MAP=T{}", port, tool_number));
+            !err.success()) {
+            return err;
+        }
+    }
     if (!plugin_backed) {
         // No contract detected: nothing echoes or replays a mapping — the
         // answer remap_ready() already gives before a caller gets here.
