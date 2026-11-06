@@ -616,11 +616,11 @@ The layout stores a `default` block beside its pages, inside the `serialize_page
 so a parked per-grid copy carries its own:
 
 ```json
-"default": { "signature": "<tier>|<cols>|<rows>|<variant chain>|<preset>|<subject>=<value>,...", "hash": "<arrangement hash>" }
+"default": { "signature": "<tier>|<cols>|<rows>|<variant chain>|<preset>|<subject>=<value>,...|table=<version>", "hash": "<arrangement hash>" }
 ```
 
-- `signature` is what the resolver consulted: tier, grid, variant chain, preset and every
-  consulted subject's value, sorted.
+- `signature` is what the resolver consulted: tier, grid, variant chain, preset, every
+  consulted subject's value, sorted, and the table's `version` when it has one.
 - `hash` is `helix::layout::arrangement_hash()` of the pages: per page, the id, column, row and
   spans of each enabled, positioned entry, plus the page count. Per-widget `config` is not in
   it, so choosing an LED strip or a print_status style does not make a layout the user's.
@@ -723,12 +723,13 @@ applies to tool changers too. Either way an overlay meant for a tool changer car
 
 Two consequences of the subject being in the signature:
 
-- Every tier whose table offers the tool switcher already consults `ams_is_tool_changer` in
-  that slot, so the qualified keys leave the signature exactly as it is on every printer. A
-  stored unedited default does not re-resolve because of them: it keeps the arrangement it was
-  saved with until its signature changes for another reason (grid, preset, a consulted
-  subject) or the user resets to defaults. Only a freshly resolved default takes the tool
-  changer's arrangement.
+- The qualified keys by themselves leave the signature as it is: every tier that offers the
+  tool switcher already consults `ams_is_tool_changer` in that slot. What carries a table
+  change to stored defaults is the table's top-level `version`, which the signature ends with
+  (`|table=<version>`). Raising it re-resolves every unedited default once, at the first READY
+  populate, and saves it; a printer whose arrangement did not change gets the same tiles back
+  under the new signature. An edited layout no longer hashes to its `default.hash`, so it is
+  the user's and stays as it is.
 - On an unedited default, a change of primary filament backend that flips
   `ams_is_tool_changer` (a tool changer's backend replaced by an AMS, or the reverse)
   re-resolves the panel into the other arrangement. An edited layout is the user's and never
