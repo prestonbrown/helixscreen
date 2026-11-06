@@ -45,6 +45,7 @@
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/scoped_widget_factory.h"
+#include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
 #include "display_settings_manager.h"
@@ -4365,6 +4366,23 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(lv_area_get_height(&now) > lv_area_get_height(&before));
 }
 
+namespace {
+
+/// A tap on widget @p id selects it and a tap on its trash pill removes it.
+void trash_by_tap(EditHomeFixture& f, const char* id) {
+    f.select_by_tap(id);
+    lv_obj_t* pill = lv_obj_find_by_name(f.page(f.grid().page_index()), "edit_trash_pill");
+    REQUIRE(pill != nullptr);
+    lv_point_t r = EditHomeFixture::center_of(pill);
+    REQUIRE(lv_indev_search_obj(lv_screen_active(), &r) == pill);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
+    f.indev.press(r.x, r.y);
+    f.indev.release(r.x, r.y);
+    REQUIRE_FALSE(f.config().is_placed(id));
+}
+
+} // namespace
+
 TEST_CASE_METHOD(EditHomeFixture,
                  "the delete-page button asks first, and its confirmation removes the page",
                  "[1638][edit-swipe][home][grid_edit]") {
@@ -4378,7 +4396,10 @@ TEST_CASE_METHOD(EditHomeFixture,
     helix::ui::modal_init_subjects();
     build_home();
     widget_on(1, "fan");
-    enter_edit_mode(1);
+    enter_edit_mode(0);
+    trash_by_tap(*this, "temperature");
+    settle();
+    show_page(1);
 
     lv_obj_t* button = GridEditModeTestAccess::delete_page_button(grid());
     REQUIRE(button != nullptr);
@@ -4388,11 +4409,18 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.release(b.x, b.y);
     process_lvgl(static_cast<int>(kReadPeriodMs));
 
-    // The tap asks, and removes nothing yet.
+    // The tap asks, and removes nothing yet. It withdraws the removal's Undo,
+    // which would move or re-add pages under the confirmation.
     lv_obj_t* dialog = ModalStack::instance().top_dialog();
     REQUIRE(dialog != nullptr);
     CHECK(config().page_count() == 2);
     CHECK(HomePanelTestAccess::edit_mode_active(panel()));
+    CHECK(helix::ui::last_action_toast_dismissed());
+    CHECK(helix::ui::fire_last_toast_action());
+    CHECK_FALSE(config().is_placed("temperature"));
+    // The confirmation deletes the page it asked about, wherever the session
+    // has moved since.
+    show_page(0);
 
     lv_obj_t* confirm = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(confirm != nullptr);
@@ -4850,4 +4878,68 @@ TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input
     CHECK(helix::ui::is_drag_surface_hit(child, parent));
     CHECK_FALSE(helix::ui::is_drag_surface_hit(parent, parent));
     CHECK_FALSE(helix::ui::is_drag_surface_hit(child, child));
+}
+
+// ---------------------------------------------------------------------------
+// Undo on the removal toast
+// ---------------------------------------------------------------------------
+
+TEST_CASE_METHOD(EditHomeFixture, "Undo shows the widget back on its own page",
+                 "[undo][home][grid_edit]") {
+    // From another page, and from the next-page slot, where the session stays
+    // scoped to the last page while the carousel shows the slot.
+    const bool from_slot = GENERATE(false, true);
+    build_home(from_slot ? 1 : 2, from_slot ? 1 : 2);
+    enter_edit_mode(0);
+    trash_by_tap(*this, "temperature");
+    settle();
+    if (from_slot) {
+        settle_swipe_on(1);
+    } else {
+        show_page(1);
+    }
+    REQUIRE(current_page() == 1);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    settle();
+    CHECK(grid().page_index() == 0);
+    CHECK(grid().selected_widget() == widget_on(0, "temperature"));
+    check_session_on_screen();
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "Undo puts back the middle page the removal emptied",
+                 "[undo][home][grid_edit]") {
+    build_home_of_three_pages();
+    enter_edit_mode(1);
+    const PageSetChange removal = watch_page_set_change();
+    trash_by_tap(*this, "fan");
+    run_page_set_rebuild(removal, 1);
+    settle();
+
+    const PageSetChange undo = watch_page_set_change();
+    REQUIRE(helix::ui::fire_last_toast_action());
+    // The page on screen moves to index 2; one slide reaches the page put back.
+    run_page_set_rebuild(undo, 2, 1);
+    settle();
+    CHECK(page_count() == 3);
+    widget_on(1, "fan");
+    widget_on(2, "clock");
+    check_session_on_screen();
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "opening the widget catalog withdraws the undo",
+                 "[undo][home][grid_edit]") {
+    build_home();
+    ScopedWidgetCatalog catalog;
+    enter_edit_mode(0);
+    trash_by_tap(*this, "temperature");
+    settle();
+
+    panel().open_widget_catalog();
+    ScopedWidgetCatalog::settle_queue();
+    REQUIRE(grid().is_catalog_open());
+    CHECK(helix::ui::last_action_toast_dismissed());
+    CHECK(helix::ui::fire_last_toast_action());
+    ScopedWidgetCatalog::settle_queue();
+    CHECK_FALSE(config().is_placed("temperature"));
 }

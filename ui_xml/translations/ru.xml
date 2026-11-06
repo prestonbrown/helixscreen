@@ -2483,6 +2483,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." ru="На принтере недостаточно свободного места для этого файла. Освободите место в разделе Настройки &gt; Система &gt; Хранилище."/>
   <translation tag="Not enough frequency data from the sweeps. Try again." ru="Недостаточно данных о частоте по результатам измерений. Попробуйте снова."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ru="Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место."/>
+  <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
   <translation tag="Not set" ru="Не задана"/>
@@ -4353,6 +4354,7 @@
   <translation tag="WiFi unavailable. Cannot scan for networks." ru="WiFi недоступен. Невозможно выполнить поиск сетей."/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ru="WiFi был настроен, но оборудование недоступно. Проверьте конфигурацию системы."/>
   <translation tag="Widget Labels" ru="Подписи виджетов"/>
+  <translation tag="Widget removed" ru="Виджет удалён"/>
   <translation tag="Width" ru="Ширина"/>
   <translation tag="Width Sensor" ru="Датчик диаметра"/>
   <translation tag="Width Sensors" ru="Датчики ширины"/>

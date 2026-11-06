@@ -2438,6 +2438,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." es="No hay suficiente espacio libre en la impresora para este archivo. Libera espacio en Ajustes &gt; Sistema &gt; Almacenamiento."/>
   <translation tag="Not enough frequency data from the sweeps. Try again." es="No hay suficientes datos de frecuencia de los barridos. Intente de nuevo."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." es="No hay espacio suficiente para este widget. Reorganiza o elimina widgets para hacer espacio."/>
+  <translation tag="Not enough room to put the widget back. It stays removed." es="No hay espacio suficiente para restaurar el widget. Sigue eliminado."/>
   <translation tag="Not in your spools? Set it up" es="¿No está en tus bobinas? Configúralo"/>
   <translation tag="Not now" es="Ahora no"/>
   <translation tag="Not set" es="Sin definir"/>
@@ -4293,6 +4294,7 @@
   <translation tag="WiFi unavailable. Cannot scan for networks." es="WiFi no disponible. No se pueden buscar redes."/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." es="WiFi fue configurado pero el hardware no está disponible. Revise la configuración del sistema."/>
   <translation tag="Widget Labels" es="Etiquetas de Widgets"/>
+  <translation tag="Widget removed" es="Widget eliminado"/>
   <translation tag="Width" es="Ancho"/>
   <translation tag="Width Sensor" es="Sensor de ancho"/>
   <translation tag="Width Sensors" es="Sensores de anchura"/>

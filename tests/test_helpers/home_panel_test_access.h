@@ -186,7 +186,7 @@ struct HomePanelTestAccess {
 
     /// Confirm the delete-page dialog: the action its Delete button runs.
     static void confirm_delete_page(HomePanel& panel) {
-        panel.delete_edit_page();
+        panel.delete_page_action()();
     }
 
     /// The observer-fired page change, as carousel_scroll_end_cb delivers it.
