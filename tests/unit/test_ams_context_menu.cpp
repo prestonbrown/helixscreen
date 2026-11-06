@@ -21,6 +21,7 @@
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_lane_recovery.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "filament_database.h"
@@ -517,6 +518,48 @@ TEST_CASE("Lane menus withdraw Unload while the toolhead is unaccounted",
     CHECK(d.unload_mode == UnloadMode::Unload);
     CHECK_FALSE(d.unload_enabled);
     unaccounted.stop();
+}
+
+namespace {
+
+/// Ejects lanes and can always recover one; the case sets whether it names the lane.
+class RecoveringMock : public AmsBackendMock, public ILaneRecovery {
+  public:
+    RecoveringMock() : AmsBackendMock(4) {}
+    bool attributed = false;
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<ILaneRecovery>()) {
+            return static_cast<ILaneRecovery*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
+    AmsError recover_lane_position(int) override {
+        return AmsErrorHelper::success();
+    }
+    [[nodiscard]] bool can_recover_lane_position(int) const override {
+        return true;
+    }
+    [[nodiscard]] bool lane_recovery_is_attributed() const override {
+        return attributed;
+    }
+    [[nodiscard]] bool supports_lane_eject() const override {
+        return true;
+    }
+};
+} // namespace
+
+TEST_CASE("A seated lane keeps Eject unless the backend names it for recovery",
+          "[ams][context_menu][recovery]") {
+    RecoveringMock backend;
+    REQUIRE(backend.start());
+    REQUIRE_FALSE(backend.can_unload_from_toolhead(1));
+    for (const auto& [attributed, mode] :
+         {std::pair{false, UnloadMode::Eject}, std::pair{true, UnloadMode::RecoverPosition}}) {
+        backend.attributed = attributed;
+        CAPTURE(attributed);
+        CHECK(ops_for(backend, 1).unload_mode == mode);
+    }
+    backend.stop();
 }
 
 TEST_CASE("A dock-sensor fault disables Unmount and says why", "[ams][context_menu][toolchanger]") {

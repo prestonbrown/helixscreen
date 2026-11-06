@@ -88,7 +88,42 @@ void report_heads(test::WiredBackend<AmsBackendSnapmaker>& backend) {
         {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
 }
 
+/// Counts the starts it is told of, so a case can see the start path tell it.
+class NotingSnapmaker : public AmsBackendSnapmaker {
+  public:
+    using AmsBackendSnapmaker::AmsBackendSnapmaker;
+    int noted = 0;
+    void note_print_start_from_here() override {
+        ++noted;
+        AmsBackendSnapmaker::note_print_start_from_here();
+    }
+};
+
 } // namespace
+
+TEST_CASE_METHOD(U1StartFx, "a print started from this screen is announced to the routing backend",
+                 "[end_unload][preprint][reprint]") {
+    MoonrakerAPI api{client, ps};
+    test::RegisteredWired<NotingSnapmaker> backend;
+    backend->fire_status(nlohmann::json{
+        {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
+
+    const auto settle = [] {
+        for (int i = 0; i < 8; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    };
+    SECTION("a reprint") {
+        helix::ui::PrintStartController controller{ps, &api};
+        controller.initiate_reprint("cal.gcode", "cal.gcode", {0}, []() {}, []() {});
+        settle();
+    }
+    SECTION("a restart from the beginning") {
+        helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
+        settle();
+    }
+    CHECK(backend->noted == 1);
+}
 
 TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends the unload list",
                  "[end_unload][preprint]") {

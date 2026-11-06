@@ -15,6 +15,7 @@
  * and asserting its subjects moved with no action callback involved.
  */
 
+#include "ui_overlay_ipv4_settings.h"
 #include "ui_overlay_network_settings.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -23,6 +24,7 @@
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "core/update_queue.h"
+#include "ipv4_config_system.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -72,6 +74,21 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     // subscribes (not create(): on_deactivate() invalidates the token).
     overlay->on_activate();
     REQUIRE(lv_subject_get_int(&Access::wifi_connected(*overlay)) == 0);
+    // The IPv4 row reads the setting on open, and again on each transport change.
+    const auto ipv4_row_reads = [this](const helix::net::Ipv4Config& config) {
+        return wait_until([&] {
+            helix::ui::UpdateQueue::instance().drain();
+            return lv_subject_get_string(lv_xml_get_subject(nullptr, "wifi_ipv4_summary")) ==
+                   helix::settings::ipv4_row_summary(config);
+        });
+    };
+    CHECK(ipv4_row_reads(helix::net::Ipv4Config{}));
+    helix::net::Ipv4Config fixed;
+    fixed.dhcp = false;
+    fixed.address = "192.168.1.50";
+    fixed.prefix = 24;
+    fixed.gateway = "192.168.1.1";
+    REQUIRE(helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).apply(fixed).ok());
 
     // A backend-initiated flip: no overlay action callback runs, only the
     // state observer -> refresh_transport_status() -> update_wifi_status().
@@ -86,6 +103,8 @@ TEST_CASE_METHOD(TransportRefreshFixture,
         helix::ui::UpdateQueue::instance().drain();
         return lv_subject_get_int(&Access::wifi_connected(*overlay)) == 1;
     }));
+    CHECK(ipv4_row_reads(fixed));
+    helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).apply(helix::net::Ipv4Config{});
 }
 
 TEST_CASE_METHOD(TransportRefreshFixture,

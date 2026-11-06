@@ -82,13 +82,16 @@ TEST_CASE_METHOD(Fixture, "chamber air state: a frame that says nothing keeps ev
     state.apply(frame(hw, {{"power_detected", true},
                            {"mode", 1},
                            {"inner_fan_work_time", 3600.0},
-                           {"exhaust_fan", {{"speed", 0.6}}}}));
+                           {"exhaust_fan", {{"speed", 0.6}, {"speed_threshold", 0.4}}},
+                           {"inner_fan", {{"speed", 0.0}, {"speed_threshold", 0.3}}}}));
     REQUIRE(available() == 1);
     state.apply(air::read_status(hw, json{{"toolhead", json::object()}}));
     CHECK(available() == 1);
     CHECK(mode() == static_cast<int>(AirMode::Exhaust));
     CHECK(state.filter_seconds() == Catch::Approx(3600.0));
     CHECK(lv_subject_get_int(state.exhaust_pct_subject()) == 60);
+    CHECK(state.threshold_pct(air::FanRole::Exhaust) == 40);
+    CHECK(state.threshold_pct(air::FanRole::Recirculate) == 30);
 }
 
 TEST_CASE_METHOD(Fixture, "chamber air state: removal hides control and fires an edge",

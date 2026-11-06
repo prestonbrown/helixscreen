@@ -251,6 +251,8 @@ TEST_CASE_METHOD(NozzleFixture, "a tracked pick ends when the firmware has answe
         CHECK(result.user_msg.find("Cannot change nozzle properties during printing!") !=
               std::string::npos);
         CHECK(result.user_msg.find("Nozzle not changed") != std::string::npos);
+        // The firmware's words are the whole story: no "check the console" tail.
+        CHECK(result.suggestion.empty());
         CHECK(user_errors() == 0);
         CHECK(state_changes > before);
     }
