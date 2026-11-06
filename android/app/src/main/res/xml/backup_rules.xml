@@ -24,6 +24,8 @@
     <exclude domain="file" path="data/config/gpu_3d_guard"/>
     <exclude domain="file" path="data/config/gpu_blur_guard"/>
     <exclude domain="file" path="data/config/filament_slot_overrides.json"/>
+    <exclude domain="file" path="data/config/pending_remap.json"/>
+    <exclude domain="file" path="data/config/pending_remap.json.corrupt"/>
     <exclude domain="file" path="data/config/update_success.json"/>
     <!-- Config::init() renames an unparseable config aside under these names -->
     <exclude domain="file" path="data/config/settings.json.corrupt"/>

@@ -461,6 +461,8 @@ TEST_CASE("Auto Backup includes the config layer and the settings backups",
     }
     CHECK(paths_of(legacy, "exclude").count("data/config/telemetry_device.json") == 1);
     CHECK(paths_of(legacy, "exclude").count("data/config/.helix-screen.lock") == 1);
+    // A restored record would replay a stale tool map onto a reinstalled device.
+    CHECK(paths_of(legacy, "exclude").count("data/config/pending_remap.json") == 1);
     // FileConfigStorage::preserve_corrupt() keeps a broken document as <config>.corrupt;
     // restoring one onto another device brings back nothing usable.
     CHECK(paths_of(legacy, "exclude").count("data/config/settings.json.corrupt") == 1);
