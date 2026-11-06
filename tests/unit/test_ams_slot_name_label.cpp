@@ -111,32 +111,29 @@ TEST_CASE("slot_card_name: spool name, then Spoolman name, then product name",
 
 TEST_CASE("slot_card_name: a name that only repeats the material gives way",
           "[ams][slot_name][pure]") {
-    // A Spoolman filament named after its material ("ABS+") would print the
-    // material on both lines of the card.
-    SlotInfo slot = named_slot("ABS+", "", "ABS+");
-    slot.brand = "eSUN";
-    CHECK(helix::slot_card_name(slot, nullptr) == "eSUN");
-
-    // The next name in line stands in before the brand does.
-    slot.product_name = "ABS+HS";
-    CHECK(helix::slot_card_name(slot, nullptr) == "ABS+HS");
-
-    // Case and spacing do not make a repeat a name.
-    SpoolIdentity identity;
-    identity.filament_name = " abs+ ";
-    slot = named_slot("", "", "ABS+");
-    CHECK(helix::slot_card_name(slot, &identity).empty());
-
-    // A name that merely contains the material still names the spool.
-    slot = named_slot("ABS+ Deep Gray", "", "ABS+");
-    slot.brand = "eSUN";
-    CHECK(helix::slot_card_name(slot, nullptr) == "ABS+ Deep Gray");
-
-    // With no name at all the card keeps its one line; the brand is a stand-in
-    // for a repeated name, not a name of its own.
-    slot = named_slot("", "", "ABS+");
-    slot.brand = "eSUN";
-    CHECK(helix::slot_card_name(slot, nullptr).empty());
+    struct Row {
+        const char* spool_name;
+        const char* identity_name; // nullptr = no Spoolman identity
+        const char* product;
+        const char* brand;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"ABS+", nullptr, "", "eSUN", "eSUN"},                     // the brand stands in
+        {"ABS+", nullptr, "ABS+HS", "eSUN", "ABS+HS"},             // the next name first
+        {"", " abs+ ", "", "", ""},                                // case and spacing are no name
+        {"ABS+ Deep Gray", nullptr, "", "eSUN", "ABS+ Deep Gray"}, // containing it is a name
+        {"", nullptr, "", "eSUN", ""}, // no name at all keeps the one line
+    };
+    for (const Row& r : rows) {
+        SlotInfo slot = named_slot(r.spool_name, "", "ABS+");
+        slot.product_name = r.product;
+        slot.brand = r.brand;
+        SpoolIdentity identity;
+        identity.filament_name = r.identity_name ? r.identity_name : "";
+        CAPTURE(r.spool_name, r.product);
+        CHECK(helix::slot_card_name(slot, r.identity_name ? &identity : nullptr) == r.expected);
+    }
 }
 
 TEST_CASE("slot_card_name: a colour is never the card's name", "[ams][slot_name][pure]") {
