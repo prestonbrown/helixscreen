@@ -879,6 +879,14 @@ TEST_CASE("Fan characterization: fan with unusual name format", "[characterizati
         REQUIRE(state.fan_state().get_fans()[0].type == FanType::HEATER_FAN);
         REQUIRE(state.fan_state().get_fans()[0].is_controllable == false);
     }
+
+    SECTION("heater_fan_throttled is a heater fan") {
+        state.fan_state().init_fans({"heater_fan_throttled chamber_heat_fan"});
+
+        REQUIRE(state.fan_state().get_fans()[0].type == FanType::HEATER_FAN);
+        REQUIRE(state.fan_state().get_fans()[0].is_controllable == false);
+        CHECK(state.fan_state().get_fans()[0].display_name == "Chamber Heat Fan");
+    }
 }
 
 // ============================================================================
