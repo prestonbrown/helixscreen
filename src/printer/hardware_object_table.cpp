@@ -65,6 +65,8 @@ constexpr Row kRows[] = {
     {Match::Exact, "fan_feedback", ObjectKind::FanFeedback, 0, Scope::Both},
     {Match::Exact, "fan", ObjectKind::Fan, 0, Scope::Both},
     {Match::Prefix, "heater_fan ", ObjectKind::HeaterFan, 0, Scope::Both},
+    // OpenCreator's Kalico variant of heater_fan; its heater drives it the same way.
+    {Match::Prefix, "heater_fan_throttled ", ObjectKind::HeaterFan, 0, Scope::Both},
     {Match::Prefix, "controller_fan ", ObjectKind::ControllerFan, 0, Scope::Both},
     {Match::Prefix, "fan_generic ", ObjectKind::GenericFan, 0, Scope::Both},
 
