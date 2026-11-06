@@ -96,6 +96,15 @@ TEST_CASE("stepper resonance cal: OpenCreator's VFA_COMPENSATION outranks the ex
     CHECK(cal::calibrate_gcode(hw, -1) == "VFA_COMPENSATION");
 }
 
+TEST_CASE("stepper resonance cal: a VFA_COMPENSATION macro without the extra is no routine",
+          "[stepper_resonance_cal]") {
+    // The wrapper drives the extra's STEPPER_RESONANCE_FACTORY_CALIBRATE; a
+    // same-named macro on a printer without it is somebody else's.
+    const PrinterDiscovery hw = printer_with({kCompensationMacro});
+    CHECK_FALSE(cal::resolve(hw).present());
+    CHECK(cal::calibrate_gcode(hw, 0).empty());
+}
+
 TEST_CASE("stepper resonance cal: the stock macro alone is not the routine",
           "[stepper_resonance_cal]") {
     // The macro's search command comes from the extra; without it there is
