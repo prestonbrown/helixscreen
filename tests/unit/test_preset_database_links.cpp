@@ -268,3 +268,16 @@ TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
     CHECK(std::find(expected.begin(), expected.end(), "heater_fan_throttled chamber_heat_fan") !=
           expected.end());
 }
+
+// Z-Mod declares [led chamber_light] on every AD5X whether or not a light is
+// wired, and a stock AD5X has none, so the preset turns the led capability off.
+TEST_CASE("the AD5X preset turns the light capability off and names its led object",
+          "[printer_detector][presets][assets]") {
+    const json ad5x = load_json(std::string(kPresetDir) + "/ad5x.json");
+    const json& printer = ad5x["printer"];
+    REQUIRE(printer.contains("capability_overrides"));
+    CHECK(printer["capability_overrides"].value("led", "") == "disable");
+    const json& expected = printer["hardware"]["expected"];
+    REQUIRE(expected.is_array());
+    CHECK(std::find(expected.begin(), expected.end(), "led chamber_light") != expected.end());
+}

@@ -269,6 +269,36 @@ TEST_CASE("CapabilityOverrides - speaker override", "[printer][overrides]") {
     }
 }
 
+TEST_CASE("CapabilityOverrides - led override", "[printer][overrides]") {
+    CapabilityOverrides overrides;
+    helix::PrinterDiscovery with_led;
+    with_led.parse_objects(json{"led chamber_light"});
+    REQUIRE(with_led.has_led());
+    helix::PrinterDiscovery without_led;
+    without_led.parse_objects(json{"bed_mesh"});
+
+    SECTION("DISABLE hides a light the firmware declares") {
+        overrides.set_hardware(with_led);
+        overrides.set_override(capability::LED, OverrideState::DISABLE);
+        CHECK_FALSE(overrides.has_led());
+    }
+
+    SECTION("ENABLE shows lights detection did not find") {
+        overrides.set_hardware(without_led);
+        overrides.set_override(capability::LED, OverrideState::ENABLE);
+        CHECK(overrides.has_led());
+        CHECK(overrides.is_forced_on(capability::LED));
+    }
+
+    SECTION("AUTO follows detection") {
+        overrides.set_override(capability::LED, OverrideState::AUTO);
+        overrides.set_hardware(with_led);
+        CHECK(overrides.has_led());
+        overrides.set_hardware(without_led);
+        CHECK_FALSE(overrides.has_led());
+    }
+}
+
 // ============================================================================
 // Copy and Move Tests
 // ============================================================================

@@ -46,8 +46,12 @@
         "fan_generic chamber_fan",
         "filament_switch_sensor head_switch_sensor",
         "controller_fan driver_fan",
+        "led chamber_light",
         "led chamber_led"
       ]
+    },
+    "capability_overrides": {
+      "led": "disable"
     },
     "default_macros": {
       "cooldown": "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0",
