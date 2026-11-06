@@ -64,8 +64,10 @@ struct ResolvedPlacement {
 struct ResolvedDefault {
     std::vector<ResolvedPlacement> placed;
     std::vector<std::string> disabled; // losing candidates + tier `disabled` ids
-    std::string signature; // tier|cols|rows|variant chain|preset|name=value,... for every consulted
-                           // subject, sorted
+    /// tier|cols|rows|variant chain|preset|name=value,... for every consulted
+    /// subject, sorted, then |table=<version> when the table carries a positive
+    /// `version`, so changing the shipped table re-resolves every unedited default.
+    std::string signature;
     bool ok = false; // false: table unusable (missing, no anchors for this tier); caller falls back
 };
 

@@ -539,6 +539,15 @@ TEST_CASE("resolver: signature tracks exactly the consulted subjects",
               a.signature);
         CHECK(resolve(table, "medium", base, 12, 8, nullptr, {}, "ad5x").signature != a.signature);
     }
+    SECTION("a table version is appended, and a new one changes it") {
+        CHECK(a.signature.find("|table=") == std::string::npos);
+        json versioned = table;
+        versioned["version"] = 2;
+        const auto v2 = resolve(versioned, "medium", base);
+        CHECK(v2.signature == a.signature + "|table=2");
+        versioned["version"] = 3;
+        CHECK(resolve(versioned, "medium", base).signature != v2.signature);
+    }
     SECTION("a requires subject is consulted") {
         const CapabilitySnapshot s0{{{"led_controllable", 1}, {"printer_has_spoolman", 0}}};
         const CapabilitySnapshot s1{{{"led_controllable", 1}, {"printer_has_spoolman", 1}}};
