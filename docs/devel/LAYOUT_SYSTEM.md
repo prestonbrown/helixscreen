@@ -714,6 +714,24 @@ where print_status sits beside the image, leaves the 4x2 block left of the fans 
 portrait and ultrawide tables carry no tool switcher, so they keep their temperature tiles,
 and `micro@8x6` keeps its own arrangement.
 
+A preset overlay meets these keys in two ways. Its `disabled` lists merge key by key, so the
+base table's `"<tier>+ams_is_tool_changer"` list survives an overlay's bare `"<tier>"` list and
+wins over it on a tool changer. Its anchors and slots replace the base entry with the same id or
+slot whole, so the base's qualified placements go with it and the overlay's bare key then
+applies to tool changers too. Either way an overlay meant for a tool changer carries its own
+`+ams_is_tool_changer` keys for every placement and `disabled` list it changes.
+
+Two consequences of the subject being in the signature:
+
+- An unedited default saved by a build without these keys has a signature that does not name
+  `ams_is_tool_changer` at every tier, so it re-resolves once on the first READY populate and is
+  saved. A printer that is not a tool changer gets the same arrangement it had; only the stored
+  signature changes.
+- On an unedited default, a change of primary filament backend that flips
+  `ams_is_tool_changer` (a tool changer's backend replaced by an AMS, or the reverse)
+  re-resolves the panel into the other arrangement. An edited layout is the user's and never
+  moves.
+
 **An anchor that does not fit the measured grid is now dropped rather than clamped.**
 `build_default_grid(grid_cols, grid_rows)` checks each anchor against the grid it is being
 placed on and auto-places the ones that do not fit, naming them in a warning. Widgets the
