@@ -1758,6 +1758,23 @@ TEST_CASE("SpoolmanSlotSaver save: reuse, a repoint and a catalog pick through t
         CHECK(payload["settings_extruder_temp"] == 215);
         CHECK(payload["settings_bed_temp"] == 60);
     }
+    SECTION("declining the offer writes nothing and reports the save as cancelled") {
+        if (GENERATE(false, true)) {
+            original.spoolman_id = 0; // a new spool, not a repoint
+            original.spoolman_filament_id = 0;
+        }
+        saver.set_similar_filament_chooser(
+            [](const FilamentInfo&, std::function<void(SpoolmanSlotSaver::SimilarChoice)> answer) {
+                answer(SpoolmanSlotSaver::SimilarChoice::Cancel);
+            });
+        edited = original;
+        edited.material = "PLA+";
+        saver.save(original, edited, [&](const SaveResult& res) { got = res; });
+        CHECK_FALSE(got.success);
+        CHECK(got.cancelled);
+        CHECK(client.spoolman_mock().created_filaments.empty());
+        CHECK(client.spoolman_mock().spool_updates.empty());
+    }
     SECTION("a catalog pick alone does no filament work") {
         edited.catalog_id = "polymaker-polyterra-pla";
         edited.product_name = "PolyTerra PLA";

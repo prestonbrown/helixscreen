@@ -4853,6 +4853,7 @@ TEST_CASE_METHOD(EditHomeFixture, "Undo shows the widget back on its own page",
     const bool from_slot = GENERATE(false, true);
     build_home(from_slot ? 1 : 2, from_slot ? 1 : 2);
     enter_edit_mode(0);
+    const helix::PanelWidgetEntry before = entry_on_page(0, "temperature");
     trash_by_tap(*this, "temperature");
     settle();
     if (from_slot) {
@@ -4866,6 +4867,9 @@ TEST_CASE_METHOD(EditHomeFixture, "Undo shows the widget back on its own page",
     settle();
     CHECK(grid().page_index() == 0);
     CHECK(grid().selected_widget() == widget_on(0, "temperature"));
+    // Its own cell is free on its own page, whatever the page on screen holds there.
+    CHECK(entry_on_page(0, "temperature").col == before.col);
+    CHECK(entry_on_page(0, "temperature").row == before.row);
     check_session_on_screen();
 }
 
