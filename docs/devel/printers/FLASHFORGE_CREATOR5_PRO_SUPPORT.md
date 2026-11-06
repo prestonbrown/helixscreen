@@ -187,10 +187,11 @@ slot), and without one opens its own colour prompt. `helix::print_start`
 says so, so a Z-Mod with `AFC=0` or the afclite shim keeps its own prompt and is sent no
 map. The filament
 backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
-answer. Every print HelixScreen starts there, a reprint included, carries the full map, a
-tool the card leaves untouched on the backend's own default lane, so Z-Mod's prompt never
-opens for it; the tool changer backend sends each head as its 1-based slot and remaps
-Native, never rewriting the job. `SET_MAP` and the other table writes
+answer. Every print HelixScreen starts there from the file card carries every lane the card
+shows, picked or seeded, so Z-Mod's prompt does not open for it; a tool set to Auto, or one
+past the machine's heads, is left empty for Z-Mod's own default. The tool changer backend
+sends each head as its 1-based slot and remaps Native, never rewriting the job. A reprint
+and a PA tower have no card and send no map, so Z-Mod asks as it always has. `SET_MAP` and the other table writes
 still go out, which is what Z-Mod builds without the `tools` parameter route by; their
 Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
 plugin (a file rewritten for a pre-print option) runs `SDCARD_PRINT_FILE` and carries no
