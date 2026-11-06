@@ -64,6 +64,7 @@ TEST_CASE("hw table: every kitchen-sink name classifies", "[hw_object_table]") {
         {"led_effect rainbow", ObjectKind::LedEffect, "rainbow"},
         {"fan_feedback", ObjectKind::FanFeedback, ""},
         {"heater_fan hotend_fan", ObjectKind::HeaterFan, "hotend_fan"},
+        {"heater_fan_throttled chamber_heat_fan", ObjectKind::HeaterFan, "chamber_heat_fan"},
         {"controller_fan board", ObjectKind::ControllerFan, "board"},
         {"fan_generic aux", ObjectKind::GenericFan, "aux"},
         {"fan", ObjectKind::Fan, ""},
