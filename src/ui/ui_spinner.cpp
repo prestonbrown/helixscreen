@@ -111,7 +111,8 @@ static void stop_material_spinner_animations(lv_obj_t* arc) {
 
 // A spinner nobody can see stops animating: its endless animations otherwise keep LVGL's
 // animation timer, and with it the main loop, running every frame under a hidden container
-// or a sleeping display. spinner_draw_cb restarts them the next time it is drawn.
+// or a display whose sleep hides the active screen (software overlay, panel power-off).
+// spinner_draw_cb restarts them the next time it is drawn.
 static void arc_anim_rotation(void* obj, int32_t value) {
     auto* arc = static_cast<lv_obj_t*>(obj);
     if (!lv_obj_is_visible(arc)) {
@@ -149,7 +150,7 @@ static void spinner_delete_cb(lv_event_t* e) {
  *
  * @param arc The arc object to animate
  */
-static void start_material_spinner_animations(lv_obj_t* arc) {
+static void start_material_spinner_animations(lv_obj_t* arc, bool early_apply) {
     // Material Design indeterminate spinner using OPPOSITE BEZIER CURVES
     //
     // Mathematical key: sweep(t) = offset + 360 * (ease_end(t) - ease_start(t))
@@ -174,9 +175,9 @@ static void start_material_spinner_animations(lv_obj_t* arc) {
     lv_anim_set_path_cb(&anim_end, lv_anim_path_custom_bezier3);
     lv_anim_set_bezier3_param(&anim_end, LV_BEZIER_VAL_FLOAT(0.0), LV_BEZIER_VAL_FLOAT(0.0),
                               LV_BEZIER_VAL_FLOAT(0.2), LV_BEZIER_VAL_FLOAT(1.0));
-    // No early apply: a restart from spinner_draw_cb runs mid-render, where an
-    // immediate angle change would invalidate the arc.
-    lv_anim_set_early_apply(&anim_end, false);
+    // A restart from spinner_draw_cb runs mid-render, where an immediate angle change
+    // would invalidate the arc, so it starts without early apply.
+    lv_anim_set_early_apply(&anim_end, early_apply);
     lv_anim_start(&anim_end);
 
     // Animation 2: START angle (trailing edge) - AGGRESSIVE EASE-IN
@@ -192,7 +193,7 @@ static void start_material_spinner_animations(lv_obj_t* arc) {
     lv_anim_set_path_cb(&anim_start, lv_anim_path_custom_bezier3);
     lv_anim_set_bezier3_param(&anim_start, LV_BEZIER_VAL_FLOAT(0.8), LV_BEZIER_VAL_FLOAT(0.0),
                               LV_BEZIER_VAL_FLOAT(1.0), LV_BEZIER_VAL_FLOAT(1.0));
-    lv_anim_set_early_apply(&anim_start, false);
+    lv_anim_set_early_apply(&anim_start, early_apply);
     lv_anim_start(&anim_start);
 
     // Animation 3: ROTATION - continuous clockwise spin of the whole arc
@@ -205,16 +206,24 @@ static void start_material_spinner_animations(lv_obj_t* arc) {
     lv_anim_set_values(&anim_rot, 270, 270 + 360);        // Start at top, go full circle
     lv_anim_set_repeat_count(&anim_rot, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&anim_rot, lv_anim_path_linear); // Constant rotation speed
-    lv_anim_set_early_apply(&anim_rot, false);
+    lv_anim_set_early_apply(&anim_rot, early_apply);
     lv_anim_start(&anim_rot);
 }
 
 /// Restarts a parked spinner's animations when it is drawn again (only animated spinners
 /// carry this callback).
+namespace {
+bool g_spinners_frozen = false;
+} // namespace
+
+void helix::ui::spinner_set_frozen(bool frozen) {
+    g_spinners_frozen = frozen;
+}
+
 static void spinner_draw_cb(lv_event_t* e) {
     lv_obj_t* arc = lv_event_get_target_obj(e);
-    if (!lv_anim_get(arc, arc_anim_rotation)) {
-        start_material_spinner_animations(arc);
+    if (!g_spinners_frozen && !lv_anim_get(arc, arc_anim_rotation)) {
+        start_material_spinner_animations(arc, /*early_apply=*/false);
     }
 }
 
@@ -287,7 +296,7 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
     // that cannot afford a continuous partial redraw.
     const char* animated = lv_xml_get_value_of(attrs, "animated");
     if (!animated || strcmp(animated, "false") != 0) {
-        start_material_spinner_animations(arc);
+        start_material_spinner_animations(arc, /*early_apply=*/true);
         lv_obj_add_event_cb(arc, spinner_draw_cb, LV_EVENT_DRAW_MAIN_BEGIN, nullptr);
     }
 

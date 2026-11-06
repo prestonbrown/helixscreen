@@ -7,6 +7,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
+#include "ui_spinner.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
@@ -1429,6 +1430,7 @@ nlohmann::json RemoteControlServer::handle_freeze(const nlohmann::json& /*params
         }
 #endif
 
+        helix::ui::spinner_set_frozen(true);
         frozen_ = true;
 
         spdlog::debug("[RemoteControl] freeze: paused {} timers (skipped queue+refresh), "
@@ -1465,6 +1467,7 @@ nlohmann::json RemoteControlServer::handle_unfreeze(const nlohmann::json& /*para
             }
         }
         paused_timers_.clear();
+        helix::ui::spinner_set_frozen(false);
         frozen_ = false;
 #ifdef HELIX_ENABLE_MOCKS
         if (auto* mock = get_moonraker_client_mock()) {
