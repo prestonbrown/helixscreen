@@ -389,8 +389,9 @@ class GridEditMode {
 
     /// Whether the release that produced @p e acts on the pill it ended on:
     /// it lifted over the pill, not over the delete-page button beneath, and
-    /// kPillLockoutMs after the pill appeared.
-    bool pill_release_acts(lv_event_t* e) const;
+    /// its press landed kPillLockoutMs or more after the pill was first drawn.
+    /// Consumes the press.
+    bool pill_release_acts(lv_event_t* e);
 
     /// Screen rect of the delete-page button in the top-right corner of a
     /// page whose content area is @p content.
@@ -674,9 +675,15 @@ class GridEditMode {
     /// lv_tick_get() at the previous drag step, so the edge push advances by
     /// the time between reads rather than per read.
     uint32_t drag_step_tick_ = 0;
-    /// lv_tick_get() when the selection pills were drawn; kPillLockoutMs runs
-    /// from it.
+    /// lv_tick_get() when the selection pills were first drawn (when they were
+    /// created, until a frame shows them); kPillLockoutMs runs from it.
     uint32_t pills_drawn_tick_ = 0;
+    /// A frame has drawn the current pills, so pills_drawn_tick_ is final.
+    bool pills_shown_ = false;
+    /// lv_tick_get() at the press on a pill that its release has not yet
+    /// consumed, and whether there is one.
+    uint32_t pill_press_tick_ = 0;
+    bool pill_press_latched_ = false;
     /// One-shot flip a majority crossing requested, due
     /// kCrossPageCrossingDelayMs after the crossing, and its direction.
     /// Dwell changes never cancel it.
