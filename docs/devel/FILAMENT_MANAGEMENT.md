@@ -3528,7 +3528,7 @@ Who owns a runout is three `BackendTraits` fields on the backend's `kTraits`, al
 false: `raises_runout_fault` (the backend raises its own runout event through
 `classify_error()` or `current_error()`, so the generic runout modal stands down),
 `raises_runout_fault_during_job` (that event is already on screen while a job runs, so the
-sensor-edge toast stands down) and `unloads_to_hub_between_prints` (the firmware parks the
+sensor-edge toast stands down) and `parks_filament_off_toolhead_when_idle` (the firmware parks the
 filament in its hub or box between prints, so an idle head-empty edge is not news). Callers read them through
 `AmsBackend::raises_runout_fault()` and friends, or `AmsState::primary_traits()` off the main
 thread. A backend with no runout fault of its own leaves them false: the generic modal is then

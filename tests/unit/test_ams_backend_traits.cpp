@@ -293,7 +293,7 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         BackendTraits traits;
         bool raises_runout_fault;
         bool raises_runout_fault_during_job;
-        bool unloads_to_hub_between_prints;
+        bool parks_off_toolhead_when_idle;
     };
     const Row rows[] = {
         {"Happy Hare", AmsBackendHappyHare::kTraits, true, true, false},
@@ -310,7 +310,7 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         INFO(row.name);
         CHECK(row.traits.raises_runout_fault == row.raises_runout_fault);
         CHECK(row.traits.raises_runout_fault_during_job == row.raises_runout_fault_during_job);
-        CHECK(row.traits.unloads_to_hub_between_prints == row.unloads_to_hub_between_prints);
+        CHECK(row.traits.parks_filament_off_toolhead_when_idle == row.parks_off_toolhead_when_idle);
     }
 }
 

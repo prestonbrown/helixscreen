@@ -379,7 +379,7 @@ There are three runout queries, from coarse to fine:
 | inside the stabilization window | first frames after connect are not news |
 | the setup wizard is active | the wizard is walking the user through it |
 | `AmsState::is_filament_operation_active()` | load/unload moves filament past sensors on purpose |
-| the backend parks filament in its hub or box between prints (`BackendTraits::unloads_to_hub_between_prints`: AD5X IFS, CFS) and no job holds the machine | the firmware unloads when a job ends, so the head reads empty while idle |
+| the backend parks filament in its hub or box between prints (`BackendTraits::parks_filament_off_toolhead_when_idle`: AD5X IFS, CFS) and no job holds the machine | the firmware unloads when a job ends, so the head reads empty while idle |
 | removal edge inside the post-unload grace | the user just unloaded |
 | `BackendTraits::raises_runout_fault_during_job` for the active backend, during a job | Happy Hare, AFC and CFS raise their own runout prompt (`include/ams_backend.h#BackendTraits`) |
 | master switch off, sensor disabled, no role, or the firmware was not running the sensor on both sides of the edge | not monitoring |

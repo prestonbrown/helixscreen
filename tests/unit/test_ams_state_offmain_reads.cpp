@@ -95,7 +95,7 @@ TEST_CASE_METHOD(OffMainFixture, "primary_traits is empty with no backend and sa
 
     BackendTraits owns;
     owns.raises_runout_fault = true;
-    owns.unloads_to_hub_between_prints = true;
+    owns.parks_filament_off_toolhead_when_idle = true;
     ams.add_backend(std::make_unique<helix::test::TraitProbeBackend>(owns));
     REQUIRE(ams.primary_traits().has_value());
     CHECK(*ams.primary_traits() == owns);

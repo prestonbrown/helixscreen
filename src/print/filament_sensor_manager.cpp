@@ -972,7 +972,7 @@ void FilamentSensorManager::update_from_status(const json& status) {
     // side, not merely "not PRINTING": a head-empty during a pre-print block is
     // not the firmware's idle auto-unload and must not be swallowed.
     const bool idle_unload_expected =
-        backend_traits.unloads_to_hub_between_prints && !job_owns_machine;
+        backend_traits.parks_filament_off_toolhead_when_idle && !job_owns_machine;
     // While a job holds the machine, a backend that raises its own runout fault
     // owns the runout surface for that phase: its prompt is already telling the
     // user what happened, with recovery actions derived from live hardware, so

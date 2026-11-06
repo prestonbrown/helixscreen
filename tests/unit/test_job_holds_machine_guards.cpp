@@ -247,15 +247,15 @@ TEST_CASE_METHOD(Ad5xToastFixture, "AD5X head-empty mid-print is a real runout",
 }
 
 TEST_CASE_METHOD(SensorEdgeToastFixture,
-                 "idle unload is expected only where the backend unloads to its hub",
+                 "idle unload is expected only where the backend parks filament off the toolhead",
                  "[ams][filament-sensor][job-holds-machine]") {
     drive_lifecycle(printer_state, "standby");
     REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
     REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
 
-    SECTION("a backend that unloads to its hub swallows the idle head-empty edge") {
+    SECTION("a backend that parks filament off the toolhead swallows the idle head-empty edge") {
         BackendTraits unloads;
-        unloads.unloads_to_hub_between_prints = true;
+        unloads.parks_filament_off_toolhead_when_idle = true;
         install_backend(std::make_unique<helix::test::TraitProbeBackend>(unloads));
         CHECK(report_head_empty() == 0);
     }
@@ -354,7 +354,7 @@ TEST_CASE_METHOD(SensorEdgeToastFixture,
 
     // The CFS cuts and retracts into the box after print_stats reads complete,
     // so the head-empty edge arrives with no job holding the machine. Clearing
-    // unloads_to_hub_between_prints on the CFS traits makes each of these 1.
+    // parks_filament_off_toolhead_when_idle on the CFS traits makes each of these 1.
     SECTION("after a completed print") {
         drive_lifecycle(printer_state, "complete");
         REQUIRE(published_lifecycle(printer_state) == PrintState::Complete);
