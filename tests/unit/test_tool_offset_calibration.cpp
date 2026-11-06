@@ -175,6 +175,61 @@ TEST_CASE("tool offset calibration: the prompt needs the macro and the changer",
     CHECK(resolved_prompt_gcode(ad5x).empty());
 }
 
+namespace {
+
+/// A Creator 5 Pro on OpenCreator: Kalico's creator5_toolchanger extra with
+/// AFC standalone owning the heads ([AFC_Toolchanger Tools] and four
+/// [AFC_extruder extruder<N>] lanes, opencreator-fs
+/// fs/usr/data/config/printer.afc-standalone.cfg), the stock dock and grab
+/// buttons (printer.base.cfg), and printer.creator5.cfg's
+/// C5_CALIBRATE_OFFSETS. No klipper-toolchanger and no zmod_color.
+PrinterDiscovery opencreator_c5(bool with_calibrate_macro, bool with_afc_changer) {
+    json objects = json::array({"gcode_move", "toolhead", "extruder", "extruder1", "extruder2",
+                                "extruder3", "creator5_toolchanger", "AFC"});
+    if (with_afc_changer) {
+        objects.push_back("AFC_Toolchanger Tools");
+    }
+    for (int i = 0; i < 4; ++i) {
+        objects.push_back("AFC_extruder extruder" + std::to_string(i));
+        objects.push_back("AFC_lane extruder" + std::to_string(i));
+        objects.push_back("filament_switch_sensor extruder" + std::to_string(i) + "_tool_start");
+    }
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    if (with_calibrate_macro) {
+        objects.push_back("gcode_macro C5_CALIBRATE_OFFSETS");
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("tool offset calibration: an OpenCreator Creator 5 opens its offset wizard",
+          "[tool_offset_cal]") {
+    // With no arguments C5_CALIBRATE_OFFSETS runs C5_OFFSET_WIZARD, whose
+    // action:prompt picks the tool and confirms the plate is out.
+    const PrinterDiscovery c5 =
+        opencreator_c5(/*with_calibrate_macro=*/true, /*with_afc_changer=*/true);
+    CHECK(cal::supported(c5));
+    CHECK(resolved_prompt_gcode(c5) == "C5_CALIBRATE_OFFSETS");
+    CHECK(resolved_panel_gcode(c5).empty());
+    CHECK(resolved_guided_flow(c5).empty());
+}
+
+TEST_CASE("tool offset calibration: the OpenCreator prompt needs the macro and an AFC changer",
+          "[tool_offset_cal]") {
+    CHECK_FALSE(cal::supported(opencreator_c5(/*with_calibrate_macro=*/false,
+                                              /*with_afc_changer=*/true)));
+    // AFC lanes with no Toolchanger unit are a filament changer, not a tool changer.
+    CHECK_FALSE(cal::supported(opencreator_c5(/*with_calibrate_macro=*/true,
+                                              /*with_afc_changer=*/false)));
+    CHECK_FALSE(cal::supported(printer_with({"gcode_macro C5_CALIBRATE_OFFSETS"})));
+}
+
 TEST_CASE("tool offset calibration: CALIBRATE_TOOL_OFFSETS outranks a firmware prompt",
           "[tool_offset_cal]") {
     // The blocking macro reports its results through ToolState; the prompt

@@ -12,6 +12,7 @@
 // misses every setting it carries. That is how the Elegoo Centauri Carbon shipped
 // with an orphaned cc1.json (#1260).
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -30,11 +31,11 @@ namespace {
 constexpr const char* kDbPath = "assets/config/printer_database.json";
 constexpr const char* kPresetDir = "assets/config/presets";
 
-// Runtime firmware-variant suffix. apply_preset_with_variants() probes the live
-// printer objects and appends this to the database-resolved base preset, so
+// Runtime firmware-variant suffixes. apply_preset_with_variants() probes the
+// live printer objects and appends one to the database-resolved base preset, so
 // `<base>_zmod.json` is reachable without a database entry of its own — but only
 // if the base itself is referenced.
-constexpr const char* kVariantSuffix = "_zmod";
+constexpr const char* kVariantSuffixes[] = {"_zmod", "_opencreator"};
 
 json load_json(const std::string& path) {
     INFO("reading " << path << " (tests must run from the repo root)");
@@ -113,11 +114,19 @@ TEST_CASE("every shipped preset is reachable from printer_database.json",
 
         // Not named directly — the only other reachable shape is a runtime
         // firmware variant whose base preset IS named.
-        if (ends_with(stem, kVariantSuffix)) {
-            std::string base = stem.substr(0, stem.size() - std::string(kVariantSuffix).size());
-            CAPTURE(base);
-            INFO("'" << stem << "' is a firmware variant, so its base preset must be in the DB");
-            CHECK(refs.count(base) > 0);
+        bool is_variant = false;
+        for (const std::string suffix : kVariantSuffixes) {
+            if (ends_with(stem, suffix)) {
+                std::string base = stem.substr(0, stem.size() - suffix.size());
+                CAPTURE(base);
+                INFO("'" << stem
+                         << "' is a firmware variant, so its base preset must be in the DB");
+                CHECK(refs.count(base) > 0);
+                is_variant = true;
+                break;
+            }
+        }
+        if (is_variant) {
             continue;
         }
 
@@ -200,4 +209,40 @@ TEST_CASE("every preset family with more than one database entry names a default
                            "one); its no-evidence default floats with array order");
         CHECK(defaults_by_preset[preset] == 1);
     }
+}
+
+// OpenCreator's runout switches are AFC's tool_start sensors (one per
+// [AFC_extruder extruder<N>], opencreator-fs printer.afc-standalone.cfg), its
+// fm_ex<N> wheel sensors are clog-only (printer.filament.cfg) and its chamber
+// heater fan is a Kalico heater_fan_throttled (printer.pro.cfg) and its dock
+// macro DOCK_EXISTING_TOOL (printer.macro.cfg). The stock firmware's fd_ex<N>
+// switches, heater_fan chamber_heat_fan and TOOLCHANGE_PARK do not exist
+// there, and naming them raises missing-hardware warnings and leaves runout
+// pointing at nothing.
+TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
+          "[printer_detector][presets][assets]") {
+    for (const char* stem : {"creator5_opencreator", "creator5_pro_opencreator"}) {
+        CAPTURE(stem);
+        const json preset = load_json(std::string(kPresetDir) + "/" + stem + ".json");
+        const std::string text = preset.dump();
+        CHECK(text.find("fd_ex") == std::string::npos);
+        CHECK(text.find("\"heater_fan chamber_heat_fan\"") == std::string::npos);
+        CHECK(text.find("TOOLCHANGE_PARK") == std::string::npos);
+
+        const json& sensors = preset["printer"]["filament_sensors"]["sensors"];
+        REQUIRE(sensors.is_array());
+        REQUIRE(sensors.size() == 4);
+        for (int lane = 0; lane < 4; ++lane) {
+            CAPTURE(lane);
+            const json& s = sensors[static_cast<size_t>(lane)];
+            CHECK(s["klipper_name"] ==
+                  "filament_switch_sensor extruder" + std::to_string(lane) + "_tool_start");
+            CHECK(s["lane"] == lane);
+            CHECK(s["role"] == "runout");
+        }
+    }
+    const json pro = load_json(std::string(kPresetDir) + "/creator5_pro_opencreator.json");
+    const json& expected = pro["printer"]["hardware"]["expected"];
+    CHECK(std::find(expected.begin(), expected.end(), "heater_fan_throttled chamber_heat_fan") !=
+          expected.end());
 }
