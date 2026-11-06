@@ -26,6 +26,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -45,6 +46,7 @@
 #include "print_job_ref.h"
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
+#include "printer_print_state.h"
 #include "printer_state.h"
 #include "slot_registry.h"
 #include "test_helpers/backend_harness.h"
@@ -202,6 +204,20 @@ struct Harness {
     }
 };
 
+/// The printer's own map the pending record holds, as AmsState publishes it.
+const std::vector<int>& pending_mapping() {
+    return AmsState::instance().pending_tool_map_restore().mapping;
+}
+
+/// Write pending_remap.json in the test's config dir, as a crashed run leaves it.
+std::filesystem::path
+write_pending_record(const std::string& text = "{\"backend_index\":0,\"tool_mapping\":[2,1]}") {
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    std::ofstream(record) << text;
+    return record;
+}
+
 } // namespace
 
 // ============================================================================
@@ -225,8 +241,8 @@ TEST_CASE("remap restore: halted Klipper does not consume the saved mapping",
     CHECK(be.backend->calls.empty());
     // ...and above all the snapshot must survive. Clearing it here is what
     // stranded the printer on the print's mapping with no record of the real one.
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == 0);
+    CHECK_FALSE(pending_mapping().empty());
+    CHECK(AmsState::instance().pending_tool_map_restore().backend_index == 0);
 }
 
 // ============================================================================
@@ -256,19 +272,14 @@ TEST_CASE("remap restore: refused sends retain the record for replay", "[remap-r
 
     // The crash-recovery record on disk, the way persist_remap_state() writes
     // it — the file recover_pending_remap() replays on the next startup.
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
-    {
-        std::ofstream ofs(record);
-        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
-    }
+    const auto record = write_pending_record();
 
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
     PrintStartControllerTestAccess::restore(h.controller);
 
     REQUIRE(be.backend->calls.size() == 2); // both differing entries attempted
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == 0);
+    CHECK_FALSE(pending_mapping().empty());
+    CHECK(AmsState::instance().pending_tool_map_restore().backend_index == 0);
     CHECK(std::filesystem::exists(record));
 }
 
@@ -289,7 +300,7 @@ TEST_CASE("remap restore: a refused record retries once the backend accepts it",
     PrintStartControllerTestAccess::restore(h.controller);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(be.backend->calls.size() == 2); // T0->2 refused, T1->1 sent
-    REQUIRE_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    REQUIRE_FALSE(pending_mapping().empty());
 
     SECTION("a Klipper restart and data that leaves the lanes alone retry nothing") {
         h.set_klippy(KlippyState::STARTUP);
@@ -300,7 +311,7 @@ TEST_CASE("remap restore: a refused record retries once the backend accepts it",
         be.backend->reported_slots = 4;
         Harness::ams_data_tick();
         CHECK(be.backend->calls.size() == 4);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
     }
 
     SECTION("the lanes returning mid-print wait for the job to end") {
@@ -316,7 +327,7 @@ TEST_CASE("remap restore: a refused record retries once the backend accepts it",
         h.report("complete", "benchy.gcode");
         Harness::ams_data_tick();
         CHECK(be.backend->calls.size() == 4);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
     }
 }
 
@@ -349,14 +360,14 @@ TEST_CASE("remap restore: a new print keeps the retained snapshot and disarms it
     REQUIRE(PrintStartControllerTestAccess::apply_remaps(h.controller));
     REQUIRE(be.backend->calls.size() == 3);
     // The live table still holds A's map, so A's original stays the snapshot.
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
 
     // B's remap lands and bumps the data revision. A's retry is gone: nothing
     // may be sent over B's mapping while B is about to print.
     be.backend->firmware_reports({3, 2});
     Harness::ams_data_tick();
     CHECK(be.backend->calls.size() == 3);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
     h.controller.set_detail_view(nullptr);
 }
 
@@ -409,7 +420,7 @@ TEST_CASE("remap restore: a deferred restore is the next print's snapshot and se
     CHECK(be.backend->calls[0].slot == 2); // T0 back on the lane the seed showed
     CHECK(be.backend->calls[1].tool == 1);
     CHECK(be.backend->calls[1].slot == 3);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
 
     // The deferral's retry belonged to A: Klipper coming back sends nothing.
     h.set_klippy(KlippyState::READY);
@@ -439,7 +450,7 @@ TEST_CASE("remap restore: another controller's print start stands down a deferre
     // A's deferral fires on READY, but B's print owns the record now.
     h.set_klippy(KlippyState::READY);
     CHECK(be.backend->calls.size() == 1);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(b) == std::vector<int>{2, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
     b.set_detail_view(nullptr);
 }
 
@@ -463,7 +474,7 @@ TEST_CASE("remap restore: a print that sends nothing keeps the pending record",
     const bool restore_owed = PrintStartControllerTestAccess::apply_remaps(h.controller);
     CHECK(restore_owed);
     CHECK(be.backend->calls.size() == 2);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
     if (restore_owed) {
         PrintStartControllerTestAccess::observe_for_restore(h.controller);
     }
@@ -482,7 +493,7 @@ TEST_CASE("remap restore: a print that sends nothing keeps the pending record",
         REQUIRE(be.backend->calls.size() == 3);
         CHECK(be.backend->calls[2].tool == 1);
         CHECK(be.backend->calls[2].slot == 1);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
 
         be.backend->reported_slots = 4;
         Harness::ams_data_tick();
@@ -535,8 +546,7 @@ TEST_CASE("remap restore: a tool mapped by hand outside a print is not reverted"
     SECTION("the edit becomes the tool's entry") {
         be.backend->locally_assume({3, 2}); // the user put T0 on lane 3
         helix::ui::adopt_hand_tool_mapping(0, 0, 3);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) ==
-              std::vector<int>{3, 1});
+        CHECK(pending_mapping() == std::vector<int>{3, 1});
         be.backend->reported_slots = 4;
         PrintStartControllerTestAccess::restore(h.controller);
         REQUIRE(be.backend->calls.size() == 1);
@@ -546,13 +556,12 @@ TEST_CASE("remap restore: a tool mapped by hand outside a print is not reverted"
     SECTION("an edit that leaves nothing to restore ends the record") {
         be.backend->locally_assume({2, 1});
         helix::ui::adopt_hand_tool_mapping(0, 1, 1);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
     }
 
     SECTION("an edit on another backend leaves the record alone") {
         helix::ui::adopt_hand_tool_mapping(1, 0, 3);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) ==
-              std::vector<int>{2, 1});
+        CHECK(pending_mapping() == std::vector<int>{2, 1});
     }
 }
 
@@ -636,11 +645,11 @@ TEST_CASE("remap restore: a refused restore carried through a print clears once 
     CHECK(be.backend->calls[3].slot == 2);
     CHECK(be.backend->calls[4].tool == 1);
     CHECK(be.backend->calls[4].slot == 1);
-    REQUIRE(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
+    REQUIRE(pending_mapping() == std::vector<int>{2, 1});
 
     be.backend->firmware_reports({2, 1});
     Harness::ams_data_tick();
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
     h.controller.set_detail_view(nullptr);
 }
 
@@ -664,15 +673,14 @@ TEST_CASE("remap restore: a record from another filament system is not reused",
         REQUIRE(PrintStartControllerTestAccess::apply_remaps(h.controller));
         REQUIRE(be.backend->calls.size() == 1);
         CHECK(be.backend->calls[0].tool == 1);
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) ==
-              std::vector<int>{1, 2});
+        CHECK(pending_mapping() == std::vector<int>{1, 2});
         h.controller.set_detail_view(nullptr);
     }
 
     SECTION("a restore drops it without sending") {
         PrintStartControllerTestAccess::restore(h.controller);
         CHECK(be.backend->calls.empty());
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
     }
 }
 
@@ -689,18 +697,13 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
     Harness h;
     h.set_klippy(KlippyState::READY);
 
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
-    {
-        std::ofstream ofs(record);
-        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
-    }
+    const auto record = write_pending_record();
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
 
     PrintStartControllerTestAccess::restore(h.controller);
 
     CHECK(be.backend->calls.empty());
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
     CHECK_FALSE(std::filesystem::exists(record));
 }
 
@@ -715,7 +718,7 @@ TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
 
     helix::PrinterCacheRegistry::instance().invalidate_all();
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
     PrintStartControllerTestAccess::restore(h.controller);
     CHECK(be.backend->calls.empty());
 }
@@ -726,14 +729,9 @@ TEST_CASE("remap restore: an unparsable record file is moved aside", "[remap-res
     ScopedCountingBackend be{{1, 2}};
     Harness h;
     h.set_klippy(KlippyState::READY);
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    const auto aside = std::filesystem::path(record.string() + ".corrupt");
-    std::filesystem::create_directories(record.parent_path());
     const std::string torn = "{\"printers\":{\"other\":{\"backend_ind";
-    {
-        std::ofstream ofs(record);
-        ofs << torn;
-    }
+    const auto record = write_pending_record(torn);
+    const auto aside = std::filesystem::path(record.string() + ".corrupt");
     const auto contents = [](const std::filesystem::path& p) {
         std::ifstream ifs(p);
         return std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
@@ -767,7 +765,7 @@ TEST_CASE("remap restore: a tool unmapped before the print does not hold the rec
         REQUIRE(be.backend->calls.size() == 1);
         be.backend->firmware_reports({2, 0});
         Harness::ams_data_tick();
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
     }
 
     SECTION("a print start finding T0 already back ends it") {
@@ -776,7 +774,7 @@ TEST_CASE("remap restore: a tool unmapped before the print does not hold the rec
         h.controller.set_detail_view(&view);
         view.set_filament_mappings({row(0, 2, true)});
         CHECK_FALSE(PrintStartControllerTestAccess::apply_remaps(h.controller));
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
         h.controller.set_detail_view(nullptr);
     }
 }
@@ -792,7 +790,7 @@ TEST_CASE("remap restore: assigning a tool in lane settings updates the pending 
 
     REQUIRE(helix::ui::lane_settings::commit_assigned_tool(*be.backend, 3, 0));
     REQUIRE(be.backend->calls.size() == 1);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{3, 1});
+    CHECK(pending_mapping() == std::vector<int>{3, 1});
 }
 
 TEST_CASE("remap restore: a hand edit that takes a saved lane releases it",
@@ -808,8 +806,7 @@ TEST_CASE("remap restore: a hand edit that takes a saved lane releases it",
     // The user puts T0 on lane 2 by hand; a lane-keyed table unmaps T1 there.
     be.backend->locally_assume({2, -1, 0});
     helix::ui::adopt_hand_tool_mapping(0, 0, 2);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) ==
-          std::vector<int>{2, -1, 1});
+    CHECK(pending_mapping() == std::vector<int>{2, -1, 1});
 
     PrintStartControllerTestAccess::restore(h.controller);
     REQUIRE(be.backend->calls.size() == 1); // T2 back on lane 1; nothing takes lane 2
@@ -833,8 +830,8 @@ TEST_CASE("remap restore: a print that names no backend keeps another backend's 
     h.controller.set_detail_view(&view);
     view.set_filament_mappings({auto_row});
     PrintStartControllerTestAccess::apply_remaps(h.controller);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller) == std::vector<int>{2, 1});
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == 1);
+    CHECK(pending_mapping() == std::vector<int>{2, 1});
+    CHECK(AmsState::instance().pending_tool_map_restore().backend_index == 1);
     h.controller.set_detail_view(nullptr);
 }
 
@@ -845,36 +842,26 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
     ScopedCountingBackend be{{1, 2}};
     Harness h;
     h.set_klippy(KlippyState::READY);
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
     const std::string active = Config::get_instance()->get_active_printer_id();
     const std::string entry = "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
 
     SECTION("another printer's record is left alone") {
-        {
-            std::ofstream ofs(record);
-            ofs << "{\"printers\":{\"" << active << "-other\":" << entry << "}}";
-        }
+        const auto record =
+            write_pending_record("{\"printers\":{\"" + active + "-other\":" + entry + "}}");
         h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.empty());
-        CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+        CHECK(pending_mapping().empty());
         CHECK(std::filesystem::exists(record));
     }
 
     SECTION("the active printer's record is restored") {
-        {
-            std::ofstream ofs(record);
-            ofs << "{\"printers\":{\"" << active << "\":" << entry << "}}";
-        }
+        write_pending_record("{\"printers\":{\"" + active + "\":" + entry + "}}");
         h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.size() == 2);
     }
 
     SECTION("a print still running keeps it until that print ends") {
-        {
-            std::ofstream ofs(record);
-            ofs << entry;
-        }
+        const auto record = write_pending_record(entry);
         // Discovery's status says a job runs; the print subjects still read the boot default.
         h.controller.recover_pending_remap(ReportedPrintActivity::Active);
         h.report("printing", "remapped.gcode");
@@ -885,10 +872,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
     }
 
     SECTION("a record naming no printer is the active printer's") {
-        {
-            std::ofstream ofs(record);
-            ofs << entry;
-        }
+        write_pending_record(entry);
         h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.size() == 2);
     }
@@ -904,12 +888,7 @@ TEST_CASE("remap restore: a replay with no print state waits for the printer's w
     helix::test::FakeMoonrakerClient client;
     MoonrakerAPI api{client, h.ps};
     PrintStartController controller{h.ps, &api};
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
-    {
-        std::ofstream ofs(record);
-        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
-    }
+    const auto record = write_pending_record();
     // A failed subscribe: nothing says whether the boot-default idle is real.
     controller.recover_pending_remap(ReportedPrintActivity::Unknown);
     CHECK(be.backend->calls.empty());
@@ -940,6 +919,66 @@ TEST_CASE("remap restore: a replay with no print state waits for the printer's w
         h.report("complete", "remapped.gcode");
         CHECK(be.backend->calls.size() == 2);
     }
+
+    SECTION("an answer after the restore finished acts on nothing") {
+        PrintStartControllerTestAccess::restore(controller);
+        REQUIRE(be.backend->calls.size() == 2);
+        // A reconnect replays a record for a print that is running.
+        write_pending_record();
+        controller.recover_pending_remap(ReportedPrintActivity::Active);
+        answer("standby");
+        CHECK(be.backend->calls.size() == 2);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+}
+
+TEST_CASE("remap restore: a replay with no print state restores on the printer's first report",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_report"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+    // No API, so nothing is asked: only a print_stats report ends the wait.
+    auto controller = std::make_unique<PrintStartController>(h.ps, nullptr);
+    const auto record = write_pending_record();
+    controller->recover_pending_remap(ReportedPrintActivity::Unknown);
+    REQUIRE(be.backend->calls.empty());
+
+    SECTION("an idle report restores") {
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 2);
+        CHECK_FALSE(std::filesystem::exists(record));
+    }
+
+    SECTION("a running report restores at that job's end") {
+        h.report("printing", "remapped.gcode");
+        CHECK(be.backend->calls.empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a new print's remap drops the wait") {
+        helix::ui::PrintSelectDetailView view;
+        controller->set_detail_view(&view);
+        view.set_filament_mappings({row(1, 3, true)});
+        REQUIRE(PrintStartControllerTestAccess::apply_remaps(*controller));
+        REQUIRE(be.backend->calls.size() == 1);
+        PrintStartControllerTestAccess::observe_for_restore(*controller);
+        // The idle report that lands before the print is prepared reverts nothing.
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 1);
+        controller->set_detail_view(nullptr);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+
+    SECTION("a controller destroyed while waiting says it will not restore") {
+        LogCapture log;
+        controller.reset();
+        CHECK(log.count_containing("Destroyed with pending remap restore") == 1);
+        CHECK(std::filesystem::exists(record));
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
 }
 
 TEST_CASE("remap restore: discovery replays on its own status, not the print subjects",
@@ -951,12 +990,7 @@ TEST_CASE("remap restore: discovery replays on its own status, not the print sub
     auto& ps = ::get_printer_state();
     ps.set_klippy_state_sync(KlippyState::READY);
     helix::ui::UpdateQueue::instance().drain();
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
-    {
-        std::ofstream ofs(record);
-        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
-    }
+    const auto record = write_pending_record();
     const auto [status, sends] = GENERATE(table<nlohmann::json, size_t>({
         {{{"print_stats", {{"state", "printing"}}}}, 0},
         {nlohmann::json::object(), 0},
@@ -1012,7 +1046,7 @@ TEST_CASE("remap restore: a refusal past the backend's checks is not retried per
     Harness::ams_data_tick();
     Harness::ams_data_tick();
     CHECK(be.backend->calls.size() == 1);
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(pending_mapping().empty());
 }
 
 TEST_CASE("remap restore: a tool unmapped before the print is left unmapped",
@@ -1037,7 +1071,7 @@ TEST_CASE("remap restore: a tool unmapped before the print is left unmapped",
     REQUIRE(be.backend->calls.size() == 2);
     CHECK(be.backend->calls[1].tool == 1);
     CHECK(be.backend->calls[1].slot == 3);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
 }
 
 namespace {
@@ -1098,7 +1132,7 @@ TEST_CASE("remap restore: CFS retries when the box reports the refused bay's uni
     PrintStartControllerTestAccess::restore(h.controller);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(cfs->sent.empty());
-    REQUIRE_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    REQUIRE_FALSE(pending_mapping().empty());
 
     cfs->fire_status(cfs_box_frame(1));
     helix::ui::UpdateQueue::instance().drain();
@@ -1164,8 +1198,8 @@ TEST_CASE("remap restore: ready Klipper consumes the snapshot, sending only what
         CHECK(be.backend->calls[1].slot == 1);
     }
     // Delivered to a ready Klipper: the snapshot is spent.
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
+    CHECK(pending_mapping().empty());
+    CHECK(AmsState::instance().pending_tool_map_restore().backend_index == -1);
 }
 
 // ============================================================================
@@ -1189,7 +1223,7 @@ TEST_CASE("remap restore: deferred restore fires when Klipper becomes ready",
     h.set_klippy(KlippyState::READY);
 
     CHECK(be.backend->calls.size() == 2);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
 }
 
 // ============================================================================
@@ -1222,7 +1256,7 @@ TEST_CASE("remap restore: previous job's terminal state does not revert fresh re
 
     // The remaps just sent must survive the observer's attach-fire.
     CHECK(be.backend->calls.empty());
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(pending_mapping().empty());
 }
 
 TEST_CASE("remap restore: latch arms when this job goes live, fires at its end",
@@ -1263,7 +1297,7 @@ TEST_CASE("remap restore: latch arms when this job goes live, fires at its end",
     CHECK(be.backend->calls[0].slot == 2);
     CHECK(be.backend->calls[1].tool == 1);
     CHECK(be.backend->calls[1].slot == 1);
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK(pending_mapping().empty());
 }
 
 // ============================================================================
@@ -1283,7 +1317,7 @@ TEST_CASE(
 
     // Commands went out to a ready Klipper, but a send is not proof, so the record stays.
     REQUIRE(be.backend->calls.size() == 2);
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(pending_mapping().empty());
 
     // THE trap this whole seam exists for: every backend updates its registry
     // optimistically inside set_tool_mapping(), so the mapping reads correct
@@ -1292,7 +1326,7 @@ TEST_CASE(
     be.backend->locally_assume({2, 1});
     Harness::ams_data_tick();
 
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(pending_mapping().empty());
 }
 
 TEST_CASE("remap restore: firmware confirms only the mapping that matches the snapshot",
@@ -1304,19 +1338,19 @@ TEST_CASE("remap restore: firmware confirms only the mapping that matches the sn
     h.set_klippy(KlippyState::READY);
     PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
     PrintStartControllerTestAccess::restore(h.controller);
-    REQUIRE_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    REQUIRE_FALSE(pending_mapping().empty());
 
     // A multi-lane restore lands one delta at a time, so a partial match is a
     // normal intermediate state — keep the record rather than declaring failure.
     be.backend->firmware_reports({2, 2});
     Harness::ams_data_tick();
-    CHECK_FALSE(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(pending_mapping().empty());
 
     // The rest arrives.
     be.backend->firmware_reports({2, 1});
     Harness::ams_data_tick();
-    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
-    CHECK(PrintStartControllerTestAccess::saved_backend_index(h.controller) == -1);
+    CHECK(pending_mapping().empty());
+    CHECK(AmsState::instance().pending_tool_map_restore().backend_index == -1);
 }
 
 // ============================================================================
