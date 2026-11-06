@@ -104,7 +104,9 @@ void ExactSizeImage::generate_if_missing(const std::string& source) {
     // Decoding and resizing an image is half a second per entry on a two-core
     // MIPS board, so it runs off the UI thread.
     if (inflight_) {
-        spdlog::debug("[{}] Cache generation already running, skipping {}x{}", log_tag_, w, h);
+        spdlog::debug("[{}] Cache generation already running, deferring {}x{}", log_tag_, w, h);
+        deferred_ = Deferred{source, helix::get_cached_printer_image_path(source, w, h),
+                             static_cast<int>(w), static_cast<int>(h)};
         return;
     }
 
@@ -134,6 +136,8 @@ void ExactSizeImage::generate_if_missing(const std::string& source) {
         tok.defer("ExactSizeImage::cache_generated", [this, source, cache_path, gen_w, gen_h,
                                                       generated]() {
             inflight_ = false;
+            // Whatever was deferred is asked for again below, from the current state.
+            deferred_.reset();
             if (source_ != source) {
                 // The owner moved to another image while the worker ran, and its
                 // own request was refused while this one ran. The entry stays on
@@ -196,6 +200,19 @@ void ExactSizeImage::forget_displayed() {
 void ExactSizeImage::cancel() {
     lifetime_.invalidate();
     inflight_ = false;
+    // A request refused while another generation ran has no result to wait
+    // for, so its entry is written now, for the next attach, with no reply.
+    if (!deferred_)
+        return;
+    const Deferred d = *deferred_;
+    deferred_.reset();
+    if (!helix::http::HttpExecutor::fast().running())
+        return;
+    helix::http::HttpExecutor::fast().submit([d]() {
+        // Worker thread: files only. The running generation may have written it.
+        if (!helix::fs::exists(d.cache_path))
+            helix::generate_cached_printer_image(d.source, d.w, d.h, d.cache_path);
+    });
 }
 
 } // namespace helix::ui
