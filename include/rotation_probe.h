@@ -28,6 +28,9 @@ struct RotationProbeHost {
     std::function<void()> keep_backlight_on;
     uint32_t scan_timeout_ms = 5000;
     uint32_t confirm_timeout_ms = 10000;
+    /// While a prompt is up, call keep_backlight_on() again this often; 0 lights it only as each
+    /// prompt is built. A dim that lands mid-prompt is otherwise dark for the rest of it.
+    uint32_t backlight_reassert_ms = 0;
 };
 
 /**
