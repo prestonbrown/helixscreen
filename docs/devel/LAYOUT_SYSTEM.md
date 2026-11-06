@@ -616,11 +616,11 @@ The layout stores a `default` block beside its pages, inside the `serialize_page
 so a parked per-grid copy carries its own:
 
 ```json
-"default": { "signature": "<tier>|<cols>|<rows>|<variant chain>|<preset>|<subject>=<value>,...", "hash": "<arrangement hash>" }
+"default": { "signature": "<tier>|<cols>|<rows>|<variant chain>|<preset>|<subject>=<value>,...|table=<version>", "hash": "<arrangement hash>" }
 ```
 
-- `signature` is what the resolver consulted: tier, grid, variant chain, preset and every
-  consulted subject's value, sorted.
+- `signature` is what the resolver consulted: tier, grid, variant chain, preset, every
+  consulted subject's value, sorted, and the table's `version` when it has one.
 - `hash` is `helix::layout::arrangement_hash()` of the pages: per page, the id, column, row and
   spans of each enabled, positioned entry, plus the page count. Per-widget `config` is not in
   it, so choosing an LED strip or a print_status style does not make a layout the user's.
@@ -688,9 +688,52 @@ notifications in the corner; 480x272 keeps both. Every entry with a bare key for
 needs a grid-qualified placement or a place in that list, or it inherits the bare key's
 coordinates off the smaller grid. The "every measured grid is covered or declared empty" case
 in `test_default_layout.cpp` resolves each measured grid with every gate open, every gate
-open but no AMS, and every gate closed. With gates open the empty tracks must be exactly the
-grid's declared `gaps`; with gates closed an empty track must be a declared gap or a slot cell
-nothing qualified for. An undeclared hole fails, and so does an overlap.
+open but no AMS, every gate open but no tool changer, and every gate closed. With gates open
+the empty tracks must be exactly the grid's declared `gaps`; with no tool changer or gates
+closed an empty track must be a declared gap or a slot cell nothing qualified for. An
+undeclared hole fails, and so does an overlap.
+
+#### Capability-qualified keys
+
+A key may also name a capability subject: `"medium+ams_is_tool_changer"` or
+`"micro@8x6+ams_is_tool_changer"`. While that subject is non-zero the qualified key wins over
+the same key without it; at each rung of the fallback chain the order is
+`<tier>@<grid>+<subject>`, `<tier>@<grid>`, `<tier>+<subject>`, `<tier>`, so a grid's own key
+still beats an arrangement written for the tier's usual grid. Placements, slot regions,
+`disabled` and `gaps` all take the form, which lets one tier carry a second arrangement for a
+class of printer without a variant. The subject is consulted through the snapshot like a
+`requires` subject, so it is part of the signature and a change re-resolves an unedited default.
+
+The shipped tables use it for tool changers. The tool switcher shows each tool's temperature
+and the printer image's chips show the bed, so `+ams_is_tool_changer` switches off
+`temperature` and `bed_temperature` and leaves a declared gap in their place: on the 12x8
+grids (medium and micro) the image widens to 6x4 tracks with a 2x4 gap beside it, fan_stack
+and notifications across the top right and the switcher under them; tiny and small keep a 4x4
+image with the 2x4 gap; large and xlarge widen the image to 6x4 beside a 2x4 gap; xxlarge,
+where print_status sits beside the image, leaves the 4x2 block left of the fans empty. The
+portrait and ultrawide tables carry no tool switcher, so they keep their temperature tiles,
+and `micro@8x6` keeps its own arrangement.
+
+A preset overlay meets these keys in two ways. Its `disabled` lists merge key by key, so the
+base table's `"<tier>+ams_is_tool_changer"` list survives an overlay's bare `"<tier>"` list and
+wins over it on a tool changer. Its anchors and slots replace the base entry with the same id or
+slot whole, so the base's qualified placements go with it and the overlay's bare key then
+applies to tool changers too. Either way an overlay meant for a tool changer carries its own
+`+ams_is_tool_changer` keys for every placement and `disabled` list it changes.
+
+Two consequences of the subject being in the signature:
+
+- The qualified keys by themselves leave the signature as it is: every tier that offers the
+  tool switcher already consults `ams_is_tool_changer` in that slot. What carries a table
+  change to stored defaults is the table's top-level `version`, which the signature ends with
+  (`|table=<version>`). Raising it re-resolves every unedited default once, at the first READY
+  populate, and saves it; a printer whose arrangement did not change gets the same tiles back
+  under the new signature. An edited layout no longer hashes to its `default.hash`, so it is
+  the user's and stays as it is.
+- On an unedited default, a change of primary filament backend that flips
+  `ams_is_tool_changer` (a tool changer's backend replaced by an AMS, or the reverse)
+  re-resolves the panel into the other arrangement. An edited layout is the user's and never
+  moves.
 
 **An anchor that does not fit the measured grid is now dropped rather than clamped.**
 `build_default_grid(grid_cols, grid_rows)` checks each anchor against the grid it is being

@@ -688,8 +688,9 @@ void check_anchor_table(const nlohmann::json& anchors, const std::string& bp_nam
 }
 
 /// Split a placement key into the tier it names and, when the key is
-/// grid-qualified, the track grid it was authored for. "xxlarge@6x14" gives
-/// {"xxlarge", 6, 14}; a bare "xxlarge" gives {"xxlarge", 0, 0}.
+/// grid-qualified, the track grid it was authored for; a "+<subject>" suffix is
+/// dropped. "xxlarge@6x14" gives {"xxlarge", 6, 14}; a bare "xxlarge" gives
+/// {"xxlarge", 0, 0}.
 struct PlacementKey {
     std::string tier;
     int cols = 0;
@@ -700,7 +701,8 @@ struct PlacementKey {
     }
 };
 
-PlacementKey parse_placement_key(const std::string& key) {
+PlacementKey parse_placement_key(const std::string& full_key) {
+    const std::string key = full_key.substr(0, full_key.find('+'));
     const auto at = key.find('@');
     if (at == std::string::npos) {
         return {key, 0, 0};
@@ -1913,49 +1915,45 @@ const std::vector<Persona> kPersonas = {
      {{"temperature", 0, 0, 2, 2}, {"bed_temperature", 2, 0, 2, 2}, {"ams", 4, 0, 2, 2},
       {"notifications", 6, 0, 2, 2}, {"print_status", 0, 2, 8, 4}},
      {"printer_image", "fan_stack", "filament", "led", "temp_graph"}},
-    {"u1 tiny: the tool switcher takes the spool slot", "tiny", 10, 8, {},
+    {"u1 tiny: the tool switcher under the fans, a gap beside the image", "tiny", 10, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"notifications", 8, 0, 2, 2}, {"fan_stack", 4, 2, 2, 2}, {"tool_switcher", 6, 2, 4, 2},
-      {"print_status", 0, 4, 10, 4}},
-     {"ams", "led", "filament"}},
-    {"voron toolchanger medium: the tool switcher takes the spool slot, no toolhead", "medium", 12,
-     8, {},
+     {{"printer_image", 0, 0, 4, 4}, {"fan_stack", 6, 0, 2, 2}, {"notifications", 8, 0, 2, 2},
+      {"tool_switcher", 6, 2, 4, 2}, {"print_status", 0, 4, 10, 4}},
+     {"ams", "led", "filament", "temperature", "bed_temperature"}},
+    {"tool changer medium: the Creator 5 Pro's own arrangement, a gap beside the image", "medium",
+     12, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"printer_has_chamber", 1},
       {"printer_is_enclosed", 1}, {"led_controllable", 1}, {"filament_sensor_count", 1},
       {"printer_has_bed_mesh", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2}, {"tool_switcher", 4, 2, 4, 2},
-      {"temp_graph", 8, 2, 4, 6}, {"print_status", 0, 4, 8, 4}},
-     {"ams", "toolhead", "chamber_temperature", "led", "filament", "bed_mesh_tile"}},
-    {"voron toolchanger micro: the tool switcher takes the spool slot", "micro", 12, 8, {},
+     {{"printer_image", 0, 0, 6, 4}, {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2},
+      {"tool_switcher", 8, 2, 4, 2}, {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
+     {"ams", "toolhead", "chamber_temperature", "led", "filament", "bed_mesh_tile", "temperature",
+      "bed_temperature"}},
+    {"voron toolchanger micro: medium's arrangement on the same grid", "micro", 12, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 6, 4}, {"temperature", 6, 0, 2, 2}, {"bed_temperature", 8, 0, 2, 2},
-      {"notifications", 10, 0, 2, 2}, {"fan_stack", 6, 2, 2, 2}, {"tool_switcher", 8, 2, 4, 2},
-      {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
-     {"ams", "led", "filament"}},
-    {"voron toolchanger large: the eight-track strip under the readout band, the AMS kept",
+     {{"printer_image", 0, 0, 6, 4}, {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2},
+      {"tool_switcher", 8, 2, 4, 2}, {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
+     {"ams", "led", "filament", "temperature", "bed_temperature"}},
+    {"voron toolchanger large: the strip under the readout band, a gap beside the wider image",
      "large", 16, 10, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"printer_has_chamber", 1},
       {"printer_is_enclosed", 1}, {"led_controllable", 1}, {"filament_sensor_count", 1},
       {"printer_has_bed_mesh", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"ams", 8, 0, 4, 2}, {"fan_stack", 12, 0, 2, 2}, {"notifications", 14, 0, 2, 2},
-      {"tool_switcher", 8, 2, 8, 2}, {"print_status", 0, 4, 8, 4},
+     {{"printer_image", 0, 0, 6, 4}, {"ams", 8, 0, 4, 2}, {"fan_stack", 12, 0, 2, 2},
+      {"notifications", 14, 0, 2, 2}, {"tool_switcher", 8, 2, 8, 2}, {"print_status", 0, 4, 8, 4},
       {"bed_mesh_tile", 8, 6, 4, 4}, {"temp_graph", 12, 6, 4, 4}, {"tips", 0, 8, 8, 2}},
-     {"toolhead", "chamber_temperature", "led", "filament"}},
-    {"voron toolchanger xxlarge: the eight-track strip above the declared block", "xxlarge", 24,
+     {"toolhead", "chamber_temperature", "led", "filament", "temperature", "bed_temperature"}},
+    {"voron toolchanger xxlarge: no temperature tiles, the strip above the declared block", "xxlarge", 24,
      14, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 6, 6}, {"print_status", 6, 0, 10, 6}, {"temperature", 16, 0, 2, 2},
-      {"bed_temperature", 18, 0, 2, 2}, {"fan_stack", 20, 0, 2, 2},
+     {{"printer_image", 0, 0, 6, 6}, {"print_status", 6, 0, 10, 6}, {"fan_stack", 20, 0, 2, 2},
       {"notifications", 22, 0, 2, 2}, {"ams", 16, 2, 4, 2}, {"filament", 20, 2, 2, 2},
       {"led", 22, 2, 2, 2}, {"tool_switcher", 16, 8, 8, 2}, {"temp_graph", 0, 6, 16, 6},
       {"tips", 0, 12, 16, 2}},
-     {"toolhead", "bed_mesh_tile"}},
+     {"toolhead", "bed_mesh_tile", "temperature", "bed_temperature"}},
     {"voron_24 large: one readout band on top, the bed mesh beside the graph", "large", 16, 10, {},
      {{"printer_has_chamber", 1}, {"printer_is_enclosed", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}, {"printer_has_bed_mesh", 1}},
@@ -2093,14 +2091,20 @@ void add_rect(TrackSet& out, int col, int row, int colspan, int rowspan) {
     }
 }
 
-/// The tracks @p table declares empty on purpose on this grid.
-TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows) {
+/// The capability subjects of @p caps as choose_placement_key() reads them.
+std::function<int(const std::string&)> subjects_of(const CapabilitySnapshot& caps) {
+    return [&caps](const std::string& name) { return caps.get(name); };
+}
+
+/// The tracks @p table declares empty on purpose on this grid for @p caps.
+TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows,
+                       const CapabilitySnapshot& caps) {
     TrackSet out;
     if (!table.contains("gaps")) {
         return out;
     }
     const std::string key = helix::layout::choose_placement_key(
-        table["gaps"], static_cast<UiBreakpoint>(bp), cols, rows);
+        table["gaps"], static_cast<UiBreakpoint>(bp), cols, rows, subjects_of(caps));
     if (key.empty()) {
         return out;
     }
@@ -2110,15 +2114,16 @@ TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows) 
     return out;
 }
 
-/// The tracks of every slot region @p table resolves on this grid.
-TrackSet slot_regions(const nlohmann::json& table, int bp, int cols, int rows) {
+/// The tracks of every slot region @p table resolves on this grid for @p caps.
+TrackSet slot_regions(const nlohmann::json& table, int bp, int cols, int rows,
+                      const CapabilitySnapshot& caps) {
     TrackSet out;
     for (const auto& entry : table["anchors"]) {
         if (!entry.contains("slot")) {
             continue;
         }
         const std::string key = helix::layout::choose_placement_key(
-            entry["placements"], static_cast<UiBreakpoint>(bp), cols, rows);
+            entry["placements"], static_cast<UiBreakpoint>(bp), cols, rows, subjects_of(caps));
         if (key.empty()) {
             continue;
         }
@@ -2147,7 +2152,9 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
     // home. An empty track is either a gap the table declares for this grid or,
     // when the printer lacks the hardware, a slot cell nothing qualified for.
     // With every gate open each slot fills, so the empty tracks are exactly the
-    // declared gaps, with or without an AMS taking its spool slot.
+    // declared gaps, with or without an AMS taking its spool slot. A printer
+    // that is not a tool changer leaves the switcher-only slots empty, so it is
+    // held to the closed rule.
     const auto layout = load_shipped_layout();
     CapabilitySnapshot closed = all_closed(layout);
     CapabilitySnapshot open = closed;
@@ -2156,19 +2163,23 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
     }
     CapabilitySnapshot open_no_ams = open;
     open_no_ams.subjects["ams_slot_count"] = 0;
+    CapabilitySnapshot open_no_tool_changer = open;
+    open_no_tool_changer.subjects["ams_is_tool_changer"] = 0;
 
     for (const auto& g : helix::test::kMeasuredGrids) {
         LayoutTypeGuard layout_type(g.panel_w, g.panel_h);
         const std::vector<std::string> chain = helix::LayoutManager::instance().variant_chain();
         const int bp = static_cast<int>(breakpoint_for(std::min(g.panel_w, g.panel_h)));
         const auto& table = active_table(layout, chain);
-        const TrackSet gaps = declared_gaps(table, bp, g.cols, g.rows);
-        const TrackSet slots = slot_regions(table, bp, g.cols, g.rows);
 
-        for (const CapabilitySnapshot* caps : {&open, &open_no_ams, &closed}) {
-            const char* gates = caps == &open          ? "open"
-                                : caps == &open_no_ams ? "open, no AMS"
-                                                       : "closed";
+        for (const CapabilitySnapshot* caps :
+             {&open, &open_no_ams, &open_no_tool_changer, &closed}) {
+            const char* gates = caps == &open                   ? "open"
+                                : caps == &open_no_ams          ? "open, no AMS"
+                                : caps == &open_no_tool_changer ? "open, not a tool changer"
+                                                                : "closed";
+            const TrackSet gaps = declared_gaps(table, bp, g.cols, g.rows, *caps);
+            const TrackSet slots = slot_regions(table, bp, g.cols, g.rows, *caps);
             INFO(g.name << " (" << kBpNames[bp] << " " << g.cols << "x" << g.rows
                         << " tracks), gates " << gates);
             const ResolvedDefault r = helix::layout::resolve_default_layout(
@@ -2212,7 +2223,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                     }
                 }
             }
-            if (caps == &closed) {
+            if (caps == &closed || caps == &open_no_tool_changer) {
                 TrackSet undeclared;
                 for (const auto& t : holes) {
                     if (!gaps.count(t) && !slots.count(t)) {
