@@ -322,7 +322,9 @@ Each item below says whether it is done or still open.
    `flashforge_creator_5` for the heater-free model (same fingerprints, excluding on the
    chamber heater). Presets: `creator5_pro.json` (4 hotends, chamber heater,
    part/chamber fans, LED, `fd_ex*` switches as per-head runout sensors, rotate 90) and
-   `creator5.json` (the same minus the chamber heater and chamber fans). Without the
+   `creator5.json` (the same minus the chamber heater and chamber fans). OpenCreator
+   (`creator5_toolchanger`, also a 99 establisher) gets the `_opencreator` variant of
+   each, whose runout sensors are AFC's `extruder<N>_tool_start` switches. Without the
    entries the detector resolves the AD5X, which matches on hostname, MIPS and 4 tools;
    the entries are what tell them apart, with the AD5X side excluding on
    `gcode_button extruder_grab1`. Each entry carries its own image:

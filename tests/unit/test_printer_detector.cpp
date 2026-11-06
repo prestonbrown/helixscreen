@@ -3523,9 +3523,9 @@ PrinterHardwareData opencreator_c5_hardware(bool pro) {
         hardware.fans.insert(hardware.fans.end(),
                              {"fan_generic chamber_fan", "fan_generic chamber_loop_fan",
                               "fan_generic chamber_cool_fan"});
-        hardware.printer_objects.insert(hardware.printer_objects.end(),
-                                        {"heater_generic chamber_heater",
-                                         "heater_fan_throttled chamber_heat_fan"});
+        hardware.printer_objects.insert(
+            hardware.printer_objects.end(),
+            {"heater_generic chamber_heater", "heater_fan_throttled chamber_heat_fan"});
     }
     return hardware;
 }
@@ -5089,6 +5089,26 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
 
     REQUIRE(applied == "ad5m_pro_forgex");
     REQUIRE(config.get<std::string>(config.df() + "fans/part", "") == "fan_generic fanM106");
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "apply_preset_with_variants: OpenCreator picks _opencreator via its changer extra",
+                 "[printer_detector][variant]") {
+    SetUp();
+    const std::string base = GENERATE(std::string("creator5"), std::string("creator5_pro"));
+    CAPTURE(base);
+    write_seed_preset(base, "fan_generic fanM106");
+    write_seed_preset(base + "_opencreator", "fan_generic fanM106");
+    write_seed_preset(base + "_zmod", "WRONG_SHOULD_NOT_BE_PICKED");
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"creator5_toolchanger", "AFC", "AFC_Toolchanger Tools",
+                            "fan_generic fanM106", "heater_fan heat_fan", "extruder"});
+
+    REQUIRE(PrinterDetector::apply_preset_with_variants(&config, base, hw) ==
+            base + "_opencreator");
 
     TearDown();
 }
