@@ -1538,6 +1538,54 @@ def test_a_pool_leaves_a_header_with_many_includers_until_last(tmp_path):
     assert "include/thin.h" in listed[:-1], r.stdout
 
 
+# The build records in the binary whether the source it built held the change, so
+# the suite judges what the binary holds, whatever the source says now.
+HOLDS_MAKEFILE = """test-build:
+\t@[ ! -e .mutant-refuse-rebuild ] || ! grep -q NEW_BEHAVIOR src/feature.cpp
+\t@grep -q NEW_BEHAVIOR src/feature.cpp && echo clean > build/bin/holds || echo mutant > build/bin/holds
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+HOLDS_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+[ "$(cat build/bin/holds 2>/dev/null)" != mutant ] || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _compiled_then_data_fixture(tmp_path):
+    work = _fixture(tmp_path, HOLDS_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "ui_xml").mkdir()
+    (work / "ui_xml" / "panel.xml").write_text("<view>old</view>\n")
+    _git(work, "add", "ui_xml", "src")
+    _git(work, "commit", "-qm", "panel")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "src" / "feature.cpp").write_text(CHANGED)
+    (work / "ui_xml" / "panel.xml").write_text("<view>new</view>\n")
+    (work / "build" / "bin" / "helix-tests").write_text(HOLDS_SUITE)
+    return work, base
+
+
+def test_a_data_hunk_after_a_compiled_one_is_judged_on_a_clean_binary(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"SURVIVED\s+ui_xml/panel.xml", r.stdout), r.stdout
+
+
+def test_a_clean_binary_that_will_not_build_leaves_the_data_hunk_unjudged(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(HOLDS_SUITE.replace('echo "tests/unit', 'touch .mutant-refuse-rebuild; echo "tests/unit', 1))
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"INCONCLUSIVE\s+ui_xml/panel.xml", r.stdout), r.stdout
+    assert "uncompilable" not in r.stdout
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")

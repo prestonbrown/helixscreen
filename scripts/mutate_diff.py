@@ -2538,6 +2538,8 @@ class TreeGuard:
 
     def __init__(self, root):
         self.root, self.pristine, self.dirty = root, {}, set()
+        # A restored source leaves its mutant in the binary until the next build.
+        self.binary_holds_mutant = False
 
     def capture(self, rel):
         target = self.root / rel
@@ -3060,6 +3062,23 @@ def build_and_judge(root, suites, rel, plan, args, log):
     return verdict, note_, built_any
 
 
+def clean_binary_for(root, guard, suites, plan, args, log):
+    """Why this tree's binary cannot judge a hunk that does not build, or ''.
+
+    A hunk with no build of its own runs on whatever binary the last mutant left,
+    whose failure would read as this hunk's kill. Every source is restored by now,
+    so a build gives back the baseline.
+    """
+    if plan['build'] or 'catch2' not in plan['suites'] or not guard.binary_holds_mutant:
+        return ''
+    was = binary_fingerprint(suites.catch2_bin)
+    built, _ = build(root, args.jobs, log, mutant=True)
+    if not built or binary_fingerprint(suites.catch2_bin) == was:
+        return 'the previous mutant is still in the test binary: rebuilding it failed'
+    guard.binary_holds_mutant = False
+    return ''
+
+
 def mutate_hunk(root, guard, suites, h, plan, args, log):
     """(verdict, note, built) for one hunk reverted in `root`, then restored.
 
@@ -3071,8 +3090,11 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         # A pristine entry of None means the change deletes the file: reverting
         # recreates it, and restoring means removing it again (TreeGuard).
         guard.mark(h['file'])
-        applied, why = apply_reverse(root, h['patch'])
-        if not applied:
+        not_clean = clean_binary_for(root, guard, suites, plan, args, log)
+        applied, why = (False, '') if not_clean else apply_reverse(root, h['patch'])
+        if not_clean:
+            verdict, note_ = 'inconclusive', not_clean
+        elif not applied:
             verdict, note_ = 'unreversible', why.strip().splitlines()[:1]
         elif (plan['build'] and not (root / h['file']).exists()
               and not h['file'].endswith(HEADER_SUFFIXES)):
@@ -3088,6 +3110,8 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
     if (args.inside and revert_judged_nothing and plan['build']
             and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
         built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
+    if built_any:
+        guard.binary_holds_mutant = True
     return verdict, note_, built_any
 
 
