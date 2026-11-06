@@ -944,6 +944,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     tap(cell);
     CHECK(rig.backend->feeder_requests == std::vector<bool>{true, false});
     CHECK(rig.warnings.empty());
+    // A tap landing after the backend withdrew its feeder, before the cell hides.
+    rig.backend->has_feeder = false;
+    tap(cell);
+    CHECK(rig.backend->feeder_requests.size() == 2);
 
     // The cell shows the state AmsState publishes: the open lock and the
     // filled look while open, the closed lock while closed.

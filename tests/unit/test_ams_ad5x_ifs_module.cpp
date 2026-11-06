@@ -495,16 +495,19 @@ TEST_CASE_METHOD(LVGLTestFixture,
     backend.fire_status(module_ifs_frame(0, {}));
     REQUIRE(backend.get_system_info().tool_to_slot_map[0] == 1);
 
-    Ad5xIfsTestAccess::recheck_ifs_vars_macro(backend);
-    REQUIRE_FALSE(client.rpc_calls.empty());
-    const auto& call = client.rpc_calls.back();
-    REQUIRE(call.method == "printer.objects.query");
-    REQUIRE(call.success_cb);
+    const auto recheck_answering = [&](const json& macro) {
+        Ad5xIfsTestAccess::recheck_ifs_vars_macro(backend);
+        REQUIRE_FALSE(client.rpc_calls.empty());
+        const auto call = client.rpc_calls.back();
+        REQUIRE(call.method == "printer.objects.query");
+        REQUIRE(call.success_cb);
+        call.success_cb(json{{"result", {{"status", {{"gcode_macro _ifs_vars", macro}}}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
 
     // Klipper's webhooks query returns the key with an empty dict for an object
     // the printer does not have — presence alone never means the macro loaded.
-    call.success_cb(json{{"result", {{"status", {{"gcode_macro _ifs_vars", json::object()}}}}}});
-    helix::ui::UpdateQueue::instance().drain();
+    recheck_answering(json::object());
 
     REQUIRE_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
     const auto info = backend.get_system_info();
@@ -514,6 +517,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(info.tool_to_slot_map[2] == 2);
     CHECK(info.tool_to_slot_map[3] == 3);
     CHECK(backend.get_slot_info(2).mapped_tool == 2);
+
+    // The plugin comes back after a FIRMWARE_RESTART: its standing options are read again.
+    recheck_answering(json{{"variable_backup", 1}});
+    CHECK(backend.plugin_backup_enabled() == std::optional<bool>(true));
 }
 
 TEST_CASE("AD5X IFS honors a loaded-only module diff frame", "[ams][ad5x_ifs][ifs_module]") {

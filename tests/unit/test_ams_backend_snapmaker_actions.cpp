@@ -518,6 +518,9 @@ TEST_CASE("a head offers nozzle rows only for the fields it reports",
         const auto actions = backend.get_device_actions();
         CHECK(find_action(actions, "snapmaker_nozzle_diameter_t2") != nullptr);
         CHECK(find_action(actions, "snapmaker_nozzle_flow_t2") == nullptr);
+        const auto sections = backend.get_device_sections();
+        CHECK(std::any_of(sections.begin(), sections.end(),
+                          [](const DeviceSection& s) { return s.id == "toolhead"; }));
     }
 }
 
