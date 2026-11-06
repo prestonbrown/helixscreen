@@ -1698,6 +1698,7 @@ def test_a_group_run_names_its_childrens_flaky_assertions(tmp_path):
     assert re.search(r"VERDICT: CLEAN.*1 flaky assertion", tail), r.stdout
 
 
+@pytest.mark.skipif(shutil.which("bats") is None, reason="a script hunk is listed only when bats can run it")
 def test_a_script_waits_behind_every_compiled_hunk(tmp_path):
     work = _fixture(tmp_path)
     (work / "tests" / "shell").mkdir(parents=True)
