@@ -672,3 +672,53 @@ TEST_CASE_METHOD(XMLTestFixture, "a selection pill's lockout runs from the frame
 
     em.exit();
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "a new selection's pills start their own lockout",
+                 "[grid_edit][edit-chrome]") {
+    // Tile A's pills have been drawn and its lockout has run out; then tile B
+    // is selected. B's pills owe a fresh lockout from their own first frame,
+    // and nothing latched on A's pill decides a click on B's.
+    ChromeScene scene(test_screen(), 8, 4);
+    lv_obj_t* tile_b = lv_obj_create(scene.container);
+    lv_obj_set_name(tile_b, "fan");
+    lv_obj_remove_flag(tile_b, LV_OBJ_FLAG_SCROLLABLE);
+    const int span = GridLayout::TRACKS_PER_CELL;
+    lv_obj_set_grid_cell(tile_b, LV_GRID_ALIGN_STRETCH, 2, span, LV_GRID_ALIGN_STRETCH, 4, span);
+    lv_obj_update_layout(scene.container);
+    scene.config->page_entries_mut(ChromeScene::kPageIndex)
+        .push_back({"fan", true, nlohmann::json::object(), 2, 4, span, span});
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    lv_obj_update_layout(scene.container);
+    lv_refr_now(nullptr);
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+    const auto b_on_page = [&] { return scene.config->is_placed("fan"); };
+
+    SECTION("a press right after B's first frame, which came late") {
+        // A pressed but never released on A's pill would leave its latch set.
+        lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_PRESSED, nullptr);
+        em.select_widget(tile_b);
+        lv_obj_update_layout(scene.container);
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+        lv_refr_now(nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
+        const lv_point_t c = centre_of_area(a);
+        pointer.press(c.x, c.y);
+        pointer.release(c.x, c.y);
+        CHECK(b_on_page());
+    }
+    SECTION("A's latched press does not time a click on B's pill") {
+        lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_PRESSED, nullptr);
+        em.select_widget(tile_b);
+        lv_obj_update_layout(scene.container);
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+        // A click with no press behind it (remote control), past B's lockout.
+        lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_CLICKED, nullptr);
+        CHECK_FALSE(b_on_page());
+    }
+
+    em.exit();
+}
