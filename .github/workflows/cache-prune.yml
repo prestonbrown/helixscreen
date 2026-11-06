@@ -9,8 +9,8 @@ name: Prune stale ccaches
 #
 # Measured on 2026-08-12, right after v0.99.111:
 #
-#   1.84 GB  ccache-macos-14-536260bf...        \
-#   1.84 GB  ccache-macos-14-b5710e5c...         |  8.6 GB of the 10.8 GB total
+#   1.84 GB  ccache-macos-15-536260bf...        \
+#   1.84 GB  ccache-macos-15-b5710e5c...         |  8.6 GB of the 10.8 GB total
 #   1.67 GB  ccache-ubuntu-22.04-b5710e5c...     |  was per-SHA CI caches, three
 #   1.67 GB  ccache-ubuntu-22.04-9da2e4f5...     |  generations deep on ubuntu
 #   1.63 GB  ccache-ubuntu-22.04-536260bf...    /   and two on macOS
@@ -88,7 +88,7 @@ jobs:
         # prefix, so ccache-nightly-macos-* does not fall into ccache-nightly-*.
         PREFIXES: >-
           ["ccache-ubuntu-22.04-",
-           "ccache-macos-14-",
+           "ccache-macos-15-",
            "ccache-x86-fbdev-",
            "ccache-nightly-macos-",
            "ccache-nightly-",

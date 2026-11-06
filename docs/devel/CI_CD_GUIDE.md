@@ -17,7 +17,7 @@ This guide documents the GitHub Actions CI/CD setup for HelixScreen, including p
 
 HelixScreen uses GitHub Actions for continuous integration across multiple platforms:
 
-- **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 14, Android) plus split unit/shell test jobs
+- **Build Workflow** (`.github/workflows/build.yml`) - Multi-platform builds (Ubuntu 22.04, macOS 15, Android) plus split unit/shell test jobs
 - **Quality Workflow** (`.github/workflows/quality.yml`) - Code quality checks via shared script
 - **Server Tests** (`.github/workflows/server-tests.yml`) - Cloudflare Worker suites and the analytics dashboard build
 
@@ -58,8 +58,8 @@ jobs:
     # ... test steps ...
 
   build-macos:
-    name: Build (macOS 14)
-    runs-on: macos-14
+    name: Build (macOS 15)
+    runs-on: macos-15
     # ... build steps ...
 
   build-android:
@@ -91,7 +91,7 @@ jobs:
 
 **Artifacts:**
 - `helix-screen-ubuntu-22.04` - Ubuntu binary
-- `helix-screen-macos-14` - macOS binary
+- `helix-screen-macos-15` - macOS binary
 
 ### Server Tests Workflow
 
