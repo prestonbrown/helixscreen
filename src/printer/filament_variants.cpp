@@ -454,27 +454,6 @@ bool is_filled_grade(std::string_view name) {
     return !filled_affixes_of(name).empty();
 }
 
-// NAMESPACE_OK: namespace filament, beside grades_match
-bool name_grades_match(std::string_view name, std::string_view type) {
-    const std::string polymer = extract_base_material(type);
-    std::set<std::string> in_name;
-    size_t pos = 0;
-    while (pos <= name.size()) {
-        const size_t space = name.find(' ', pos);
-        const size_t end = space == std::string_view::npos ? name.size() : space;
-        const std::string word(helix::text_io::trim(name.substr(pos, end - pos)));
-        if (!word.empty()) {
-            in_name.merge(filled_affixes_of(word));
-            in_name.merge(filled_affixes_of(word + " " + polymer));
-        }
-        if (space == std::string_view::npos) {
-            break;
-        }
-        pos = space + 1;
-    }
-    return in_name == filled_affixes_of(type);
-}
-
 std::string display_family(std::string_view type) {
     std::string base = extract_base_material(type);
     // A recycled grade ("rPLA") is a material of its own to the database, but
