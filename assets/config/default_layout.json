@@ -1,5 +1,5 @@
 {
-  "_comment": "Default home layouts, in half-cell tracks (TRACKS_PER_CELL = 2), authored per tier against the square-cell track counts. Placement keys are a tier (micro, tiny, small, medium, large, xlarge, xxlarge; include/ui_breakpoint.h) or a tier on one measured grid ('<tier>@<cols>x<rows>'), which wins over the bare tier on that grid. 'anchors' is the landscape table; 'variants' holds per-layout tables keyed by LayoutManager::variant_chain(). A fixed anchor sits where its key says. A 'slot' fills its region with the first alternative that fits and whose lead cell has a qualifying candidate (gate open, every 'requires' subject non-zero, not already placed); the last alternative is taken whenever it fits. Each cell takes the first qualifying candidate of its list, so cells sharing a list fill in the order they are written and any cell left over stays empty; slots resolve in table order. 'at' is [col, row, colspan, rowspan] relative to the region. Candidate lists hold only hardware- or capability-gated widgets, so a printer without the hardware gets an empty cell, never a stand-in. Widgets not placed are auto-placed at their registry default_enabled, so 'disabled' switches a default-enabled widget off where a tier has no room for it. 'gaps' lists, per placement key, the [col, row, colspan, rowspan] blocks left empty on purpose: every track is a tile, a declared gap, or a slot cell with no qualifying candidate (tests/unit/test_default_layout.cpp coverage case). The resolver does not read 'gaps'.",
+  "_comment": "Default home layouts, in half-cell tracks (TRACKS_PER_CELL = 2), authored per tier against the square-cell track counts. Placement keys are a tier (micro, tiny, small, medium, large, xlarge, xxlarge; include/ui_breakpoint.h) or a tier on one measured grid ('<tier>@<cols>x<rows>'), which wins over the bare tier on that grid. 'anchors' is the landscape table; 'variants' holds per-layout tables keyed by LayoutManager::variant_chain(). Any key may also name a capability subject ('<tier>+<subject>', '<tier>@<cols>x<rows>+<subject>'): while that subject is non-zero it wins over the same key without it, in placements, slot regions, 'disabled' and 'gaps' alike. A tool changer ('+ams_is_tool_changer') places no temperature tiles, since the tool switcher shows each tool's temperature and the printer image's chips show the bed; the space they leave is a declared gap, beside the printer image wherever the tier's arrangement allows. A fixed anchor sits where its key says. A 'slot' fills its region with the first alternative that fits and whose lead cell has a qualifying candidate (gate open, every 'requires' subject non-zero, not already placed); the last alternative is taken whenever it fits. Each cell takes the first qualifying candidate of its list, so cells sharing a list fill in the order they are written and any cell left over stays empty; slots resolve in table order. 'at' is [col, row, colspan, rowspan] relative to the region. Candidate lists hold only hardware- or capability-gated widgets, so a printer without the hardware gets an empty cell, never a stand-in. Widgets not placed are auto-placed at their registry default_enabled, so 'disabled' switches a default-enabled widget off where a tier has no room for it. 'gaps' lists, per placement key, the [col, row, colspan, rowspan] blocks left empty on purpose: every track is a tile, a declared gap, or a slot cell with no qualifying candidate (tests/unit/test_default_layout.cpp coverage case). The resolver does not read 'gaps'.",
   "candidate_lists": {
     "ENV_FIL": [
       "filament",
@@ -64,6 +64,24 @@
           "row": 0,
           "colspan": 6,
           "rowspan": 6
+        },
+        "medium+ams_is_tool_changer": {
+          "col": 0,
+          "row": 0,
+          "colspan": 6,
+          "rowspan": 4
+        },
+        "large+ams_is_tool_changer": {
+          "col": 0,
+          "row": 0,
+          "colspan": 6,
+          "rowspan": 4
+        },
+        "xlarge+ams_is_tool_changer": {
+          "col": 0,
+          "row": 0,
+          "colspan": 6,
+          "rowspan": 4
         }
       }
     },
@@ -217,6 +235,24 @@
           "row": 0,
           "colspan": 2,
           "rowspan": 2
+        },
+        "micro+ams_is_tool_changer": {
+          "col": 8,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
+        },
+        "tiny+ams_is_tool_changer": {
+          "col": 6,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
+        },
+        "small+ams_is_tool_changer": {
+          "col": 6,
+          "row": 0,
+          "colspan": 2,
+          "rowspan": 2
         }
       }
     },
@@ -361,6 +397,12 @@
           "row": 6,
           "colspan": 16,
           "rowspan": 6
+        },
+        "medium+ams_is_tool_changer": {
+          "col": 8,
+          "row": 4,
+          "colspan": 4,
+          "rowspan": 4
         }
       }
     },
@@ -582,6 +624,12 @@
           "row": 2,
           "colspan": 4,
           "rowspan": 2
+        },
+        "medium+ams_is_tool_changer": {
+          "col": 8,
+          "row": 2,
+          "colspan": 4,
+          "rowspan": 2
         }
       },
       "alternatives": [
@@ -786,6 +834,39 @@
     ],
     "medium": [
       "tips"
+    ],
+    "micro+ams_is_tool_changer": [
+      "tips",
+      "temperature",
+      "bed_temperature"
+    ],
+    "tiny+ams_is_tool_changer": [
+      "tips",
+      "temp_graph",
+      "temperature",
+      "bed_temperature"
+    ],
+    "small+ams_is_tool_changer": [
+      "temp_graph",
+      "temperature",
+      "bed_temperature"
+    ],
+    "medium+ams_is_tool_changer": [
+      "tips",
+      "temperature",
+      "bed_temperature"
+    ],
+    "large+ams_is_tool_changer": [
+      "temperature",
+      "bed_temperature"
+    ],
+    "xlarge+ams_is_tool_changer": [
+      "temperature",
+      "bed_temperature"
+    ],
+    "xxlarge+ams_is_tool_changer": [
+      "temperature",
+      "bed_temperature"
     ]
   },
   "gaps": {
@@ -818,6 +899,81 @@
       ]
     ],
     "xxlarge": [
+      [
+        16,
+        10,
+        8,
+        4
+      ]
+    ],
+    "micro@8x6": [],
+    "micro+ams_is_tool_changer": [
+      [
+        6,
+        0,
+        2,
+        4
+      ]
+    ],
+    "tiny+ams_is_tool_changer": [
+      [
+        4,
+        0,
+        2,
+        4
+      ]
+    ],
+    "small+ams_is_tool_changer": [
+      [
+        4,
+        0,
+        2,
+        4
+      ]
+    ],
+    "medium+ams_is_tool_changer": [
+      [
+        6,
+        0,
+        2,
+        4
+      ]
+    ],
+    "large+ams_is_tool_changer": [
+      [
+        6,
+        0,
+        2,
+        4
+      ],
+      [
+        8,
+        4,
+        8,
+        2
+      ]
+    ],
+    "xlarge+ams_is_tool_changer": [
+      [
+        6,
+        0,
+        2,
+        4
+      ],
+      [
+        8,
+        4,
+        8,
+        2
+      ]
+    ],
+    "xxlarge+ams_is_tool_changer": [
+      [
+        16,
+        0,
+        4,
+        2
+      ],
       [
         16,
         10,
