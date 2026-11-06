@@ -258,6 +258,23 @@ TEST_CASE_METHOD(WizardCatalogFixture,
     }
 }
 
+TEST_CASE_METHOD(WizardCatalogFixture,
+                 "a SpoolmanDB pick of a precise type finds the record it was filed under",
+                 "[spool_wizard][spoolman_db]") {
+    // A PLA+ pick is filed as the slicer's PLA, so its record carries PLA.
+    client.spoolman_mock().add_vendor(7, "Polymaker");
+    client.spoolman_mock().add_filament(70, 7, "PLA", "1E5AA8", "PolyLite PLA+ Blue");
+    wizard.load_vendors();
+    drain();
+    ExternalFilament f = catalog_filament();
+    f.name = "PolyLite PLA+ Blue";
+    f.material = "PLA+";
+    wizard.apply_catalog_results({f});
+    wizard.select_catalog_result(0);
+    drain();
+    CHECK(wizard.selected_filament().server_id == 70);
+}
+
 TEST_CASE_METHOD(WizardCatalogFixture, "an answer after the wizard closes is ignored",
                  "[spool_wizard][spoolman_db]") {
     client.defer_next("server.spoolman.proxy");
