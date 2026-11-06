@@ -923,13 +923,13 @@ void FilamentSensorManager::update_from_status(const json& status) {
     const AmsType backend_type = AmsState::instance().primary_type().value_or(AmsType::NONE);
     const BackendTraits backend_traits =
         AmsState::instance().primary_traits().value_or(BackendTraits{});
-    // A backend whose firmware unloads filament back to its hub between prints
-    // (AD5X IFS) makes the head sensor going empty while idle firmware behaviour,
+    // A backend whose firmware parks filament back in its hub or box between
+    // prints makes the head sensor going empty while idle firmware behaviour,
     // not a user-facing event. "Between prints" is the lifecycle's Idle/terminal
     // side, not merely "not PRINTING": a head-empty during a pre-print block is
     // not the firmware's idle auto-unload and must not be swallowed.
     const bool idle_unload_expected =
-        backend_traits.unloads_to_hub_between_prints && !job_owns_machine;
+        backend_traits.parks_filament_off_toolhead_when_idle && !job_owns_machine;
     // While a job holds the machine, a backend that raises its own runout fault
     // owns the runout surface for that phase: its prompt is already telling the
     // user what happened, with recovery actions derived from live hardware, so
