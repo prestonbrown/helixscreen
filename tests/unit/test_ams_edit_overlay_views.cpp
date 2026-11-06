@@ -618,6 +618,32 @@ std::vector<SpoolInfo> two_spools() {
     b.color_hex = "00FF00";
     return {a, b};
 }
+
+std::vector<SpoolInfo> three_spools() {
+    auto spools = two_spools();
+    SpoolInfo c;
+    c.id = 33;
+    c.vendor = "eSUN";
+    c.material = "ABS";
+    c.color_hex = "333333";
+    spools.push_back(c);
+    return spools;
+}
+
+/// Spool ids of the picker rows that read as "linked to this slot": the
+/// checked highlight or the visible check mark, either one alone counts.
+std::vector<int> marked_spool_ids(lv_obj_t* list) {
+    std::vector<int> ids;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+        lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+        lv_obj_t* check = lv_obj_find_by_name(row, "selected_icon");
+        const bool check_shown = check && !lv_obj_has_flag(check, LV_OBJ_FLAG_HIDDEN);
+        if (lv_obj_has_state(row, LV_STATE_CHECKED) || check_shown) {
+            ids.push_back(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
+        }
+    }
+    return ids;
+}
 } // namespace
 
 // ============================================================================
@@ -686,7 +712,7 @@ struct OverlayConsumerCommitFixture : LVGLUITestFixture {
     }
 };
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the first row for unlinked slots",
+TEST_CASE_METHOD(LVGLUITestFixture, "picker marks no row for a slot with no linked spool",
                  "[ams_edit_overlay][picker][preselect]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -695,16 +721,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the first row for unlink
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    access.set_cached_spools(two_spools());
+    access.set_cached_spools(three_spools());
     access.call_render_spool_list("");
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
-    REQUIRE(lv_obj_get_child_count(list) == 2);
-    CHECK(lv_obj_has_state(lv_obj_get_child(list, 0), LV_STATE_CHECKED));
-    CHECK_FALSE(lv_obj_has_state(lv_obj_get_child(list, 1), LV_STATE_CHECKED));
+    REQUIRE(lv_obj_get_child_count(list) == 3);
+    CHECK(marked_spool_ids(list).empty());
+
+    // A search that leaves one row must not mark it either.
+    access.call_render_spool_list("abs");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(lv_obj_get_child_count(list) == 1);
+    CHECK(marked_spool_ids(list).empty());
 
     close_editor_overlay();
 }
@@ -1344,7 +1376,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker always offers the setup entry",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the current spool when linked",
+TEST_CASE_METHOD(LVGLUITestFixture, "picker marks only the slot's linked spool",
                  "[ams_edit_overlay][picker][preselect]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1355,16 +1387,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker pre-selects the current spool when l
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    access.set_cached_spools(two_spools());
+    access.set_cached_spools(three_spools());
     access.call_render_spool_list("");
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 3);
+    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+
+    // Spools 22 and 33 are both eSUN: the linked one keeps its mark among
+    // the survivors and the other stays plain.
+    access.call_render_spool_list("esun");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
     REQUIRE(lv_obj_get_child_count(list) == 2);
-    CHECK_FALSE(lv_obj_has_state(lv_obj_get_child(list, 0), LV_STATE_CHECKED));
-    CHECK(lv_obj_has_state(lv_obj_get_child(list, 1), LV_STATE_CHECKED));
+    CHECK(marked_spool_ids(list) == std::vector<int>{22});
+
+    // A search that filters the linked spool out marks nothing.
+    access.call_render_spool_list("abs");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(lv_obj_get_child_count(list) == 1);
+    CHECK(marked_spool_ids(list).empty());
 
     close_editor_overlay();
 }

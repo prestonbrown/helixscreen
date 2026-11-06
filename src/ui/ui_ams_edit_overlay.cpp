@@ -885,9 +885,9 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     const char* attrs_current[] = {"detail_flow",      flow,    "name_grow", name_grow,
                                    "hide_edit_pencil", "false", nullptr,     nullptr};
 
-    bool have_preselection = false;
-
     for (const auto& spool : filtered) {
+        // Tapping a row selects it, so the checked row and its check mark carry
+        // one meaning only: the spool linked to this slot. No link, no mark.
         const bool is_current_spool =
             (working_info_.spoolman_id > 0 && spool.id == working_info_.spoolman_id);
         lv_obj_t* item = static_cast<lv_obj_t*>(lv_xml_create(
@@ -924,14 +924,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             lv_obj_remove_flag(item, LV_OBJ_FLAG_CLICKABLE);
         }
 
-        bool is_selected = false;
-        if (working_info_.spoolman_id > 0) {
-            is_selected = (spool.id == working_info_.spoolman_id);
-        } else if (!have_preselection && !disabled) {
-            is_selected = true;
-        }
-        if (is_selected) {
-            have_preselection = true;
+        if (is_current_spool) {
             lv_obj_set_state(item, LV_STATE_CHECKED, true);
             lv_obj_t* check_icon = helix::ui::find_required(item, "selected_icon", get_name());
             if (check_icon) {
