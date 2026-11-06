@@ -211,13 +211,30 @@ TEST_CASE("every preset family with more than one database entry names a default
     }
 }
 
+// The stock Creator 5 Pro firmware declares its chamber heater fan as a
+// fan_generic (its AIR_CIRCULATION_* macros drive it with SET_FAN_SPEED), so an
+// expected entry under any other prefix leaves the live fan unassigned and
+// Hardware Health reports it as newly discovered on every boot.
+TEST_CASE("the stock Creator 5 Pro preset names its chamber heater fan as the firmware does",
+          "[printer_detector][presets][assets]") {
+    const json pro = load_json(std::string(kPresetDir) + "/creator5_pro.json");
+    const json& expected = pro["printer"]["hardware"]["expected"];
+    REQUIRE(expected.is_array());
+    std::set<std::string> names;
+    for (const auto& e : expected) {
+        names.insert(e.get<std::string>());
+    }
+    CHECK(names.count("fan_generic chamber_heat_fan") == 1);
+    CHECK(names.count("heater_fan chamber_heat_fan") == 0);
+}
+
 // OpenCreator's runout switches are AFC's tool_start sensors (one per
 // [AFC_extruder extruder<N>], opencreator-fs printer.afc-standalone.cfg), which
 // AFC owns and handles itself (AmsBackendAfc::owns_filament_sensor); its
 // fm_ex<N> wheel sensors are clog-only (printer.filament.cfg), its chamber
 // heater fan is a Kalico heater_fan_throttled (printer.pro.cfg) and its dock
 // macro DOCK_EXISTING_TOOL (printer.macro.cfg). The stock firmware's fd_ex<N>
-// switches, heater_fan chamber_heat_fan and TOOLCHANGE_PARK do not exist
+// switches, fan_generic chamber_heat_fan and TOOLCHANGE_PARK do not exist
 // there, and naming them raises missing-hardware warnings.
 TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
           "[printer_detector][presets][assets]") {
@@ -229,7 +246,7 @@ TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
         const json preset = load_json(std::string(kPresetDir) + "/" + stem + ".json");
         const std::string text = preset.dump();
         CHECK(text.find("fd_ex") == std::string::npos);
-        CHECK(text.find("\"heater_fan chamber_heat_fan\"") == std::string::npos);
+        CHECK(text.find("\"fan_generic chamber_heat_fan\"") == std::string::npos);
         CHECK(text.find("TOOLCHANGE_PARK") == std::string::npos);
 
         // AFC raises its own runout; a runout role on its switches stacks
