@@ -1538,6 +1538,196 @@ def test_a_pool_leaves_a_header_with_many_includers_until_last(tmp_path):
     assert "include/thin.h" in listed[:-1], r.stdout
 
 
+# The build records in the binary whether the source it built held the change, so
+# the suite judges what the binary holds, whatever the source says now.
+HOLDS_MAKEFILE = """test-build:
+\t@[ ! -e .mutant-refuse-rebuild ] || ! grep -q NEW_BEHAVIOR src/feature.cpp
+\t@grep -q NEW_BEHAVIOR src/feature.cpp && echo clean > build/bin/holds || echo mutant > build/bin/holds
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+HOLDS_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+[ "$(cat build/bin/holds 2>/dev/null)" != mutant ] || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _compiled_then_data_fixture(tmp_path):
+    work = _fixture(tmp_path, HOLDS_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "ui_xml").mkdir()
+    (work / "ui_xml" / "panel.xml").write_text("<view>old</view>\n")
+    _git(work, "add", "ui_xml", "src")
+    _git(work, "commit", "-qm", "panel")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "src" / "feature.cpp").write_text(CHANGED)
+    (work / "ui_xml" / "panel.xml").write_text("<view>new</view>\n")
+    (work / "build" / "bin" / "helix-tests").write_text(HOLDS_SUITE)
+    return work, base
+
+
+def test_a_data_hunk_after_a_compiled_one_is_judged_on_a_clean_binary(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"SURVIVED\s+ui_xml/panel.xml", r.stdout), r.stdout
+
+
+def test_a_clean_binary_that_will_not_build_leaves_the_data_hunk_unjudged(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(HOLDS_SUITE.replace('echo "tests/unit', 'touch .mutant-refuse-rebuild; echo "tests/unit', 1))
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"INCONCLUSIVE\s+ui_xml/panel.xml", r.stdout), r.stdout
+    assert "uncompilable" not in r.stdout
+
+
+def test_an_inside_mutant_cut_off_by_the_deadline_is_not_recorded(tmp_path, monkeypatch):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "f.cpp").write_text("    if (a) {\n")
+    h = {"file": "src/f.cpp", "line": 1, "body": ["@@\n", "+    if (a) {\n"]}
+    guard = md.TreeGuard(tmp_path)
+    guard.capture("src/f.cpp")
+
+    def cut_off(*_a, **_k):
+        monkeypatch.setattr(md.RUN_STATE, "out_of_time", True)
+        return "survived", "", True
+    monkeypatch.setattr(md, "build_and_judge", cut_off)
+    args = type("A", (), {"inside": 1})()
+    md.mutate_inside(tmp_path, guard, None, h, {}, args, None)
+    assert h["inside"] == []
+    assert (tmp_path / "src" / "f.cpp").read_text() == "    if (a) {\n"
+
+
+def _suites_on(tmp_path, script):
+    binary = tmp_path / "build" / "bin" / "helix-tests"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text(script)
+    binary.chmod(0o755)
+    args = type("A", (), {"jobs": 1, "shards": 1, "timeout": 0, "tests": "[x]", "log": "x",
+                          "shell_tests": "", "python_tests": ""})()
+    import io
+    suites = md.Suites(tmp_path, args, io.StringIO())
+    suites.catch2.limits = {0: 60}
+    return suites
+
+
+def _counted_script(tmp_path, *runs):
+    """A suite whose Nth run is the Nth of `runs`: a site that fails, or '' for green."""
+    cases = "\n".join(
+        f'{i}) ' + (f'echo "{site}: FAILED:"; echo "assertions: 1 | 1 failed"; exit 1'
+                    if site else 'exit 0') + ' ;;'
+        for i, site in enumerate(runs, 1))
+    return f"""#!/usr/bin/env bash
+n=$(( $(cat {tmp_path}/n 2>/dev/null || echo 0) + 1 )); echo $n > {tmp_path}/n
+case $n in
+{cases}
+*) exit 0 ;;
+esac
+"""
+
+
+def test_a_second_flake_on_the_rerun_has_to_repeat_too(tmp_path):
+    # Run, its repeat, the re-run failing elsewhere, that repeat, the last re-run.
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "", "b.cpp:2", "", ""))
+    assert suites.run("catch2")[0] == md.GREEN
+    assert suites.catch2.flaky == {"a.cpp:1", "b.cpp:2"}
+
+
+def test_a_failure_elsewhere_on_the_repeat_is_not_a_repeat(tmp_path):
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "b.cpp:2", "", ""))
+    assert suites.run("catch2")[0] == md.GREEN
+    assert "a.cpp:1" in suites.catch2.flaky
+
+
+def test_a_failure_that_repeats_at_its_site_is_a_detection(tmp_path):
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "a.cpp:1"))
+    assert suites.run("catch2")[0] == md.DETECTED
+    assert suites.catch2.flaky == set()
+
+
+def test_a_repeat_that_crashes_naming_nothing_is_unjudged_and_flags_no_site(tmp_path):
+    suites = _suites_on(tmp_path, f"""#!/usr/bin/env bash
+if [ ! -e {tmp_path}/once ]; then
+    touch {tmp_path}/once; echo "a.cpp:1: FAILED:"; exit 1
+fi
+exit 139
+""")
+    state, why = suites.run("catch2")
+    assert state == md.INCONCLUSIVE, why
+    assert suites.catch2.flaky == set()
+
+
+def test_a_repeat_that_stalls_is_unjudged(tmp_path):
+    suites = _suites_on(tmp_path, f"""#!/usr/bin/env bash
+if [ ! -e {tmp_path}/once ]; then
+    touch {tmp_path}/once; echo "a.cpp:1: FAILED:"; exit 1
+fi
+exec sleep 30
+""")
+    suites.catch2.limits = {0: 3}
+    state, why = suites.run("catch2")
+    assert state == md.INCONCLUSIVE, why
+    assert suites.catch2.flaky == set()
+
+
+def test_every_flaky_assertion_is_named_at_the_end_and_on_the_clean_line(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path))
+    r = _mutate(work, "--base", "main", "--no-record")
+    tail = r.stdout.split("=" * 68, 1)[1]
+    assert "set aside as flaky" in tail and "tests/unit/test_budget.cpp:9" in tail, r.stdout
+    clean = next(ln for ln in tail.splitlines() if ln.startswith("VERDICT: CLEAN"))
+    assert "1 flaky assertion" in clean, r.stdout
+
+
+def test_a_group_run_names_its_childrens_flaky_assertions(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path).replace(
+        'grep -q NEW_BEHAVIOR src/feature.cpp ||',
+        'grep -q NEW_BEHAVIOR src/feature.cpp && grep -q NEW_TOO src/other.cpp ||'))
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    tail = r.stdout.rsplit("=" * 68, 1)[1]
+    assert "tests/unit/test_budget.cpp:9" in tail, r.stdout
+    assert re.search(r"VERDICT: CLEAN.*1 flaky assertion", tail), r.stdout
+
+
+def test_a_script_waits_behind_every_compiled_hunk(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_tool.bats").write_text(
+        '@test "t" {\n  grep -q tool.sh "$BATS_TEST_FILENAME"\n}\n')
+    _git(work, "add", "scripts/tool.sh", "tests/shell")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--list-only", "--python-tests", "", "--first", "tool")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines()
+              if ln.endswith(("[cxx]", "[tooling]"))]
+    assert [p.split(":")[0] for p in listed] == ["src/feature.cpp", "scripts/tool.sh"], r.stdout
+
+
+def test_confirm_survivors_without_a_pool_says_it_does_nothing(tmp_path):
+    work = _fixture(tmp_path)
+    r = _mutate(work, "--base", "main", "--no-record", "--confirm-survivors")
+    assert "--confirm-survivors needs --pool" in r.stdout, r.stdout
+
+
+def test_an_inside_mutant_of_a_file_the_change_deleted_is_passed_over(tmp_path):
+    h = {"file": "src/gone.cpp", "line": 1, "body": ["@@\n"]}
+    args = type("A", (), {"inside": 1})()
+    guard = md.TreeGuard(tmp_path)
+    assert md.mutate_inside(tmp_path, guard, None, h, {}, args, None) is False
+    assert h["inside"] == []
+
+
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     (work / ".mutant-expect-other").write_text("")

@@ -290,8 +290,7 @@ COVERAGE = (
 # before COVERAGE, which would otherwise claim them as code.
 GENERATED = (
     ('src/generated/*', 'generated output; mutate the source it is generated from'),
-    ('ui_xml/translations/*', 'generated from translations/*.yml by generate_translations.py, '
-                              'which every build reruns'),
+    ('ui_xml/translations/*', 'generated from translations/*.yml by generate_translations.py'),
 )
 
 # Content no program reads, so no mutant of it could change behaviour. Named in
@@ -619,7 +618,7 @@ def adopt_baseline_reds(suites, suite):
     alone (root, no jobpool, no shellcheck). They can neither detect nor miss a
     mutant, so they are set aside by name and every other case judges. Returns the
     suite's state once they are: GREEN, or DETECTED/INCONCLUSIVE when it never
-    settles. Catch2 is never adopted: its baseline is red only when the tree is.
+    settles. Catch2 is never adopted by name: establish_baseline asks it twice.
     """
     for _ in range(MAX_BASELINE_RED_PASSES):
         text = suites.last_output
@@ -1665,9 +1664,35 @@ class _RunState:
     out_of_time = False
     # A stop signal is being handled: nothing new may start.
     stopping = False
+    # Assertions this run stopped trusting; a group child leaves them in a file too.
+    flaky_sites = set()
+    flaky_file = None
 
 
 RUN_STATE = _RunState()
+
+
+def set_flaky_aside(plan, sites):
+    """These assertions judge no mutant of `plan` from now on, and the report says so."""
+    plan.flaky |= sites
+    RUN_STATE.flaky_sites |= sites
+    if RUN_STATE.flaky_file:
+        with open(RUN_STATE.flaky_file, 'a') as f:
+            f.write(''.join(f'{site}\n' for site in sorted(sites)))
+
+
+def flaky_lines():
+    """The report's lines naming every assertion set aside, or none."""
+    if not RUN_STATE.flaky_sites:
+        return []
+    return ['\nset aside as flaky, failing once and passing when asked again; they judged '
+            'no later mutant:'] + [f'  {site}' for site in sorted(RUN_STATE.flaky_sites)]
+
+
+def flaky_clause():
+    """What a CLEAN line has to admit."""
+    n = len(RUN_STATE.flaky_sites)
+    return f' ({n} flaky assertion{"s" if n != 1 else ""} set aside)' if n else ''
 
 
 def tracked_proc(cmd, cwd, stdin=False, stdout=None):
@@ -2003,13 +2028,18 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
     return (INCONCLUSIVE, unexplained, '') if unexplained else (GREEN, '', '')
 
 
-def detection_repeats(root, test_bin, filt, plan, shard):
-    """Whether the shard that detected a mutant detects it again, unhurried.
+REPEATED, NOT_REPEATED, REPEAT_UNEXPLAINED = 'repeated', 'not repeated', 'unexplained'
+
+
+def detection_repeats(root, test_bin, filt, plan, shard, sites):
+    """Whether the shard that detected a mutant fails again at the same assertions.
 
     A wall-clock budget in a test can run out on a machine a pool is loading, with
     the mutant nowhere near it, and `killed` is the verdict nobody re-checks. Run
-    at normal priority under the shard's own limit; still running at the limit is
-    a repeat, since a hang is a detection too.
+    at normal CPU priority (its I/O class and any peer's load stay as they are, so
+    a flake can still repeat) under twice the shard's limit. A failure elsewhere
+    leaves these assertions unconfirmed, and the suite's re-run judges the other.
+    A crash or a stall names no failure, so it says nothing either way.
     """
     argv = catch2_argv(test_bin, filt) + ['-x', '1']
     if plan.shards > 1:
@@ -2018,15 +2048,18 @@ def detection_repeats(root, test_bin, filt, plan, shard):
                                                    errors='replace') as out_f:
         p = tracked_proc(argv, root, stdout=out_f)
         try:
-            p.wait(timeout=plan.limits[shard])
+            p.wait(timeout=plan.limits[shard] * 2)
         except subprocess.TimeoutExpired:
             _signal_procs([p], signal.SIGKILL)
             p.wait()
-            return True
+            return REPEAT_UNEXPLAINED
         finally:
             untrack_proc(p)
         out_f.seek(0)
-        return suite_detected('catch2', out_f.read())
+        out = out_f.read()
+    if suite_detected('catch2', out):
+        return REPEATED if not sites or catch2_failure_sites(out) & sites else NOT_REPEATED
+    return REPEAT_UNEXPLAINED if p.returncode != 0 else NOT_REPEATED
 
 
 def run_confirmed(suites, name):
@@ -2300,21 +2333,36 @@ class Suites:
         re-run goes at normal priority: a run yielding to everything else on
         the host has no bound on how long it can be starved.
         """
-        state, why, who = self._run_once(name, 1.0)
-        if state == DETECTED and not why and name == 'catch2' and self.catch2.limits:
-            shard, sites = who
-            if not detection_repeats(self.root, self.catch2_bin, self.args.tests, self.catch2, shard):
-                # Those assertions judge nothing now, and the shards stopped at the
-                # detection have still to run.
-                self.catch2.flaky |= sites
-                note(f'[{", ".join(sorted(sites))} failed once and not again] ')
-                state, why, who = self._run_once(name, 1.0)
+        state, why, who = self._run_repeated(name, 1.0)
         if why != TIMED_OUT:
             return state, why
         note(f'[{who} hit its limit; re-running at 2x] ')
         with normal_priority():
-            state, why, _ = self._run_once(name, 2.0)
+            state, why, _ = self._run_repeated(name, 2.0)
         return state, why
+
+    def _run_repeated(self, name, scale):
+        """One suite run whose detection, if any, has repeated.
+
+        A failure that does not repeat judges nothing from then on, and the shards
+        stopped at it have still to run, so the suite runs again. Each pass sets
+        aside at least one more assertion, so this ends.
+        """
+        while True:
+            state, why, who = self._run_once(name, scale)
+            if (state != DETECTED or why or name != 'catch2' or not self.catch2.limits
+                    or RUN_STATE.out_of_time):
+                return state, why, who
+            shard, sites = who
+            outcome = detection_repeats(self.root, self.catch2_bin, self.args.tests,
+                                        self.catch2, shard, sites)
+            if outcome == REPEATED:
+                return state, why, who
+            named = ', '.join(sorted(sites)) or 'a failure naming no assertion'
+            if outcome == REPEAT_UNEXPLAINED or not sites:
+                return INCONCLUSIVE, f'{named} failed, and its repeat named no failure', ''
+            set_flaky_aside(self.catch2, sites)
+            note(f'[{named} failed once and not again] ')
 
 
 def establish_baseline(suites, needed):
@@ -2353,7 +2401,7 @@ def establish_baseline(suites, needed):
             if RUN_STATE.out_of_time:
                 raise OutOfTime()
             if state == GREEN:
-                plan.flaky = seen
+                set_flaky_aside(plan, seen)
                 print(f'  catch2: red once and green on a re-run, so these judge no mutant: '
                       f'{", ".join(sorted(seen))}', flush=True)
         if state == DETECTED and suite in ('bats', 'pytest'):
@@ -2538,6 +2586,8 @@ class TreeGuard:
 
     def __init__(self, root):
         self.root, self.pristine, self.dirty = root, {}, set()
+        # A restored source leaves its mutant in the binary until the next build.
+        self.binary_holds_mutant = False
 
     def capture(self, rel):
         target = self.root / rel
@@ -2975,6 +3025,9 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
     h['inside'] = []
     target = root / h['file']
     built_any, tried = False, 0
+    if not target.is_file():
+        note('[inside: the change deleted this file] ')
+        return False
     lines = target.read_text(errors='surrogateescape').splitlines(keepends=True)
     mutants = spread_mutants(hunk_inside_mutants(h, lines), args.inside)
     if not mutants:
@@ -2990,6 +3043,9 @@ def mutate_inside(root, guard, suites, h, plan, args, log):
             target.write_text(''.join(mutated), errors='surrogateescape')
             verdict, note_, built = build_and_judge(root, suites, h['file'], plan, args, log)
             built_any = built_any or built
+            # What the deadline cut off is not a verdict, whatever it returned.
+            if RUN_STATE.out_of_time:
+                break
             if verdict and verdict != 'uncompilable':
                 h['inside'].append((line_no, op, verdict, note_))
                 note(f'[inside :{line_no} {op}: {verdict}] ')
@@ -3060,6 +3116,23 @@ def build_and_judge(root, suites, rel, plan, args, log):
     return verdict, note_, built_any
 
 
+def clean_binary_for(root, guard, suites, plan, args, log):
+    """Why this tree's binary cannot judge a hunk that does not build, or ''.
+
+    A hunk with no build of its own runs on whatever binary the last mutant left,
+    whose failure would read as this hunk's kill. Every source is restored by now,
+    so a build gives back the baseline.
+    """
+    if plan['build'] or 'catch2' not in plan['suites'] or not guard.binary_holds_mutant:
+        return ''
+    was = binary_fingerprint(suites.catch2_bin)
+    built, _ = build(root, args.jobs, log, mutant=True)
+    if not built or binary_fingerprint(suites.catch2_bin) == was:
+        return 'the previous mutant is still in the test binary: rebuilding it failed'
+    guard.binary_holds_mutant = False
+    return ''
+
+
 def mutate_hunk(root, guard, suites, h, plan, args, log):
     """(verdict, note, built) for one hunk reverted in `root`, then restored.
 
@@ -3071,8 +3144,11 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         # A pristine entry of None means the change deletes the file: reverting
         # recreates it, and restoring means removing it again (TreeGuard).
         guard.mark(h['file'])
-        applied, why = apply_reverse(root, h['patch'])
-        if not applied:
+        not_clean = clean_binary_for(root, guard, suites, plan, args, log)
+        applied, why = (False, '') if not_clean else apply_reverse(root, h['patch'])
+        if not_clean:
+            verdict, note_ = 'inconclusive', not_clean
+        elif not applied:
             verdict, note_ = 'unreversible', why.strip().splitlines()[:1]
         elif (plan['build'] and not (root / h['file']).exists()
               and not h['file'].endswith(HEADER_SUFFIXES)):
@@ -3088,6 +3164,8 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
     if (args.inside and revert_judged_nothing and plan['build']
             and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
         built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
+    if built_any:
+        guard.binary_holds_mutant = True
     return verdict, note_, built_any
 
 
@@ -3449,6 +3527,9 @@ def main():
         print(f'FAIL: {e}', file=sys.stderr)
         return 2
 
+    if args.group_child:
+        RUN_STATE.flaky_file = f'{args.log}.flaky'
+        Path(RUN_STATE.flaky_file).unlink(missing_ok=True)
     root = repo_root()
     if args.probe_workers:
         args.workers = 'auto'
@@ -3593,18 +3674,25 @@ def main():
                 args.shell_tests, args.python_tests)
             key_of[path] = (args.tests, shell, python)
 
-    # Hunks that need only their own tests go before those that need a whole
-    # suite, and the one script nothing names, which pays all of bats, goes last.
+    # Compiled code and the data it reads before scripts, whose suites have no
+    # fail-fast and judge tooling, not the product. Within those, hunks that need
+    # only their own tests go before those that need a whole suite, and the script
+    # nothing names, which pays all of bats, goes last of all.
     default_key = (args.tests, args.shell_tests, args.python_tests)
 
     def scope_of(path):
         return filter_scope(key_of[path], default_key,
                             'catch2' in STRATEGIES[verdict_of[path][1]]['suites'])
     fanout = header_fanout(root) if args.pool else {}
+    if args.pool and not fanout:
+        print('no dependency files under build/ yet, so widest headers are not known to go last')
+    if args.confirm_survivors and not args.pool:
+        print('--confirm-survivors needs --pool: a green mutant reads SURVIVED under its own filter')
 
     def includers(path):
         return fanout.get(path, 0) if path.endswith(HEADER_SUFFIXES) else 0
-    mutable.sort(key=lambda h: (includers(h['file']) > HEADER_COSTLY_INCLUDERS,
+    mutable.sort(key=lambda h: ('catch2' not in STRATEGIES[verdict_of[h['file']][1]]['suites'],
+                                includers(h['file']) > HEADER_COSTLY_INCLUDERS,
                                 first_rank(h['file'], first),
                                 includers(h['file']) if includers(h['file']) > HEADER_COSTLY_INCLUDERS else 0,
                                 scope_of(h['file']) == SCOPE_WHOLE_SCRIPTS,
@@ -3906,6 +3994,8 @@ def main():
     if skipped_decl:
         print(f'{len(skipped_decl)} hunk(s) skipped (declaration-only): every changed '
               f'line is a declaration whose revert can only fail to compile')
+    if RUN_STATE.flaky_sites:
+        print('\n'.join(flaky_lines()))
     inside_lines, inside_survived = inside_report(mutable)
     if inside_lines:
         print('\ninside mutants, beside the verdicts above:')
@@ -3952,11 +4042,11 @@ def main():
                     if n_by_timeout else '')
     if skipped_decl:
         print(f'\nVERDICT: CLEAN ({len(skipped_decl)} hunk(s) not built: declaration-only, '
-              f'unexamined){timeout_note} - every other hunk was mutated and every '
-              f'mutant was killed.')
-    else:
-        print(f'\nVERDICT: CLEAN{timeout_note} - every changed hunk was mutated and '
+              f'unexamined){timeout_note}{flaky_clause()} - every other hunk was mutated and '
               f'every mutant was killed.')
+    else:
+        print(f'\nVERDICT: CLEAN{timeout_note}{flaky_clause()} - every changed hunk was '
+              f'mutated and every mutant was killed.')
     return 0
 
 
@@ -4013,7 +4103,13 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                 print(f'  RESTORED      {path}: the group left it changed', flush=True)
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
+        child_flaky = Path(f'{args.log}.g{i}.flaky')
+        if child_flaky.is_file():
+            RUN_STATE.flaky_sites |= set(child_flaky.read_text().split('\n')) - {''}
+            child_flaky.unlink()
     print('\n' + '=' * 68)
+    if RUN_STATE.flaky_sites:
+        print('\n'.join(flaky_lines()))
     for (key, paths), code in zip(groups, codes):
         print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
     if incomplete:
@@ -4022,8 +4118,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     if worst == 3 and args.allow_incomplete:
         return 0
     if worst == 0:
-        print('\nVERDICT: CLEAN - every group mutated every hunk and killed every mutant '
-              '(not recorded as proven: each group saw only its own files)')
+        print(f'\nVERDICT: CLEAN{flaky_clause()} - every group mutated every hunk and killed '
+              'every mutant (not recorded as proven: each group saw only its own files)')
     return worst
 
 
