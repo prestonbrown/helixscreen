@@ -45,13 +45,40 @@ struct RefreshTiming {
  * timer that is already due cannot spin the loop. A refresh period longer than the awake
  * cap raises the cap to match, so the loop does not wake between refreshes for nothing.
  */
+/// The slowest the main loop and the timers that only feed the screen run while the display
+/// sleeps. Only wake events matter then, and those arrive through the input read timer.
+inline constexpr uint32_t kSleepingPeriodMs = 200;
+
 constexpr uint32_t main_loop_sleep_ms(uint32_t time_till_next, bool display_sleeping,
                                       const RefreshTiming& timing) {
     constexpr uint32_t kAwakeCapMs = 33;
-    constexpr uint32_t kSleepingCapMs = 200;
     const uint32_t cap =
-        display_sleeping ? kSleepingCapMs : std::max(kAwakeCapMs, timing.refr_period_ms);
+        display_sleeping ? kSleepingPeriodMs : std::max(kAwakeCapMs, timing.refr_period_ms);
     return std::max(std::min(time_till_next, cap), timing.loop_min_sleep_ms);
+}
+
+/**
+ * @brief The UI update queue's drain period
+ *
+ * Awake it drains once per refresh period: LVGL's default, or the global period when
+ * HELIX_REFR_PERIOD_SCOPE=all paces the queue too. While the display sleeps nothing draws
+ * what it delivers, so it drains at kSleepingPeriodMs. A drain timer out of phase with the
+ * input read timer otherwise wakes the main loop a second time every frame on a black
+ * screen.
+ */
+constexpr uint32_t update_queue_period_ms(bool display_sleeping, const RefreshTiming& timing,
+                                          uint32_t default_period_ms) {
+    const uint32_t awake = (timing.scope_all && timing.refr_period_ms != 0) ? timing.refr_period_ms
+                                                                            : default_period_ms;
+    return display_sleeping ? std::max(awake, kSleepingPeriodMs) : awake;
+}
+
+/// Period of the debug-touch ripple timer. With the setting off it only waits to notice the
+/// toggle, so it must not wake the main loop every frame.
+inline constexpr uint32_t kDebugTouchActivePeriodMs = 30;
+inline constexpr uint32_t kDebugTouchIdlePeriodMs = 500;
+constexpr uint32_t debug_touch_period_ms(bool enabled) {
+    return enabled ? kDebugTouchActivePeriodMs : kDebugTouchIdlePeriodMs;
 }
 
 } // namespace helix

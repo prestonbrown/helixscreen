@@ -55,6 +55,7 @@ All developer documentation lives here. When working on features, look up the re
 | `architecture/16-gcode-pipeline.md` | G-code from file to screen: parse/scan paths, footer fast path, tools-used cache, render modes, object picking. Start here for viewer work |
 | `GCODE_VIEWER_CONFIG.md` | GCode viewer configuration |
 | `BED_MESH_RENDERING_INTERNALS.md` | Bed mesh 3D rendering internals, the thread-free static mode with its sticky 2D fallback, and `BedMeshState` / `compute_mesh_stats` |
+| `PERFORMANCE.md` | What the UI costs each board, measured: CPU idle, printing and asleep, memory from telemetry, how each number is taken (perf-farm-check, asleep runs, wake counts, the timer census), what wakes the main loop, and the open costs. Read before claiming a CPU or RAM figure or touching timer periods |
 | `GPU_ACCELERATION.md` | What the GPU is worth on real boards: measured EGL vs software CPU/throughput/RSS per board, the four draw-unit rungs, why nanovg is unusable upstream, and the `LV_DRAW_BUF_STRIDE_ALIGN` invariant. Read before proposing rendering-path work |
 | `FILAMENT_PATH_CANVAS.md` | Filament-path canvas: 3-layer model, pathgeo arc-fillet routing, shared tube stroker, RenderCtx phases, topology renderers (linear/hub/parallel/mixed) |
 | `PRE_RENDERED_IMAGES.md` | Pre-rendered image pipeline |
@@ -118,7 +119,7 @@ All developer documentation lives here. When working on features, look up the re
 | `printers/SNAPMAKER_U1_SUPPORT.md` | Snapmaker U1 toolchanger platform |
 | `printers/CREALITY_K2_SUPPORT.md` | Creality K2 series platform |
 | `printers/FLASHFORGE_AD5X_SUPPORT.md` | FlashForge Adventurer 5X (MIPS, ZMOD) |
-| `printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md` | FlashForge Creator 5 line, Pro and heater-free (Ingenic X2000 MIPS, unified `mips` target): both firmwares, the model split on the chamber heater, the Z-Mod tool changer support and its `creator5_zmod` mock persona |
+| `printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md` | FlashForge Creator 5 line, Pro and heater-free (Ingenic X2600 MIPS, unified `mips` target): both firmwares, the model split on the chamber heater, the Z-Mod tool changer support and its `creator5_zmod` mock persona |
 | `printers/ELEGOO_CENTAURI_CARBON_YOCTO.md` | Elegoo Centauri Carbon: the `cc1` and `yocto` targets, and the local Yocto (OpenCentauri COSMOS) dev loop |
 | `REMOTE_SCREEN.md` | The built-in screen server (#1825): frame capture, the HTTP routes and stream, remote touch through the synthetic pointer, pairing and the nginx security model, the Moonraker webcam entry |
 | `LAN_CLIENT_AUTHORIZATION.md` | Firmware-brokered LAN pairing: firmwares that ask the printer's own screen to approve a slicer or phone app (Snapmaker Orca / Snapmaker App on a U1). Protocol, the no-capability-gate design, and the traps |

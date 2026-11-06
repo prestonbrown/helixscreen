@@ -34,6 +34,7 @@
 #include "platform_table.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 #include "screensaver_registry.h"
 #include "screensaver_usage.h"
 #include "system/sha256_util.h"
@@ -134,6 +135,37 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: enqueue, snapshot and clear", "[t
     tm.clear_queue();
     CHECK(tm.queue_size() == 0);
     CHECK(tm.get_queue_snapshot().empty());
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "A mock printer records nothing, and the user's choice is still saved",
+                 "[telemetry][queue]") {
+    auto& tm = TelemetryManager::instance();
+    RuntimeConfig* rc = get_runtime_config();
+    struct TestModeGuard {
+        RuntimeConfig* rc;
+        bool prev_test = rc->test_mode;
+        bool prev_real = rc->use_real_moonraker;
+        ~TestModeGuard() {
+            rc->test_mode = prev_test;
+            rc->use_real_moonraker = prev_real;
+        }
+    } guard{rc};
+
+    rc->test_mode = true;
+    rc->use_real_moonraker = false;
+    tm.set_enabled(true);
+    tm.record_session();
+    CHECK_FALSE(tm.is_enabled());
+    CHECK(tm.queue_size() == 0);
+    CHECK(Config::get_instance()->get<bool>("/telemetry_enabled", false));
+
+    // --test against a real Moonraker reports that real printer.
+    rc->use_real_moonraker = true;
+    tm.set_enabled(true);
+    tm.record_session();
+    CHECK(tm.is_enabled());
+    CHECK(tm.queue_size() == 1);
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Queue: respects max capacity and drops oldest",

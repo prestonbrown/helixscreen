@@ -88,6 +88,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Update System**](devel/UPDATE_SYSTEM.md) | Channels, R2 CDN, downloads, Moonraker updater |
 | [**Sound System**](devel/SOUND_SYSTEM.md) | Audio architecture, JSON themes, backends |
 | [**Built-in Screen Server**](devel/REMOTE_SCREEN.md) | The screen as a Mainsail/Fluidd webcam, remote touch, pairing and the nginx route |
+| [**UI cost on real boards**](devel/PERFORMANCE.md) | Measured CPU and memory per board, how to measure, open costs |
 | [**Screensavers**](devel/SCREENSAVERS.md) | Registry, shared parts, CPU gate and stored levels, adding a saver |
 | [**LED Control**](devel/LED_CONTROL.md) | LED system: 5 backends, auto-state lighting, overlays |
 | [**Sensor Management**](devel/SENSOR_MANAGEMENT.md) | The hardware object table and the `SensorManager` base (filament, temperature, humidity, probe, accel, width, load cell, input): discovery, subjects, Settings rows, runout handling |
@@ -115,7 +116,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Snapmaker U1 Support**](devel/printers/SNAPMAKER_U1_SUPPORT.md) | Snapmaker U1 toolchanger platform guide |
 | [**Creality K2 Support**](devel/printers/CREALITY_K2_SUPPORT.md) | Creality K2 series platform guide |
 | [**FlashForge AD5X Support**](devel/printers/FLASHFORGE_AD5X_SUPPORT.md) | FlashForge Adventurer 5X (MIPS, ZMOD) |
-| [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2000 MIPS, unified `mips` target) |
+| [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2600 MIPS, unified `mips` target) |
 | [**Elegoo Centauri Carbon (Yocto)**](devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md) | Centauri Carbon `cc1` / `yocto` targets and the OpenCentauri COSMOS Yocto dev loop |
 | [**ESP32 Firmware Architecture**](devel/architecture/17-esp32-firmware.md) | The BTT K-Touch (ESP32-S3) firmware: source subset, memory model, tasks, boot order, rendering, networking, storage, OTA |
 | [**ESP32 Port**](devel/ESP32_PORT.md) | Building, flashing and debugging the K-Touch firmware, and the rules a shared change must follow |

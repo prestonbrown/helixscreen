@@ -17,7 +17,7 @@ config, not hardware-verified. Build targets are `PLATFORM_TARGET` values in `mk
 |---------|-----------|-------|-----------------|----------------|--------|--------|
 | FlashForge Adventurer 5M / Pro | Allwinner, Cortex-A7 armv7 | 800x480 fbdev | Forge-X, Klipper Mod or ZMOD | none | `ad5m`, `ad5m-br` | Tested |
 | FlashForge Adventurer 5X | Ingenic X2600, MIPS32 (nan2008) | 800x480 fbdev | ZMOD 1.7.0+ | IFS (4) | `mips` (alias `ad5x`) | Tested |
-| FlashForge Creator 5 / 5 Pro | Ingenic X2000, MIPS32 | 800x480 (portrait fb, rotated) | Z-Mod or Reforge | 4-head toolchanger | `mips` (`make creator5`) | UI runs on device; Load/Unload tested on a Creator 5 Pro (Z-Mod 1.7.4 + afclite, #1779); live-swap step bar open (#1714) |
+| FlashForge Creator 5 / 5 Pro | Ingenic X2600, MIPS32 | 800x480 (portrait fb, rotated) | Z-Mod or Reforge | 4-head toolchanger | `mips` (`make creator5`) | UI runs on device; Load/Unload tested on a Creator 5 Pro (Z-Mod 1.7.4 + afclite, #1779); live-swap step bar open (#1714) |
 | Creality K1 / K1C / K1 Max / K1 SE | Ingenic X2000E, MIPS32r2 | 480x800 portrait fbdev | Guilouz, Simple AF or Guppy Mod (Moonraker) | optional CFS upgrade | `mips` (alias `k1`), `k1-dynamic` | Supported (K1C, K1 Max tested; K1 community) |
 | Creality K2 / K2 Plus / K2 Pro | Allwinner T113, Cortex-A7 armv7 | 480x800 portrait, rotated | stock | CFS (up to 16) | `k2` | Tested (K2 Plus); Community (K2 Pro); base K2 not captured |
 | Snapmaker U1 | Rockchip RK3562, aarch64 | 480x320 DRM | stock 1.2+ with Root access, or PAXX | SnapSwap 4-head | `snapmaker-u1` | Tested on PAXX; stock unverified |

@@ -35,6 +35,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "random_bytes.h"
+#include "runtime_config.h"
 #include "screen_locality.h"
 #include "screensaver_registry.h"
 #include "sensor_manager.h"
@@ -85,6 +86,13 @@ namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
+/// A mock printer's sessions describe a printer that does not exist, so counting them would
+/// invent devices in the fleet statistics. The user's choice is still saved as made.
+bool mock_printer_in_use() {
+    const RuntimeConfig* rc = get_runtime_config();
+    return rc != nullptr && rc->should_mock_moonraker();
+}
+
 /// Strip instance suffix for aggregation (e.g., "favorite_macro:2" -> "favorite_macro")
 std::string strip_instance_suffix(const std::string& id) {
     auto colon = id.find(':');
@@ -295,9 +303,11 @@ void TelemetryManager::init(const std::string& config_dir) {
     // loading, so by now /telemetry_enabled is already authoritative.
     {
         Config* cfg = Config::get_instance();
-        enabled_.store(cfg->get<bool>("/telemetry_enabled", false));
-        spdlog::info("[TelemetryManager] Loaded enabled state: {}",
-                     enabled_.load() ? "true" : "false");
+        const bool user_enabled = cfg->get<bool>("/telemetry_enabled", false);
+        enabled_.store(user_enabled && !mock_printer_in_use());
+        spdlog::info("[TelemetryManager] Loaded enabled state: {}{}",
+                     user_enabled ? "true" : "false",
+                     user_enabled && !enabled_.load() ? " (inactive: mock printer)" : "");
     }
 
     // Send what an unclean exit left unsent (respects opt-in)
@@ -372,16 +382,18 @@ void TelemetryManager::shutdown() {
 // =============================================================================
 
 void TelemetryManager::set_enabled(bool enabled) {
-    enabled_.store(enabled);
-    spdlog::info("[TelemetryManager] Telemetry {}", enabled ? "enabled" : "disabled");
+    const bool active = enabled && !mock_printer_in_use();
+    enabled_.store(active);
+    spdlog::info("[TelemetryManager] Telemetry {}{}", enabled ? "enabled" : "disabled",
+                 enabled && !active ? " (inactive: mock printer)" : "");
 
     // Start/stop auto-send timer based on enabled state.
     // The timer triggers DNS resolution (HTTP request to telemetry.helixscreen.org)
     // which crashes on statically-linked platforms (AD5M/CC1) where glibc NSS
     // modules are dynamically loaded with ABI mismatches. Only run when enabled.
-    if (enabled && discovery_complete_) {
+    if (active && discovery_complete_) {
         start_auto_send();
-    } else if (!enabled) {
+    } else if (!active) {
         stop_auto_send();
     }
 
