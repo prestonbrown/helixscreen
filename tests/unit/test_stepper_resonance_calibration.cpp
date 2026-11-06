@@ -33,6 +33,7 @@ PrinterDiscovery printer_with(std::initializer_list<const char*> extra) {
 constexpr const char* kTester = "stepper_resonance_tester";
 constexpr const char* kFactoryMacro = "gcode_macro STEPPER_RESONANCE_FACTORY_CALIBRATE";
 constexpr const char* kWrapperMacro = "gcode_macro CALIBRATE_VFA";
+constexpr const char* kCompensationMacro = "gcode_macro VFA_COMPENSATION";
 
 } // namespace
 
@@ -77,6 +78,22 @@ TEST_CASE("stepper resonance cal: the wrapper outranks the extra it drives",
     const PrinterDiscovery hw = printer_with({kTester, kFactoryMacro, kWrapperMacro});
     CHECK(cal::resolve(hw).per_tool);
     CHECK(cal::calibrate_gcode(hw, 1) == "CALIBRATE_VFA T=1");
+}
+
+TEST_CASE("stepper resonance cal: OpenCreator's VFA_COMPENSATION outranks the extra it wraps",
+          "[stepper_resonance_cal]") {
+    // OpenCreator's printer.vibration.cfg declares [stepper_resonance_tester],
+    // STEPPER_RESONANCE_FACTORY_CALIBRATE and the VFA_COMPENSATION wrapper,
+    // which refuses unless every head is docked, homes, parks at
+    // Z100/X130/Y130 and saves.
+    const PrinterDiscovery hw = printer_with({kTester, kFactoryMacro, kCompensationMacro});
+    const cal::Procedure p = cal::resolve(hw);
+    REQUIRE(p.present());
+    CHECK_FALSE(p.per_tool);
+    CHECK_FALSE(p.needs_home);
+    CHECK(p.restarts_klipper);
+    CHECK(cal::calibrate_gcode(hw, 0) == "VFA_COMPENSATION");
+    CHECK(cal::calibrate_gcode(hw, -1) == "VFA_COMPENSATION");
 }
 
 TEST_CASE("stepper resonance cal: the stock macro alone is not the routine",
