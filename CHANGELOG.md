@@ -5,6 +5,57 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.17] - 2026-11-06
+
+### Added
+
+- **Snapmaker U1 Top Cover** (#2015) - the Fans screen now has the cover's purifier modes and fans, and Fan settings has its mode targets. The first time the cover is fitted, a notice opens the Fans screen and offers to recalibrate input shaping, and you get a warning if it is removed. The Filter meter follows the filter fan's own run hours, and Reset clears the printer's counter.
+- **Resume asks first in a hot chamber** (#2015) - while a chamber air mode holds the chamber under a ceiling and the sensor reads above the firmware's alarm temperature, Resume warns you before continuing.
+- **Anycubic Kobra X detection** - this printer was detected as a Neptune 4 Pro and is now recognized correctly.
+- **Undo for a removed home widget** - removing a widget in edit mode shows "Widget removed · Undo" for a few seconds, and Undo puts it back where it was.
+- **OpenCreator on the Creator 5** - HelixScreen recognizes OpenCreator firmware and uses its own settings: Vertical Artifact Compensation and the tool offset wizard run through OpenCreator's macros, Park Tool docks the mounted head, and the chamber heat fan shows as a heater fan.
+
+### Fixed
+
+**Printing**
+
+- **Leaving the heater calibration screen no longer stops a print** - if that screen was stuck on a running calibration, leaving it during a print turned the heaters off and could end the print. It now leaves the heaters and part fan alone while a print is running.
+- **Calibration during a pause turns its fan off** - a calibration started while a print was paused left its fan running afterward.
+- **MPC calibration finishes on Kalico** - Kalico sends its whole MPC result as one message, so the calibration screen never saw it finish.
+- **Print Status heater colors** - heater chips now use the same state colors as the rest of the app: red while heating, green at temperature and blue while cooling. Amber is kept for a heater off target during a print, and the printer picture only glows while a heater is climbing.
+
+**Filament**
+
+- **Spoolman gets the slicer's material** - saving a lane filed a precise type such as ABS+ as Spoolman's material with no temperatures, so OrcaSlicer fell back to Generic PLA. Spoolman now gets the base material (ABS) with nozzle and bed temperatures, and a linked AFC lane sends the same base.
+- **No more silent reuse of the wrong filament** - an existing Spoolman filament is reused only when its material, color and name match exactly. A close match asks "Use existing filament?", and the editor no longer shows the type twice.
+- **The spool picker marks only the linked spool** - an unlinked slot showed the most recent spool as its current one.
+- **No false runout after a print on a K2 with a CFS** - the CFS pulls filament back after every print, which raised "Filament removed". A runout during a print still alerts.
+
+**Home screen**
+
+- **Half-size widgets drag properly** - a 0.5x0.5 widget started a resize on almost any press. It now drags from anywhere inside it.
+- **The trash button no longer deletes by accident** - a drag that started on it, a long press, or the second tap of a double tap deleted the widget. The trash, configure and delete-page buttons now act only on a plain tap that ends on them, and the trash and configure buttons ignore taps for a moment after they appear.
+- **Small widgets keep their buttons outside the tile** - on small tiles, the trash and configure buttons sit just outside, so they no longer cover the widget you are trying to drag. They stay clear of neighbouring widgets' centers and the delete-page button.
+- **The printer image holds still** - moving a home widget could make the printer image visibly redraw itself, with its chips disappearing for a moment.
+
+**Timelapse**
+
+- **Snapmaker U1 timelapse controls** - on the U1, the Timelapse Settings screen talks to an interface the firmware ignores, so its settings came back as off. That screen and the Print Status timelapse button no longer appear there. Use Record Timelapse when you start a print.
+- **The timelapse button shows the real setting** - on printers with the timelapse plugin, the Print Status button read as off until you tapped it, and enabling timelapse in Settings could be turned back off at the next print start.
+
+**Stability**
+
+- **3D G-code preview falls back to 2D when graphics memory runs out** - a Pi 4 with 1 GB could crash during the 3D upload.
+- **Motion panel crash after a rotation** - resizing or rotating the window on Android could leave the jog pad pointing at freed memory.
+
+**Printers**
+
+- **No false "newly discovered" fan on a stock Creator 5 Pro** - the preset listed the chamber heat fan as a heater fan, but stock firmware declares it as a generic fan, so Hardware Health flagged it on first boot.
+- **Creator 5 comes up the right way round** - a fresh install through Z-Mod's own installer started sideways. It now starts in landscape with no probe.
+- **The rotation probe asks again if nobody answers** - with no tap during the first-boot probe, the screen was saved as unrotated and never asked again. It now asks again at the next boot, keeps the backlight on while it asks, and picking a rotation in Settings ends it.
+- **Forge-X AD5X macros are found** - includes written with `./` or `../` were dropped, so PRINT_START analysis reported no macro.
+- **Time zones on printers with no zone files** (#2003) - on images such as a Creator 5 Pro on Reforge, every clock, ETA and log line read as UTC even with a zone set.
+
 ## [1.1.0-beta.16] - 2026-11-04
 
 The sixteenth beta of 1.1 is mostly fixes as we near 1.1.0. Filament slots keep their details when Moonraker is slow, slow print starts no longer end as failures, the AD5X starts without pegging Moonraker, and new installs of the helper macros stay out of your Fluidd and Mainsail macro list.
@@ -10160,6 +10211,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-beta.17]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.16...v1.1.0-beta.17
 [1.1.0-beta.16]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.15...v1.1.0-beta.16
 [1.1.0-beta.15]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.14...v1.1.0-beta.15
 [1.1.0-beta.14]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.13...v1.1.0-beta.14
