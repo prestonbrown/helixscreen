@@ -125,12 +125,6 @@ class PrintStartControllerTestAccess {
         return c.print_start_params();
     }
 
-    static helix::PrintStartParams
-    reprint_start_params(const std::set<int>& tools_used,
-                         const std::optional<std::map<int, int>>& routing) {
-        return helix::ui::PrintStartController::reprint_start_params(tools_used, routing);
-    }
-
     /// The pre-print send execute_print_start() makes for a backend that
     /// requires one.
     static void send_preprint(helix::ui::PrintStartController& c, const std::set<int>& tools_used,

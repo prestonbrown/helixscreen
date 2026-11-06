@@ -566,12 +566,6 @@ class AmsBackend {
         return {};
     }
 
-    /// Whether print_start_params() answers anything on this printer, so a
-    /// start that has no tool map in hand knows to read the file's tools first.
-    [[nodiscard]] virtual bool print_start_takes_tool_map() const {
-        return false;
-    }
-
     /**
      * @brief Channel A: backend-specific classification of one gcode-response
      *        line.

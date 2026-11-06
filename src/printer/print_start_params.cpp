@@ -2,7 +2,6 @@
 #include "print_start_params.h"
 
 #include "filament_mapper.h"
-#include "firmware_routing.h"
 #include "printer_discovery.h"
 
 #include <cctype>
@@ -63,9 +62,7 @@ int mapped_backend(const std::vector<ToolMapping>& mappings) {
     return 0;
 }
 
-std::map<int, int> full_tool_slots(const std::vector<ToolMapping>& mappings, int backend_idx,
-                                   const std::set<int>& tools_used,
-                                   const FirmwareRouting& routing) {
+std::map<int, int> full_tool_slots(const std::vector<ToolMapping>& mappings, int backend_idx) {
     std::map<int, int> slots;
     for (const auto& m : mappings) {
         // A slot number names a lane only within its own backend.
@@ -74,11 +71,6 @@ std::map<int, int> full_tool_slots(const std::vector<ToolMapping>& mappings, int
             continue;
         }
         slots[m.tool_index] = m.mapped_slot;
-    }
-    for (const int tool : tools_used) {
-        if (tool >= 0 && slots.count(tool) == 0 && routing.head(tool) >= 0) {
-            slots[tool] = routing.head(tool);
-        }
     }
     return slots;
 }

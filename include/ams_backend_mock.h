@@ -309,7 +309,6 @@ class AmsBackendMock : public AmsBackend {
     void set_print_start_takes_tool_slots(bool takes);
     [[nodiscard]] helix::PrintStartParams
     print_start_params(const std::map<int, int>& tool_slots) const override;
-    [[nodiscard]] bool print_start_takes_tool_map() const override;
 
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.

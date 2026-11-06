@@ -392,13 +392,6 @@ class PrintStartController {
     /// Empty where that backend's printer takes no map at the start.
     [[nodiscard]] helix::PrintStartParams print_start_params() const;
 
-    /// print_start_params() for a reprint, which has no card: @p routing when the
-    /// caller knows how the job was routed, and each of @p tools_used it leaves
-    /// on the active backend's default lane.
-    [[nodiscard]] static helix::PrintStartParams
-    reprint_start_params(const std::set<int>& tools_used,
-                         const std::optional<std::map<int, int>>& routing);
-
     /**
      * @brief Whether to warn the user that their explicit remap can't be honored.
      *

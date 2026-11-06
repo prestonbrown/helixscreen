@@ -9,7 +9,6 @@
 
 #include "../fake_moonraker_client.h"
 #include "filament_mapper.h"
-#include "firmware_routing.h"
 #include "moonraker_job_api.h"
 #include "print_start_params.h"
 #include "printer_discovery.h"
@@ -109,29 +108,15 @@ helix::ToolMapping mapping(int tool, int slot, int backend = 0, bool is_auto = f
 }
 } // namespace
 
-TEST_CASE("the full map carries every row and fills each used tool the card leaves",
+TEST_CASE("the full map carries every row and leaves Auto to the firmware",
           "[print_start_params][2033]") {
-    // T0 picked onto slot 1, T1 Auto, T2 with no row, T3 not used by the file.
-    const std::vector<helix::ToolMapping> rows{mapping(0, 1), mapping(1, -1, 0, true)};
-    const std::set<int> used{0, 1, 2};
-
-    SECTION("an untouched tool takes the backend's own default lane") {
-        CHECK(full_tool_slots(rows, 0, used, helix::FirmwareRouting::identity()) ==
-              std::map<int, int>{{0, 1}, {1, 1}, {2, 2}});
-        CHECK(full_tool_slots(rows, 0, used, helix::FirmwareRouting::from_table({3, 0, 2})) ==
-              std::map<int, int>{{0, 1}, {1, 0}, {2, 2}});
-    }
-
-    SECTION("a firmware that picks at print fills nothing") {
-        CHECK(full_tool_slots(rows, 0, used, helix::FirmwareRouting::picked_at_print()) ==
-              std::map<int, int>{{0, 1}});
-    }
-
-    SECTION("a row on another backend is not this backend's slot") {
-        const std::vector<helix::ToolMapping> mixed{mapping(0, 1), mapping(1, 3, 1)};
-        CHECK(full_tool_slots(mixed, 0, {}, helix::FirmwareRouting::identity()) ==
-              std::map<int, int>{{0, 1}});
-    }
+    // T0 picked onto slot 1, T1 a seed on slot 0, T2 Auto, T3 with no row.
+    CHECK(full_tool_slots({mapping(0, 1), mapping(1, 0), mapping(2, -1, 0, true)}, 0) ==
+          std::map<int, int>{{0, 1}, {1, 0}});
+    // An Auto row still naming a slot is Auto all the same.
+    CHECK(full_tool_slots({mapping(0, 2, 0, true)}, 0).empty());
+    // A row on another backend is not this backend's slot.
+    CHECK(full_tool_slots({mapping(0, 1), mapping(1, 3, 1)}, 0) == std::map<int, int>{{0, 1}});
 }
 
 TEST_CASE("the map belongs to the backend of its first mapped row", "[print_start_params][2033]") {
