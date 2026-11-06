@@ -2338,6 +2338,20 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
     auto token = object_lifetime_.token();
     auto saver = std::make_shared<helix::SpoolmanSlotSaver>(
         api_, get_printer_state().get_discovery().filament_diameter_mm());
+    // The offer arrives on the Spoolman reply's thread; the dialog is LVGL.
+    saver->set_similar_filament_chooser(
+        [token, slot_index = cap.slot_index](
+            const FilamentInfo& similar,
+            std::function<void(helix::SpoolmanSlotSaver::SimilarChoice)> answer) {
+            token.defer("AmsEditOverlay::offer_similar_filament", [similar, slot_index,
+                                                                   answer = std::move(answer)]() {
+                const auto rgb = helix::parse_hex_color(
+                    helix::spoolman::normalize_color_hex(similar.color_hex).substr(0, 6));
+                const std::string name = helix::spoolman::filament_display_name(
+                    similar, rgb ? helix::get_color_name_from_hex(*rgb) : "");
+                get_ams_edit_overlay().offer_similar_filament(name, slot_index, answer);
+            });
+        });
     // One save at a time: the editor stays open while this runs.
     if (cap.session == session_) {
         save_in_flight_ = true;
@@ -2358,6 +2372,29 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "
                                  "missing a field it is identified by");
                     show_missing_filament_toast(result.missing);
+                    if (live) {
+                        stay_open_after_failed_save();
+                    }
+                    end_slot_save(cap.slot_index);
+                    return;
+                }
+                if (result.cancelled) {
+                    // The user declined at the similar-filament offer: the
+                    // identity save wrote nothing. A More PATCH that ran ahead
+                    // of it did land, and an editor that has closed keeps no
+                    // edits, so both say so.
+                    if (cap.more_saved) {
+                        ToastManager::instance().show(
+                            ToastSeverity::WARNING,
+                            lv_tr("Spoolman saved the price, location, lot and notes, but not the "
+                                  "rest. Nothing else changed on this printer."),
+                            4000);
+                    } else if (!live) {
+                        ToastManager::instance().show(
+                            ToastSeverity::INFO,
+                            lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."),
+                            4000);
+                    }
                     if (live) {
                         stay_open_after_failed_save();
                     }
@@ -2513,6 +2550,42 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
     if (!dlg) {
         spdlog::warn("[AmsEditOverlay] identity confirmation failed to show; aborting save");
         close_editor(false);
+    }
+}
+
+void AmsEditOverlay::offer_similar_filament(
+    const std::string& filament_name, int slot_index,
+    std::function<void(helix::SpoolmanSlotSaver::SimilarChoice)> answer) {
+    using Choice = helix::SpoolmanSlotSaver::SimilarChoice;
+    // One reply per offer, whichever of the three paths reaches it.
+    auto reply = std::make_shared<std::function<void(Choice)>>(std::move(answer));
+    auto send = [reply](Choice choice) {
+        if (*reply) {
+            auto once = std::move(*reply);
+            *reply = nullptr;
+            once(choice);
+        }
+    };
+
+    ConfirmOptions opts;
+    opts.cancel_text = lv_tr("Add new");
+    opts.on_cancel = [send] { send(Choice::CreateNew); };
+    opts.on_dismiss = [send] { send(Choice::Cancel); };
+    // The save outlives the editor, so the answer must too: the editor closing
+    // under the dialog would otherwise strand the slot's save for good.
+    opts.owner_token = object_lifetime_.token();
+    // Named by lane: the editor may have closed, and the dialog then stands
+    // over whatever screen is up.
+    const std::string message = fmt::format(
+        fmt::runtime(lv_tr("Spoolman already has \"{}\" from this brand in a close color. Use "
+                           "it for lane {}, or add a new filament?")),
+        filament_name, helix::ui::lane_number(slot_index));
+    lv_obj_t* dlg = modal_confirm(
+        lv_tr("Use existing filament?"), message.c_str(), ModalSeverity::Info,
+        lv_tr("Use existing"), [send] { send(Choice::UseExisting); }, opts);
+    if (!dlg) {
+        spdlog::warn("[AmsEditOverlay] similar-filament offer failed to show; adding a new one");
+        send(Choice::CreateNew);
     }
 }
 

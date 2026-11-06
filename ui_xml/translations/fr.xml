@@ -243,6 +243,7 @@
   <translation tag="Add Widget" fr="Ajouter un widget"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" fr="Ajoute [include helix-plr/*.cfg] à printer.cfg pour qu&apos;une reprise recharge le maillage avec lequel l&apos;impression a commencé"/>
   <translation tag="Add custom filament" fr="Ajouter un filament personnalisé"/>
+  <translation tag="Add new" fr="Ajouter un nouveau"/>
   <translation tag="Add page" fr="Ajouter une page"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" fr="Ajouter aux webcams Mainsail/Fluidd"/>
   <translation tag="Add to Queue" fr="Ajouter à la file"/>
@@ -3481,6 +3482,7 @@
   <translation tag="Spoolman" fr="Spoolman"/>
   <translation tag="Spoolman Not Available" fr="Spoolman indisponible"/>
   <translation tag="Spoolman Server" fr="Serveur Spoolman"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" fr="Spoolman a déjà « {} » de cette marque dans une couleur proche. L’utiliser pour la voie {}, ou ajouter un nouveau filament ?"/>
   <translation tag="Spoolman connected!" fr="Spoolman connecté !"/>
   <translation tag="Spoolman found! Configuring..." fr="Spoolman trouvé ! Configuration..."/>
   <translation tag="Spoolman has no spools configured" fr="Spoolman n&apos;a aucune bobine configurée"/>
@@ -4163,6 +4165,8 @@
   <translation tag="Use New Address" fr="Utiliser la nouvelle adresse"/>
   <translation tag="Use Scan" fr="Utiliser le scan"/>
   <translation tag="Use Unload before Eject" fr="Utilisez Décharger avant Éjecter"/>
+  <translation tag="Use existing" fr="Utiliser l’existant"/>
+  <translation tag="Use existing filament?" fr="Utiliser un filament existant ?"/>
   <translation tag="Use first HID scanner found" fr="Utiliser le premier scanner HID trouvé"/>
   <translation tag="Use printer type to select image" fr="Utiliser le type d&apos;imprimante pour sélectionner l&apos;image"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" fr="Utiliser la disposition d&apos;accueil définie sur l&apos;écran de l&apos;imprimante"/>

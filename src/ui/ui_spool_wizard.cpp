@@ -21,6 +21,7 @@
 #include "color_utils.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_variants.h"
 #include "i_moonraker_api.h"
 #include "static_panel_registry.h"
 #include "text_io.h"
@@ -44,13 +45,11 @@ namespace {
 constexpr size_t kMaxVendorNameLen = 256;
 constexpr size_t kMaxVendorUrlLen = 2048;
 
-/// Spoolman stores one integer temperature per filament. A catalog range
-/// becomes its midpoint; a range with one end set becomes that end.
+/// Spoolman stores one integer temperature per filament; an unknown one is
+/// left out.
 void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int max_val) {
-    if (min_val > 0 && max_val > 0) {
-        data[key] = (min_val + max_val) / 2;
-    } else if (min_val > 0 || max_val > 0) {
-        data[key] = std::max(min_val, max_val);
+    if (const int temp = helix::spoolman::temperature_for_range(min_val, max_val); temp > 0) {
+        data[key] = temp;
     }
 }
 
@@ -645,8 +644,17 @@ void SpoolWizardOverlay::create_vendor_then_filament_then_spool() {
 nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& f, int vendor_id) {
     nlohmann::json data;
     data["vendor_id"] = vendor_id;
-    data["name"] = f.name.empty() ? f.material + " " + f.color_name : f.name;
-    data["material"] = f.material;
+    // Spoolman's material is what AFC copies to lane_data and the slicer
+    // matches, so it records the slicer's type; the precise one ("ABS+") is
+    // kept in the name, prefixed when a name of its own never states it.
+    const std::string recorded = filament::slicer_material(f.material);
+    std::string name =
+        f.name.empty() ? helix::spoolman::new_filament_name(f.material, f.color_name) : f.name;
+    if (recorded != f.material && !helix::name_states_material(name, f.material)) {
+        name = helix::spoolman::new_filament_name(f.material, name);
+    }
+    data["name"] = name;
+    data["material"] = recorded.empty() ? f.material : recorded;
     if (!f.multi_color_hexes.empty()) {
         data["multi_color_hexes"] = f.multi_color_hexes;
         if (!f.multi_color_direction.empty()) {
@@ -667,6 +675,17 @@ nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& 
     set_spoolman_temp(data, "settings_extruder_temp", f.nozzle_temp_min, f.nozzle_temp_max);
     set_spoolman_temp(data, "settings_bed_temp", f.bed_temp_min, f.bed_temp_max);
     return data;
+}
+
+const FilamentInfo*
+SpoolWizardOverlay::existing_filament_for(const std::vector<FilamentInfo>& filaments,
+                                          const FilamentEntry& f, int vendor_id) {
+    // Looked up by the record a pick files, so the key is the one stored.
+    const nlohmann::json filed = filament_create_payload(f, vendor_id);
+    const std::string& colors = f.multi_color_hexes.empty() ? f.color_hex : f.multi_color_hexes;
+    return helix::spoolman::find_catalog_filament(filaments, vendor_id,
+                                                  filed["name"].get<std::string>(),
+                                                  filed["material"].get<std::string>(), colors);
 }
 
 void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
@@ -1974,12 +1993,8 @@ void SpoolWizardOverlay::select_catalog_result(int index) {
                 if (!catalog_.is_current(ticket)) {
                     return;
                 }
-                const std::string& colors = selected_filament_.multi_color_hexes.empty()
-                                                ? selected_filament_.color_hex
-                                                : selected_filament_.multi_color_hexes;
-                if (const FilamentInfo* f = helix::spoolman::find_catalog_filament(
-                        filaments, vendor_id, selected_filament_.name, selected_filament_.material,
-                        colors)) {
+                if (const FilamentInfo* f =
+                        existing_filament_for(filaments, selected_filament_, vendor_id)) {
                     selected_filament_.server_id = f->id;
                     selected_filament_.vendor_id = vendor_id;
                     selected_filament_.from_server = true;

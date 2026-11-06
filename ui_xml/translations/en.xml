@@ -243,6 +243,7 @@
   <translation tag="Add Widget" en="Add Widget"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" en="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with"/>
   <translation tag="Add custom filament" en="Add custom filament"/>
+  <translation tag="Add new" en="Add new"/>
   <translation tag="Add page" en="Add page"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" en="Add to Mainsail/Fluidd Webcams"/>
   <translation tag="Add to Queue" en="Add to Queue"/>
@@ -3481,6 +3482,7 @@
   <translation tag="Spoolman" en="Spoolman"/>
   <translation tag="Spoolman Not Available" en="Spoolman Not Available"/>
   <translation tag="Spoolman Server" en="Spoolman Server"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" en="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?"/>
   <translation tag="Spoolman connected!" en="Spoolman connected!"/>
   <translation tag="Spoolman found! Configuring..." en="Spoolman found! Configuring..."/>
   <translation tag="Spoolman has no spools configured" en="Spoolman has no spools configured"/>
@@ -4163,6 +4165,8 @@
   <translation tag="Use New Address" en="Use New Address"/>
   <translation tag="Use Scan" en="Use Scan"/>
   <translation tag="Use Unload before Eject" en="Use Unload before Eject"/>
+  <translation tag="Use existing" en="Use existing"/>
+  <translation tag="Use existing filament?" en="Use existing filament?"/>
   <translation tag="Use first HID scanner found" en="Use first HID scanner found"/>
   <translation tag="Use printer type to select image" en="Use printer type to select image"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" en="Use the home layout set on the printer&apos;s own screen"/>

@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "filament_variants.h"
 #include "moonraker_error.h"
 #include "spoolman_catalog_search.h"
 
@@ -91,44 +92,6 @@ TEST_CASE("SpoolmanCatalogSearch tickets go stale when a newer query starts", "[
     CHECK_FALSE(search.is_current(newer));
 }
 
-TEST_CASE("find_matching_filament is the one Spoolman filament match", "[spoolman_db]") {
-    using helix::spoolman::find_matching_filament;
-    using helix::spoolman::normalize_color_hex;
-
-    FilamentInfo red;
-    red.id = 4;
-    red.material = "PLA";
-    red.color_hex = "ff0000";
-    FilamentInfo clear;
-    clear.id = 9;
-    clear.material = "PETG";
-    clear.color_hex = "FFFFFF33";
-    const std::vector<FilamentInfo> filaments{red, clear};
-
-    SECTION("colour compares without case or '#'") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PLA", "#FF0000");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 4);
-    }
-
-    SECTION("an alpha channel is part of the colour") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PETG", "ffffff33");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 9);
-        CHECK(find_matching_filament(filaments, "PETG", "FFFFFF") == nullptr);
-    }
-
-    SECTION("material must match") {
-        CHECK(find_matching_filament(filaments, "PETG", "FF0000") == nullptr);
-    }
-
-    SECTION("no colour matches nothing") {
-        CHECK(find_matching_filament(filaments, "PLA", "") == nullptr);
-        CHECK(normalize_color_hex("red").empty());
-        CHECK(normalize_color_hex("12345").empty());
-    }
-}
-
 TEST_CASE("find_catalog_filament matches one catalog product exactly", "[spoolman_db]") {
     using helix::spoolman::find_catalog_filament;
 
@@ -175,4 +138,72 @@ TEST_CASE("find_catalog_filament matches one catalog product exactly", "[spoolma
               nullptr);
         CHECK(find_catalog_filament(filaments, 7, "Silk PLA Rainbow", "PLA", "E53935") == nullptr);
     }
+}
+
+TEST_CASE("slicer_material is the material the slicer and AFC understand",
+          "[spoolman_db][filament_naming]") {
+    CHECK(filament::slicer_material("ABS+") == "ABS");
+    CHECK(filament::slicer_material("PLA+") == "PLA");
+    CHECK(filament::slicer_material("Silk PLA") == "PLA");
+    CHECK(filament::slicer_material("PLA-CF") == "PLA-CF");
+    CHECK(filament::slicer_material(" PETG ") == "PETG");
+    CHECK(filament::slicer_material("").empty());
+    // A filled grade the library lacks keeps its filler on the base polymer.
+    CHECK(filament::slicer_material("PA12-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PA66-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PAHT-CF") == "PA-CF");
+    CHECK(filament::slicer_material("PA6-GF") == "PA-GF");
+    CHECK(filament::slicer_material("PA6-CF") == "PA6-CF");
+}
+
+TEST_CASE("find_similar_filament offers the nearest colour of the same material",
+          "[spoolman_db][filament_naming]") {
+    auto make = [](int id, const char* material, const char* hex) {
+        FilamentInfo f;
+        f.id = id;
+        f.material = material;
+        f.color_hex = hex;
+        return f;
+    };
+    // A vendor's records as one Spoolman holds them, plus a legacy record
+    // filed under its precise type.
+    const std::vector<FilamentInfo> filaments{
+        make(72, "ABS", "000000"),  make(73, "ABS", "636363"),   make(20, "ABS", "B6B6B6"),
+        make(30, "PETG", "4A4A4A"), make(117, "ABS+", "505050"),
+    };
+    struct Row {
+        const char* what;
+        const char* material;
+        const char* hex;
+        int exclude;
+        int offered; // 0 = nothing
+    };
+    const Row rows[] = {
+        {"the nearest grey of the same material", "ABS", "#4A4A4A", 0, 117},
+        {"a record filed under the precise type counts as its material", "ABS", "525252", 0, 117},
+        {"the spool's own record is skipped", "ABS", "525252", 117, 73},
+        {"another material, however close the colour", "PLA", "4A4A4A", 0, 0},
+        {"a colour past the tolerance", "ABS", "FF0000", 0, 0},
+        {"no colour", "ABS", "", 0, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            const FilamentInfo* f =
+                helix::spoolman::find_similar_filament(filaments, r.material, r.hex, r.exclude);
+            CHECK((f ? f->id : 0) == r.offered);
+        }
+    }
+    // A string that is not a colour normalizes to none, so it offers nothing.
+    CHECK(helix::spoolman::normalize_color_hex("red").empty());
+    CHECK(helix::spoolman::normalize_color_hex("12345").empty());
+}
+
+TEST_CASE("filament_display_name names a record with no name by its material and colour",
+          "[spoolman_db][similar_filament]") {
+    FilamentInfo f;
+    f.material = "ABS";
+    f.filament_name = " ";
+    CHECK(helix::spoolman::filament_display_name(f, "Gray") == "ABS Gray");
+    f.filament_name = "Grey ABS+HS";
+    CHECK(helix::spoolman::filament_display_name(f, "Gray") == "Grey ABS+HS");
 }

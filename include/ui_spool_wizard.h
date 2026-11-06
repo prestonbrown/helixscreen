@@ -171,6 +171,11 @@ class SpoolWizardOverlay : public OverlayBase {
     /// The POST /v1/filament body for @p f under @p vendor_id
     static nlohmann::json filament_create_payload(const FilamentEntry& f, int vendor_id);
 
+    /// The record in @p filaments a pick of @p f under @p vendor_id would
+    /// create, so a repeat pick reuses it; nullptr when there is none.
+    static const FilamentInfo* existing_filament_for(const std::vector<FilamentInfo>& filaments,
+                                                     const FilamentEntry& f, int vendor_id);
+
     /// Load filaments for the selected vendor from server + SpoolmanDB
     void load_filaments();
 

@@ -86,6 +86,23 @@ TEST_CASE_METHOD(HelixTestFixture, "SILK has a selectable Generic product (AD5X 
     }
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "eSUN ABS+ and its high-speed grade are selectable products",
+                 "[filament_catalog]") {
+    // Orca's library has no eSUN ABS profile, so both come from vendor-spec
+    // seed entries, filed under the ABS+ variant the editor offers.
+    auto cat = FilamentCatalog::load_full();
+    const auto prods = cat.products_for("eSUN", "ABS+");
+    std::vector<std::string> names;
+    for (const auto* p : prods) {
+        names.push_back(p->name);
+        CHECK(p->nozzle_min == 230);
+        CHECK(p->nozzle_max == 270);
+        CHECK(p->bed_temp == 100);
+    }
+    CHECK(contains(names, "ABS+"));
+    CHECK(contains(names, "ABS+HS"));
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "all_types spans every brand, deduped and sorted",
                  "[filament_catalog]") {
     // The fallback source for a vendor the catalog does not carry: a Spoolman

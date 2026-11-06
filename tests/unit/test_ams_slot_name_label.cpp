@@ -109,6 +109,33 @@ TEST_CASE("slot_card_name: spool name, then Spoolman name, then product name",
     CHECK(helix::slot_card_name(slot, nullptr) == "PLA+ 2.0");
 }
 
+TEST_CASE("slot_card_name: a name that only repeats the material gives way",
+          "[ams][slot_name][pure]") {
+    struct Row {
+        const char* spool_name;
+        const char* identity_name; // nullptr = no Spoolman identity
+        const char* product;
+        const char* brand;
+        const char* expected;
+    };
+    const Row rows[] = {
+        {"ABS+", nullptr, "", "eSUN", "eSUN"},                     // the brand stands in
+        {"ABS+", nullptr, "ABS+HS", "eSUN", "ABS+HS"},             // the next name first
+        {"", " abs+ ", "", "", ""},                                // case and spacing are no name
+        {"ABS+ Deep Gray", nullptr, "", "eSUN", "ABS+ Deep Gray"}, // containing it is a name
+        {"", nullptr, "", "eSUN", ""}, // no name at all keeps the one line
+    };
+    for (const Row& r : rows) {
+        SlotInfo slot = named_slot(r.spool_name, "", "ABS+");
+        slot.product_name = r.product;
+        slot.brand = r.brand;
+        SpoolIdentity identity;
+        identity.filament_name = r.identity_name ? r.identity_name : "";
+        CAPTURE(r.spool_name, r.product);
+        CHECK(helix::slot_card_name(slot, r.identity_name ? &identity : nullptr) == r.expected);
+    }
+}
+
 TEST_CASE("slot_card_name: a colour is never the card's name", "[ams][slot_name][pure]") {
     // The spool graphic under the label already shows the colour, so neither a
     // stored colour name nor one computed from the hex reaches the card.

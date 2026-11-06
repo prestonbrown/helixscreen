@@ -689,7 +689,9 @@ temperatures on a glass-filled ASA — while the color came through untouched.
 
 - **`material`** — the Orca wire string, derived by `filament::orca_match_type()`
   (`filament_variants.cpp`): explicit `orca_type_overrides` entry → the type itself
-  if Orca's library carries it → `extract_base_material()` base polymer if the
+  if Orca's library carries it → the base polymer with the type's one filler
+  (`PA12-CF` → `PA-CF`) if the library carries that → `extract_base_material()`
+  base polymer if the
   library carries *that* → otherwise **omitted entirely** (better an empty tray in
   Orca than a confident wrong match). The library-type set and the override table
   are generated into `assets/filaments.json` (`orca_library_types`,

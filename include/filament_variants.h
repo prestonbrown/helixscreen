@@ -155,8 +155,10 @@ std::string compose_family_type(const std::string& family, const std::string& va
  * unmatchable one. Resolution order:
  *   1. explicit override from orca_type_overrides
  *   2. the type itself, if present in orca_library_types
- *   3. extract_base_material(type), if that is in orca_library_types
- *   4. "" — caller must omit the field entirely
+ *   3. extract_base_material(type) plus the type's one filler ("PA12-CF" is
+ *      "PA-CF"), if that is in orca_library_types
+ *   4. extract_base_material(type), if that is in orca_library_types
+ *   5. "" — caller must omit the field entirely
  *
  * Both tables ship in assets/filaments.json, generated from OrcaSlicer's
  * filament library by scripts/import_orca_filaments.py. Only library presets
@@ -169,6 +171,18 @@ std::string compose_family_type(const std::string& family, const std::string& va
  * @return Orca-matchable type, or "" when nothing is safely matchable.
  */
 std::string orca_match_type(std::string_view display_type);
+
+/**
+ * @brief The material string a firmware or tracker field records for a type.
+ *
+ * For fields that must carry SOME material and that the slicer reads back
+ * verbatim: a Spoolman filament's `material`, AFC's `SET_MATERIAL`, which AFC
+ * copies into lane_data. orca_match_type(), else the base polymer, else the
+ * trimmed type itself, so "ABS+" records as "ABS" and "PLA-CF" stays
+ * "PLA-CF". Empty only for a blank type.
+ */
+// NAMESPACE_OK: namespace filament, beside orca_match_type
+std::string slicer_material(std::string_view display_type);
 
 /// True once the Orca tables have been loaded and are non-empty. A missing or
 /// pre-change assets/filaments.json yields empty tables, which makes

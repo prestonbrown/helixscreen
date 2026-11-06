@@ -19,6 +19,7 @@
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/log_capture.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_platform_tier.h"
 #include "../ui_test_utils.h"
@@ -45,6 +46,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -4301,4 +4303,106 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothin
     process_lvgl(10);
     CHECK(access.clear_visible() == 0);
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a new spool close to an existing Spoolman filament asks before filing another",
+                 "[ams_edit_overlay][spoolman][similar_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    auto& spools = client.spoolman_mock().get_mock_spools();
+    spools.clear();
+    client.spoolman_mock().add_vendor(2, "eSUN");
+    client.spoolman_mock().add_filament(73, 2, "ABS", "636363", "Grey ABS+HS");
+    client.spoolman_mock().next_created_filament_id = 117;
+    client.spoolman_mock().next_created_spool_id = 152;
+
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 1);
+    get_printer_state().capabilities_state().set_spoolman_available(true);
+    UpdateQueue::instance().drain();
+
+    SlotInfo loaded = untracked_slot();
+    loaded.brand = "eSUN";
+    loaded.material = "ABS+";
+    loaded.color_rgb = 0x4A4A4A;
+    loaded.color_name = "Deep Gray";
+    auto& overlay = get_ams_edit_overlay();
+    std::optional<SlotInfo> committed;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, loaded, &api,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      if (r.saved) {
+                                          committed = r.slot_info;
+                                      }
+                                  }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* add = lv_obj_find_by_name(test_screen(), "add_to_spoolman_link");
+    REQUIRE(add != nullptr);
+    lv_obj_send_event(add, LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    lv_obj_t* dlg = ModalStack::instance().top_dialog();
+    REQUIRE(dlg != nullptr);
+    // The offer names the record and the lane the save is for.
+    const std::string asked = helix::test::subtree_text(dlg);
+    CHECK(asked.find("\"Grey ABS+HS\"") != std::string::npos);
+    CHECK(asked.find("lane 1") != std::string::npos);
+    // Nothing is filed while the question is open.
+    CHECK(client.spoolman_mock().created_filaments.empty());
+    CHECK(client.spoolman_mock().created_spools.empty());
+
+    const auto settle = [this] {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        UpdateQueue::instance().drain();
+    };
+    struct Answer {
+        const char* what;
+        const char* button;
+        int filament;
+    };
+    for (const Answer& answer : {Answer{"Use existing points the spool at it", "btn_primary", 73},
+                                 Answer{"Add new files its own filament", "btn_secondary", 117}}) {
+        DYNAMIC_SECTION(answer.what) {
+            lv_obj_send_event(lv_obj_find_by_name(dlg, answer.button), LV_EVENT_CLICKED, nullptr);
+            settle();
+            REQUIRE(client.spoolman_mock().created_spools.size() == 1);
+            CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == answer.filament);
+            CHECK(client.spoolman_mock().created_filaments.size() ==
+                  (answer.filament == 73 ? 0u : 1u));
+            // The lane takes the record it points at, not what was typed.
+            REQUIRE(committed.has_value());
+            CHECK((committed->spool_name == "Grey ABS+HS") == (answer.filament == 73));
+        }
+    }
+    // A save the offer is holding blocks the slot's editor until it ends,
+    // and the editor closing under the offer must not strand it.
+    for (const bool editor_closed : {false, true}) {
+        DYNAMIC_SECTION("a dismissal ends the slot's save, editor closed: " << editor_closed) {
+            if (editor_closed) {
+                NavigationManager::instance().go_back();
+                settle();
+                REQUIRE_FALSE(ModalStack::instance().stack_empty());
+            }
+            helix::test::dismiss_top_modal();
+            settle();
+            CHECK(client.spoolman_mock().created_spools.empty());
+            CHECK(overlay.show_for_slot(test_screen(), 0, loaded, &api,
+                                        [](const AmsEditOverlay::EditResult&) {}));
+        }
+    }
+
+    if (!ModalStack::instance().stack_empty()) {
+        Modal::hide(Modal::get_top());
+    }
+    close_editor_overlay();
+    get_printer_state().capabilities_state().set_spoolman_available(false);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
 }

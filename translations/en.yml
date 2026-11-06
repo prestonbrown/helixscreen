@@ -249,6 +249,7 @@ translations:
   Add Widget: Add Widget
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with
   Add custom filament: Add custom filament
+  Add new: Add new
   Add page: Add page
   Add to Mainsail/Fluidd Webcams: Add to Mainsail/Fluidd Webcams
   Add to Queue: Add to Queue
@@ -3721,6 +3722,7 @@ translations:
   Spoolman: Spoolman
   Spoolman Not Available: Spoolman Not Available
   Spoolman Server: Spoolman Server
+  Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?
   Spoolman connected!: Spoolman connected!
   Spoolman found! Configuring...: Spoolman found! Configuring...
   Spoolman has no spools configured: Spoolman has no spools configured
@@ -4487,6 +4489,8 @@ translations:
   Use G10/G11 firmware retraction: Use G10/G11 firmware retraction
   Use New Address: Use New Address
   Use Unload before Eject: Use Unload before Eject
+  Use existing: Use existing
+  Use existing filament?: Use existing filament?
   Use first HID scanner found: Use first HID scanner found
   Use printer type to select image: Use printer type to select image
   Use Scan: Use Scan

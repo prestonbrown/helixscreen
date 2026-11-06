@@ -67,11 +67,41 @@ namespace spoolman {
 /// colour form, alpha last), else empty.
 std::string normalize_color_hex(const std::string& hex);
 
-/// The first of @p filaments with @p material and the same colour, or nullptr.
-/// The one rule for "Spoolman already has this filament".
+/// @p name trimmed, case-folded and with each whitespace run collapsed to
+/// one space: the form two filament names are compared in.
+std::string normalized_name(const std::string& name);
+
+/// The record in @p filaments that is exactly the one a save would file: the
+/// same stored material string, the same colour and the same name after
+/// normalized_name(). The one rule for reusing a Spoolman filament without
+/// asking; anything less exact is for the user to choose.
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
-                                           const std::string& material,
+                                           const std::string& material, const std::string& name,
                                            const std::string& color_hex);
+
+/// The name a new Spoolman filament is filed under: @p product (a catalog
+/// product name or the precise type, "ABS+" or "Silk PLA") then the colour,
+/// trimmed and joined by one space. Empty only when both are blank.
+std::string new_filament_name(const std::string& product, const std::string& color_name);
+
+/// What to call @p filament to the user: its name, or for a record with none
+/// its material and @p color_name ("ABS Gray").
+std::string filament_display_name(const FilamentInfo& filament, const std::string& color_name);
+
+/// The one temperature Spoolman stores for a range: the midpoint, or the one
+/// end that is set; 0 when neither is.
+int temperature_for_range(int min_temp, int max_temp);
+
+/// Of @p filaments not already an exact match, the one that is most likely the
+/// same product: a material that records as @p material (filament::slicer_material()
+/// of both sides, so a record filed as "ABS+" still counts as ABS) and the
+/// nearest colour within FilamentMapper's colour tolerance. nullptr when none
+/// is near enough. Offered to the user, never taken silently. The record
+/// @p exclude_id, the one the spool already points at, is never offered:
+/// taking it would leave the spool where it is and drop the edit.
+const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filaments,
+                                          const std::string& material, const std::string& color_hex,
+                                          int exclude_id = 0);
 
 /// The filament in @p filaments that is this catalog product: vendor
 /// @p vendor_id, and the same name and material (case-insensitive, trimmed)
