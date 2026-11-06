@@ -697,7 +697,7 @@ jobs:
         if-no-files-found: error
 
   # ============================================================================
-  # Publish Android AAB to Google Play Store (internal track)
+  # Publish Android AAB to Google Play Store (production track, full rollout)
   # ============================================================================
   # Inert until the PLAY_SERVICE_ACCOUNT_JSON secret is configured. See
   # docs/devel/ANDROID_PLAY_STORE.md for one-time setup (service account,
@@ -718,7 +718,7 @@ jobs:
   # channel the branch declares rather than the tag string, for the same reason
   # every other routing decision does.
   publish-android:
-    name: Publish to Play Store (internal)
+    name: Publish to Play Store (production)
     needs: [build-android, release, plan]
     if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.channel == 'stable' && needs.plan.outputs.mode == 'publish' }}
     runs-on: ubuntu-latest
@@ -756,18 +756,18 @@ jobs:
       id: version
       run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-    - name: Upload to Play Store (internal track, draft)
+    - name: Upload to Play Store (production track, full rollout)
       if: steps.config.outputs.configured == 'true'
       uses: r0adkll/upload-google-play@v1
       with:
         serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         packageName: org.helixscreen.app
         releaseFiles: release-aab/*.aab
-        track: internal
-        status: draft
+        track: production
+        status: completed
         whatsNewDirectory: release-whatsnew
         releaseName: ${{ steps.version.outputs.version }}
-        changesNotSentForReview: true
+        changesNotSentForReview: false
 
   # ============================================================================
   # Build the ESP32 (BTT K-Touch) firmware zip, alpha
