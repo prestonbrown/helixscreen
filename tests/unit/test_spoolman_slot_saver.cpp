@@ -1696,120 +1696,6 @@ TEST_CASE("SpoolmanSlotSaver save: a new spool files a filament Spoolman and the
     CHECK(payload["settings_bed_temp"] == 100);
 }
 
-TEST_CASE("SpoolmanSlotSaver save: a record filed under the precise type is reused",
-          "[spoolman][slot_saver][create][filament_naming]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-    serve_only_linked_spool(client);
-    client.spoolman_mock().add_vendor(2, "eSUN");
-    client.spoolman_mock().add_filament(117, 2, "ABS+", "4A4A4A", "ABS+");
-    client.spoolman_mock().next_created_spool_id = 153;
-
-    SpoolmanSlotSaver saver(&api);
-    SaveResult got{};
-    saver.save(SlotInfo{}, esun_abs_plus_slot(), SpoolmanSlotSaver::LinkIntent::CreateAndRebind,
-               [&](const SaveResult& r) { got = r; });
-
-    REQUIRE(got.success);
-    CHECK(got.new_filament_id == 117);
-    CHECK(client.spoolman_mock().created_filaments.empty());
-}
-
-TEST_CASE("SpoolmanSlotSaver save: a record of another grade in the same colour is never reused "
-          "silently",
-          "[spoolman][slot_saver][exact_filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-    serve_only_linked_spool(client);
-    client.spoolman_mock().add_vendor(1, "Polymaker");
-    client.spoolman_mock().next_created_filament_id = 501;
-
-    SpoolmanSlotSaver saver(&api);
-
-    SECTION("a carbon-filled grade does not land on the plain record") {
-        client.spoolman_mock().add_filament(300, 1, "PC", "000000", "Black PC");
-        SlotInfo edited = make_test_slot();
-        edited.spoolman_id = 0;
-        edited.material = "PC-CF";
-        edited.color_rgb = 0x000000;
-        SaveResult got{};
-        saver.save(SlotInfo{}, edited, SpoolmanSlotSaver::LinkIntent::CreateAndRebind,
-                   [&](const SaveResult& r) { got = r; });
-        REQUIRE(got.success);
-        CHECK(got.new_filament_id == 501);
-    }
-
-    SECTION("a linked plain spool changed to silk in the same colour is repointed") {
-        client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000", "Red PLA");
-        SlotInfo original = make_test_slot();
-        SlotInfo edited = original;
-        edited.material = "Silk PLA";
-        SaveResult got{};
-        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
-        REQUIRE(got.success);
-        CHECK(got.repointed_filament);
-        CHECK(got.new_filament_id == 501);
-    }
-
-    SECTION("a catalog pick stays on a record filed under the precise type") {
-        // The plain ABS record in the same colour is served first.
-        client.spoolman_mock().add_filament(118, 1, "ABS", "4A4A4A", "Dark Grey ABS");
-        client.spoolman_mock().add_filament(117, 1, "ABS+", "4A4A4A", "ABS+");
-        SlotInfo original = make_test_slot();
-        original.material = "ABS+";
-        original.color_rgb = 0x4A4A4A;
-        original.spoolman_filament_id = 117;
-        SlotInfo edited = original;
-        edited.catalog_id = "esun-abs-plus";
-        edited.product_name = "ABS+";
-        SaveResult got{};
-        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
-        REQUIRE(got.success);
-        CHECK_FALSE(got.repointed_filament);
-        CHECK(client.spoolman_mock().spool_updates.empty());
-    }
-}
-
-TEST_CASE("SpoolmanSlotSaver save: the record of the precise type wins over the plain one",
-          "[spoolman][slot_saver][exact_filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-    serve_only_linked_spool(client);
-    client.spoolman_mock().add_vendor(1, "Polymaker");
-    client.spoolman_mock().add_filament(5, 1, "ABS", "000000", "Black ABS");
-    client.spoolman_mock().add_filament(6, 1, "ABS+", "000000", "ABS+");
-    client.spoolman_mock().next_created_filament_id = 501;
-    SpoolmanSlotSaver saver(&api);
-
-    SECTION("a new ABS+ black spool files on the ABS+ record") {
-        SlotInfo edited = make_test_slot();
-        edited.spoolman_id = 0;
-        edited.material = "ABS+";
-        edited.color_rgb = 0x000000;
-        SaveResult got{};
-        saver.save(SlotInfo{}, edited, SpoolmanSlotSaver::LinkIntent::CreateAndRebind,
-                   [&](const SaveResult& r) { got = r; });
-        REQUIRE(got.success);
-        CHECK(got.new_filament_id == 6);
-    }
-    SECTION("a linked ABS spool moved to ABS+ is repointed, not dropped") {
-        SlotInfo original = make_test_slot();
-        original.material = "ABS";
-        original.color_rgb = 0x000000;
-        original.spoolman_filament_id = 5;
-        SlotInfo edited = original;
-        edited.material = "ABS+";
-        SaveResult got{};
-        saver.save(original, edited, [&](const SaveResult& r) { got = r; });
-        REQUIRE(got.success);
-        CHECK(got.repointed_filament);
-        CHECK(got.new_filament_id == 6);
-    }
-}
-
 TEST_CASE("SpoolmanSlotSaver save: the spool's own filament is never offered as a near match",
           "[spoolman][slot_saver][similar_filament]") {
     PrinterState state;
@@ -1841,4 +1727,108 @@ TEST_CASE("SpoolmanSlotSaver save: the spool's own filament is never offered as 
     CHECK(offered == 0);
     CHECK(got.repointed_filament);
     CHECK(got.new_filament_id == 501);
+}
+
+TEST_CASE("SpoolmanSlotSaver save: a record is reused silently only for the same type and grade",
+          "[spoolman][slot_saver][exact_filament]") {
+    struct Seed {
+        int id;
+        const char* material;
+        const char* hex;
+        const char* name;
+    };
+    struct Row {
+        const char* what;
+        std::vector<Seed> seeds;
+        bool linked;
+        std::function<void(SlotInfo&)> before;
+        std::function<void(SlotInfo&)> after;
+        int filament;
+        bool repointed;
+    };
+    const auto set = [](const char* material, uint32_t rgb, int filament_id = 0) {
+        return [=](SlotInfo& s) {
+            s.material = material;
+            s.color_rgb = rgb;
+            if (filament_id) {
+                s.spoolman_filament_id = filament_id;
+            }
+        };
+    };
+    const Row rows[] = {
+        {"a record filed under the precise type",
+         {{117, "ABS+", "4A4A4A", "ABS+"}},
+         false,
+         set("ABS+", 0x4A4A4A),
+         set("ABS+", 0x4A4A4A),
+         117,
+         false},
+        {"a filled grade never lands on the plain record",
+         {{300, "PC", "000000", "Black PC"}},
+         false,
+         set("PC-CF", 0),
+         set("PC-CF", 0),
+         501,
+         false},
+        {"the precise record wins over a plain one served first",
+         {{5, "ABS", "000000", "Black ABS"}, {6, "ABS+", "000000", "ABS+"}},
+         false,
+         set("ABS+", 0),
+         set("ABS+", 0),
+         6,
+         false},
+        {"a linked plain spool moved to silk is repointed",
+         {{100, "PLA", "FF0000", "Red PLA"}},
+         true,
+         set("PLA", 0xFF0000, 100),
+         set("Silk PLA", 0xFF0000),
+         501,
+         true},
+        {"a linked ABS spool moved to ABS+ is repointed",
+         {{5, "ABS", "000000", "Black ABS"}, {6, "ABS+", "000000", "ABS+"}},
+         true,
+         set("ABS", 0, 5),
+         set("ABS+", 0),
+         6,
+         true},
+        {"a catalog pick stays on a record of the precise type",
+         {{118, "ABS", "4A4A4A", "Dark Grey ABS"}, {117, "ABS+", "4A4A4A", "ABS+"}},
+         true,
+         set("ABS+", 0x4A4A4A, 117),
+         [](SlotInfo& s) {
+             s.catalog_id = "esun-abs-plus";
+             s.product_name = "ABS+";
+         },
+         117,
+         false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            PrinterState state;
+            MoonrakerClientMock client;
+            MoonrakerAPIMock api(client, state);
+            serve_only_linked_spool(client);
+            client.spoolman_mock().add_vendor(1, "Polymaker");
+            for (const Seed& seed : r.seeds) {
+                client.spoolman_mock().add_filament(seed.id, 1, seed.material, seed.hex, seed.name);
+            }
+            client.spoolman_mock().next_created_filament_id = 501;
+
+            SlotInfo original = make_test_slot();
+            r.before(original);
+            SlotInfo edited = original;
+            r.after(edited);
+            if (!r.linked) {
+                original = SlotInfo{};
+                edited.spoolman_id = 0;
+                edited.spoolman_filament_id = 0;
+            }
+            SpoolmanSlotSaver saver(&api);
+            SaveResult got{};
+            saver.save(original, edited, [&](const SaveResult& res) { got = res; });
+            REQUIRE(got.success);
+            CHECK(got.new_filament_id == r.filament);
+            CHECK(got.repointed_filament == r.repointed);
+        }
+    }
 }
