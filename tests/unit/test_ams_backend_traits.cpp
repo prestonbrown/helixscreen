@@ -293,13 +293,13 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         BackendTraits traits;
         bool raises_runout_fault;
         bool raises_runout_fault_during_job;
-        bool unloads_to_hub_between_prints;
+        bool parks_off_toolhead_when_idle;
     };
     const Row rows[] = {
         {"Happy Hare", AmsBackendHappyHare::kTraits, true, true, false},
         {"AFC", AmsBackendAfc::kTraits, true, true, false},
         {"AD5X IFS", AmsBackendAd5xIfs::kTraits, true, false, true},
-        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, false},
+        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, true},
         {"ACE", AmsBackendAce::kTraits, false, false, false},
         {"QIDI Box", AmsBackendQidi::kTraits, false, false, false},
         {"OpenAMS", AmsBackendOpenAms::kTraits, false, false, false},
@@ -310,7 +310,7 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         INFO(row.name);
         CHECK(row.traits.raises_runout_fault == row.raises_runout_fault);
         CHECK(row.traits.raises_runout_fault_during_job == row.raises_runout_fault_during_job);
-        CHECK(row.traits.unloads_to_hub_between_prints == row.unloads_to_hub_between_prints);
+        CHECK(row.traits.parks_filament_off_toolhead_when_idle == row.parks_off_toolhead_when_idle);
     }
 }
 
