@@ -868,17 +868,24 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
         CHECK(be.backend->calls.size() == 2);
     }
 
-    SECTION("a print still running keeps it until that print ends") {
+    SECTION("a running job, or no report yet, holds it for the printer's report") {
         {
             std::ofstream ofs(record);
             ofs << entry;
         }
-        // Discovery's status says a job runs; the print subjects still read the boot default.
-        h.controller.recover_pending_remap(ReportedPrintActivity::Active);
-        h.report("printing", "remapped.gcode");
+        // Active: discovery's status says a job runs while the subjects read the boot
+        // default. Unknown: a failed subscribe said nothing either way.
+        const auto [activity, report] = GENERATE(table<ReportedPrintActivity, std::string>(
+            {{ReportedPrintActivity::Active, "printing"},
+             {ReportedPrintActivity::Unknown, "printing"},
+             {ReportedPrintActivity::Unknown, "standby"}}));
+        h.controller.recover_pending_remap(activity);
         CHECK(be.backend->calls.empty());
-        CHECK_FALSE(AmsState::instance().pending_tool_map_restore().empty());
-        h.report("complete", "remapped.gcode");
+        h.report(report, "remapped.gcode");
+        if (report == "printing") {
+            CHECK(be.backend->calls.empty());
+            h.report("complete", "remapped.gcode");
+        }
         CHECK(be.backend->calls.size() == 2);
         CHECK_FALSE(std::filesystem::exists(record));
     }
@@ -889,39 +896,6 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             ofs << entry;
         }
         h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
-        CHECK(be.backend->calls.size() == 2);
-    }
-}
-
-TEST_CASE("remap restore: a replay with no print state waits for the printer's report",
-          "[remap-restore][remap-restart]") {
-    LVGLTestFixture fx;
-    ConfigDirGuard config_dir{"remap_recover_unknown"};
-    ScopedCountingBackend be{{1, 2}};
-    Harness h;
-    h.set_klippy(KlippyState::READY);
-    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
-    std::filesystem::create_directories(record.parent_path());
-    {
-        std::ofstream ofs(record);
-        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
-    }
-
-    // A failed subscribe: nothing says whether the boot-default idle is real.
-    h.controller.recover_pending_remap(ReportedPrintActivity::Unknown);
-    CHECK(be.backend->calls.empty());
-    CHECK(std::filesystem::exists(record));
-
-    SECTION("a report of no job restores") {
-        h.report("standby", "");
-        CHECK(be.backend->calls.size() == 2);
-        CHECK_FALSE(std::filesystem::exists(record));
-    }
-
-    SECTION("a report of a running job restores at its end") {
-        h.report("printing", "remapped.gcode");
-        CHECK(be.backend->calls.empty());
-        h.report("complete", "remapped.gcode");
         CHECK(be.backend->calls.size() == 2);
     }
 }
