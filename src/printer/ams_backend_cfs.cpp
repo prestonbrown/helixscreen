@@ -1202,7 +1202,7 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
                                                          "Printing continues on what is left "
                                                          "in the tube.")),
                                       slot_name);
-                // handle_status runs on the main thread, so the toast is raised directly.
+                // handle_status runs on the main thread, where the UI subscriber shows the notice.
                 publish_notice({NoticeSeverity::WARNING, msg, 10000});
             }
         }
