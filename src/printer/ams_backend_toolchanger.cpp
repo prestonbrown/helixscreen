@@ -80,9 +80,14 @@ AmsBackendToolChanger::print_start_params(const std::map<int, int>& tool_slots) 
         return {};
     }
     std::map<int, int> heads;
-    for (const auto& [tool, slot] : tool_slots) {
-        if (slot >= 0) {
-            heads[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based head
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // A tool or head past the machine's own is left to the firmware.
+        const int head_count = static_cast<int>(tool_names_.size());
+        for (const auto& [tool, slot] : tool_slots) {
+            if (tool < head_count && slot >= 0 && slot < head_count) {
+                heads[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based head
+            }
         }
     }
     return helix::print_start::tool_slot_params(heads);
@@ -3083,6 +3088,14 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
                 return AmsErrorHelper::not_supported("Tool remapping");
             }
             helix::printer::assign_tool_slot(system_info_, tool_number, slot_index);
+            // A slot the published table does not hold yet is refused there
+            // silently; nothing was stored, so nothing is owed a restore.
+            const auto& map = system_info_.tool_to_slot_map;
+            if (tool_number >= static_cast<int>(map.size()) ||
+                map[static_cast<size_t>(tool_number)] != slot_index) {
+                return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                    system_info_.total_slots - 1);
+            }
             return AmsErrorHelper::success();
         }
 

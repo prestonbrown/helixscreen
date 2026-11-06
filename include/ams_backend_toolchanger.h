@@ -245,9 +245,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// (helix::print_start).
     [[nodiscard]] helix::PrintStartParams
     print_start_params(const std::map<int, int>& tool_slots) const override;
-    [[nodiscard]] bool print_start_takes_tool_map() const override {
-        return print_start_takes_tool_slots_;
-    }
 
     /// Klipper tool-changers have one extruder per tool. Tool N sources slot N
     /// directly — identity mapping — which activates per-extruder consumption

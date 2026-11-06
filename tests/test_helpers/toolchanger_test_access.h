@@ -56,6 +56,13 @@ class ToolChangerTestAccess {
         b.begin_dispatch_locked(action);
     }
 
+    /// Shrink the published slot table below the discovered tool count, the
+    /// shape a status frame that has not yet named every head leaves.
+    static void set_total_slots(AmsBackendToolChanger& b, int slots) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.system_info_.total_slots = slots;
+    }
+
     static bool has_pending_dispatch(const AmsBackendToolChanger& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.pending_dispatch_action_.has_value();

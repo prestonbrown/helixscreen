@@ -889,6 +889,26 @@ TEST_CASE("Z-Mod's built-in AFC on a Creator 5 maps tools at the start, not in t
     CHECK(tc.sent().empty());
 }
 
+TEST_CASE("A Creator 5 map never names a tool or head past its four",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    // T4 does not exist on four heads, and slot 4 is no head: both left empty.
+    CHECK(tc.print_start_params({{0, 0}, {1, 4}, {4, 1}}) ==
+          helix::PrintStartParams{{"tools", "1"}});
+}
+
+TEST_CASE("A Creator 5 pick the slot table cannot hold reports failure",
+          "[toolchanger][zmod][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    helix::ToolChangerTestAccess::set_total_slots(tc, 2);
+    // Nothing was stored, so the print start must not count it or arm a restore.
+    CHECK_FALSE(tc.set_tool_mapping(0, 3).success());
+    CHECK(tc.get_tool_mapping().at(0) != 3);
+    CHECK(tc.set_tool_mapping(0, 1).success());
+}
+
 TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
           "[toolchanger][zmod][print_start_params][2033]") {
     for (const auto& hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
