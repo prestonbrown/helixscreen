@@ -723,10 +723,12 @@ applies to tool changers too. Either way an overlay meant for a tool changer car
 
 Two consequences of the subject being in the signature:
 
-- An unedited default saved by a build without these keys has a signature that does not name
-  `ams_is_tool_changer` at every tier, so it re-resolves once on the first READY populate and is
-  saved. A printer that is not a tool changer gets the same arrangement it had; only the stored
-  signature changes.
+- Every tier whose table offers the tool switcher already consults `ams_is_tool_changer` in
+  that slot, so the qualified keys leave the signature exactly as it is on every printer. A
+  stored unedited default does not re-resolve because of them: it keeps the arrangement it was
+  saved with until its signature changes for another reason (grid, preset, a consulted
+  subject) or the user resets to defaults. Only a freshly resolved default takes the tool
+  changer's arrangement.
 - On an unedited default, a change of primary filament backend that flips
   `ams_is_tool_changer` (a tool changer's backend replaced by an AMS, or the reverse)
   re-resolves the panel into the other arrangement. An edited layout is the user's and never
