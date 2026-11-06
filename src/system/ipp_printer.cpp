@@ -24,10 +24,12 @@ namespace ipp {
 
 std::shared_ptr<HttpResponse> post_request(const std::string& host, uint16_t port,
                                            const std::string& resource_path,
-                                           const std::vector<uint8_t>& body, int timeout_s) {
+                                           const std::vector<uint8_t>& body, int timeout_s,
+                                           Transport transport) {
     auto req = std::make_shared<HttpRequest>();
     req->method = HTTP_POST;
-    req->url = fmt::format("http://{}:{}/{}", host, port, resource_path);
+    req->url = fmt::format("{}://{}:{}/{}", transport == Transport::Tls ? "https" : "http", host,
+                           port, resource_path);
     req->timeout = timeout_s;
     req->SetHeader("Content-Type", "application/ipp");
     req->body.assign(reinterpret_cast<const char*>(body.data()), body.size());
@@ -170,21 +172,27 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
             auto pwg_data = helix::pwg::generate(page_bitmap, params);
             spdlog::info("IPP Printer: generated {} bytes of PWG Raster data", pwg_data.size());
 
-            // Build IPP request
-            auto printer_uri = ipp::make_printer_uri(host, port, resource_path);
+            auto send_job = [&](ipp::Transport transport) {
+                auto printer_uri = ipp::make_printer_uri(host, port, resource_path, transport);
+                auto request = ipp::build_print_job(printer_uri, "HelixScreen Label",
+                                                    "image/pwg-raster", media_keyword);
+                request.begin_job_attributes();
+                request.set_copies(1);
 
-            auto request = ipp::build_print_job(printer_uri, "HelixScreen Label",
-                                                "image/pwg-raster", media_keyword);
+                // Encode IPP request with PWG document data
+                auto ipp_body = request.encode_with_data(pwg_data);
+                spdlog::debug("IPP Printer: encoded IPP request: {} bytes total", ipp_body.size());
+                return ipp::post_request(host, port, resource_path, ipp_body, 30, transport);
+            };
 
-            // Add job attributes
-            request.begin_job_attributes();
-            request.set_copies(1);
+            auto resp = send_job(ipp::Transport::Plain);
 
-            // Encode IPP request with PWG document data
-            auto ipp_body = request.encode_with_data(pwg_data);
-            spdlog::debug("IPP Printer: encoded IPP request: {} bytes total", ipp_body.size());
-
-            auto resp = ipp::post_request(host, port, resource_path, ipp_body, 30);
+            // 426 is a printer that accepts jobs only encrypted: IPPS on the same port.
+            if (resp != nullptr && resp->status_code == HTTP_STATUS_UPGRADE_REQUIRED) {
+                spdlog::info("IPP Printer: {}:{} requires encryption, resending over IPPS", host,
+                             port);
+                resp = send_job(ipp::Transport::Tls);
+            }
 
             if (resp == nullptr) {
                 fail(TR_NOOP("Connection failed to {}:{}"), host, port);
