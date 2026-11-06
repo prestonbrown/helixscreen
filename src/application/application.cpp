@@ -2230,8 +2230,14 @@ int Application::main_loop() {
                 // A running screensaver's refresh-period hold lowers the floor to pace its frames.
                 timing.loop_min_sleep_ms =
                     helix::active_refresh_period_hold().loop_min_sleep_ms(timing.loop_min_sleep_ms);
-                DisplayManager::delay(helix::main_loop_sleep_ms(
-                    time_till_next, m_display->is_display_sleeping(), timing));
+                const bool display_sleeping = m_display->is_display_sleeping();
+                // Set from the sleep state on every pass, so no wake path can leave it slow.
+                if (lv_timer_t* queue = helix::ui::UpdateQueue::instance().timer()) {
+                    lv_timer_set_period(queue, helix::update_queue_period_ms(
+                                                   display_sleeping, timing, LV_DEF_REFR_PERIOD));
+                }
+                DisplayManager::delay(
+                    helix::main_loop_sleep_ms(time_till_next, display_sleeping, timing));
             } else {
                 DisplayManager::delay(1);
             }

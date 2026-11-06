@@ -669,8 +669,12 @@ void DisplayManager::watch_keyboard() {
     m_indev_delete_watch.watch(m_keyboard, &m_keyboard);
 }
 
-void DisplayManager::debug_touch_tick(lv_timer_t* /*t*/) {
-    if (!RuntimeConfig::debug_touches())
+void DisplayManager::debug_touch_tick(lv_timer_t* t) {
+    const bool enabled = RuntimeConfig::debug_touches();
+    if (t) {
+        lv_timer_set_period(t, helix::debug_touch_period_ms(enabled));
+    }
+    if (!enabled)
         return;
 
     auto* dm = DisplayManager::instance();
@@ -715,8 +719,10 @@ lv_timer_t* DisplayManager::install_debug_touch_timer() {
         return nullptr;
     }
     // Timer runs unconditionally; flag is checked inside so the Settings
-    // toggle takes effect without a restart.
-    return lv_timer_create(&DisplayManager::debug_touch_tick, 30, nullptr);
+    // toggle takes effect without a restart. Each tick sets the period from the
+    // flag: frame rate while drawing ripples, a slow poll while off.
+    return lv_timer_create(&DisplayManager::debug_touch_tick,
+                           helix::debug_touch_period_ms(RuntimeConfig::debug_touches()), nullptr);
 }
 
 void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
