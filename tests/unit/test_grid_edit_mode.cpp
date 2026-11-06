@@ -6,7 +6,9 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
+#include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_whole_cell_def.h"
+#include "../ui_test_utils.h"
 #include "config.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
@@ -1051,4 +1053,234 @@ TEST_CASE("find_catalog_placement: shrinks toward the minimum, rowspan first, wh
             CHECK(p->rowspan == row.expect->rowspan);
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Undoing a trash removal from its toast
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// Trash @p widget the way a tap on its trash pill does, past the pill lockout.
+void trash_widget(GridEditMode& em, lv_obj_t* widget) {
+    em.select_widget(widget);
+    lv_obj_t* remove = GridEditModeTestAccess::remove_button(em);
+    REQUIRE(remove != nullptr);
+    lv_tick_inc(GridEditMode::kPillLockoutMs);
+    lv_obj_send_event(remove, LV_EVENT_CLICKED, nullptr);
+}
+
+/// GridEditScene's page, with 'temperature' carrying a per-widget config and,
+/// with @p with_fan, a 'fan' beside it, so removing 'temperature' leaves the
+/// page populated and in place.
+struct UndoScene {
+    GridEditScene scene;
+    lv_obj_t* fan = nullptr;
+    GridEditMode em;
+    std::vector<std::string> toasts;
+
+    UndoScene(lv_obj_t* parent, const std::string& id, bool with_fan) : scene(parent, id) {
+        auto& entries = scene.config->page_entries_mut(GridEditScene::kPageIndex);
+        entries[0].config = nlohmann::json{{"sensor", "extruder"}, {"show_target", true}};
+        if (with_fan) {
+            fan = lv_obj_create(scene.container);
+            lv_obj_set_name(fan, "fan");
+            lv_obj_remove_flag(fan, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_grid_cell(fan, LV_GRID_ALIGN_STRETCH, 6, GridEditScene::kColspan,
+                                 LV_GRID_ALIGN_STRETCH, 0, GridEditScene::kRowspan);
+            lv_obj_update_layout(scene.container);
+            entries.push_back({"fan", true, nlohmann::json::object(), 6, 0, GridEditScene::kColspan,
+                               GridEditScene::kRowspan});
+        }
+        em.set_rebuild_callback([]() {});
+        helix::ui::set_test_toast_hook([this](ToastSeverity, const std::string& message, uint32_t) {
+            toasts.push_back(message);
+        });
+        REQUIRE(
+            em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex)));
+        // The layout as the session starts, on disk: the baseline a restart reads.
+        scene.config->save();
+    }
+
+    ~UndoScene() {
+        helix::ui::set_test_toast_hook(nullptr);
+        em.exit();
+        lv_obj_delete(scene.container);
+    }
+
+    std::string stored_path() const {
+        return Config::get_instance()->df() + "panel_widgets/" + scene.panel_id;
+    }
+    nlohmann::json stored() const {
+        return Config::get_instance()->get<nlohmann::json>(stored_path(), nlohmann::json());
+    }
+    /// 'temperature' on page @p page, or nullptr.
+    const PanelWidgetEntry* entry_on(size_t page, const std::string& id) const {
+        for (const auto& e : scene.config->page_entries(page)) {
+            if (e.id == id) {
+                return &e;
+            }
+        }
+        return nullptr;
+    }
+};
+
+bool rects_overlap(const PanelWidgetEntry& a, const PanelWidgetEntry& b) {
+    return a.col < b.col + b.colspan && b.col < a.col + a.colspan && a.row < b.row + b.rowspan &&
+           b.row < a.row + a.rowspan;
+}
+
+std::vector<std::pair<std::string, std::vector<PanelWidgetEntry>>>
+page_snapshot(const PanelWidgetConfig& config) {
+    std::vector<std::pair<std::string, std::vector<PanelWidgetEntry>>> pages;
+    for (const auto& page : config.pages()) {
+        pages.emplace_back(page.id, page.widgets);
+    }
+    return pages;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: Undo on the removal toast puts the widget back",
+                 "[grid_edit][undo]") {
+    const bool with_fan = GENERATE(false, true);
+    INFO((with_fan ? "a page the removal leaves populated" : "a page the removal empties"));
+    UndoScene s(test_screen(), "test_undo_restores", with_fan);
+    const auto before = page_snapshot(*s.scene.config);
+    const PanelWidgetEntry original = *s.entry_on(GridEditScene::kPageIndex, "temperature");
+
+    trash_widget(s.em, s.scene.widget);
+    REQUIRE_FALSE(s.scene.config->is_placed("temperature"));
+    // A removal that empties its page prunes it with the widget.
+    CHECK(s.scene.config->page_count() == (with_fan ? 2u : 1u));
+    REQUIRE(s.toasts == std::vector<std::string>{"Widget removed"});
+    process_lvgl(50);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    process_lvgl(50);
+
+    // The same entry, config, page, cell and span, in the same list position.
+    CHECK(page_snapshot(*s.scene.config) == before);
+    const PanelWidgetEntry* restored = s.entry_on(GridEditScene::kPageIndex, "temperature");
+    REQUIRE(restored != nullptr);
+    CHECK(*restored == original);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "GridEditMode: the layout saved after a removal and its undo is the original",
+                 "[grid_edit][undo]") {
+    const bool with_fan = GENERATE(false, true);
+    INFO((with_fan ? "a page the removal leaves populated" : "a page the removal empties"));
+    UndoScene s(test_screen(), "test_undo_persists", with_fan);
+    const nlohmann::json original = s.stored();
+    REQUIRE(original.is_object());
+
+    trash_widget(s.em, s.scene.widget);
+    // The removal is saved on its own: a restart before Undo keeps a whole layout.
+    s.scene.config->flush_pending_save();
+    CHECK(s.stored() != original);
+    process_lvgl(50);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    CHECK(s.scene.config->save_pending());
+    s.scene.config->flush_pending_save();
+    CHECK(s.stored()["pages"] == original["pages"]);
+    CHECK(s.stored()["main_page_index"] == original["main_page_index"]);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "GridEditMode: Undo after the widget's spot was taken places it beside",
+                 "[grid_edit][undo]") {
+    UndoScene s(test_screen(), "test_undo_spot_taken", /*with_fan=*/true);
+    const PanelWidgetEntry original = *s.entry_on(GridEditScene::kPageIndex, "temperature");
+
+    trash_widget(s.em, s.scene.widget);
+    process_lvgl(50);
+    REQUIRE(s.scene.config->place_entry("clock", GridEditScene::kPageIndex, original.col,
+                                        original.row, GridEditScene::kColspan,
+                                        GridEditScene::kRowspan) >= 0);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    process_lvgl(50);
+
+    const PanelWidgetEntry* restored = s.entry_on(GridEditScene::kPageIndex, "temperature");
+    REQUIRE(restored != nullptr);
+    REQUIRE(restored->is_placed());
+    CHECK(restored->config == original.config);
+    CHECK(restored->colspan == original.colspan);
+    CHECK(restored->rowspan == original.rowspan);
+    for (const char* other : {"clock", "fan"}) {
+        INFO(other);
+        const PanelWidgetEntry* e = s.entry_on(GridEditScene::kPageIndex, other);
+        REQUIRE(e != nullptr);
+        CHECK_FALSE(rects_overlap(*restored, *e));
+    }
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: a second removal replaces the pending undo",
+                 "[grid_edit][undo]") {
+    UndoScene s(test_screen(), "test_undo_second_removal", /*with_fan=*/true);
+    const PanelWidgetEntry fan = *s.entry_on(GridEditScene::kPageIndex, "fan");
+
+    trash_widget(s.em, s.scene.widget);
+    process_lvgl(50);
+    trash_widget(s.em, s.fan);
+    process_lvgl(50);
+    REQUIRE_FALSE(s.scene.config->is_placed("fan"));
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    process_lvgl(50);
+
+    const PanelWidgetEntry* restored = s.entry_on(GridEditScene::kPageIndex, "fan");
+    REQUIRE(restored != nullptr);
+    CHECK(*restored == fan);
+    CHECK_FALSE(s.scene.config->is_placed("temperature"));
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: Undo after the session ends does nothing",
+                 "[grid_edit][undo]") {
+    SECTION("edit mode exited") {
+        UndoScene s(test_screen(), "test_undo_after_exit", /*with_fan=*/true);
+        trash_widget(s.em, s.scene.widget);
+        process_lvgl(50);
+        s.em.exit();
+        // The toast goes with the session.
+        CHECK(helix::ui::last_action_toast_dismissed());
+        CHECK(helix::ui::fire_last_toast_action());
+        process_lvgl(50);
+        CHECK_FALSE(s.scene.config->is_placed("temperature"));
+    }
+    SECTION("the session destroyed") {
+        GridEditScene scene(test_screen(), "test_undo_after_teardown");
+        {
+            GridEditMode em;
+            em.set_rebuild_callback([]() {});
+            REQUIRE(em.enter(scene.container, scene.config,
+                             static_cast<int>(GridEditScene::kPageIndex)));
+            trash_widget(em, scene.widget);
+            process_lvgl(50);
+        }
+        CHECK(helix::ui::fire_last_toast_action());
+        process_lvgl(50);
+        CHECK_FALSE(scene.config->is_placed("temperature"));
+        lv_obj_delete(scene.container);
+    }
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: the delete-page button withdraws the undo",
+                 "[grid_edit][undo]") {
+    UndoScene s(test_screen(), "test_undo_delete_page", /*with_fan=*/true);
+    int delete_page_calls = 0;
+    s.em.set_delete_page_callback([&]() { ++delete_page_calls; });
+    trash_widget(s.em, s.scene.widget);
+    process_lvgl(50);
+
+    lv_obj_t* del = GridEditModeTestAccess::delete_page_button(s.em);
+    REQUIRE(del != nullptr);
+    lv_obj_send_event(del, LV_EVENT_CLICKED, nullptr);
+    REQUIRE(delete_page_calls == 1);
+    CHECK(helix::ui::last_action_toast_dismissed());
+    CHECK(helix::ui::fire_last_toast_action());
+    process_lvgl(50);
+    CHECK_FALSE(s.scene.config->is_placed("temperature"));
 }

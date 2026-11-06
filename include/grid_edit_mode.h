@@ -13,6 +13,7 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -95,7 +96,7 @@ class GridEditMode {
     using RelayoutCallback = std::function<bool(const std::vector<std::string>& changed_ids,
                                                 const std::string& resized_id)>;
 
-    GridEditMode() = default;
+    GridEditMode();
     ~GridEditMode();
 
     GridEditMode(const GridEditMode&) = delete;
@@ -381,9 +382,16 @@ class GridEditMode {
                                       PillCorner corner, const std::vector<lv_area_t>& blocked = {},
                                       const std::vector<lv_area_t>& tiles = {});
 
+    /// A selection pill ignores taps this long after it appears. A tap
+    /// selects a widget and draws its trash pill under the finger, so a
+    /// double tap's second tap would otherwise remove the widget.
+    static constexpr uint32_t kPillLockoutMs = 300;
+
     /// Whether the release that produced @p e acts on the pill it ended on:
-    /// it lifted over the pill, and not over the delete-page button beneath.
-    bool pill_release_acts(lv_event_t* e) const;
+    /// it lifted over the pill, not over the delete-page button beneath, and
+    /// its press landed kPillLockoutMs or more after the pill was first drawn.
+    /// Consumes the press.
+    bool pill_release_acts(lv_event_t* e);
 
     /// Screen rect of the delete-page button in the top-right corner of a
     /// page whose content area is @p content.
@@ -466,6 +474,27 @@ class GridEditMode {
     void remove_selected_widget();
     void configure_selected_widget();
 
+    /// What the last trash removal took off the grid, held for its toast's
+    /// Undo: the entry as it was (config and rectangle), and the page it sat on.
+    struct RemovedWidget;
+    /// Hold @p removed as the one removal Undo can reverse, replacing any
+    /// earlier one, and show the toast that offers it.
+    void offer_undo(std::unique_ptr<RemovedWidget> removed);
+    /// Forget the held removal: a late tap on its toast does nothing.
+    void cancel_undo();
+    /// cancel_undo(), and dismiss the toast that offered it. For whatever
+    /// changes the layout under a held removal: the widget catalog (placing,
+    /// Reset, Copy Layout), the delete-page confirmation, leaving the session.
+    void withdraw_undo();
+    /// Put the held removal back: on its own page (re-created when the removal
+    /// pruned it) at its own rectangle, or, when another widget took that spot,
+    /// where a catalog placement would land it on that page. A toast says so
+    /// when there is no room at all. Saves.
+    void undo_last_removal();
+    /// The toast's action: reaches the session that showed it only while that
+    /// removal is still the held one and the session is alive.
+    static void on_undo_toast(void* user_data);
+
     /// Run rebuild_cb_ on the next lv_timer_handler tick (helix::ui::run_next_tick),
     /// so its deletes run outside input dispatch. A request made while a
     /// rebuild is pending joins it: one rebuild restores every page.
@@ -519,7 +548,10 @@ class GridEditMode {
     /// The scoped page's placed widgets, @p exclude_id left out, on the grid its
     /// container is laid out on: the occupancy every drag, drop, resize and
     /// catalog placement checks a rectangle against.
-    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants) const;
+    /// @p page names another config page; OnScreen counts the scoped
+    /// container's objects, so another page is read with AllPlaced.
+    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants,
+                              int page = -1) const;
 
     // Drag helpers
     void handle_drag_start(lv_event_t* e);
@@ -647,6 +679,15 @@ class GridEditMode {
     /// lv_tick_get() at the previous drag step, so the edge push advances by
     /// the time between reads rather than per read.
     uint32_t drag_step_tick_ = 0;
+    /// lv_tick_get() when the selection pills were first drawn (when they were
+    /// created, until a frame shows them); kPillLockoutMs runs from it.
+    uint32_t pills_drawn_tick_ = 0;
+    /// A frame has drawn the current pills, so pills_drawn_tick_ is final.
+    bool pills_shown_ = false;
+    /// lv_tick_get() at the press on a pill that its release has not yet
+    /// consumed, and whether there is one.
+    uint32_t pill_press_tick_ = 0;
+    bool pill_press_latched_ = false;
     /// One-shot flip a majority crossing requested, due
     /// kCrossPageCrossingDelayMs after the crossing, and its direction.
     /// Dwell changes never cancel it.
@@ -801,6 +842,12 @@ class GridEditMode {
     // Destructor expires all tokens so callbacks become no-ops if GridEditMode
     // (and its owning HomePanel) is destroyed during switch_printer teardown.
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// The removal the toast's Undo reverses; null when none is held.
+    std::unique_ptr<RemovedWidget> removed_;
+    /// Expires the toast's reach into this session: on every new removal, an
+    /// undo, exit() and destruction.
+    helix::AsyncLifetimeGuard undo_lifetime_;
 };
 
 } // namespace helix

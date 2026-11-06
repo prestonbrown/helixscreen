@@ -153,6 +153,8 @@ static bool pill_spares_tiles(const lv_area_t& a, int pill_px,
 // disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
 using helix::ui::disable_widget_clicks_recursive;
 
+GridEditMode::GridEditMode() = default;
+
 GridEditMode::~GridEditMode() {
     if (active_) {
         exit();
@@ -465,6 +467,9 @@ void GridEditMode::exit() {
     const bool rebuild = cancel_snap_animation() || rebuild_on_exit_ || relayout_pending_;
     rebuild_on_exit_ = false;
     relayout_pending_ = false;
+
+    // A removal is undone inside the session that made it.
+    withdraw_undo();
 
     // The widgets stay as they are; only the session's own objects go: the
     // shield (its lattice and delete-page button are its children), the
@@ -824,6 +829,35 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
         ignore_release_after_hold(btn);
+        // The lockout runs from the frame that shows the pill: on a slow board
+        // that frame lands well after the pill is created, and input waits
+        // for it.
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
+                if (!self->pills_shown_) {
+                    self->pills_shown_ = true;
+                    self->pills_drawn_tick_ = lv_tick_get();
+                }
+            },
+            LV_EVENT_DRAW_POST, this);
+        // Whether a tap acts is decided by when its press landed: a double
+        // tap's second press can fall inside the lockout and lift after it.
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
+                self->pill_press_tick_ = lv_tick_get();
+                self->pill_press_latched_ = true;
+            },
+            LV_EVENT_PRESSED, this);
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                static_cast<GridEditMode*>(lv_event_get_user_data(ev))->pill_press_latched_ = false;
+            },
+            LV_EVENT_PRESS_LOST, this);
 
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, icon);
@@ -893,6 +927,9 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return to_rel(*a);
     };
     const lv_point_t trash_pos = place_pill(PillCorner::TopRight, "trash");
+    pills_drawn_tick_ = lv_tick_get();
+    pills_shown_ = false;
+    pill_press_latched_ = false;
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
         remove_btn_,
@@ -927,8 +964,14 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     }
 }
 
-bool GridEditMode::pill_release_acts(lv_event_t* e) const {
-    if (!released_over_target(e)) {
+bool GridEditMode::pill_release_acts(lv_event_t* e) {
+    // A click with no press behind it (remote control) is timed at the click.
+    const uint32_t pressed_at = pill_press_latched_ ? pill_press_tick_ : lv_tick_get();
+    pill_press_latched_ = false;
+    // Signed: a press read before the pill's first frame stamped the clock
+    // is inside the lockout too.
+    const auto since_shown = static_cast<int32_t>(pressed_at - pills_drawn_tick_);
+    if (!released_over_target(e) || since_shown < static_cast<int32_t>(kPillLockoutMs)) {
         return false;
     }
     // A packed corner can leave a pill no spot but one over the delete-page
@@ -1051,7 +1094,8 @@ lv_area_t GridEditMode::settled_content_area() const {
     return area;
 }
 
-GridLayout GridEditMode::page_occupancy(const std::string& exclude_id, Occupants occupants) const {
+GridLayout GridEditMode::page_occupancy(const std::string& exclude_id, Occupants occupants,
+                                        int page) const {
     const helix::CellMetrics m = current_metrics();
     GridLayout occupancy(helix::widget_size::current_breakpoint(), {m.cols, m.rows});
     if (!config_) {
@@ -1073,7 +1117,8 @@ GridLayout GridEditMode::page_occupancy(const std::string& exclude_id, Occupants
             }
         }
     }
-    for (const auto& entry : config_->page_entries(static_cast<size_t>(page_index_))) {
+    for (const auto& entry :
+         config_->page_entries(static_cast<size_t>(page < 0 ? page_index_ : page))) {
         if (!entry.is_placed() || entry.id == exclude_id) {
             continue;
         }
@@ -1199,6 +1244,33 @@ void GridEditMode::notify_pages_changed(const helix::PageSetChange& change) {
     });
 }
 
+struct GridEditMode::RemovedWidget {
+    PanelWidgetEntry entry;
+    std::string page_id;
+    /// The page's index and the entry's list position when it was removed.
+    size_t page_index = 0;
+    size_t entry_index = 0;
+    /// The removal emptied the page and removed it with the entry.
+    bool page_pruned = false;
+};
+
+namespace {
+
+/// The session whose removal the undo toast offers. The toast's callback is a
+/// bare function pointer, and the toast can outlive the session, so the
+/// callback reaches it only through a token its undo_lifetime_ expires.
+struct UndoToastTarget {
+    GridEditMode* owner;
+    helix::LifetimeToken token;
+};
+
+std::optional<UndoToastTarget>& undo_toast_target() {
+    static std::optional<UndoToastTarget> target;
+    return target;
+}
+
+} // namespace
+
 void GridEditMode::remove_selected_widget() {
     if (!grid_input_acts()) {
         return;
@@ -1215,11 +1287,16 @@ void GridEditMode::remove_selected_widget() {
         return;
     }
 
-    const auto& entries = config_->page_entries(static_cast<size_t>(page_index_));
-    spdlog::info("[GridEditMode] Removing widget '{}' (config index {})",
-                 entries[static_cast<size_t>(config_index)].id, config_index);
+    const size_t page = static_cast<size_t>(page_index_);
+    auto removed = std::make_unique<RemovedWidget>();
+    removed->entry = config_->page_entries(page)[static_cast<size_t>(config_index)];
+    removed->page_id = config_->page_id(page);
+    removed->page_index = page;
+    removed->entry_index = static_cast<size_t>(config_index);
+    spdlog::info("[GridEditMode] Removing widget '{}' (config index {})", removed->entry.id,
+                 config_index);
 
-    config_->remove_from_page(static_cast<size_t>(page_index_), static_cast<size_t>(config_index));
+    config_->remove_from_page(page, static_cast<size_t>(config_index));
 
     // Deselect before rebuild, and forget the container's other children:
     // lv_obj_clean in the rebuild deletes them.
@@ -1233,6 +1310,8 @@ void GridEditMode::remove_selected_widget() {
     change.focus_page = page_index_;
     const bool pruned = prune_empty_page(page_index_);
     config_->save_soon();
+    removed->page_pruned = pruned;
+    offer_undo(std::move(removed));
     if (pruned) {
         // The owner rebuilds the page set: rebuilding this container would lay
         // out a page index the prune just shifted. The session's page goes, so
@@ -1244,6 +1323,139 @@ void GridEditMode::remove_selected_widget() {
 
     // Rebuild on the next tick (#814), selecting nothing.
     rebuild_then_select("");
+}
+
+void GridEditMode::offer_undo(std::unique_ptr<RemovedWidget> removed) {
+    undo_lifetime_.invalidate();
+    removed_ = std::move(removed);
+    undo_toast_target() = UndoToastTarget{this, undo_lifetime_.token()};
+    // The same message, callback and user_data as the toast an earlier removal
+    // showed, so a second removal restarts that toast rather than stacking one.
+    ToastManager::instance().show_with_action(ToastSeverity::INFO, lv_tr("Widget removed"),
+                                              lv_tr("Undo"), on_undo_toast, nullptr);
+}
+
+void GridEditMode::cancel_undo() {
+    undo_lifetime_.invalidate();
+    removed_.reset();
+}
+
+void GridEditMode::withdraw_undo() {
+    const bool offered = removed_ != nullptr;
+    cancel_undo();
+    if (offered && lv_is_initialized()) {
+        ToastManager::instance().hide(on_undo_toast, nullptr);
+    }
+}
+
+void GridEditMode::on_undo_toast(void* /*user_data*/) {
+    auto& target = undo_toast_target();
+    if (!target || target->token.expired()) {
+        spdlog::debug("[GridEditMode] Undo tapped after its removal was spent; ignoring");
+        return;
+    }
+    GridEditMode* owner = target->owner;
+    target.reset();
+    owner->undo_last_removal();
+}
+
+void GridEditMode::undo_last_removal() {
+    std::unique_ptr<RemovedWidget> removed = std::move(removed_);
+    undo_lifetime_.invalidate();
+    if (!removed || !active_ || !config_) {
+        return;
+    }
+    if (catalog_open_) {
+        spdlog::info("[GridEditMode] Undo of '{}' ignored: the widget catalog is open",
+                     removed->entry.id);
+        return;
+    }
+    PanelWidgetEntry entry = std::move(removed->entry);
+    const std::string id = entry.id;
+
+    // The entry's own page, by id: page indexes move as pages come and go.
+    int page = -1;
+    for (size_t p = 0; p < config_->page_count(); ++p) {
+        if (config_->page_id(p) == removed->page_id) {
+            page = static_cast<int>(p);
+            break;
+        }
+    }
+    const int page_count_before = static_cast<int>(config_->page_count());
+    bool page_restored = false;
+    if (page < 0 && removed->page_pruned && config_->can_add_page()) {
+        page = config_->add_page(removed->page_id, static_cast<int>(removed->page_index));
+        page_restored = page >= 0;
+    }
+    if (page < 0) {
+        // The page went another way (deleted, or no room for it back): the
+        // widget comes back on the page on screen instead.
+        page = page_index_;
+    }
+
+    // Its own rectangle when that is still free, else where the catalog would
+    // put it on that page, from its own cell outward.
+    const GridLayout occupancy = page_occupancy(id, Occupants::AllPlaced, page);
+    if (!occupancy.can_place(entry.col, entry.row, entry.colspan, entry.rowspan)) {
+        const PanelWidgetDef* def = find_widget_def(id);
+        std::optional<CatalogPlacement> spot;
+        if (def) {
+            PanelWidgetDef span = *def;
+            span.colspan = entry.colspan;
+            span.rowspan = entry.rowspan;
+            const auto [col_step, row_step] = snap_step_for(id);
+            spot = helix::find_catalog_placement(occupancy, span, entry.col, entry.row, col_step,
+                                                 row_step);
+        }
+        if (!spot) {
+            spdlog::warn("[GridEditMode] Cannot undo the removal of '{}': no room on page {}", id,
+                         page);
+            if (page_restored) {
+                config_->remove_page(static_cast<size_t>(page));
+            }
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("Not enough room to put the widget back. It stays removed."));
+            return;
+        }
+        spdlog::info("[GridEditMode] Undo: '{}' spot ({},{}) is taken; placing at ({},{}) {}x{}",
+                     id, entry.col, entry.row, spot->col, spot->row, spot->colspan, spot->rowspan);
+        entry.col = spot->col;
+        entry.row = spot->row;
+        entry.colspan = spot->colspan;
+        entry.rowspan = spot->rowspan;
+    }
+
+    if (!config_->restore_entry(static_cast<size_t>(page), removed->entry_index, entry)) {
+        // Placed again since the removal (from the catalog): it is on a grid.
+        spdlog::info("[GridEditMode] Undo of '{}' skipped: it is placed again", id);
+        if (page_restored) {
+            config_->remove_page(static_cast<size_t>(page));
+        }
+        return;
+    }
+    spdlog::info("[GridEditMode] Undid the removal of '{}' on page {} at ({},{}) {}x{}", id, page,
+                 entry.col, entry.row, entry.colspan, entry.rowspan);
+    config_->save_soon();
+
+    select_widget(nullptr);
+    forget_container_children();
+    if (page_restored) {
+        // The owner rebuilds the page set, ending on the page put back.
+        helix::PageSetChange change;
+        change.page_count = page_count_before;
+        change.inserted_page = page;
+        change.focus_page = page;
+        notify_pages_changed(change);
+        return;
+    }
+    if (show_page_cb_) {
+        // The carousel may rest on another page or on the next-page slot,
+        // where the session stays scoped to the last page: show the page, and
+        // re-scope the session there so the rebuild selects on it.
+        show_page_cb_(page);
+    }
+    rebuild_then_select(id);
 }
 
 void GridEditMode::configure_selected_widget() {
@@ -3084,6 +3296,8 @@ void GridEditMode::rebuild_lattice() {
                 auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
                 if (self && self->grid_input_acts() && self->delete_page_cb_ &&
                     released_over_target(ev)) {
+                    // An Undo under the confirmation would move or re-add pages.
+                    self->withdraw_undo();
                     self->delete_page_cb_();
                 }
             },
@@ -3184,6 +3398,9 @@ void GridEditMode::open_widget_catalog(lv_obj_t* screen) {
     spdlog::info("[GridEditMode] Opening widget catalog (origin cell: {}, {})", catalog_origin_col_,
                  catalog_origin_row_);
 
+    // The catalog places, resets and copies layouts: an Undo over it would
+    // restore into a layout it has since changed.
+    withdraw_undo();
     // The session keeps its page and takes no grid input until the catalog
     // closes (grid_input_acts), and the carousel does not swipe beside it.
     catalog_open_ = true;

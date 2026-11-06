@@ -5,7 +5,8 @@
 /**
  * @file grid_edit_page_set.h
  * @brief Where the home carousel lands after edit mode changes its page set: a
- * drop that adds a page, a prune or the delete-page button that removes one.
+ * drop that adds a page, a prune or the delete-page button that removes one,
+ * an undone removal that puts its pruned page back.
  *
  * Free of live objects: the change is described as a PageSetChange, and
  * HomePanel builds the carousel on the page page_set_landing() returns and shows
@@ -22,6 +23,9 @@ struct PageSetChange {
     bool page_added = false;     ///< A page was added past the last one, on the slot's tile
     bool page_prepended = false; ///< A page was added before the first one
     int removed_page = -1;       ///< The config page removed; -1 when none was
+    /// A page inserted at this index, numbered after the change: it and every
+    /// later page move one later. The change ends on it. -1 when none was.
+    int inserted_page = -1;
     /// The page the change asks to end on: where a drop landed, the added page
     /// (the slot's tile for one added past the last, tile -1 for one prepended),
     /// or the page removed from under the edit session
@@ -39,7 +43,8 @@ struct PageSetLanding {
 /**
  * @brief The page @p change ends on, numbered after it.
  *
- * The focus page, shifted back one by a page removed before it. A focus the
+ * An inserted page, when the change made one. Otherwise the focus page,
+ * shifted back one by a page removed before it. A focus the
  * change removed lands on its own index, clamped to the last page: the page
  * after it, or the new last page.
  */

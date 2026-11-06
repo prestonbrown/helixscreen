@@ -11,6 +11,7 @@
 #include "subject_managed_panel.h"
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -206,10 +207,13 @@ class HomePanel : public PanelBase {
     /// work rebuilt the carousel: the caller's page pointers are stale.
     [[nodiscard]] bool drain_keeps_carousel();
     void on_page_changed(int new_page);
-    /// The page-deletion confirmation's action: remove the edit session's page,
-    /// leave edit mode, and rebuild the carousel on the next tick through
+    /// The page-deletion confirmation's action, made when the confirmation
+    /// opens: delete_edit_page() on the edit session's page as it is then.
+    std::function<void()> delete_page_action();
+    /// Remove the page named @p page_id (nothing when no page has it), leave
+    /// edit mode, and rebuild the carousel on the next tick through
     /// on_edit_pages_changed(), on the deleted page's index.
-    void delete_edit_page();
+    void delete_edit_page(const std::string& page_id);
     /// The + on the next-page slot's action: append a page through the same
     /// PanelWidgetConfig::add_page() a drag's drop creates with, and land on it
     /// through the same on_edit_pages_changed() rebuild, on the next tick.

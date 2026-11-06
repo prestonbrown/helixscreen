@@ -14,6 +14,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
+#include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../ui_test_utils.h"
@@ -227,6 +228,16 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_area_t del_area;
     lv_obj_get_coords(del, &del_area);
     helix_test::ScopedPointerIndev pointer;
+    // A tap selects a widget and draws its trash under the finger, so a pill
+    // ignores taps for a moment after it appears: a double tap's second tap.
+    {
+        lv_area_t t;
+        lv_obj_get_coords(trash, &t);
+        pointer.press((t.x1 + t.x2) / 2, (t.y1 + t.y2) / 2);
+        pointer.release((t.x1 + t.x2) / 2, (t.y1 + t.y2) / 2);
+        REQUIRE(config.page_entries(kPageIndex).size() == 1);
+        lv_tick_inc(GridEditMode::kPillLockoutMs);
+    }
     auto covers_centre_of = [](const lv_area_t& a, lv_obj_t* obj) {
         lv_area_t t;
         lv_obj_get_coords(obj, &t);
@@ -345,4 +356,80 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(em.selected_widget() == nullptr);
 
     em.exit();
+}
+
+namespace {
+
+/// The trash pill's centre, checked to be what a press there hits.
+lv_point_t trash_centre(const GridEditMode& em) {
+    lv_obj_t* trash = GridEditModeTestAccess::remove_button(em);
+    REQUIRE(trash != nullptr);
+    lv_area_t a;
+    lv_obj_get_coords(trash, &a);
+    lv_point_t c{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
+    REQUIRE(lv_indev_search_obj(lv_screen_active(), &c) == trash);
+    return c;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "a selection pill refuses a press inside its lockout that lifts after it",
+                 "[grid_edit][edit-chrome]") {
+    // A double tap: the second press lands on the new pill 240 ms after it
+    // appeared and lifts 70 ms later, past the lockout.
+    GridEditScene scene(test_screen(), "test_pill_lockout_press");
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    const lv_point_t c = trash_centre(em);
+    lv_tick_inc(240);
+    pointer.press(c.x, c.y);
+    lv_tick_inc(70);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == scene.widget);
+    CHECK(scene.config->is_placed("temperature"));
+
+    // The next tap, pressed after the lockout, acts.
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK_FALSE(scene.config->is_placed("temperature"));
+
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a selection pill's lockout runs from the frame that shows it",
+                 "[grid_edit][edit-chrome]") {
+    // A slow board: the pill is created, input waits a long frame, and the
+    // first press after that frame comes right away.
+    GridEditScene scene(test_screen(), "test_pill_lockout_frame");
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_tick_inc(GridEditMode::kPillLockoutMs + 100);
+    lv_refr_now(nullptr);
+    const lv_point_t c = trash_centre(em);
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == scene.widget);
+    CHECK(scene.config->is_placed("temperature"));
+
+    lv_tick_inc(GridEditMode::kPillLockoutMs);
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK_FALSE(scene.config->is_placed("temperature"));
+
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
 }

@@ -2690,6 +2690,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'No hay suficiente espacio libre en la impresora para este archivo. Libera espacio en Ajustes > Sistema > Almacenamiento.'
   Not enough frequency data from the sweeps. Try again.: 'No hay suficientes datos de frecuencia de los barridos. Intente de nuevo.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: No hay espacio suficiente para este widget. Reorganiza o elimina widgets para hacer espacio.
+  Not enough room to put the widget back. It stays removed.: 'No hay espacio suficiente para restaurar el widget. Sigue eliminado.'
   Not in your spools? Set it up: ¿No está en tus bobinas? Configúralo
   Not now: Ahora no
   Not turned: 'Sin girar'
@@ -4769,6 +4770,7 @@ translations:
     fue configurado pero el hardware no está disponible. Revise la configuración del
     sistema.
   Widget Labels: Etiquetas de Widgets
+  Widget removed: 'Widget eliminado'
   Width: Ancho
   Width Sensor: 'Sensor de ancho'
   Width Sensors: Sensores de anchura

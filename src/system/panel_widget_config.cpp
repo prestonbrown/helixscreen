@@ -750,6 +750,19 @@ void PanelWidgetConfig::remove_from_page(size_t page_index, size_t index) {
     }
 }
 
+bool PanelWidgetConfig::restore_entry(size_t page_index, size_t index, PanelWidgetEntry entry) {
+    if (page_index >= pages_.size() || is_placed(entry.id)) {
+        return false;
+    }
+    auto& landing = pages_[page_index].widgets;
+    landing.erase(std::remove_if(landing.begin(), landing.end(),
+                                 [&entry](const PanelWidgetEntry& e) { return e.id == entry.id; }),
+                  landing.end());
+    const size_t at = std::min(index, landing.size());
+    landing.insert(landing.begin() + static_cast<std::ptrdiff_t>(at), std::move(entry));
+    return true;
+}
+
 bool PanelWidgetConfig::is_enabled(const std::string& id) const {
     for (const auto& page : pages_) {
         auto it = std::find_if(page.widgets.begin(), page.widgets.end(),
