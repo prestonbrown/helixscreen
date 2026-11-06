@@ -68,6 +68,10 @@ void RotationProbe::show_screen(Phase phase, int rot_deg, int step, int steps,
     }
     set_subtitle(phase, rot_deg, static_cast<int>(timeout_ms / 1000), step, steps);
 
+    if (m_host.keep_backlight_on) {
+        m_host.keep_backlight_on();
+    }
+
     lv_obj_t* scr = lv_screen_active();
     lv_obj_clean(scr);
     const char* attrs[] = {"bg_color", phase == Phase::Scan ? "#1a1a2e" : "#1a2e1a", nullptr};

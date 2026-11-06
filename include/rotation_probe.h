@@ -23,6 +23,9 @@ struct RotationProbeHost {
     std::function<void(lv_display_rotation_t)> settle_rotation;
     /// Holds the debounced resize fan-out off while rotations are being tried.
     std::function<void(bool)> suspend_resize_fanout;
+    /// Lights the backlight. Called before every prompt is built: some stock firmwares dim the
+    /// panel behind our back during boot, and a prompt on a dark panel cannot be answered.
+    std::function<void()> keep_backlight_on;
     uint32_t scan_timeout_ms = 5000;
     uint32_t confirm_timeout_ms = 10000;
 };

@@ -35,6 +35,8 @@ struct ProbeScript {
     std::vector<bool> fanout;
     std::string scan_main_text;
     std::string scan_subtitle_text;
+    /// Children on the active screen at each keep_backlight_on() call.
+    std::vector<uint32_t> children_at_backlight;
 };
 
 ProbeScript* g_script = nullptr;
@@ -101,6 +103,9 @@ class ProbeFixture : public ApplicationTestFixture {
                 script.settled.push_back(script.current_degrees);
             },
             [this](bool suspended) { script.fanout.push_back(suspended); },
+            [this] {
+                script.children_at_backlight.push_back(lv_obj_get_child_count(lv_screen_active()));
+            },
             /*scan_timeout_ms=*/40,
             /*confirm_timeout_ms=*/400};
         return helix::RotationProbe(std::move(host)).run();
@@ -155,6 +160,22 @@ TEST_CASE_METHOD(ProbeFixture,
     CHECK_FALSE(cfg->exists("/display/rotate"));
     CHECK_FALSE(cfg->exists("/display/rotation_probed"));
     CHECK(helix::rotation_probe_unanswered(*cfg));
+}
+
+TEST_CASE_METHOD(ProbeFixture,
+                 "every rotation probe prompt lights the backlight before it is built",
+                 "[application][display][rotation][probe]") {
+    SECTION("unanswered: twelve scan prompts") {
+        run(/*is_sdl=*/false, /*tap_at_degrees=*/-1);
+        CHECK(script.children_at_backlight.size() == 12);
+    }
+    SECTION("answered at 90: two scan prompts and one confirm prompt") {
+        run(/*is_sdl=*/false, /*tap_at_degrees=*/90);
+        CHECK(script.children_at_backlight.size() == 3);
+    }
+    // The first prompt is lit before the probe has put anything on the screen.
+    REQUIRE_FALSE(script.children_at_backlight.empty());
+    CHECK(script.children_at_backlight.front() == 0);
 }
 
 TEST_CASE("a configured rotation answers the probe even without the probed flag",
