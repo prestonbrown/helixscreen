@@ -3704,7 +3704,7 @@ void MoonrakerClientMock::populate_hardware() {
         break;
 
     case PrinterType::FLASHFORGE_AD5X:
-        // FlashForge Adventurer 5X. Fans mirror assets/config/presets/ad5x.json
+        // FlashForge Adventurer 5X. Fans and LEDs mirror assets/config/presets/ad5x.json
         // hardware/expected.
         discovery_.heaters() = {"heater_bed", "extruder"};
         discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
@@ -3712,7 +3712,7 @@ void MoonrakerClientMock::populate_hardware() {
                                 "temperature_sensor chamber"};
         discovery_.fans() = {"fan_generic fanM106", "heater_fan heat_fan",
                              "fan_generic chamber_fan", "controller_fan driver_fan"};
-        discovery_.leds() = {"led chamber_led"};
+        discovery_.leds() = {"led chamber_led", "led chamber_light"};
         break;
 
     case PrinterType::CREALITY_K2_PLUS:
