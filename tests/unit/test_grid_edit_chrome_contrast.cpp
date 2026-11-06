@@ -611,3 +611,64 @@ TEST_CASE_METHOD(XMLTestFixture, "a selection pill ignores taps just after it ap
 
     em.exit();
 }
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "a selection pill refuses a press inside its lockout that lifts after it",
+                 "[grid_edit][edit-chrome]") {
+    // A double tap: the second press lands on the new pill 240 ms after it
+    // appeared and lifts 70 ms later, past the lockout.
+    ChromeScene scene(test_screen(), 8, 4);
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_area_t a;
+    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
+    const lv_point_t c = centre_of_area(a);
+    lv_tick_inc(240);
+    pointer.press(c.x, c.y);
+    lv_tick_inc(70);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == scene.widget);
+    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+
+    // The next tap, pressed after the lockout, acts.
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == nullptr);
+
+    em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "a selection pill's lockout runs from the frame that shows it",
+                 "[grid_edit][edit-chrome]") {
+    // A slow board: the pill is created, input waits a long frame, and the
+    // first press after that frame comes right away.
+    ChromeScene scene(test_screen(), 8, 4);
+    helix_test::ScopedPointerIndev pointer;
+    GridEditMode em;
+    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.select_widget(scene.widget);
+    REQUIRE(em.selected_widget() == scene.widget);
+    lv_obj_update_layout(scene.container);
+
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+    lv_refr_now(nullptr);
+    lv_area_t a;
+    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
+    const lv_point_t c = centre_of_area(a);
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == scene.widget);
+    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+
+    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
+    pointer.press(c.x, c.y);
+    pointer.release(c.x, c.y);
+    CHECK(em.selected_widget() == nullptr);
+
+    em.exit();
+}

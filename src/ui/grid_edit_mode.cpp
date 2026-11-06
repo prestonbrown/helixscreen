@@ -821,6 +821,35 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
         ignore_release_after_hold(btn);
+        // The lockout runs from the frame that shows the pill: on a slow board
+        // that frame lands well after the pill is created, and input waits
+        // for it.
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
+                if (!self->pills_shown_) {
+                    self->pills_shown_ = true;
+                    self->pills_drawn_tick_ = lv_tick_get();
+                }
+            },
+            LV_EVENT_DRAW_POST, this);
+        // Whether a tap acts is decided by when its press landed: a double
+        // tap's second press can fall inside the lockout and lift after it.
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
+                self->pill_press_tick_ = lv_tick_get();
+                self->pill_press_latched_ = true;
+            },
+            LV_EVENT_PRESSED, this);
+        lv_obj_add_event_cb(
+            btn,
+            [](lv_event_t* ev) {
+                static_cast<GridEditMode*>(lv_event_get_user_data(ev))->pill_press_latched_ = false;
+            },
+            LV_EVENT_PRESS_LOST, this);
 
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, icon);
@@ -891,6 +920,8 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     };
     const lv_point_t trash_pos = place_pill(PillCorner::TopRight, "trash");
     pills_drawn_tick_ = lv_tick_get();
+    pills_shown_ = false;
+    pill_press_latched_ = false;
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
     lv_obj_add_event_cb(
         remove_btn_,
@@ -925,8 +956,14 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     }
 }
 
-bool GridEditMode::pill_release_acts(lv_event_t* e) const {
-    if (!released_over_target(e) || lv_tick_elaps(pills_drawn_tick_) < kPillLockoutMs) {
+bool GridEditMode::pill_release_acts(lv_event_t* e) {
+    // A click with no press behind it (remote control) is timed at the click.
+    const uint32_t pressed_at = pill_press_latched_ ? pill_press_tick_ : lv_tick_get();
+    pill_press_latched_ = false;
+    // Signed: a press read before the pill's first frame stamped the clock
+    // is inside the lockout too.
+    const auto since_shown = static_cast<int32_t>(pressed_at - pills_drawn_tick_);
+    if (!released_over_target(e) || since_shown < static_cast<int32_t>(kPillLockoutMs)) {
         return false;
     }
     // A packed corner can leave a pill no spot but one over the delete-page

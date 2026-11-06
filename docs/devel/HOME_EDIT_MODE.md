@@ -168,6 +168,13 @@ swipeable: a swipe that starts on a widget must still flip the page.
   (`finish_resize_snap()`), whose rebuild replaces the objects under it on the next tick.
 - **While the widget catalog is open, grid input takes no action** (see
   [The widget catalog](#the-widget-catalog)).
+- **A selection pill ignores a tap whose press lands within `kPillLockoutMs` (300 ms) of the
+  frame that first draws it** (`src/ui/grid_edit_mode.cpp#pill_release_acts`). A tap selects the
+  widget under the finger and draws its trash pill there, so a double tap's second press lands on
+  that pill. The press decides, not the lift: a second press at 240 ms that lifts at 310 ms is
+  refused. The clock starts at the pill's first `LV_EVENT_DRAW_POST`, not its creation, because a
+  slow board reads no input until that frame is out. A click with no press behind it (remote
+  control) is timed at the click.
 - **A click is a release that lands where its press did.** LVGL sends CLICKED after any release no
   scroll took, a drag's included. `on_home_grid_clicked` selects under the pointer only when
   `finger_drifted_since_press()` is false (`src/ui/ui_panel_home.cpp#on_home_grid_clicked`): a drag
