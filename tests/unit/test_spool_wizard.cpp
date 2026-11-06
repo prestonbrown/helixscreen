@@ -549,6 +549,28 @@ TEST_CASE("filament_create_payload records the slicer's material and keeps the v
     CHECK(SpoolWizardOverlay::filament_create_payload(f, 7)["name"] == "Grey ABS+HS");
 }
 
+TEST_CASE("existing_filament_for finds the record a pick files, so a repeat pick reuses it",
+          "[spool_wizard][spoolman][exact_filament]") {
+    SpoolWizardOverlay::FilamentEntry e;
+    e.name = "PLA+ White";
+    e.material = "PLA+";
+    e.color_hex = "FFFFFF";
+    const nlohmann::json stored = SpoolWizardOverlay::filament_create_payload(e, 3);
+
+    FilamentInfo filed;
+    filed.id = 12;
+    filed.vendor_id = 3;
+    filed.material = stored["material"].get<std::string>();
+    filed.filament_name = stored["name"].get<std::string>();
+    filed.color_hex = "FFFFFF";
+    const std::vector<FilamentInfo> filaments{filed};
+
+    const FilamentInfo* found = SpoolWizardOverlay::existing_filament_for(filaments, e, 3);
+    REQUIRE(found != nullptr);
+    CHECK(found->id == 12);
+    CHECK(SpoolWizardOverlay::existing_filament_for(filaments, e, 4) == nullptr);
+}
+
 TEST_CASE("vendor_create_payload keeps the website Spoolman has no field for",
           "[spool_wizard][spoolman]") {
     // Spoolman's vendor has no url field and silently drops unknown keys, so
