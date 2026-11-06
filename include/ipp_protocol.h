@@ -191,9 +191,14 @@ inline constexpr const char* kDefaultResourcePath = "ipp/print";
 /// leaves nothing.
 std::string normalize_resource_path(const std::string& resource_path);
 
-/// Construct an IPP printer URI from discovered mDNS info.
+/// How a job reaches the printer: plain IPP over HTTP, or IPPS (IPP over TLS, RFC 7472),
+/// which shares IPP's default port 631.
+enum class Transport { Plain, Tls };
+
+/// Construct an IPP printer URI from discovered mDNS info: ipp:// for Plain, ipps:// for Tls.
 /// host: hostname or IP, port: IPP port, resource_path: from mDNS TXT "rp" field.
 std::string make_printer_uri(const std::string& host, uint16_t port,
-                             const std::string& resource_path = kDefaultResourcePath);
+                             const std::string& resource_path = kDefaultResourcePath,
+                             Transport transport = Transport::Plain);
 
 } // namespace helix::ipp
