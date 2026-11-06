@@ -1363,6 +1363,12 @@ Two kinds of remote machine help here, and both are optional:
   `TEST_HOST=0` or `HELIX_TEST_HOST_AUTO=0` keeps both local). `make land-gate`
   makes the same choice for its two C++ sweeps (`scripts/lib/sweep_location.sh`
   holds it for both gates).
+  Run ASAN there rather than on thelio: thelio's `/etc/ld.so.preload` makes
+  ASAN's runtime load second, so the binary produces no test output and exits
+  0, a pass that ran nothing. The container has no `ld.so.preload` and its
+  image matches CI's. `test-host-run.sh test` with no arguments runs the
+  suite in one process, where cross-test contamination fails cases no branch
+  touched, so it is not a gate.
 - a **remote build host** builds natively or for the cross targets:
   `make remote-native`, `make remote-test`, `make remote-pi` and siblings
   (`mk/remote.mk`, `scripts/remote-build.sh`).
