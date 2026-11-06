@@ -37,7 +37,7 @@ personal account is the one we publish from.
    App integrity → App signing, confirm Google's app signing key exists, and register its SHA-256 as
    a second key on `org.helixscreen.app` in Android developer verification if Google did not add it.
 5. **Service account and `PLAY_SERVICE_ACCOUNT_JSON`** (steps under "One-time manual
-   prerequisites"), so later stable tags upload to the internal track as drafts by themselves.
+   prerequisites"), so later stable tags upload to production and roll out by themselves.
 
 **Sideloaded installs cannot update from Play.** Play-served builds carry Google's app signing key and
 GitHub-release APKs carry our upload key, so a tester who sideloaded must uninstall first, which
@@ -143,10 +143,10 @@ the store screenshots are landscape to match.
 On every release tag (`v*`), `.github/workflows/release.yml` runs:
 
 1. **`build-android-native`** compiles each ABI's native code in its own job, in parallel, through `.github/actions/android-native-release` (the same action `ccache-warm.yml` warms each ABI's ccache with). **`build-android`** then packages those libraries with `-PhelixPrebuiltJniLibs`, with no native recompile: it builds APKs (`assembleRelease`) and an AAB (`bundleRelease`), signed with the upload keystore held in GitHub secrets. Verifies the signature on the built bytes before anything is uploaded (see "What happens when the keystore is missing"). Generates the Play Store "What's new" text (`android/whatsnew/<version>.txt`, see below) and uploads three artifacts: `release-android` (APKs), `release-android-aab` (AAB), `release-android-whatsnew`.
-2. **`publish-android`** — uploads the AAB to the Play Store's **internal** track with status **draft**, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
+2. **`publish-android`** — uploads the AAB to the Play Store's **production** track with status **completed** (a full rollout) and sends it for review, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
 3. **`release`** — attaches all artifacts to the GitHub release. It `needs` **both** `build-platforms` and `build-android`, and asserts the three APKs and the AAB are present by name before creating the release. Without the `build-android` dependency the release could be created while Android was still building (90 min budget against the matrix's 82) and, because the artifact globs run with `fail_on_unmatched_files: false`, it would publish with no Android downloads and still report success.
 
-Once the upload lands on the internal track, you promote it to open testing or production from the Play Console UI. The automation stops at `draft` on purpose so every release gets a final human review before it goes live.
+A stable tag reaches every Play user once Google's review passes, with no step in Play Console. Google's review is the only gate left, and Play cannot roll a release back: a bad stable is fixed by shipping a newer one. If Managed publishing is turned on in Play Console (Publishing overview), an approved release waits there until you publish it.
 
 ## Source of truth
 
@@ -190,7 +190,7 @@ Before the first run of `publish-android` can succeed, the following must be don
 - [x] **Add the four keystore GitHub secrets** — `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` all set 2026-04-23 (verified via `gh secret list`).
 - [ ] **Add the `PLAY_SERVICE_ACCOUNT_JSON` secret** — paste the full JSON contents (plain text, not base64) once the service account is created. Blocked on the Play Console app existing.
 
-After all prerequisites are ticked off, the next release tag will trigger an automated upload to the internal track. Until then, **regular releases continue normally** — the `build-android` job produces properly-signed AABs (thanks to the keystore secrets being in place), and the `publish-android` job detects the missing service-account secret and skips every step via its guarded `if:` conditions. No build fails; the AAB is just not pushed to Google until we're ready.
+After all prerequisites are ticked off, the next stable tag will trigger an automated upload to the production track. Until then, **regular releases continue normally** — the `build-android` job produces properly-signed AABs (thanks to the keystore secrets being in place), and the `publish-android` job detects the missing service-account secret and skips every step via its guarded `if:` conditions. No build fails; the AAB is just not pushed to Google until we're ready.
 
 ### What happens when the keystore is missing
 
@@ -263,13 +263,7 @@ sharing or the internal track with two versionCodes.
 
 ## Promoting a release
 
-The automation stops at **internal / draft**. Promote manually:
-
-1. Play Console → Test and release → Testing → **Internal testing**: open the draft release, review it, and roll it out to testers (or discard it and let the next tag upload a fresh one).
-2. Once smoke-tested, promote it to **Closed testing - Alpha**, the track the tester group is on, and send it for review.
-3. **Production** stays locked until the personal-account closed-test requirement is met (12+ opted-in testers for 14 days, "Where to pick up"). After "Apply for production" is granted, promote from the closed track to **Production**.
-
-The internal track only needs an email list (add yourself + any trusted testers) and does not require review. Use it as the first sanity check after every release.
+Nothing to promote: `publish-android` uploads every stable tag straight to **Production** as a full rollout. To stage a release first, upload by hand to **Internal testing** or **Closed testing - Alpha** (the tester group's track) before tagging, or change the `track` and `status` below.
 
 ## Changing automation behavior
 
@@ -277,9 +271,9 @@ To change the target track or status, edit the `publish-android` job in `.github
 
 | Setting | Value now | Alternatives |
 |---------|-----------|--------------|
-| `track` | `internal` | `alpha`, `beta`, `production` |
-| `status` | `draft` | `inProgress`, `halted`, `completed` |
-| `changesNotSentForReview` | `true` | `false` — sends the release for review automatically; can't be used on `production` without supplying release notes |
+| `track` | `production` | `internal`, `alpha`, `beta` |
+| `status` | `completed` | `draft`, `inProgress` (staged rollout, with `userFraction`), `halted` |
+| `changesNotSentForReview` | `false` | `true` — leaves the release unsent, so it waits in Play Console for you to send it for review |
 
 ## Local dry runs
 
