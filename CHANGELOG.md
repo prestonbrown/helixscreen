@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **3D G-code preview falls back to 2D when graphics memory runs out** - a Pi 4 with 1 GB could crash during the 3D upload.
 - **Motion panel crash after a rotation** - resizing or rotating the window on Android could leave the jog pad pointing at freed memory.
+- **Less CPU while idle and asleep** - the screen no longer wakes the board about 115 times a second when nothing is happening, and hidden loading spinners stop animating. On a Creator 5 Pro, sleeping use dropped from 3.5% to 3.0% of a core and idle use from 4.5% to 3.6%.
 
 **Printers**
 
