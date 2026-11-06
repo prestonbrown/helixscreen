@@ -406,7 +406,7 @@ jobs:
         retention-days: 7
 
   build-macos:
-    name: Build (macOS 14)
+    name: Build (macOS 15)
     runs-on: macos-15
     # Gated on the two jobs that need no build. A shell, gate or lint failure is
     # knowable in minutes; this job runs for well over an hour, so starting it
