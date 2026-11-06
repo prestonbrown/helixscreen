@@ -35,39 +35,6 @@
     "leds": {
       "strip": "led chamber_led"
     },
-    "filament_sensors": {
-      "master_enabled": true,
-      "sensors": [
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor extruder0_tool_start",
-          "lane": 0,
-          "role": "runout",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor extruder1_tool_start",
-          "lane": 1,
-          "role": "runout",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor extruder2_tool_start",
-          "lane": 2,
-          "role": "runout",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor extruder3_tool_start",
-          "lane": 3,
-          "role": "runout",
-          "type": "switch"
-        }
-      ]
-    },
     "hardware": {
       "expected": [
         "heater_bed",

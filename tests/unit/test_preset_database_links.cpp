@@ -234,15 +234,18 @@ TEST_CASE("the AD5X preset turns the light capability off and names its led obje
 }
 
 // OpenCreator's runout switches are AFC's tool_start sensors (one per
-// [AFC_extruder extruder<N>], opencreator-fs printer.afc-standalone.cfg), its
-// fm_ex<N> wheel sensors are clog-only (printer.filament.cfg) and its chamber
+// [AFC_extruder extruder<N>], opencreator-fs printer.afc-standalone.cfg), which
+// AFC owns and handles itself (AmsBackendAfc::owns_filament_sensor); its
+// fm_ex<N> wheel sensors are clog-only (printer.filament.cfg), its chamber
 // heater fan is a Kalico heater_fan_throttled (printer.pro.cfg) and its dock
 // macro DOCK_EXISTING_TOOL (printer.macro.cfg). The stock firmware's fd_ex<N>
 // switches, heater_fan chamber_heat_fan and TOOLCHANGE_PARK do not exist
-// there, and naming them raises missing-hardware warnings and leaves runout
-// pointing at nothing.
+// there, and naming them raises missing-hardware warnings.
 TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
           "[printer_detector][presets][assets]") {
+    auto ends_with_any = [](const std::string& name) {
+        return ends_with(name, "_tool_start") || ends_with(name, "_tool_end");
+    };
     for (const char* stem : {"creator5_opencreator", "creator5_pro_opencreator"}) {
         CAPTURE(stem);
         const json preset = load_json(std::string(kPresetDir) + "/" + stem + ".json");
@@ -251,16 +254,18 @@ TEST_CASE("the OpenCreator Creator 5 presets name the hardware OpenCreator has",
         CHECK(text.find("\"heater_fan chamber_heat_fan\"") == std::string::npos);
         CHECK(text.find("TOOLCHANGE_PARK") == std::string::npos);
 
-        const json& sensors = preset["printer"]["filament_sensors"]["sensors"];
-        REQUIRE(sensors.is_array());
-        REQUIRE(sensors.size() == 4);
-        for (int lane = 0; lane < 4; ++lane) {
-            CAPTURE(lane);
-            const json& s = sensors[static_cast<size_t>(lane)];
-            CHECK(s["klipper_name"] ==
-                  "filament_switch_sensor extruder" + std::to_string(lane) + "_tool_start");
-            CHECK(s["lane"] == lane);
-            CHECK(s["role"] == "runout");
+        // AFC raises its own runout; a runout role on its switches stacks
+        // HelixScreen's handling on top and hides them from Settings.
+        const json* sensors = nullptr;
+        if (preset["printer"].contains("filament_sensors")) {
+            sensors = &preset["printer"]["filament_sensors"]["sensors"];
+        }
+        if (sensors != nullptr && sensors->is_array()) {
+            for (const auto& s : *sensors) {
+                const std::string name = s.value("klipper_name", "");
+                CAPTURE(name);
+                CHECK_FALSE((ends_with_any(name) && s.value("role", "") == "runout"));
+            }
         }
     }
     const json pro = load_json(std::string(kPresetDir) + "/creator5_pro_opencreator.json");
