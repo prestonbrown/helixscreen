@@ -229,6 +229,11 @@ class PrintStartController {
         can_print_subject_ = subject;
     }
 
+    /// The printer.print.start parameters carrying this print's full tool map,
+    /// from the backend its lanes belong to (AmsBackend::print_start_params()).
+    /// Empty where that backend's printer takes no map at the start.
+    [[nodiscard]] helix::PrintStartParams print_start_params() const;
+
   private:
     /// Reads a reprinted file's tools when its caller has none; created on that use.
     std::unique_ptr<helix::FileStartFactsLoader> reprint_facts_;
@@ -390,11 +395,6 @@ class PrintStartController {
     // === Filament Remap Methods ===
     /// Snapshot current firmware mapping, send remap commands, return true if remaps were sent
     bool apply_filament_remaps();
-
-    /// The printer.print.start parameters carrying this print's full tool map,
-    /// from the backend its lanes belong to (AmsBackend::print_start_params()).
-    /// Empty where that backend's printer takes no map at the start.
-    [[nodiscard]] helix::PrintStartParams print_start_params() const;
 
     /**
      * @brief Whether to warn the user that their explicit remap can't be honored.

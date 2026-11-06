@@ -4,31 +4,10 @@
 #include "filament_mapper.h"
 #include "printer_discovery.h"
 
-#include <cctype>
-
 namespace helix::print_start {
 
 bool takes_tool_slots(const PrinterDiscovery& hw) {
     return hw.has_zmod_afc();
-}
-
-std::optional<int> slot_number_of_lane(std::string_view lane) {
-    std::size_t start = lane.size();
-    while (start > 0 && std::isdigit(static_cast<unsigned char>(lane[start - 1]))) {
-        --start;
-    }
-    // More digits than any slot count; also keeps the sum below from overflowing.
-    if (start == lane.size() || lane.size() - start > 6) {
-        return std::nullopt;
-    }
-    int value = 0;
-    for (std::size_t i = start; i < lane.size(); ++i) {
-        value = value * 10 + (lane[i] - '0');
-    }
-    if (value < 1) {
-        return std::nullopt;
-    }
-    return value;
 }
 
 PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers) {

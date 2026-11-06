@@ -12,9 +12,7 @@
 // backends ask it, and the print-start path forwards whatever they return.
 
 #include <map>
-#include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace helix {
@@ -34,11 +32,6 @@ namespace print_start {
 /// `AFC=0`, or one older than the emulation, keeps routing by its own prompt
 /// and tables, and is sent no map.
 [[nodiscard]] bool takes_tool_slots(const PrinterDiscovery& hw);
-
-/// The physical slot a lane name carries in its trailing digits: Z-Mod's lane
-/// `laneN` is slot N, IFS Jacker lanes past 4 included. nullopt when the name
-/// ends in no digits or names slot 0.
-[[nodiscard]] std::optional<int> slot_number_of_lane(std::string_view lane);
 
 /// The parameters carrying @p slot_numbers (G-code tool -> 1-based physical
 /// slot) for a printer where takes_tool_slots() holds. Index is the tool, value

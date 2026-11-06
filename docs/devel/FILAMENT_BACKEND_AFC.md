@@ -813,7 +813,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Feature | Supported | Editable |
 |---------|-----------|----------|
 | Endless Spool | `Available`, always `On` | `PerSlot` via `SET_RUNOUT` (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
-| Tool Mapping | Yes | Yes (via `SET_MAP`); none behind Z-Mod's `zmod_afclite` shim, whose `SET_MAP` raises by design because Z-Mod maps tools per print in its own material prompt. Where the print start takes the map (`helix::print_start`, Z-Mod's built-in AFC), `print_start_params()` also sends the full map as `printer.print.start`'s `tools`, each slot as the digits of its lane name (`lane11` is 11); `SET_MAP` still keeps the lane map in step |
+| Tool Mapping | Yes | Yes (via `SET_MAP`); none behind Z-Mod's `zmod_afclite` shim, whose `SET_MAP` raises by design because Z-Mod maps tools per print in its own material prompt |
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |

@@ -890,11 +890,11 @@ TEST_CASE("A Creator 5 pick the slot table cannot hold reports failure",
           "[toolchanger][zmod][2033]") {
     ToolChangerHelper tc(4);
     tc.set_discovery(zmod_c5_builtin_afc_discovery());
-    helix::ToolChangerTestAccess::set_total_slots(tc, 2);
     // Nothing was stored, so the print start must not count it or arm a restore.
-    CHECK_FALSE(tc.set_tool_mapping(0, 3).success());
-    CHECK(tc.get_tool_mapping().at(0) != 3);
+    CHECK_FALSE(tc.set_tool_mapping(0, 4).success());
+    CHECK(tc.get_tool_mapping().at(0) == 0);
     CHECK(tc.set_tool_mapping(0, 1).success());
+    CHECK(tc.get_tool_mapping().at(0) == 1);
 }
 
 TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",

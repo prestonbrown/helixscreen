@@ -37,15 +37,6 @@ TEST_CASE("tools: nothing mapped sends no parameter", "[print_start_params][2033
     CHECK(tool_slot_params({{0, 0}, {-1, 2}}).empty());
 }
 
-TEST_CASE("a lane name's trailing digits are its slot", "[print_start_params][2033]") {
-    CHECK(slot_number_of_lane("lane1") == 1);
-    CHECK(slot_number_of_lane("lane4") == 4);
-    CHECK(slot_number_of_lane("lane11") == 11);
-    CHECK_FALSE(slot_number_of_lane("lane").has_value());
-    CHECK_FALSE(slot_number_of_lane("lane0").has_value());
-    CHECK_FALSE(slot_number_of_lane("").has_value());
-}
-
 TEST_CASE("only Z-Mod with its built-in AFC takes the tools map", "[print_start_params][2033]") {
     helix::PrinterDiscovery zmod;
     zmod.parse_objects(nlohmann::json::array({"AFC", "AFC_lane lane1", "zmod_color"}));

@@ -466,11 +466,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         return firmware_maps_tools_per_print_.load(std::memory_order_relaxed);
     }
 
-    /// Each slot as the slot number its lane name carries ("lane11" is 11),
-    /// where the print start takes the map (helix::print_start).
-    [[nodiscard]] helix::PrintStartParams
-    print_start_params(const std::map<int, int>& tool_slots) const override;
-
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
@@ -1306,9 +1301,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
     /// raises an error by design.
     std::atomic<bool> firmware_maps_tools_per_print_{false};
-
-    /// The print start takes this print's tool map (print_start_params()).
-    std::atomic<bool> print_start_takes_tool_slots_{false};
 
     // AFC state strings outside our known vocabulary — dedupes the schema-drift
     // warning so it fires once per distinct string, not once per status update.
