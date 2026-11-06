@@ -1194,3 +1194,23 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the pr
     CHECK(subject_int("ps_chip_other_tools_shown") == 0);
     CHECK(hidden(root_, "ps_chip_other_tools"));
 }
+
+TEST_CASE_METHOD(Landscape800, "the other-tools chip numbers configured names too long to fit",
+                 "[print_status][print_status_other_tools]") {
+    const std::vector<std::string> extruders = {"extruder", "extruder1", "extruder2"};
+    state().temperature_state().init_extruders(extruders);
+    PrinterDiscovery hardware;
+    hardware.parse_objects({"toolchanger", "tool AlphaToolheadWithAVeryLongName",
+                            "tool BravoToolheadWithAVeryLongName",
+                            "tool CharlieToolheadWithAVeryLongName", "extruder", "extruder1",
+                            "extruder2"});
+    ToolState::instance().init_tools(hardware);
+    REQUIRE(ToolState::instance().active_tool_index() == 0);
+    state().update_from_status({{"extruder", {{"temperature", 220.0}, {"target", 220.0}}},
+                                {"extruder1", {{"temperature", 150.0}, {"target", 150.0}}},
+                                {"extruder2", {{"temperature", 25.0}, {"target", 0.0}}}});
+    settle();
+
+    CHECK(subject_int("ps_chip_other_tools_shown") == 1);
+    CHECK(subject_str("ps_chip_other_tools_text") == "2 150° · 3 off");
+}
