@@ -94,6 +94,40 @@ AD5X-against-K1C render factor measured earlier did not show up here.
 GrumpyScreen, as its users quote it: about 5% at idle and 0.7% with the screen off, 5 MB
 of RAM. Whether that is one core or the whole machine is not stated.
 
+## Does the UI cause "Timer too close"? (Creator 5 Pro, 2026-11-06)
+
+Klipper on the Creator 5 is FlashForge's fork, which adds short-move limiters to its
+`klippy/extras/gcode_move` module on the printer (moves of 0.75 mm or less take at least 2.5 ms; short extruding moves at
+most 80 mm/s, from firmware 1.9.9) and a dynamic one to its `klippy/toolhead` module (scales in from 80 to
+200 moves per second). Its own comment says they exist to avoid "Timer too close". Owners
+who disable them for speed set `short_move_limit: False` and `short_extrude_move_limit:
+False` under `[printer]`, which turns off both.
+
+XY-only moves (no heat, heads docked) sent through Moonraker's `gcode/script` at 30k accel,
+the UI awake on the home screen:
+
+| Load | No screen process | HelixScreen running |
+|---|---|---|
+| Limiters on, 0.5-3 mm segments, 400-600 mm/s, 5 min | not run | no TTC; klippy 20-39% of a core, HelixScreen 4.5-5.0% |
+| Limiters off, 0.1-0.3 mm at 600 mm/s | TTC at 45, 35, 14 s | TTC at 36, 11, 36 s |
+| Limiters off, 0.2 mm at 240 mm/s | TTC at 54 s | TTC at 57 s |
+| Limiters off, 0.2 mm at 200 mm/s, 3 min | 1 survived, 1 TTC at the same move block | 2 TTC at the same move block |
+| That move block replayed alone | 4 of 4 survived | 4 of 4 survived |
+| Limiters off, 0.2 mm at 170 mm/s, 3 min | survived | survived |
+
+With the limiters off, klippy's single Python thread reaches 100% of one core near 750-900
+moves per second, while the box still has a free core, and the MCU then shuts down with
+"Timer too close" whether or not any screen runs. The failure point follows the gcode, not
+the screen: the seeded runs died on the same move block in both modes. No case was found
+where HelixScreen tipped a passing load into a TTC. HelixScreen runs at nice +10 against
+klippy's -20 here. Neither the tool-change print that triggered the original reports
+(4-colour, no prime tower) nor another firmware's process priorities were tested.
+
+The test, for repeating it: `mod_data/user.cfg` (Z-Mod's empty last include) carries the
+two-line `[printer]` override. A Klipper restart on this firmware runs
+`/usr/prog/bin/wakeup_level` synchronously, and it can block on the level board for
+minutes; killing it lets klippy finish the restart.
+
 ## Memory, from telemetry
 
 `memory_snapshot` events with more than 10 minutes of uptime, 2026-10-01 to 2026-11-06.
