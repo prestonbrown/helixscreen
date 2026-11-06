@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <lvgl.h>
+#include <optional>
 #include <string>
 
 namespace helix::ui {
@@ -45,7 +46,8 @@ class ExactSizeImage {
     /// the next call shows and checks again.
     void forget_displayed();
     /// Drops the in-flight generation's result (owner teardown, tree destroyed).
-    /// The worker still finishes and writes its entry for the next attach.
+    /// The worker still finishes and writes its entry for the next attach, and
+    /// a request refused while it ran is generated too, with no result.
     void cancel();
 
   private:
@@ -65,6 +67,15 @@ class ExactSizeImage {
     bool applied_exact_ = false;
     /// One generation at a time: every relayout or navigation back asks again.
     bool inflight_ = false;
+    /// The latest request refused while a generation ran. The running one's
+    /// result asks again, or cancel() hands it to the worker.
+    struct Deferred {
+        std::string source;
+        std::string cache_path;
+        int w = 0;
+        int h = 0;
+    };
+    std::optional<Deferred> deferred_;
     helix::AsyncLifetimeGuard lifetime_;
 };
 
