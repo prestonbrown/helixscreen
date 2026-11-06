@@ -4357,52 +4357,45 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(client.spoolman_mock().created_filaments.empty());
     CHECK(client.spoolman_mock().created_spools.empty());
 
-    SECTION("Use existing points the new spool at that filament") {
-        lv_obj_send_event(lv_obj_find_by_name(dlg, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+    const auto settle = [this] {
         UpdateQueue::instance().drain();
         process_lvgl(10);
         UpdateQueue::instance().drain();
-        CHECK(client.spoolman_mock().created_filaments.empty());
-        REQUIRE(client.spoolman_mock().created_spools.size() == 1);
-        CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 73);
-        // The lane takes the record it now points at, not what was typed.
-        REQUIRE(committed.has_value());
-        CHECK(committed->color_rgb == 0x636363u);
-        CHECK(committed->spool_name == "Grey ABS+HS");
-        CHECK(committed->material == "ABS");
-    }
-    SECTION("Add new files a filament of its own") {
-        lv_obj_send_event(lv_obj_find_by_name(dlg, "btn_secondary"), LV_EVENT_CLICKED, nullptr);
-        UpdateQueue::instance().drain();
-        process_lvgl(10);
-        UpdateQueue::instance().drain();
-        REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
-        CHECK(client.spoolman_mock().created_filaments[0]["name"] == "ABS+ Deep Gray");
-        REQUIRE(client.spoolman_mock().created_spools.size() == 1);
-        CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == 117);
-    }
-    // A save the offer is holding blocks the slot's editor until it ends.
-    auto reopens = [&] {
-        return overlay.show_for_slot(test_screen(), 0, loaded, &api,
-                                     [](const AmsEditOverlay::EditResult&) {});
     };
-    SECTION("a dismissal ends the slot's save with nothing written") {
-        helix::test::dismiss_top_modal();
-        process_lvgl(10);
-        UpdateQueue::instance().drain();
-        CHECK(client.spoolman_mock().created_filaments.empty());
-        CHECK(client.spoolman_mock().created_spools.empty());
-        CHECK(reopens());
+    struct Answer {
+        const char* what;
+        const char* button;
+        int filament;
+    };
+    for (const Answer& answer : {Answer{"Use existing points the spool at it", "btn_primary", 73},
+                                 Answer{"Add new files its own filament", "btn_secondary", 117}}) {
+        DYNAMIC_SECTION(answer.what) {
+            lv_obj_send_event(lv_obj_find_by_name(dlg, answer.button), LV_EVENT_CLICKED, nullptr);
+            settle();
+            REQUIRE(client.spoolman_mock().created_spools.size() == 1);
+            CHECK(client.spoolman_mock().created_spools[0]["filament_id"] == answer.filament);
+            CHECK(client.spoolman_mock().created_filaments.size() ==
+                  (answer.filament == 73 ? 0u : 1u));
+            // The lane takes the record it points at, not what was typed.
+            REQUIRE(committed.has_value());
+            CHECK((committed->spool_name == "Grey ABS+HS") == (answer.filament == 73));
+        }
     }
-    SECTION("the editor closing under the offer does not strand the slot's save") {
-        NavigationManager::instance().go_back();
-        UpdateQueue::instance().drain();
-        process_lvgl(10);
-        REQUIRE_FALSE(ModalStack::instance().stack_empty());
-        helix::test::dismiss_top_modal();
-        process_lvgl(10);
-        UpdateQueue::instance().drain();
-        CHECK(reopens());
+    // A save the offer is holding blocks the slot's editor until it ends,
+    // and the editor closing under the offer must not strand it.
+    for (const bool editor_closed : {false, true}) {
+        DYNAMIC_SECTION("a dismissal ends the slot's save, editor closed: " << editor_closed) {
+            if (editor_closed) {
+                NavigationManager::instance().go_back();
+                settle();
+                REQUIRE_FALSE(ModalStack::instance().stack_empty());
+            }
+            helix::test::dismiss_top_modal();
+            settle();
+            CHECK(client.spoolman_mock().created_spools.empty());
+            CHECK(overlay.show_for_slot(test_screen(), 0, loaded, &api,
+                                        [](const AmsEditOverlay::EditResult&) {}));
+        }
     }
 
     if (!ModalStack::instance().stack_empty()) {

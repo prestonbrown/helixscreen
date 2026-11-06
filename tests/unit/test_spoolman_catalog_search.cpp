@@ -92,53 +92,6 @@ TEST_CASE("SpoolmanCatalogSearch tickets go stale when a newer query starts", "[
     CHECK_FALSE(search.is_current(newer));
 }
 
-TEST_CASE("find_matching_filament is the one Spoolman filament match", "[spoolman_db]") {
-    using helix::spoolman::find_matching_filament;
-    using helix::spoolman::normalize_color_hex;
-
-    FilamentInfo red;
-    red.id = 4;
-    red.material = "PLA";
-    red.color_hex = "ff0000";
-    FilamentInfo clear;
-    clear.id = 9;
-    clear.material = "PETG";
-    clear.color_hex = "FFFFFF33";
-    const std::vector<FilamentInfo> filaments{red, clear};
-
-    SECTION("colour compares without case or '#'") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PLA", "", "#FF0000");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 4);
-    }
-
-    SECTION("an alpha channel is part of the colour") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PETG", "", "ffffff33");
-        REQUIRE(f != nullptr);
-        CHECK(f->id == 9);
-        CHECK(find_matching_filament(filaments, "PETG", "", "FFFFFF") == nullptr);
-    }
-
-    SECTION("material must match, as stored") {
-        CHECK(find_matching_filament(filaments, "PETG", "", "FF0000") == nullptr);
-        CHECK(find_matching_filament(filaments, "pla", "", "FF0000") == nullptr);
-    }
-
-    SECTION("the name must match once case and spacing are folded") {
-        std::vector<FilamentInfo> named = filaments;
-        named[0].filament_name = "  Red   PLA ";
-        CHECK(find_matching_filament(named, "PLA", "red pla", "FF0000") == &named[0]);
-        CHECK(find_matching_filament(named, "PLA", "Red PLA+", "FF0000") == nullptr);
-        CHECK(find_matching_filament(named, "PLA", "", "FF0000") == nullptr);
-    }
-
-    SECTION("no colour matches nothing") {
-        CHECK(find_matching_filament(filaments, "PLA", "", "") == nullptr);
-        CHECK(normalize_color_hex("red").empty());
-        CHECK(normalize_color_hex("12345").empty());
-    }
-}
-
 TEST_CASE("find_catalog_filament matches one catalog product exactly", "[spoolman_db]") {
     using helix::spoolman::find_catalog_filament;
 
