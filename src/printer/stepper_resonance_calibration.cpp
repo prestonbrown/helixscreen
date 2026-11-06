@@ -32,20 +32,6 @@ std::string wrapper_build(const PrinterDiscovery& /*hw*/, int tool) {
     return fmt::format("CALIBRATE_VFA T={}", tool);
 }
 
-// --- Firmware wrapper: VFA_COMPENSATION ---------------------------------------
-//
-// OpenCreator's VFA_COMPENSATION (printer.vibration.cfg) refuses unless every
-// head is docked, homes, parks the bare carriage at Z100/X130/Y130, runs
-// STEPPER_RESONANCE_FACTORY_CALIBRATE and ends in SAVE_CONFIG. Sending the
-// stock macro directly skips the dock check and the park.
-bool compensation_detect(const PrinterDiscovery& hw) {
-    return hw.has_macro("VFA_COMPENSATION");
-}
-
-std::string compensation_build(const PrinterDiscovery& /*hw*/, int /*tool*/) {
-    return "VFA_COMPENSATION";
-}
-
 // --- The stepper_resonance_tester extra ---------------------------------------
 //
 // The klippy extra registers STEPPER_RESONANCE_SEARCH_CALIBRATE
@@ -70,6 +56,21 @@ std::string tester_build(const PrinterDiscovery& hw, int /*tool*/) {
                                                     "STEPPER_RESONANCE_SEARCH_CALIBRATE "
                                                     "STEPPER=stepper_y");
     return calibrate + "\nSAVE_CONFIG";
+}
+
+// --- Firmware wrapper: VFA_COMPENSATION ---------------------------------------
+//
+// OpenCreator's VFA_COMPENSATION (printer.vibration.cfg) refuses unless every
+// head is docked, homes, parks the bare carriage at Z100/X130/Y130, runs
+// STEPPER_RESONANCE_FACTORY_CALIBRATE and ends in SAVE_CONFIG. Sending the
+// stock macro directly skips the dock check and the park. The macro name alone
+// is not the routine: it drives the stepper_resonance_tester extra above.
+bool compensation_detect(const PrinterDiscovery& hw) {
+    return hw.has_macro("VFA_COMPENSATION") && tester_detect(hw);
+}
+
+std::string compensation_build(const PrinterDiscovery& /*hw*/, int /*tool*/) {
+    return "VFA_COMPENSATION";
 }
 
 /// Most specific first: a wrapper that knows the machine outranks the bare
