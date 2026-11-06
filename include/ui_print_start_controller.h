@@ -475,9 +475,12 @@ class PrintStartController {
     friend void adopt_hand_tool_mapping(int backend_index, int tool, int slot);
 
   public:
-    /// Check for and restore any pending remap from a previous crashed session.
-    /// Call once after AMS backends are initialized.
-    void recover_pending_remap();
+    /// Replay the active printer's persisted record left by an earlier session.
+    /// @p print_active is whether the printer's own status says a job is
+    /// running: discovery reads it from the status it delivers, before
+    /// PrinterState's print subjects have been updated from it. A running job
+    /// keeps the record until that job ends; otherwise it is restored now.
+    void recover_pending_remap(bool print_active);
 };
 
 /**

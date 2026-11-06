@@ -582,7 +582,7 @@ TEST_CASE("remap restore: each printer keeps its own pending record on disk",
     helix::PrinterCacheRegistry::instance().invalidate_all();
     REQUIRE(cfg->set_active_printer(printer_a));
     be.backend->calls.clear();
-    h.controller.recover_pending_remap();
+    h.controller.recover_pending_remap(/*print_active=*/false);
     REQUIRE(be.backend->calls.size() == 2);
     CHECK(be.backend->calls[0].tool == 0);
     CHECK(be.backend->calls[0].slot == 2);
@@ -835,7 +835,7 @@ TEST_CASE("remap restore: a print that names no backend keeps another backend's 
 }
 
 TEST_CASE("remap restore: startup replays only the active printer's record",
-          "[remap-restore][1859]") {
+          "[remap-restore][1859][remap-restart]") {
     LVGLTestFixture fx;
     ConfigDirGuard config_dir{"remap_recover_printer_id"};
     ScopedCountingBackend be{{1, 2}};
@@ -851,7 +851,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "-other\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.empty());
         CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
         CHECK(std::filesystem::exists(record));
@@ -862,8 +862,23 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a print still running keeps it until that print ends") {
+        {
+            std::ofstream ofs(record);
+            ofs << entry;
+        }
+        // Discovery's status says a job runs; the print subjects still read the boot default.
+        h.controller.recover_pending_remap(/*print_active=*/true);
+        h.report("printing", "remapped.gcode");
+        CHECK(be.backend->calls.empty());
+        CHECK_FALSE(AmsState::instance().pending_tool_map_restore().empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+        CHECK_FALSE(std::filesystem::exists(record));
     }
 
     SECTION("a record naming no printer is the active printer's") {
@@ -871,7 +886,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << entry;
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.size() == 2);
     }
 }
