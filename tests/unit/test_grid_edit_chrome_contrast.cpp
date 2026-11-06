@@ -14,6 +14,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
+#include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../ui_test_utils.h"
@@ -613,62 +614,41 @@ TEST_CASE_METHOD(XMLTestFixture, "a selection pill ignores taps just after it ap
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
-                 "a selection pill refuses a press inside its lockout that lifts after it",
+                 "a selection pill's lockout runs from its first frame to the press",
                  "[grid_edit][edit-chrome]") {
-    // A double tap: the second press lands on the new pill 240 ms after it
-    // appeared and lifts 70 ms later, past the lockout.
-    ChromeScene scene(test_screen(), 8, 4);
+    GridEditScene scene(test_screen(), "test_pill_lockout");
     helix_test::ScopedPointerIndev pointer;
     GridEditMode em;
-    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
     em.select_widget(scene.widget);
-    REQUIRE(em.selected_widget() == scene.widget);
     lv_obj_update_layout(scene.container);
-
+    lv_obj_t* pill = lv_obj_find_by_name(scene.container, "edit_trash_pill");
+    REQUIRE(pill != nullptr);
     lv_area_t a;
-    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
-    const lv_point_t c = centre_of_area(a);
-    lv_tick_inc(240);
-    pointer.press(c.x, c.y);
-    lv_tick_inc(70);
-    pointer.release(c.x, c.y);
-    CHECK(em.selected_widget() == scene.widget);
-    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
+    lv_obj_get_coords(pill, &a);
+    const lv_point_t c{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
 
-    // The next tap, pressed after the lockout, acts.
-    pointer.press(c.x, c.y);
-    pointer.release(c.x, c.y);
-    CHECK(em.selected_widget() == nullptr);
+    SECTION("a double tap: the press lands inside the lockout and lifts after it") {
+        lv_tick_inc(240);
+        pointer.press(c.x, c.y);
+        lv_tick_inc(70);
+        pointer.release(c.x, c.y);
+    }
+    SECTION("a slow board: the press comes right after the frame that shows the pill") {
+        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+        lv_refr_now(nullptr);
+        pointer.press(c.x, c.y);
+        pointer.release(c.x, c.y);
+    }
+    CHECK(scene.config->is_placed("temperature"));
 
-    em.exit();
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "a selection pill's lockout runs from the frame that shows it",
-                 "[grid_edit][edit-chrome]") {
-    // A slow board: the pill is created, input waits a long frame, and the
-    // first press after that frame comes right away.
-    ChromeScene scene(test_screen(), 8, 4);
-    helix_test::ScopedPointerIndev pointer;
-    GridEditMode em;
-    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
-    em.select_widget(scene.widget);
-    REQUIRE(em.selected_widget() == scene.widget);
-    lv_obj_update_layout(scene.container);
-
-    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
-    lv_refr_now(nullptr);
-    lv_area_t a;
-    lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
-    const lv_point_t c = centre_of_area(a);
-    pointer.press(c.x, c.y);
-    pointer.release(c.x, c.y);
-    CHECK(em.selected_widget() == scene.widget);
-    CHECK(scene.config->page_entries(ChromeScene::kPageIndex).size() == 1);
-
+    // A press after the lockout acts.
     lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
     pointer.press(c.x, c.y);
     pointer.release(c.x, c.y);
-    CHECK(em.selected_widget() == nullptr);
+    CHECK_FALSE(scene.config->is_placed("temperature"));
 
     em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
 }

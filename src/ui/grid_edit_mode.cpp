@@ -928,6 +928,8 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     pills_shown_ = false;
     pill_press_latched_ = false;
     remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
+    // Named for remote control and tests; FLOATING keeps it out of every tile walk.
+    lv_obj_set_name(remove_btn_, "edit_trash_pill");
     lv_obj_add_event_cb(
         remove_btn_,
         [](lv_event_t* ev) {
@@ -3261,6 +3263,7 @@ void GridEditMode::rebuild_lattice() {
         const lv_area_t del_area = delete_page_button_area(content_area);
 
         delete_page_btn_ = lv_obj_create(shield_);
+        lv_obj_set_name(delete_page_btn_, "edit_delete_page_btn");
         lv_obj_set_size(delete_page_btn_, lv_area_get_width(&del_area),
                         lv_area_get_height(&del_area));
         lv_obj_set_style_radius(delete_page_btn_, LV_RADIUS_CIRCLE, 0);

@@ -184,11 +184,7 @@ struct HomePanelTestAccess {
         return panel.active_page_index_;
     }
 
-    /// The delete-page dialog's Delete action, made as the dialog opens.
-    static std::function<void()> open_delete_page(HomePanel& panel) {
-        return panel.delete_page_action();
-    }
-    /// Open the delete-page dialog and confirm it at once.
+    /// Confirm the delete-page dialog: the action its Delete button runs.
     static void confirm_delete_page(HomePanel& panel) {
         panel.delete_page_action()();
     }
