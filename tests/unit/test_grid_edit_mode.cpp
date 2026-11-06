@@ -1066,7 +1066,7 @@ void trash_widget(GridEditMode& em, lv_obj_t* widget) {
     em.select_widget(widget);
     lv_obj_t* remove = GridEditModeTestAccess::remove_button(em);
     REQUIRE(remove != nullptr);
-    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms());
+    lv_tick_inc(GridEditMode::kPillLockoutMs);
     lv_obj_send_event(remove, LV_EVENT_CLICKED, nullptr);
 }
 
