@@ -12,6 +12,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "http_executor.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"
 #include "print_start_phase.h"
@@ -1127,6 +1128,13 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
         helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
     std::error_code ec;
     std::filesystem::remove(cache_path, ec);
+
+    // The fixture's own picture may still be generating. While it runs the tile
+    // refuses this request and retries it only when that result lands, which the
+    // deinit() below cancels, so nothing would ever generate this one.
+    REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; },
+                       kGenerationBudgetMs));
+    UpdateQueue::instance().drain();
 
     shown = source;
     tiles().update_now(); // a miss: the generation starts
