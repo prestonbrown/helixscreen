@@ -193,6 +193,9 @@ TEST_CASE("find_similar_filament offers the nearest colour of the same material"
             CHECK((f ? f->id : 0) == r.offered);
         }
     }
+    // A string that is not a colour normalizes to none, so it offers nothing.
+    CHECK(helix::spoolman::normalize_color_hex("red").empty());
+    CHECK(helix::spoolman::normalize_color_hex("12345").empty());
 }
 
 TEST_CASE("filament_display_name names a record with no name by its material and colour",
