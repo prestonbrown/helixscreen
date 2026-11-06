@@ -10,6 +10,8 @@
 
 namespace helix {
 
+class Config;
+
 /// What the probe reaches on the display it is detecting the orientation of.
 struct RotationProbeHost {
     /// The pointer device. A reference to the owner's member because an unplug mid-probe
@@ -33,6 +35,10 @@ struct RotationProbeHost {
  * because LVGL's own input processing is switched off while the probe runs.
  * Main thread only.
  */
+/// Whether the first-boot probe still has a question to ask: nobody has answered it and no
+/// rotation is configured. A configured /display/rotate, even 0, is an answer.
+bool rotation_probe_unanswered(const Config& config);
+
 class RotationProbe {
   public:
     explicit RotationProbe(RotationProbeHost host);
@@ -41,8 +47,9 @@ class RotationProbe {
     RotationProbe(const RotationProbe&) = delete;
     RotationProbe& operator=(const RotationProbe&) = delete;
 
-    /// Runs the probe to completion, saves the result to /display/rotate and returns the
-    /// confirmed rotation in degrees. Gives up after three full sweeps and returns 0.
+    /// Runs the probe to completion and returns the rotation in degrees. A confirmed answer is
+    /// saved to /display/rotate and /display/rotation_probed. After three unanswered sweeps it
+    /// applies 0 for this session only and saves nothing, so the next boot asks again.
     int run();
 
   private:

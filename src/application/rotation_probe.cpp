@@ -27,6 +27,11 @@ constexpr int kMaxCycles = 3;
 
 } // namespace
 
+bool rotation_probe_unanswered(const Config& config) {
+    return !config.get<bool>("/display/rotation_probed", false) &&
+           !config.exists("/display/rotate");
+}
+
 RotationProbe::RotationProbe(RotationProbeHost host)
     : m_host(std::move(host)), m_tap_latch(!m_host.is_sdl) {
     // The subjects exist before the screen that binds to them is created.
@@ -220,17 +225,21 @@ int RotationProbe::run() {
         }
     }
 
+    // Silence is not an answer: whoever installs the printer may not be standing at it on its
+    // first boot. Saving nothing leaves the probe due on the next one, and Settings > Display
+    // can still set the rotation by hand in the meantime.
     if (confirmed_rotation < 0) {
-        spdlog::warn("[RotationProbe] no confirmation after {} cycles, defaulting to 0°",
+        spdlog::warn("[RotationProbe] no confirmation after {} cycles, using 0° for this session; "
+                     "the probe runs again next boot",
                      kMaxCycles);
         confirmed_rotation = 0;
+    } else {
+        Config* cfg = Config::get_instance();
+        cfg->set("/display/rotation_probed", true);
+        cfg->set("/display/rotate", confirmed_rotation);
+        cfg->save();
+        spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
     }
-
-    Config* cfg = Config::get_instance();
-    cfg->set("/display/rotation_probed", true);
-    cfg->set("/display/rotate", confirmed_rotation);
-    cfg->save();
-    spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
 
     if (!m_host.is_sdl) {
         m_host.settle_rotation(degrees_to_lv_rotation(confirmed_rotation));
