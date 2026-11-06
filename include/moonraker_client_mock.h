@@ -2597,6 +2597,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // tool id is atomic and the slot registry sits behind its own mutex.
     /// zmod_color.active_tool_id: 0..3 mounted, -1 nothing on the carriage.
     std::atomic<int> zmod_active_tool_{-1};
+    /// HELIX_MOCK_ZMOD_AFC: the Z-Mod personas publish the built-in AFC
+    /// emulation's objects (Z-Mod's AFC=1) instead of the afclite shim's.
+    bool zmod_builtin_afc_ = false;
+    static void push_zmod_builtin_afc_objects(json& objects);
     mutable std::mutex zmod_mutex_;
     /// (Material, HEX) per head; slot N (1-based, as CHANGE_ZCOLOR names it)
     /// lives at index N-1.

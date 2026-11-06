@@ -5,6 +5,7 @@
 #include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
+#include "ams_remap.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
@@ -53,6 +54,22 @@ PrinterDiscovery zmod_c5_afclite_discovery(const std::vector<std::string>& lanes
     for (const auto& lane : lanes) {
         objects.push_back("AFC_lane " + lane);
     }
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+/// The C5 with Z-Mod's built-in AFC emulation (AFC=1): `AFC`, one `AFC_IFS`
+/// unit and `AFC_lane lane1..4`, lane N on head N-1, and no zmod_afclite.
+PrinterDiscovery zmod_c5_builtin_afc_discovery() {
+    json objects = json::array({"zmod", "zmod_color", "save_variables", "AFC", "AFC_IFS IFS",
+                                "AFC_lane lane1", "AFC_lane lane2", "AFC_lane lane3",
+                                "AFC_lane lane4", "extruder", "extruder1", "extruder2", "extruder3",
+                                "heater_bed", "toolhead", "gcode_move", "configfile"});
     for (int i = 1; i <= 4; ++i) {
         objects.push_back("gcode_button extruder_pos" + std::to_string(i));
         objects.push_back("gcode_button extruder_grab" + std::to_string(i));
@@ -805,6 +822,104 @@ TEST_CASE("Load with the afclite shim sends CHANGE_TOOL for that head's lane",
         REQUIRE(tc.sent().size() == 1);
         CHECK(tc.sent().back() == "CHANGE_TOOL LANE=E" + std::to_string(head));
     }
+}
+
+TEST_CASE("The built-in AFC's lanes feed head n through lane n+1",
+          "[toolchanger][zmod][feed][2033]") {
+    const auto feed = toolchanger_addon::resolve_tool_feed(zmod_c5_builtin_afc_discovery());
+    REQUIRE(feed.present);
+    REQUIRE(feed.head_gcode.size() == 4);
+    for (int head = 0; head < 4; ++head) {
+        CAPTURE(head);
+        CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
+              "CHANGE_TOOL LANE=lane" + std::to_string(head + 1));
+    }
+}
+
+TEST_CASE("The built-in AFC subscribes AFC and its lanes", "[toolchanger][zmod][2033]") {
+    const auto objects =
+        toolchanger_addon::required_status_objects(zmod_c5_builtin_afc_discovery());
+    CHECK(objects == std::vector<std::string>{"zmod_color", "AFC", "AFC_lane lane1",
+                                              "AFC_lane lane2", "AFC_lane lane3",
+                                              "AFC_lane lane4"});
+}
+
+TEST_CASE("The built-in AFC's fault flag reads from AFC", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Loading"}, {"error_state", true}, {"message", "jam"}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->current_state == "Loading");
+    CHECK(r->error_state);
+    CHECK(r->message == "jam");
+}
+
+TEST_CASE("The built-in AFC's list lane map reads as its tools", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Idle"}, {"lanes", json::array({"lane1"})}}},
+             {"AFC_lane lane1", {{"map", json::array({"T0", "T2"})}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->lane_maps == std::vector<std::string>{"T0,T2"});
+}
+
+TEST_CASE("Z-Mod's built-in AFC on a Creator 5 maps tools at the start, not in the file",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+
+    // Each head as its 1-based slot.
+    CHECK(tc.print_start_params({{0, 1}, {2, 0}}) == helix::PrintStartParams{{"tools", "2,,1"}});
+    // Native: a pick is stored and carried by Print, and no job rewrite runs.
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helix::printer::can_write_mapping_table(tc));
+    REQUIRE(tc.set_tool_mapping(0, 1).success());
+    CHECK(tc.get_tool_mapping().at(0) == 1);
+    // Z-Mod has no ASSIGN_TOOL: the pick sends nothing on its own.
+    CHECK(tc.sent().empty());
+}
+
+TEST_CASE("A Creator 5 map never names a tool or head past its four",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    // T4 does not exist on four heads, and slot 4 is no head: both left empty.
+    CHECK(tc.print_start_params({{0, 0}, {1, 4}, {4, 1}}) ==
+          helix::PrintStartParams{{"tools", "1"}});
+}
+
+TEST_CASE("A Creator 5 pick the slot table cannot hold reports failure",
+          "[toolchanger][zmod][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    helix::ToolChangerTestAccess::set_total_slots(tc, 2);
+    // Nothing was stored, so the print start must not count it or arm a restore.
+    CHECK_FALSE(tc.set_tool_mapping(0, 3).success());
+    CHECK(tc.get_tool_mapping().at(0) != 3);
+    CHECK(tc.set_tool_mapping(0, 1).success());
+}
+
+TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    for (const auto& hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
+        ToolChangerHelper tc(4);
+        tc.set_discovery(hw);
+        CHECK(tc.print_start_params({{0, 1}}).empty());
+        CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+        CHECK(tc.set_tool_mapping(0, 1).result == AmsResult::NOT_SUPPORTED);
+    }
+}
+
+TEST_CASE("A klipper-toolchanger machine starts the print with its filename alone",
+          "[toolchanger][print_start_params][2033]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1"}));
+    AmsBackendToolChanger backend(nullptr, nullptr);
+    backend.set_discovery(hw);
+    CHECK(backend.print_start_params({{0, 1}}).empty());
+}
+
+TEST_CASE("The built-in AFC leaves lane picking to the print start", "[toolchanger][zmod][2033]") {
+    CHECK_FALSE(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_builtin_afc_discovery()));
+    CHECK(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_afclite_discovery()));
 }
 
 TEST_CASE("Load on Z-Mod without the shim refuses and mounts nothing",

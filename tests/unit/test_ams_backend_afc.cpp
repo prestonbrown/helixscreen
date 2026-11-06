@@ -2529,6 +2529,77 @@ TEST_CASE("AFC with its own SET_MAP keeps the native remap", "[ams][afc][tool_ma
     CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
 }
 
+namespace {
+// Z-Mod's built-in AFC emulation as discovery reports it: `AFC` beside
+// zmod_color, no afclite object. @p zmod false is the same lanes on real AFC.
+void discover_builtin_afc(AmsBackendAfcTestHelper& helper, bool zmod,
+                          const std::vector<std::string>& lanes) {
+    nlohmann::json objects = nlohmann::json::array({"AFC", "AFC_IFS IFS", "extruder"});
+    if (zmod) {
+        objects.push_back("zmod_color");
+    }
+    for (const auto& lane : lanes) {
+        objects.push_back("AFC_lane " + lane);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    helper.set_discovery(hw);
+    AfcTestAccess::initialize_slots(helper, lanes);
+}
+} // namespace
+
+TEST_CASE("Z-Mod's built-in AFC starts the print with the tool map",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane1", "lane2", "lane3", "lane4"});
+
+    // T0 on the second lane, T2 on the first, T1 left to the firmware.
+    CHECK(helper.print_start_params({{0, 1}, {2, 0}}) ==
+          helix::PrintStartParams{{"tools", "2,,1"}});
+}
+
+TEST_CASE("Z-Mod's built-in AFC names a slot by its lane's digits",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    // A second IFS unit's lanes continue the numbering: slot index 2 is lane11.
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane9", "lane10", "lane11"});
+
+    CHECK(helper.print_start_params({{0, 2}, {1, 0}}) ==
+          helix::PrintStartParams{{"tools", "11,9"}});
+    // A slot the backend has no lane for is left to the firmware.
+    CHECK(helper.print_start_params({{0, 7}}).empty());
+}
+
+TEST_CASE("Z-Mod's built-in AFC keeps SET_MAP and picks no lanes itself",
+          "[ams][afc][tool_mapping][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane1", "lane2", "lane3", "lane4"});
+    helper.set_running(true);
+
+    CHECK_FALSE(helper.firmware_picks_lanes_at_print());
+    CHECK(helper.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helper.set_tool_mapping(0, 1).success());
+    CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
+}
+
+TEST_CASE("AFC off Z-Mod starts the print with its filename alone",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/false, {"lane1", "lane2", "lane3", "lane4"});
+    CHECK(helper.print_start_params({{0, 1}}).empty());
+}
+
+TEST_CASE("Z-Mod's afclite shim picks lanes itself and is sent no tool map",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"AFC", "AFC_unit C5", "AFC_lane E0", "AFC_lane E1", "zmod_afclite", "zmod_color"}));
+    helper.set_discovery(hw);
+    AfcTestAccess::initialize_slots(helper, std::vector<std::string>{"E0", "E1"});
+    CHECK(helper.print_start_params({{0, 1}}).empty());
+}
+
 TEST_CASE("AFC recover_lane_position on a backend with no lanes offers no span",
           "[ams][afc][recovery][phase4]") {
     // No lanes discovered yet (slot_count() == 0). The suggestion must not

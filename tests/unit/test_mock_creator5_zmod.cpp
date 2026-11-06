@@ -248,3 +248,72 @@ TEST_CASE("The Z-Mod C5 persona answers T_INFO with the tool-state block",
     CHECK(markers.wait_for_line_containing("T3: HEAD"));
     CHECK(markers.wait_for_line_containing("Offset: X=0.0000"));
 }
+
+TEST_CASE("The Z-Mod C5 persona can run the built-in AFC", "[mock][creator5][zmod][2033]") {
+    MockTopologyGuards guards;
+    helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", "1"};
+
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD);
+    const helix::PrinterDiscovery hw = mock.hardware();
+    REQUIRE(hw.has_zmod_afc());
+    CHECK_FALSE(hw.has_zmod_afclite());
+    CHECK(hw.afc_lane_names() == std::vector<std::string>{"lane1", "lane2", "lane3", "lane4"});
+    REQUIRE_FALSE(hw.has_mmu());
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    CHECK(systems[0].type == helix::AmsType::TOOL_CHANGER);
+
+    // Load on head 1 feeds through lane2, and the mock mounts that head.
+    const auto feed = helix::toolchanger_addon::resolve_tool_feed(hw);
+    REQUIRE(feed.head_gcode.size() == 4);
+    REQUIRE(feed.head_gcode[1] == "CHANGE_TOOL LANE=lane2");
+    ZmodFrames frames;
+    mock.register_notify_update(frames.callback());
+    const size_t mark = frames.mark();
+    mock.gcode_script(feed.head_gcode[1]);
+    CHECK(
+        frames.wait_for(mark, [](const json& zc) { return zc.value("active_tool_id", -9) == 1; }));
+}
+
+TEST_CASE("The AD5X persona can run Z-Mod's built-in AFC", "[mock][ad5x][zmod][2033]") {
+    MockTopologyGuards guards;
+    helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", "1"};
+
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_AD5X);
+    const helix::PrinterDiscovery hw = mock.hardware();
+    REQUIRE(hw.has_zmod_afc());
+    CHECK(hw.mmu_type() == helix::AmsType::AD5X_IFS);
+}
+
+// Z-Mod builds older than the built-in AFC keep today's behaviour: the afclite
+// shim's E0..E3 lanes and its own lane picking on the C5, and the IFS backend on
+// an AD5X with neither AFC surface.
+TEST_CASE("An older Z-Mod with the afclite shim behaves as before",
+          "[mock][creator5][zmod][2033]") {
+    MockTopologyGuards guards;
+    helix::ScopedEnv afc{"HELIX_MOCK_ZMOD_AFC", nullptr};
+
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5_ZMOD);
+    const helix::PrinterDiscovery hw = mock.hardware();
+    REQUIRE(hw.has_zmod_afclite());
+    CHECK_FALSE(hw.has_zmod_afc());
+    CHECK(hw.afc_lane_names() == std::vector<std::string>{"E0", "E1", "E2", "E3"});
+    REQUIRE(hw.detected_ams_systems().size() == 1);
+    CHECK(hw.detected_ams_systems()[0].type == helix::AmsType::TOOL_CHANGER);
+    CHECK(helix::toolchanger_addon::firmware_picks_lanes_at_print(hw));
+    const auto feed = helix::toolchanger_addon::resolve_tool_feed(hw);
+    REQUIRE(feed.head_gcode.size() == 4);
+    for (int head = 0; head < 4; ++head) {
+        CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
+              "CHANGE_TOOL LANE=E" + std::to_string(head));
+    }
+}
+
+TEST_CASE("An older Z-Mod AD5X without an AFC surface keeps the IFS backend",
+          "[mock][ad5x][zmod][2033]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs",
+                                  "filament_motion_sensor ifs_motion_sensor", "extruder"}));
+    CHECK_FALSE(hw.has_zmod_afc());
+    CHECK(hw.mmu_type() == helix::AmsType::AD5X_IFS);
+}

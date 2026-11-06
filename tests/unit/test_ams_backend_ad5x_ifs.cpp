@@ -12903,3 +12903,22 @@ TEST_CASE("Starting a backend reads the records its load never got",
     CHECK_FALSE(store_of(backend).namespace_unread());
     backend.stop();
 }
+
+TEST_CASE("AD5X IFS writes the plugin's table before Z-Mod's AFC lane map",
+          "[ams][ad5x_ifs][tool_mapping][2033]") {
+    MockPrinter mock_printer;
+    GcodeCapturingBackend backend(&mock_printer.api, nullptr);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"zmod", "zmod_color", "zmod_ifs", "AFC", "AFC_IFS IFS", "AFC_lane lane3"}));
+    backend.set_discovery(hw);
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+    Ad5xIfsTestAccess::set_var_prefix(backend, "less_waste");
+
+    // The table that routes the print goes first, so a refused SET_MAP (it
+    // only mirrors the pick for the AFC panels) can never cost it its write.
+    REQUIRE(backend.set_tool_mapping(0, 2).success());
+    REQUIRE(backend.captured_gcodes.size() == 2);
+    CHECK(backend.captured_gcodes[0].rfind("_IFS_VARS tools=", 0) == 0);
+    CHECK(backend.captured_gcodes[1] == "SET_MAP LANE=lane3 MAP=T0");
+}

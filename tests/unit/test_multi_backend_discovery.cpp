@@ -455,6 +455,71 @@ TEST_CASE_METHOD(MultiBackendFixture,
     REQUIRE(systems[0].type == helix::AmsType::AFC);
 }
 
+// ----------------------------------------------------------------------------
+// Z-Mod's built-in AFC emulation (Z-Mod's AFC=1, prestonbrown/helixscreen#2033)
+//
+// Current Z-Mod publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` on
+// the AD5X and the Creator 5 Pro, with no `zmod_afclite` object. `zmod_color`
+// beside `AFC` names it. The C5 keeps the tool changer, the AD5X keeps its IFS
+// backend, and a real AFC install (no zmod_color) keeps AFC.
+// ----------------------------------------------------------------------------
+
+namespace {
+nlohmann::json zmod_builtin_afc_objects() {
+    return nlohmann::json::array({"AFC", "AFC_IFS IFS", "AFC_lane lane1", "AFC_lane lane2",
+                                  "AFC_lane lane3", "AFC_lane lane4", "zmod_color", "zmod",
+                                  "extruder", "heater_bed"});
+}
+} // namespace
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: Z-Mod's built-in AFC on a Creator 5 keeps the tool changer",
+                 "[ams][afc][toolchanger][multi-backend][2033]") {
+    helix::PrinterDiscovery hw;
+    auto objects = zmod_builtin_afc_objects();
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    for (const char* e : {"extruder1", "extruder2", "extruder3"}) {
+        objects.push_back(e);
+    }
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.has_zmod_afc());
+    REQUIRE_FALSE(hw.has_zmod_afclite());
+    REQUIRE_FALSE(hw.has_mmu());
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    CHECK(systems[0].type == helix::AmsType::TOOL_CHANGER);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: Z-Mod's built-in AFC on an AD5X keeps the IFS backend",
+                 "[ams][afc][ad5x][multi-backend][2033]") {
+    helix::PrinterDiscovery hw;
+    auto objects = zmod_builtin_afc_objects();
+    objects.push_back("filament_motion_sensor ifs_motion_sensor");
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.has_zmod_afc());
+    REQUIRE(hw.has_mmu());
+    CHECK(hw.mmu_type() == helix::AmsType::AD5X_IFS);
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    CHECK(systems[0].type == helix::AmsType::AD5X_IFS);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture, "PrinterDiscovery: AFC lanes without zmod_color stay AFC",
+                 "[ams][afc][multi-backend][2033]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"AFC", "AFC_BoxTurtle Turtle_1", "AFC_lane lane1", "AFC_lane lane2", "extruder"}));
+
+    CHECK_FALSE(hw.has_zmod_afc());
+    CHECK(hw.mmu_type() == helix::AmsType::AFC);
+}
+
 // A Snapmaker U1 running a filament system we CAN read keeps that system. The
 // yield is scoped to ACE, not to "any MMU on a U1".
 TEST_CASE_METHOD(MultiBackendFixture,

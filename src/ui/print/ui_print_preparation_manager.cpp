@@ -47,6 +47,7 @@
 #include <optional>
 #include <set>
 #include <unistd.h>
+#include <utility>
 
 // Forward declaration for global print status panel (declared in ui_panel_print_status.h)
 PrintStatusPanel& get_global_print_status_panel();
@@ -1043,7 +1044,9 @@ void PrintPreparationManager::start_print(const std::string& filename,
                                           const std::string& current_path,
                                           NavigateToStatusCallback on_navigate_to_status,
                                           PrintCompletionCallback on_completion,
-                                          const std::string& expected_scan_key) {
+                                          const std::string& expected_scan_key,
+                                          const helix::PrintStartParams& start_params) {
+    start_params_ = start_params;
     // A start's override answers this one start: every option read happens
     // before this returns, and a later Print tap must read its own rows.
     const helix::ScopeExit drop_start_override([this]() { start_option_override_ = nullptr; });
@@ -2116,6 +2119,7 @@ void PrintPreparationManager::modify_and_print(
 void PrintPreparationManager::modify_and_print_with_remap(
     const std::string& file_path, const std::map<int, int>& remap,
     NavigateToStatusCallback on_navigate_to_status, PrintCompletionCallback on_completion) {
+    start_params_.clear();
     if (!api_) {
         spdlog::error("[PrintPreparationManager] modify_and_print_with_remap: no API");
         NOTIFY_ERROR(lv_tr("Couldn't map filament: internal error"));
@@ -2481,6 +2485,15 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         on_print_success();
     };
 
+    if ((plugin_edits || job->use_plugin) && !start_params_.empty()) {
+        // The plugin starts the copy with SDCARD_PRINT_FILE, which takes no
+        // printer.print.start parameters.
+        spdlog::warn("[PrintPreparationManager] HelixPrint plugin start for {} cannot carry its "
+                     "{} print start parameter(s); the firmware chooses the tool map",
+                     job->file_path, start_params_.size());
+        start_params_.clear();
+    }
+
     if (plugin_edits) {
         // The plugin writes the copy itself, and removes it if the start fails, so no
         // branch here deletes it.
@@ -2545,7 +2558,8 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         api_->job().start_modified_print(job->file_path, remote_temp_path, job->mod_names,
                                          on_plugin_accepted, on_print_error);
     } else {
-        api_->job().start_print(remote_temp_path, on_print_success, on_print_error);
+        api_->job().start_print(remote_temp_path, on_print_success, on_print_error,
+                                std::exchange(start_params_, {}));
     }
 }
 
@@ -2559,6 +2573,7 @@ void PrintPreparationManager::set_archive_plate(const std::string& file_path, in
 
 void PrintPreparationManager::start_archive_reprint(const std::string& file_path, int plate,
                                                     PrintCompletionCallback on_completion) {
+    start_params_.clear();
     set_archive_plate(file_path, plate);
     print_archive_plate(file_path, plate, nullptr, std::move(on_completion));
 }
@@ -2729,7 +2744,8 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
                         on_completion(false, error.message);
                     }
                 });
-        });
+        },
+        std::exchange(start_params_, {}));
 }
 
 } // namespace helix::ui

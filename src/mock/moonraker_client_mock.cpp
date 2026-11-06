@@ -161,6 +161,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         medusa_.last_error = "MHC_SET: sensors did not confirm T0";
         medusa_.redock_ticks = medusa_redock_notifications_;
     }
+    zmod_builtin_afc_ = helix::env_flag("HELIX_MOCK_ZMOD_AFC");
     dragonbreath_fault_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_FAULT");
     dragonbreath_offline_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_OFFLINE");
     dragonbreath_external_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_EXTERNAL");
@@ -912,6 +913,15 @@ json MoonrakerClientMock::zmod_color_status() const {
                 {"slots", std::move(slots)}};
 }
 
+void MoonrakerClientMock::push_zmod_builtin_afc_objects(json& objects) {
+    // The emulation's own names: one IFS unit, lane N = physical slot N.
+    objects.push_back("AFC");
+    objects.push_back("AFC_IFS IFS");
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("AFC_lane lane" + std::to_string(i));
+    }
+}
+
 // Z-Mod commands (creator5_zmod persona): the zmod_color extra's macros.
 // Matched on the command token exactly, and armed only for this persona.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::string& gcode) {
@@ -967,12 +977,17 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
         return 0;
     }
     if (cmd == "CHANGE_TOOL") {
-        // The afclite shim's load: it mounts the lane's head and feeds it. Lanes
-        // are the E0..E3 objects the persona publishes.
+        // Z-Mod's AFC load: it mounts the lane's head and feeds it. Lanes are
+        // the objects the persona publishes, E0..E3 on the afclite shim and
+        // lane1..lane4 on the built-in emulation.
         const std::string lane = param("LANE");
         int tool = -1;
-        if (lane.size() == 2 && lane[0] == 'E' && lane[1] >= '0' && lane[1] <= '3') {
+        if (!zmod_builtin_afc_ && lane.size() == 2 && lane[0] == 'E' && lane[1] >= '0' &&
+            lane[1] <= '3') {
             tool = lane[1] - '0';
+        } else if (zmod_builtin_afc_ && lane.size() == 5 && lane.rfind("lane", 0) == 0 &&
+                   lane[4] >= '1' && lane[4] <= '4') {
+            tool = lane[4] - '1';
         }
         if (tool < 0) {
             return refuse("Unknown lane: " + lane);

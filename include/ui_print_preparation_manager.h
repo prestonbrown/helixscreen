@@ -19,6 +19,7 @@
 #include "preprint_predictor.h"
 #include "print_start_analyzer.h"
 #include "print_start_checks.h"
+#include "print_start_params.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "subject_managed_panel.h"
@@ -464,11 +465,14 @@ class PrintPreparationManager {
      * @param expected_scan_key The scan_key() this file's scan was kept under
      *        when it differs from its printer path (a stick file printed from
      *        its copy); empty = scan_key(filename, current_path)
+     * @param start_params Sent with printer.print.start beside the filename (a
+     *        firmware's per-print tool map, helix::print_start)
      */
     void start_print(const std::string& filename, const std::string& current_path,
                      NavigateToStatusCallback on_navigate_to_status,
                      PrintCompletionCallback on_completion = nullptr,
-                     const std::string& expected_scan_key = {});
+                     const std::string& expected_scan_key = {},
+                     const helix::PrintStartParams& start_params = {});
 
     /**
      * @brief Print plate @p plate of the .3mf at @p file_path as extracted G-code.
@@ -809,6 +813,10 @@ class PrintPreparationManager {
     std::string archive_path_;
     int archive_plate_ = 0;
     std::string archive_output_; ///< the printer's own conversion, which prints instead
+    /// The start in flight's extra printer.print.start parameters, from
+    /// start_print(). The printer.print.start send takes them, so they reach
+    /// that one start; every other entry point clears them.
+    helix::PrintStartParams start_params_;
     /// set_archive_scan_source(), by scan_key().
     std::map<std::string, ArchiveScanSource> archive_scan_sources_;
     bool skip_reset_sent_ = false; ///< One reset per pending skip, until it reads clear
