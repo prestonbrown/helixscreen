@@ -27,6 +27,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -44,6 +45,7 @@
 #include "print_job_ref.h"
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
+#include "printer_print_state.h"
 #include "printer_state.h"
 #include "slot_registry.h"
 
@@ -948,6 +950,74 @@ TEST_CASE("remap restore: a replay with no print state waits for the printer's w
         CHECK(be.backend->calls.empty());
         h.report("complete", "remapped.gcode");
         CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("an answer after the restore finished acts on nothing") {
+        PrintStartControllerTestAccess::restore(controller);
+        REQUIRE(be.backend->calls.size() == 2);
+        // A reconnect replays a record for a print that is running.
+        {
+            std::ofstream ofs(record);
+            ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+        }
+        controller.recover_pending_remap(ReportedPrintActivity::Active);
+        answer("standby");
+        CHECK(be.backend->calls.size() == 2);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+}
+
+TEST_CASE("remap restore: a replay with no print state restores on the printer's first report",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_report"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+    // No API, so nothing is asked: only a print_stats report ends the wait.
+    auto controller = std::make_unique<PrintStartController>(h.ps, nullptr);
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+    controller->recover_pending_remap(ReportedPrintActivity::Unknown);
+    REQUIRE(be.backend->calls.empty());
+
+    SECTION("an idle report restores") {
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 2);
+        CHECK_FALSE(std::filesystem::exists(record));
+    }
+
+    SECTION("a running report restores at that job's end") {
+        h.report("printing", "remapped.gcode");
+        CHECK(be.backend->calls.empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a new print's remap drops the wait") {
+        helix::ui::PrintSelectDetailView view;
+        controller->set_detail_view(&view);
+        view.set_filament_mappings({row(1, 3, true)});
+        REQUIRE(PrintStartControllerTestAccess::apply_remaps(*controller));
+        REQUIRE(be.backend->calls.size() == 1);
+        PrintStartControllerTestAccess::observe_for_restore(*controller);
+        // The idle report that lands before the print is prepared reverts nothing.
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 1);
+        controller->set_detail_view(nullptr);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+
+    SECTION("a controller destroyed while waiting says it will not restore") {
+        LogCapture log;
+        controller.reset();
+        CHECK(log.count_containing("Destroyed with pending remap restore") == 1);
+        CHECK(std::filesystem::exists(record));
+        AmsState::instance().clear_pending_tool_map_restore();
     }
 }
 
