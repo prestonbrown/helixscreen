@@ -169,6 +169,8 @@ config/crash_*.txt
 config/crash_history.json
 config/tool_spools.json
 config/filament_slot_overrides.json
+config/pending_remap.json
+config/pending_remap.json.corrupt
 config/afc_message_dedup.json
 config/update_success.json
 config/.crash_restart_count
