@@ -171,9 +171,14 @@ if [ "$IDLE_ONLY" = "true" ] || [ "$HAS_MOCK" = "0" ]; then
 fi
 
 # A long name is the point: overflow is what starts the scroll animation.
-GC=$(ls /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
+# First match in this order: the printer's own files, then the install's test gcode.
+# ls sorts its operands, so the order is kept by testing each candidate in turn.
+GC=""
+for _gc in /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
         /usr/data/printer_data/gcodes/**/*.gcode /usr/data/gcodes/*.gcode \
-        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode" 2>/dev/null | head -n 1)
+        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
+    [ -f "$_gc" ] && { GC="$_gc"; break; }
+done
 if [ -z "$GC" ]; then
     say "MEASURED hz=$HZ idle=$IDLE print= printoff= (no gcode on device for the print phase)"
     exit 0
