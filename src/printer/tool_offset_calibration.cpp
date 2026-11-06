@@ -58,10 +58,10 @@ bool has_afc_toolchanger_unit(const PrinterDiscovery& hw) {
     });
 }
 
-/// A tool changer in any dialect: klipper-toolchanger, a changer firmware
-/// toolchanger_addon claims, or an AFC Toolchanger unit.
+/// A tool changer in any dialect: klipper-toolchanger, or a changer firmware
+/// toolchanger_addon claims.
 bool is_tool_changer(const PrinterDiscovery& hw) {
-    return hw.has_tool_changer() || toolchanger_addon::present(hw) || has_afc_toolchanger_unit(hw);
+    return hw.has_tool_changer() || toolchanger_addon::present(hw);
 }
 
 bool panel_detect(const PrinterDiscovery& hw) {
@@ -72,8 +72,10 @@ bool prompt_detect(const PrinterDiscovery& hw) {
     return is_tool_changer(hw) && hw.has_macro(kPromptMacro);
 }
 
+/// OpenCreator's changer is an AFC Toolchanger unit, which no other row counts.
 bool wizard_prompt_detect(const PrinterDiscovery& hw) {
-    return is_tool_changer(hw) && hw.has_macro(kWizardPromptMacro);
+    return (is_tool_changer(hw) || has_afc_toolchanger_unit(hw)) &&
+           hw.has_macro(kWizardPromptMacro);
 }
 
 /// Precedence order: the first row that detects wins.
@@ -85,10 +87,10 @@ const Row kRows[] = {
     {"INDX seat by hand", indx::supports_seat_by_hand, ProcedureKind::GuidedFlow,
      indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
     {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
-    {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
-     kMeasureDescription},
     {"changer firmware offset wizard", wizard_prompt_detect, ProcedureKind::PrinterPrompt,
      kWizardPromptMacro, kMeasureDescription},
+    {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
+     kMeasureDescription},
 };
 
 } // namespace
