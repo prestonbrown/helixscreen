@@ -29,6 +29,7 @@ namespace {
 
 struct ProbeScript {
     int tap_at_degrees = -1; // -1: never tap
+    bool confirm = true;     // false: tap the scan prompt but let the confirm prompt time out
     int current_degrees = 0;
     int calls_since_rotation = 0;
     std::vector<int> settled; // degrees, in call order
@@ -53,7 +54,8 @@ void scripted_read_cb(lv_indev_t*, lv_indev_data_t* data) {
         }
     }
     const bool tap_rotation = s.current_degrees == s.tap_at_degrees;
-    data->state = (tap_rotation && (s.calls_since_rotation == 2 || s.calls_since_rotation == 5))
+    data->state = (tap_rotation &&
+                   (s.calls_since_rotation == 2 || (s.confirm && s.calls_since_rotation == 5)))
                       ? LV_INDEV_STATE_PRESSED
                       : LV_INDEV_STATE_RELEASED;
 }
@@ -92,7 +94,7 @@ class ProbeFixture : public ApplicationTestFixture {
         g_script = nullptr;
     }
 
-    int run(bool is_sdl, int tap_at_degrees) {
+    int run(bool is_sdl, int tap_at_degrees, uint32_t backlight_reassert_ms = 0) {
         script.tap_at_degrees = tap_at_degrees;
         helix::RotationProbeHost host{
             pointer,
@@ -107,7 +109,8 @@ class ProbeFixture : public ApplicationTestFixture {
                 script.children_at_backlight.push_back(lv_obj_get_child_count(lv_screen_active()));
             },
             /*scan_timeout_ms=*/40,
-            /*confirm_timeout_ms=*/400};
+            /*confirm_timeout_ms=*/400,
+            backlight_reassert_ms};
         return helix::RotationProbe(std::move(host)).run();
     }
 
@@ -175,6 +178,18 @@ TEST_CASE_METHOD(ProbeFixture,
     }
     // The first prompt is lit before the probe has put anything on the screen.
     REQUIRE_FALSE(script.children_at_backlight.empty());
+    CHECK(script.children_at_backlight.front() == 0);
+}
+
+TEST_CASE_METHOD(ProbeFixture, "a prompt left up relights the backlight while it waits",
+                 "[application][display][rotation][probe]") {
+    // 0 is tapped every sweep and never confirmed: three sweeps of four scan prompts plus a
+    // 400 ms confirm prompt each, so fifteen prompts in all.
+    script.confirm = false;
+    CHECK(run(/*is_sdl=*/false, /*tap_at_degrees=*/0, /*backlight_reassert_ms=*/100) == 0);
+
+    // A relight lands inside each confirm wait on top of the one per prompt.
+    CHECK(script.children_at_backlight.size() >= 18);
     CHECK(script.children_at_backlight.front() == 0);
 }
 

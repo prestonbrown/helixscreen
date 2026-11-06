@@ -116,6 +116,7 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
                                  int steps) {
     const uint32_t start = DisplayManager::get_ticks();
     int last_sec = -1;
+    uint32_t last_backlight = start;
 
     // Drop anything latched by the previous screen, and re-baseline the coordinate so the
     // position the last tap left behind cannot read as a fresh one. A contact still down here
@@ -163,6 +164,12 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
         if (m_tap_latch.latched()) {
             accept_tap();
             return true;
+        }
+
+        if (m_host.backlight_reassert_ms > 0 && m_host.keep_backlight_on &&
+            DisplayManager::get_ticks() - last_backlight >= m_host.backlight_reassert_ms) {
+            m_host.keep_backlight_on();
+            last_backlight = DisplayManager::get_ticks();
         }
 
         const int remaining_sec = static_cast<int>((timeout_ms - elapsed + 999) / 1000);
