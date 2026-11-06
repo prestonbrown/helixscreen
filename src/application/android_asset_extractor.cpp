@@ -134,7 +134,8 @@ bool is_non_shippable_config_file(const std::string& filename) {
            filename == "user_filaments.json" || filename == "filament_slot_overrides.json" ||
            filename == "telemetry_device.json" || filename == "telemetry_queue.json" ||
            filename == "settings.json" || filename == "settings-test.json" ||
-           filename.rfind("helixconfig", 0) == 0 || filename == ".helix-screen.lock";
+           filename.rfind("helixconfig", 0) == 0 || filename == "pending_remap.json" ||
+           filename == ".helix-screen.lock";
 }
 
 /// Whether an APK asset directory extracts into the user's config layer.

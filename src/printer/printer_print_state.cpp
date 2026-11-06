@@ -115,6 +115,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(preparing_epoch, 0, subjects_, false);
     INIT_SUBJECT_INT(preparing_start, static_cast<int>(PreparingStart::None), subjects_, false);
     INIT_SUBJECT_INT(print_identity_epoch, 0, subjects_, false);
+    INIT_SUBJECT_INT(print_state_report_seq, 0, subjects_, false);
     INIT_SUBJECT_INT(print_lifecycle_prev, static_cast<int>(PrintState::Idle), subjects_, false);
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_start_progress, 0, subjects_, register_xml);
@@ -696,6 +697,8 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 
             // Update combined subject for home panel progress card visibility
             update_print_show_progress();
+            lv_subject_set_int(&print_state_report_seq_,
+                               lv_subject_get_int(&print_state_report_seq_) + 1);
         }
 
         if (auto fn_it = stats.find("filename"); fn_it != stats.end() && fn_it->is_string()) {

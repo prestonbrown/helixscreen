@@ -22,6 +22,7 @@
 #include "ui_print_start_controller.h"
 #include "ui_resume_dispatch.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
@@ -32,10 +33,13 @@
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "discovery_steps.h"
+#include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_job_ref.h"
@@ -582,7 +586,7 @@ TEST_CASE("remap restore: each printer keeps its own pending record on disk",
     helix::PrinterCacheRegistry::instance().invalidate_all();
     REQUIRE(cfg->set_active_printer(printer_a));
     be.backend->calls.clear();
-    h.controller.recover_pending_remap();
+    h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
     REQUIRE(be.backend->calls.size() == 2);
     CHECK(be.backend->calls[0].tool == 0);
     CHECK(be.backend->calls[0].slot == 2);
@@ -835,7 +839,7 @@ TEST_CASE("remap restore: a print that names no backend keeps another backend's 
 }
 
 TEST_CASE("remap restore: startup replays only the active printer's record",
-          "[remap-restore][1859]") {
+          "[remap-restore][1859][remap-restart]") {
     LVGLTestFixture fx;
     ConfigDirGuard config_dir{"remap_recover_printer_id"};
     ScopedCountingBackend be{{1, 2}};
@@ -851,7 +855,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "-other\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.empty());
         CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
         CHECK(std::filesystem::exists(record));
@@ -862,8 +866,22 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a print still running keeps it until that print ends") {
+        {
+            std::ofstream ofs(record);
+            ofs << entry;
+        }
+        // Discovery's status says a job runs; the print subjects still read the boot default.
+        h.controller.recover_pending_remap(ReportedPrintActivity::Active);
+        h.report("printing", "remapped.gcode");
+        CHECK(be.backend->calls.empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+        CHECK_FALSE(std::filesystem::exists(record));
     }
 
     SECTION("a record naming no printer is the active printer's") {
@@ -871,9 +889,107 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << entry;
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.size() == 2);
     }
+}
+
+TEST_CASE("remap restore: a replay with no print state waits for the printer's word",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_query"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api{client, h.ps};
+    PrintStartController controller{h.ps, &api};
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+    // A failed subscribe: nothing says whether the boot-default idle is real.
+    controller.recover_pending_remap(ReportedPrintActivity::Unknown);
+    CHECK(be.backend->calls.empty());
+    CHECK(std::filesystem::exists(record));
+    REQUIRE(client.rpc_count("printer.objects.query") == 1);
+    const auto answer = [&client](const std::string& state) {
+        client.rpc_calls.back().success_cb(
+            nlohmann::json{{"result", {{"status", {{"print_stats", {{"state", state}}}}}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("an idle answer restores") {
+        answer("standby");
+        CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a running answer waits for the printer's report") {
+        answer("printing");
+        CHECK(be.backend->calls.empty());
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("an answer behind a real report is stale") {
+        h.report("printing", "remapped.gcode");
+        answer("standby");
+        CHECK(be.backend->calls.empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+    }
+}
+
+TEST_CASE("remap restore: discovery replays on its own status, not the print subjects",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_discovery_step"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    auto& ps = ::get_printer_state();
+    ps.set_klippy_state_sync(KlippyState::READY);
+    helix::ui::UpdateQueue::instance().drain();
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+    const auto [status, sends] = GENERATE(table<nlohmann::json, size_t>({
+        {{{"print_stats", {{"state", "printing"}}}}, 0},
+        {nlohmann::json::object(), 0},
+        {{{"print_stats", {{"state", "standby"}}}}, 2},
+    }));
+    CAPTURE(status.dump());
+
+    PrinterDiscovery snapshot;
+    const bool subject_active =
+        lv_subject_get_int(ps.print_state().get_print_active_subject()) != 0;
+    // A client that never answers: the unknown row's print_stats query stays unanswered.
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api{client, ps};
+    DiscoveryContext ctx{api,
+                         client,
+                         api.hardware(),
+                         snapshot,
+                         status,
+                         nullptr,
+                         nullptr,
+                         nullptr,
+                         1,
+                         false,
+                         discovery_print_active(subject_active, status)};
+    for (const DiscoveryStep& step : discovery_core_steps()) {
+        if (std::string(step.name) == "pending_remap_recovery") {
+            step.run(ctx);
+        }
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(be.backend->calls.size() == sends);
+    CHECK(client.rpc_count("printer.objects.query") == (status.empty() ? 1 : 0));
+    AmsState::instance().clear_pending_tool_map_restore();
 }
 
 TEST_CASE("remap restore: a refusal past the backend's checks is not retried per tick",

@@ -7,12 +7,15 @@
  */
 
 #include "ui_panel_filament.h"
+#include "ui_panel_print_select.h"
+#include "ui_print_start_controller.h"
 
 #include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "hardware_role_registry.h"
+#include "json_utils.h"
 #include "light_button_config.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
@@ -30,6 +33,16 @@ namespace helix {
 
 bool discovery_print_active(bool subject_active, const nlohmann::json& status) {
     return subject_active || PrinterPrintState::status_indicates_active_print(status);
+}
+
+ReportedPrintActivity discovery_print_activity(bool subject_active, const nlohmann::json& status) {
+    if (discovery_print_active(subject_active, status)) {
+        return ReportedPrintActivity::Active;
+    }
+    const auto* stats = helix::json_util::find_member(status, "print_stats");
+    const auto* state = stats ? helix::json_util::find_member(*stats, "state") : nullptr;
+    return state && state->is_string() ? ReportedPrintActivity::Idle
+                                       : ReportedPrintActivity::Unknown;
 }
 
 namespace {
@@ -190,6 +203,14 @@ void job_queue_fetch_step(DiscoveryContext& ctx) {
     }
 }
 
+// Replay a tool-map restore an earlier session persisted but did not deliver. Decided on
+// this discovery's own status: the print subjects have not been updated from it yet, and
+// a restore sent under a running print re-routes it.
+void pending_remap_recovery_step(DiscoveryContext& ctx) {
+    ::print_start_controller_for(get_printer_state(), &ctx.api)
+        .recover_pending_remap(discovery_print_activity(ctx.print_active, ctx.status));
+}
+
 void settle_light_buttons_step(DiscoveryContext&) {
     settle_light_buttons();
 }
@@ -205,6 +226,7 @@ constexpr DiscoveryStep kCoreSteps[] = {
     {"safety_limits", false, safety_limits_step, nullptr},
     {"helix_plugin_check", false, helix_plugin_check_step, nullptr},
     {"job_queue_fetch", false, job_queue_fetch_step, nullptr},
+    {"pending_remap_recovery", false, pending_remap_recovery_step, nullptr},
     {"settle_light_buttons", false, settle_light_buttons_step, nullptr},
 };
 

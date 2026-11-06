@@ -123,9 +123,10 @@ TEST_CASE("the core discovery steps run in this order", "[discovery_steps]") {
         core.emplace_back(step.name);
     }
     const std::vector<std::string> expected = {
-        "set_hardware",       "zoffset_persistence", "temp_graph_seed",      "status_dispatch",
-        "software_versions",  "auto_detect_printer", "heal_heater_roles",    "safety_limits",
-        "helix_plugin_check", "job_queue_fetch",     "settle_light_buttons",
+        "set_hardware",      "zoffset_persistence",    "temp_graph_seed",
+        "status_dispatch",   "software_versions",      "auto_detect_printer",
+        "heal_heater_roles", "safety_limits",          "helix_plugin_check",
+        "job_queue_fetch",   "pending_remap_recovery", "settle_light_buttons",
     };
     CHECK(core == expected);
 }
