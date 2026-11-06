@@ -4,6 +4,7 @@
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -1039,6 +1040,29 @@ TEST_CASE_METHOD(PresetConfigFixture, "snapmaker_u1 preset carries no home panel
     REQUIRE(config.apply_preset_file("snapmaker_u1") == true);
 
     CHECK_FALSE(printer_data().contains("panel_widgets"));
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file writes the AD5X led override on first setup only",
+                 "[config][preset]") {
+    SetUp();
+    copy_shipped_preset("ad5x");
+
+    SECTION("first setup takes the override") {
+        REQUIRE(config.apply_preset_file("ad5x") == true);
+        CHECK(printer_data()["capability_overrides"]["led"] == "disable");
+    }
+
+    SECTION("a set-up printer keeps its capabilities") {
+        printer_data()["wizard_completed"] = true;
+        // The expected-hardware union proves the post-wizard merge ran.
+        REQUIRE(config.apply_preset_file("ad5x") == true);
+        const json& expected = printer_data()["hardware"]["expected"];
+        REQUIRE(std::find(expected.begin(), expected.end(), "led chamber_light") != expected.end());
+        CHECK_FALSE(printer_data().contains("capability_overrides"));
+    }
 
     TearDown();
 }

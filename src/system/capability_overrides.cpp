@@ -38,6 +38,7 @@ void CapabilityOverrides::load_from_config() {
     read_override(capability::HEAT_SOAK);
     read_override(capability::CHAMBER);
     read_override(capability::SPEAKER);
+    read_override(capability::LED);
 
     spdlog::debug("[CapabilityOverrides] Loaded: {}", summary());
 }
@@ -106,6 +107,8 @@ bool CapabilityOverrides::get_auto_value(const std::string& name) const {
         return hardware_.supports_chamber();
     } else if (name == capability::SPEAKER) {
         return hardware_.has_speaker() || SoundManager::instance().has_backend();
+    } else if (name == capability::LED) {
+        return hardware_.has_led();
     }
 
     // Unknown capability, default to false
@@ -160,6 +163,7 @@ std::string CapabilityOverrides::summary() const {
     append(capability::HEAT_SOAK);
     append(capability::CHAMBER);
     append(capability::SPEAKER);
+    append(capability::LED);
 
     return result;
 }
