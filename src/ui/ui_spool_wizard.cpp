@@ -677,6 +677,17 @@ nlohmann::json SpoolWizardOverlay::filament_create_payload(const FilamentEntry& 
     return data;
 }
 
+const FilamentInfo*
+SpoolWizardOverlay::existing_filament_for(const std::vector<FilamentInfo>& filaments,
+                                          const FilamentEntry& f, int vendor_id) {
+    // Looked up by the record a pick files, so the key is the one stored.
+    const nlohmann::json filed = filament_create_payload(f, vendor_id);
+    const std::string& colors = f.multi_color_hexes.empty() ? f.color_hex : f.multi_color_hexes;
+    return helix::spoolman::find_catalog_filament(filaments, vendor_id,
+                                                  filed["name"].get<std::string>(),
+                                                  filed["material"].get<std::string>(), colors);
+}
+
 void SpoolWizardOverlay::create_filament_then_spool(int vendor_id) {
     helix::IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
@@ -1982,12 +1993,8 @@ void SpoolWizardOverlay::select_catalog_result(int index) {
                 if (!catalog_.is_current(ticket)) {
                     return;
                 }
-                const std::string& colors = selected_filament_.multi_color_hexes.empty()
-                                                ? selected_filament_.color_hex
-                                                : selected_filament_.multi_color_hexes;
-                if (const FilamentInfo* f = helix::spoolman::find_catalog_filament(
-                        filaments, vendor_id, selected_filament_.name, selected_filament_.material,
-                        colors)) {
+                if (const FilamentInfo* f =
+                        existing_filament_for(filaments, selected_filament_, vendor_id)) {
                     selected_filament_.server_id = f->id;
                     selected_filament_.vendor_id = vendor_id;
                     selected_filament_.from_server = true;
