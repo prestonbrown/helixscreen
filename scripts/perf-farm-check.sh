@@ -153,13 +153,15 @@ fi
 
 # A long name is the point: overflow is what starts the scroll animation.
 GC=$(ls /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
-        /usr/data/printer_data/gcodes/**/*.gcode 2>/dev/null | head -n 1)
+        /usr/data/printer_data/gcodes/**/*.gcode /usr/data/gcodes/*.gcode \
+        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode" 2>/dev/null | head -n 1)
 if [ -z "$GC" ]; then
     say "MEASURED hz=$HZ idle=$IDLE print= printoff= (no gcode on device for the print phase)"
     exit 0
 fi
 LONG="$WORK/gc/Delta_filament_barrel_base_Hyper_PLA_49m_overflowing_name.gcode"
-cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
+# A link, not a copy: /tmp is RAM, and a large gcode copied there squeezes a small board.
+ln -s "$GC" "$LONG" 2>/dev/null || cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
 
 PRINT=$(measure "--sim-speed 3 --gcode-file $LONG" true 1)  || PRINT=""
 PRINTOFF=$(measure "--sim-speed 3 --gcode-file $LONG" false 1) || PRINTOFF=""

@@ -16,6 +16,7 @@
 #include "data_root_resolver.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "runtime_config.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/display_manager_test_access.h"
@@ -703,6 +704,50 @@ TEST_CASE_METHOD(ApplicationTestFixture,
     lv_timer_delete(timer);
     lv_indev_delete(pointer_a);
     lv_indev_delete(pointer_b);
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager's debug-touch timer runs at frame rate only while the "
+                 "setting is on",
+                 "[application][display][indev]") {
+    DisplayManager mgr;
+    lv_indev_t* pointer = lv_indev_create();
+    lv_indev_set_type(pointer, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(pointer, live_pointer_a_read_cb);
+    DisplayManagerTestAccess::set_pointer(mgr, pointer);
+
+    struct InstanceGuard {
+        DisplayManager* prev = DisplayManager::instance();
+        ~InstanceGuard() {
+            DisplayManagerTestAccess::set_active_instance(prev);
+        }
+    } instance_guard;
+    DisplayManagerTestAccess::set_active_instance(&mgr);
+
+    struct DebugTouchesGuard {
+        bool prev = RuntimeConfig::debug_touches();
+        ~DebugTouchesGuard() {
+            RuntimeConfig::set_debug_touches(prev);
+        }
+    } debug_touches_guard;
+
+    RuntimeConfig::set_debug_touches(false);
+    lv_timer_t* timer = DisplayManagerTestAccess::install_debug_touch_timer(mgr);
+    REQUIRE(timer != nullptr);
+    CHECK(timer->period == helix::debug_touch_period_ms(false));
+
+    // The Settings toggle reaches the timer on its next tick, in both directions.
+    RuntimeConfig::set_debug_touches(true);
+    lv_indev_read(pointer);
+    DisplayManagerTestAccess::debug_touch_tick(timer);
+    CHECK(timer->period == helix::debug_touch_period_ms(true));
+
+    RuntimeConfig::set_debug_touches(false);
+    DisplayManagerTestAccess::debug_touch_tick(timer);
+    CHECK(timer->period == helix::debug_touch_period_ms(false));
+
+    lv_timer_delete(timer);
+    lv_indev_delete(pointer);
 }
 
 namespace {
