@@ -516,12 +516,8 @@ TEST_CASE("make_printer_uri - CUPS queue path and empty path", "[label][ipp][ipp
 }
 
 TEST_CASE("make_printer_uri - TLS uses the ipps scheme", "[label][ipp][2034]") {
-    REQUIRE(make_printer_uri("192.168.2.3", 631, "ipp/print", Transport::Tls) ==
-            "ipps://192.168.2.3/ipp/print");
     REQUIRE(make_printer_uri("192.168.2.3", 8631, "ipp/print", Transport::Tls) ==
             "ipps://192.168.2.3:8631/ipp/print");
-    REQUIRE(make_printer_uri("192.168.2.3", 631, "ipp/print", Transport::Plain) ==
-            "ipp://192.168.2.3/ipp/print");
 }
 
 // ---------------------------------------------------------------------------

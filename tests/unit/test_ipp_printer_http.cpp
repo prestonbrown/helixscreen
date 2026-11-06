@@ -105,41 +105,17 @@ class ScriptedServer {
     uint16_t port() const {
         return port_;
     }
-    size_t body_bytes_received() const {
-        return body_bytes_.load();
-    }
-    /// The last request line, e.g. "POST /ipp/print HTTP/1.1"; empty until a request arrived.
-    std::string request_line() const {
+    struct Request {
+        std::string line; ///< e.g. "POST /ipp/print HTTP/1.1"
+        std::string body;
+    };
+    /// Every request that arrived whole, in arrival order.
+    std::vector<Request> requests() const {
         std::lock_guard<std::mutex> lock(mutex_);
-        return requests_.empty() ? std::string() : requests_.back().line;
-    }
-    /// The last request body as received; empty until a request arrived.
-    std::string body() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return requests_.empty() ? std::string() : requests_.back().body;
-    }
-    /// The body of request `i`, in arrival order; empty when fewer arrived.
-    std::string body(size_t i) const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return i < requests_.size() ? requests_[i].body : std::string();
-    }
-    /// The line of request `i`, in arrival order; empty when fewer arrived.
-    std::string request_line(size_t i) const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return i < requests_.size() ? requests_[i].line : std::string();
-    }
-    /// How many requests arrived whole.
-    size_t request_count() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return requests_.size();
+        return requests_;
     }
 
   private:
-    struct Request {
-        std::string line;
-        std::string body;
-    };
-
     void close_listener() {
         const int fd = listen_fd_.exchange(-1);
         if (fd >= 0) {
@@ -206,7 +182,6 @@ class ScriptedServer {
                 break;
         }
         if (header_end != std::string::npos) {
-            body_bytes_ = request.size() - header_end - 4;
             std::lock_guard<std::mutex> lock(mutex_);
             requests_.push_back(
                 {request.substr(0, request.find("\r\n")), request.substr(header_end + 4)});
@@ -238,7 +213,6 @@ class ScriptedServer {
     std::vector<Request> requests_;
     std::atomic<int> listen_fd_{-1};
     uint16_t port_ = 0;
-    std::atomic<size_t> body_bytes_{0};
     std::thread thread_;
 };
 
@@ -256,40 +230,21 @@ void require_ipp_ok(const std::shared_ptr<HttpResponse>& resp) {
 
 } // namespace
 
-TEST_CASE("IPP POST reads past an interim 100 Continue to the final response",
-          "[label][ipp][ipp_http]") {
-    ScriptedServer server({kContinue, final_ok_response()});
+TEST_CASE("IPP POST reads past any interim responses to the final one", "[label][ipp][ipp_http]") {
+    const auto script =
+        GENERATE(std::vector<std::string>{final_ok_response()},
+                 std::vector<std::string>{kContinue, final_ok_response()},
+                 std::vector<std::string>{std::string(kContinue) + final_ok_response()},
+                 std::vector<std::string>{kContinue, "HTTP/1.1 102 Processing\r\n\r\n",
+                                          final_ok_response()});
+    CAPTURE(script.size());
+    ScriptedServer server(script);
     auto body = job_body();
 
     auto resp = ipp::post_request("127.0.0.1", server.port(), "ipp/print", body, 10);
 
     require_ipp_ok(resp);
-    REQUIRE(server.body_bytes_received() == body.size());
-}
-
-TEST_CASE("IPP POST handles 100 Continue and the final response in one write",
-          "[label][ipp][ipp_http]") {
-    ScriptedServer server({std::string(kContinue) + final_ok_response()});
-
-    auto resp = ipp::post_request("127.0.0.1", server.port(), "ipp/print", job_body(), 10);
-
-    require_ipp_ok(resp);
-}
-
-TEST_CASE("IPP POST reads past several interim responses", "[label][ipp][ipp_http]") {
-    ScriptedServer server({kContinue, "HTTP/1.1 102 Processing\r\n\r\n", final_ok_response()});
-
-    auto resp = ipp::post_request("127.0.0.1", server.port(), "ipp/print", job_body(), 10);
-
-    require_ipp_ok(resp);
-}
-
-TEST_CASE("IPP POST returns a final response that has no interim", "[label][ipp][ipp_http]") {
-    ScriptedServer server({final_ok_response()});
-
-    auto resp = ipp::post_request("127.0.0.1", server.port(), "ipp/print", job_body(), 10);
-
-    require_ipp_ok(resp);
+    REQUIRE(server.requests().at(0).body.size() == body.size());
 }
 
 TEST_CASE("IPP POST returns nullptr when only an interim response arrives",
@@ -369,7 +324,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "print_spool_label posts to the configured IPP
     });
 
     REQUIRE(wait_until([&] { return done; }, 15000));
-    REQUIRE(server.request_line() == "POST /printers/Canon_TS8350 HTTP/1.1");
+    REQUIRE(server.requests().at(0).line == "POST /printers/Canon_TS8350 HTTP/1.1");
     REQUIRE(ok);
 }
 
@@ -384,43 +339,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The IPP print modal posts to the configured
     modal.on_ok();
 
     REQUIRE(wait_until([&] { return done; }, 15000));
-    REQUIRE(server.request_line() == "POST /printers/Canon_TS8350 HTTP/1.1");
-}
-
-// The PWG page header carries the paper by name at PageSizeName (PWG 5102.4
-// offset 1732, counted from the end of the "RaS2" sync word). A printer sizes
-// the page from it, so it must match the paper the template is laid out on.
-TEST_CASE_METHOD(LVGLTestFixture, "The IPP job's PWG header names the template's paper",
-                 "[label][ipp_http][pwg]") {
-    const auto paper = GENERATE(label::PaperSize::LETTER, label::PaperSize::A4);
-    const std::string keyword = label::get_pwg_media_keyword(paper);
-    CAPTURE(keyword);
-    const auto& templates = label::get_sheet_templates();
-    const auto on_paper = label::get_templates_for_paper(paper);
-    REQUIRE_FALSE(on_paper.empty());
-    const int index = static_cast<int>(on_paper.front() - templates.data());
-
-    ScriptedServer server({final_ok_response()});
-    IppPrinter printer;
-    printer.set_target("127.0.0.1", server.port(), "ipp/print");
-    printer.set_sheet_template(index);
-
-    bool done = false;
-    bool ok = false;
-    printer.print(LabelBitmap(64, 32), label::sheet_template_to_label_size(templates[index], 300),
-                  [&](bool success, const std::string&) {
-                      ok = success;
-                      done = true;
-                  });
-    REQUIRE(wait_until([&] { return done; }, 15000));
-    REQUIRE(ok);
-
-    const std::string body = server.body();
-    const size_t sync = body.find("RaS2");
-    REQUIRE(sync != std::string::npos);
-    const size_t field = sync + 4 + 1732;
-    REQUIRE(body.size() > field + 64);
-    CHECK(std::string(body.c_str() + field) == keyword);
+    REQUIRE(server.requests().at(0).line == "POST /printers/Canon_TS8350 HTTP/1.1");
 }
 
 namespace {
@@ -447,13 +366,14 @@ class IppJobFixture : public LVGLTestFixture {
         std::string message;
     };
 
-    Result print_to(uint16_t port) {
+    Result print_to(uint16_t port, int template_index = 0) {
         IppPrinter printer;
         printer.set_target("127.0.0.1", port, "ipp/print");
-        printer.set_sheet_template(0);
+        printer.set_sheet_template(template_index);
         const auto& templates = label::get_sheet_templates();
         Result result;
-        printer.print(LabelBitmap(64, 32), label::sheet_template_to_label_size(templates[0], 300),
+        printer.print(LabelBitmap(64, 32),
+                      label::sheet_template_to_label_size(templates[template_index], 300),
                       [&](bool success, const std::string& message) {
                           result.ok = success;
                           result.message = message;
@@ -470,6 +390,30 @@ std::string printer_uri(const char* scheme, uint16_t port) {
 
 } // namespace
 
+// The PWG page header carries the paper by name at PageSizeName (PWG 5102.4
+// offset 1732, counted from the end of the "RaS2" sync word). A printer sizes
+// the page from it, so it must match the paper the template is laid out on.
+TEST_CASE_METHOD(IppJobFixture, "The IPP job's PWG header names the template's paper",
+                 "[label][ipp_http][pwg]") {
+    const auto paper = GENERATE(label::PaperSize::LETTER, label::PaperSize::A4);
+    const std::string keyword = label::get_pwg_media_keyword(paper);
+    CAPTURE(keyword);
+    const auto& templates = label::get_sheet_templates();
+    const auto on_paper = label::get_templates_for_paper(paper);
+    REQUIRE_FALSE(on_paper.empty());
+    const int index = static_cast<int>(on_paper.front() - templates.data());
+
+    ScriptedServer server({final_ok_response()});
+    REQUIRE(print_to(server.port(), index).ok);
+
+    const std::string body = server.requests().at(0).body;
+    const size_t sync = body.find("RaS2");
+    REQUIRE(sync != std::string::npos);
+    const size_t field = sync + 4 + 1732;
+    REQUIRE(body.size() > field + 64);
+    CHECK(std::string(body.c_str() + field) == keyword);
+}
+
 TEST_CASE_METHOD(IppJobFixture, "An IPP job the printer answers with 426 is resent over TLS",
                  "[label][ipp_http][2034]") {
     ServerCtx tls;
@@ -478,33 +422,31 @@ TEST_CASE_METHOD(IppJobFixture, "An IPP job the printer answers with 426 is rese
 
     const auto result = print_to(server.port());
 
-    REQUIRE(server.request_count() == 2);
-    CHECK(server.body(0).find(printer_uri("ipp", server.port())) != std::string::npos);
-    CHECK(server.request_line(1) == "POST /ipp/print HTTP/1.1");
-    CHECK(server.body(1).find(printer_uri("ipps", server.port())) != std::string::npos);
+    const auto requests = server.requests();
+    REQUIRE(requests.size() == 2);
+    CHECK(requests[0].body.find(printer_uri("ipp", server.port())) != std::string::npos);
+    CHECK(requests[1].line == "POST /ipp/print HTTP/1.1");
+    CHECK(requests[1].body.find(printer_uri("ipps", server.port())) != std::string::npos);
     CHECK(result.ok);
 }
 
-TEST_CASE_METHOD(IppJobFixture, "A printer still answering 426 over TLS fails the job",
+TEST_CASE_METHOD(IppJobFixture, "Only a 426 is resent over TLS, and only once",
                  "[label][ipp_http][2034]") {
     ServerCtx tls;
-    ScriptedServer server(
-        {{false, {upgrade_required_response()}}, {true, {upgrade_required_response()}}}, tls.ctx);
+    const std::string bad_request =
+        "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    // A resend nobody scripted is refused, so it reports "Connection failed", not the status.
+    const auto [connections,
+                status] = GENERATE_REF(table<std::vector<ScriptedConnection>, std::string>({
+        {{{false, {upgrade_required_response()}}, {true, {upgrade_required_response()}}}, "426"},
+        {{{false, {bad_request}}}, "400"},
+    }));
+    CAPTURE(status);
+    ScriptedServer server(connections, tls.ctx);
 
     const auto result = print_to(server.port());
 
-    CHECK(server.request_count() == 2);
+    CHECK(server.requests().size() == connections.size());
     CHECK_FALSE(result.ok);
-    CHECK(result.message.find("426") != std::string::npos);
-}
-
-TEST_CASE_METHOD(IppJobFixture, "An IPP job rejected with another HTTP error is not resent",
-                 "[label][ipp_http][2034]") {
-    ScriptedServer server(
-        {"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"});
-
-    const auto result = print_to(server.port());
-
-    CHECK_FALSE(result.ok);
-    CHECK(result.message.find("400") != std::string::npos);
+    CHECK(result.message.find(status) != std::string::npos);
 }
