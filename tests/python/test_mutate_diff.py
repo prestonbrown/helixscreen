@@ -202,7 +202,7 @@ def _git(work, *args):
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout
 
 
-def _fixture(tmp_path, makefile=FAST_MAKEFILE):
+def _fixture(tmp_path, makefile=FAST_MAKEFILE, other=False):
     work = tmp_path / "repo"
     (work / "scripts").mkdir(parents=True)
     (work / "src").mkdir()
@@ -210,6 +210,8 @@ def _fixture(tmp_path, makefile=FAST_MAKEFILE):
     shutil.copy(SCRIPTS_DIR / "mutate_diff.py", work / "scripts")
     shutil.copy(SCRIPTS_DIR / "diff_base.py", work / "scripts")
     (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    if other:
+        (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
     (work / ".gitignore").write_text("build/\n.mutant-*\n")
     _git(work, "init", "-q", "-b", "main")
     _git(work, "config", "user.email", "t@t")
@@ -471,13 +473,16 @@ def test_no_record_writes_nothing(tmp_path):
 def _commit_other_fix(work, msg="the fix"):
     """Commit a new src/other.cpp the stub suite checks for."""
     (work / ".mutant-expect-other").write_text("1\n")
+    (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
+    _git(work, "add", "src/other.cpp")
+    _git(work, "commit", "--allow-empty", "-qm", f"{msg}: the file it edits")
     (work / "src" / "other.cpp").write_text("int g() { return 2; }  // NEW_TOO\n")
     _git(work, "add", "src/other.cpp")
     _git(work, "commit", "-qm", msg)
 
 
 def _proven_then_new_change(tmp_path):
-    work = _fixture(tmp_path)
+    work = _fixture(tmp_path, other=True)
     _git(work, "commit", "-qam", "change")
     assert _mutate(work).returncode == 0
     _commit_other_fix(work)
@@ -950,6 +955,19 @@ def test_parallel_verdicts_match_serial(tmp_path):
 
 
 @linux_only
+def test_a_parallel_run_makes_no_more_copies_than_it_has_hunks(tmp_path):
+    work = _fixture(tmp_path)
+    r = subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "4",
+         "--worker-dir", str(tmp_path / "copies"), "--log", str(work / "mutate.log"),
+         "--base", "main", "--no-record"],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+    assert r.returncode == 0, r.stdout
+    assert "1 workers, each in a copy of the tree" in r.stdout
+
+
+@linux_only
 def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path)
     r = subprocess.run(
@@ -959,7 +977,8 @@ def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
         timeout=120, env=PARALLEL_ENV)
     assert r.returncode == 1, r.stdout
     runs = [ln.split() for ln in seen.read_text().splitlines()]
-    mutant_runs = [ln for ln in runs if len(ln) > 1]
+    # A detection repeats once before it counts, so a mutant can run twice.
+    mutant_runs = sorted({tuple(ln) for ln in runs if len(ln) > 1})
     assert len(mutant_runs) == PARALLEL_FILES, runs
     trees = {ln[0] for ln in mutant_runs}
     assert str(work) not in trees, "a mutant ran in the tree the run started in"
@@ -1146,6 +1165,8 @@ def test_file_tag_filters_turn_on_catch2_file_tags():
 
 def test_generated_output_is_not_mutated_as_code():
     assert md.classify("src/generated/theme_token_table.cpp", False)[0] == "inert"
+    assert md.classify("ui_xml/translations/de.xml", False)[0] == "inert"
+    assert md.classify("ui_xml/print_status_panel.xml", False) == ("mutate", "data")
     assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
 
 
@@ -1163,6 +1184,358 @@ def test_release_lifts_the_cap(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
     r = _mutate(work, "--list-only", "--max-minutes", "240", "--release", "--base", base)
     assert r.returncode == 0, r.stdout
+
+
+def test_first_puts_named_files_ahead_and_leaves_nothing_out():
+    assert md.first_rank("src/printer/notice.cpp", ["ams_backend", "notice"]) == 1
+    assert md.first_rank("src/printer/ams_backend.cpp", ["ams_backend", "notice"]) == 0
+    assert md.first_rank("src/other.cpp", ["ams_backend", "notice"]) == 2
+    assert md.split_patterns(["a,b", " c "]) == ["a", "b", "c"]
+
+
+def test_a_filter_is_ranked_by_how_much_it_runs():
+    defaults = ("~[.]", "tests/shell", "tests/python")
+    assert md.filter_scope(("[#a]", "", ""), defaults, True) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "", ""), defaults, True) == md.SCOPE_WHOLE_CATCH2
+    assert md.filter_scope(("~[.]", "tests/shell/a.bats", ""), defaults, False) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "tests/shell", "tests/python"), defaults, False) \
+        == md.SCOPE_WHOLE_SCRIPTS
+
+
+def test_first_orders_the_run_and_a_whole_suite_waits_behind_a_scoped_filter(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/other.cpp", "src/feature.cpp"], r.stdout
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]",
+                "--first", "feature")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/feature.cpp", "src/other.cpp"], r.stdout
+
+
+def _pool(work, *args):
+    return subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "2", "--pool",
+         "--log", str(work / "mutate.log"), *args],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+
+
+@linux_only
+def test_a_pool_judges_each_hunk_by_its_own_filter_with_one_build_and_one_set_of_copies(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 0, r.stdout
+    assert "=== group" not in r.stdout
+    assert r.stdout.count("workers, each in a copy of the tree") == 1, r.stdout
+    assert "catch2 green" in r.stdout and r.stdout.count("catch2 green") == 2, r.stdout
+    assert [v[0] for v in _verdicts(r.stdout)] == ["killed", "killed"], r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
+
+
+@linux_only
+def test_a_pool_names_the_filter_a_hunk_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 1, r.stdout
+    assert re.search(r"src/other.cpp:\d+  \[oth\]", r.stdout), r.stdout
+
+
+NARROW_GREEN_SUITE = """#!/usr/bin/env bash
+case "$1" in *feat*) exit 0 ;; esac
+grep -q NEW_BEHAVIOR src/feature.cpp || {
+    echo "tests/unit/test_wide.cpp:3: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+@linux_only
+def test_confirm_survivors_asks_the_whole_suite_before_a_narrow_filter_reads_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text(NARROW_GREEN_SUITE)
+    flags = ("--base", base, "--tests-for", "src/feature.cpp=[feat]",
+             "--only", "feature", "--no-record")
+    plain = _pool(work, *flags)
+    assert re.search(r"SURVIVED\s+src/feature.cpp", plain.stdout), plain.stdout
+    r = _pool(work, *flags, "--confirm-survivors")
+    assert "only the whole suite detected it" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
+@linux_only
+def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace(
+        "#!/usr/bin/env bash\n",
+        '#!/usr/bin/env bash\n[ "$1" != "[oth]" ] || '
+        '{ echo "tests/unit/test_o.cpp:1: FAILED:"; exit 1; }\n', 1))
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+    verdicts = {v[1]: v[0] for v in _verdicts(r.stdout)}
+    assert any(k.startswith("src/feature.cpp") and v == "killed" for k, v in verdicts.items()), r.stdout
+    assert any(k.startswith("src/other.cpp") and v == "INCONCLUSIVE" for k, v in verdicts.items()), r.stdout
+    assert "whose suite exited without a verdict" in r.stdout
+
+
+def test_auto_tests_max_widens_what_a_stem_may_be_named_by():
+    sources = {f"test_{i}": "foo_stem" for i in range(20)}
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources) == ""
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources, max_files=20).count("[#test_") == 20
+
+
+@pytest.mark.parametrize("line,expected", [
+    ("    if (a == b) {\n", ["    if (!(a == b)) {\n", "    if (a != b) {\n"]),
+    ("    helix::publish(x);\n", ["    ;\n"]),
+    ("    obj->call(a).then(b);\n", ["    ;\n"]),
+    ("    return true;\n", ["    return false;\n"]),
+    ("    auto x = (a < b);\n", ["    auto x = (a >= b);\n"]),
+    ('    s = "a && b";\n', []),
+    ("    x = 1;  // true && false\n", []),
+    ('    spdlog::info("x", y == z);\n', []),
+    ("#if X == 1\n", []),
+    ("    Foo bar(1);\n", []),
+    ("    /* a == b */ c = d;\n", []),
+    ('    t = R"(a == b)";\n', []),
+])
+def test_inside_edits_touch_code_and_never_a_literal_a_comment_or_a_log(line, expected):
+    assert [text for _, text in md.inside_edits(line)] == expected
+
+
+def test_inside_mutants_cover_added_lines_only_and_the_most_telling_first():
+    lines = ["int f() {\n", "    bool a = true;\n", "    if (b) {\n", "    if (old) {\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " int f() {\n", "+    bool a = true;\n", "+    if (b) {\n",
+                             "-    gone();\n", "     if (old) {\n", " }\n"]}
+    assert [(m[0], m[1]) for m in md.hunk_inside_mutants(h, lines)] == [
+        (3, "negate if"), (2, "true to false")]
+
+
+def test_inside_drops_a_call_written_over_several_lines():
+    lines = ["void f() {\n", "    helix::publish_ui_request(\n", "        {Kind::Offer, slot});\n",
+             "    int y = g(\n", "        1);\n", "    spdlog::info(\n", "        \"x\");\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " void f() {\n"] + ["+" + ln for ln in lines[1:7]] + [" }\n"]}
+    mutants = md.hunk_inside_mutants(h, lines)
+    assert [(m[0], m[1], m[2], m[3]) for m in mutants] == [(2, "drop call", "    ;\n", 2)]
+
+
+def test_inside_mutants_spread_across_a_long_hunk():
+    mutants = [(line, "negate if", "x", 1) for line in range(1, 41)]
+    assert [m[0] for m in md.spread_mutants(mutants, 4)[:4]] == [1, 11, 21, 31]
+    assert md.spread_mutants(mutants, 1) == mutants
+    assert sorted(md.spread_mutants(mutants, 4)) == mutants
+
+
+INSIDE_CHANGED = "int f(int n) {\n    if (n == 2) { return 1; }  // NEW_BEHAVIOR\n    return n;\n}\n"
+# The revert removes a marker the build needs, so it can never build; the suite
+# reds on the original condition being edited.
+INSIDE_MAKEFILE = """test-build:
+\t@grep -q NEW_BEHAVIOR src/feature.cpp
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+INSIDE_SUITE = """#!/usr/bin/env bash
+grep -q 'if (n == 2) {' src/feature.cpp || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _inside_fixture(tmp_path, suite):
+    work = _fixture(tmp_path, INSIDE_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(INSIDE_CHANGED)
+    (work / "build" / "bin" / "helix-tests").write_text(suite)
+    return work
+
+
+def test_an_inside_mutant_judges_a_hunk_whose_revert_does_not_build(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    without = _mutate(work, "--base", "main", "--no-record")
+    assert without.returncode == 3 and "inside mutants" not in without.stdout, without.stdout
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"uncompilable\s+src/feature.cpp:\d+", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+    # The revert's verdict stands: one edit is not the question a revert asks.
+    assert r.returncode == 3, r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
+    assert (work / "src" / "feature.cpp").read_text() == INSIDE_CHANGED
+
+
+def test_a_surviving_inside_mutant_fails_the_run(tmp_path):
+    work = _inside_fixture(tmp_path, "#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert r.returncode == 1, r.stdout
+    assert "1 inside mutant(s) survived" in r.stdout
+    assert "src/feature.cpp:2  negate if" in r.stdout
+
+
+def test_an_inside_mutant_judges_a_revert_that_left_the_old_binary_in_place(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE.replace(
+        "if (n == 2) {' src/feature.cpp", "if (n == 2) { return 1; }  // NEW_BEHAVIOR' src/feature.cpp"))
+    (work / "Makefile").write_text(
+        "test-build:\n\t@! grep -q NEW_BEHAVIOR src/feature.cpp || "
+        "printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+
+
+def test_an_inside_mutant_that_does_not_build_is_passed_over(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    (work / "Makefile").write_text(INSIDE_MAKEFILE.replace(
+        "\t@printf", "\t@! grep -q 'if (!(' src/feature.cpp\n\t@printf", 1))
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"killed\s+src/feature.cpp:2  == to !=", r.stdout), r.stdout
+
+
+@pytest.mark.parametrize("rc,printed,rejected", [
+    (1, "src/feature.cpp: FAILED (1.0s)\nsummary: 1 compiled, 0 skipped, 1 failed", True),
+    (0, "src/feature.cpp: ok (1.0s)", False),
+    (1, "src/feature.cpp: no such file\nsummary: 0 compiled, 0 skipped, 1 failed", False),
+    (2, "make compile-prereqs failed, so no make-derived command can run", False),
+])
+def test_only_a_compile_that_ran_and_failed_is_a_syntax_rejection(tmp_path, rc, printed, rejected):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        f"import sys\nprint({printed!r})\nsys.exit({rc})\n")
+    import io
+    assert md.syntax_rejects(tmp_path, "src/feature.cpp", io.StringIO()) is rejected
+
+
+def _flaky_suite(tmp_path):
+    """Red the first time its baseline runs, then green unless a mutant is in."""
+    return f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+grep -q NEW_BEHAVIOR src/feature.cpp || {{
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}}
+exit 0
+"""
+
+
+def test_a_catch2_baseline_red_once_is_retried_and_its_flake_named(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path))
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "red once and green on a re-run" in r.stdout, r.stdout
+    assert "tests/unit/test_budget.cpp:9" in r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
+def test_a_failure_that_does_not_repeat_kills_nothing(tmp_path):
+    work = _fixture(tmp_path)
+    # Green at baseline; the first run against a mutant fails an unrelated budget.
+    (work / "build" / "bin" / "helix-tests").write_text(f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if ! grep -q NEW_BEHAVIOR src/feature.cpp && [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+exit 0
+""")
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "tests/unit/test_budget.cpp:9 failed once and not again" in r.stdout, r.stdout
+    assert re.search(r"SURVIVED\s+src/feature.cpp", r.stdout), r.stdout
+    assert r.returncode == 1, r.stdout
+
+
+def test_a_reverted_new_source_is_inconclusive_with_no_build(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "src" / "added.cpp").write_text("int a() {\n    if (x) { return 1; }\n    return 0;\n}\n")
+    _git(work, "add", "-N", "src/added.cpp")
+    (work / "Makefile").write_text(
+        "test-build:\n\t@[ -e src/added.cpp ] || touch .mutant-built\n"
+        "\t@printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--only", "added", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/added.cpp:1", r.stdout), r.stdout
+    assert "deletes a new source file" in r.stdout
+    assert not (work / ".mutant-built").exists(), "a deleted source reached a build"
+    assert re.search(r"SURVIVED\s+src/added.cpp:2  negate if", r.stdout), r.stdout
+    assert (work / "src" / "added.cpp").exists()
+
+
+def test_a_catch2_baseline_red_twice_still_stops_the_run(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(
+        '#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert r.returncode == 2, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+
+
+def test_a_failure_only_at_a_flaky_site_judges_nothing(tmp_path):
+    binary = tmp_path / "suite"
+    binary.write_text('#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    binary.chmod(0o755)
+    plan = md.Catch2Plan(1, 1)
+    plan.limits = {0: 60}
+    import io
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.DETECTED
+    plan.flaky = {"t.cpp:1"}
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.GREEN
+
+
+def test_a_header_revert_is_syntax_checked_through_the_source_of_its_stem(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        "import sys\nprint(sys.argv[1] + ': FAILED (1.0s)')\nsys.exit(1)\n")
+    (tmp_path / "src" / "printer").mkdir(parents=True)
+    (tmp_path / "src" / "printer" / "foo.cpp").write_text("")
+    import io
+    log = io.StringIO()
+    assert md.syntax_rejects(tmp_path, "include/foo.h", log) is True
+    assert "src/printer/foo.cpp: FAILED" in log.getvalue()
+    assert md.syntax_rejects(tmp_path, "include/nothing_named_this.h", io.StringIO()) is False
+
+
+def test_header_fanout_counts_the_units_naming_a_header(tmp_path):
+    objs = tmp_path / "build" / "obj"
+    objs.mkdir(parents=True)
+    (objs / "a.d").write_text(f"a.o: src/a.cpp include/x.h {tmp_path}/include/y.h \\\n include/x.h\n")
+    (objs / "b.d").write_text("b.o: src/b.cpp include/x.h /usr/include/z.h\n")
+    (objs / "b.o").write_text("include/x.h\n")
+    assert md.header_fanout(tmp_path) == {"include/x.h": 2, "include/y.h": 1}
+
+
+def test_a_pool_leaves_a_header_with_many_includers_until_last(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "include").mkdir()
+    (work / "include" / "wide.h").write_text("inline int w() { return 1; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 1; }\n")
+    _git(work, "add", "include", "src")
+    _git(work, "commit", "-qm", "headers")
+    base = _git(work, "rev-parse", "HEAD~1").strip()
+    (work / "include" / "wide.h").write_text("inline int w() { return 2; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 2; }\n")
+    objs = work / "build" / "obj"
+    objs.mkdir(parents=True)
+    for i in range(md.HEADER_COSTLY_INCLUDERS + 1):
+        (objs / f"u{i}.d").write_text("u.o: u.cpp include/wide.h\n")
+    r = _mutate(work, "--base", base, "--list-only", "--pool", "--first", "wide")
+    listed = [ln.split()[0].split(":")[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert listed[-1] == "include/wide.h", r.stdout
+    assert "include/thin.h" in listed[:-1], r.stdout
 
 
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
@@ -1293,6 +1666,27 @@ def test_a_group_is_described_by_everything_that_judges_it():
 
 
 needs_bats = pytest.mark.skipif(shutil.which("bats") is None, reason="needs bats")
+
+
+@needs_bats
+def test_a_cxx_file_with_no_tests_pays_no_baseline_for_a_script_with_none(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_other.bats").write_text('@test "other" {\n  true\n}\n')
+    _git(work, "add", "scripts/tool.sh", "tests/shell")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--python-tests", "")
+    groups = [ln for ln in r.stdout.splitlines() if ln.startswith("=== group ")]
+    assert len(groups) == 2, r.stdout
+    cxx = next(g for g in groups if "| tests/shell" not in g)
+    tool = next(g for g in groups if "| tests/shell" in g)
+    assert "~[.]~[slow]  (1 file(s))" in cxx and "~[.]~[slow] | tests/shell  (1 file(s))" in tool
+    # The C++ group's own section runs no bats at all.
+    section = r.stdout.split(cxx, 1)[1].split("=== group ", 1)[0]
+    assert "bats green" not in section, section
 
 
 @needs_bats
