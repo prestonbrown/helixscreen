@@ -94,9 +94,8 @@ ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const Slot
     // This does NOT make such a swap prompt "Different filament?" —
     // needs_identity_confirmation() additionally requires
     // is_material_identity_change(), which compares materials and colors only.
-    // On a linked spool it routes through find_or_create_filament(), which
-    // reuses a record only of the same type, grade and colour, so the spool
-    // stays on its record unless the pick names a different type.
+    // save_impl() writes no filament for it either: a catalog pick with
+    // brand, material and colour unmoved leaves the spool on its record.
     if (original.brand != edited.brand || original.material != edited.material ||
         original.color_rgb != edited.color_rgb) {
         changes.filament_identity = true;
@@ -326,7 +325,7 @@ void SpoolmanSlotSaver::save_impl(const SlotInfo& original, const SlotInfo& edit
                      spool_id, edited.brand, edited.material, edited.color_rgb);
 
         const MissingFilamentFields missing = missing_filament_fields(edited);
-        if (missing.any()) {
+        if (missing.any() || !changes.filament_identity) {
             if (changes.filament_identity) {
                 // The user moved one of the three fields a filament is
                 // identified by, and the slot cannot name all three. One Save
@@ -340,8 +339,9 @@ void SpoolmanSlotSaver::save_impl(const SlotInfo& original, const SlotInfo& edit
                     on_complete(SaveResult{.success = false, .missing = missing});
                 return;
             }
-            // A catalog pick is HelixScreen's own, so an incomplete filament
-            // leaves Spoolman nothing to do and the rest of the save stands.
+            // A catalog pick is HelixScreen's own: with brand, material and
+            // colour where they were, Spoolman has nothing to file, and the
+            // rest of the save stands.
             spdlog::info("[SpoolmanSlotSaver] Catalog pick alone for spool {}; no filament write",
                          spool_id);
             if (changes.spool_level) {
@@ -508,11 +508,10 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
     api_->spoolman().get_spoolman_filaments(
         vendor_id,
         [this, vendor_id, wanted, on_found, on_error](const std::vector<FilamentInfo>& filaments) {
-            // Only a record of the same type and grade is reused without
-            // asking; one that merely records the same material goes to the
-            // chooser below.
+            // Only the exact record this save would file is reused without
+            // asking; anything near it goes to the chooser below.
             if (const FilamentInfo* f = spoolman::find_matching_filament(
-                    filaments, wanted.precise_type, wanted.color_hex)) {
+                    filaments, wanted.material, wanted.name, wanted.color_hex)) {
                 spdlog::debug("[SpoolmanSlotSaver] Reusing filament id={} "
                               "(vendor={}, material={}, color={})",
                               f->id, vendor_id, wanted.material, wanted.color_hex);

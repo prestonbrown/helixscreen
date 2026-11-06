@@ -108,24 +108,33 @@ TEST_CASE("find_matching_filament is the one Spoolman filament match", "[spoolma
     const std::vector<FilamentInfo> filaments{red, clear};
 
     SECTION("colour compares without case or '#'") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PLA", "#FF0000");
+        const FilamentInfo* f = find_matching_filament(filaments, "PLA", "", "#FF0000");
         REQUIRE(f != nullptr);
         CHECK(f->id == 4);
     }
 
     SECTION("an alpha channel is part of the colour") {
-        const FilamentInfo* f = find_matching_filament(filaments, "PETG", "ffffff33");
+        const FilamentInfo* f = find_matching_filament(filaments, "PETG", "", "ffffff33");
         REQUIRE(f != nullptr);
         CHECK(f->id == 9);
-        CHECK(find_matching_filament(filaments, "PETG", "FFFFFF") == nullptr);
+        CHECK(find_matching_filament(filaments, "PETG", "", "FFFFFF") == nullptr);
     }
 
-    SECTION("material must match") {
-        CHECK(find_matching_filament(filaments, "PETG", "FF0000") == nullptr);
+    SECTION("material must match, as stored") {
+        CHECK(find_matching_filament(filaments, "PETG", "", "FF0000") == nullptr);
+        CHECK(find_matching_filament(filaments, "pla", "", "FF0000") == nullptr);
+    }
+
+    SECTION("the name must match once case and spacing are folded") {
+        std::vector<FilamentInfo> named = filaments;
+        named[0].filament_name = "  Red   PLA ";
+        CHECK(find_matching_filament(named, "PLA", "red pla", "FF0000") == &named[0]);
+        CHECK(find_matching_filament(named, "PLA", "Red PLA+", "FF0000") == nullptr);
+        CHECK(find_matching_filament(named, "PLA", "", "FF0000") == nullptr);
     }
 
     SECTION("no colour matches nothing") {
-        CHECK(find_matching_filament(filaments, "PLA", "") == nullptr);
+        CHECK(find_matching_filament(filaments, "PLA", "", "") == nullptr);
         CHECK(normalize_color_hex("red").empty());
         CHECK(normalize_color_hex("12345").empty());
     }
@@ -231,46 +240,6 @@ TEST_CASE("find_similar_filament offers the nearest colour of the same material"
                 helix::spoolman::find_similar_filament(filaments, r.material, r.hex, r.exclude);
             CHECK((f ? f->id : 0) == r.offered);
         }
-    }
-}
-
-TEST_CASE("is_filament_of_type: a record is reused only for the same type and grade",
-          "[spoolman_db][filament_naming][exact_filament]") {
-    struct Row {
-        const char* material;
-        const char* name;
-        const char* type;
-        bool same;
-    };
-    const Row rows[] = {
-        // plain records of the plain type
-        {"PLA", "Jet Black", "PLA", true},
-        {"PC", "Black PC", "PC", true},
-        // a filled grade is never its unfilled base, either way round
-        {"PC", "Black PC", "PC-CF", false},
-        {"ABS", "Black", "ABS-CF", false},
-        {"PETG", "PETG-GF Grey", "PETG", false},
-        {"PLA", "Wood Brown", "PLA", false},
-        {"PLA-CF", "Black PLA-CF", "PLA-CF", true},
-        // silk and plain are different types
-        {"PLA", "Silk PLA Gold", "PLA", false},
-        {"PLA", "Gold", "Silk PLA", false},
-        {"PLA", "Silk PLA Gold", "Silk PLA", true},
-        {"Silk PLA", "Silk Blue", "Silk PLA", true},
-        // a plus grade is told from the plain one by its name or its material
-        {"ABS", "ABS+ Deep Gray", "ABS+", true},
-        {"ABS+", "ABS+", "ABS+", true},
-        {"ABS", "Grey ABS+HS", "ABS", false},
-        {"ABS", "Black ABS", "ABS+", false},
-        // another polymer is never the type
-        {"PETG", "Black", "PLA", false},
-    };
-    for (const Row& r : rows) {
-        FilamentInfo f;
-        f.material = r.material;
-        f.filament_name = r.name;
-        CAPTURE(r.material, r.name, r.type);
-        CHECK(helix::spoolman::is_filament_of_type(f, r.type) == r.same);
     }
 }
 

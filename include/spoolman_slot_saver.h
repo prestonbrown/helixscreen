@@ -222,6 +222,12 @@ class SpoolmanSlotSaver {
                 committed.material = f.material;
             }
             committed.spool_name = f.filament_name;
+            // The record is no catalog pick, and its temperatures are its own.
+            committed.catalog_id.clear();
+            committed.product_name.clear();
+            committed.nozzle_temp_min = f.nozzle_temp_min;
+            committed.nozzle_temp_max = f.nozzle_temp_max;
+            committed.bed_temp = f.bed_temp_max;
         }
     }
 
@@ -301,10 +307,8 @@ class SpoolmanSlotSaver {
      * @brief Resolve @p filament under @p vendor_id to a Spoolman filament_id,
      *        creating a new filament if none matches.
      *
-     * A record of the same type, grade and colour
-     * (spoolman::find_matching_filament() on the precise type) is reused.
-     * Otherwise a near one, including a record of another grade of the same
-     * material
+     * The exact record (spoolman::find_matching_filament(): stored material,
+     * colour and normalized name) is reused. Otherwise a near one
      * (spoolman::find_similar_filament()) goes to the chooser, when one is
      * set, and the user picks it, a new filament, or neither. A create POSTs
      * every field of @p filament plus the density and the printer's diameter,

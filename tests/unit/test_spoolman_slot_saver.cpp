@@ -40,6 +40,7 @@ static SlotInfo make_test_slot() {
     slot.brand = "Polymaker";
     slot.material = "PLA";
     slot.color_rgb = 0xFF0000; // Red
+    slot.color_name = "Red";
     slot.spoolman_filament_id = 100;
     slot.remaining_weight_g = 800.0f;
     slot.total_weight_g = 1000.0f;
@@ -370,11 +371,11 @@ TEST_CASE("SpoolmanSlotSaver save repoints spool to existing filament when vendo
 
     // Seed the original vendor + filament (id=100, referenced by make_test_slot).
     client.spoolman_mock().add_vendor(1, "Polymaker");
-    client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000", "PLA Red");
 
-    // Seed the target vendor + matching filament (eSUN PLA red = id 200).
+    // Seed the target vendor + the exact filament the save files (id 200).
     client.spoolman_mock().add_vendor(2, "eSUN");
-    client.spoolman_mock().add_filament(200, 2, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(200, 2, "PLA", "FF0000", "PLA Red");
 
     SpoolmanSlotSaver saver(&api);
 
@@ -841,7 +842,7 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: matches on vendor+material
     MoonrakerClientMock client;
     MoonrakerAPIMock api(client, state);
     serve_only_linked_spool(client); // avoid synthesized-vendor noise
-    client.spoolman_mock().add_filament(100, /*vendor_id*/ 7, "PLA", "ff0000");
+    client.spoolman_mock().add_filament(100, /*vendor_id*/ 7, "PLA", "ff0000", "PLA");
 
     SpoolmanSlotSaver saver(&api);
     int got_id = -1;
@@ -944,7 +945,7 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: accepts leading # and stri
     MoonrakerClientMock client;
     MoonrakerAPIMock api(client, state);
     serve_only_linked_spool(client);
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA");
 
     SpoolmanSlotSaver saver(&api);
     int got_id = -1;
@@ -1068,7 +1069,7 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to same fila
 
     // Seed vendor + filament that will be matched exactly.
     client.spoolman_mock().add_vendor(7, "Polymaker");
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA Red");
 
     SlotInfo original = make_test_slot();
     original.spoolman_filament_id = 100; // match the seeded filament
@@ -1228,8 +1229,8 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to existing 
     // Seed the original vendor/filament AND the target PETG filament so the
     // save path resolves to an existing id (200) without creating anything.
     client.spoolman_mock().add_vendor(7, "Polymaker");
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
-    client.spoolman_mock().add_filament(200, 7, "PETG", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA Red");
+    client.spoolman_mock().add_filament(200, 7, "PETG", "FF0000", "PETG Red");
 
     SlotInfo original = make_test_slot();
     original.spoolman_filament_id = 100;
@@ -1729,8 +1730,10 @@ TEST_CASE("SpoolmanSlotSaver save: the spool's own filament is never offered as 
     CHECK(got.new_filament_id == 501);
 }
 
-TEST_CASE("SpoolmanSlotSaver save: a record is reused silently only for the same type and grade",
+TEST_CASE("SpoolmanSlotSaver save: only an exact record is reused without asking",
           "[spoolman][slot_saver][exact_filament]") {
+    // Exact: the stored material string, the colour and the normalized name.
+    // Anything else goes to the offer; with no chooser the saver creates.
     struct Seed {
         int id;
         const char* material;
@@ -1743,63 +1746,88 @@ TEST_CASE("SpoolmanSlotSaver save: a record is reused silently only for the same
         bool linked;
         std::function<void(SlotInfo&)> before;
         std::function<void(SlotInfo&)> after;
-        int filament;
+        int filament; // 0 = no filament work at all
         bool repointed;
     };
     const auto set = [](const char* material, uint32_t rgb, int filament_id = 0) {
         return [=](SlotInfo& s) {
             s.material = material;
             s.color_rgb = rgb;
+            s.color_name = "Black";
             if (filament_id) {
                 s.spoolman_filament_id = filament_id;
             }
         };
     };
+    const std::vector<Seed> black_pla{{40, "PLA", "000000", "Black PLA"}};
     const Row rows[] = {
-        {"a record filed under the precise type",
-         {{117, "ABS+", "4A4A4A", "ABS+"}},
+        {"the exact record, whatever its case and spacing",
+         {{5, "ABS", "000000", "Black ABS"}, {8, "ABS", "000000", " abs+  black "}},
          false,
-         set("ABS+", 0x4A4A4A),
-         set("ABS+", 0x4A4A4A),
-         117,
+         set("ABS+", 0),
+         set("ABS+", 0),
+         8,
          false},
-        {"a filled grade never lands on the plain record",
+        {"a record filed under the precise type is not exact",
+         {{117, "ABS+", "000000", "ABS+ Black"}},
+         false,
+         set("ABS+", 0),
+         set("ABS+", 0),
+         501,
+         false},
+        {"a filled grade",
          {{300, "PC", "000000", "Black PC"}},
          false,
          set("PC-CF", 0),
          set("PC-CF", 0),
          501,
          false},
-        {"the precise record wins over a plain one served first",
-         {{5, "ABS", "000000", "Black ABS"}, {6, "ABS+", "000000", "ABS+"}},
+        {"a wood fill", black_pla, false, set("Wood PLA", 0), set("Wood PLA", 0), 501, false},
+        {"another nylon",
+         {{41, "PA6", "000000", "Black PA6"}},
          false,
-         set("ABS+", 0),
-         set("ABS+", 0),
-         6,
+         set("PA12", 0),
+         set("PA12", 0),
+         501,
          false},
-        {"a linked plain spool moved to silk is repointed",
+        {"another shore hardness",
+         {{42, "TPU-95A", "000000", "Black TPU-95A"}},
+         false,
+         set("TPU-85A", 0),
+         set("TPU-85A", 0),
+         501,
+         false},
+        {"TPE on a TPU record",
+         {{43, "TPU", "000000", "Black TPU"}},
+         false,
+         set("TPE", 0),
+         set("TPE", 0),
+         501,
+         false},
+        {"recycled PLA", black_pla, false, set("rPLA", 0), set("rPLA", 0), 501, false},
+        {"a linked plain spool moved to silk",
          {{100, "PLA", "FF0000", "Red PLA"}},
          true,
          set("PLA", 0xFF0000, 100),
          set("Silk PLA", 0xFF0000),
          501,
          true},
-        {"a linked ABS spool moved to ABS+ is repointed",
-         {{5, "ABS", "000000", "Black ABS"}, {6, "ABS+", "000000", "ABS+"}},
+        {"a linked nylon moved to another nylon",
+         {{41, "PA6", "000000", "Black PA6"}},
          true,
-         set("ABS", 0, 5),
-         set("ABS+", 0),
-         6,
+         set("PA6", 0, 41),
+         set("PA12", 0),
+         501,
          true},
-        {"a catalog pick stays on a record of the precise type",
-         {{118, "ABS", "4A4A4A", "Dark Grey ABS"}, {117, "ABS+", "4A4A4A", "ABS+"}},
+        {"a catalog pick alone does no filament work",
+         {{100, "PLA", "7A7A7A", "Stone Grey"}},
          true,
-         set("ABS+", 0x4A4A4A, 117),
+         set("PLA", 0x7A7A7A, 100),
          [](SlotInfo& s) {
-             s.catalog_id = "esun-abs-plus";
-             s.product_name = "ABS+";
+             s.catalog_id = "polymaker-polyterra-pla";
+             s.product_name = "PolyTerra PLA";
          },
-         117,
+         0,
          false},
     };
     for (const Row& r : rows) {
@@ -1829,6 +1857,39 @@ TEST_CASE("SpoolmanSlotSaver save: a record is reused silently only for the same
             REQUIRE(got.success);
             CHECK(got.new_filament_id == r.filament);
             CHECK(got.repointed_filament == r.repointed);
+            if (r.filament == 0) {
+                CHECK(client.spoolman_mock().created_filaments.empty());
+                CHECK(client.spoolman_mock().spool_updates.empty());
+            }
         }
     }
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: Use existing adopts the record whole",
+          "[spoolman][slot_saver][similar_filament]") {
+    SlotInfo committed = esun_abs_plus_slot();
+    committed.catalog_id = "esun-abs-plus";
+    committed.product_name = "ABS+";
+    SaveResult result;
+    result.success = true;
+    result.created_new_spool = true;
+    result.new_filament_id = 73;
+    FilamentInfo record;
+    record.id = 73;
+    record.material = "ABS";
+    record.filament_name = "Grey ABS+HS";
+    record.color_hex = "#636363";
+    record.nozzle_temp_min = record.nozzle_temp_max = 250;
+    record.bed_temp_min = record.bed_temp_max = 100;
+    result.adopted = record;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+    CHECK(committed.color_rgb == 0x636363u);
+    CHECK(committed.material == "ABS");
+    CHECK(committed.spool_name == "Grey ABS+HS");
+    CHECK(committed.catalog_id.empty());
+    CHECK(committed.product_name.empty());
+    CHECK(committed.nozzle_temp_min == 250);
+    CHECK(committed.nozzle_temp_max == 250);
+    CHECK(committed.bed_temp == 100);
 }

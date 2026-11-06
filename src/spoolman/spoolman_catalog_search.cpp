@@ -59,6 +59,23 @@ uint64_t SpoolmanCatalogSearch::begin() {
 
 namespace spoolman {
 
+std::string normalized_name(const std::string& name) {
+    std::string out;
+    bool space = false;
+    for (char c : text_io::trim(name)) {
+        if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+            space = true;
+            continue;
+        }
+        if (space && !out.empty()) {
+            out += ' ';
+        }
+        space = false;
+        out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return out;
+}
+
 std::string normalize_color_hex(const std::string& hex) {
     std::string s = hex;
     if (!s.empty() && s[0] == '#') {
@@ -76,48 +93,17 @@ std::string normalize_color_hex(const std::string& hex) {
     return s;
 }
 
-namespace {
-
-/// Whether a token of @p text carrying @p polymer also carries a '+'
-/// ("ABS+", "ABS+HS", "PLA+").
-bool states_plus_grade(const std::string& text, const std::string& polymer) {
-    size_t pos = 0;
-    while (pos < text.size()) {
-        const size_t end = std::min(text.find(' ', pos), text.size());
-        const std::string_view token(text.data() + pos, end - pos);
-        if (token.find('+') != std::string_view::npos &&
-            text_io::contains_ignore_case(token, polymer)) {
-            return true;
-        }
-        pos = end + 1;
-    }
-    return false;
-}
-
-} // namespace
-
-bool is_filament_of_type(const FilamentInfo& filament, const std::string& precise_type) {
-    const std::string type(text_io::trim(precise_type));
-    const std::string recorded = filament::slicer_material(type);
-    if (recorded.empty() || filament::slicer_material(filament.material) != recorded) {
-        return false;
-    }
-    const std::string text = filament.material + " " + filament.filament_name;
-    const std::string polymer = filament::extract_base_material(type);
-    return filament::name_grades_match(text, type) &&
-           filament_finish_of(text) == filament_finish_of(type) &&
-           states_plus_grade(text, polymer) == states_plus_grade(type, polymer);
-}
-
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
-                                           const std::string& precise_type,
+                                           const std::string& material, const std::string& name,
                                            const std::string& color_hex) {
     const std::string needle = normalize_color_hex(color_hex);
     if (needle.empty()) {
         return nullptr;
     }
+    const std::string wanted_name = normalized_name(name);
     for (const auto& f : filaments) {
-        if (normalize_color_hex(f.color_hex) == needle && is_filament_of_type(f, precise_type)) {
+        if (f.material == material && normalize_color_hex(f.color_hex) == needle &&
+            normalized_name(f.filament_name) == wanted_name) {
             return &f;
         }
     }
