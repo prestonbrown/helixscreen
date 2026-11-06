@@ -237,6 +237,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// Each slot as its 1-based head, where the print start takes the map
+    /// (helix::print_start).
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
+
     /// Klipper tool-changers have one extruder per tool. Tool N sources slot N
     /// directly — identity mapping — which activates per-extruder consumption
     /// tracking in FilamentConsumptionTracker.
@@ -868,6 +873,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Whether the printer's macro list carries T_INFO (the read-only tool
     /// state query Z-Mod ships on the C5).
     bool tinfo_macro_present_ = false;
+    /// The print start takes this print's tool map (print_start_params()). Set
+    /// once by set_discovery() before start() and read-only afterwards.
+    bool print_start_takes_tool_slots_ = false;
     /// Whether the T_INFO block currently in flight on the console has named a
     /// HEAD row; the block-end line is what turns "no HEAD row" into "the
     /// carriage is empty".

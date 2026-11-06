@@ -21,6 +21,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 
@@ -70,6 +71,21 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     }
     set_material_source(addon::resolve_material_source(discovery));
     tinfo_macro_present_ = discovery.has_macro("T_INFO");
+    print_start_takes_tool_slots_ = helix::print_start::takes_tool_slots(discovery);
+}
+
+helix::PrintStartParams
+AmsBackendToolChanger::print_start_params(const std::map<int, int>& tool_slots) const {
+    if (!print_start_takes_tool_slots_) {
+        return {};
+    }
+    std::map<int, int> heads;
+    for (const auto& [tool, slot] : tool_slots) {
+        if (slot >= 0) {
+            heads[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based head
+        }
+    }
+    return helix::print_start::tool_slot_params(heads);
 }
 
 void AmsBackendToolChanger::set_discovered_tools(std::vector<std::string> tool_names) {

@@ -864,6 +864,35 @@ TEST_CASE("The built-in AFC's fault flag reads from AFC", "[toolchanger][zmod][2
     CHECK(r->message == "jam");
 }
 
+TEST_CASE("The built-in AFC's list lane map reads as its tools", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Idle"}, {"lanes", json::array({"lane1"})}}},
+             {"AFC_lane lane1", {{"map", json::array({"T0", "T2"})}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->lane_maps == std::vector<std::string>{"T0,T2"});
+}
+
+TEST_CASE("Z-Mod on a Creator 5 starts the print with each head as its slot",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    // Every Z-Mod build: the built-in AFC, the afclite shim, and neither.
+    for (const auto& hw :
+         {zmod_c5_builtin_afc_discovery(), zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
+        AmsBackendToolChanger backend(nullptr, nullptr);
+        backend.set_discovery(hw);
+        CHECK(backend.print_start_params({{0, 1}, {2, 0}}) ==
+              helix::PrintStartParams{{"tools", "2,,1"}});
+    }
+}
+
+TEST_CASE("A klipper-toolchanger machine starts the print with its filename alone",
+          "[toolchanger][print_start_params][2033]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1"}));
+    AmsBackendToolChanger backend(nullptr, nullptr);
+    backend.set_discovery(hw);
+    CHECK(backend.print_start_params({{0, 1}}).empty());
+}
+
 TEST_CASE("The built-in AFC leaves lane picking to the print start", "[toolchanger][zmod][2033]") {
     CHECK_FALSE(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_builtin_afc_discovery()));
     CHECK(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_afclite_discovery()));

@@ -13,12 +13,16 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace helix {
 
 class PrinterDiscovery;
+struct FirmwareRouting;
+struct ToolMapping;
 
 /// printer.print.start parameters beyond `filename`, name -> value.
 using PrintStartParams = std::map<std::string, std::string>;
@@ -40,6 +44,19 @@ namespace print_start {
 /// the slot, a tool with no slot left empty, so {T0: 2, T2: 1} is "2,,1".
 /// Empty when no tool has a valid slot.
 [[nodiscard]] PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers);
+
+/// The backend a print's map belongs to: the first non-Auto row's (-1 on a
+/// row is the primary, 0), else 0.
+[[nodiscard]] int mapped_backend(const std::vector<ToolMapping>& mappings);
+
+/// A print's full tool map on @p backend_idx, G-code tool -> 0-based slot:
+/// every non-Auto row the card holds for that backend, picked or seeded, and
+/// each of @p tools_used no such row covers on @p routing's default lane. A map
+/// taken at the start decides the whole print, so it carries every tool the
+/// printer would otherwise ask about.
+[[nodiscard]] std::map<int, int> full_tool_slots(const std::vector<ToolMapping>& mappings,
+                                                 int backend_idx, const std::set<int>& tools_used,
+                                                 const FirmwareRouting& routing);
 
 } // namespace print_start
 } // namespace helix

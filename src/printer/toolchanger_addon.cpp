@@ -513,9 +513,18 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
             if (lane == status.end() || !lane->is_object()) {
                 continue;
             }
+            // The afclite shim sends one "Tn"; the built-in emulation a list of them.
             const auto map = lane->find("map");
             if (map != lane->end() && map->is_string()) {
                 r.lane_maps.push_back(map->get<std::string>());
+            } else if (map != lane->end() && map->is_array()) {
+                std::string joined;
+                for (const auto& tool : *map) {
+                    if (tool.is_string()) {
+                        joined += (joined.empty() ? "" : ",") + tool.get<std::string>();
+                    }
+                }
+                r.lane_maps.push_back(joined);
             }
         }
     }

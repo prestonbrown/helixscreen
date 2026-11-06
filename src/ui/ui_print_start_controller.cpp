@@ -957,30 +957,15 @@ bool restore_landed(const std::vector<int>& saved, const std::vector<int>& live)
 } // namespace
 
 helix::PrintStartParams PrintStartController::print_start_params() const {
-    // Every lane the card shows, picked or seeded: a map taken at the start
-    // replaces the printer's choice for the whole print, so it must carry the
-    // full map the user confirmed, not only the changed rows. An Auto row is
-    // left out, leaving that tool to the firmware.
-    std::map<int, int> tool_slots;
-    int backend_idx = -1;
-    for (const auto& m : gather_print_start_context().mappings) {
-        if (m.is_auto || m.mapped_slot < 0 || m.tool_index < 0) {
-            continue;
-        }
-        // A slot number names a lane only within its own backend.
-        const int backend = m.mapped_backend < 0 ? 0 : m.mapped_backend;
-        if (backend_idx < 0) {
-            backend_idx = backend;
-        } else if (backend != backend_idx) {
-            continue;
-        }
-        tool_slots[m.tool_index] = m.mapped_slot;
-    }
-    if (tool_slots.empty()) {
-        return {};
-    }
+    const auto ctx = gather_print_start_context();
+    const int backend_idx = helix::print_start::mapped_backend(ctx.mappings);
     auto* backend = AmsState::instance().get_backend(backend_idx);
     if (!backend) {
+        return {};
+    }
+    const auto tool_slots = helix::print_start::full_tool_slots(
+        ctx.mappings, backend_idx, ctx.tools_used, backend->firmware_default_routing());
+    if (tool_slots.empty()) {
         return {};
     }
     auto params = backend->print_start_params(tool_slots);

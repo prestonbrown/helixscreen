@@ -255,10 +255,10 @@ struct AfcStateReading {
     std::string current_state; ///< As published; empty when the frame did not say
     bool error_state = false;  ///< The shim's own fault flag
     std::string message;       ///< Its fault text, when it sent one
-    /// `lanes[].map` verbatim ("T0", "T2", ...), indexed by lane; empty when
-    /// the frame carried no lane table. Read-only visibility: the lane→tool
-    /// relation is the firmware's own, and what it means for head indices is
-    /// exactly what a field capture has to settle before anything acts on it.
+    /// `lanes[].map` verbatim ("T0", "T2", ...; a list joined as "T0,T2"), indexed by lane; empty
+    /// when the frame carried no lane table. Read-only visibility: the lane→tool relation is the
+    /// firmware's own, and what it means for head indices is exactly what a field capture has to
+    /// settle before anything acts on it.
     std::vector<std::string> lane_maps;
 };
 
