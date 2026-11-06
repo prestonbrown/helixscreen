@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Filament**
 
+- **Your tool mapping reaches Z-Mod** (#2033) - with Z-Mod's built-in AFC turned on, an AD5X or Creator 5 Pro ignored the tool mapping you chose before a print and showed Z-Mod's own colour prompt. HelixScreen now hands Z-Mod the mapping when the print starts, so the print uses the slots you picked with no second prompt. The AD5X keeps its IFS view and the Creator 5 Pro its tool changer view, and older Z-Mod versions work as before.
 - **A remap made for one print is undone when it ends, even after a restart** - if HelixScreen restarted during a print, the tool map you changed in the print dialog could be put back in the middle of the print, or never put back at all. It now waits until it knows whether a print is running, and restores the original map when that print ends.
 - **The clog tile no longer looks like an alarm** - on printers with a filament motion sensor, the tile read "Disarmed" above "Clog" whenever nothing was printing. Its caption now reads "Clog detection".
 - **Spoolman gets the slicer's material** - saving a lane filed a precise type such as ABS+ as Spoolman's material with no temperatures, so OrcaSlicer fell back to Generic PLA. Spoolman now gets the base material (ABS) with nozzle and bed temperatures, and a linked AFC lane sends the same base.
