@@ -169,7 +169,7 @@ swipeable: a swipe that starts on a widget must still flip the page.
 - **While the widget catalog is open, grid input takes no action** (see
   [The widget catalog](#the-widget-catalog)).
 - **A selection pill ignores a tap whose press lands within `kPillLockoutMs` (300 ms) of the
-  frame that first draws it** (`src/ui/grid_edit_mode.cpp#pill_release_acts`). A tap selects the
+  frame that first draws it** (`src/ui/home/grid_edit_mode.cpp#pill_release_acts`). A tap selects the
   widget under the finger and draws its trash pill there, so a double tap's second press lands on
   that pill. The press decides, not the lift: a second press at 240 ms that lifts at 310 ms is
   refused. The clock starts at the pill's first `LV_EVENT_DRAW_POST`, not its creation, because a
@@ -668,6 +668,7 @@ by the ordinary cross-page flip, and the session scopes to the slot's container 
 | A drop creates a page | `GridEditMode::commit_drop` -> `PanelWidgetConfig::add_page` and `place_entry` | Next tick, through `PagesChangedCallback` -> `HomePanel::on_edit_pages_changed` |
 | A cross-page move, or removing a page's last widget, empties the page | `GridEditMode::prune_empty_page` -> `PanelWidgetConfig::remove_page` | Next tick, the same path |
 | The delete-page button is confirmed | `HomePanel::delete_edit_page`: remove the page, save, leave edit mode | Next tick, the same path, through `run_next_tick` |
+| Undo puts back a removal that pruned its page | `GridEditMode::undo_last_removal` -> `PanelWidgetConfig::add_page` at the page's old index, then `restore_entry` | Next tick, through `PagesChangedCallback`, with `inserted_page` set |
 
 A page is empty when it holds no placed entry (`page_is_populated`), so a page whose
 remaining widgets are dimmed because their hardware is missing still counts as populated and
@@ -680,7 +681,8 @@ focus page with the session re-scoped (`src/ui/home/ui_panel_home.cpp#on_edit_pa
 as a `helix::PageSetChange`, numbered as the carousel was before it, with the next-page slot's
 tile at `page_count` and the phantom tile a prepend creates at `-1`: how many pages there were,
 whether a page was added, on the slot's tile or before the first page, which page was removed,
-and the page the change asks to end on. `on_edit_pages_changed(change)`
+which page Undo put back (`inserted_page`, numbered after the change: it and every later page
+move one later, and the change ends on it), and the page the change asks to end on. `on_edit_pages_changed(change)`
 asks `helix::page_set_landing(change, shown)` with the carousel's page before the rebuild
 (`include/grid_edit_page_set.h#page_set_landing`), builds the carousel on the landing's `shown`,
 and shows its `focus` with `show_edit_page()`, which re-scopes a live session there:
@@ -708,12 +710,35 @@ shifted. Where each change lands:
 | A move that prunes a page before its landing page | The landing page at its shifted index, the page already on screen | The same page |
 | Removing a page's last widget | The page that takes the removed page's index, or the new last page: the page on screen is gone | The same page, where the session already is |
 | The delete-page button | The page that takes the deleted page's index, or the new last page. Edit mode has ended | The same page |
+| Undo of a removal that pruned its page | The page on screen, one later when it sits at or after the page put back | The page put back, one slide on when it is another page |
 
 The delete-page button is drawn on the shield on a config page other than the main page while
 more than one page exists, and never on the next-page slot
-(`src/ui/home/grid_edit_mode.cpp#rebuild_lattice`). Its click asks first, through the confirmation
-`HomePanel::wire_grid_edit_page_callbacks()` installs, and the confirmation's action is
-`delete_edit_page()`.
+(`src/ui/home/grid_edit_mode.cpp#rebuild_lattice`). Its click withdraws a held Undo, then asks first, through the confirmation
+`HomePanel::wire_grid_edit_page_callbacks()` installs. The confirmation's action is
+`delete_edit_page(page_id)`, with the id of the session's page taken when the confirmation opens
+(`HomePanel::delete_page_action`), so the page deleted is the page asked about.
+
+### Undoing a removal
+
+A trash removal shows a "Widget removed" toast with Undo for the toast's default 5 s
+(`src/ui/home/grid_edit_mode.cpp#offer_undo`). The session holds one removal: the entry as it was
+(config, cell and span), its page's id and index, its list position, and whether the removal
+pruned the page. A second removal replaces it and restarts the same toast.
+
+Undo (`src/ui/home/grid_edit_mode.cpp#undo_last_removal`) finds the page by id, re-creates it at its
+old index when the removal pruned it, and falls back to the page on screen when the page is gone
+another way. It restores the entry with `restore_entry` at its own cell when that is free in
+config (`Occupants::AllPlaced`), else where a catalog placement from that cell would land it
+(`find_catalog_placement`, shrinking to the widget's minimum span); with no room a warning toast
+says the widget stays removed. It saves, shows the page (always, since the carousel may rest on
+the next-page slot), and rebuilds with the widget selected.
+
+The toast's action is a bare function pointer, so it reaches the session through a static slot
+holding a token from `undo_lifetime_`. `withdraw_undo()` expires the token and dismisses the
+toast. It runs when the catalog opens (placing, Reset and Copy Layout change the layout an Undo
+would restore into), when the delete-page button is tapped, and in `exit()`; the destructor
+expires the token too. A late tap is a no-op.
 
 ## Subjects
 
@@ -747,14 +772,19 @@ populated page (`ui_xml/home_panel.xml`):
   means the page holds a placed entry. The badge count and pruning share it.
 - `place_entry(id, page, col, row, colspan, rowspan)` leaves exactly one entry named `id` across all
   pages and carries its per-widget config along. Drag commit and catalog placement both use it.
+- `restore_entry(page, index, entry)` undoes `remove_from_page`: it erases an entry named
+  `entry.id` on that page only (the disabled one a built-in's removal leaves; an unplaced twin
+  `load()` keeps on the main page stays) and inserts `entry` at `index`, clamped. It refuses a page
+  past the last one and an id already placed on any page.
 - `can_add_page()` is the page cap (`helix::kMaxPages`); `add_page()` returns -1 at the cap. Its
   `position` parameter is the one creation seam: `-1` appends, `0` inserts before the first page
   (shifting the main page index with it), and any other position clamps into the page list. The
   slot's + and a right-border drop append; a left-border drop inserts at 0.
 - Saves. Each commit saves once: a drop (`handle_drag_end`, with the page it created and the page
   it emptied), a resize (`commit_resize_with_snap`, before its snap animation starts), a removal
-  (`remove_selected_widget`, with the page it emptied), and a catalog placement
-  (`place_widget_from_catalog`). `exit()` saves. HomePanel saves when a page deletion is
+  (`remove_selected_widget`, with the page it emptied), its Undo (`undo_last_removal`, with the
+  page it put back), and a catalog placement (`place_widget_from_catalog`). A removal is saved
+  before its Undo, so a restart during the toast reads a whole layout either way. `exit()` saves. HomePanel saves when a page deletion is
   confirmed. `sync_config_from_screen()` saves only when a laid-out widget has drifted from its
   config cell, and runs only in `enter()`, never per page change. A page flip, a
   cancelled gesture and `prune_empty_page()` itself save nothing.

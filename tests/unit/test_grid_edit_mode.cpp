@@ -1266,3 +1266,21 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: Undo after the session ends does
         lv_obj_delete(scene.container);
     }
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: the delete-page button withdraws the undo",
+                 "[grid_edit][undo]") {
+    UndoScene s(test_screen(), "test_undo_delete_page", /*with_fan=*/true);
+    int delete_page_calls = 0;
+    s.em.set_delete_page_callback([&]() { ++delete_page_calls; });
+    trash_widget(s.em, s.scene.widget);
+    process_lvgl(50);
+
+    lv_obj_t* del = GridEditModeTestAccess::delete_page_button(s.em);
+    REQUIRE(del != nullptr);
+    lv_obj_send_event(del, LV_EVENT_CLICKED, nullptr);
+    REQUIRE(delete_page_calls == 1);
+    CHECK(helix::ui::last_action_toast_dismissed());
+    CHECK(helix::ui::fire_last_toast_action());
+    process_lvgl(50);
+    CHECK_FALSE(s.scene.config->is_placed("temperature"));
+}

@@ -807,13 +807,28 @@ void HomePanel::on_page_changed(int new_page) {
     update_arrow_visibility(new_page);
 }
 
-void HomePanel::delete_edit_page() {
+std::function<void()> HomePanel::delete_page_action() {
+    // The page asked about, by id: the session's page can move while the
+    // confirmation is open.
+    auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
+    const auto page = static_cast<size_t>(grid_edit_mode_.page_index());
+    std::string page_id = page < config.page_count() ? config.page_id(page) : std::string{};
+    return [page_id = std::move(page_id)] { get_global_home_panel().delete_edit_page(page_id); };
+}
+
+void HomePanel::delete_edit_page(const std::string& page_id) {
     auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
     helix::PageSetChange change;
     change.page_count = static_cast<int>(config.page_count());
     change.focus_page = grid_edit_mode_.page_index();
-    if (config.remove_page(static_cast<size_t>(change.focus_page))) {
-        change.removed_page = change.focus_page;
+    for (size_t p = 0; p < config.page_count(); ++p) {
+        if (config.page_id(p) == page_id) {
+            change.focus_page = static_cast<int>(p);
+            if (config.remove_page(p)) {
+                change.removed_page = change.focus_page;
+            }
+            break;
+        }
     }
     config.save();
     exit_grid_edit_mode();
@@ -980,10 +995,9 @@ void HomePanel::wire_grid_edit_page_callbacks() {
             return relayout_edit_page(changed_ids, resized_id);
         });
 
-    grid_edit_mode_.set_delete_page_callback([]() {
+    grid_edit_mode_.set_delete_page_callback([this]() {
         helix::ui::modal_confirm("Delete Page", "Remove this page and all its widgets?",
-                                 ModalSeverity::Warning, "Delete",
-                                 [] { get_global_home_panel().delete_edit_page(); });
+                                 ModalSeverity::Warning, "Delete", delete_page_action());
     });
 }
 

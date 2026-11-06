@@ -2463,7 +2463,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." fr="Pas assez d&apos;espace libre sur l&apos;imprimante pour ce fichier. Libérez-en dans Paramètres &gt; Système &gt; Stockage."/>
   <translation tag="Not enough frequency data from the sweeps. Try again." fr="Pas assez de données de fréquence après les balayages. Réessayez."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." fr="Pas assez de place pour ce widget. Réorganisez ou supprimez des widgets pour libérer de l&apos;espace."/>
-  <translation tag="Not enough room to put the widget back. Rearrange or remove widgets to make space." fr="Pas assez de place pour remettre le widget. Réorganisez ou supprimez des widgets pour libérer de l&apos;espace."/>
+  <translation tag="Not enough room to put the widget back. It stays removed." fr="Pas assez de place pour remettre le widget. Il reste supprimé."/>
   <translation tag="Not in your spools? Set it up" fr="Pas dans vos bobines ? Configurez-la"/>
   <translation tag="Not now" fr="Pas maintenant"/>
   <translation tag="Not set" fr="Non défini"/>

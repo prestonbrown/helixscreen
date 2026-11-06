@@ -2733,7 +2733,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'На принтере недостаточно свободного места для этого файла. Освободите место в разделе Настройки > Система > Хранилище.'
   Not enough frequency data from the sweeps. Try again.: 'Недостаточно данных о частоте по результатам измерений. Попробуйте снова.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место.
-  Not enough room to put the widget back. Rearrange or remove widgets to make space.: 'Недостаточно места, чтобы вернуть виджет. Измените раскладку или удалите виджеты, чтобы освободить место.'
+  Not enough room to put the widget back. It stays removed.: 'Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым.'
   Not in your spools? Set it up: Нет в ваших катушках? Настроить
   Not now: Не сейчас
   Not turned: 'Не повёрнут'
