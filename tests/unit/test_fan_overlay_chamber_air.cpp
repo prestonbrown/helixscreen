@@ -161,3 +161,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan overlay: a republished cover fan is not
     helix::ui::UpdateQueue::instance().drain();
     CHECK(fan_cards(root) == 1);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan dial: a held dial sends its new speed only once the finger lifts",
+                 "[fan_overlay][chamber_air]") {
+    FanDial dial(test_screen(), "Exhaust fan", "chamber_air_exhaust", 0);
+    dial.set_hold_until_release(true);
+    std::vector<int> sent;
+    dial.set_on_speed_changed([&sent](const std::string&, int pct) { sent.push_back(pct); });
+    lv_obj_t* arc = lv_obj_find_by_name(dial.get_root(), "dial_arc");
+    REQUIRE(arc != nullptr);
+
+    lv_obj_add_state(arc, LV_STATE_PRESSED);
+    lv_arc_set_value(arc, 40);
+    lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
+    // Well past the mid-drag debounce: still held, so nothing is sent.
+    process_lvgl(1600);
+    CHECK(sent.empty());
+
+    lv_obj_remove_state(arc, LV_STATE_PRESSED);
+    process_lvgl(1200);
+    CHECK(sent == std::vector<int>{40});
+}
