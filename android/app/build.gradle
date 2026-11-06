@@ -228,7 +228,7 @@ def nonShippableConfig = [
     'settings.json', 'settings-test.json', 'helixconfig*',
     'crash*.txt', 'crash_history.json', '.crash_restart_count',
     'tool_spools.json', 'telemetry_*.json', 'user_filaments.json',
-    'filament_slot_overrides.json',
+    'filament_slot_overrides.json', 'pending_remap.json',
     '.helix-screen.lock', '*.corrupt'
 ]
 

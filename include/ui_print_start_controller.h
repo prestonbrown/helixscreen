@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
 #include "filament_mapper.h"
+#include "print_lifecycle_state.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 
@@ -372,6 +373,10 @@ class PrintStartController {
     // backend would accept every refused entry (see observe_backend_for_retry).
     ObserverGuard backend_retry_observer_;
 
+    // Armed while a replayed record waits for the printer's first print state
+    // report (see observe_print_report_for_restore).
+    ObserverGuard print_report_observer_;
+
     // Armed only between sending a restore and the firmware confirming it.
     ObserverGuard ams_data_observer_;
     bool awaiting_restore_confirmation_ = false;
@@ -405,6 +410,10 @@ class PrintStartController {
 
     /// Set up observer for print state to auto-restore mapping
     void observe_lifecycle_for_restore();
+
+    /// Hold a replayed record until the printer reports its print state, then
+    /// restore it if no job holds the machine, or at that job's end if one does.
+    void observe_print_report_for_restore();
 
     /**
      * @brief Wait for Klipper to become READY, then retry a deferred restore.
@@ -471,9 +480,13 @@ class PrintStartController {
     friend void adopt_hand_tool_mapping(int backend_index, int tool, int slot);
 
   public:
-    /// Check for and restore any pending remap from a previous crashed session.
-    /// Call once after AMS backends are initialized.
-    void recover_pending_remap();
+    /// Replay the active printer's persisted record left by an earlier session.
+    /// @p activity is what the printer's own status says about its job:
+    /// discovery reads it from the status it delivers, before PrinterState's
+    /// print subjects have been updated from it. A running job keeps the record
+    /// until that job ends, an idle printer gets it back now, and with no report
+    /// the record waits for the printer's first one.
+    void recover_pending_remap(ReportedPrintActivity activity);
 };
 
 /**

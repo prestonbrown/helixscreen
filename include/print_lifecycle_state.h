@@ -24,6 +24,12 @@ enum class PrintState {
     Error      ///< Print failed with error
 };
 
+/// What the printer has said about its job: running, not running, or nothing yet.
+/// Unknown is not Idle: a subject still holding its boot default says nothing.
+namespace helix {
+enum class ReportedPrintActivity { Active, Idle, Unknown };
+} // namespace helix
+
 /**
  * @brief Derive the UI-level print state from the printer's job state and phase
  *

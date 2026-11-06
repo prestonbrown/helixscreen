@@ -734,8 +734,8 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             });
         });
 
-    // The controller exists from boot so a crash-recovery remap restores
-    // without a visit; only its detail view is lazy.
+    // The controller exists from boot so discovery's crash-recovery replay
+    // (pending_remap_recovery_step) arms on it; only its detail view is lazy.
     create_print_controller();
 
     // The detail view's widget tree is built by the first show_detail_view() /
@@ -2807,9 +2807,6 @@ void PrintSelectPanel::create_print_controller() {
             detail_view_->hold_picks_for_start(false);
         }
     });
-
-    // Crash recovery: restore firmware mapping if app restarted mid-print
-    print_controller_->recover_pending_remap();
 }
 
 helix::ui::PrintPreparationManager* PrintSelectPanel::print_preparation_manager() {

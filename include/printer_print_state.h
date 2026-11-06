@@ -588,6 +588,17 @@ class PrinterPrintState {
     }
 
     /**
+     * @brief Bumped by every print_stats frame that carries a state
+     *
+     * Before its first bump the print state subjects hold their boot default,
+     * which says nothing about the printer. Bumped after the job state and the
+     * lifecycle are published, so an observer reads the reported state.
+     */
+    lv_subject_t* get_print_state_report_seq_subject() {
+        return &print_state_report_seq_;
+    }
+
+    /**
      * @brief The authoritative UI-level print state (PrintState enum)
      *
      * Derived from print_stats.state and the pre-print phase by
@@ -1440,6 +1451,7 @@ class PrinterPrintState {
     std::string print_identity_override_;
     lv_subject_t print_identity_epoch_{}; // Integer: bumped when the identity changes
     int print_identity_epoch_counter_ = 0;
+    lv_subject_t print_state_report_seq_{}; // Integer: bumped per print_stats state report
 
     /// Recompute effective_print_filename_ from @p raw and the current override.
     /// Call BEFORE publishing print_filename_.
