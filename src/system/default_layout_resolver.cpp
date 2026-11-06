@@ -23,8 +23,31 @@ int CapabilitySnapshot::get(const std::string& name) const {
     return it == subjects.end() ? 0 : it->second;
 }
 
+namespace {
+
+/// The first "<base>+<subject>" key of @p by_bp whose subject reads non-zero,
+/// or "".
+std::string capability_key(const json& by_bp, const std::string& base,
+                           const std::function<int(const std::string&)>& subject_value) {
+    if (!subject_value || !by_bp.is_object()) {
+        return {};
+    }
+    const std::string prefix = base + '+';
+    for (auto it = by_bp.begin(); it != by_bp.end(); ++it) {
+        const std::string& key = it.key();
+        if (key.size() > prefix.size() && key.compare(0, prefix.size(), prefix) == 0 &&
+            subject_value(key.substr(prefix.size())) != 0) {
+            return key;
+        }
+    }
+    return {};
+}
+
+} // namespace
+
 std::string choose_placement_key(const json& by_bp, UiBreakpoint breakpoint, int grid_cols,
-                                 int grid_rows) {
+                                 int grid_rows,
+                                 const std::function<int(const std::string&)>& subject_value) {
     static const char* fallback_order[][3] = {
         {"micro", "tiny", "small"},     // bp=0 Micro
         {"tiny", "small", nullptr},     // bp=1 Tiny
@@ -49,8 +72,17 @@ std::string choose_placement_key(const json& by_bp, UiBreakpoint breakpoint, int
 
     for (int i = 0; i < 3 && fallback_order[bp_idx][i]; ++i) {
         const std::string tier = fallback_order[bp_idx][i];
-        if (have_grid && by_bp.contains(tier + suffix)) {
-            return tier + suffix;
+        if (have_grid) {
+            if (std::string key = capability_key(by_bp, tier + suffix, subject_value);
+                !key.empty()) {
+                return key;
+            }
+            if (by_bp.contains(tier + suffix)) {
+                return tier + suffix;
+            }
+        }
+        if (std::string key = capability_key(by_bp, tier, subject_value); !key.empty()) {
+            return key;
         }
         if (by_bp.contains(tier)) {
             return tier;
@@ -222,7 +254,7 @@ class Resolver {
         if (!d || !d->is_object()) {
             return;
         }
-        const std::string key = choose_placement_key(*d, bp_, cols_, rows_);
+        const std::string key = choose_placement_key(*d, bp_, cols_, rows_, subject_value_);
         const json* ids = key.empty() ? nullptr : array_member(*d, key.c_str());
         if (!ids) {
             return;
@@ -244,7 +276,8 @@ class Resolver {
         if (!placements || !placements->is_object()) {
             return;
         }
-        const std::string key = choose_placement_key(*placements, bp_, cols_, rows_);
+        const std::string key =
+            choose_placement_key(*placements, bp_, cols_, rows_, subject_value_);
         const json* p = key.empty() ? nullptr : ju::find_member(*placements, key.c_str());
         if (!p || !p->is_object()) {
             return;
@@ -275,7 +308,8 @@ class Resolver {
         if (!placements || !placements->is_object()) {
             return;
         }
-        const std::string key = choose_placement_key(*placements, bp_, cols_, rows_);
+        const std::string key =
+            choose_placement_key(*placements, bp_, cols_, rows_, subject_value_);
         const json* region = key.empty() ? nullptr : ju::find_member(*placements, key.c_str());
         if (!region || !region->is_object()) {
             return;
@@ -445,11 +479,16 @@ class Resolver {
     std::set<std::string> tier_disabled_;
     std::set<std::string> named_;
     std::map<std::string, int> consulted_;
+    /// Capability-qualified placement keys read their subject through consult(),
+    /// so the signature records it.
+    const std::function<int(const std::string&)> subject_value_ = [this](const std::string& name) {
+        return consult(name);
+    };
 };
 
 std::string make_signature(std::string_view tier, int cols, int rows,
                            const std::vector<std::string>& chain, std::string_view preset,
-                           const std::map<std::string, int>& consulted) {
+                           const std::map<std::string, int>& consulted, int table_version = 0) {
     std::string sig(tier);
     sig += '|' + std::to_string(cols) + '|' + std::to_string(rows) + '|';
     for (size_t i = 0; i < chain.size(); ++i) {
@@ -462,6 +501,9 @@ std::string make_signature(std::string_view tier, int cols, int rows,
     for (const auto& [name, value] : consulted) {
         sig += (first ? "" : ",") + name + '=' + std::to_string(value);
         first = false;
+    }
+    if (table_version > 0) {
+        sig += "|table=" + std::to_string(table_version);
     }
     return sig;
 }
@@ -531,7 +573,8 @@ ResolvedDefault resolve_default_layout(const json& table, const json* overlay,
 
     out.placed = r.take_placed();
     out.disabled = r.disabled();
-    out.signature = make_signature(tier, cols, rows, variant_chain, preset, r.consulted());
+    out.signature = make_signature(tier, cols, rows, variant_chain, preset, r.consulted(),
+                                   ju::safe_int(doc, "version", 0));
     out.ok = !out.placed.empty();
     spdlog::debug("[DefaultLayoutResolver] tier={} grid={}x{} table={} placed={} disabled={} "
                   "signature={}",
@@ -555,11 +598,25 @@ void add_candidate_subjects(const json& c, std::set<std::string>& out) {
     out.insert(cand.requires_.begin(), cand.requires_.end());
 }
 
+/// The subjects named by the capability-qualified keys of @p by_key.
+void add_key_subjects(const json* by_key, std::set<std::string>& out) {
+    if (!by_key || !by_key->is_object()) {
+        return;
+    }
+    for (auto it = by_key->begin(); it != by_key->end(); ++it) {
+        const auto plus = it.key().find('+');
+        if (plus != std::string::npos && plus + 1 < it.key().size()) {
+            out.insert(it.key().substr(plus + 1));
+        }
+    }
+}
+
 void add_entry_list_subjects(const json& list, std::set<std::string>& out) {
     for (const auto& entry : list) {
         if (!entry.is_object()) {
             continue;
         }
+        add_key_subjects(ju::find_member(entry, "placements"), out);
         if (!ju::find_member(entry, "slot")) {
             add_gate(ju::safe_string(entry, "id"), out);
             continue;
@@ -597,13 +654,17 @@ std::vector<std::string> subjects_named_by(const json& table) {
     if (const json* a = array_member(table, "anchors")) {
         add_entry_list_subjects(*a, out);
     }
+    add_key_subjects(ju::find_member(table, "disabled"), out);
     if (const json* variants = ju::find_member(table, "variants");
         variants && variants->is_object()) {
         for (const auto& v : *variants) {
             if (v.is_array()) {
                 add_entry_list_subjects(v, out);
-            } else if (const json* a = array_member(v, "anchors")) {
-                add_entry_list_subjects(*a, out);
+            } else if (v.is_object()) {
+                if (const json* a = array_member(v, "anchors")) {
+                    add_entry_list_subjects(*a, out);
+                }
+                add_key_subjects(ju::find_member(v, "disabled"), out);
             }
         }
     }

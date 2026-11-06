@@ -45,7 +45,9 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <array>
 #include <fcntl.h>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -1186,4 +1188,66 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     INFO("last crumb: " << (lines.empty() ? std::string{} : lines.back()));
     CHECK(named);
     run_rebuild();
+}
+
+TEST_CASE_METHOD(LiveDefaultFixture,
+                 "live default: a default saved under an older table takes the current one",
+                 "[live_default]") {
+    // A tool changer's default as the table arranged it before its version
+    // moved: the nozzle and bed tiles beside a 4x4 image, the switcher under
+    // them. The signature an older table stamped carries no table version.
+    use_geometry(kMedium12x8);
+    pin_capabilities(4);
+    pin("ams_is_tool_changer", 1);
+    ScopedConfigWriteCounter writes;
+    const std::string panel = fresh_panel("live_default_old_table");
+    populate(panel);
+    config(panel).flush_pending_save();
+    nlohmann::json node = saved_node(panel);
+    REQUIRE(node.contains("default"));
+    const std::string signature = node["default"]["signature"];
+    const std::string old_signature = signature.substr(0, signature.find("|table="));
+
+    const std::map<std::string, std::array<int, 4>> old_arrangement = {
+        {"printer_image", {0, 0, 4, 4}},   {"temperature", {4, 0, 2, 2}},
+        {"bed_temperature", {6, 0, 2, 2}}, {"tool_switcher", {4, 2, 4, 2}},
+        {"temp_graph", {8, 2, 4, 6}},
+    };
+    for (auto& w : node["pages"][0]["widgets"]) {
+        const auto it = old_arrangement.find(w["id"].get<std::string>());
+        if (it != old_arrangement.end()) {
+            w["enabled"] = true;
+            w["col"] = it->second[0];
+            w["row"] = it->second[1];
+            w["colspan"] = it->second[2];
+            w["rowspan"] = it->second[3];
+        }
+    }
+    node["default"]["signature"] = old_signature;
+    const bool edited = GENERATE(false, true);
+    if (!edited) {
+        node["default"]["hash"] = helix::layout::arrangement_hash(node);
+    }
+    Config* cfg = Config::get_instance();
+    cfg->set<nlohmann::json>(cfg->df() + "panel_widgets/" + panel, node);
+    config(panel).mark_dirty();
+    REQUIRE(config(panel).is_unedited_default() == !edited);
+
+    populate(panel);
+    if (edited) {
+        INFO("an edited layout is the user's and keeps every cell");
+        const auto* temp = entry(panel, "temperature");
+        REQUIRE(temp != nullptr);
+        CHECK(temp->is_placed());
+        CHECK(temp->col == 4);
+        CHECK(entry(panel, "printer_image")->colspan == 4);
+        CHECK(config(panel).default_signature() == old_signature);
+    } else {
+        CHECK_FALSE(entry(panel, "temperature")->enabled);
+        CHECK(entry(panel, "printer_image")->colspan == 6);
+        check_tile("tool_switcher", 8, 2, 4, 2);
+        check_tile("temp_graph", 8, 4, 4, 4);
+        CHECK(config(panel).is_unedited_default());
+        CHECK(config(panel).default_signature() == signature);
+    }
 }
