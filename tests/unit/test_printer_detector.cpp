@@ -3421,6 +3421,26 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
     TearDown();
 }
 
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "apply_preset_with_variants: OpenCreator picks _opencreator via its changer extra",
+                 "[printer_detector][variant]") {
+    SetUp();
+    const std::string base = GENERATE(std::string("creator5"), std::string("creator5_pro"));
+    CAPTURE(base);
+    write_seed_preset(base, "fan_generic fanM106");
+    write_seed_preset(base + "_opencreator", "fan_generic fanM106");
+    write_seed_preset(base + "_zmod", "WRONG_SHOULD_NOT_BE_PICKED");
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"creator5_toolchanger", "AFC", "AFC_Toolchanger Tools",
+                            "fan_generic fanM106", "heater_fan heat_fan", "extruder"});
+
+    REQUIRE(PrinterDetector::apply_preset_with_variants(&config, base, hw) ==
+            base + "_opencreator");
+
+    TearDown();
+}
+
 TEST_CASE_METHOD(
     helix::VariantPresetFixture,
     "apply_preset_with_variants: substring _forgex without suffix does not suppress _zmod",
