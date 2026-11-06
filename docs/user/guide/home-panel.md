@@ -222,7 +222,7 @@ The **Reset** button in the catalog header resets your whole dashboard — see [
 
 1. **Select** the widget you want to remove
 2. A **trash icon** appears at the widget's upper-right corner - tap it
-3. The widget is removed from your grid
+3. The widget is removed from your grid, and a **Widget removed** message appears with an **Undo** button for a few seconds. Tap **Undo** to put the widget back where it was, with its settings. If something has taken its spot, it goes to a free space on its page. Opening the Widget Catalog, deleting a page, or tapping **Done** ends the chance to undo.
 
 Removing a widget you can add only once keeps its settings, so adding it back from the Widget Catalog brings them back. A widget you can add more than once, like Fan, Macro Button, or LED Light, is added as a new copy each time, and removing a copy you added deletes that copy along with its settings.
 

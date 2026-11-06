@@ -465,19 +465,15 @@ void GridEditMode::exit() {
     rebuild_on_exit_ = false;
     relayout_pending_ = false;
 
+    // A removal is undone inside the session that made it.
+    withdraw_undo();
+
     // The widgets stay as they are; only the session's own objects go: the
     // shield (its lattice and delete-page button are its children), the
     // selection chrome and both previews. Deferred, since an exit can run
     // inside input dispatch (#814). Restoring the widgets' clicks is the
     // owner's, which disarmed every page.
-    // A removal is undone inside the session that made it, so its toast goes
-    // with the session.
-    const bool undo_offered = removed_ != nullptr;
-    cancel_undo();
     if (lv_is_initialized()) {
-        if (undo_offered) {
-            ToastManager::instance().hide(on_undo_toast, nullptr);
-        }
         destroy_selection_chrome();
         destroy_snap_preview();
         delete_outline(resize_outline_);
@@ -1341,6 +1337,14 @@ void GridEditMode::cancel_undo() {
     removed_.reset();
 }
 
+void GridEditMode::withdraw_undo() {
+    const bool offered = removed_ != nullptr;
+    cancel_undo();
+    if (offered && lv_is_initialized()) {
+        ToastManager::instance().hide(on_undo_toast, nullptr);
+    }
+}
+
 void GridEditMode::on_undo_toast(void* /*user_data*/) {
     auto& target = undo_toast_target();
     if (!target || target->token.expired()) {
@@ -1408,8 +1412,7 @@ void GridEditMode::undo_last_removal() {
             }
             ToastManager::instance().show(
                 ToastSeverity::WARNING,
-                lv_tr("Not enough room to put the widget back. Rearrange or remove widgets to "
-                      "make space."));
+                lv_tr("Not enough room to put the widget back. It stays removed."));
             return;
         }
         spdlog::info("[GridEditMode] Undo: '{}' spot ({},{}) is taken; placing at ({},{}) {}x{}",
@@ -1443,8 +1446,10 @@ void GridEditMode::undo_last_removal() {
         notify_pages_changed(change);
         return;
     }
-    if (page != page_index_ && show_page_cb_) {
-        // Re-scopes the session to that page, so the rebuild selects there.
+    if (show_page_cb_) {
+        // The carousel may rest on another page or on the next-page slot,
+        // where the session stays scoped to the last page: show the page, and
+        // re-scope the session there so the rebuild selects on it.
         show_page_cb_(page);
     }
     rebuild_then_select(id);
@@ -3288,6 +3293,8 @@ void GridEditMode::rebuild_lattice() {
                 auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
                 if (self && self->grid_input_acts() && self->delete_page_cb_ &&
                     released_over_target(ev)) {
+                    // An Undo under the confirmation would move or re-add pages.
+                    self->withdraw_undo();
                     self->delete_page_cb_();
                 }
             },
@@ -3388,6 +3395,9 @@ void GridEditMode::open_widget_catalog(lv_obj_t* screen) {
     spdlog::info("[GridEditMode] Opening widget catalog (origin cell: {}, {})", catalog_origin_col_,
                  catalog_origin_row_);
 
+    // The catalog places, resets and copies layouts: an Undo over it would
+    // restore into a layout it has since changed.
+    withdraw_undo();
     // The session keeps its page and takes no grid input until the catalog
     // closes (grid_input_acts), and the carousel does not swipe beside it.
     catalog_open_ = true;

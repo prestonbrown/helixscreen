@@ -2482,7 +2482,7 @@
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." ru="На принтере недостаточно свободного места для этого файла. Освободите место в разделе Настройки &gt; Система &gt; Хранилище."/>
   <translation tag="Not enough frequency data from the sweeps. Try again." ru="Недостаточно данных о частоте по результатам измерений. Попробуйте снова."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ru="Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место."/>
-  <translation tag="Not enough room to put the widget back. Rearrange or remove widgets to make space." ru="Недостаточно места, чтобы вернуть виджет. Измените раскладку или удалите виджеты, чтобы освободить место."/>
+  <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
   <translation tag="Not set" ru="Не задана"/>

@@ -2523,7 +2523,7 @@ translations:
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: '打印机上的可用空间不足以存放此文件。请在设置 > 系统 > 存储中释放空间。'
   Not enough frequency data from the sweeps. Try again.: '扫频得到的频率数据不足，请重试。'
   Not enough room for this widget. Rearrange or remove widgets to make space.: 没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。
-  Not enough room to put the widget back. Rearrange or remove widgets to make space.: '没有足够的空间恢复此小组件。请重新排列或移除小组件以腾出空间。'
+  Not enough room to put the widget back. It stays removed.: '没有足够的空间恢复此小组件。它仍处于移除状态。'
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not turned: '未转动'

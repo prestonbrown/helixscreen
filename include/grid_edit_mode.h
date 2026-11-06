@@ -475,6 +475,10 @@ class GridEditMode {
     void offer_undo(std::unique_ptr<RemovedWidget> removed);
     /// Forget the held removal: a late tap on its toast does nothing.
     void cancel_undo();
+    /// cancel_undo(), and dismiss the toast that offered it. For whatever
+    /// changes the layout under a held removal: the widget catalog (placing,
+    /// Reset, Copy Layout), the delete-page confirmation, leaving the session.
+    void withdraw_undo();
     /// Put the held removal back: on its own page (re-created when the removal
     /// pruned it) at its own rectangle, or, when another widget took that spot,
     /// where a catalog placement would land it on that page. A toast says so
