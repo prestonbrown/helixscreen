@@ -163,12 +163,23 @@ TEST_CASE("known_panel finds the K1 on the unified build", "[display_metrics][pa
 TEST_CASE("platforms driving arbitrary panels have no entry", "[display_metrics][panel]") {
     // A Pi, a CB1, or an x86 desktop drives a user-chosen display, so panel
     // size is not a property of the platform. Claiming one would be a
-    // guess applied to every user of that build. The AD5X, Creator 5 line and
-    // Snapmaker U1 have no measured diagonal.
-    for (Board board :
-         {Board::Generic, Board::Ad5x, Board::Creator5, Board::Creator5Pro, Board::SnapmakerU1}) {
+    // guess applied to every user of that build. The AD5X and Snapmaker U1 have
+    // no measured panel at all.
+    for (Board board : {Board::Generic, Board::Ad5x, Board::SnapmakerU1}) {
         INFO("board: " << helix::board::info(board).key);
         REQUIRE_FALSE(DisplayMetrics::known_panel(board).has_value());
+    }
+}
+
+TEST_CASE("a panel with a known mount but no measured diagonal sizes by the fallback",
+          "[display_metrics][panel]") {
+    // The Creator 5 line's framebuffer and mount are known, its diagonal is not.
+    for (Board board : {Board::Creator5, Board::Creator5Pro}) {
+        INFO("board: " << helix::board::info(board).key);
+        REQUIRE(DisplayMetrics::known_panel(board).has_value());
+        const auto r = DisplayMetrics::resolve_dpi(0, std::nullopt, board);
+        CHECK(r.source == DpiSource::Fallback);
+        CHECK(r.dpi == Catch::Approx(DisplayMetrics::kReferenceDpi));
     }
 }
 
@@ -210,6 +221,18 @@ TEST_CASE("a K1 panel comes up in its mount without the rotation probe",
     CHECK(DisplayMetrics::board_mount_rotation(Board::K1, 480, 800) == 270);
 }
 
+TEST_CASE("a Creator 5 panel comes up in its mount without the rotation probe",
+          "[display_metrics][panel]") {
+    // The landscape panel sits behind a 480x800 portrait framebuffer. A Z-Mod install
+    // is a plain unzip with no installer to write the preset's rotation, so the board
+    // is the only source of the answer there.
+    for (Board board : {Board::Creator5, Board::Creator5Pro}) {
+        INFO("board: " << helix::board::info(board).key);
+        CHECK(DisplayMetrics::board_mount_rotation(board, 480, 800) == 90);
+        CHECK(DisplayMetrics::board_mount_rotation(board, 800, 480) == -1);
+    }
+}
+
 TEST_CASE("a K1-resolved board with another framebuffer still runs the probe",
           "[display_metrics][panel]") {
     // Board::K1 is the mips fall-through: an AD5X whose mod probe missed is 800x480,
@@ -222,8 +245,8 @@ TEST_CASE("a K1-resolved board with another framebuffer still runs the probe",
 
 TEST_CASE("a board with no known mount leaves orientation to the probe",
           "[display_metrics][panel]") {
-    for (Board board : {Board::Generic, Board::Ad5m, Board::Ad5x, Board::Creator5,
-                        Board::Creator5Pro, Board::Cc1, Board::K2, Board::SnapmakerU1}) {
+    for (Board board :
+         {Board::Generic, Board::Ad5m, Board::Ad5x, Board::Cc1, Board::K2, Board::SnapmakerU1}) {
         INFO("board: " << helix::board::info(board).key);
         const auto panel = DisplayMetrics::known_panel(board);
         const int w = panel ? panel->width_px : 480;
@@ -250,6 +273,23 @@ TEST_CASE("known panel mounts match the platform manifest", "[display_metrics][p
         CHECK(spec->width_px == panel.at("width").get<int>());
         CHECK(spec->height_px == panel.at("height").get<int>());
         CHECK(spec->upright_rotation == panel.at("rotate").get<int>());
+    }
+    // Boards with no platform entry of their own are inline candidates of the unified build.
+    for (Board board : {Board::Creator5, Board::Creator5Pro}) {
+        const std::string key = helix::board::info(board).key;
+        INFO("mips candidate: " << key);
+        const nlohmann::json* panel = nullptr;
+        for (const auto& candidate : platforms.at("mips").at("panel").at("candidates")) {
+            if (candidate.is_object() && candidate.value("board", "") == key) {
+                panel = &candidate;
+            }
+        }
+        REQUIRE(panel != nullptr);
+        const auto spec = DisplayMetrics::known_panel(board);
+        REQUIRE(spec.has_value());
+        CHECK(spec->width_px == panel->at("width").get<int>());
+        CHECK(spec->height_px == panel->at("height").get<int>());
+        CHECK(spec->upright_rotation == panel->at("rotate").get<int>());
     }
 }
 
