@@ -87,7 +87,7 @@
         "controller_fan heat_ctl_fan",
         "fan_generic chamber_loop_fan",
         "fan_generic chamber_cool_fan",
-        "heater_fan chamber_heat_fan",
+        "fan_generic chamber_heat_fan",
         "filament_motion_sensor fm_ex0",
         "filament_motion_sensor fm_ex1",
         "filament_motion_sensor fm_ex2",

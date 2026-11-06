@@ -201,3 +201,12 @@ TEST_CASE("every preset family with more than one database entry names a default
         CHECK(defaults_by_preset[preset] == 1);
     }
 }
+
+// Stock Creator 5 Pro firmware declares this fan as a fan_generic (SET_FAN_SPEED
+// drives it); any other prefix leaves it "newly discovered" in Hardware Health.
+TEST_CASE("the stock Creator 5 Pro preset names chamber_heat_fan as a fan_generic",
+          "[printer_detector][presets][assets]") {
+    const json pro = load_json(std::string(kPresetDir) + "/creator5_pro.json");
+    const std::string expected = pro["printer"]["hardware"]["expected"].dump();
+    CHECK(expected.find("\"fan_generic chamber_heat_fan\"") != std::string::npos);
+}
