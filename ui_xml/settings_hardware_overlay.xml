@@ -68,6 +68,14 @@
                               label="LED Settings" icon="led_strip"
                               description="Startup, auto-control, and macro devices" callback="on_led_settings_clicked"/>
         </lv_obj>
+        <!-- Chamber light fitted: shown whenever Klipper reports a light object, so it
+             stays reachable while the led override hides every other light control. -->
+        <setting_toggle_row name="row_chamber_light_fitted"
+                            label="Chamber light fitted" icon="lightbulb_on"
+                            description="Show light controls for a light connected to this printer"
+                            subject="printer_has_led" callback="on_chamber_light_fitted_toggled">
+          <bind_flag_if_eq subject="printer_has_led_object" flag="hidden" ref_value="0"/>
+        </setting_toggle_row>
         <!-- ================================================================== -->
         <!-- POWER DEVICES (hidden when no power devices discovered) -->
         <!-- ================================================================== -->

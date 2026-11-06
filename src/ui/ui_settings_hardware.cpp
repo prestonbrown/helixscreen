@@ -14,6 +14,7 @@
 #include "app_globals.h"
 #include "hardware_validator.h"
 #include "i_moonraker_api.h"
+#include "led/led_controller.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -49,6 +50,8 @@ void HardwareSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              get_sensor_settings_overlay().show(get_hardware_settings_overlay().parent_screen_);
          }},
+        {"on_chamber_light_fitted_toggled",
+         [](lv_event_t* e) { set_chamber_light_fitted(helix::ui::event_checked(e)); }},
         {"on_led_settings_clicked",
          [](lv_event_t*) {
              get_led_settings_overlay().show(get_hardware_settings_overlay().parent_screen_);
@@ -74,6 +77,12 @@ lv_obj_t* HardwareSettingsOverlay::create(lv_obj_t* parent) {
     }
     bind_hardware_health_row(overlay_root_);
     return overlay_root_;
+}
+
+void set_chamber_light_fitted(bool fitted) {
+    get_printer_state().set_led_override(fitted ? OverrideState::ENABLE : OverrideState::DISABLE);
+    helix::led::LedController::instance().set_lights_disabled(
+        get_printer_state().get_capability_overrides().lights_disabled());
 }
 
 void bind_hardware_health_row(lv_obj_t* overlay_root) {

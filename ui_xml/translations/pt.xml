@@ -636,6 +636,7 @@
   <translation tag="Chamber heater didn&apos;t start" pt="O aquecedor da câmara não ligou"/>
   <translation tag="Chamber heater didn&apos;t start. {}" pt="O aquecedor da câmara não ligou. {}"/>
   <translation tag="Chamber heating to %d°C..." pt="Aquecendo câmara a %d°C..."/>
+  <translation tag="Chamber light fitted" pt="Luz da câmara instalada"/>
   <translation tag="Chamber target set to {}°C" pt="Alvo da câmara definido para {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" pt="A temperatura da câmara deve ser 0-%d°C"/>
   <translation tag="Chamber too hot" pt="Câmara demasiado quente"/>
@@ -3392,6 +3393,7 @@
   <translation tag="Show Touch Points" pt="Mostrar pontos de toque"/>
   <translation tag="Show a confirmation dialog when tapping a macro" pt="Mostrar diálogo de confirmação ao tocar em uma macro"/>
   <translation tag="Show instead of dimming" pt="Exibir em vez de escurecer"/>
+  <translation tag="Show light controls for a light connected to this printer" pt="Mostrar os controles de uma luz conectada a esta impressora"/>
   <translation tag="Show printer icon in navigation bar" pt="Mostrar ícone da impressora na barra de navegação"/>
   <translation tag="Show sliced colors" pt="Mostrar cores fatiadas"/>
   <translation tag="Show temp for" pt="Mostrar temp. para"/>

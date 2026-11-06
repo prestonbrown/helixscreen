@@ -647,6 +647,7 @@ translations:
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
   Chamber heater didn't start. {}: 'チャンバーヒーターが起動しませんでした。{}'
   Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
+  Chamber light fitted: 'チャンバーライト搭載'
   Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
   Chamber temp must be 0-%d°C: チャンバー温度は 0〜%d°C にしてください
   Chamber too hot: 'チャンバーが高温です'
@@ -3515,6 +3516,7 @@ translations:
   Show Touch Points: タッチポイントを表示
   Show a confirmation dialog when tapping a macro: マクロをタップした際に確認ダイアログを表示
   Show instead of dimming: 暗くする代わりに表示
+  Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
   Show printer icon in navigation bar: ナビゲーションバーにプリンターアイコンを表示
   Show sliced colors: スライスした色を表示
   Show temp for: 温度表示対象

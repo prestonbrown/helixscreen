@@ -735,6 +735,7 @@ translations:
   Chamber heater didn't start: 'Нагреватель камеры не запустился'
   Chamber heater didn't start. {}: 'Нагреватель камеры не запустился. {}'
   Chamber heating to %d°C...: Нагрев камеры до %d°C...
+  Chamber light fitted: 'Подсветка камеры установлена'
   Chamber target set to {}°C: Целевая температура камеры установлена на {}°C
   Chamber temp must be 0-%d°C: Температура камеры должна быть 0-%d°C
   Chamber too hot: 'Камера перегрета'
@@ -3746,6 +3747,7 @@ translations:
   Show a confirmation dialog when tapping a macro: Показывать диалог подтверждения
     при нажатии на макрос
   Show instead of dimming: Показывать вместо затемнения
+  Show light controls for a light connected to this printer: 'Показывать управление подсветкой, подключённой к этому принтеру'
   Show printer icon in navigation bar: Показывать значок принтера в панели навигации
   Show sliced colors: Показать цвета из слайсера
   Show temp for: Показывать темп. для
