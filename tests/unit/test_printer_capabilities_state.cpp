@@ -205,6 +205,33 @@ TEST_CASE("set_hardware: heat soak follows its override", "[printer_capabilities
     caps.deinit_subjects();
 }
 
+TEST_CASE("set_hardware: printer_has_led follows its override", "[printer_capabilities]") {
+    LVGLTestFixture fixture;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    PrinterDiscovery hw;
+    hw.parse_objects(json{"led chamber_light"});
+    CapabilityOverrides overrides;
+    overrides.set_hardware(hw);
+
+    caps.set_hardware(hw, overrides);
+    CHECK(cap(caps, Capability::HasLed) == 1);
+
+    overrides.set_override(capability::LED, OverrideState::DISABLE);
+    caps.set_hardware(hw, overrides);
+    CHECK(cap(caps, Capability::HasLed) == 0);
+
+    PrinterDiscovery none;
+    none.parse_objects(json{"fan"});
+    overrides.set_hardware(none);
+    overrides.set_override(capability::LED, OverrideState::ENABLE);
+    caps.set_hardware(none, overrides);
+    CHECK(cap(caps, Capability::HasLed) == 1);
+
+    caps.deinit_subjects();
+}
+
 TEST_CASE("set_hardware bumps the hardware generation", "[printer_capabilities]") {
     LVGLTestFixture fixture;
     PrinterCapabilitiesState caps;

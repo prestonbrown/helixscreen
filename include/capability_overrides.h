@@ -35,6 +35,8 @@ constexpr const char* NOZZLE_CLEAN = "nozzle_clean";
 constexpr const char* HEAT_SOAK = "heat_soak";
 constexpr const char* CHAMBER = "chamber";
 constexpr const char* SPEAKER = "speaker";
+// CONST_NAME_OK: matches the namespace's existing capability names
+constexpr const char* LED = "led"; // NAMESPACE_OK: joins the capability:: name table
 } // namespace capability
 
 /**
@@ -185,6 +187,13 @@ class CapabilityOverrides {
      */
     [[nodiscard]] bool has_speaker() const {
         return is_available(capability::SPEAKER);
+    }
+
+    /**
+     * @brief Check controllable light availability (with overrides)
+     */
+    [[nodiscard]] bool has_led() const {
+        return is_available(capability::LED);
     }
 
     /**

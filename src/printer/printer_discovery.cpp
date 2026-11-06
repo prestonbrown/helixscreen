@@ -5,12 +5,14 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "capability_overrides.h"
 #include "core/update_queue.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
+#include "printer_state.h"
 #include "runtime_config.h"
 #include "sensor_manager.h"
 #include "spdlog/spdlog.h"
@@ -95,6 +97,8 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // api_/client_ + backend api pointers, and the subject path is idempotent).
     auto& led_ctrl = helix::led::LedController::instance();
     led_ctrl.init(api, client);
+    led_ctrl.set_lights_disabled(printer_state.get_capability_overrides().get_override(
+                                     capability::LED) == OverrideState::DISABLE);
     led_ctrl.discover_from_hardware(hardware);
     // Wire up auto-state LED control. init() reloads the per-printer auto-state
     // config and (re)subscribes to PrinterState subjects. Because switch_printer()
