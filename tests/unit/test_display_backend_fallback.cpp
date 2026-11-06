@@ -568,6 +568,19 @@ TEST_CASE("a forced rotation probe skips the board's mount", "[display][rotation
     CHECK(helix::first_boot_board_mount(-1, 480, 800) == -1);
 }
 
+TEST_CASE("a Creator 5 first boot applies the board's 90 degree mount", "[display][rotation]") {
+    helix::ScopedEnv no_force("HELIX_FORCE_ROTATION_PROBE", nullptr);
+    for (auto b : {helix::board::Board::Creator5, helix::board::Board::Creator5Pro}) {
+        helix::test::ScopedBoard board(b);
+        INFO("board: " << helix::board::info(b).key);
+        CHECK(helix::first_boot_board_mount(-1, 480, 800) == 90);
+        CHECK(helix::first_boot_board_mount(-1, 800, 480) == -1);
+    }
+    helix::test::ScopedBoard ad5x(helix::board::Board::Ad5x);
+    CHECK(helix::first_boot_board_mount(-1, 800, 480) == -1);
+    CHECK(helix::first_boot_board_mount(-1, 480, 800) == -1);
+}
+
 TEST_CASE("a kernel panel_orientation leaves the board's mount out", "[display][rotation]") {
     helix::test::ScopedBoard board(helix::board::Board::K1);
     helix::ScopedEnv no_force("HELIX_FORCE_ROTATION_PROBE", nullptr);
