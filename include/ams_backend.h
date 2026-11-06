@@ -105,7 +105,7 @@ struct BackendTraits {
     bool unloads_stand_alone = false;
     bool raises_runout_fault = false;
     bool raises_runout_fault_during_job = false;
-    bool unloads_to_hub_between_prints = false;
+    bool parks_filament_off_toolhead_when_idle = false;
 
     // All-bool with no padding, so the bytes are the value.
     bool operator==(const BackendTraits& o) const {
@@ -3361,8 +3361,8 @@ class AmsBackend {
      * Its hub or box holds the filament while idle, so the toolhead sensor going empty
      * then is firmware behaviour rather than a user-facing event: no removal toast.
      */
-    [[nodiscard]] bool unloads_to_hub_between_prints() const {
-        return traits().unloads_to_hub_between_prints;
+    [[nodiscard]] bool parks_filament_off_toolhead_when_idle() const {
+        return traits().parks_filament_off_toolhead_when_idle;
     }
 
     /**

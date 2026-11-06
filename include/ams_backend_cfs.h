@@ -219,7 +219,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
         // The CFS cuts the filament at the end of a print and retracts it into
         // the box, and the next print feeds it back from there, so the toolhead
         // sensor reads empty for the whole time the printer sits idle.
-        t.unloads_to_hub_between_prints = true;
+        t.parks_filament_off_toolhead_when_idle = true;
         return t;
     }();
     /// kTraits, plus the pre-print send on Fork firmware with BOX_PRINT_MAP.

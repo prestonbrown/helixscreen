@@ -341,7 +341,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         t.raises_runout_fault = true;
         // The firmware unloads filament back into the IFS between prints, so the
         // head sensor going empty while the printer is idle is expected, not news.
-        t.unloads_to_hub_between_prints = true;
+        t.parks_filament_off_toolhead_when_idle = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
