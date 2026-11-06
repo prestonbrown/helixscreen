@@ -105,14 +105,6 @@ class PrintStartControllerTestAccess {
             backend_index, helix::AmsType::NONE, std::move(mapping));
     }
 
-    static const std::vector<int>& saved_mapping(const helix::ui::PrintStartController& /*c*/) {
-        return helix::AmsState::instance().pending_tool_map_restore().mapping;
-    }
-
-    static int saved_backend_index(const helix::ui::PrintStartController& /*c*/) {
-        return helix::AmsState::instance().pending_tool_map_restore().backend_index;
-    }
-
     static void restore(helix::ui::PrintStartController& c) {
         c.restore_filament_mapping();
     }
