@@ -5,7 +5,7 @@
     "print": "Mock print with a deliberately long filename and animations ON. A short filename does not overflow its label, no scroll animation starts, and the regression this gate exists to catch is invisible.",
     "print_anim_off": "Same, animations OFF. The sharpest probe we have: with the preference off, any remaining per-frame animation is one that IGNORES it, which is the defect class of prestonbrown/helixscreen#1440. Should sit close to the short-filename floor."
   },
-  "_calibration": "Measured on the K1C 2026-09-04 against the UNFIXED 0.99.117 build: idle 6.5, print 26.4, print-off 20.5, and a short-filename print 12.5. The print-off budget is set BELOW the unfixed 20.5 deliberately, so this gate fails on a build carrying that defect. Recalibrate every budget from a fixed build before treating a pass as meaningful.",
+  "_calibration": "Measured on the K1C 2026-09-04 against the UNFIXED 0.99.117 build: idle 6.5, print 26.4, print-off 20.5, and a short-filename print 12.5. The print-off budget is set BELOW the unfixed 20.5 deliberately, so this gate fails on a build carrying that defect. Recalibrate every budget from a fixed build before treating a pass as meaningful. Creator 5 Pro on 2026-11-06 with the display-sleep and hidden-spinner fixes: mock idle 3.6, print with animations on 20.4, off 10.3; its print phases run hotter than the K1C and AD5X.",
   "devices": [
     {
       "name": "k1c",
@@ -46,9 +46,9 @@
       "service_stop": "chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen stop",
       "service_start": "chroot /usr/data/.mod/.zmod /etc/init.d/S80helixscreen start",
       "extra_flags": "",
-      "idle_budget_pct": 7,
-      "print_budget_pct": 22,
-      "print_anim_off_budget_pct": 10,
+      "idle_budget_pct": 5,
+      "print_budget_pct": 27,
+      "print_anim_off_budget_pct": 13,
       "note": "FlashForge Creator 5 Pro on Z-Mod: Ingenic XBurst II, 2 cores, 228 MB and no swap; Klipper runs at nice -20. The app lives in Z-Mod's chroot and the static binary runs from outside it. Dropbear takes a password, not our keys. Gcodes are under /usr/data/gcodes."
     }
   ]
