@@ -1629,7 +1629,7 @@ void PrintStartController::clear_persisted_remap_state() {
     write_remap_file(*j);
 }
 
-void PrintStartController::recover_pending_remap() {
+void PrintStartController::recover_pending_remap(bool print_active) {
     const auto read = read_remap_file();
     if (!read) {
         return;
@@ -1692,21 +1692,13 @@ void PrintStartController::recover_pending_remap() {
     // print. Defer the restore until the print reaches a terminal state.
     // observe_lifecycle_for_restore registers an observer that arms on
     // the first live lifecycle value and fires restore_filament_mapping on
-    // the terminal value that follows, so the attach-fire on the current
-    // PRINTING/PAUSED value arms it rather than firing early.
-    // RAW_PRINT_STATE_OK: suppresses the observer's registration-fire
-    // while a job runs; a preparing job has no mapping to restore.
-    auto current_state = printer_state_.print_state().get_print_job_state();
-    // The mapping is restored on a TERMINAL state; this only suppresses the
-    // observer's immediate registration-fire while a job is running. The wire
-    // question is the right one: a preparing job has no mapping to restore.
-    bool print_active = printer_has_job(current_state);
-
+    // the terminal value that follows. The lifecycle can still read the boot
+    // default here, which only means the observer arms when the status lands.
     if (print_active) {
         spdlog::info("[PrintStartController] Crash recovery: found pending remap "
-                     "({} tools, backend {}) — print still active (state={}), "
+                     "({} tools, backend {}) — print still active, "
                      "deferring restore until print ends",
-                     saved.mapping.size(), saved.backend_index, static_cast<int>(current_state));
+                     saved.mapping.size(), saved.backend_index);
         observe_lifecycle_for_restore();
     } else {
         spdlog::info("[PrintStartController] Crash recovery: found pending remap "

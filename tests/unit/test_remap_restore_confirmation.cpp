@@ -575,7 +575,7 @@ TEST_CASE("remap restore: each printer keeps its own pending record on disk",
     helix::PrinterCacheRegistry::instance().invalidate_all();
     REQUIRE(cfg->set_active_printer(printer_a));
     be.backend->calls.clear();
-    h.controller.recover_pending_remap();
+    h.controller.recover_pending_remap(/*print_active=*/false);
     REQUIRE(be.backend->calls.size() == 2);
     CHECK(be.backend->calls[0].tool == 0);
     CHECK(be.backend->calls[0].slot == 2);
@@ -841,7 +841,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "-other\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.empty());
         CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
         CHECK(std::filesystem::exists(record));
@@ -852,7 +852,7 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << "{\"printers\":{\"" << active << "\":" << entry << "}}";
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.size() == 2);
     }
 
@@ -861,9 +861,42 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
             std::ofstream ofs(record);
             ofs << entry;
         }
-        h.controller.recover_pending_remap();
+        h.controller.recover_pending_remap(/*print_active=*/false);
         CHECK(be.backend->calls.size() == 2);
     }
+}
+
+TEST_CASE("remap restore: a restart mid-print restores at that print's end",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_mid_print"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+
+    // Discovery's status says a job is running, but print_stats has not been
+    // applied yet: the subjects still read the boot default.
+    h.controller.recover_pending_remap(/*print_active=*/true);
+    CHECK(be.backend->calls.empty());
+    REQUIRE(PrintStartControllerTestAccess::saved_mapping(h.controller).size() == 2);
+
+    h.report("printing", "remapped.gcode");
+    CHECK(be.backend->calls.empty());
+
+    h.report("complete", "remapped.gcode");
+    REQUIRE(be.backend->calls.size() == 2);
+    CHECK(be.backend->calls[0].tool == 0);
+    CHECK(be.backend->calls[0].slot == 2);
+    CHECK(be.backend->calls[1].tool == 1);
+    CHECK(be.backend->calls[1].slot == 1);
+    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(std::filesystem::exists(record));
 }
 
 TEST_CASE("remap restore: a refusal past the backend's checks is not retried per tick",

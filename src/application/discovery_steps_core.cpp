@@ -7,6 +7,8 @@
  */
 
 #include "ui_panel_filament.h"
+#include "ui_panel_print_select.h"
+#include "ui_print_start_controller.h"
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
@@ -190,6 +192,14 @@ void job_queue_fetch_step(DiscoveryContext& ctx) {
     }
 }
 
+// Replay a tool-map restore an earlier session persisted but did not deliver. Decided on
+// ctx.print_active, which reads this discovery's own status: the print subjects have not
+// been updated from it yet, and a restore sent now would re-route a running print.
+void pending_remap_recovery_step(DiscoveryContext& ctx) {
+    ::print_start_controller_for(get_printer_state(), &ctx.api)
+        .recover_pending_remap(ctx.print_active);
+}
+
 void settle_light_buttons_step(DiscoveryContext&) {
     settle_light_buttons();
 }
@@ -205,6 +215,7 @@ constexpr DiscoveryStep kCoreSteps[] = {
     {"safety_limits", false, safety_limits_step, nullptr},
     {"helix_plugin_check", false, helix_plugin_check_step, nullptr},
     {"job_queue_fetch", false, job_queue_fetch_step, nullptr},
+    {"pending_remap_recovery", false, pending_remap_recovery_step, nullptr},
     {"settle_light_buttons", false, settle_light_buttons_step, nullptr},
 };
 
