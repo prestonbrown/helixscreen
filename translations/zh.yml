@@ -646,6 +646,7 @@ translations:
   Chamber heater didn't start: '腔体加热器未启动'
   Chamber heater didn't start. {}: '腔体加热器未启动。{}'
   Chamber heating to %d°C...: 腔体加热至 %d°C...
+  Chamber light fitted: '已安装腔体灯'
   Chamber target set to {}°C: 腔体目标温度设置为 {}°C
   Chamber temp must be 0-%d°C: 腔体温度必须为 0-%d°C
   Chamber too hot: '腔体温度过高'
@@ -3506,6 +3507,7 @@ translations:
   Show Touch Points: 显示触摸点
   Show a confirmation dialog when tapping a macro: 点击宏时显示确认对话框
   Show instead of dimming: 显示而非变暗
+  Show light controls for a light connected to this printer: '显示连接到此打印机的灯的控制'
   Show printer icon in navigation bar: 在导航栏中显示打印机图标
   Show sliced colors: 显示切片颜色
   Show temp for: 显示温度

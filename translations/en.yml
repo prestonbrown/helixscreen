@@ -674,6 +674,7 @@ translations:
   Chamber heater didn't start: Chamber heater didn't start
   Chamber heater didn't start. {}: Chamber heater didn't start. {}
   Chamber heating to %d°C...: Chamber heating to %d°C...
+  Chamber light fitted: 'Chamber light fitted'
   Chamber target set to {}°C: Chamber target set to {}°C
   Chamber temp must be 0-%d°C: Chamber temp must be 0-%d°C
   Chamber too hot: Chamber too hot
@@ -3623,6 +3624,7 @@ translations:
   Show a confirmation dialog when tapping a macro: Show a confirmation dialog when
     tapping a macro
   Show instead of dimming: Show instead of dimming
+  Show light controls for a light connected to this printer: 'Show light controls for a light connected to this printer'
   Show printer icon in navigation bar: Show printer icon in navigation bar
   Show sliced colors: Show sliced colors
   Show temp for: Show temp for

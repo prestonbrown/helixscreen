@@ -636,6 +636,7 @@
   <translation tag="Chamber heater didn&apos;t start" zh="腔体加热器未启动"/>
   <translation tag="Chamber heater didn&apos;t start. {}" zh="腔体加热器未启动。{}"/>
   <translation tag="Chamber heating to %d°C..." zh="腔体加热至 %d°C..."/>
+  <translation tag="Chamber light fitted" zh="已安装腔体灯"/>
   <translation tag="Chamber target set to {}°C" zh="腔体目标温度设置为 {}°C"/>
   <translation tag="Chamber temp must be 0-%d°C" zh="腔体温度必须为 0-%d°C"/>
   <translation tag="Chamber too hot" zh="腔体温度过高"/>
@@ -3392,6 +3393,7 @@
   <translation tag="Show Touch Points" zh="显示触摸点"/>
   <translation tag="Show a confirmation dialog when tapping a macro" zh="点击宏时显示确认对话框"/>
   <translation tag="Show instead of dimming" zh="显示而非变暗"/>
+  <translation tag="Show light controls for a light connected to this printer" zh="显示连接到此打印机的灯的控制"/>
   <translation tag="Show printer icon in navigation bar" zh="在导航栏中显示打印机图标"/>
   <translation tag="Show sliced colors" zh="显示切片颜色"/>
   <translation tag="Show temp for" zh="显示温度"/>

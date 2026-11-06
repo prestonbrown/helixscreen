@@ -50,4 +50,12 @@ inline HardwareSettingsOverlay& get_hardware_settings_overlay() {
  */
 void bind_hardware_health_row(lv_obj_t* overlay_root);
 
+/**
+ * @brief Turn the printer's light controls on or off, saved and applied live
+ *
+ * Writes the led capability override ("enable" or "disable") and republishes
+ * printer_has_led and the LED controller's light gates. Main thread only.
+ */
+void set_chamber_light_fitted(bool fitted);
+
 } // namespace helix::settings
