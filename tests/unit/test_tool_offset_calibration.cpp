@@ -220,6 +220,43 @@ TEST_CASE("tool offset calibration: an OpenCreator Creator 5 opens its offset wi
     CHECK(resolved_guided_flow(c5).empty());
 }
 
+TEST_CASE("tool offset calibration: OpenCreator's wizard outranks a Z-Mod-named prompt",
+          "[tool_offset_cal]") {
+    PrinterDiscovery hw;
+    json objects =
+        json::array({"gcode_move", "toolhead", "extruder", "AFC", "AFC_Toolchanger Tools",
+                     "AFC_extruder extruder0", "AFC_lane extruder0",
+                     "gcode_macro C5_CALIBRATE_OFFSETS", "gcode_macro CALIBRATE_EXTRUDERS"});
+    hw.parse_objects(objects);
+    CHECK(resolved_prompt_gcode(hw) == "C5_CALIBRATE_OFFSETS");
+}
+
+TEST_CASE("tool offset calibration: an AFC toolchanger gains only OpenCreator's wizard",
+          "[tool_offset_cal]") {
+    // An AFC Toolchanger unit is not a dialect toolchanger_addon claims, so it
+    // opens no Z-Mod prompt and no panel, whatever macros it carries.
+    auto afc_changer = [](std::initializer_list<const char*> extra) {
+        json objects =
+            json::array({"gcode_move", "toolhead", "extruder", "extruder1", "AFC",
+                         "AFC_Toolchanger Tools", "AFC_extruder extruder0",
+                         "AFC_extruder extruder1", "AFC_lane extruder0", "AFC_lane extruder1"});
+        for (const char* o : extra) {
+            objects.push_back(o);
+        }
+        PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        return hw;
+    };
+    const cal::Procedure bare = cal::resolve_procedure(afc_changer({}));
+    CHECK(bare.kind == cal::ProcedureKind::None);
+    const cal::Procedure zmod_named =
+        cal::resolve_procedure(afc_changer({"gcode_macro CALIBRATE_EXTRUDERS"}));
+    CHECK(zmod_named.kind == cal::ProcedureKind::None);
+    const cal::Procedure panel_named =
+        cal::resolve_procedure(afc_changer({"gcode_macro CALIBRATE_TOOL_OFFSETS"}));
+    CHECK(panel_named.kind == cal::ProcedureKind::None);
+}
+
 TEST_CASE("tool offset calibration: the OpenCreator prompt needs the macro and an AFC changer",
           "[tool_offset_cal]") {
     CHECK_FALSE(cal::supported(opencreator_c5(/*with_calibrate_macro=*/false,
