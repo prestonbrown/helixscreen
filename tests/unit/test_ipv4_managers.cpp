@@ -360,3 +360,21 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "EthernetManager reads and applies through 
     CHECK(eth.get_info().ip_address == "192.168.1.60");
     CHECK(load_pending_ipv4_revert()->link == Ipv4Link::Ethernet);
 }
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a Wi-Fi backend that cannot keep an address offers no IPv4",
+                 "[ipv4][ipv4_manager]") {
+    struct NoIpv4Backend : WifiBackendMock {
+        bool supports_ipv4_config() const override {
+            return false;
+        }
+    };
+    wm = std::make_shared<WiFiManager>(std::make_unique<NoIpv4Backend>());
+    wm->init_self_reference(wm);
+    CHECK_FALSE(wm->supports_ipv4_config());
+
+    std::optional<Ipv4Result::Status> applied;
+    wm->apply_ipv4_change_async(Ipv4Config{}, static_config("192.168.1.50"),
+                                std::make_shared<std::atomic<bool>>(false), guard.token(),
+                                [&](Ipv4Result::Status st) { applied = st; });
+    CHECK(applied == Ipv4Result::Status::NotSupported);
+}
