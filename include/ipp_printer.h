@@ -17,13 +17,15 @@ namespace helix {
 
 namespace ipp {
 
-/// POST an encoded IPP request to http://host:port/resource_path and return the final
+/// POST an encoded IPP request to http://host:port/resource_path (https:// for
+/// Transport::Tls, accepting the printer's self-signed certificate) and return the final
 /// HTTP response. Interim 1xx responses are read past (RFC 9110 15.2): some printers
 /// send an unsolicited 100 Continue before the real answer. nullptr when the connection
 /// fails or no final response arrives.
 std::shared_ptr<HttpResponse> post_request(const std::string& host, uint16_t port,
                                            const std::string& resource_path,
-                                           const std::vector<uint8_t>& body, int timeout_s);
+                                           const std::vector<uint8_t>& body, int timeout_s,
+                                           Transport transport = Transport::Plain);
 
 } // namespace ipp
 

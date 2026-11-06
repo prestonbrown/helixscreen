@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/test_cert.h"
 #include "system/tls_trust.h"
 
 #include <arpa/inet.h>
@@ -23,6 +24,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ScopedEnv;
+using helix::test::TestCert;
 using helix::tls::CaStore;
 using helix::tls::find_ca_store;
 using helix::tls::make_client_ctx;
@@ -49,55 +51,11 @@ struct TempDir {
     }
 };
 
-/// A self-signed P-256 certificate with the given subjectAltName, valid from
-/// `not_before_days` to `not_after_days` relative to now.
-struct TestCert {
-    EVP_PKEY* key = nullptr;
-    X509* cert = nullptr;
-    TestCert(const char* san, long not_before_days = -1, long not_after_days = 30) {
-        EVP_PKEY_CTX* kctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr);
-        EVP_PKEY_keygen_init(kctx);
-        EVP_PKEY_CTX_set_ec_paramgen_curve_nid(kctx, NID_X9_62_prime256v1);
-        EVP_PKEY_keygen(kctx, &key);
-        EVP_PKEY_CTX_free(kctx);
-
-        cert = X509_new();
-        X509_set_version(cert, 2);
-        ASN1_INTEGER_set(X509_get_serialNumber(cert), 1);
-        X509_gmtime_adj(X509_getm_notBefore(cert), not_before_days * 86400);
-        X509_gmtime_adj(X509_getm_notAfter(cert), not_after_days * 86400);
-        X509_set_pubkey(cert, key);
-        X509_NAME* subj = X509_get_subject_name(cert);
-        X509_NAME_add_entry_by_txt(subj, "CN", MBSTRING_ASC,
-                                   reinterpret_cast<const unsigned char*>("helix-test"), -1, -1, 0);
-        X509_set_issuer_name(cert, subj);
-        X509V3_CTX v3;
-        X509V3_set_ctx(&v3, cert, cert, nullptr, nullptr, 0);
-        X509_EXTENSION* ext = X509V3_EXT_conf_nid(nullptr, &v3, NID_subject_alt_name, san);
-        X509_add_ext(cert, ext, -1);
-        X509_EXTENSION_free(ext);
-        X509_sign(cert, key, EVP_sha256());
-    }
-    ~TestCert() {
-        X509_free(cert);
-        EVP_PKEY_free(key);
-    }
-    std::string write_pem(const TempDir& dir) const {
-        const std::string p = (dir.path / "ca.pem").string();
-        FILE* f = fopen(p.c_str(), "w");
-        PEM_write_X509(f, cert);
-        fclose(f);
-        return p;
-    }
-};
-
 /// Runs a TLS handshake over loopback TCP between `client_ctx` and a server
 /// presenting `server`. `sni` empty means an IP-literal connect (no SNI, as libhv
 /// does for one). Returns whether the client accepted the server.
 bool handshake(void* client_ctx, const TestCert& server, const std::string& sni) {
-    SSL_CTX* sctx = SSL_CTX_new(TLS_server_method());
-    SSL_CTX_use_certificate(sctx, server.cert);
-    SSL_CTX_use_PrivateKey(sctx, server.key);
+    SSL_CTX* sctx = server.make_server_ctx();
 
     int lfd = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in addr{};
@@ -147,9 +105,7 @@ class TlsServer {
 
     TlsServer(const TestCert* cert, Responder respond) : respond_(std::move(respond)) {
         if (cert) {
-            ctx_ = SSL_CTX_new(TLS_server_method());
-            SSL_CTX_use_certificate(ctx_, cert->cert);
-            SSL_CTX_use_PrivateKey(ctx_, cert->key);
+            ctx_ = cert->make_server_ctx();
         }
         fd_ = socket(AF_INET, SOCK_STREAM, 0);
         sockaddr_in addr{};
@@ -305,7 +261,7 @@ TEST_CASE("client ctx accepts only a trusted certificate for the host", "[tls]")
 
     SECTION("untrusted certificate is rejected") {
         TestCert other("DNS:other.test");
-        auto* ctx = make_client_ctx({other.write_pem(dir), {}});
+        auto* ctx = make_client_ctx({other.write_pem(dir.path), {}});
         CHECK_FALSE(handshake(ctx, server, "helix.test"));
         SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
     }
@@ -316,7 +272,7 @@ TEST_CASE("client ctx accepts only a trusted certificate for the host", "[tls]")
         SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
     }
     SECTION("trusted certificate") {
-        auto* ctx = make_client_ctx({server.write_pem(dir), {}});
+        auto* ctx = make_client_ctx({server.write_pem(dir.path), {}});
         CHECK(handshake(ctx, server, "helix.test"));
         CHECK_FALSE(handshake(ctx, server, "evil.test"));
         CHECK(handshake(ctx, server, "")); // IP literal, matched against the peer address
@@ -324,19 +280,19 @@ TEST_CASE("client ctx accepts only a trusted certificate for the host", "[tls]")
     }
     SECTION("IP literal not in the certificate is rejected") {
         TestCert dns_only("DNS:helix.test");
-        auto* ctx = make_client_ctx({dns_only.write_pem(dir), {}});
+        auto* ctx = make_client_ctx({dns_only.write_pem(dir.path), {}});
         CHECK_FALSE(handshake(ctx, dns_only, ""));
         SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
     }
     SECTION("a partial wildcard does not match") {
         TestCert partial("DNS:h*.example.test");
-        auto* ctx = make_client_ctx({partial.write_pem(dir), {}});
+        auto* ctx = make_client_ctx({partial.write_pem(dir.path), {}});
         CHECK_FALSE(handshake(ctx, partial, "helix.example.test"));
         SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
     }
     SECTION("an expired certificate still verifies") {
         TestCert expired("DNS:helix.test", -60, -30);
-        auto* ctx = make_client_ctx({expired.write_pem(dir), {}});
+        auto* ctx = make_client_ctx({expired.write_pem(dir.path), {}});
         CHECK(handshake(ctx, expired, "helix.test"));
         SSL_CTX_free(static_cast<SSL_CTX*>(ctx));
     }
@@ -357,7 +313,7 @@ TEST_CASE("trusted_request verifies every hop of a redirect", "[tls]") {
             return redirect_response(evil.url("/payload"));
         return ok_response("ok");
     });
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
 
     auto direct = detail::trusted_request(get(ours.url("/ok")), ctx);
     REQUIRE(direct);
@@ -404,7 +360,7 @@ TEST_CASE("trusted_request refuses to downgrade a redirect to plain http", "[tls
     TlsServer ours(trusted, [&](const std::string&, const std::string&) {
         return redirect_response(plain.url("/x"));
     });
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
 
     CHECK_FALSE(detail::trusted_request(get(ours.url("/down")), ctx));
     CHECK(ours.hits() == 1);
@@ -433,7 +389,7 @@ TEST_CASE("trusted_request keeps credentials on its own origin only", "[tls]") {
             return ok_response("wrong path " + path);
         return ok_response(raw.find("X-API-Key: k") != std::string::npos ? "key" : "nokey");
     });
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
     auto with_key = [&](const std::string& url) {
         auto req = get(url);
         req->headers["X-API-Key"] = "k";
@@ -534,7 +490,7 @@ TransferFailure download_failure(const std::string& url, const std::string& dest
 TEST_CASE("trusted_download names why it failed", "[tls][transfer_failure]") {
     TempDir dir;
     TestCert trusted("IP:127.0.0.1");
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
     const std::string dest = (dir.path / "out.bin").string();
 
     SECTION("an HTTP error status") {
@@ -560,7 +516,7 @@ TEST_CASE("trusted_download names why it failed", "[tls][transfer_failure]") {
 
     SECTION("a trusted certificate for another host") {
         TestCert wrong_name("DNS:elsewhere.test");
-        void* wrong_ctx = make_client_ctx({wrong_name.write_pem(dir), {}});
+        void* wrong_ctx = make_client_ctx({wrong_name.write_pem(dir.path), {}});
         TlsServer server(wrong_name,
                          [](const std::string&, const std::string&) { return ok_response("x"); });
         const auto f = download_failure(server.url("/f"), dest, wrong_ctx);
@@ -644,7 +600,7 @@ TEST_CASE("trusted_download restarts the file when libhv retries a dropped body"
     // retried response streams its body from the first byte again.
     TempDir dir;
     TestCert trusted("IP:127.0.0.1");
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
     std::atomic<int> calls{0};
     TlsServer server(trusted, [&](const std::string&, const std::string&) {
         if (calls++ == 0)
@@ -666,7 +622,7 @@ TEST_CASE("trusted_download restarts the file when libhv retries a dropped body"
 TEST_CASE("trusted_download leaves the failure empty on success", "[tls][transfer_failure]") {
     TempDir dir;
     TestCert trusted("IP:127.0.0.1");
-    void* ctx = make_client_ctx({trusted.write_pem(dir), {}});
+    void* ctx = make_client_ctx({trusted.write_pem(dir.path), {}});
     TlsServer server(trusted,
                      [](const std::string&, const std::string&) { return ok_response("payload"); });
     TransferFailure failure;
