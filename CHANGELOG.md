@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Forge-X AD5X macros are found** - includes written with `./` or `../` were dropped, so PRINT_START analysis reported no macro.
 - **Time zones on printers with no zone files** (#2003) - on images such as a Creator 5 Pro on Reforge, every clock, ETA and log line read as UTC even with a zone set.
 
+**Label printing**
+
+- **Label printers that require encryption** (#2034) - when a network label printer refused a plain IPP job with "426 Upgrade Required", printing failed. HelixScreen now resends the job securely over IPPS.
+
 ## [1.1.0-beta.16] - 2026-11-04
 
 The sixteenth beta of 1.1 is mostly fixes as we near 1.1.0. Filament slots keep their details when Moonraker is slow, slow print starts no longer end as failures, the AD5X starts without pegging Moonraker, and new installs of the helper macros stay out of your Fluidd and Mainsail macro list.
