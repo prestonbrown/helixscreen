@@ -14,8 +14,9 @@ namespace helix::timezone_env {
 // current working directory. Application::setup_data_root() ensures CWD is the
 // install root by the time this is called.
 //
-// Without the TZDIR fallback, glibc silently treats unresolved zone names as
-// UTC, producing times offset by the user's real timezone (#???).
+// An unresolved zone name reads as UTC, producing times offset by the user's
+// real timezone. musl does not read TZDIR, so with the bundled fallback active TZ
+// is set to the zone file's absolute path (prestonbrown/helixscreen#2003).
 //
 // posix_tz is the zone's POSIX rule (e.g. "EST5EDT,M3.2.0,M11.1.0"). The ESP32
 // firmware applies it instead of the IANA name, since newlib has no zoneinfo
