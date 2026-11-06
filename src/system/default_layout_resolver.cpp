@@ -488,7 +488,7 @@ class Resolver {
 
 std::string make_signature(std::string_view tier, int cols, int rows,
                            const std::vector<std::string>& chain, std::string_view preset,
-                           const std::map<std::string, int>& consulted) {
+                           const std::map<std::string, int>& consulted, int table_version = 0) {
     std::string sig(tier);
     sig += '|' + std::to_string(cols) + '|' + std::to_string(rows) + '|';
     for (size_t i = 0; i < chain.size(); ++i) {
@@ -501,6 +501,9 @@ std::string make_signature(std::string_view tier, int cols, int rows,
     for (const auto& [name, value] : consulted) {
         sig += (first ? "" : ",") + name + '=' + std::to_string(value);
         first = false;
+    }
+    if (table_version > 0) {
+        sig += "|table=" + std::to_string(table_version);
     }
     return sig;
 }
@@ -570,7 +573,8 @@ ResolvedDefault resolve_default_layout(const json& table, const json* overlay,
 
     out.placed = r.take_placed();
     out.disabled = r.disabled();
-    out.signature = make_signature(tier, cols, rows, variant_chain, preset, r.consulted());
+    out.signature = make_signature(tier, cols, rows, variant_chain, preset, r.consulted(),
+                                   ju::safe_int(doc, "version", 0));
     out.ok = !out.placed.empty();
     spdlog::debug("[DefaultLayoutResolver] tier={} grid={}x{} table={} placed={} disabled={} "
                   "signature={}",
