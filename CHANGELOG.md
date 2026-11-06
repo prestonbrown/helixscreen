@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The trash button no longer deletes by accident** - a drag that started on it, a long press, or the second tap of a double tap deleted the widget. The trash, configure and delete-page buttons now act only on a plain tap that ends on them, and the trash and configure buttons ignore taps for a moment after they appear.
 - **Small widgets keep their buttons outside the tile** - on small tiles, the trash and configure buttons sit just outside, so they no longer cover the widget you are trying to drag. They stay clear of neighbouring widgets' centers and the delete-page button.
 - **The printer image holds still** - moving a home widget could make the printer image visibly redraw itself, with its chips disappearing for a moment.
+- **The printer image no longer goes missing** - if the screen changed while the printer picture was still being prepared, it could stay blank until the next restart.
 
 **Timelapse**
 
