@@ -170,6 +170,10 @@ setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head
 no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
 `zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
 
+On any Z-Mod build (`zmod_color`), `print_start_params()` answers the print's map as
+`printer.print.start`'s `tools`, each head as its 1-based slot (`helix::print_start`), so
+Z-Mod's colour prompt does not open for a print HelixScreen starts.
+
 ### Tool reading
 
 `zmod_color.active_tool_id` maps one-to-one onto `ToolReading::current_tool`

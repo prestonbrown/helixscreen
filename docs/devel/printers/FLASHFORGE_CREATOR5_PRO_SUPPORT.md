@@ -184,8 +184,13 @@ parameter of `printer.print.start` (`"2,,1"`: index the G-code tool, value the 1
 slot), and without one opens its own colour prompt. `helix::print_start`
 (`include/print_start_params.h`) owns that knowledge, keyed on `zmod_color`; the filament
 backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
-answer. The AFC and AD5X IFS backends send it; the tool changer backend does not yet, so a
-C5 print still meets Z-Mod's prompt or auto-assign.
+answer. Every print HelixScreen starts on Z-Mod carries the full map, a tool the card leaves
+untouched on the backend's own default lane, so Z-Mod's prompt never opens for it; the tool
+changer backend sends each head as its 1-based slot. `SET_MAP` and the other table writes
+still go out, which is what Z-Mod builds without the `tools` parameter route by; their
+Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
+plugin (a file rewritten for a pre-print option or a tool remap) runs `SDCARD_PRINT_FILE`
+and carries no map.
 
 **The swap routine and its step bar.** A tool change cuts the filament at a station and
 wipes the nozzle on rubber instead of purging bulk filament (FlashForge's own wiki: the
