@@ -21,7 +21,7 @@ The tarball is only one of the two ways a preset gets applied. The other is dete
 | `ad5x.json` | Flashforge Adventurer 5X | Same hardware as AD5M, different display settings |
 | `creator5.json` | FlashForge Creator 5 | Applied by detection (no tarball bake). 4-head tool changer, no chamber heater, rotate 90 |
 | `creator5_pro.json` | FlashForge Creator 5 Pro | Applied by detection (no tarball bake). 4-head tool changer, chamber heater, rotate 90 |
-| `creator5_opencreator.json`, `creator5_pro_opencreator.json` | Creator 5 / 5 Pro on OpenCreator | Firmware variants, picked when `creator5_toolchanger` is present. Runout on AFC's `extruder<N>_tool_start` switches, chamber heater fan `heater_fan_throttled chamber_heat_fan`, Park Tool runs `DOCK_EXISTING_TOOL` |
+| `creator5_opencreator.json`, `creator5_pro_opencreator.json` | Creator 5 / 5 Pro on OpenCreator | Firmware variants, picked when `creator5_toolchanger` is present. No filament sensors (AFC owns its `extruder<N>_tool_start` switches and raises runout itself), chamber heater fan `heater_fan_throttled chamber_heat_fan`, Park Tool runs `DOCK_EXISTING_TOOL` |
 | `cc1.json` | Elegoo Centauri Carbon (COSMOS firmware) | Factory white-balance calibration (per-channel panel gain), hardware mappings, load-cell probe, Moonraker on port 80 |
 | `flsun_t1.json` | FLSUN T1 Pro (stock FLSUN OS) | Network-detected. Hardware mappings, Bed Level quick button on FLSUN's `BED_LEVEL_1`, enclosure light as an on/off macro device (`F106 S1` / `F106 S0`) |
 | `artillery-m1-pro.json` | Artillery M1 Pro | Network-detected. Touch calibration, hardware mappings, sound disabled (CPU overload) |
