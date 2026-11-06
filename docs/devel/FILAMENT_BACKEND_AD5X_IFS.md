@@ -22,6 +22,8 @@ IFS is detected via `filament_switch_sensor _ifs_port_sensor_{1-4}` or `filament
 
 Detection is gated by `!has_mmu_` — if Happy Hare or AFC is already detected, IFS sensors are ignored (priority: HH > AFC > IFS).
 
+Z-Mod's built-in AFC emulation (mod setting `AFC=1`) publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` beside `zmod_color`. Those are Z-Mod's own lane picker in AFC's shape, not the AFC project, so `PrinterDiscovery::parse_objects` hands the printer back to this backend (`has_zmod_afc()` without the Creator 5 changer fingerprint): `zmod_color` and the IFS sensors are there whatever `AFC` says, so the setting changes nothing on screen. Ports past 4 (IFS Jacker) stay unread either way.
+
 ### The standalone IFS module (Forge-X)
 
 The IFS logic was extracted from zmod into a drop-in module (Python plugins plus
@@ -316,6 +318,8 @@ marker) as the same kind of direct signal.
 
 - **Forge-X port:** the `[ifs]` module's wire table (see State Sources). `set_tool_mapping()` validates the parameters and emits `IFS_MAP_TOOL`; it does **not** write the map locally — the module owns the table and the `printer.ifs.tool_map` echo is what promotes a mapping, so a refused write (a lane with no filament) leaves `get_tool_mapping()` reporting what the printer actually has. `reset_tool_mappings()` emits `IFS_MAP_TOOL RESET=1` the same way.
 - **ZMOD + lessWaste/bambufy:** the plugin's `save_variables.<prefix>_tools` table. `set_tool_mapping()` applies the mapping locally and persists it with `_IFS_VARS tools=…` (`build_tool_map_value()` emits the whole 16-entry array — the macro replaces, not merges). This is the long-standing path, unchanged. The plugin contract has no reset verb; `reset_tool_mappings()` answers not supported there.
+
+- **Z-Mod's print start:** with `zmod_color` present, Z-Mod's Moonraker takes the print's map as `printer.print.start`'s `tools` (`"2,,1"`: index the G-code tool, value the 1-based port) and, without it, opens its own colour prompt. `print_start_params()` answers it from the print's full map (`helix::print_start`, `include/print_start_params.h`), and it alone readies `remap_ready()`: a pick lands in that print, with no table to write, so `owns_tool_mapping_table()` stays with the two adapters above.
 
 When both signals exist (stale plugin rows surviving a firmware swap), the wire table wins — it is live firmware state — and the detection logs that precedence rather than silently dropping the plugin signal.
 
