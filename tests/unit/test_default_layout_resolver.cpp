@@ -251,6 +251,56 @@ TEST_CASE("resolver: a grid-qualified disabled list beats the bare tier list",
     CHECK(is_disabled(tier_grid, "tips"));
 }
 
+TEST_CASE("resolver: a capability-qualified key replaces its key while the subject is on",
+          "[default_layout_resolver]") {
+    // One tier, two arrangements: the qualified placements, slot region and
+    // disabled list all switch together on the one subject.
+    const json table = parse(R"json({"anchors": [
+      {"id": "printer_image", "placements": {
+         "medium": {"col": 0, "row": 0, "colspan": 4, "rowspan": 4},
+         "medium+ams_is_tool_changer": {"col": 0, "row": 0, "colspan": 6, "rowspan": 4}}},
+      {"id": "temperature", "placements": {"medium": {"col": 4, "row": 0, "colspan": 2, "rowspan": 2}}},
+      {"slot": "s", "placements": {
+         "medium": {"col": 4, "row": 2, "colspan": 4, "rowspan": 2},
+         "medium+ams_is_tool_changer": {"col": 8, "row": 2, "colspan": 4, "rowspan": 2}},
+       "alternatives": [{"cells": [{"candidates": [{"id": "tool_switcher", "requires": ["ams_is_tool_changer"]}],
+                                    "at": [0, 0, 4, 2]}]}]}],
+      "disabled": {"medium": ["tips"], "medium+ams_is_tool_changer": ["tips", "temperature"]}})json");
+
+    const auto tc = resolve(table, "medium", {{{"ams_is_tool_changer", 1}}});
+    require_cell(tc, "printer_image", 0, 0, 6, 4);
+    require_cell(tc, "tool_switcher", 8, 2, 4, 2);
+    CHECK(placed_entry(tc, "temperature") == nullptr);
+    CHECK(is_disabled(tc, "temperature"));
+    CHECK(tc.signature.find("ams_is_tool_changer=1") != std::string::npos);
+
+    const auto plain = resolve(table, "medium", {{{"ams_is_tool_changer", 0}}});
+    require_cell(plain, "printer_image", 0, 0, 4, 4);
+    require_cell(plain, "temperature", 4, 0, 2, 2);
+    CHECK(placed_entry(plain, "tool_switcher") == nullptr);
+    CHECK(tc.signature != plain.signature);
+}
+
+TEST_CASE("resolver: a grid-qualified key beats a capability-qualified bare tier key",
+          "[default_layout_resolver]") {
+    // The grid decides what fits, so a key written for this grid wins over an
+    // arrangement written for the tier's own grid; the grid's own capability
+    // key beats both.
+    json table = parse(R"json({"anchors": [
+      {"id": "printer_image", "placements": {
+         "micro": {"col": 0, "row": 0, "colspan": 4, "rowspan": 4},
+         "micro+ams_is_tool_changer": {"col": 0, "row": 0, "colspan": 6, "rowspan": 4},
+         "micro@8x6": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}}]})json");
+    const CapabilitySnapshot tc{{{"ams_is_tool_changer", 1}}};
+    require_cell(resolve(table, "micro", tc, 8, 6), "printer_image", 0, 0, 2, 2);
+    require_cell(resolve(table, "micro", tc, 12, 8), "printer_image", 0, 0, 6, 4);
+
+    table["anchors"][0]["placements"]["micro@8x6+ams_is_tool_changer"] =
+        json{{"col", 2}, {"row", 0}, {"colspan", 2}, {"rowspan", 2}};
+    require_cell(resolve(table, "micro", tc, 8, 6), "printer_image", 2, 0, 2, 2);
+    require_cell(resolve(table, "micro", {}, 8, 6), "printer_image", 0, 0, 2, 2);
+}
+
 TEST_CASE("resolver: an alternative that does not fit its region is skipped",
           "[default_layout_resolver]") {
     const json table = parse(R"json({"anchors": [
@@ -547,7 +597,7 @@ TEST_CASE("resolver: unknown ids are ignored and malformed tables are not ok",
     }
 }
 
-TEST_CASE("resolver: subjects_named_by lists gates and requires subjects",
+TEST_CASE("resolver: subjects_named_by lists gates, requires and capability-key subjects",
           "[default_layout_resolver]") {
     const json table = parse(R"json({
       "candidate_lists": {"FIL": ["filament", {"id": "active_spool", "requires": ["printer_has_spoolman"]}, "clock"]},
@@ -556,11 +606,13 @@ TEST_CASE("resolver: subjects_named_by lists gates and requires subjects",
         {"slot": "s", "placements": {}, "alternatives": [
           {"cells": [{"candidates": ["ams"], "at": [0, 0, 4, 2]}]},
           {"cells": [{"candidates": "FIL", "at": [0, 0, 2, 2]}]}]}],
-      "variants": {"portrait": {"anchors": [{"id": "led", "placements": {}}]},
+      "disabled": {"medium+printer_is_enclosed": []},
+      "variants": {"portrait": {"anchors": [{"id": "led", "placements": {
+                                   "small+printer_has_bed_mesh": {}}}]},
                    "ultrawide": [{"id": "dryer", "placements": {}}]}})json");
-    const std::vector<std::string> expected = {"ams_slot_count", "filament_sensor_count",
-                                               "home_dryer_available", "led_controllable",
-                                               "printer_has_spoolman"};
+    const std::vector<std::string> expected = {
+        "ams_slot_count",       "filament_sensor_count", "home_dryer_available", "led_controllable",
+        "printer_has_bed_mesh", "printer_has_spoolman",  "printer_is_enclosed"};
     CHECK(helix::layout::subjects_named_by(table) == expected);
     CHECK(helix::layout::subjects_named_by(parse("not json")).empty());
 }

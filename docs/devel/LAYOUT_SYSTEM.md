@@ -688,9 +688,31 @@ notifications in the corner; 480x272 keeps both. Every entry with a bare key for
 needs a grid-qualified placement or a place in that list, or it inherits the bare key's
 coordinates off the smaller grid. The "every measured grid is covered or declared empty" case
 in `test_default_layout.cpp` resolves each measured grid with every gate open, every gate
-open but no AMS, and every gate closed. With gates open the empty tracks must be exactly the
-grid's declared `gaps`; with gates closed an empty track must be a declared gap or a slot cell
-nothing qualified for. An undeclared hole fails, and so does an overlap.
+open but no AMS, every gate open but no tool changer, and every gate closed. With gates open
+the empty tracks must be exactly the grid's declared `gaps`; with no tool changer or gates
+closed an empty track must be a declared gap or a slot cell nothing qualified for. An
+undeclared hole fails, and so does an overlap.
+
+#### Capability-qualified keys
+
+A key may also name a capability subject: `"medium+ams_is_tool_changer"` or
+`"micro@8x6+ams_is_tool_changer"`. While that subject is non-zero the qualified key wins over
+the same key without it; at each rung of the fallback chain the order is
+`<tier>@<grid>+<subject>`, `<tier>@<grid>`, `<tier>+<subject>`, `<tier>`, so a grid's own key
+still beats an arrangement written for the tier's usual grid. Placements, slot regions,
+`disabled` and `gaps` all take the form, which lets one tier carry a second arrangement for a
+class of printer without a variant. The subject is consulted through the snapshot like a
+`requires` subject, so it is part of the signature and a change re-resolves an unedited default.
+
+The shipped tables use it for tool changers. The tool switcher shows each tool's temperature
+and the printer image's chips show the bed, so `+ams_is_tool_changer` switches off
+`temperature` and `bed_temperature` and leaves a declared gap in their place: on the 12x8
+grids (medium and micro) the image widens to 6x4 tracks with a 2x4 gap beside it, fan_stack
+and notifications across the top right and the switcher under them; tiny and small keep a 4x4
+image with the 2x4 gap; large and xlarge widen the image to 6x4 beside a 2x4 gap; xxlarge,
+where print_status sits beside the image, leaves the 4x2 block left of the fans empty. The
+portrait and ultrawide tables carry no tool switcher, so they keep their temperature tiles,
+and `micro@8x6` keeps its own arrangement.
 
 **An anchor that does not fit the measured grid is now dropped rather than clamped.**
 `build_default_grid(grid_cols, grid_rows)` checks each anchor against the grid it is being
