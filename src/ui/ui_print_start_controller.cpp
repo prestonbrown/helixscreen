@@ -1241,6 +1241,50 @@ void PrintStartController::observe_print_report_for_restore() {
             self->restore_filament_mapping();
         },
         printer_state_.get_subjects_lifetime());
+
+    // An idle printer whose subscription never answered sends no report until the
+    // next reconnect, so ask once. A job running keeps the record waiting for a
+    // real report, which is what can say when that job ends.
+    if (!api_) {
+        return;
+    }
+    auto tok = lifetime_.token();
+    api_->get_client().send_jsonrpc(
+        "printer.objects.query", nlohmann::json{{"objects", {{"print_stats", {"state"}}}}},
+        [this, tok, seen](const nlohmann::json& response) {
+            const auto* result = helix::json_util::find_member(response, "result");
+            const auto* status =
+                result ? helix::json_util::find_member(*result, "status") : nullptr;
+            const auto* stats =
+                status ? helix::json_util::find_member(*status, "print_stats") : nullptr;
+            const std::string state =
+                stats ? helix::json_util::safe_string(*stats, "state", "") : std::string();
+            if (state.empty()) {
+                return;
+            }
+            tok.defer("PrintStartController::print_state_query",
+                      [this, seen, state]() { on_print_state_answer(seen, state); });
+        },
+        [](const MoonrakerError&) {}, 0, /*silent=*/true);
+}
+
+void PrintStartController::on_print_state_answer(int seen, const std::string& state) {
+    // A report since the ask is the printer's newer word, and decides on its own.
+    auto* subject = printer_state_.print_state().get_print_state_report_seq_subject();
+    if (!print_report_observer_ || !subject || lv_subject_get_int(subject) != seen ||
+        !still_owns_restore()) {
+        return;
+    }
+    if (printer_has_job(parse_print_job_state(state.c_str()))) {
+        spdlog::info("[PrintStartController] Printer answers '{}' — the replayed restore waits "
+                     "for its next report",
+                     state);
+        return;
+    }
+    print_report_observer_.reset();
+    spdlog::info("[PrintStartController] Printer answers '{}' — restoring the replayed mapping",
+                 state);
+    restore_filament_mapping();
 }
 
 void PrintStartController::observe_klippy_state_for_restore() {
