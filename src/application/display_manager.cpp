@@ -1122,7 +1122,14 @@ void DisplayManager::run_rotation_probe() {
         [this, phys_w, phys_h](lv_display_rotation_t rot) {
             settle_display_rotation(rot, phys_w, phys_h);
         },
-        [this](bool suspended) { set_resize_fanout_suspended(suspended); }};
+        [this](bool suspended) { set_resize_fanout_suspended(suspended); },
+        // init() lit the panel, but the probe outlasts the window before a stock firmware
+        // dims it (schedule_brightness_reassert()), so every prompt relights it.
+        [this] {
+            if (m_backlight && m_backlight->is_available()) {
+                m_backlight->set_brightness(DisplaySettingsManager::instance().user_brightness());
+            }
+        }};
     helix::RotationProbe(std::move(host)).run();
 }
 
