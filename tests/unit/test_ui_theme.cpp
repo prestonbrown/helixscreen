@@ -4,6 +4,7 @@
 #include "ui_fonts.h"
 
 #include "../../src/ui/theme/theme_manager_internal.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "theme_manager.h"
 #include "theme_token_table.h"
@@ -197,23 +198,13 @@ TEST_CASE("UI Theme: Multiple parses of same color", "[ui_theme][color]") {
 // Integration Tests with LVGL
 // ============================================================================
 
-TEST_CASE("UI Theme: Parsed colors work with LVGL", "[ui_theme][integration]") {
-    lv_init_safe();
-
-    lv_color_t red = theme_manager_parse_hex_color("#FF0000");
-    lv_color_t green = theme_manager_parse_hex_color("#00FF00");
-    lv_color_t blue = theme_manager_parse_hex_color("#0000FF");
-
-    // Create a simple object and set its background color
-    lv_obj_t* obj = lv_obj_create(lv_screen_active());
+TEST_CASE_METHOD(LVGLTestFixture, "UI Theme: Parsed colors work with LVGL",
+                 "[ui_theme][integration]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
     REQUIRE(obj != nullptr);
 
-    lv_obj_set_style_bg_color(obj, red, 0);
-    lv_obj_set_style_bg_color(obj, green, 0);
-    lv_obj_set_style_bg_color(obj, blue, 0);
-
-    // Cleanup
-    lv_obj_delete(obj);
+    lv_obj_set_style_bg_color(obj, theme_manager_parse_hex_color("#0000FF"), 0);
+    REQUIRE(COLOR_RGB(lv_obj_get_style_bg_color(obj, LV_PART_MAIN)) == 0x0000FF);
 }
 
 // ============================================================================
