@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Anycubic Kobra X detection** - this printer was detected as a Neptune 4 Pro and is now recognized correctly.
 - **Undo for a removed home widget** - removing a widget in edit mode shows "Widget removed · Undo" for a few seconds, and Undo puts it back where it was.
 - **OpenCreator on the Creator 5** - HelixScreen recognizes OpenCreator firmware and uses its own settings: Vertical Artifact Compensation and the tool offset wizard run through OpenCreator's macros, Park Tool docks the mounted head, and the chamber heat fan shows as a heater fan.
+- **A home screen made for tool changers** - on tool changers such as the Creator 5 and Snapmaker U1, the default home screen leaves out the nozzle and bed temperature tile, because the tool switcher and the printer picture already show those temperatures. It keeps an open space beside the printer picture for widgets you add. A home screen you have never changed switches to the new layout once; one you have arranged yourself stays as it is.
 
 ### Fixed
 
@@ -26,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Filament**
 
+- **A remap made for one print is undone when it ends, even after a restart** - if HelixScreen restarted during a print, the tool map you changed in the print dialog could be put back in the middle of the print, or never put back at all. It now waits until it knows whether a print is running, and restores the original map when that print ends.
+- **The clog tile no longer looks like an alarm** - on printers with a filament motion sensor, the tile read "Disarmed" above "Clog" whenever nothing was printing. Its caption now reads "Clog detection".
 - **Spoolman gets the slicer's material** - saving a lane filed a precise type such as ABS+ as Spoolman's material with no temperatures, so OrcaSlicer fell back to Generic PLA. Spoolman now gets the base material (ABS) with nozzle and bed temperatures, and a linked AFC lane sends the same base.
 - **No more silent reuse of the wrong filament** - an existing Spoolman filament is reused only when its material, color and name match exactly. A close match asks "Use existing filament?", and the editor no longer shows the type twice.
 - **The spool picker marks only the linked spool** - an unlinked slot showed the most recent spool as its current one.
