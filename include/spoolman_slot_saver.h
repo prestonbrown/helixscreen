@@ -3,13 +3,16 @@
 #pragma once
 
 #include "ams_types.h"
+#include "color_utils.h"
 #include "filament_database.h"
 #include "json_fwd.h"
 #include "moonraker_error.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_types.h"
 
 #include <cmath>
 #include <functional>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -65,6 +68,9 @@ struct MissingFilamentFields {
  */
 struct SaveResult {
     bool success = false;
+    /// The user turned down the save part-way (the similar-filament offer was
+    /// dismissed). Nothing was written; never accompanies success.
+    bool cancelled = false;
     /// The fields a filament write needed and the slot did not carry. Set only
     /// on a save that stopped for them, so it never accompanies success.
     MissingFilamentFields missing;
@@ -73,6 +79,26 @@ struct SaveResult {
     int new_spool_id = 0;            ///< spool_id assigned on create (0 if unchanged)
     int new_filament_id = 0;         ///< filament_id after find-or-create (0 if unchanged)
     int new_vendor_id = 0;           ///< vendor_id after find-or-create (0 if unchanged)
+    /// The user took an existing record at the similar-filament offer; the
+    /// spool now carries that record's identity rather than the typed one.
+    std::optional<FilamentInfo> adopted;
+};
+
+/**
+ * @brief The Spoolman filament record a slot's identity becomes.
+ *
+ * Spoolman's `material` is the vocabulary AFC copies into lane_data and the
+ * slicer matches ("ABS"); the slot's precise type ("ABS+") and its colour go
+ * into the name, the way SpoolmanDB files its own records ("PLA+ White").
+ */
+struct NewFilament {
+    std::string material;       ///< filament::slicer_material() of the slot's type
+    std::string precise_type;   ///< The slot's own type ("ABS+"), for the density lookup
+    std::string name;           ///< "ABS+ Deep Gray", or the slot's own spool name
+    std::string color_hex;      ///< "4A4A4A", no '#'
+    int extruder_temp = 0;      ///< settings_extruder_temp; 0 = omitted
+    int bed_temp = 0;           ///< settings_bed_temp; 0 = omitted
+    int linked_filament_id = 0; ///< The record the spool points at now; never offered
 };
 
 /**
@@ -93,6 +119,17 @@ class SpoolmanSlotSaver {
     using FilamentCallback = std::function<void(int filament_id)>;
     using VoidCallback = std::function<void()>;
     using ErrorCallback = std::function<void(const MoonrakerError&)>;
+
+    /// The user's answer to "Spoolman already has a filament like this one".
+    enum class SimilarChoice {
+        UseExisting, ///< Point the spool at the offered filament
+        CreateNew,   ///< File a new filament anyway
+        Cancel,      ///< Stop the save; nothing is written
+    };
+    /// Asks the user about @p similar and calls @p answer exactly once, from
+    /// any thread. Runs on the thread the Spoolman reply arrived on.
+    using SimilarFilamentChooser =
+        std::function<void(const FilamentInfo& similar, std::function<void(SimilarChoice)> answer)>;
 
     /// Weight comparison threshold for float equality
     static constexpr float kWeightThreshold = 0.1f;
@@ -121,6 +158,24 @@ class SpoolmanSlotSaver {
      * (kAmsDefaultSlotColor gray means "color not set").
      */
     static bool is_filament_complete(const SlotInfo& slot);
+
+    /**
+     * @brief The filament record a new Spoolman filament for @p edited carries.
+     *
+     * The name is the slot's spool name when it says more than the material
+     * and the save leaves brand, material and colour where @p original had
+     * them (a spool name describes the identity it came with). Otherwise the
+     * catalog product (or the precise type) followed by the colour name (the
+     * slot's own, else describe_color()). Temperatures are the slot's nozzle
+     * range through spoolman::temperature_for_range() and its bed temperature.
+     */
+    static NewFilament new_filament_for(const SlotInfo& original, const SlotInfo& edited);
+
+    /// Offer a near-identical existing filament before creating one. Without a
+    /// chooser the saver creates, which is what a caller that cannot ask wants.
+    void set_similar_filament_chooser(SimilarFilamentChooser chooser) {
+        similar_chooser_ = std::move(chooser);
+    }
 
     /**
      * @brief The fields is_filament_complete() finds missing, named one by one.
@@ -153,6 +208,26 @@ class SpoolmanSlotSaver {
         }
         if (result.new_vendor_id != 0) {
             committed.spoolman_vendor_id = result.new_vendor_id;
+        }
+        if (result.adopted) {
+            const FilamentInfo& f = *result.adopted;
+            // The first six digits are the colour; an alpha byte does not move it.
+            const std::string hex = spoolman::normalize_color_hex(f.color_hex);
+            if (auto rgb = hex.empty() ? std::nullopt : parse_hex_color(hex.substr(0, 6))) {
+                committed.color_rgb = *rgb;
+            }
+            committed.color_name.clear();
+            committed.multi_color_hexes.clear();
+            if (!f.material.empty()) {
+                committed.material = f.material;
+            }
+            committed.spool_name = f.filament_name;
+            // The record is no catalog pick, and its temperatures are its own.
+            committed.catalog_id.clear();
+            committed.product_name.clear();
+            committed.nozzle_temp_min = f.nozzle_temp_min;
+            committed.nozzle_temp_max = f.nozzle_temp_max;
+            committed.bed_temp = f.bed_temp_max;
         }
     }
 
@@ -229,24 +304,22 @@ class SpoolmanSlotSaver {
                                ErrorCallback on_error);
 
     /**
-     * @brief Resolve a (vendor_id, material, color_hex) triple to a Spoolman filament_id,
+     * @brief Resolve @p filament under @p vendor_id to a Spoolman filament_id,
      *        creating a new filament if none matches.
      *
-     * Match is vendor_id exact plus spoolman::find_matching_filament().
-     *
-     * On create, POSTs `{vendor_id, material, color_hex, name}`, where `name`
-     * is `filament_name` when the slot carries one and falls back to `material`
-     * otherwise. Naming a new filament after its material alone produced
-     * Spoolman records literally called "PLA", which then round-trip back as
-     * SlotInfo::spool_name and get deduped straight back out of the card label.
-     * On invalid color_hex, calls on_error immediately without API calls.
-     *
-     * @param filament_name The slot's filament name (SlotInfo::spool_name); may
-     *                      be empty. Never used for matching — only for create.
+     * The exact record (spoolman::find_matching_filament(): stored material,
+     * colour and normalized name) is reused. Otherwise a near one
+     * (spoolman::find_similar_filament()) goes to the chooser, when one is
+     * set, and the user picks it, a new filament, or neither. A create POSTs
+     * every field of @p filament plus the density and the printer's diameter,
+     * which Spoolman requires. On an invalid colour, calls on_error without
+     * any API call; a declined offer calls on_error with is_cancellation().
      */
-    void find_or_create_filament(int vendor_id, const std::string& material,
-                                 const std::string& color_hex, const std::string& filament_name,
+    void find_or_create_filament(int vendor_id, const NewFilament& filament,
                                  FilamentCallback on_found, ErrorCallback on_error);
+
+    /// Whether @p err is the chooser's Cancel rather than a failure.
+    static bool is_cancellation(const MoonrakerError& err);
 
     /**
      * @brief PATCH the spool's filament_id. Used for repointing a linked spool
@@ -263,6 +336,13 @@ class SpoolmanSlotSaver {
   private:
     IMoonrakerAPI* api_;
     float filament_diameter_mm_;
+    SimilarFilamentChooser similar_chooser_;
+    /// The record the user took at the offer, reported with the save's result.
+    std::optional<FilamentInfo> adopted_;
+
+    /// POST @p filament under @p vendor_id.
+    void create_filament(int vendor_id, const NewFilament& filament, FilamentCallback on_found,
+                         ErrorCallback on_error);
 
     /**
      * @brief Convert uint32_t RGB to hex string like "FF0000" (no # prefix)

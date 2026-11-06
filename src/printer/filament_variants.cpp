@@ -623,12 +623,33 @@ std::string orca_match_type(std::string_view display_type) {
     // 2. The type itself, if Orca's library carries it.
     if (const std::string* hit = find_library_type(work))
         return *hit;
-    // 3. Base polymer, if the library carries that.
+    // 3. Base polymer with the type's one filler ("PA12-CF" is "PA-CF"), if
+    //    the library carries that: a filled preset is nearer than the plain one.
     std::string base = extract_base_material(work);
+    if (const std::set<std::string> fillers = filled_affixes_of(work); fillers.size() == 1) {
+        if (const std::string* hit = find_library_type(base + "-" + *fillers.begin()))
+            return *hit;
+    }
+    // 4. Base polymer, if the library carries that.
     if (const std::string* hit = find_library_type(base))
         return *hit;
-    // 4. Nothing safe to say. Caller omits the field.
+    // 5. Nothing safe to say. Caller omits the field.
     return "";
+}
+
+// NAMESPACE_OK: namespace filament, beside orca_match_type
+std::string slicer_material(std::string_view display_type) {
+    const std::string type(helix::text_io::trim(display_type));
+    if (type.empty()) {
+        return {};
+    }
+    if (std::string orca = orca_match_type(type); !orca.empty()) {
+        return orca;
+    }
+    if (std::string base = extract_base_material(type); !base.empty()) {
+        return base;
+    }
+    return type;
 }
 
 } // namespace filament

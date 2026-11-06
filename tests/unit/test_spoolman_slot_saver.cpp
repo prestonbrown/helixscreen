@@ -3,14 +3,17 @@
 
 #include "ui_color_picker.h"
 
+#include "color_utils.h"
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
@@ -37,10 +40,22 @@ static SlotInfo make_test_slot() {
     slot.brand = "Polymaker";
     slot.material = "PLA";
     slot.color_rgb = 0xFF0000; // Red
+    slot.color_name = "Red";
     slot.spoolman_filament_id = 100;
     slot.remaining_weight_g = 800.0f;
     slot.total_weight_g = 1000.0f;
     return slot;
+}
+
+/// A filament record named after its material, as a bare find-or-create call
+/// would file it.
+static NewFilament record(const char* material, const char* color_hex) {
+    NewFilament f;
+    f.material = material;
+    f.precise_type = material;
+    f.name = material;
+    f.color_hex = color_hex;
+    return f;
 }
 
 // ============================================================================
@@ -356,11 +371,11 @@ TEST_CASE("SpoolmanSlotSaver save repoints spool to existing filament when vendo
 
     // Seed the original vendor + filament (id=100, referenced by make_test_slot).
     client.spoolman_mock().add_vendor(1, "Polymaker");
-    client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 1, "PLA", "FF0000", "PLA Red");
 
-    // Seed the target vendor + matching filament (eSUN PLA red = id 200).
+    // Seed the target vendor + the exact filament the save files (id 200).
     client.spoolman_mock().add_vendor(2, "eSUN");
-    client.spoolman_mock().add_filament(200, 2, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(200, 2, "PLA", "FF0000", "PLA Red");
 
     SpoolmanSlotSaver saver(&api);
 
@@ -427,7 +442,8 @@ TEST_CASE("SpoolmanSlotSaver save creates new vendor + filament and repoints spo
     REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
     auto& fp = client.spoolman_mock().created_filaments[0];
     REQUIRE(fp["vendor_id"] == 50);
-    REQUIRE(fp["material"] == "Nylon");
+    // Spoolman records the type the slicer knows Nylon by.
+    REQUIRE(fp["material"] == "PA");
     REQUIRE(fp["color_hex"] == "123456");
 
     // Spool was PATCHed to point at the new filament.
@@ -819,27 +835,6 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_vendor: creates new vendor when name
 // find_or_create_filament() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: matches on vendor+material+color_hex "
-          "(case-insensitive hex)",
-          "[spoolman][slot_saver][filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-    serve_only_linked_spool(client); // avoid synthesized-vendor noise
-    client.spoolman_mock().add_filament(100, /*vendor_id*/ 7, "PLA", "ff0000");
-
-    SpoolmanSlotSaver saver(&api);
-    int got_id = -1;
-    bool error_called = false;
-    saver.find_or_create_filament(
-        7, "PLA", "FF0000", /*filament_name*/ "", // upper-case input vs lower-case seed
-        [&](int id) { got_id = id; }, [&](const MoonrakerError&) { error_called = true; });
-
-    REQUIRE(got_id == 100);
-    REQUIRE_FALSE(error_called);
-    REQUIRE(client.spoolman_mock().created_filaments.empty());
-}
-
 TEST_CASE("SpoolmanSlotSaver find_or_create_filament: mismatched material -> creates new",
           "[spoolman][slot_saver][filament]") {
     PrinterState state;
@@ -852,7 +847,7 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: mismatched material -> cre
     SpoolmanSlotSaver saver(&api);
     int got_id = -1;
     saver.find_or_create_filament(
-        7, "PETG", "FF0000", /*filament_name*/ "", [&](int id) { got_id = id; },
+        7, record("PETG", "FF0000"), [&](int id) { got_id = id; },
         [&](const MoonrakerError&) { got_id = -99; });
 
     REQUIRE(got_id == 101);
@@ -875,32 +870,11 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: a created filament carries
 
     SpoolmanSlotSaver saver(&api, 2.85f);
     saver.find_or_create_filament(
-        7, "PETG", "FF0000", /*filament_name*/ "", [](int) {}, [](const MoonrakerError&) {});
+        7, record("PETG", "FF0000"), [](int) {}, [](const MoonrakerError&) {});
 
     REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
     CHECK(client.spoolman_mock().created_filaments[0]["diameter"].get<float>() ==
           Catch::Approx(2.85f));
-}
-
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: mismatched color -> creates new",
-          "[spoolman][slot_saver][filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-    serve_only_linked_spool(client);
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
-    client.spoolman_mock().next_created_filament_id = 101;
-
-    SpoolmanSlotSaver saver(&api);
-    int got_id = -1;
-    saver.find_or_create_filament(
-        7, "PLA", "00FF00", /*filament_name*/ "", [&](int id) { got_id = id; },
-        [&](const MoonrakerError&) { got_id = -99; });
-
-    REQUIRE(got_id == 101);
-    REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
-    auto& payload = client.spoolman_mock().created_filaments[0];
-    REQUIRE(payload["color_hex"] == "00FF00");
 }
 
 TEST_CASE("SpoolmanSlotSaver find_or_create_filament: invalid color hex triggers on_error",
@@ -914,7 +888,7 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: invalid color hex triggers
     int got_id = -1;
     bool error_called = false;
     saver.find_or_create_filament(
-        7, "PLA", "XYZ", /*filament_name*/ "", // invalid
+        7, record("PLA", "XYZ"), // invalid
         [&](int id) { got_id = id; }, [&](const MoonrakerError&) { error_called = true; });
 
     REQUIRE(got_id == -1);
@@ -929,12 +903,12 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: accepts leading # and stri
     MoonrakerClientMock client;
     MoonrakerAPIMock api(client, state);
     serve_only_linked_spool(client);
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA");
 
     SpoolmanSlotSaver saver(&api);
     int got_id = -1;
     saver.find_or_create_filament(
-        7, "PLA", "#ff0000", /*filament_name*/ "", [&](int id) { got_id = id; },
+        7, record("PLA", "#ff0000"), [&](int id) { got_id = id; },
         [&](const MoonrakerError&) { got_id = -99; });
 
     REQUIRE(got_id == 100);
@@ -1053,7 +1027,7 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to same fila
 
     // Seed vendor + filament that will be matched exactly.
     client.spoolman_mock().add_vendor(7, "Polymaker");
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA Red");
 
     SlotInfo original = make_test_slot();
     original.spoolman_filament_id = 100; // match the seeded filament
@@ -1213,8 +1187,8 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to existing 
     // Seed the original vendor/filament AND the target PETG filament so the
     // save path resolves to an existing id (200) without creating anything.
     client.spoolman_mock().add_vendor(7, "Polymaker");
-    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
-    client.spoolman_mock().add_filament(200, 7, "PETG", "FF0000");
+    client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA Red");
+    client.spoolman_mock().add_filament(200, 7, "PETG", "FF0000", "PETG Red");
 
     SlotInfo original = make_test_slot();
     original.spoolman_filament_id = 100;
@@ -1570,4 +1544,250 @@ TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: no new spool and no rep
     CHECK(committed.spoolman_filament_id == 100);
     CHECK(committed.spoolman_vendor_id == 7);
     CHECK(committed.spoolman_orca_filament_id == "GFL99");
+}
+
+// ============================================================================
+// The filament record a new spool files under
+// ============================================================================
+
+/// eSUN ABS+ in Deep Gray, as the editor stages it: the precise type, the
+/// material database's ranges, no spool name.
+static SlotInfo esun_abs_plus_slot() {
+    SlotInfo slot;
+    slot.slot_index = 1;
+    slot.brand = "eSUN";
+    slot.material = "ABS+";
+    slot.color_rgb = 0x4A4A4A;
+    slot.color_name = "Deep Gray";
+    slot.nozzle_temp_min = 240;
+    slot.nozzle_temp_max = 270;
+    slot.bed_temp = 100;
+    slot.remaining_weight_g = 1000.0f;
+    return slot;
+}
+
+TEST_CASE("SpoolmanSlotSaver new_filament_for: the record a new filament files",
+          "[spoolman][slot_saver][filament_naming]") {
+    struct Row {
+        const char* what;
+        std::function<void(SlotInfo& original, SlotInfo& edited)> edit;
+        const char* material;
+        const char* name;
+        int extruder;
+        int bed;
+    };
+    const auto none = [](SlotInfo&, SlotInfo&) {};
+    const Row rows[] = {
+        {"the variant goes in the name, not the material", none, "ABS", "ABS+ Deep Gray", 255, 100},
+        {"a finish keeps its word in the name",
+         [](SlotInfo&, SlotInfo& e) {
+             e.material = "Silk PLA";
+             e.color_name = "Gold";
+         },
+         "PLA", "Silk PLA Gold", 255, 100},
+        {"a catalog product names it over the bare type",
+         [](SlotInfo&, SlotInfo& e) { e.product_name = "ABS+HS"; }, "ABS", "ABS+HS Deep Gray", 255,
+         100},
+        {"an unmoved spool keeps its own name",
+         [](SlotInfo& o, SlotInfo& e) { o.spool_name = e.spool_name = "Grey ABS+HS"; }, "ABS",
+         "Grey ABS+HS", 255, 100},
+        {"a recoloured spool's name describes the old colour",
+         [](SlotInfo& o, SlotInfo& e) {
+             o.spool_name = e.spool_name = "ABS+ Deep Gray";
+             e.color_rgb = 0xFF0000;
+             e.color_name = "Red";
+         },
+         "ABS", "ABS+ Red", 255, 100},
+        {"a spool moved to another material drops its name",
+         [](SlotInfo& o, SlotInfo& e) {
+             o.spool_name = e.spool_name = "ABS+ Deep Gray";
+             e.material = "PETG";
+         },
+         "PETG", "PETG Deep Gray", 255, 100},
+        {"a spool name that is only the material is not a name",
+         [](SlotInfo& o, SlotInfo& e) { o.spool_name = e.spool_name = "abs+"; }, "ABS",
+         "ABS+ Deep Gray", 255, 100},
+        {"unknown temperatures are left out",
+         [](SlotInfo&, SlotInfo& e) {
+             e.nozzle_temp_min = e.nozzle_temp_max = 0;
+             e.bed_temp = 0;
+         },
+         "ABS", "ABS+ Deep Gray", 0, 0},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            SlotInfo original = esun_abs_plus_slot();
+            SlotInfo edited = original;
+            r.edit(original, edited);
+            const NewFilament f = SpoolmanSlotSaver::new_filament_for(original, edited);
+            CHECK(f.material == r.material);
+            CHECK(f.name == r.name);
+            CHECK(f.color_hex ==
+                  spoolman::normalize_color_hex(helix::color_to_hex_string(edited.color_rgb)));
+            CHECK(f.extruder_temp == r.extruder);
+            CHECK(f.bed_temp == r.bed);
+        }
+    }
+}
+
+TEST_CASE("SpoolmanSlotSaver: only the exact record a save files is reused without asking",
+          "[spoolman][slot_saver][exact_filament]") {
+    // The one reuse table: the record a slot would file (new_filament_for)
+    // against one already in Spoolman, through find_matching_filament().
+    // Exact is the stored material string, the colour and the normalized
+    // name; everything else is the offer's to ask about.
+    struct Row {
+        const char* what;
+        const char* type;    // the slot's precise type
+        const char* product; // catalog product name, "" for none
+        const char* material;
+        const char* name;
+        const char* hex;
+        bool reused;
+    };
+    const Row rows[] = {
+        {"the record this save files", "PLA+", "", "PLA", "PLA+ Black", "000000", true},
+        {"the same record in another case and spacing", "PLA+", "", "PLA", " pla+   black ",
+         "000000", true},
+        {"another colour", "PLA+", "", "PLA", "PLA+ Black", "111111", false},
+        {"the colour written with '#'", "PLA+", "", "PLA", "PLA+ Black", "#000000", true},
+        {"the colour with an alpha byte", "PLA+", "", "PLA", "PLA+ Black", "00000033", false},
+        {"the material as typed, not as stored", "PLA+", "", "PLA+", "PLA+ Black", "000000", false},
+        {"plain on a plus record", "PLA", "", "PLA", "PLA+ Black", "000000", false},
+        {"plus on a plain record", "PLA+", "", "PLA", "PLA Black", "000000", false},
+        {"a hand-typed plus", "PLA", "", "PLA", "PLA Plus Black", "000000", false},
+        {"a hand-typed carbon fill", "PLA", "", "PLA", "Carbon Fiber PLA Black", "000000", false},
+        {"a filled grade on its plain base", "PC-CF", "", "PC", "PC Black", "000000", false},
+        {"a wood fill on plain PLA", "Wood PLA", "", "PLA", "PLA Black", "000000", false},
+        {"another shore hardness", "TPU-85A", "", "TPU", "TPU-95A Black", "000000", false},
+        {"TPE on TPU", "TPE", "", "TPU", "TPU Black", "000000", false},
+        {"another nylon", "PA66", "", "PA", "PA12 Black", "000000", false},
+        {"PA12-CF on the PA-CF record", "PA12-CF", "", "PA-CF", "PA-CF Black", "000000", false},
+        {"PAHT-CF on a PA6-CF record", "PAHT-CF", "", "PA-CF", "PA6-CF Black", "000000", false},
+        {"recycled on virgin", "rPLA", "", "PLA", "PLA Black", "000000", false},
+        {"recycled PETG on virgin", "rPETG", "", "PETG", "PETG Black", "000000", false},
+        {"a catalog plus product typed as its broad type", "PLA", "PLA+", "PLA", "PLA Black",
+         "000000", false},
+        {"a catalog filled product typed as its broad type", "ASA", "ASA-CF", "ASA", "ASA Black",
+         "000000", false},
+        {"a catalog silk product typed as its broad type", "PLA", "PLA Silk", "PLA", "PLA Black",
+         "000000", false},
+        {"the catalog product's own record", "PLA", "PLA+", "PLA", "PLA+ Black", "000000", true},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.what) {
+            SlotInfo slot = esun_abs_plus_slot();
+            slot.material = r.type;
+            slot.product_name = r.product;
+            slot.color_rgb = 0x000000;
+            slot.color_name = "Black";
+            const NewFilament filed = SpoolmanSlotSaver::new_filament_for(slot, slot);
+
+            FilamentInfo record;
+            record.id = 9;
+            record.material = r.material;
+            record.filament_name = r.name;
+            record.color_hex = r.hex;
+            const std::vector<FilamentInfo> records{record};
+            const bool reused =
+                spoolman::find_matching_filament(records, filed.material, filed.name,
+                                                 filed.color_hex) != nullptr;
+            CAPTURE(filed.material, filed.name);
+            CHECK(reused == r.reused);
+        }
+    }
+}
+
+TEST_CASE("SpoolmanSlotSaver save: reuse, a repoint and a catalog pick through the API",
+          "[spoolman][slot_saver][exact_filament]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    serve_only_linked_spool(client);
+    client.spoolman_mock().add_vendor(1, "Polymaker");
+    client.spoolman_mock().add_filament(100, 1, "PLA", "7A7A7A", "Stone Grey");
+    client.spoolman_mock().add_filament(8, 1, "PLA", "7A7A7A", "Silk PLA Grey");
+    client.spoolman_mock().next_created_filament_id = 501;
+    SpoolmanSlotSaver saver(&api);
+
+    SlotInfo original = make_test_slot();
+    original.material = "PLA";
+    original.color_rgb = 0x7A7A7A;
+    original.color_name = "Grey";
+    original.spoolman_filament_id = 100;
+    SlotInfo edited = original;
+    SaveResult got{};
+
+    SECTION("a linked spool moved to the type of an exact record is repointed to it") {
+        edited.material = "Silk PLA";
+        saver.save(original, edited, [&](const SaveResult& res) { got = res; });
+        REQUIRE(got.success);
+        CHECK(got.repointed_filament);
+        CHECK(got.new_filament_id == 8);
+        CHECK(client.spoolman_mock().created_filaments.empty());
+    }
+    SECTION("a linked spool moved to a type with no exact record files one, never offering "
+            "its own") {
+        // Both records sit at distance 0 and the spool's own comes first.
+        int offered = 0;
+        saver.set_similar_filament_chooser(
+            [&](const FilamentInfo& similar,
+                std::function<void(SpoolmanSlotSaver::SimilarChoice)> answer) {
+                offered = similar.id;
+                answer(SpoolmanSlotSaver::SimilarChoice::CreateNew);
+            });
+        edited.material = "PLA+";
+        edited.nozzle_temp_min = 200;
+        edited.nozzle_temp_max = 230;
+        edited.bed_temp = 60;
+        saver.save(original, edited, [&](const SaveResult& res) { got = res; });
+        REQUIRE(got.success);
+        CHECK(offered == 8);
+        CHECK(got.repointed_filament);
+        CHECK(got.new_filament_id == 501);
+        REQUIRE(client.spoolman_mock().created_filaments.size() == 1);
+        const auto& payload = client.spoolman_mock().created_filaments[0];
+        CHECK(payload["material"] == "PLA");
+        CHECK(payload["name"] == "PLA+ Grey");
+        CHECK(payload["settings_extruder_temp"] == 215);
+        CHECK(payload["settings_bed_temp"] == 60);
+    }
+    SECTION("a catalog pick alone does no filament work") {
+        edited.catalog_id = "polymaker-polyterra-pla";
+        edited.product_name = "PolyTerra PLA";
+        saver.save(original, edited, [&](const SaveResult& res) { got = res; });
+        REQUIRE(got.success);
+        CHECK_FALSE(got.repointed_filament);
+        CHECK(client.spoolman_mock().created_filaments.empty());
+        CHECK(client.spoolman_mock().spool_updates.empty());
+    }
+}
+
+TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: Use existing adopts the record whole",
+          "[spoolman][slot_saver][similar_filament]") {
+    SlotInfo committed = esun_abs_plus_slot();
+    committed.catalog_id = "esun-abs-plus";
+    committed.product_name = "ABS+";
+    SaveResult result;
+    result.success = true;
+    result.created_new_spool = true;
+    result.new_filament_id = 73;
+    FilamentInfo record;
+    record.id = 73;
+    record.material = "ABS";
+    record.filament_name = "Grey ABS+HS";
+    record.color_hex = "#636363";
+    record.nozzle_temp_min = record.nozzle_temp_max = 250;
+    record.bed_temp_min = record.bed_temp_max = 100;
+    result.adopted = record;
+
+    SpoolmanSlotSaver::apply_save_result_identity(committed, result);
+    CHECK(committed.color_rgb == 0x636363u);
+    CHECK(committed.material == "ABS");
+    CHECK(committed.spool_name == "Grey ABS+HS");
+    CHECK(committed.catalog_id.empty());
+    CHECK(committed.product_name.empty());
+    CHECK(committed.nozzle_temp_min == 250);
+    CHECK(committed.nozzle_temp_max == 250);
+    CHECK(committed.bed_temp == 100);
 }

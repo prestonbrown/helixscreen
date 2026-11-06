@@ -246,6 +246,7 @@
   <translation tag="Add Widget" ja="ウィジェットを追加"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" ja="printer.cfg に [include helix-plr/*.cfg] を追加し、再開時に印刷開始時のメッシュを読み込み直します"/>
   <translation tag="Add custom filament" ja="カスタムフィラメントを追加"/>
+  <translation tag="Add new" ja="新規追加"/>
   <translation tag="Add page" ja="ページを追加"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ja="Mainsail/Fluiddのウェブカメラに追加"/>
   <translation tag="Add to Queue" ja="キューに追加"/>
@@ -3512,6 +3513,7 @@
   <translation tag="Spoolman" ja="Spoolman"/>
   <translation tag="Spoolman Not Available" ja="Spoolman は利用できません"/>
   <translation tag="Spoolman Server" ja="Spoolman サーバー"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" ja="Spoolman には、このブランドの近い色の「{}」がすでにあります。レーン {} に使用しますか、それとも新しいフィラメントを追加しますか？"/>
   <translation tag="Spoolman connected!" ja="Spoolman に接続しました！"/>
   <translation tag="Spoolman found! Configuring..." ja="Spoolman を検出しました！設定中..."/>
   <translation tag="Spoolman has no spools configured" ja="Spoolman にスプールが設定されていません"/>
@@ -4215,6 +4217,8 @@
   <translation tag="Use New Address" ja="新しいアドレスを使用"/>
   <translation tag="Use Scan" ja="スキャンを使用"/>
   <translation tag="Use Unload before Eject" ja="先に「アンロード」してから「排出」してください"/>
+  <translation tag="Use existing" ja="既存を使用"/>
+  <translation tag="Use existing filament?" ja="既存のフィラメントを使用しますか？"/>
   <translation tag="Use first HID scanner found" ja="最初に見つかった HID スキャナーを使用"/>
   <translation tag="Use printer type to select image" ja="プリンタータイプで画像を選択"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ja="プリンター本体の画面で設定したホームレイアウトを使用"/>

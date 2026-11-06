@@ -3,7 +3,10 @@
 
 #include "spoolman_catalog_search.h"
 
+#include "color_utils.h"
 #include "core/text_io.h"
+#include "filament_mapper.h"
+#include "filament_variants.h"
 #include "moonraker_error.h"
 
 #include <algorithm>
@@ -56,6 +59,23 @@ uint64_t SpoolmanCatalogSearch::begin() {
 
 namespace spoolman {
 
+std::string normalized_name(const std::string& name) {
+    std::string out;
+    bool space = false;
+    for (char c : text_io::trim(name)) {
+        if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+            space = true;
+            continue;
+        }
+        if (space && !out.empty()) {
+            out += ' ';
+        }
+        space = false;
+        out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return out;
+}
+
 std::string normalize_color_hex(const std::string& hex) {
     std::string s = hex;
     if (!s.empty() && s[0] == '#') {
@@ -74,18 +94,74 @@ std::string normalize_color_hex(const std::string& hex) {
 }
 
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
-                                           const std::string& material,
+                                           const std::string& material, const std::string& name,
                                            const std::string& color_hex) {
     const std::string needle = normalize_color_hex(color_hex);
     if (needle.empty()) {
         return nullptr;
     }
+    const std::string wanted_name = normalized_name(name);
     for (const auto& f : filaments) {
-        if (f.material == material && normalize_color_hex(f.color_hex) == needle) {
+        if (f.material == material && normalize_color_hex(f.color_hex) == needle &&
+            normalized_name(f.filament_name) == wanted_name) {
             return &f;
         }
     }
     return nullptr;
+}
+
+std::string new_filament_name(const std::string& product, const std::string& color_name) {
+    const std::string head(text_io::trim(product));
+    const std::string tail(text_io::trim(color_name));
+    if (head.empty() || tail.empty()) {
+        return head.empty() ? tail : head;
+    }
+    return head + " " + tail;
+}
+
+std::string filament_display_name(const FilamentInfo& filament, const std::string& color_name) {
+    std::string name(text_io::trim(filament.filament_name));
+    return name.empty() ? new_filament_name(filament.material, color_name) : name;
+}
+
+int temperature_for_range(int min_temp, int max_temp) {
+    if (min_temp > 0 && max_temp > 0) {
+        return (min_temp + max_temp) / 2;
+    }
+    return std::max({min_temp, max_temp, 0});
+}
+
+const FilamentInfo* find_similar_filament(const std::vector<FilamentInfo>& filaments,
+                                          const std::string& material, const std::string& color_hex,
+                                          int exclude_id) {
+    const std::string needle = normalize_color_hex(color_hex);
+    if (needle.empty() || material.empty()) {
+        return nullptr;
+    }
+    // The first six digits are the colour; an alpha byte does not move it.
+    const auto wanted = parse_hex_color(needle.substr(0, 6));
+    if (!wanted) {
+        return nullptr;
+    }
+    const FilamentInfo* best = nullptr;
+    int best_distance = FilamentMapper::kColorMatchTolerance + 1;
+    for (const auto& f : filaments) {
+        const std::string hex = normalize_color_hex(f.color_hex);
+        if ((exclude_id > 0 && f.id == exclude_id) || hex.empty() ||
+            filament::slicer_material(f.material) != material) {
+            continue;
+        }
+        const auto rgb = parse_hex_color(hex.substr(0, 6));
+        if (!rgb) {
+            continue;
+        }
+        const int distance = FilamentMapper::color_distance(*wanted, *rgb);
+        if (distance < best_distance) {
+            best = &f;
+            best_distance = distance;
+        }
+    }
+    return best;
 }
 
 namespace {

@@ -900,6 +900,8 @@ TEST_CASE("AFC segment: works with discovered lanes", "[ams][afc][discovery][seg
 // no '#', and pure black is a deliberate pick that persists while the default
 // grey does not (#1597). Materials keep their punctuation and are quoted when
 // they hold a space, since Klipper splits extended-command args on whitespace.
+// A Spoolman-linked lane sends the type the slicer matches, as its Spoolman
+// filament records it, since AFC copies the lane's material into lane_data.
 // Weights go out as whole grams; zero or unknown sends nothing. A spool-link
 // clear sends an empty SPOOL_ID, and an unlinked lane staying unlinked sends
 // nothing.
@@ -926,6 +928,12 @@ TEST_CASE("AFC persistence writes each edited field in AFC's format", "[ams][afc
          "SET_MATERIAL LANE=lane1 MATERIAL=PLA+", nullptr},
         {"multi-word material", 0, 0, [](SlotInfo& i) { i.material = "Silk PLA"; },
          "SET_MATERIAL LANE=lane1 MATERIAL=\"Silk PLA\"", nullptr},
+        {"linked lane's material", 0, 0,
+         [](SlotInfo& i) {
+             i.spoolman_id = 152;
+             i.material = "ABS+";
+         },
+         "SET_MATERIAL LANE=lane1 MATERIAL=ABS", nullptr},
         {"empty material", 0, 0, [](SlotInfo& i) { i.material = ""; }, nullptr, "SET_MATERIAL"},
         {"fractional weight", 0, 0, [](SlotInfo& i) { i.remaining_weight_g = 850.5f; },
          "SET_WEIGHT LANE=lane1 WEIGHT=850", nullptr},

@@ -246,6 +246,7 @@
   <translation tag="Add Widget" it="Aggiungi widget"/>
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" it="Aggiunge [include helix-plr/*.cfg] a printer.cfg così che una ripresa ricarichi la mesh con cui è iniziata la stampa"/>
   <translation tag="Add custom filament" it="Aggiungi filamento personalizzato"/>
+  <translation tag="Add new" it="Aggiungi nuovo"/>
   <translation tag="Add page" it="Aggiungi pagina"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" it="Aggiungi alle webcam di Mainsail/Fluidd"/>
   <translation tag="Add to Queue" it="Aggiungi alla coda"/>
@@ -3512,6 +3513,7 @@
   <translation tag="Spoolman" it="Spoolman"/>
   <translation tag="Spoolman Not Available" it="Spoolman non disponibile"/>
   <translation tag="Spoolman Server" it="Server Spoolman"/>
+  <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" it="Spoolman ha già &quot;{}&quot; di questa marca in un colore simile. Usarlo per la corsia {} o aggiungere un nuovo filamento?"/>
   <translation tag="Spoolman connected!" it="Spoolman connesso!"/>
   <translation tag="Spoolman found! Configuring..." it="Spoolman trovato! Configurazione..."/>
   <translation tag="Spoolman has no spools configured" it="Spoolman non ha bobine configurate"/>
@@ -4215,6 +4217,8 @@
   <translation tag="Use New Address" it="Usa nuovo indirizzo"/>
   <translation tag="Use Scan" it="Usa scansione"/>
   <translation tag="Use Unload before Eject" it="Usa Scarica prima di Espelli"/>
+  <translation tag="Use existing" it="Usa esistente"/>
+  <translation tag="Use existing filament?" it="Usare un filamento esistente?"/>
   <translation tag="Use first HID scanner found" it="Usa il primo scanner HID trovato"/>
   <translation tag="Use printer type to select image" it="Usa il tipo di stampante per selezionare l&apos;immagine"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" it="Usa il layout iniziale impostato sullo schermo della stampante"/>
