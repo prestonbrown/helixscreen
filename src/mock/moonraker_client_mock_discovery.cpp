@@ -276,15 +276,22 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("zmod");
         mock_objects.push_back("zmod_color");
         mock_objects.push_back("save_variables");
-        // Z-Mod 1.7.4's afclite shim: the AFC-shaped objects it registers so
-        // Fluidd/Mainsail draw an AFC panel for the C5's heads (names from
-        // field bundle 5WSPTZBL). Discovery must yield the AFC claim these
+        // Z-Mod's AFC-shaped objects, which exist so Fluidd/Mainsail draw an
+        // AFC panel for the C5's heads: the built-in emulation's lane1..4 under
+        // HELIX_MOCK_ZMOD_AFC, else Z-Mod 1.7.4's afclite shim (names from
+        // field bundle 5WSPTZBL). Discovery must yield the AFC claim either
         // would otherwise raise to the tool changer.
-        mock_objects.push_back("zmod_afclite");
-        mock_objects.push_back("AFC");
-        mock_objects.push_back("AFC_unit C5");
+        if (zmod_builtin_afc_) {
+            push_zmod_builtin_afc_objects(mock_objects);
+        } else {
+            mock_objects.push_back("zmod_afclite");
+            mock_objects.push_back("AFC");
+            mock_objects.push_back("AFC_unit C5");
+            for (int i = 0; i < 4; ++i) {
+                mock_objects.push_back("AFC_lane E" + std::to_string(i));
+            }
+        }
         for (int i = 0; i < 4; ++i) {
-            mock_objects.push_back("AFC_lane E" + std::to_string(i));
             mock_objects.push_back("filament_switch_sensor fd_ex" + std::to_string(i));
             mock_objects.push_back("filament_motion_sensor fm_ex" + std::to_string(i));
         }
@@ -335,6 +342,11 @@ void MoonrakerClientMock::populate_capabilities() {
         // the IFS module's own objects: those make discovery stand up the
         // production AD5X IFS backend, and this persona runs the mock IFS.
         mock_objects.push_back("gcode_macro SET_EXTRUDER_SLOT");
+        // Z-Mod with its built-in AFC enabled (AFC=1).
+        if (zmod_builtin_afc_) {
+            mock_objects.push_back("zmod_color");
+            push_zmod_builtin_afc_objects(mock_objects);
+        }
         break;
     case PrinterType::CREALITY_K2_PLUS:
         // The K2 Plus capture's identifying objects. `box` rides on is_mock_cfs().

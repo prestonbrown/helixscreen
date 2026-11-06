@@ -704,6 +704,83 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
     CHECK_FALSE(std::filesystem::exists(record));
 }
 
+namespace {
+/// The AD5X IFS backend on Z-Mod with the built-in AFC, registered as the
+/// active backend: the shape every Z-Mod AD5X print start runs against.
+struct ScopedZmodIfsBackend {
+    explicit ScopedZmodIfsBackend(bool builtin_afc = true) {
+        AmsState::instance().init_subjects(true);
+        auto be = std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr);
+        helix::PrinterDiscovery hw;
+        auto objects = nlohmann::json::array(
+            {"zmod", "zmod_color", "zmod_ifs", "filament_motion_sensor ifs_motion_sensor"});
+        if (builtin_afc) {
+            for (const char* o : {"AFC", "AFC_IFS IFS", "AFC_lane lane1", "AFC_lane lane2",
+                                  "AFC_lane lane3", "AFC_lane lane4"}) {
+                objects.push_back(o);
+            }
+        }
+        hw.parse_objects(objects);
+        be->set_discovery(hw);
+        AmsState::instance().set_backend(std::move(be));
+    }
+    ~ScopedZmodIfsBackend() {
+        AmsState::instance().set_backend(nullptr);
+    }
+};
+} // namespace
+
+TEST_CASE("print start on a Z-Mod AD5X carries the card's map, Auto left empty",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"ifs_print_start_tools"};
+    ScopedZmodIfsBackend be;
+    Harness h;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    // T0 picked onto port 3, T1 a seed on port 1, T2 Auto.
+    helix::ToolMapping auto_row = row(2, 1, false);
+    auto_row.is_auto = true;
+    view.set_filament_mappings({row(0, 2, true), row(1, 0, false), auto_row});
+
+    CHECK(h.controller.print_start_params() == helix::PrintStartParams{{"tools", "3,1"}});
+    h.controller.set_detail_view(nullptr);
+}
+
+TEST_CASE("print start on a Z-Mod AD5X with AFC=0 sends no tool map",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"ifs_print_start_no_tools"};
+    ScopedZmodIfsBackend be{/*builtin_afc=*/false};
+    Harness h;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    view.set_filament_mappings({row(0, 2, true)});
+
+    CHECK(h.controller.print_start_params().empty());
+    h.controller.set_detail_view(nullptr);
+}
+
+TEST_CASE("a reprint on Z-Mod sends no tool map it would have to guess",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"reprint_tools"};
+    ScopedZmodIfsBackend be;
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    SECTION("a reprint from the print status panel") {
+        h.controller.initiate_reprint("cube.gcode", "", {0, 1}, nullptr, nullptr);
+    }
+    SECTION("a PA tower, whose routing names heads") {
+        h.controller.initiate_reprint_with_routing("pa_tower.gcode", {0}, {{0, 0}}, nullptr,
+                                                   nullptr);
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.api.job_mock().started_print_params().size() == 1);
+    CHECK(h.api.job_mock().started_print_params()[0].empty());
+}
+
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {
     LVGLTestFixture fx;
     // A re-init registers AmsState's invalidator, which clearing the registry drops.

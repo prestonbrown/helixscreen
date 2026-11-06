@@ -33,6 +33,7 @@
 #include "moonraker_types.h"
 #include "pa_calibration.h"
 #include "print_history_data.h"
+#include "print_start_params.h"
 #include "spoolman_types.h"
 
 #include <atomic>
@@ -121,8 +122,11 @@ class IJobAPI {
 
     virtual ~IJobAPI() = default;
 
+    /// @p extra_params ride beside `filename` in printer.print.start
+    /// (helix::print_start: a firmware's per-print tool -> slot map).
     virtual void start_print(const std::string& filename, SuccessCallback on_success,
-                             ErrorCallback on_error) = 0;
+                             ErrorCallback on_error,
+                             const helix::PrintStartParams& extra_params = {}) = 0;
 
     virtual void start_modified_print(const std::string& original_filename,
                                       const std::string& temp_file_path,

@@ -1479,6 +1479,14 @@ stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
+`HELIX_MOCK_ZMOD_AFC=1` swaps the afclite shim's objects for Z-Mod's built-in AFC
+emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
+`CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the
+tool changer. On the `ad5x` persona the same flag adds `zmod_color` and those objects
+(discovery picks `AD5X_IFS`), and the mock IFS backend answers
+`AmsBackend::print_start_params()` the way Z-Mod's AD5X does, so a mapped print logs
+`printer.print.start tools=...` from the mock Moonraker.
+
 It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`
 answers with the firmware's action:prompt (plate warning, OK/Cancel) and its OK
 (`_T_CALIBRATE_EXTRUDERS`) closes it; `CALIBRATE_VFA T=<n>` narrates a grab and a

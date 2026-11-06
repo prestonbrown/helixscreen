@@ -13,6 +13,7 @@
 #include "print_lifecycle_state.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
+#include "print_start_params.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -227,6 +228,11 @@ class PrintStartController {
     void set_can_print_subject(lv_subject_t* subject) {
         can_print_subject_ = subject;
     }
+
+    /// The printer.print.start parameters carrying this print's full tool map,
+    /// from the backend its lanes belong to (AmsBackend::print_start_params()).
+    /// Empty where that backend's printer takes no map at the start.
+    [[nodiscard]] helix::PrintStartParams print_start_params() const;
 
   private:
     /// Reads a reprinted file's tools when its caller has none; created on that use.

@@ -34,7 +34,8 @@ bool MoonrakerJobAPI::refused_by_spool_latch(const char* method,
 // ============================================================================
 
 void MoonrakerJobAPI::start_print(const std::string& filename, SuccessCallback on_success,
-                                  ErrorCallback on_error) {
+                                  ErrorCallback on_error,
+                                  const helix::PrintStartParams& extra_params) {
     // Validate filename path
     if (reject_invalid_path(filename, "start_print", on_error))
         return;
@@ -42,8 +43,11 @@ void MoonrakerJobAPI::start_print(const std::string& filename, SuccessCallback o
         return;
 
     json params = {{"filename", filename}};
+    for (const auto& [name, value] : extra_params) {
+        params[name] = value;
+    }
 
-    spdlog::debug("[Moonraker API] Starting print: {}", filename);
+    spdlog::debug("[Moonraker API] Starting print: {}", params.dump());
 
     // This start sends its own options; the job history adds next is ours.
     auto& ledger = helix::screen_start_ledger();

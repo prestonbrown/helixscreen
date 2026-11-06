@@ -327,6 +327,12 @@ class AmsBackendMock : public AmsBackend,
     void set_firmware_picks_lanes_at_print(bool picks);
     [[nodiscard]] bool firmware_picks_lanes_at_print() const override;
 
+    /// Emulate a print start that takes the print's tool map, each slot as
+    /// its 1-based port (Z-Mod on the AD5X).
+    void set_print_start_takes_tool_slots(bool takes);
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
+
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
     /// Reached in a mock run with HELIX_MOCK_REMAP_READY=0.
@@ -1119,6 +1125,7 @@ class AmsBackendMock : public AmsBackend,
     /// non-Snapmaker mode stands in for a table-owning backend.
     RemapStrategy remap_strategy_ = RemapStrategy::Native;
     bool firmware_picks_lanes_at_print_ = false;
+    bool print_start_takes_tool_slots_ = false;
     bool remap_ready_ = true; ///< Cleared to emulate AD5X IFS before `_IFS_VARS`
     /// The emulated print_task_config, in the firmware's own two fields so
     /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both

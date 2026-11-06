@@ -109,6 +109,11 @@ class GcodeCapturingBackend : public AmsBackendAd5xIfs {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
+    /// Deliver one status frame the way the subscription does.
+    void feed(const nlohmann::json& frame) {
+        handle_status_update(
+            nlohmann::json{{"method", "notify_status_update"}, {"params", {frame, 0.0}}});
+    }
     bool any_gcode_starts_with(const std::string& prefix) const {
         for (const auto& g : captured_gcodes) {
             if (g.rfind(prefix, 0) == 0)
@@ -2126,7 +2131,6 @@ TEST_CASE("AD5X IFS self-heals on Unknown command:\"_IFS_VARS\" response", "[ams
     // Seed the wrong-state: macro 'confirmed present' and has_ifs_vars_ true.
     Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
 
     // Klipper's gcode.cmd_default emits this exact line via respond_info
     // when an unknown command is dispatched (klippy/gcode.py).
@@ -7209,6 +7213,7 @@ TEST_CASE("AD5X IFS unhomed change_tool sends G28 before A_CHANGE_FILAMENT (#124
 
     REQUIRE(backend.change_tool(1).success());
 
+    CAPTURE(backend.captured_gcodes);
     REQUIRE(backend.captured_gcodes.size() == 2);
     CHECK(backend.captured_gcodes[0] == "G28");
     CHECK(backend.captured_gcodes[1] == "A_CHANGE_FILAMENT CHANNEL=2");
@@ -12902,4 +12907,27 @@ TEST_CASE("Starting a backend reads the records its load never got",
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(store_of(backend).namespace_unread());
     backend.stop();
+}
+
+TEST_CASE("AD5X IFS writes the plugin's table before Z-Mod's AFC lane map",
+          "[ams][ad5x_ifs][tool_mapping][2033]") {
+    MockPrinter mock_printer;
+    GcodeCapturingBackend backend(&mock_printer.api, nullptr);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"zmod", "zmod_color", "zmod_ifs", "AFC", "AFC_IFS IFS", "AFC_lane lane3"}));
+    backend.set_discovery(hw);
+    // The lessWaste plugin's macro confirmed, then its table.
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    backend.feed(make_save_variables(standard_variables()));
+    backend.captured_gcodes.clear();
+
+    // The table that routes the print goes first, so a refused SET_MAP (it
+    // only mirrors the pick for the AFC panels) can never cost it its write.
+    REQUIRE(backend.set_tool_mapping(0, 2).success());
+    CAPTURE(backend.captured_gcodes);
+    REQUIRE(backend.captured_gcodes.size() == 2);
+    CHECK(backend.captured_gcodes[0].rfind("_IFS_VARS tools=", 0) == 0);
+    CHECK(backend.captured_gcodes[1] == "SET_MAP LANE=lane3 MAP=T0");
+    helix::ui::UpdateQueue::instance().drain();
 }

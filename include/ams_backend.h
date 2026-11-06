@@ -25,6 +25,7 @@
 #include "firmware_routing.h"
 #include "lane_binding.h"
 #include "lane_source_store.h"
+#include "print_start_params.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
 #include "toolhead_style.h"
@@ -551,6 +552,22 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool firmware_picks_lanes_at_print() const {
         return false;
+    }
+
+    /**
+     * @brief printer.print.start parameters that carry this print's tool map.
+     *
+     * For a firmware that takes the map per print instead of from a table it
+     * keeps (helix::print_start::takes_tool_slots()). @p tool_slots is the
+     * print's final map, G-code tool -> this backend's 0-based slot index; the
+     * backend names each slot the way the firmware numbers it. Default empty:
+     * the print starts with its filename alone.
+     *
+     * @note May take the backend's mutex_: never call with it held.
+     */
+    [[nodiscard]] virtual helix::PrintStartParams
+    print_start_params(const std::map<int, int>& /*tool_slots*/) const {
+        return {};
     }
 
     /**
