@@ -172,10 +172,10 @@ the store screenshots are landscape to match.
 On every release tag (`v*`), `.github/workflows/release.yml` runs:
 
 1. **`build-android`** — builds APKs (`assembleRelease`) and an AAB (`bundleRelease`), signed with the upload keystore held in GitHub secrets. Verifies the signature on the built bytes before anything is uploaded (see "What happens when the keystore is missing"). Generates a Play Store "What's new" text from `CHANGELOG.md` and uploads three artifacts: `release-android` (APKs), `release-android-aab` (AAB), `release-android-whatsnew`.
-2. **`publish-android`** — uploads the AAB to the Play Store's **internal** track with status **draft**, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
+2. **`publish-android`** — uploads the AAB to the Play Store's **production** track with status **completed** (a full rollout) and sends it for review, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
 3. **`release`** — attaches all artifacts to the GitHub release. It `needs` **both** `build-platforms` and `build-android`, and asserts the three APKs and the AAB are present by name before creating the release. Without the `build-android` dependency the release could be created while Android was still building (90 min budget against the matrix's 82) and, because the artifact globs run with `fail_on_unmatched_files: false`, it would publish with no Android downloads and still report success.
 
-Once the upload lands on the internal track, you promote it to open testing or production from the Play Console UI. The automation stops at `draft` on purpose so every release gets a final human review before it goes live.
+A stable tag reaches every Play user once Google's review passes, with no step in Play Console. Play cannot roll a release back: a bad stable is fixed by shipping a newer one.
 
 ## Source of truth
 
@@ -280,7 +280,7 @@ sharing or the internal track with two versionCodes.
 
 ## Promoting a release
 
-The automation stops at **internal / draft**. Promote manually:
+The automation publishes straight to **Production**. The manual steps below apply only to a release uploaded by hand:
 
 1. Play Console → Release → Testing → **Internal testing** — click the draft release, review, and roll it out to testers (or discard and let the next tag upload a fresh one).
 2. Once smoke-tested: **Promote release** → **Open testing** → submit for review (~1–3 days for review on a new app; faster on updates).
@@ -294,9 +294,9 @@ To change the target track or status, edit the `publish-android` job in `.github
 
 | Setting | Value now | Alternatives |
 |---------|-----------|--------------|
-| `track` | `internal` | `alpha`, `beta`, `production` |
-| `status` | `draft` | `inProgress`, `halted`, `completed` |
-| `changesNotSentForReview` | `true` | `false` — sends the release for review automatically; can't be used on `production` without supplying release notes |
+| `track` | `production` | `internal`, `alpha`, `beta` |
+| `status` | `completed` | `draft`, `inProgress`, `halted` |
+| `changesNotSentForReview` | `false` | `true` — leaves the release unsent, so it waits in Play Console for you to send it for review |
 
 ## Local dry runs
 
