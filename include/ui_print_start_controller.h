@@ -419,6 +419,10 @@ class PrintStartController {
     /// restore it if no job holds the machine, or at that job's end if one does.
     void observe_print_report_for_restore();
 
+    /// The answer to the one-shot print_stats query observe_print_report_for_restore()
+    /// sends, as of report sequence @p seen. Main thread.
+    void on_print_state_answer(int seen, const std::string& state);
+
     /**
      * @brief Wait for Klipper to become READY, then retry a deferred restore.
      *
