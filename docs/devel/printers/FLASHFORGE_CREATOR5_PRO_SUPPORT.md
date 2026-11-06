@@ -39,7 +39,7 @@ wording, the bar stays silently suppressed until the parser learns it.
 | SoC | Ingenic X2600 (XBurst2, MIPS32r2, 2 cores), the AD5X's SoC: the device tree reports `ingenic,x2600` |
 | FPU / ABI | Hard float, 64-bit FPU (`-mfp64`), **NaN2008** (`/lib/ld-linux-mipsn8.so.1`) |
 | RAM | 512 MB (MemTotal ~473 MB on 59 of 61 Creator 5 devices in telemetry). U-Boot sets `mem=` from the DRAM it detects; a unit that detects 256 MB boots with about 228 MB (see `../PERFORMANCE.md`) |
-| Display | 800x480 panel; the framebuffer is exposed **portrait (480x800)**, so the preset sets `display.rotate = 90` (verified on the printer); fbdev `/dev/fb0`, no X11/Wayland/DRM |
+| Display | 800x480 panel; the framebuffer (`jzfb`, mode `U:480x800p-60`, virtual 480x1600) is exposed **portrait (480x800)**, upright at `display.rotate = 90` (verified on the printer). The preset carries it for installer installs and the board-mount table (`kKnownPanels` in `src/application/display_metrics.cpp`) applies it on a first boot without one, such as a Z-Mod unzip; fbdev `/dev/fb0`, no X11/Wayland/DRM |
 | Touch | evdev, `/dev/input/event2` (auto-detected; override with `HELIX_TOUCH_DEVICE`) |
 | Stock UI | `firmwareExe` - LVGL 8 on fbdev. **Also** hosts the port-8898 REST API, the MQTT cloud link, and the tool-pickup orchestration for UI-started prints |
 | C library | glibc 2.33, built with Ingenic "MIPS Linux Tools GCC12.1 Release6.0.1 xburst2" (`mips-gcc1210-glibc233`), min kernel 3.10.14 |

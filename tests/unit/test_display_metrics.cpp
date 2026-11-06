@@ -10,6 +10,7 @@
 
 #include "board_identity.h"
 #include "display_metrics.h"
+#include "test_helpers/unique_temp_dir.h"
 
 #include <cmath>
 #include <filesystem>
@@ -231,6 +232,42 @@ TEST_CASE("a Creator 5 panel comes up in its mount without the rotation probe",
         CHECK(DisplayMetrics::board_mount_rotation(board, 480, 800) == 90);
         CHECK(DisplayMetrics::board_mount_rotation(board, 800, 480) == -1);
     }
+}
+
+TEST_CASE("each unified-build board resolves to its own first-boot mount",
+          "[display_metrics][panel]") {
+    // The AD5X and Creator 5 share one Ingenic SoC, so the board comes from the machine id
+    // and the framebuffer geometry confirms the mount. Inside the Z-Mod chroot only
+    // /usr/prog/config is bound and the machine id is VERSION_CODENAME's first word.
+    namespace fs = std::filesystem;
+    const fs::path base = helix::test::unique_temp_dir("helix-display-mount-test");
+    const auto zmod_chroot = [&base](const char* dir, const char* codename) {
+        const fs::path root = base / dir;
+        fs::create_directories(root / "usr/prog/config");
+        fs::create_directories(root / "etc");
+        std::ofstream(root / "etc/os-release") << "VERSION_CODENAME=\"" << codename << "\"\n";
+        return root.string();
+    };
+    struct Row {
+        std::string root;
+        Board board;
+        int width, height, mount;
+    };
+    const Row rows[] = {
+        {zmod_chroot("c5pro", "Creator5Pro 2.0.0"), Board::Creator5Pro, 480, 800, 90},
+        {zmod_chroot("c5", "Creator5 2.0.0"), Board::Creator5, 480, 800, 90},
+        {zmod_chroot("ad5x", "AD5X 1.1.6"), Board::Ad5x, 800, 480, -1},
+        {(base / "k1").string(), Board::K1, 480, 800, 270},
+    };
+    fs::create_directories(base / "k1");
+    for (const auto& row : rows) {
+        INFO("root: " << row.root);
+        const Board board = helix::board::resolve("mips", row.root);
+        CHECK(board == row.board);
+        CHECK(DisplayMetrics::board_mount_rotation(board, row.width, row.height) == row.mount);
+    }
+    std::error_code ec;
+    fs::remove_all(base, ec);
 }
 
 TEST_CASE("a K1-resolved board with another framebuffer still runs the probe",
