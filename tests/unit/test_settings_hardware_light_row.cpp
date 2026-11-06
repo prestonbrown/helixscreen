@@ -13,6 +13,7 @@
 #include "ui_settings_hardware.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "capability_overrides.h"
 #include "config.h"
@@ -36,7 +37,7 @@ struct LightRowFixture : public LVGLUITestFixture {
     }
 
     ~LightRowFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
