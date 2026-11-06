@@ -23,6 +23,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_start_params.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
@@ -473,11 +474,34 @@ void AmsBackendAfc::set_discovered_lanes(const std::vector<std::string>& lane_na
 }
 
 void AmsBackendAfc::set_discovery(const helix::PrinterDiscovery& discovery) {
-    firmware_maps_tools_per_print_.store(
-        helix::toolchanger_addon::firmware_picks_lanes_at_print(discovery),
-        std::memory_order_relaxed);
+    const bool firmware_picks = helix::toolchanger_addon::firmware_picks_lanes_at_print(discovery);
+    firmware_maps_tools_per_print_.store(firmware_picks, std::memory_order_relaxed);
+    // A firmware that picks lanes in its own prompt has no map for us to send.
+    print_start_takes_tool_slots_.store(!firmware_picks &&
+                                            helix::print_start::takes_tool_slots(discovery),
+                                        std::memory_order_relaxed);
     set_discovered_lanes(discovery.afc_lane_names(), discovery.afc_hub_names());
     set_discovered_sensors(discovery.filament_sensor_names());
+}
+
+helix::PrintStartParams
+AmsBackendAfc::print_start_params(const std::map<int, int>& tool_slots) const {
+    if (!print_start_takes_tool_slots_.load(std::memory_order_relaxed)) {
+        return {};
+    }
+    std::map<int, int> slot_numbers;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (const auto& [tool, slot] : tool_slots) {
+            if (!slots_.is_valid_index(slot)) {
+                continue;
+            }
+            if (auto number = helix::print_start::slot_number_of_lane(slots_.name_of(slot))) {
+                slot_numbers[tool] = *number;
+            }
+        }
+    }
+    return helix::print_start::tool_slot_params(slot_numbers);
 }
 
 void AmsBackendAfc::set_discovered_sensors(const std::vector<std::string>& sensor_names) {

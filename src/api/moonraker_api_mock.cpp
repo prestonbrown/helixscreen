@@ -370,9 +370,11 @@ helix::MoonrakerJobAPIMock::MoonrakerJobAPIMock(helix::IMoonrakerClient& client,
     : MoonrakerJobAPI(client, state) {}
 
 void helix::MoonrakerJobAPIMock::start_print(const std::string& filename,
-                                             SuccessCallback on_success, ErrorCallback on_error) {
+                                             SuccessCallback on_success, ErrorCallback on_error,
+                                             const helix::PrintStartParams& extra_params) {
     started_prints_.push_back(filename);
-    MoonrakerJobAPI::start_print(filename, std::move(on_success), std::move(on_error));
+    MoonrakerJobAPI::start_print(filename, std::move(on_success), std::move(on_error),
+                                 extra_params);
 }
 
 void helix::MoonrakerJobAPIMock::start_modified_print(const std::string& original_filename,

@@ -592,7 +592,8 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
     };
 
     void start_print(const std::string& filename, SuccessCallback on_success,
-                     ErrorCallback on_error) override;
+                     ErrorCallback on_error,
+                     const helix::PrintStartParams& extra_params = {}) override;
 
     void start_modified_print(const std::string& original_filename,
                               const std::string& temp_file_path,

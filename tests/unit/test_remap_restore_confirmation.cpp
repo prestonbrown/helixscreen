@@ -25,6 +25,7 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/afc_test_access.h"
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/print_start_controller_test_access.h"
@@ -695,6 +696,40 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
     CHECK(be.backend->calls.empty());
     CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
     CHECK_FALSE(std::filesystem::exists(record));
+}
+
+TEST_CASE("print start carries the full tool map where the printer takes it",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"print_start_tools"};
+    ScopedCountingBackend be{{0, 1, 2, 3}};
+    const std::vector<std::string> lanes{"lane1", "lane2", "lane3", "lane4"};
+    Harness h;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    // T0 picked onto lane2, T2 a seed on lane1, T1 left to the firmware:
+    // every lane the card shows is carried, not only the picks.
+    helix::ToolMapping auto_row = row(1, -1, false);
+    auto_row.is_auto = true;
+    view.set_filament_mappings({row(0, 1, true), auto_row, row(2, 0, false)});
+
+    SECTION("Z-Mod") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_IFS IFS", "zmod_color"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+        CHECK(PrintStartControllerTestAccess::print_start_params(h.controller) ==
+              helix::PrintStartParams{{"tools", "2,,1"}});
+    }
+
+    SECTION("any other printer") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_BoxTurtle Turtle_1"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+        CHECK(PrintStartControllerTestAccess::print_start_params(h.controller).empty());
+    }
+    h.controller.set_detail_view(nullptr);
 }
 
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {

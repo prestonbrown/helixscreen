@@ -257,6 +257,16 @@ class PrinterDiscovery {
         return has_zmod_afclite_;
     }
 
+    /// Z-Mod's built-in AFC emulation: the `AFC` object beside Z-Mod's own
+    /// `zmod_color` and without the afclite shim's own object, with lanes
+    /// `lane1..N` where lane N is physical slot N (the AD5X's IFS port, the
+    /// Creator 5's head). Z-Mod's lane picker publishing AFC-shaped objects,
+    /// not the AFC project. A plain fact about the object list; backend
+    /// selection decides what it means.
+    [[nodiscard]] bool has_zmod_afc() const {
+        return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_;
+    }
+
     /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
     /// for subscribing to it. Empty when there is none.
     /// The [medusahc] object exists. A plain fact about the object list; what
@@ -495,7 +505,7 @@ class PrinterDiscovery {
     /// @brief Every filament-system presence flag and count, for the same
     /// purpose. A new flag or count joins here beside its member.
     [[nodiscard]] std::vector<int> filament_system_facts() const {
-        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,
+        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,   has_zmod_afc(),
                 has_indx_,      has_openams_manager_, qidi_box_slot_count_};
     }
 
@@ -1155,6 +1165,8 @@ class PrinterDiscovery {
     bool has_snapmaker_ = false;
     bool has_afc_lite_ = false;
     bool has_zmod_afclite_ = false;
+    bool has_afc_object_ = false;
+    bool has_zmod_color_ = false;
     bool has_tool_changer_ = false;
     /// Filament systems present beside the detected mmu_type_ (a tool changer
     /// carrying another system's lanes).

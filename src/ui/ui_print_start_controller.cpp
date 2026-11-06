@@ -230,6 +230,9 @@ void PrintStartController::execute_print_start() {
     if (restore_owed) {
         observe_lifecycle_for_restore();
     }
+    // The table writes above keep the printer's lane map in step; where the
+    // print start takes the map, these are what decide this print.
+    helix::PrintStartParams start_params = print_start_params();
 
     // Timelapse application now lives SOLELY in
     // PrintPreparationManager::start_print(), which dispatches the timelapse
@@ -257,7 +260,7 @@ void PrintStartController::execute_print_start() {
 
     auto start_now = [this, ps, prep_manager, filename_to_print, path = path_, thumbnail_path,
                       on_started, on_cancelled, update_button, show_detail, exclude_picks,
-                      scan_key = file_scan_key()]() {
+                      scan_key = file_scan_key(), start_params]() {
         // Navigate to print status panel IMMEDIATELY (optimistic navigation)
         // The busy overlay will show on top during download/upload operations.
         // On failure, we'll navigate back to the detail overlay.
@@ -379,7 +382,7 @@ void PrintStartController::execute_print_start() {
                         }
                     });
             },
-            scan_key);
+            scan_key, start_params);
     };
 
     // Some backends (Snapmaker U1) must emit firmware-native print_task_config
@@ -952,6 +955,40 @@ bool restore_landed(const std::vector<int>& saved, const std::vector<int>& live)
     return true;
 }
 } // namespace
+
+helix::PrintStartParams PrintStartController::print_start_params() const {
+    // Every lane the card shows, picked or seeded: a map taken at the start
+    // replaces the printer's choice for the whole print, so it must carry the
+    // full map the user confirmed, not only the changed rows. An Auto row is
+    // left out, leaving that tool to the firmware.
+    std::map<int, int> tool_slots;
+    int backend_idx = -1;
+    for (const auto& m : gather_print_start_context().mappings) {
+        if (m.is_auto || m.mapped_slot < 0 || m.tool_index < 0) {
+            continue;
+        }
+        // A slot number names a lane only within its own backend.
+        const int backend = m.mapped_backend < 0 ? 0 : m.mapped_backend;
+        if (backend_idx < 0) {
+            backend_idx = backend;
+        } else if (backend != backend_idx) {
+            continue;
+        }
+        tool_slots[m.tool_index] = m.mapped_slot;
+    }
+    if (tool_slots.empty()) {
+        return {};
+    }
+    auto* backend = AmsState::instance().get_backend(backend_idx);
+    if (!backend) {
+        return {};
+    }
+    auto params = backend->print_start_params(tool_slots);
+    for (const auto& [name, value] : params) {
+        spdlog::info("[PrintStartController] Print start carries {}={}", name, value);
+    }
+    return params;
+}
 
 bool PrintStartController::apply_filament_remaps() {
     const auto mappings = gather_print_start_context().mappings;

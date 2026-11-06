@@ -61,6 +61,22 @@ PrinterDiscovery zmod_c5_afclite_discovery(const std::vector<std::string>& lanes
     return hw;
 }
 
+/// The C5 with Z-Mod's built-in AFC emulation (AFC=1): `AFC`, one `AFC_IFS`
+/// unit and `AFC_lane lane1..4`, lane N on head N-1, and no zmod_afclite.
+PrinterDiscovery zmod_c5_builtin_afc_discovery() {
+    json objects = json::array({"zmod", "zmod_color", "save_variables", "AFC", "AFC_IFS IFS",
+                                "AFC_lane lane1", "AFC_lane lane2", "AFC_lane lane3",
+                                "AFC_lane lane4", "extruder", "extruder1", "extruder2", "extruder3",
+                                "heater_bed", "toolhead", "gcode_move", "configfile"});
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
 /// An AD5X on Z-Mod: zmod_color is there too, the carriage grab buttons are not.
 PrinterDiscovery zmod_ad5x_discovery() {
     PrinterDiscovery hw;
@@ -817,6 +833,40 @@ TEST_CASE("Load with the afclite shim sends CHANGE_TOOL for that head's lane",
         REQUIRE(tc.sent().size() == 1);
         CHECK(tc.sent().back() == "CHANGE_TOOL LANE=E" + std::to_string(head));
     }
+}
+
+TEST_CASE("The built-in AFC's lanes feed head n through lane n+1",
+          "[toolchanger][zmod][feed][2033]") {
+    const auto feed = toolchanger_addon::resolve_tool_feed(zmod_c5_builtin_afc_discovery());
+    REQUIRE(feed.present);
+    REQUIRE(feed.head_gcode.size() == 4);
+    for (int head = 0; head < 4; ++head) {
+        CAPTURE(head);
+        CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
+              "CHANGE_TOOL LANE=lane" + std::to_string(head + 1));
+    }
+}
+
+TEST_CASE("The built-in AFC subscribes AFC and its lanes", "[toolchanger][zmod][2033]") {
+    const auto objects =
+        toolchanger_addon::required_status_objects(zmod_c5_builtin_afc_discovery());
+    CHECK(objects == std::vector<std::string>{"zmod_color", "AFC", "AFC_lane lane1",
+                                              "AFC_lane lane2", "AFC_lane lane3",
+                                              "AFC_lane lane4"});
+}
+
+TEST_CASE("The built-in AFC's fault flag reads from AFC", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Loading"}, {"error_state", true}, {"message", "jam"}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->current_state == "Loading");
+    CHECK(r->error_state);
+    CHECK(r->message == "jam");
+}
+
+TEST_CASE("The built-in AFC leaves lane picking to the print start", "[toolchanger][zmod][2033]") {
+    CHECK_FALSE(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_builtin_afc_discovery()));
+    CHECK(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_afclite_discovery()));
 }
 
 TEST_CASE("Load on Z-Mod without the shim refuses and mounts nothing",

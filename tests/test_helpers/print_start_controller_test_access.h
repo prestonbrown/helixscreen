@@ -120,6 +120,10 @@ class PrintStartControllerTestAccess {
         return c.apply_filament_remaps();
     }
 
+    static helix::PrintStartParams print_start_params(const helix::ui::PrintStartController& c) {
+        return c.print_start_params();
+    }
+
     /// The pre-print send execute_print_start() makes for a backend that
     /// requires one.
     static void send_preprint(helix::ui::PrintStartController& c, const std::set<int>& tools_used,

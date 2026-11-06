@@ -236,3 +236,33 @@ TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
     Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
 }
+
+// Z-Mod takes the print's tool map as printer.print.start's `tools`, each
+// slot as its 1-based IFS port (prestonbrown/helixscreen#2033).
+TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"}));
+    backend.set_discovery(hw);
+
+    CHECK(backend.print_start_params({{0, 2}}) == helix::PrintStartParams{{"tools", "3"}});
+    CHECK(backend.print_start_params({{0, 1}, {1, 0}}) ==
+          helix::PrintStartParams{{"tools", "2,1"}});
+    // A slot past the four ports is left to the firmware.
+    CHECK(backend.print_start_params({{0, 4}}).empty());
+    // Where the start carries the map, a pick lands without a plugin table.
+    CHECK(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS off Z-Mod starts the print with its filename alone",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::PrinterDiscovery hw;
+    // The Forge-X standalone IFS module: no zmod_color.
+    hw.parse_objects(json::array({"ifs", "ifs_materials", "extruder"}));
+    backend.set_discovery(hw);
+
+    CHECK(backend.print_start_params({{0, 2}}).empty());
+    CHECK_FALSE(backend.remap_ready());
+}
