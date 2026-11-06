@@ -25,7 +25,7 @@ concurrency:
 # problem is that ONE generation of every family sums to 12.85 GB on
 # refs/heads/main alone. Main-scope breakdown, in MB:
 #
-#   ccache-macos-14        1888  \  build.yml, serves every push -- keep warm
+#   ccache-macos-15        1888  \  build.yml, serves every push -- keep warm
 #   ccache-ubuntu-22.04    1732  /
 #   ccache-release-x86     1652  \
 #   ccache-release-pi      1632   |  load-bearing for releases -- do not touch
@@ -49,10 +49,10 @@ concurrency:
 #
 # Since nothing saves under `ccache-nightly-*` / `ccache-asan-` / `ccache-tsan-`
 # any more, those prefixes became dead lookups and are gone. Each step now reads
-# build.yml's family instead (`ccache-ubuntu-22.04-` / `ccache-macos-14-`), of
+# build.yml's family instead (`ccache-ubuntu-22.04-` / `ccache-macos-15-`), of
 # which cache-prune.yml keeps one permanent generation on main. The per-SHA
 # primary key is kept because it can genuinely hit: nightly runs on main, and
-# build.yml saved `ccache-ubuntu-22.04-<sha>` / `ccache-macos-14-<sha>` for that
+# build.yml saved `ccache-ubuntu-22.04-<sha>` / `ccache-macos-15-<sha>` for that
 # same commit on push.
 #
 # The toolchains match -- the workflow-level CC/CXX below is clang, and
@@ -713,7 +713,7 @@ jobs:
   test-macos:
     name: macOS Build
     needs: gate
-    runs-on: macos-14
+    runs-on: macos-15
     # Has to cover a fully cold build of BOTH the app and the test suite. The
     # per-step budgets below sum to 105; the rest is brew, submodules and npm.
     timeout-minutes: 140
@@ -746,8 +746,8 @@ jobs:
           lib/libhv/lib/
           lib/libhv/include/hv/
 
-        key: deps-macos-14-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
-        restore-keys: deps-macos-14-
+        key: deps-macos-15-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
+        restore-keys: deps-macos-15-
 
     # Restore-only by design -- nightly saves nothing back (see the "ccache
     # policy" header at the top of this file). build.yml's macOS job compiles
@@ -757,14 +757,14 @@ jobs:
       uses: actions/cache/restore@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-macos-14-${{ github.sha }}
+        key: ccache-macos-15-${{ github.sha }}
         restore-keys: |
-          ccache-macos-14-
+          ccache-macos-15-
 
     - name: Configure ccache
       run: |
         # 2G, matching build.yml's macOS job. At 500M the restored
-        # `ccache-macos-14-` entry gets trimmed to a fraction of itself before
+        # `ccache-macos-15-` entry gets trimmed to a fraction of itself before
         # the first file compiles. Nothing is saved back (see the ccache policy
         # header), so protecting the restore is the only job this size has.
         ccache --set-config=max_size=2G
@@ -776,7 +776,7 @@ jobs:
 
     # Both budgets below must cover a COLD build, because this job still gets
     # one regularly: 2026-08-27 logged "Cache not found" for every restore key
-    # it had. What it reads now is build.yml's `ccache-macos-14-` family, and
+    # it had. What it reads now is build.yml's `ccache-macos-15-` family, and
     # cache-prune.yml keeps one generation of that per ref permanently -- so
     # unlike the retired `ccache-nightly-macos-` fallback it does not age out,
     # and the per-SHA primary can hit outright when build.yml already ran on

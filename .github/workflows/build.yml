@@ -406,8 +406,8 @@ jobs:
         retention-days: 7
 
   build-macos:
-    name: Build (macOS 14)
-    runs-on: macos-14
+    name: Build (macOS 15)
+    runs-on: macos-15
     # Gated on the two jobs that need no build. A shell, gate or lint failure is
     # knowable in minutes; this job runs for well over an hour, so starting it
     # anyway spends a runner to re-learn what the fast suite already said. The
@@ -442,9 +442,9 @@ jobs:
           lib/libhv/lib/
           lib/libhv/include/hv/
 
-        key: deps-macos-14-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
+        key: deps-macos-15-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
         restore-keys: |
-          deps-macos-14-
+          deps-macos-15-
 
     # Restore and save are split so the save can be limited to one ref. macOS is
     # a development platform, never a deployment target, so this job is a
@@ -455,9 +455,9 @@ jobs:
       uses: actions/cache/restore@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-macos-14-${{ github.sha }}
+        key: ccache-macos-15-${{ github.sha }}
         restore-keys: |
-          ccache-macos-14-
+          ccache-macos-15-
 
     - name: Verify submodules
       run: |
@@ -498,7 +498,7 @@ jobs:
       uses: actions/cache/save@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-macos-14-${{ github.sha }}
+        key: ccache-macos-15-${{ github.sha }}
 
     - name: Verify binary
       run: |
@@ -508,7 +508,7 @@ jobs:
     - name: Upload binary
       uses: actions/upload-artifact@v7
       with:
-        name: helix-screen-macos-14
+        name: helix-screen-macos-15
         path: build/bin/helix-screen
         retention-days: 7
 
