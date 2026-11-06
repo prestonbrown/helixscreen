@@ -8,6 +8,7 @@
 #include "job_queue_state.h"
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
+#include "print_lifecycle_state.h"
 #include "printer_discovery.h"
 
 #include <cstddef>
@@ -101,5 +102,10 @@ void run_discovery_steps(DiscoveryStepRange steps, DiscoveryContext& ctx);
 /// the discovery wins over the print_active subject, which still holds its pre-connect
 /// value on a fresh connection.
 bool discovery_print_active(bool subject_active, const nlohmann::json& status);
+
+/// discovery_print_active(), told apart from silence: a status that carries no
+/// print_stats state (a failed subscribe delivers none) is Unknown unless the
+/// subject says a job runs, since the subject's idle may be its boot default.
+ReportedPrintActivity discovery_print_activity(bool subject_active, const nlohmann::json& status);
 
 } // namespace helix

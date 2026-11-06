@@ -84,6 +84,7 @@ PrintStartController::~PrintStartController() {
     klippy_state_observer_.reset();
     ams_data_observer_.reset();
     backend_retry_observer_.reset();
+    print_report_observer_.reset();
 
     // Clean up an open gate dialog - only if LVGL is still initialized
     // (destructor may be called after lv_deinit() during shutdown)
@@ -1069,6 +1070,7 @@ bool PrintStartController::apply_filament_remaps() {
     backend_retry_observer_.reset();
     klippy_state_observer_.reset();
     ams_data_observer_.reset();
+    print_report_observer_.reset();
     awaiting_restore_confirmation_ = false;
 
     const std::vector<int> current = backend->get_tool_mapping();
@@ -1215,6 +1217,38 @@ void PrintStartController::observe_lifecycle_for_restore() {
         printer_state_.get_subjects_lifetime());
 
     spdlog::debug("[PrintStartController] Observing print lifecycle for mapping restore");
+}
+
+void PrintStartController::observe_print_report_for_restore() {
+    auto* subject = printer_state_.print_state().get_print_state_report_seq_subject();
+    if (!subject) {
+        return;
+    }
+    // The attach-fire carries the count already seen; only a later report is
+    // the printer speaking.
+    const int seen = lv_subject_get_int(subject);
+    restore_epoch_ = AmsState::instance().pending_tool_map_restore().epoch;
+    print_report_observer_ = observe<int>(
+        subject, this,
+        [seen](PrintStartController* self, int seq) {
+            if (seq == seen) {
+                return;
+            }
+            self->print_report_observer_.reset();
+            if (!self->still_owns_restore()) {
+                return;
+            }
+            if (job_holds_machine(self->printer_state_.print_state().get_print_lifecycle())) {
+                spdlog::info("[PrintStartController] Printer reports a job running — deferring "
+                             "the replayed restore until it ends");
+                self->observe_lifecycle_for_restore();
+                return;
+            }
+            spdlog::info("[PrintStartController] Printer reports no job — restoring the "
+                         "replayed mapping");
+            self->restore_filament_mapping();
+        },
+        printer_state_.get_subjects_lifetime());
 }
 
 void PrintStartController::observe_klippy_state_for_restore() {
@@ -1455,6 +1489,7 @@ void PrintStartController::finish_restore() {
     ams_data_observer_.reset();
     backend_retry_observer_.reset();
     klippy_state_observer_.reset();
+    print_report_observer_.reset();
     AmsState::instance().clear_pending_tool_map_restore();
     clear_persisted_remap_state();
 }
@@ -1466,7 +1501,7 @@ bool PrintStartController::still_owns_restore() const {
 
 bool PrintStartController::owns_restore_observers() const {
     return (print_state_observer_ || klippy_state_observer_ || backend_retry_observer_ ||
-            ams_data_observer_) &&
+            ams_data_observer_ || print_report_observer_) &&
            !AmsState::instance().pending_tool_map_restore().empty();
 }
 
@@ -1637,7 +1672,7 @@ void PrintStartController::clear_persisted_remap_state() {
     write_remap_file(*j);
 }
 
-void PrintStartController::recover_pending_remap(bool print_active) {
+void PrintStartController::recover_pending_remap(ReportedPrintActivity activity) {
     const auto read = read_remap_file();
     if (!read) {
         return;
@@ -1702,12 +1737,18 @@ void PrintStartController::recover_pending_remap(bool print_active) {
     // the first live lifecycle value and fires restore_filament_mapping on
     // the terminal value that follows. The lifecycle can still read the boot
     // default here, which only means the observer arms when the status lands.
-    if (print_active) {
+    if (activity == ReportedPrintActivity::Active) {
         spdlog::info("[PrintStartController] Crash recovery: found pending remap "
                      "({} tools, backend {}) — print still active, "
                      "deferring restore until print ends",
                      saved.mapping.size(), saved.backend_index);
         observe_lifecycle_for_restore();
+    } else if (activity == ReportedPrintActivity::Unknown) {
+        spdlog::info("[PrintStartController] Crash recovery: found pending remap "
+                     "({} tools, backend {}) — the printer has not reported its print state, "
+                     "waiting for its first report",
+                     saved.mapping.size(), saved.backend_index);
+        observe_print_report_for_restore();
     } else {
         spdlog::info("[PrintStartController] Crash recovery: found pending remap "
                      "({} tools, backend {}) — restoring",
