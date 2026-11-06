@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Creator 5 comes up the right way round** - a fresh install through Z-Mod's own installer started sideways. It now starts in landscape with no probe.
 - **The rotation probe asks again if nobody answers** - with no tap during the first-boot probe, the screen was saved as unrotated and never asked again. It now asks again at the next boot, keeps the backlight on while it asks, and picking a rotation in Settings ends it.
 - **Forge-X AD5X macros are found** - includes written with `./` or `../` were dropped, so PRINT_START analysis reported no macro.
+- **No phantom light on a stock AD5X** - Z-Mod declares a chamber light on every AD5X even though a stock printer has none, so HelixScreen offered light controls that did nothing. New AD5X setups now leave the light controls off; an existing setup is unchanged.
 - **Time zones on printers with no zone files** (#2003) - on images such as a Creator 5 Pro on Reforge, every clock, ETA and log line read as UTC even with a zone set.
 
 **Label printing**
