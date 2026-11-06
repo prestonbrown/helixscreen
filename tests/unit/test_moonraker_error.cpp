@@ -119,6 +119,24 @@ TEST_CASE("from_json_rpc extracts friendly message from Klipper errors", "[moonr
     }
 }
 
+TEST_CASE("from_json_rpc types an error by its code, then its words", "[moonraker][error]") {
+    const struct {
+        int code;
+        const char* message;
+        MoonrakerErrorType type;
+    } rows[] = {
+        {-32601, "Method not found", MoonrakerErrorType::VALIDATION_ERROR},
+        {503, "Klippy host not ready", MoonrakerErrorType::NOT_READY},
+        {404, "File not found: gcodes/a.gcode", MoonrakerErrorType::FILE_NOT_FOUND},
+        {-32603, "Must home axis first", MoonrakerErrorType::JSON_RPC_ERROR},
+    };
+    for (const auto& r : rows) {
+        CAPTURE(r.code, r.message);
+        CHECK(MoonrakerError::from_json_rpc({{"code", r.code}, {"message", r.message}}, "m").type ==
+              r.type);
+    }
+}
+
 TEST_CASE("json_rpc_error decodes a firmware envelope in a raw error line",
           "[moonraker][error][firmware_error_envelope]") {
     auto err = MoonrakerError::json_rpc_error(
