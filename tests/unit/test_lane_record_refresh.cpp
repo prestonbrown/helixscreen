@@ -314,3 +314,36 @@ TEST_CASE_METHOD(LVGLTestFixture,
     settle();
     CHECK(reg->get_slot_info(1).material == "ABS");
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a tool changer edit writes the tool's whole record, temps included",
+                 "[lane][refresh][toolchanger][lane_truth]") {
+    MockPrinter printer;
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+
+    helix::SlotInfo edit = reg->get_slot_info(1);
+    edit.material = "PETG";
+    edit.color_rgb = 0x1E5AA8;
+    edit.brand = "Polymaker";
+    edit.spoolman_id = 42;
+    edit.nozzle_temp_min = 240;
+    edit.bed_temp = 80;
+    (void)reg->commit_user_edit(1, reg->get_slot_info(1), edit);
+    settle();
+
+    const nlohmann::json stored = printer.client.mock_db_get("lane_data", "T1");
+    REQUIRE(stored.is_object());
+    CHECK(stored["writer"] == "helixscreen");
+    CHECK(stored["material"] == "PETG");
+    CHECK(stored["color"] == "#1E5AA8");
+    CHECK(stored["vendor_name"] == "Polymaker");
+    CHECK(stored["spool_id"] == 42);
+    CHECK(stored["nozzle_temp"] == 240);
+    CHECK(stored["bed_temp"] == 80);
+    const auto slot = reg->get_slot_info(1);
+    CHECK(slot.material == "PETG");
+    CHECK(slot.spoolman_id == 42);
+    CHECK_FALSE(helix::ams::lane_sources(reg.lane(1)).pending.has_value());
+}

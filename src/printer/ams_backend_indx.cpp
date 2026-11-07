@@ -174,6 +174,33 @@ void AmsBackendIndx::handle_status(const nlohmann::json& status) {
     emit_event(EVENT_STATE_CHANGED);
 }
 
+AmsError AmsBackendIndx::apply_user_edit(int slot_index, const SlotInfo& info) {
+    std::optional<int> macro_link;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto it = state_.tool_spool_ids.find(slot_index);
+        if (it != state_.tool_spool_ids.end()) {
+            macro_link = it->second > 0 ? it->second : 0;
+        }
+    }
+    AmsError err = AmsBackendToolChanger::apply_user_edit(slot_index, info);
+    if (!err.success() && !err.partially_applied) {
+        return err;
+    }
+    const int link = info.spoolman_id > 0 ? info.spoolman_id : 0;
+    if (!macro_link || *macro_link == link) {
+        return err;
+    }
+    AmsError sent =
+        execute_gcode(fmt::format("SET_GCODE_VARIABLE MACRO=T{} VARIABLE=spool_id VALUE={}",
+                                  slot_index, link)); // DISPLAY_NUMBERING_OK: gcode macro name
+    if (!sent.success()) {
+        sent.partially_applied = true;
+        return sent;
+    }
+    return err;
+}
+
 bool AmsBackendIndx::apply_seat_fault_locked() {
     const bool fault = contract_.recognized && state_.seat_suspect.value_or(-1) >= 0;
     if (fault) {
