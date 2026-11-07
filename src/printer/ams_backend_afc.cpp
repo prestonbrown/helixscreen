@@ -5894,20 +5894,6 @@ std::string set_weight_command(const std::string& lane_name, float remaining_wei
 
 } // namespace
 
-void AmsBackendAfc::write_lane_locked(int slot_index, SlotInfo& slot, const SlotInfo& info) {
-    const int old_mapped_tool = slot.mapped_tool;
-    const bool changed = slot.assign_filament_fields(info) || info.mapped_tool != old_mapped_tool;
-    // Tool mapping change goes through registry so reverse maps stay consistent.
-    if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
-        slots_.set_tool_mapping(slot_index, info.mapped_tool);
-    }
-
-    if (changed) {
-        spdlog::info("[AMS AFC] Updated slot {} info: {} {}", slot_index, info.material,
-                     info.color_name);
-    }
-}
-
 AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
     // Set when the material could not be expressed as a G-code parameter. Reported
     // after every other write has gone out, so a name AFC cannot store costs the user
@@ -5926,7 +5912,10 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         // Capture old spoolman_id before updating for clear detection
         const int old_spoolman_id = entry->info.spoolman_id;
         const int old_mapped_tool = entry->info.mapped_tool;
-        write_lane_locked(slot_index, entry->info, info);
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS AFC] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
 
         // Record the user's identity in the override store as well. AFC cannot
         // hold brand / spool_name / total_weight / colour name / filament+vendor
@@ -6078,7 +6067,10 @@ AmsError AmsBackendAfc::sync_external_identity(int slot_index, const SlotInfo& i
             execute_gcode(
                 fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID={}", lane_name, info.spoolman_id));
         }
-        write_lane_locked(slot_index, entry->info, info);
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS AFC] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks

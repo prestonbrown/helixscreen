@@ -2660,20 +2660,6 @@ void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {
                                       backend_log_tag());
 }
 
-void AmsBackendHappyHare::write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info) {
-    const int old_mapped_tool = slot.mapped_tool;
-    const bool changed = slot.assign_filament_fields(info) || info.mapped_tool != old_mapped_tool;
-    // Tool mapping change goes through registry so reverse maps stay consistent.
-    if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
-        slots_.set_tool_mapping(slot_index, info.mapped_tool);
-    }
-
-    if (changed) {
-        spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
-                     info.color_name);
-    }
-}
-
 namespace {
 /// The Clear Spool funnel hands the backend a slot with nothing on it: no
 /// material, no declarable colour, no identity text, no spool link. Only that
@@ -2758,7 +2744,10 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
                          slot_index);
             return pull_mode_refusal();
         }
-        write_gate_locked(slot_index, entry->info, info);
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
 
         // Record the user's identity in the override store: the gate map cannot
         // hold brand / spool_name / total weight / colour name at all.
@@ -2940,7 +2929,10 @@ AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotI
             link = fmt::format("MMU_GATE_MAP GATE={} SPOOLID={} QUIET=1", slot_index,
                                info.spoolman_id);
         }
-        write_gate_locked(slot_index, entry->info, info);
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
     }
     if (!link.empty()) {
         execute_gcode(link);

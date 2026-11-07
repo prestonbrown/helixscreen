@@ -686,12 +686,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     // overrides_ is keyed by the lane's registry position (slots_ index), the
     // one key every per-lane store here shares, lane_id() included. Never a
-    // SlotInfo field:
-    // slot_index there is unit-local, and global_index is a copy the registry
-    // stamps (#1644).
-    /// Put @p info's filament fields and tool mapping on @p slot, the half an
-    /// edit and a sync share. Callers hold mutex_.
-    void write_lane_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
+    // SlotInfo field: slot_index there is unit-local, and global_index is a
+    // copy the registry stamps (#1644).
 
     /**
      * @brief Parse AFC state from Moonraker JSON
