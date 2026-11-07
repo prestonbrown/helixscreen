@@ -19,7 +19,6 @@
 #include "ui_overlay_network_settings.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/ethernet_manager_test_access.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
@@ -135,20 +134,10 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     overlay->init_subjects();
     overlay->register_callbacks();
     Access::wifi_manager(*overlay) = wm;
+    auto eth = std::make_shared<EthernetBackendMock>();
+    Access::ethernet_manager(*overlay) = std::make_unique<EthernetManager>(eth);
     REQUIRE(overlay->create(test_screen()) != nullptr);
     overlay->on_activate();
-
-    EthernetManager* eth_mgr = Access::ethernet_manager(*overlay);
-    REQUIRE(eth_mgr != nullptr);
-    // RTTI_OK: test-only check that test mode handed out the mock backend.
-    auto* eth = dynamic_cast<EthernetBackendMock*>(EthernetManagerTestAccess::backend(*eth_mgr));
-    REQUIRE(eth != nullptr);
-    struct RestoreCable {
-        EthernetBackendMock* eth;
-        ~RestoreCable() {
-            eth->set_connected_state(true);
-        }
-    } restore{eth};
 
     // Settle every probe create() and on_activate() started: one still in
     // flight would read the pulled cable without the link watch.
@@ -160,7 +149,7 @@ TEST_CASE_METHOD(TransportRefreshFixture,
 
     // The cable comes out; only the manager's link watch sees it.
     eth->set_connected_state(false);
-    EthernetManagerTestAccess::tick(*eth_mgr);
+    Access::ethernet_manager(*overlay)->check_link();
     REQUIRE(wait_until([&] {
         helix::ui::UpdateQueue::instance().drain();
         return lv_subject_get_int(&Access::eth_connected(*overlay)) == 0;
