@@ -18,6 +18,7 @@
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
+#include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
@@ -722,6 +723,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
     REQUIRE(header != nullptr);
     CHECK(std::string(lv_label_get_text(header)) == "Gate 3");
+}
+
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "AmsContextMenu: the slot header uses the lane's own name when the backend has one",
+    "[ui][ams][context_menu][cfs]") {
+    // A CFS prints box number and bay letter on each bay: global slot 5 is 2B.
+    helix::printer::AmsBackendCfs backend(nullptr, nullptr);
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+
+    AmsContextMenu menu;
+    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/5, test_screen(),
+                                  /*is_loaded=*/false, &backend));
+
+    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+    REQUIRE(header != nullptr);
+    CHECK(std::string(lv_label_get_text(header)) == "2B");
 }
 
 // ============================================================================

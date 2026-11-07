@@ -9,6 +9,10 @@
 #include <string_view>
 #include <vector>
 
+namespace helix {
+class AmsBackend;
+}
+
 namespace helix::ui {
 
 /// U+00B7 MIDDLE DOT, the separator between a unit name and a position inside
@@ -240,6 +244,14 @@ LaneNoun active_lane_noun();
  * @return empty when @p slot is negative and the backend has no name for it
  */
 std::string active_lane_label(int slot);
+
+/**
+ * @brief What @p backend calls the lane at @p slot.
+ *
+ * Its lane_name() when it has one ("1A" on a CFS), else lane_label() under
+ * its lane_noun(). For a surface shown for one backend rather than the active one.
+ */
+std::string backend_lane_label(const AmsBackend& backend, int slot);
 
 /**
  * @brief The noun for the printing end of the currently connected printer.

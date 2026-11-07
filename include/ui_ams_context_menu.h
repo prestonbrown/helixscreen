@@ -250,6 +250,9 @@ class AmsContextMenu : public ContextMenu {
     /// The word this menu spells a position with. The backend the menu was
     /// shown for owns the answer; with none, the active printer's does.
     LaneNoun menu_lane_noun() const;
+    /// What this menu calls the lane at @p slot_index: the backend's own lane
+    /// name when it has one ("2B" on a CFS), else the numbered label ("Gate 3").
+    std::string menu_lane_label(int slot_index) const;
     /// Plugin items for the slot, in their own column beside Filament and Spool. A
     /// lane menu only: the external spool takes no plugin items.
     void append_slot_plugin_rows(lv_obj_t* menu_obj, int slot_index);
