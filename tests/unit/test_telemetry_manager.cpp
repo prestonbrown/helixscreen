@@ -168,6 +168,41 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(tm.queue_size() == 1);
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "A mock printer loads an opted-in install as inactive at init",
+                 "[telemetry][queue]") {
+    auto& tm = TelemetryManager::instance();
+    RuntimeConfig* rc = get_runtime_config();
+    auto* cfg = Config::get_instance();
+    struct Restore {
+        RuntimeConfig* rc;
+        Config* cfg;
+        bool prev_test = rc->test_mode;
+        bool prev_real = rc->use_real_moonraker;
+        ~Restore() {
+            rc->test_mode = prev_test;
+            rc->use_real_moonraker = prev_real;
+            cfg->set<bool>("/telemetry_enabled", false);
+        }
+    } restore{rc, cfg};
+
+    cfg->set<bool>("/telemetry_enabled", true);
+    rc->test_mode = true;
+    rc->use_real_moonraker = false;
+    tm.shutdown();
+    tm.init(temp_dir().string());
+    tm.record_session();
+    CHECK_FALSE(tm.is_enabled());
+    CHECK(tm.queue_size() == 0);
+    CHECK(cfg->get<bool>("/telemetry_enabled", false));
+
+    // --test against a real Moonraker loads the opt-in as made.
+    rc->use_real_moonraker = true;
+    tm.shutdown();
+    tm.init(temp_dir().string());
+    CHECK(tm.is_enabled());
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture, "Queue: respects max capacity and drops oldest",
                  "[telemetry][queue]") {
     auto& tm = TelemetryManager::instance();

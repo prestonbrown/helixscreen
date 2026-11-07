@@ -7,6 +7,7 @@
 // and a path copied out of `ls` was rejected unless prefixed with '@'.
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
 #include "remote_client.h"
 #include "remote_control_server.h"
@@ -1029,4 +1030,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl scroll: the reply says why a widget stays
     SECTION("nothing in the way") {
         CHECK(scroll_error(rig, t.row).empty());
     }
+}
+
+// --- ctl freeze over the socket -----------------------------------------
+
+// A spinner hidden before a freeze has parked its animations; drawn while frozen,
+// restarting them would resume LVGL's paused animation timer and move every
+// animation on screen under a capture.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ctl freeze: a spinner shown while frozen stays still until unfreeze",
+                 "[remote][ctl][freeze]") {
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_set_size(box, 200, 200);
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(box, "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    process_lvgl(100);
+    REQUIRE(lv_anim_get(spinner, nullptr) == nullptr);
+
+    CtlClickRig rig;
+    struct Unfreeze {
+        CtlClickRig& rig;
+        ~Unfreeze() {
+            rig.request("unfreeze", nlohmann::json::object());
+        }
+    } unfreeze_on_exit{rig};
+
+    REQUIRE(rig.request("freeze", nlohmann::json::object())["result"].value("frozen", false));
+    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
+
+    REQUIRE_FALSE(
+        rig.request("unfreeze", nlohmann::json::object())["result"].value("frozen", true));
+    lv_obj_invalidate(spinner);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_delete(box);
 }
