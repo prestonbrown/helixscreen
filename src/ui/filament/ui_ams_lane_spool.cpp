@@ -152,7 +152,9 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
         lv_obj_set_style_bg_opa(ph, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(ph, 0, LV_PART_MAIN);
         lv_obj_add_event_cb(ph, draw_dashed_circle_cb, LV_EVENT_DRAW_MAIN, nullptr);
+        // A clickable child would outrank its slot's hit band in an overlapping row.
         lv_obj_remove_flag(ph, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_remove_flag(ph, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(ph, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_add_flag(ph, LV_OBJ_FLAG_HIDDEN);
 
@@ -187,8 +189,10 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
         lv_obj_set_style_translate_x(err, -2, LV_PART_MAIN);
         lv_obj_set_style_translate_y(err, 2, LV_PART_MAIN);
         lv_obj_remove_flag(err, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_remove_flag(err, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(err, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_add_flag(err, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_name(err, "error_indicator");
         sv.error_indicator = err;
     }
 
