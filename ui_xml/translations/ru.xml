@@ -1496,6 +1496,7 @@
   <translation tag="Filament In The Toolhead" ru="Филамент в печатающей головке"/>
   <translation tag="Filament Jam" ru="Затор филамента"/>
   <translation tag="Filament Mapping" ru="Сопоставление филамента"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." ru="Сопоставление филамента не может переписать этот .3mf. Напечатайте его без переназначения."/>
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ru="Этот принтер не поддерживает сопоставление филамента, поэтому печать использует инструменты, назначенные на принтере"/>
@@ -3894,6 +3895,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ru="Плагин не может подключиться к камере, поэтому фотографирует этот экран."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ru="Плагин не может сохранить данные для восстановления."/>
   <translation tag="The plugin is turned off in moonraker.conf." ru="Плагин выключен в moonraker.conf."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." ru="Отключённые шаги подготовки нельзя применить к этому .3mf. Включите их снова, чтобы напечатать."/>
   <translation tag="The previous IPv4 settings come back when the print ends." ru="Прежние настройки IPv4 вернутся после окончания печати."/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" ru="Не удалось проверить прежние настройки IPv4: не удалось прочитать {}"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" ru="Не удалось восстановить прежние настройки IPv4 и обновить запись об изменении: {}"/>
@@ -3948,6 +3950,7 @@
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ru="Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>
@@ -3986,6 +3989,7 @@
   <translation tag="This .3mf has no sliced plate to print." ru="В этом .3mf нет нарезанной пластины для печати."/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." ru="Этот .3mf нужно преобразовать в G-code, прежде чем ставить в очередь. Напечатайте его отсюда."/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." ru="Этот .3mf нужно преобразовать в G-code на принтере, прежде чем его можно будет напечатать."/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." ru="Пластины этого .3mf ещё загружаются. Попробуйте снова через мгновение."/>
   <translation tag="This AFC system does not support bypass mode" ru="Эта система AFC не поддерживает режим обхода"/>
   <translation tag="This CFS firmware exposes no external spool slot" ru="Эта прошивка CFS не предоставляет слот для внешней катушки"/>
   <translation tag="This Happy Hare system does not support bypass mode" ru="Эта система Happy Hare не поддерживает режим обхода"/>

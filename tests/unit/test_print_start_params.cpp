@@ -115,3 +115,17 @@ TEST_CASE("the map belongs to the backend of its first mapped row", "[print_star
     CHECK(mapped_backend({mapping(0, -1, 1, true), mapping(1, 2, 1)}) == 1);
     CHECK(mapped_backend({mapping(0, 2, -1)}) == 0);
 }
+
+TEST_CASE("the start request names a plate only for a printer-started .3mf plate",
+          "[print_start_params][native_3mf]") {
+    helix::print_3mf::Route route;
+    route.kind = helix::print_3mf::RouteKind::NativePlate;
+    route.plate = 5;
+    CHECK(start_request_params(route, {}) == PrintStartParams{{"plateindex", "5"}});
+    CHECK(start_request_params(route, {{"tools", "2,,1"}}) ==
+          PrintStartParams{{"plateindex", "5"}, {"tools", "2,,1"}});
+    // An extracted plate starts as G-code: the tool map alone.
+    route.kind = helix::print_3mf::RouteKind::ExtractPlate;
+    CHECK(start_request_params(route, {{"tools", "1"}}) == PrintStartParams{{"tools", "1"}});
+    CHECK(start_request_params({}, {}).empty());
+}

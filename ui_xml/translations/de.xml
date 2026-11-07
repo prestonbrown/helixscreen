@@ -1451,6 +1451,7 @@
   <translation tag="Filament In The Toolhead" de="Filament im Werkzeugkopf"/>
   <translation tag="Filament Jam" de="Filamentstau"/>
   <translation tag="Filament Mapping" de="Filament-Zuordnung"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." de="Die Filamentzuordnung kann diese .3mf-Datei nicht umschreiben. Drucke sie ohne Neuzuordnung."/>
   <translation tag="Filament Mapping is not available on this device." de="Die Filament-Zuordnung ist auf diesem Gerät nicht verfügbar."/>
   <translation tag="Filament Mapping is unavailable" de="Filament-Zuordnung ist nicht verfügbar"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" de="Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge"/>
@@ -3831,6 +3832,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." de="Das Plugin erreicht die Kamera nicht, daher macht dieser Bildschirm die Fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." de="Das Plugin kann seine Wiederherstellungsdaten nicht speichern."/>
   <translation tag="The plugin is turned off in moonraker.conf." de="Das Plugin ist in moonraker.conf ausgeschaltet."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." de="Die abgeschalteten Vorbereitungsschritte können auf diese .3mf-Datei nicht angewendet werden. Schalte sie wieder ein, um zu drucken."/>
   <translation tag="The previous IPv4 settings come back when the print ends." de="Die vorherigen IPv4-Einstellungen kehren zurück, wenn der Druck endet."/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" de="Die vorherigen IPv4-Einstellungen konnten nicht geprüft werden: {} konnte nicht gelesen werden"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" de="Die vorherigen IPv4-Einstellungen konnten nicht wiederhergestellt werden, und der Eintrag der Änderung konnte nicht aktualisiert werden: {}"/>
@@ -3885,6 +3887,7 @@
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" de="Der Drucker verlangt eine verschlüsselte Verbindung, aber die verschlüsselte Verbindung zu {}:{} ist fehlgeschlagen"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." de="Der Drucker wechselt zwischen mehreren Werkzeugköpfen. Verwalte die Werkzeuge im Filamentsystem-Bildschirm."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" de="Die Drucker-Firmware wählt selbst, wohin bei Filamentende gewechselt wird"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." de="Die Warteschlange druckt die Standardplatte dieser .3mf-Datei. Drucke diese Platte stattdessen von hier."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" de="Die angeforderte Position liegt außerhalb des Druckerbereichs"/>
   <translation tag="The right RFID reader in this CFS unit may need service" de="Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" de="Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?"/>
@@ -3923,6 +3926,7 @@
   <translation tag="This .3mf has no sliced plate to print." de="Diese .3mf-Datei enthält keine geslicte Platte zum Drucken."/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." de="Diese .3mf-Datei muss erst in G-code umgewandelt werden, bevor sie in die Warteschlange kann. Drucke sie stattdessen von hier."/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." de="Diese .3mf-Datei muss auf dem Drucker in G-code umgewandelt werden, bevor sie gedruckt werden kann."/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." de="Die Platten dieser .3mf-Datei werden noch geladen. Versuche es gleich noch einmal."/>
   <translation tag="This AFC system does not support bypass mode" de="Dieses AFC-System unterstützt den Bypass-Modus nicht"/>
   <translation tag="This CFS firmware exposes no external spool slot" de="Diese CFS-Firmware bietet keinen externen Spulen-Slot"/>
   <translation tag="This Happy Hare system does not support bypass mode" de="Dieses Happy-Hare-System unterstützt den Bypass-Modus nicht"/>

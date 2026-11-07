@@ -9,6 +9,7 @@
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "runtime_config.h"
+#include "three_mf_reader.h"
 
 #include <spdlog/spdlog.h>
 
@@ -252,6 +253,12 @@ static json mock_gcodes_disk_usage() {
             {"free", disk.free * kMb}};
 }
 
+/// HELIX_MOCK_3MF_PLATES=1 - the mock is a Moonraker that starts the plate a
+/// print start names (`plateindex`): a .3mf's metadata lists its sliced plates.
+static bool reports_3mf_plates() {
+    return helix::env_flag("HELIX_MOCK_3MF_PLATES");
+}
+
 /**
  * @brief Build mock JSON response for server.files.metadata
  * @param filename Filename to get metadata for
@@ -347,6 +354,13 @@ static json build_mock_file_metadata_response(const std::string& filename) {
                    {"first_layer_extr_temp", header_meta.first_layer_nozzle_temp},
                    {"thumbnails", thumbnails}};
 
+    if (helix::gcode::is_3mf(clean_filename) && reports_3mf_plates()) {
+        const std::vector<int> plates =
+            helix::three_mf::ThreeMfReader::local_plate_numbers(full_path);
+        result["sliced_plates"] = plates;
+        result["plate_index"] = plates.empty() ? 1 : plates.front();
+    }
+
     json response = {{"result", result}};
 
     spdlog::trace("[MoonrakerClientMock] Built metadata for '{}': {}s, {}g filament", filename,
@@ -366,11 +380,12 @@ static bool metadata_404_enabled() {
 }
 
 /// Whether the mock has metadata for @p filename. A .3mf has none, as on a
-/// stock Moonraker, unless HELIX_MOCK_3MF_METADATA=1 makes the mock a printer
-/// that reads .3mf archives natively.
+/// stock Moonraker, unless HELIX_MOCK_3MF_METADATA=1 or HELIX_MOCK_3MF_PLATES=1
+/// makes the mock a printer that reads .3mf archives natively.
 static bool metadata_missing(const std::string& filename) {
     return metadata_404_enabled() ||
-           (helix::gcode::is_3mf(filename) && !helix::env_flag("HELIX_MOCK_3MF_METADATA"));
+           (helix::gcode::is_3mf(filename) && !helix::env_flag("HELIX_MOCK_3MF_METADATA") &&
+            !reports_3mf_plates());
 }
 
 void register_file_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
