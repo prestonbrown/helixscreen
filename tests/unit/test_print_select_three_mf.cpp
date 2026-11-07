@@ -46,14 +46,52 @@ struct ArchivePanel : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
         return static_cast<MoonrakerAPIMock&>(*api_);
     }
 
+    // One panel accessor each, so the tests below read as the panel's own words.
+    void select_file(const std::string& name) {
+        PrintSelectPanelTestAccess::select_file(*panel_, name);
+    }
+    bool prepare_archive_start() {
+        return PrintSelectPanelTestAccess::prepare_archive_start(*panel_);
+    }
+    std::string plate_text() {
+        return PrintSelectPanelTestAccess::plate_text(*panel_);
+    }
+    void step_plate(int step) {
+        PrintSelectPanelTestAccess::step_plate(*panel_, step);
+    }
+    std::string plate_position() {
+        return PrintSelectPanelTestAccess::plate_position(*panel_);
+    }
+    int plate_count() {
+        return PrintSelectPanelTestAccess::plate_count(*panel_);
+    }
+    std::optional<std::string> queueable_path() {
+        return PrintSelectPanelTestAccess::queueable_path(*panel_);
+    }
+    ui::PrintPreparationManager* prep_manager() {
+        return PrintSelectPanelTestAccess::prep_manager(*panel_);
+    }
+    const PrintFileData* find_file(const std::string& name) {
+        return PrintSelectPanelTestAccess::find_file(*panel_, name);
+    }
+    std::vector<std::string> selected_colors() {
+        return PrintSelectPanelTestAccess::selected_colors(*panel_);
+    }
+    std::string selected_print_time() {
+        return PrintSelectPanelTestAccess::selected_print_time(*panel_);
+    }
+    void apply_metadata(const std::string& name, const FileMetadata& meta) {
+        PrintSelectPanelTestAccess::apply_metadata(*panel_, name, meta);
+    }
+
     /// List the planted files, then read @p name the way its card would.
     const PrintFileData& load(const std::string& name) {
         panel_->refresh_files(true);
         drain();
-        REQUIRE(PrintSelectPanelTestAccess::find_file(*panel_, name) != nullptr);
+        REQUIRE(find_file(name) != nullptr);
         PrintSelectPanelTestAccess::fetch_metadata(*panel_, name);
         drain();
-        const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, name);
+        const PrintFileData* row = find_file(name);
         REQUIRE(row != nullptr);
         return *row;
     }
@@ -92,10 +130,10 @@ TEST_CASE_METHOD(ArchivePanel, "a .3mf the printer has metadata for keeps it",
     CHECK_FALSE(row.archive_extract);
     CHECK(row.thumbnail_path.find(".bin") != std::string::npos);
 
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 0);
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    select_file(file.name());
+    CHECK(plate_count() == 0);
+    REQUIRE(prepare_archive_start());
+    auto* prep = prep_manager();
     REQUIRE(prep);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
 }
@@ -105,74 +143,71 @@ TEST_CASE_METHOD(ArchivePanel,
                  "[print_select][three_mf]") {
     PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
     load(file.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
 
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 2);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
-    const std::string first_time = PrintSelectPanelTestAccess::selected_print_time(*panel_);
+    CHECK(plate_count() == 2);
+    CHECK(plate_text() == "Plate 2");
+    CHECK(plate_position() == "1/2");
+    const std::string first_time = selected_print_time();
 
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    auto* prep = prep_manager();
     REQUIRE(prep);
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    REQUIRE(prepare_archive_start());
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 2);
 
     // The card is about the whole file: both plates added up.
-    const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    const PrintFileData* row = find_file(file.name());
     REQUIRE(row);
     CHECK(row->print_time_minutes == (5238 + 1800) / 60);
     CHECK(row->filament_grams == Catch::Approx(23.73f + 12.5f));
 
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    step_plate(1);
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
-    row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    CHECK(plate_text() == "Plate 5");
+    CHECK(plate_position() == "2/2");
+    row = find_file(file.name());
     REQUIRE(row);
     CHECK(row->print_time_minutes == (5238 + 1800) / 60);
     REQUIRE(row->filament_types.size() == 2);
     CHECK(row->filament_types[1] == "PLA");
-    CHECK(PrintSelectPanelTestAccess::selected_print_time(*panel_) != first_time);
+    CHECK(selected_print_time() != first_time);
     // The plate's own filaments reach the mapping card and the start.
-    CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
-          std::vector<std::string>{"#000000", "#FF0000"});
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    CHECK(selected_colors() == std::vector<std::string>{"#000000", "#FF0000"});
+    REQUIRE(prepare_archive_start());
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
 
     // Both ways round, wrapping.
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
-    PrintSelectPanelTestAccess::step_plate(*panel_, -1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
+    step_plate(1);
+    CHECK(plate_text() == "Plate 2");
+    CHECK(plate_position() == "1/2");
+    step_plate(-1);
+    CHECK(plate_text() == "Plate 5");
+    CHECK(plate_position() == "2/2");
 }
 
 TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already read on that plate",
                  "[print_select][three_mf][reprint]") {
     PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
     load(file.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
-    REQUIRE(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
-    REQUIRE(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
-    REQUIRE(PrintSelectPanelTestAccess::selected_colors(*panel_) !=
-            std::vector<std::string>{"#000000", "#FF0000"});
+    REQUIRE(plate_text() == "Plate 2");
+    REQUIRE(plate_position() == "1/2");
+    REQUIRE(selected_colors() != std::vector<std::string>{"#000000", "#FF0000"});
 
     REQUIRE(panel_->select_file_by_name(file.name(), 5));
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
-    CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
-          std::vector<std::string>{"#000000", "#FF0000"});
-    const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    CHECK(plate_text() == "Plate 5");
+    CHECK(plate_position() == "2/2");
+    CHECK(selected_colors() == std::vector<std::string>{"#000000", "#FF0000"});
+    const PrintFileData* row = find_file(file.name());
     REQUIRE(row);
     REQUIRE(row->filament_types.size() == 2);
     CHECK(row->filament_types[1] == "PLA");
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    auto* prep = prep_manager();
     REQUIRE(prep);
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    REQUIRE(prepare_archive_start());
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
 }
 
@@ -187,28 +222,26 @@ TEST_CASE_METHOD(ArchivePanel, "the plate stepper shows a plate's name from mode
                                                {"Metadata/plate_2.gcode", "G28\n"},
                                                {"Metadata/model_settings.config", settings}}));
     load(file.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Hull");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
+    CHECK(plate_text() == "Hull");
+    CHECK(plate_position() == "1/2");
     // A plate with an empty name keeps its number.
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
+    step_plate(1);
+    CHECK(plate_text() == "Plate 2");
+    CHECK(plate_position() == "2/2");
 }
 
 TEST_CASE_METHOD(ArchivePanel, "one sliced plate shows its number and no arrows",
                  "[print_select][three_mf]") {
     PlantedGcode file("Door.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
     load(file.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 9");
-    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_).empty());
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(PrintSelectPanelTestAccess::prep_manager(*panel_)
-              ->archive_route(file.name(), print_3mf::Rewrite::None)
-              .plate == 9);
+    select_file(file.name());
+    CHECK(plate_count() == 1);
+    CHECK(plate_text() == "Plate 9");
+    CHECK(plate_position().empty());
+    REQUIRE(prepare_archive_start());
+    CHECK(prep_manager()->archive_route(file.name(), print_3mf::Rewrite::None).plate == 9);
 }
 
 TEST_CASE_METHOD(ArchivePanel,
@@ -218,15 +251,15 @@ TEST_CASE_METHOD(ArchivePanel,
     SECTION("a project") {
         PlantedGcode file("Project.3mf", "", fixture_bytes("project.3mf"));
         load(file.name());
-        PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-        CHECK_FALSE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+        select_file(file.name());
+        CHECK_FALSE(prepare_archive_start());
     }
     SECTION("no local copies") {
         PlantedGcode file("Door.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
         load(file.name());
         mock().transfers_mock().mock_no_local_copies();
-        PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-        CHECK_FALSE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+        select_file(file.name());
+        CHECK_FALSE(prepare_archive_start());
     }
 }
 
@@ -330,27 +363,26 @@ TEST_CASE_METHOD(ArchivePanel, "a plate the printer already converted prints fro
 
     // Plate 5 is not converted yet, so the archive stays listed.
     load(archive.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, archive.name());
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    select_file(archive.name());
+    auto* prep = prep_manager();
     REQUIRE(prep);
 
     SECTION("the converted plate needs no local copy") {
         mock().transfers_mock().mock_no_local_copies();
-        REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+        REQUIRE(prepare_archive_start());
         CHECK(prep->printable_path(archive.name()) == "Set_plate2.gcode");
         CHECK(prep->archive_route(archive.name(), print_3mf::Rewrite::None).plate == 0);
     }
     SECTION("the plate still pending is extracted") {
-        PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-        REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+        step_plate(1);
+        REQUIRE(prepare_archive_start());
         CHECK(prep->printable_path(archive.name()) == archive.name());
         CHECK(prep->archive_route(archive.name(), print_3mf::Rewrite::None).plate == 5);
     }
     SECTION("the queue takes the converted plate's output, and refuses the pending one") {
-        CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
-              std::optional<std::string>("Set_plate2.gcode"));
-        PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-        CHECK_FALSE(PrintSelectPanelTestAccess::queueable_path(*panel_));
+        CHECK(queueable_path() == std::optional<std::string>("Set_plate2.gcode"));
+        step_plate(1);
+        CHECK_FALSE(queueable_path());
     }
     std::remove(json_path.c_str());
 }
@@ -359,11 +391,11 @@ TEST_CASE_METHOD(ArchivePanel, "the detail view shows the plate while the card a
                  "[print_select][three_mf]") {
     PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
     load(file.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-    const std::string plate2 = PrintSelectPanelTestAccess::selected_print_time(*panel_);
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-    const std::string plate5 = PrintSelectPanelTestAccess::selected_print_time(*panel_);
-    const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    select_file(file.name());
+    const std::string plate2 = selected_print_time();
+    step_plate(1);
+    const std::string plate5 = selected_print_time();
+    const PrintFileData* row = find_file(file.name());
     REQUIRE(row);
     // Three different numbers: plate 2, plate 5, and the card's total.
     CHECK(plate2 != plate5);
@@ -380,7 +412,7 @@ TEST_CASE_METHOD(ArchivePanel,
     PlantedGcode file("Q2.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
     panel_->refresh_files(true);
     drain();
-    REQUIRE(PrintSelectPanelTestAccess::find_file(*panel_, file.name()));
+    REQUIRE(find_file(file.name()));
 
     FileMetadata meta;
     meta.filename = file.name();
@@ -388,9 +420,9 @@ TEST_CASE_METHOD(ArchivePanel,
         meta.estimated_time = 600;
         meta.filament_weight_total = 5.0;
         meta.filament_type = "PETG";
-        PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+        apply_metadata(file.name(), meta);
         drain();
-        const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+        const PrintFileData* row = find_file(file.name());
         REQUIRE(row);
         CHECK(row->thumbnail_path.find(".bin") != std::string::npos);
         CHECK(row->print_time_minutes == 10);
@@ -399,9 +431,9 @@ TEST_CASE_METHOD(ArchivePanel,
         CHECK_FALSE(row->archive_extract);
     }
     SECTION("no time either") {
-        PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+        apply_metadata(file.name(), meta);
         drain();
-        const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+        const PrintFileData* row = find_file(file.name());
         REQUIRE(row);
         CHECK(row->thumbnail_path.find(".bin") != std::string::npos);
         CHECK(row->print_time_minutes == 5238 / 60);
@@ -410,9 +442,9 @@ TEST_CASE_METHOD(ArchivePanel,
         CHECK_FALSE(row->archive_extract);
     }
     // Either way it prints as the .3mf itself.
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    select_file(file.name());
+    REQUIRE(prepare_archive_start());
+    auto* prep = prep_manager();
     REQUIRE(prep);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
     CHECK(prep->printable_path(file.name()) == file.name());
@@ -422,15 +454,14 @@ TEST_CASE_METHOD(ArchivePanel, "a .3mf with no conversion is not queued; any oth
                  "[print_select][three_mf][queue]") {
     PlantedGcode archive("Door.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
     load(archive.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, archive.name());
-    CHECK_FALSE(PrintSelectPanelTestAccess::queueable_path(*panel_));
+    select_file(archive.name());
+    CHECK_FALSE(queueable_path());
 
     PlantedGcode plain("plain.gcode");
     panel_->refresh_files(true);
     drain();
-    PrintSelectPanelTestAccess::select_file(*panel_, plain.name());
-    CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
-          std::optional<std::string>(plain.name()));
+    select_file(plain.name());
+    CHECK(queueable_path() == std::optional<std::string>(plain.name()));
 }
 
 TEST_CASE_METHOD(ArchivePanel, "a .3mf the printer reads itself queues as itself",
@@ -438,9 +469,8 @@ TEST_CASE_METHOD(ArchivePanel, "a .3mf the printer reads itself queues as itself
     ScopedEnv native("HELIX_MOCK_3MF_METADATA", "1");
     PlantedGcode archive("Q2.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
     load(archive.name());
-    PrintSelectPanelTestAccess::select_file(*panel_, archive.name());
-    CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
-          std::optional<std::string>(archive.name()));
+    select_file(archive.name());
+    CHECK(queueable_path() == std::optional<std::string>(archive.name()));
 }
 
 TEST_CASE_METHOD(ArchivePanel, "a refresh stops the archive reads under way and asks again later",
@@ -459,7 +489,7 @@ TEST_CASE_METHOD(ArchivePanel, "a refresh stops the archive reads under way and 
     drain();
     transfers.release_held_range_reads(before);
     drain();
-    const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    const PrintFileData* row = find_file(file.name());
     REQUIRE(row);
     CHECK_FALSE(row->archive);
 
@@ -468,7 +498,7 @@ TEST_CASE_METHOD(ArchivePanel, "a refresh stops the archive reads under way and 
     transfers.release_held_range_reads();
     PrintSelectPanelTestAccess::fetch_metadata(*panel_, file.name());
     drain();
-    row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
+    row = find_file(file.name());
     REQUIRE(row);
     CHECK(row->archive);
 }
@@ -484,31 +514,29 @@ TEST_CASE_METHOD(ArchivePanel,
     // The plate the printer's metadata describes (its first sliced one) shows first.
     CHECK(row.archive_native_plate == 2);
 
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 2);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+    CHECK(plate_count() == 2);
+    CHECK(plate_text() == "Plate 2");
 
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    auto* prep = prep_manager();
     REQUIRE(prep);
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    REQUIRE(prepare_archive_start());
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 2);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
           print_3mf::RouteKind::NativePlate);
     // The default plate is what a queued start, which names none, prints.
-    CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
-          std::optional<std::string>(file.name()));
+    CHECK(queueable_path() == std::optional<std::string>(file.name()));
 
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    step_plate(1);
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
-          std::vector<std::string>{"#000000", "#FF0000"});
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    CHECK(plate_text() == "Plate 5");
+    CHECK(selected_colors() == std::vector<std::string>{"#000000", "#FF0000"});
+    REQUIRE(prepare_archive_start());
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
           print_3mf::RouteKind::NativePlate);
-    CHECK_FALSE(PrintSelectPanelTestAccess::queueable_path(*panel_));
+    CHECK_FALSE(queueable_path());
 }
 
 TEST_CASE_METHOD(ArchivePanel,
@@ -518,11 +546,11 @@ TEST_CASE_METHOD(ArchivePanel,
     PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
     const PrintFileData& row = load(file.name());
     CHECK_FALSE(row.archive_native);
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 0);
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    CHECK(plate_count() == 0);
+    REQUIRE(prepare_archive_start());
+    auto* prep = prep_manager();
     REQUIRE(prep);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
     CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
@@ -540,19 +568,19 @@ TEST_CASE_METHOD(ArchivePanel, "the plate stepper offers only the plates the pri
     meta.estimated_time = 600;
     meta.sliced_plates = std::vector<int>{5};
     meta.plate_index = 5;
-    PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+    apply_metadata(file.name(), meta);
     drain();
-    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    select_file(file.name());
     drain();
 
     // The archive holds plates 2 and 5; the printer starts only 5, its default.
-    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    CHECK(plate_count() == 1);
+    CHECK(plate_text() == "Plate 5");
+    step_plate(1);
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
-    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    CHECK(plate_text() == "Plate 5");
+    REQUIRE(prepare_archive_start());
+    auto* prep = prep_manager();
     REQUIRE(prep);
     const print_3mf::Route route = prep->archive_route(file.name(), print_3mf::Rewrite::None);
     CHECK(route.kind == print_3mf::RouteKind::NativePlate);
