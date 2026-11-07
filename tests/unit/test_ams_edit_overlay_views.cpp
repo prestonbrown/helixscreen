@@ -147,6 +147,10 @@ class AmsEditOverlayViewTestAccess {
         overlay_.sel_ = sel;
         overlay_.rebuild_option_lists();
     }
+    void stage_selection() {
+        overlay_.selection_moved_ = true;
+        overlay_.stage_selection_into_working();
+    }
     void call_apply_weight(float grams) {
         overlay_.apply_weight(grams);
     }
@@ -2849,7 +2853,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the se
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Browse catalog leaves the row intact and a pick sets the temps",
-                 "[ams_edit_overlay][dropdown][browse]") {
+                 "[ams_edit_overlay][dropdown][browse][2029]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     SlotInfo info = untracked_slot(); // PETG, Generic
@@ -2894,6 +2898,26 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     CHECK_FALSE(access.sel().product_id.empty());
     CHECK(std::string(lv_subject_get_string(temps)).find("199") == std::string::npos);
+
+    // A product's own recommended nozzle temperature is staged for the Spoolman
+    // filament a save may create, and a family with no product stages none.
+    const auto* ef = catalog.resolve_id("coex-3d-coex-pla-plus-silk");
+    REQUIRE(ef != nullptr);
+    REQUIRE(ef->nozzle_recommended != (ef->nozzle_min + ef->nozzle_max) / 2);
+    AmsEditOverlay::SpoolEditSelection sel;
+    sel.family = "PLA";
+    sel.brand = ef->brand;
+    sel.product_id = ef->id;
+    access.set_sel(sel);
+    access.stage_selection();
+    const SlotInfo staged = access.working_info();
+    CHECK(staged.nozzle_temp_recommended == ef->nozzle_recommended);
+    CHECK(helix::SpoolmanSlotSaver::new_filament_for(info, staged).extruder_temp ==
+          ef->nozzle_recommended);
+    sel.product_id.clear();
+    access.set_sel(sel);
+    access.stage_selection();
+    CHECK(access.working_info().nozzle_temp_recommended == 0);
     close_editor_overlay();
 }
 

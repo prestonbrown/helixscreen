@@ -124,7 +124,11 @@ std::string filament_display_name(const FilamentInfo& filament, const std::strin
     return name.empty() ? new_filament_name(filament.material, color_name) : name;
 }
 
-int temperature_for_range(int min_temp, int max_temp) {
+int temperature_for_range(int min_temp, int max_temp, int recommended) {
+    if (recommended > 0 && (min_temp <= 0 || recommended >= min_temp) &&
+        (max_temp <= 0 || recommended <= max_temp)) {
+        return recommended;
+    }
     if (min_temp > 0 && max_temp > 0) {
         return (min_temp + max_temp) / 2;
     }

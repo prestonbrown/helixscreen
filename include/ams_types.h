@@ -1127,6 +1127,9 @@ struct SlotInfo {
     int nozzle_temp_min = 0; ///< Minimum nozzle temp (°C)
     int nozzle_temp_max = 0; ///< Maximum nozzle temp (°C)
     int bed_temp = 0;        ///< Recommended bed temp (°C)
+    /// The catalog product's recommended nozzle temp (°C), staged by the spool
+    /// editor's pick for the Spoolman filament it may create; 0 = none.
+    int nozzle_temp_recommended = 0;
     /// The printer refuses to print from this slot until a material is set for
     /// it: the firmware's own record names none, and it stops the job rather
     /// than guess. A slot whose material is merely unreported stays false.

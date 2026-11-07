@@ -1607,6 +1607,12 @@ TEST_CASE("SpoolmanSlotSaver new_filament_for: the record a new filament files",
         {"a spool name that is only the material is not a name",
          [](SlotInfo& o, SlotInfo& e) { o.spool_name = e.spool_name = "abs+"; }, "ABS",
          "ABS+ Deep Gray", 255, 100},
+        {"a catalog recommendation is filed over the midpoint",
+         [](SlotInfo&, SlotInfo& e) { e.nozzle_temp_recommended = 245; }, "ABS", "ABS+ Deep Gray",
+         245, 100},
+        {"a recommendation outside the range is not",
+         [](SlotInfo&, SlotInfo& e) { e.nozzle_temp_recommended = 280; }, "ABS", "ABS+ Deep Gray",
+         255, 100},
         {"unknown temperatures are left out",
          [](SlotInfo&, SlotInfo& e) {
              e.nozzle_temp_min = e.nozzle_temp_max = 0;
