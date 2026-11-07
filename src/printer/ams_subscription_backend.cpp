@@ -145,11 +145,6 @@ void AmsSubscriptionBackend::stop() {
 }
 
 void AmsSubscriptionBackend::clear_override_locked(int slot_index, SlotInfo* slot) {
-    // An unlink marker is not identity, so the clear keeps it on an otherwise
-    // empty record: dropping it would let firmware's stale id relink the lane.
-    const auto existing = overrides_.find(slot_index);
-    const int unlinked_spool_id =
-        existing != overrides_.end() ? existing->second.unlinked_spool_id : 0;
     overrides_.erase(slot_index);
     // The lane's own records go with it: a clear that reached only one store
     // would leave resolve() still reporting the identity just removed.
@@ -159,14 +154,7 @@ void AmsSubscriptionBackend::clear_override_locked(int slot_index, SlotInfo* slo
         clear_override_fields(*slot);
     }
 
-    if (unlinked_spool_id > 0) {
-        helix::ams::FilamentSlotOverride& marker = overrides_[slot_index];
-        marker.unlinked_spool_id = unlinked_spool_id;
-        if (override_store_) {
-            helix::ams::save_override_async(override_store_.get(), slot_index, marker,
-                                            backend_log_tag(), "unlink");
-        }
-    } else if (override_store_) {
+    if (override_store_) {
         // Capture by value: clear_async's Moonraker callback can fire after
         // the backend itself is gone.
         const std::string tag = backend_log_tag();
@@ -291,7 +279,11 @@ void AmsSubscriptionBackend::adopt_lane_records(
     // Every read is filed whole, so a record another client rewrote shows on
     // the next poll, and a Pending edit it echoes is withdrawn. The bypass
     // mirror a backend publishes one past its slots is not a slot's record.
+    const bool file_records = lane_records_describe_slots();
     for (const auto& [slot, entry] : records) {
+        if (!file_records) {
+            break;
+        }
         const helix::ams::LaneId lane = lane_id(slot);
         const bool had_pending = helix::ams::lane_sources(lane).pending.has_value();
         if (!entry.record.external_mirror) {

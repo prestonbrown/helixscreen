@@ -302,3 +302,41 @@ TEST_CASE_METHOD(LaneFixture, "a waiter that arrives after the edit ended hears 
                               [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
     CHECK(heard == helix::ams::PendingOutcome::Echoed);
 }
+
+TEST_CASE_METHOD(LaneFixture,
+                 "a clear-only edit waits on its record write without masking anything",
+                 "[lane][pending][save_ack]") {
+    Observation firmware(ObservationSource::Firmware);
+    firmware.material = "PLA";
+    helix::ams::ingest(lane, firmware);
+    const std::uint64_t before = helix::ams::pending_filings(lane);
+    edit(pending_material(""));
+
+    // Nothing pending is shown: the lane reads what Moonraker holds at once.
+    REQUIRE(pending().has_value());
+    CHECK_FALSE(pending()->material.has_value());
+    CHECK(helix::ams::resolved_lane(lane).material == "PLA");
+
+    std::optional<helix::ams::PendingOutcome> heard;
+    std::string why;
+    helix::ams::await_pending(lane, before,
+                              [&](helix::ams::PendingOutcome o, const std::string& r) {
+                                  heard = o;
+                                  why = r;
+                              });
+    // A firmware frame says nothing about whether the record write landed.
+    helix::ams::ingest(lane, firmware);
+    REQUIRE_FALSE(heard.has_value());
+
+    SECTION("the record read after the write ends it") {
+        Observation record(ObservationSource::Record);
+        record.brand = "Polymaker";
+        helix::ams::ingest(lane, record);
+        CHECK(heard == helix::ams::PendingOutcome::Echoed);
+    }
+    SECTION("a failed write is reported") {
+        helix::ams::withdraw_pending(lane, "database is read-only");
+        CHECK(heard == helix::ams::PendingOutcome::Failed);
+        CHECK(why == "database is read-only");
+    }
+}

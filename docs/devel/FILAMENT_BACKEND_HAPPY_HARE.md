@@ -48,7 +48,7 @@ encoder (`clog_detection` 1 or 2) and FlowGuard (`flowguard.enabled`) feed the
 | `MMU_SPOOLMAN REFRESH=1` | Accessories **Refresh Spoolman**. Disabled while `printer.mmu.spoolman_support` is `off`, which HH refuses outright |
 | `MMU_CHECK_GATE` | Probe every gate sensor (sidebar **Check slots**). Physical: parks the toolhead and unloads/reloads each gate, and Happy Hare does not refuse it mid-print, so the sidebar gates it |
 | `MMU_TTG_MAP TOOL={n} GATE={g}` | Set tool-to-gate mapping |
-| `MMU_GATE_MAP GATE={n} [COLOR=..] [MATERIAL=..] [SPOOLID=..]` | Persist a slot edit to the gate map (`mmu_vars.cfg`). Omitted params keep their current value, so a field is only cleared by naming it with an explicit empty value. In Spoolman pull mode nothing is sent - see [Clear Spool](#clear-spool) |
+| `MMU_GATE_MAP GATE={n} [COLOR=..] [MATERIAL=..] [VENDOR=..] [NAME=..] [TEMP=..] [SPOOLID=..]` | Write a slot edit to the gate map (`mmu_vars.cfg`). Omitted params keep their current value, so a field is only cleared by naming it with an explicit empty value. `VENDOR` is v4-only; `TEMP` is sent only when the edit moves it, never 0. In Spoolman pull mode an edit is refused - see [Lane identity and edits](#lane-identity-and-edits) |
 | `MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1` | **Clear Spool**: wipe every field the gate map holds for one gate - see [Clear Spool](#clear-spool) |
 | `MMU_SELECT_BYPASS` | Select bypass position |
 
@@ -65,7 +65,7 @@ Happy Hare's `filament_pos` (0-8) maps to `PathSegment` via `path_segment_from_h
 | Endless Spool | `Available` | `Group` on a single-unit MMU; `ReadOnly` + `MultiUnit` on multi-unit, `ReadOnly` + `NotReady` before the gate registry initialises (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
 | Tool Mapping | Yes | Yes (via `MMU_TTG_MAP`) |
 | Bypass Mode | Yes | Yes (selector position -2), when `[mmu_machine] has_bypass` is set (v4: any unit's `has_bypass`). `has_bypass: 0` hides the UI but `MMU_SELECT_BYPASS` still works - see [the force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) |
-| Spoolman | Yes | -- (pull mode: the gate map is Spoolman's - Clear Spool clears HelixScreen's copy only and reports partial failure) |
+| Spoolman | Yes | -- (pull mode: the gate map is Spoolman's, and an edit that moves a gate-map field is refused) |
 | Auto-Heat on Load | No | UI manages preheat |
 | Dryer | Yes | `MMU_HEATER` (see [Happy Hare Specifics](FILAMENT_MANAGEMENT.md#happy-hare-specifics)) |
 | Lane Eject | Yes | `supports_lane_eject()` + `eject_lane()` |
@@ -130,15 +130,7 @@ not fetch, and `VENDOR` is v4-only. Three params are permanently off this comman
 
 Two gates on the send itself:
 
-- **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
-  `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour,
-  name, vendor and spool id, and logs the refusal in its own console rather than
-  returning an error the client could read. The backend clears HelixScreen's layer,
-  sends nothing, and returns a partial failure naming Spoolman as the owner of the gate
-  map. An ordinary slot edit gets the same treatment in `apply_user_edit()`: the
-  `MMU_GATE_MAP` send is skipped with the same partial failure (HelixScreen keeps its
-  own copy), while a tool remap still goes out - `MMU_TTG_MAP` is not a gate-map field
-  and Happy Hare takes it in pull mode.
+- **Spoolman pull mode**: refused before the wipe, like any edit (below).
 - **Mid-print backstop.** The print UI refuses clears while a job holds the machine. If
   one reaches the backend anyway for the gate the job is printing from, the firmware
   write is skipped with a warning and a partial failure; HelixScreen's own layer is
@@ -147,6 +139,26 @@ Two gates on the send itself:
 The wipe only fires when the gate held something. An all-blank edit on an already-blank
 gate (a tool-map-only save) sends no `MMU_GATE_MAP` at all, so an ordinary edit on an
 empty gate stays silent.
+
+### Lane identity and edits
+
+The gate map holds a gate's spool id, material, colour, name, temperature and (v4) vendor,
+and Happy Hare writes `lane_data` itself, so HelixScreen never writes `lane_data` here. The
+lane shows the gate map, filed as the lane's `Firmware` source.
+
+- **Edits** (`AmsBackendHappyHare::apply_user_edit`) are one `MMU_GATE_MAP` naming each moved
+  field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `TEMP`, `SPOOLID`), plus `MMU_TTG_MAP`
+  for a tool remap.
+- **Fields the gate map cannot hold** (brand before v4, total weight, colour name, catalog
+  pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the same
+  10 s poll as every lane record.
+- **A link from outside the editor** (`sync_external_identity`) is
+  `MMU_GATE_MAP GATE={n} SPOOLID={id} QUIET=1`.
+- **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
+  `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
+  vendor and spool id, and only logs the refusal. An edit that moves any of those is refused
+  whole before anything is written, so the spool editor stays open saying the gates come from
+  Spoolman; HelixScreen keeps no copy. A tool-remap-only save still goes out.
 
 ### Happy Hare 4
 

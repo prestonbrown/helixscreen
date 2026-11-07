@@ -698,7 +698,7 @@ TEST_CASE("Happy Hare clear: a material edit does not take the wipe path",
     REQUIRE_FALSE(helper.has_gcode_containing("QUIET=1"));
 }
 
-TEST_CASE("Happy Hare clear: pull mode skips the firmware write and says so",
+TEST_CASE("Happy Hare in Spoolman pull mode refuses an edit whole and keeps no copy",
           "[ams][happy_hare][clear]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
@@ -712,18 +712,59 @@ TEST_CASE("Happy Hare clear: pull mode skips the firmware write and says so",
     slot->material = "PLA";
     slot->spoolman_id = 123;
 
-    const AmsError err = helix::test::apply_edit(helper, 0, funnel_cleared_copy(*slot));
+    SlotInfo edit = *slot;
+    SECTION("a clear") {
+        edit = funnel_cleared_copy(*slot);
+    }
+    SECTION("an edit") {
+        edit.material = "PETG";
+        edit.mapped_tool = 1;
+    }
+    const AmsError err = helix::test::apply_edit(helper, 0, edit);
 
-    // Happy Hare refuses local writes to material/colour/name/vendor/spool id
-    // in pull mode, and the refusal is logged there rather than returned, so
-    // nothing is sent and the failure is reported here instead.
-    REQUIRE_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
-    REQUIRE_FALSE(err.success());
-    REQUIRE(err.partially_applied);
-    // Our own layer is cleared even though the firmware refused.
+    // Happy Hare refuses local gate-map writes in pull mode and only logs it,
+    // so nothing is sent, nothing is kept here, and the refusal is returned.
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+    CHECK_FALSE(helper.has_gcode_containing("MMU_TTG_MAP"));
+    CHECK_FALSE(err.success());
+    CHECK_FALSE(err.partially_applied);
     const SlotInfo* after = helper.get_mutable_slot(0);
-    REQUIRE(after->material.empty());
-    REQUIRE(after->spoolman_id == 0);
+    CHECK(after->material == "PLA");
+    CHECK(after->spoolman_id == 123);
+}
+
+TEST_CASE("Happy Hare writes the name and temperature to the gate map", "[ams][happy_hare]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(2);
+
+    SlotInfo edit;
+    edit.material = "PLA";
+    edit.spool_name = "PolyTerra";
+    edit.nozzle_temp_min = 200;
+    edit.nozzle_temp_max = 220;
+    REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
+    CHECK(helper.has_gcode_containing("NAME=PolyTerra"));
+    CHECK(helper.has_gcode_containing("TEMP=210"));
+
+    // A cleared name is an explicit empty; an unchanged temperature is not
+    // restated, and no temperature is never TEMP=0.
+    helper.clear_captured_gcodes();
+    SlotInfo cleared = *helper.get_mutable_slot(0);
+    cleared.spool_name.clear();
+    REQUIRE(helix::test::apply_edit(helper, 0, cleared).success());
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME="));
+    CHECK_FALSE(helper.has_gcode_containing("TEMP="));
+}
+
+TEST_CASE("a link from outside the editor is written to the gate map", "[ams][happy_hare]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(2);
+    SlotInfo linked = *helper.get_mutable_slot(1);
+    linked.spoolman_id = 77;
+    REQUIRE(helper.sync_external_identity(1, linked).success());
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=1 SPOOLID=77 QUIET=1"));
 }
 
 TEST_CASE("Happy Hare clear: slot stays blank across the status echo", "[ams][happy_hare][clear]") {
@@ -758,34 +799,6 @@ TEST_CASE("Happy Hare clear: slot stays blank across the status echo", "[ams][ha
     REQUIRE(echoed->material.empty());
     REQUIRE(echoed->color_rgb == helix::kAmsDefaultSlotColor);
     REQUIRE(echoed->spoolman_id == 0);
-}
-
-TEST_CASE("Happy Hare editor write: pull mode skips the firmware write and says so",
-          "[ams][happy_hare]") {
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(2);
-
-    helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
-    REQUIRE(helper.get_system_info().spoolman_mode == SpoolmanMode::PULL);
-
-    SlotInfo edit;
-    edit.material = "PETG";
-    edit.mapped_tool = 1;
-    const AmsError err = helix::test::apply_edit(helper, 0, edit);
-
-    // Same refusal as the clear: Happy Hare ignores local writes to the
-    // gate-map fields in pull mode and only logs it, so nothing is sent and
-    // the failure is reported here instead of a success.
-    REQUIRE_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
-    REQUIRE_FALSE(err.success());
-    REQUIRE(err.partially_applied);
-    // A tool remap is not a gate-map field: Happy Hare takes it in pull mode.
-    REQUIRE(helper.has_gcode_containing("MMU_TTG_MAP TOOL=1 GATE=0"));
-    // Our own layer keeps the edit even though the firmware refused.
-    const SlotInfo* after = helper.get_mutable_slot(0);
-    REQUIRE(after->material == "PETG");
-    REQUIRE(after->mapped_tool == 1);
 }
 
 TEST_CASE("Happy Hare editor write: pull mode still saves a pure tool remap", "[ams][happy_hare]") {

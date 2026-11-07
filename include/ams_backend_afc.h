@@ -686,12 +686,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     // overrides_ is keyed by the lane's registry position (slots_ index), the
     // one key every per-lane store here shares, lane_id() included. Never a
-    // SlotInfo field:
-    // slot_index there is unit-local, and global_index is a copy the registry
-    // stamps (#1644).
-    /// Put @p info's filament fields and tool mapping on @p slot, the half an
-    /// edit and a sync share. Callers hold mutex_.
-    void write_lane_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
+    // SlotInfo field: slot_index there is unit-local, and global_index is a
+    // copy the registry stamps (#1644).
 
     /**
      * @brief Parse AFC state from Moonraker JSON
@@ -1485,28 +1481,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// whose remember_spool is off. Caller holds mutex_.
     void forget_lane_spool_locked(int slot_index, const std::string& lane_name);
 
-    /// Firmware's own last-reported spool_id per lane, updated only when a
-    /// status delta carries the key. Distinct from SlotInfo::spoolman_id,
-    /// which the §5 override merge re-supplies with the retained id — this
-    /// map preserves "does AFC itself still hold a link?".
-    std::unordered_map<std::string, int> lane_firmware_spool_id_;
-
     /// Latest reading per OpenAMS sensor, keyed by lowercased sensor name.
     std::unordered_map<std::string, EnvironmentData> oams_env_;
     /// Lowercased AFC_OpenAMS unit name -> lowercased [AFC_OAMS] name, from configfile.
     std::unordered_map<std::string, std::string> unit_oams_names_;
     std::atomic<bool> has_unit_environment_{false};
-
-    /// True when @p firmware_id is the id the user unlinked from @p slot_index,
-    /// which AFC keeps on a lane with remember_spool and restates on every
-    /// full status snapshot. The unlink lives in the slot's persisted override
-    /// (FilamentSlotOverride::unlinked_spool_id) so it survives a reconnect and
-    /// a restart; any other id ends it. @pre mutex_ held.
-    bool restates_unlinked_spool(int slot_index, int firmware_id);
-
-    /// Record (@p spool_id > 0) or end (0) the unlink on @p slot_index and
-    /// persist it. @pre mutex_ held.
-    void set_unlinked_spool(int slot_index, int spool_id);
 
     /// What AFC itself has said about a lane, per observation source, built up
     /// field by field across status frames and keyed by lane name the way the

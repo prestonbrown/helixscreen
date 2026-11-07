@@ -249,7 +249,10 @@ the clear hands the field back to what Moonraker holds at once
 (prestonbrown/helixscreen#1661). Two clears stay engaged: an unlink
 (`spoolman_id` 0), which must displace the link Moonraker still holds until the
 write lands, and a colour name cleared beside a new colour, which must displace a
-name describing the old colour.
+name describing the old colour. An edit that only clears leaves an empty Pending record: it
+shows nothing, but stands for the write, so a waiter still hears the outcome.
+Only a `Record` reading (the read after the write) answers it; firmware frames
+arrive whether or not the write landed.
 
 **Offline.** An edit while disconnected is refused before anything is filed
 (§4). A write that fails is reported through the log and the lane falls back; it

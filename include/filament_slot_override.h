@@ -91,17 +91,6 @@ struct FilamentSlotOverride {
     // Persistence: `helix_external: true` in the lane_data record, omitted
     // otherwise.
     bool external_mirror = false;
-    // The firmware spool id the user unlinked from this lane while firmware
-    // kept stating it (AFC lanes with remember_spool, #1717). A frame naming
-    // this id is the stale restatement and reads as no link; any other id, a
-    // link made here or (unless the lane remembers its spool) the lane
-    // emptying ends it. A re-link to the same id made outside HelixScreen
-    // stays hidden: it is indistinguishable from the restatement.
-    // Bookkeeping, not identity: a Clear Spool keeps it and an edit carries
-    // it forward unless it links.
-    // Persistence: `helix_unlinked_spool_id` in the lane_data record, omitted
-    // when 0.
-    int unlinked_spool_id = 0;
     // Whether a spool is in the lane, the record's `loaded` (RFC 0001 §5).
     // Unset is unknown and writes null.
     std::optional<bool> loaded;

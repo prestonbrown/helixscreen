@@ -2660,20 +2660,6 @@ void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {
                                       backend_log_tag());
 }
 
-void AmsBackendHappyHare::write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info) {
-    const int old_mapped_tool = slot.mapped_tool;
-    const bool changed = slot.assign_filament_fields(info) || info.mapped_tool != old_mapped_tool;
-    // Tool mapping change goes through registry so reverse maps stay consistent.
-    if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
-        slots_.set_tool_mapping(slot_index, info.mapped_tool);
-    }
-
-    if (changed) {
-        spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
-                     info.color_name);
-    }
-}
-
 namespace {
 /// The Clear Spool funnel hands the backend a slot with nothing on it: no
 /// material, no declarable colour, no identity text, no spool link. Only that
@@ -2685,13 +2671,29 @@ bool is_full_clear(const SlotInfo& info) {
 }
 
 /// Spoolman pull mode refuses local gate-map writes by logging the refusal
-/// only, so every refusal path reports it here instead: a partial failure
-/// (HelixScreen's own layer is already written) naming Spoolman as the owner.
-AmsError pull_mode_refusal(const char* title, const char* message) {
-    AmsError refused(AmsResult::COMMAND_FAILED, "Happy Hare Spoolman pull mode owns the gate map",
-                     lv_tr(title), lv_tr(message));
-    refused.partially_applied = true;
-    return refused;
+/// only, so an edit there is refused before anything is written: the gate map
+/// is Spoolman's, and HelixScreen keeps no copy of its own.
+AmsError pull_mode_refusal() {
+    return AmsError(AmsResult::COMMAND_FAILED, "Happy Hare Spoolman pull mode owns the gate map",
+                    lv_tr("this printer fills its gates from Spoolman, so change the spool there"),
+                    lv_tr("Make color, material and spool changes in Spoolman."));
+}
+
+/// True when @p info moves anything the gate map holds for the gate @p old
+/// describes. A tool remap or a weight is not a gate-map field.
+bool edits_gate_map(const SlotInfo& old, const SlotInfo& info) {
+    return info.material != old.material || info.color_rgb != old.color_rgb ||
+           info.spool_name != old.spool_name || info.brand != old.brand ||
+           info.spoolman_id != old.spoolman_id;
+}
+
+/// The one nozzle temperature a gate map holds, from a slot's range: the
+/// midpoint of a range, the single value otherwise, 0 for none.
+int gate_map_temperature(const SlotInfo& info) {
+    if (info.nozzle_temp_min > 0 && info.nozzle_temp_max > info.nozzle_temp_min) {
+        return (info.nozzle_temp_min + info.nozzle_temp_max) / 2;
+    }
+    return info.nozzle_temp_min > 0 ? info.nozzle_temp_min : info.nozzle_temp_max;
 }
 } // namespace
 
@@ -2705,6 +2707,8 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     uint32_t old_color_rgb = kAmsDefaultSlotColor;
     SpoolmanMode spoolman_mode = SpoolmanMode::OFF;
     int current_slot = -1;
+    std::string old_name;
+    int old_temp = 0;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2726,9 +2730,24 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         old_brand = entry->info.brand;
         v4 = is_v4_locked();
         old_color_rgb = entry->info.color_rgb;
+        old_name = entry->info.spool_name;
+        old_temp = gate_map_temperature(entry->info);
         spoolman_mode = system_info_.spoolman_mode;
         current_slot = system_info_.current_slot;
-        write_gate_locked(slot_index, entry->info, info);
+        // Spoolman pull mode: Happy Hare refuses local writes to material,
+        // colour, name, vendor and spool id, and logs the refusal rather than
+        // returning it. The gate map is Spoolman's on this printer, so the
+        // edit is refused whole before anything is written.
+        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info)) {
+            spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} edit "
+                         "refused",
+                         slot_index);
+            return pull_mode_refusal();
+        }
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
 
         // Record the user's identity in the override store: the gate map cannot
         // hold brand / spool_name / total weight / colour name at all.
@@ -2748,19 +2767,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     // every gate. Never TEMP=0 (falsy means "keep") or AVAILABLE=0 (that
     // marks the gate EMPTY, not unknown).
     if (is_full_clear(info) && old_had_identity) {
-        // Spoolman pull mode: Happy Hare refuses local writes to material,
-        // colour, name, vendor and spool id, and logs the refusal rather than
-        // returning it - the gate map belongs to Spoolman on this printer.
-        if (spoolman_mode == SpoolmanMode::PULL) {
-            spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} "
-                         "cleared locally only",
-                         slot_index);
-            emit_event(kEventSlotChanged, std::to_string(slot_index));
-            return pull_mode_refusal("Couldn't clear the printer's gate map",
-                                     "This printer fills its gates from Spoolman. HelixScreen "
-                                     "cleared its own copy; remove the spool in Spoolman.");
-        }
-
         // A job on this gate: the print UI refuses clears while a job holds
         // the machine, so one reaching here is a backstop - rewriting the gate
         // map under a running print is the one thing that must not happen.
@@ -2829,17 +2835,37 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 
     // Vendor (v4 only; older Happy Hare has no such gate-map field). Carried
     // as an explicit empty when the user cleared a brand the gate held.
-    bool wrote_vendor = false;
     if (v4) {
         if (!info.brand.empty() && IMoonrakerAPI::is_safe_material_param(info.brand)) {
             cmd += fmt::format(" VENDOR={}", IMoonrakerAPI::gcode_param_value(info.brand));
-            has_changes = wrote_vendor = true;
+            has_changes = true;
         } else if (!info.brand.empty()) {
             spdlog::warn("[AMS HappyHare] Skipping VENDOR - unsafe characters in: {}", info.brand);
         } else if (!old_brand.empty()) {
             cmd += " VENDOR=";
             has_changes = true;
         }
+    }
+
+    // Name: the gate map holds it on every version, and an explicit empty
+    // clears it.
+    if (!info.spool_name.empty() && IMoonrakerAPI::is_safe_material_param(info.spool_name)) {
+        if (info.spool_name != old_name) {
+            cmd += fmt::format(" NAME={}", IMoonrakerAPI::gcode_param_value(info.spool_name));
+            has_changes = true;
+        }
+    } else if (!info.spool_name.empty()) {
+        spdlog::warn("[AMS HappyHare] Skipping NAME - unsafe characters in: {}", info.spool_name);
+    } else if (!old_name.empty()) {
+        cmd += " NAME=";
+        has_changes = true;
+    }
+
+    // Temperature: one per gate. Never TEMP=0, which Happy Hare reads as
+    // "keep".
+    if (const int temp = gate_map_temperature(info); temp > 0 && temp != old_temp) {
+        cmd += fmt::format(" TEMP={}", temp);
+        has_changes = true;
     }
 
     // Spoolman ID (-1 to clear)
@@ -2851,17 +2877,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         has_changes = true;
     }
 
-    // Only send command if there are actual changes to persist. Spoolman pull
-    // mode refuses local writes to every field this command carries and logs
-    // the refusal rather than returning it - send nothing and report the
-    // partial failure below instead of claiming success. Tool-to-gate remaps
-    // are not gate-map fields and still go out.
-    const bool pull_owns_gate_map = spoolman_mode == SpoolmanMode::PULL;
-    if (has_changes && pull_owns_gate_map) {
-        spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} "
-                     "edit kept locally only",
-                     slot_index);
-    } else if (has_changes) {
+    if (has_changes) {
         execute_gcode(cmd);
         spdlog::debug("[AMS HappyHare] Sent: {}", cmd);
     }
@@ -2875,12 +2891,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks
     emit_event(kEventSlotChanged, std::to_string(slot_index));
-
-    if (has_changes && pull_owns_gate_map) {
-        return pull_mode_refusal("Couldn't save the printer's gate map",
-                                 "This printer fills its gates from Spoolman. Make color, "
-                                 "material and spool changes in Spoolman.");
-    }
 
     if (!rejected_material.empty()) {
         AmsError partial(AmsResult::COMMAND_FAILED,
@@ -2899,6 +2909,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 }
 
 AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotInfo& info) {
+    std::string link;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2911,7 +2922,20 @@ AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotI
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
         }
 
-        write_gate_locked(slot_index, entry->info, info);
+        // The gate map holds the link, so a link from elsewhere is written to
+        // it, except where Spoolman fills the gate map itself.
+        if (info.spoolman_id > 0 && info.spoolman_id != entry->info.spoolman_id &&
+            system_info_.spoolman_mode != SpoolmanMode::PULL) {
+            link = fmt::format("MMU_GATE_MAP GATE={} SPOOLID={} QUIET=1", slot_index,
+                               info.spoolman_id);
+        }
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
+    }
+    if (!link.empty()) {
+        execute_gcode(link);
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks

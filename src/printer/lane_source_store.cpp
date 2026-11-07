@@ -146,20 +146,21 @@ void LaneSourceStore::write(LaneId lane, const Observation& obs, bool amend) {
             if (obs.source == ObservationSource::Pending) {
                 withdraw_cleared_fields(merged, obs);
             }
-            if (!any_observed(merged)) {
-                sources.drop(obs.source);
-                pending_deadline_.erase(lane);
-                settle_locked(lane, PendingOutcome::Echoed, {}, settled);
-            } else {
-                sources.apply(merged);
-                pending_deadline_[lane] = std::chrono::steady_clock::now() + kPendingWriteTimeout;
-            }
+            // An edit that only clears leaves no value pending, but its write
+            // is still out: an empty Pending record stands for it, showing
+            // nothing, until a Record read, a failure or the timeout ends it.
+            sources.apply(merged);
+            pending_deadline_[lane] = std::chrono::steady_clock::now() + kPendingWriteTimeout;
         } else {
             sources.apply(obs);
         }
-        if ((obs.source == ObservationSource::Firmware ||
-             obs.source == ObservationSource::Record) &&
-            sources.pending.has_value()) {
+        // Only the record a clear rewrote answers an empty Pending record;
+        // firmware frames arrive whether or not the write landed.
+        const bool answers_pending =
+            obs.source == ObservationSource::Record ||
+            (obs.source == ObservationSource::Firmware && sources.pending.has_value() &&
+             any_observed(*sources.pending));
+        if (answers_pending && sources.pending.has_value()) {
             strip_echoed_fields(*sources.pending, obs);
             if (!any_observed(*sources.pending)) {
                 sources.pending.reset();
@@ -244,14 +245,14 @@ void LaneSourceStore::clear() {
     run(settled);
 }
 
-void LaneSourceStore::drop_source(LaneId lane, ObservationSource source,
-                                  const std::string& reason) {
+void LaneSourceStore::drop_source(LaneId lane, ObservationSource source, const std::string& reason,
+                                  PendingOutcome outcome) {
     Settlements settled;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (source == ObservationSource::Pending) {
             pending_deadline_.erase(lane);
-            settle_locked(lane, PendingOutcome::Failed, reason, settled);
+            settle_locked(lane, outcome, reason, settled);
         }
         auto it = lanes_.find(lane);
         if (it != lanes_.end()) {
@@ -349,6 +350,14 @@ void withdraw_pending(LaneId lane, const std::string& reason) {
         return;
     }
     LaneSourceStore::instance().drop_source(lane, ObservationSource::Pending, reason);
+}
+
+void acknowledge_pending(LaneId lane) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().drop_source(lane, ObservationSource::Pending, {},
+                                            PendingOutcome::Echoed);
 }
 
 std::uint64_t pending_filings(LaneId lane) {

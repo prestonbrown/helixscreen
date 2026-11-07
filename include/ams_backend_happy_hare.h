@@ -428,9 +428,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// Store on the SHARED lane_data namespace, used only by
     /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
-    /// Put @p info's filament fields and tool mapping on @p slot, the half an
-    /// edit and a sync share. Callers hold mutex_.
-    void write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
 
     // The MMU_HEATER target for @p unit: UNIT= where unit_suffix_locked() needs
     // one, then " GATES=g0,g1,..." naming the unit's gates on multi-unit (EMU)

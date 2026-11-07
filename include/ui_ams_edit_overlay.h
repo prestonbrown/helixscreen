@@ -542,9 +542,12 @@ class AmsEditOverlay : public OverlayBase {
     // A save that wrote nothing leaves the editor where it was.
     void stay_open_after_failed_save();
 
-    // Name the first field a Spoolman filament needs and this slot does not
-    // carry. One sentence per field, never a list.
-    void show_missing_filament_toast(const helix::MissingFilamentFields& missing);
+    /// The first field a Spoolman filament needs and this slot does not
+    /// carry, as one sentence, or nullptr.
+    static const char* missing_filament_message(const helix::MissingFilamentFields& missing);
+    /// A save that did not go through: the inline line under Save while the
+    /// editor that began it is showing (@p live), a toast once it has closed.
+    void report_save_problem(bool live, const char* message);
 #if HELIX_HAS_LABEL_PRINTER
     void handle_print_label();
 #endif

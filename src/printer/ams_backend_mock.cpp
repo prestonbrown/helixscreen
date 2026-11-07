@@ -2382,14 +2382,9 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             entry->info.slot_index = i;
             entry->info.global_index = i;
             entry->info.material = d.material;
-            // No brand: AFC does not report a vendor. read_vendor() in
-            // ams_backend_afc.cpp looks for vendor_name/spool_vendor/vendor/brand,
-            // but upstream AFC #808 has not shipped (#833 is the PR), so the
-            // payload never carries any of them and a real lane's brand stays
-            // empty unless the user sets an override. The vendor in sample_data is
-            // what the Spoolman identity cache supplies for the linked lanes, not
-            // what firmware reports -- seeding it onto the slot made mock mode
-            // render a brand real hardware never produces, which is what hid #1264.
+            // No brand: the simulated AFC reports no spool_vendor. The vendor in
+            // sample_data is what Spoolman supplies for the linked lanes, not
+            // what firmware reports (#1264).
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
             entry->info.status = (i == 0) ? SlotStatus::LOADED : d.status;

@@ -96,6 +96,8 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     void clear_slot_override(int slot_index) override;
+    /// With [openams_spoolman] loaded the bay's link is the component's.
+    [[nodiscard]] std::string clear_spool_refusal(int slot_index) const override;
 
     /// Group names are configured in klipper_openams; `T<n>` groups are read
     /// as tool n and cannot be re-aimed from here.
@@ -149,6 +151,13 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     SlotInfo* cached_slot_locked(int slot_index) override;
     void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
+    /// With [openams_spoolman] loaded, lane_data is its protected namespace
+    /// and weights live in Spoolman, so neither is written here.
+    void persist_slot_weight(int slot_index, float remaining_weight_g,
+                             float total_weight_g) override;
+    void persist_external_identity_impl(int slot_index,
+                                        const helix::ams::Observation& spoolman) override;
+
     /// Sends one advertised load/unload command. The command runs the complete
     /// configured toolchange, homing included, so no home is added here; the
     /// failure it raises reaches the user through the G-code error stream,
@@ -159,6 +168,31 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
 
   private:
     friend class OpenAmsTestAccess;
+
+    /// The openams [openams_spoolman] Moonraker component is loaded: it
+    /// writes lane_data (a namespace Moonraker protects from clients) and
+    /// takes edits through server.openams_spoolman.edit. Learned from its
+    /// status endpoint at start and from its status notification. Written on
+    /// the main thread; the persist hooks read it from wherever they run.
+    std::atomic<bool> spoolman_component_{false};
+
+    /// An edit through the component: refused inline for a field it cannot
+    /// hold, otherwise posted, with the lane's pending edit acknowledged or
+    /// withdrawn by the answer.
+    AmsError apply_edit_through_component(int slot_index, const SlotInfo& info);
+
+    /// File the component's per-bay status (its `bays` object, keyed
+    /// "<unit>-<bay>") as each slot's Firmware source: the linked spool id
+    /// and the summary it publishes for it. Marks the component loaded.
+    /// Main thread.
+    void adopt_component_status(const nlohmann::json& status);
+    /// Ask the component for its status and adopt the answer. Main thread.
+    void query_component_status();
+
+    /// With the component loaded its lane_data is per tool, not per slot.
+    [[nodiscard]] bool lane_records_describe_slots() const override {
+        return !spoolman_component_;
+    }
 
     /// One entry of a unit's published fault list.
     struct UnitFault {
