@@ -65,7 +65,7 @@ Route route_by_plate(const RouteInputs& in) {
                    : refuse(Refusal::QueueNotDefaultPlate);
     }
     if (!in.shown_plate) {
-        return in.rewrite != Rewrite::None ? refuse(rewrite_refusal(in.rewrite)) : Route{};
+        return in.rewrite != Rewrite::None ? refuse(Refusal::PlateNotLoaded) : Route{};
     }
     if (in.rewrite == Rewrite::None && printer_lists_plate(in.printer_plates, *in.shown_plate)) {
         return plate_route(RouteKind::NativePlate, *in.shown_plate);
@@ -135,11 +135,11 @@ ScanFrom scan_from(const RouteInputs& in) {
     return ScanFrom::Nothing;
 }
 
-std::optional<int> unrecorded_reprint_plate(const FileMetadata* printer_metadata) {
-    if (printer_reads(printer_metadata) != PrinterReads::Plates) {
+std::optional<int> unrecorded_reprint_plate(const FileMetadata& printer_metadata) {
+    if (printer_reads(&printer_metadata) != PrinterReads::Plates) {
         return 0;
     }
-    const std::vector<int>& plates = *printer_metadata->sliced_plates;
+    const std::vector<int>& plates = *printer_metadata.sliced_plates;
     if (plates.size() == 1) {
         return plates.front();
     }
@@ -163,11 +163,12 @@ const char* refusal_message(Refusal refusal) {
         return TR_NOOP(
             "The queue prints this .3mf's default plate. Print this plate from here instead.");
     case Refusal::StepsNeedPlate:
-        return TR_NOOP("The pre-print steps you turned off cannot be applied to this .3mf here. "
-                       "Turn them back on, or pick its plate in Print Files.");
+        return TR_NOOP("The pre-print steps you turned off cannot be applied to this .3mf. Turn "
+                       "them back on to print it.");
     case Refusal::RemapNeedsPlate:
-        return TR_NOOP("Filament Mapping cannot rewrite this .3mf here. Print it without "
-                       "remapping, or pick its plate in Print Files.");
+        return TR_NOOP("Filament Mapping cannot rewrite this .3mf. Print it without remapping.");
+    case Refusal::PlateNotLoaded:
+        return TR_NOOP("This .3mf's plates are still loading. Try again in a moment.");
     }
     return "";
 }

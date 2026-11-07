@@ -1448,7 +1448,7 @@
   <translation tag="Filament In The Toolhead" it="Filamento nella testina"/>
   <translation tag="Filament Jam" it="Blocco del filamento"/>
   <translation tag="Filament Mapping" it="Mappatura filamento"/>
-  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." it="La mappatura dei filamenti non può riscrivere questo .3mf qui. Stampalo senza rimappare o scegli il suo piatto in File di stampa."/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." it="La mappatura dei filamenti non può riscrivere questo .3mf. Stampalo senza rimappare."/>
   <translation tag="Filament Mapping is not available on this device." it="La mappatura filamento non è disponibile su questo dispositivo."/>
   <translation tag="Filament Mapping is unavailable" it="La mappatura filamento non è disponibile"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" it="Questa stampante non supporta la mappatura filamento, quindi la stampa usa gli strumenti assegnati sulla stampante"/>
@@ -3824,7 +3824,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." it="Il plugin non raggiunge la fotocamera, quindi le foto le scatta questo schermo."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." it="Il plugin non può salvare i dati di ripresa."/>
   <translation tag="The plugin is turned off in moonraker.conf." it="Il plugin è disattivato in moonraker.conf."/>
-  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." it="I passaggi preliminari disattivati non possono essere applicati a questo .3mf qui. Riattivali o scegli il suo piatto in File di stampa."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." it="I passaggi preliminari disattivati non possono essere applicati a questo .3mf. Riattivali per stamparlo."/>
   <translation tag="The previous IPv4 settings come back when the print ends." it="Le impostazioni IPv4 precedenti torneranno al termine della stampa."/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" it="Impossibile verificare le impostazioni IPv4 precedenti: impossibile leggere {}"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" it="Impossibile ripristinare le impostazioni IPv4 precedenti e impossibile aggiornare il registro della modifica: {}"/>
@@ -3916,6 +3916,7 @@
   <translation tag="This .3mf has no sliced plate to print." it="Questo .3mf non contiene alcun piatto sezionato da stampare."/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." it="Questo .3mf deve essere convertito in G-code prima di poter essere messo in coda. Stampalo da qui."/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." it="Questo .3mf deve essere convertito in G-code sulla stampante prima di poter essere stampato."/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." it="I piatti di questo .3mf sono ancora in caricamento. Riprova tra un momento."/>
   <translation tag="This AFC system does not support bypass mode" it="Questo sistema AFC non supporta la modalità bypass"/>
   <translation tag="This CFS firmware exposes no external spool slot" it="Questo firmware CFS non offre uno slot per bobine esterne"/>
   <translation tag="This Happy Hare system does not support bypass mode" it="Questo sistema Happy Hare non supporta la modalità bypass"/>

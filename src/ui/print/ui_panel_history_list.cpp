@@ -1222,9 +1222,9 @@ void HistoryListPanel::handle_reprint() {
     // which frees the storage `job` points into.
     const std::string filename = job.filename;
     // A plate the printer started itself is named only in this session's record.
-    const auto recorded = get_printer_state().print_state().start_request_for(filename);
-    const int archive_plate =
-        job.archive_plate > 0 ? job.archive_plate : (recorded ? recorded->native_plate : 0);
+    const std::optional<int> recorded = get_printer_state().print_state().confirmed_start_plate(
+        helix::PrinterPrintState::start_record_printer_id(), filename);
+    const int archive_plate = job.archive_plate > 0 ? job.archive_plate : recorded.value_or(0);
 
     // Navigate to the Print Select file detail view (DRY - reuse existing UI)
     // Step 1: Close all history overlays (detail → list → dashboard)

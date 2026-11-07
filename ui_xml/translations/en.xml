@@ -1448,7 +1448,7 @@
   <translation tag="Filament In The Toolhead" en="Filament In The Toolhead"/>
   <translation tag="Filament Jam" en="Filament Jam"/>
   <translation tag="Filament Mapping" en="Filament Mapping"/>
-  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." en="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files."/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." en="Filament Mapping cannot rewrite this .3mf. Print it without remapping."/>
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" en="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer"/>
@@ -3824,7 +3824,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." en="The plugin can&apos;t reach the camera, so this screen takes the photos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." en="The plugin can&apos;t save its recovery data to disk."/>
   <translation tag="The plugin is turned off in moonraker.conf." en="The plugin is turned off in moonraker.conf."/>
-  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." en="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." en="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it."/>
   <translation tag="The previous IPv4 settings come back when the print ends." en="The previous IPv4 settings come back when the print ends."/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" en="The previous IPv4 settings could not be checked: {} could not be read"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" en="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}"/>
@@ -3916,6 +3916,7 @@
   <translation tag="This .3mf has no sliced plate to print." en="This .3mf has no sliced plate to print."/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." en="This .3mf has to be converted to G-code before it can be queued. Print it from here instead."/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." en="This .3mf has to be converted to G-code on the printer before it can print."/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." en="This .3mf&apos;s plates are still loading. Try again in a moment."/>
   <translation tag="This AFC system does not support bypass mode" en="This AFC system does not support bypass mode"/>
   <translation tag="This CFS firmware exposes no external spool slot" en="This CFS firmware exposes no external spool slot"/>
   <translation tag="This Happy Hare system does not support bypass mode" en="This Happy Hare system does not support bypass mode"/>

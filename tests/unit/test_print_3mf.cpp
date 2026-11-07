@@ -80,8 +80,8 @@ const Row kRows[] = {
     {P, true,  true,  false, true,  None,  Pr, RouteKind::ExtractPlate,    Refusal::None,                 5},
     {P, true,  true,  true,  true,  None,  Pr, RouteKind::ExtractPlate,    Refusal::None,                 5},
     {P, false, false, false, true,  None,  Pr, RouteKind::AsFile,          Refusal::None,                 0},
-    {P, false, false, false, true,  Steps, Pr, RouteKind::Refuse,          Refusal::StepsNeedPlate,       0},
-    {P, false, false, false, true,  Remap, Pr, RouteKind::Refuse,          Refusal::RemapNeedsPlate,      0},
+    {P, false, false, false, true,  Steps, Pr, RouteKind::Refuse,          Refusal::PlateNotLoaded,       0},
+    {P, false, false, false, true,  Remap, Pr, RouteKind::Refuse,          Refusal::PlateNotLoaded,       0},
     {P, true,  false, false, true,  None,  Q,  RouteKind::Refuse,          Refusal::QueueNotDefaultPlate, 0},
     {P, false, false, false, true,  None,  Q,  RouteKind::AsFile,          Refusal::None,                 0},
 };
@@ -123,7 +123,7 @@ TEST_CASE("every .3mf route follows the spec table", "[print_3mf][native_3mf]") 
     }
     // The table reaches every outcome.
     CHECK(kinds.size() == 5);
-    CHECK(refusals.size() == 7);
+    CHECK(refusals.size() == 8);
 }
 
 TEST_CASE("the operations scan reads what the Print route prints", "[print_3mf][native_3mf]") {
@@ -164,15 +164,14 @@ TEST_CASE("the stepper offers only plates a printer that starts them lists", "[p
 
 TEST_CASE("a reprint with no recorded start names a plate only when that is certain",
           "[print_3mf][reprint]") {
-    CHECK(unrecorded_reprint_plate(nullptr) == 0);
     FileMetadata md;
-    CHECK(unrecorded_reprint_plate(&md) == 0);
+    CHECK(unrecorded_reprint_plate(md) == 0);
     md.sliced_plates = std::vector<int>{5};
-    CHECK(unrecorded_reprint_plate(&md) == 5);
+    CHECK(unrecorded_reprint_plate(md) == 5);
     md.sliced_plates = std::vector<int>{2, 5};
-    CHECK_FALSE(unrecorded_reprint_plate(&md));
+    CHECK_FALSE(unrecorded_reprint_plate(md));
     md.sliced_plates = std::vector<int>{};
-    CHECK_FALSE(unrecorded_reprint_plate(&md));
+    CHECK_FALSE(unrecorded_reprint_plate(md));
 }
 
 TEST_CASE("every refusal has words for its toast", "[print_3mf]") {

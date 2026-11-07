@@ -1448,7 +1448,7 @@
   <translation tag="Filament In The Toolhead" ja="ツールヘッドにフィラメントがあります"/>
   <translation tag="Filament Jam" ja="フィラメントの詰まり"/>
   <translation tag="Filament Mapping" ja="フィラメントマッピング"/>
-  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." ja="フィラメントのマッピングは、ここではこの .3mf を書き換えられません。マッピングせずに印刷するか、印刷ファイルでプレートを選んでください。"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." ja="フィラメントのマッピングはこの .3mf を書き換えられません。マッピングせずに印刷してください。"/>
   <translation tag="Filament Mapping is not available on this device." ja="このデバイスではフィラメントマッピングを利用できません。"/>
   <translation tag="Filament Mapping is unavailable" ja="フィラメントマッピングは利用できません"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" ja="このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します"/>
@@ -3824,7 +3824,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." ja="プラグインがカメラに接続できないため、この画面が写真を撮ります。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." ja="プラグインが復帰データを保存できません。"/>
   <translation tag="The plugin is turned off in moonraker.conf." ja="プラグインはmoonraker.confでオフになっています。"/>
-  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." ja="オフにした印刷前の手順は、ここではこの .3mf に適用できません。オンに戻すか、印刷ファイルでプレートを選んでください。"/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." ja="オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。"/>
   <translation tag="The previous IPv4 settings come back when the print ends." ja="以前のIPv4設定は印刷の終了後に戻ります。"/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" ja="以前のIPv4設定を確認できませんでした: {} を読み取れませんでした"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" ja="以前のIPv4設定を復元できず、変更の記録も更新できませんでした: {}"/>
@@ -3916,6 +3916,7 @@
   <translation tag="This .3mf has no sliced plate to print." ja="この .3mf には印刷できるスライス済みプレートがありません。"/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." ja="この .3mf はキューに追加する前に G-code に変換する必要があります。ここから印刷してください。"/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." ja="この .3mf は印刷する前にプリンター上で G-code に変換する必要があります。"/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." ja="この .3mf のプレートはまだ読み込み中です。少し待ってからもう一度お試しください。"/>
   <translation tag="This AFC system does not support bypass mode" ja="この AFC システムはバイパスモードに対応していません"/>
   <translation tag="This CFS firmware exposes no external spool slot" ja="この CFS ファームウェアには外部スプール用スロットがありません"/>
   <translation tag="This Happy Hare system does not support bypass mode" ja="この Happy Hare システムはバイパスモードに対応していません"/>
