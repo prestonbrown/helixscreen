@@ -2766,8 +2766,9 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
     const helix::PrintStartParams params =
         helix::print_start::start_request_params(route, std::exchange(start_params_, {}));
     if (printer_state_) {
-        printer_state_->print_state().note_start_request(
-            filename, {route.kind == print_3mf::RouteKind::NativePlate ? route.plate : 0, params});
+        printer_state_->print_state().note_start_plate(
+            helix::PrinterPrintState::start_record_printer_id(), filename,
+            route.kind == print_3mf::RouteKind::NativePlate ? route.plate : 0);
     }
     note_start_sent();
     helix::PrinterState* ps = printer_state_;

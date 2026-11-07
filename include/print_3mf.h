@@ -85,8 +85,9 @@ enum class Refusal {
     NeedsLocalCopies,     ///< extracting needs a transport that keeps local copies
     QueueNeedsConversion, ///< the queue cannot extract; only a converted plate can wait there
     QueueNotDefaultPlate, ///< a queued start prints the printer's default plate, not this one
-    StepsNeedPlate,       ///< steps turned off, in an archive no plate of which is known here
-    RemapNeedsPlate,      ///< a filament remap, in an archive no plate of which is known here
+    StepsNeedPlate,       ///< steps turned off, in an archive whose plate the printer picks
+    RemapNeedsPlate,      ///< a filament remap, in an archive whose plate the printer picks
+    PlateNotLoaded,       ///< a rewrite before the archive's plates are read
 };
 
 struct Route {
@@ -109,11 +110,11 @@ enum class ScanFrom {
 /// route prints, so the toggles act on what runs.
 [[nodiscard]] ScanFrom scan_from(const RouteInputs& in);
 
-/// The plate a Reprint of a .3mf that printed as itself names, when no start
-/// request was recorded for it: 0 (name none, as the first start did) for a
-/// printer whose metadata lists no plates; the one plate it lists; nullopt when
-/// it lists several, since which of them printed is unknown.
-[[nodiscard]] std::optional<int> unrecorded_reprint_plate(const FileMetadata* printer_metadata);
+/// The plate a Reprint of a .3mf that printed as itself names, when this
+/// session confirmed no start of it, from @p printer_metadata: 0 (name none,
+/// as the first start did) for a printer that lists no plates; the one plate
+/// it lists; nullopt when it lists several, since which printed is unknown.
+[[nodiscard]] std::optional<int> unrecorded_reprint_plate(const FileMetadata& printer_metadata);
 
 /// The English toast for @p refusal (translate it with lv_tr); empty for None.
 [[nodiscard]] const char* refusal_message(Refusal refusal);

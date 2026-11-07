@@ -18,7 +18,6 @@
 
 #include <atomic>
 #include <lvgl.h>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -465,20 +464,21 @@ class PrinterPrintState {
      */
     void note_preparing_start_sent();
 
-    /// What one print start sent beside its filename.
-    struct StartRequest {
-        int native_plate = 0; ///< the .3mf plate the printer was told to start, or 0
-        std::map<std::string, std::string> params; ///< print_start::start_request_params()
-    };
+    /// Records the .3mf plate (0: none) a print start of @p filename (its
+    /// gcodes-relative path) names on printer @p printer_id. It stays pending
+    /// with the preparing job, and becomes the job's record only when the
+    /// printer confirms it took that job (reconcile_preparing()). A refused,
+    /// cancelled or superseded start never does. Main thread only.
+    void note_start_plate(const std::string& printer_id, const std::string& filename, int plate);
 
-    /// Records what the print start of @p filename (its gcodes-relative path)
-    /// sent, so a Reprint of it starts the same plate with the same tool map.
-    /// The last start is kept.
-    void note_start_request(const std::string& filename, StartRequest request);
+    /// The plate the confirmed last job HelixScreen started names, when that
+    /// job was @p filename on printer @p printer_id; nullopt otherwise, or once
+    /// any other job has started on the printer. Main thread only.
+    [[nodiscard]] std::optional<int> confirmed_start_plate(const std::string& printer_id,
+                                                           const std::string& filename) const;
 
-    /// What the last recorded start of @p filename sent, or nullopt when no
-    /// start of it was recorded this session.
-    [[nodiscard]] std::optional<StartRequest> start_request_for(const std::string& filename) const;
+    /// The printer id the start record keys on: the active printer's configured id.
+    [[nodiscard]] static std::string start_record_printer_id();
 
     /// The start sent for the job armed at @p epoch answered: OK when
     /// @p accepted, else refused, which leaves the printer nothing to cancel.
@@ -1146,8 +1146,15 @@ class PrinterPrintState {
     void reconcile_preparing();
 
   private:
-    std::string start_request_file_;
-    StartRequest start_request_;
+    /// What a HelixScreen start named, for note_start_plate(). Main thread only.
+    struct StartRecord {
+        std::string printer_id;
+        std::string filename;
+        int plate = 0;
+        int epoch = 0; ///< the preparing epoch it was sent under
+    };
+    std::optional<StartRecord> pending_start_;   ///< sent, not yet confirmed. Main thread only
+    std::optional<StartRecord> confirmed_start_; ///< the printer's last job, ours. Main thread only
     friend class PrinterPrintStateTestAccess;
 
     /**

@@ -1434,7 +1434,7 @@
   <translation tag="Filament In The Toolhead" zh="工具头处有耗材"/>
   <translation tag="Filament Jam" zh="耗材堵塞"/>
   <translation tag="Filament Mapping" zh="耗材映射"/>
-  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." zh="耗材映射无法在这里改写此 .3mf。请不重新映射直接打印，或在打印文件中选择它的板。"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." zh="耗材映射无法改写此 .3mf。请不重新映射直接打印。"/>
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" zh="此打印机不支持耗材映射，因此打印将使用打印机上分配的工具"/>
@@ -3789,7 +3789,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." zh="插件无法连接摄像头，因此由此屏幕拍照。"/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." zh="插件无法保存其恢复数据。"/>
   <translation tag="The plugin is turned off in moonraker.conf." zh="插件已在 moonraker.conf 中关闭。"/>
-  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." zh="你关闭的打印前步骤无法在这里应用到此 .3mf。请重新打开它们，或在打印文件中选择它的板。"/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." zh="你关闭的打印前步骤无法应用到此 .3mf。请重新打开它们后再打印。"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." zh="打印在任何一层完成前就结束了。未做任何更改。"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." zh="打印将被取消,你可以从已打印的部分中选择最佳区段。"/>
   <translation tag="The print is on its last layer." zh="正在打印最后一层。"/>
@@ -3877,6 +3877,7 @@
   <translation tag="This .3mf has no sliced plate to print." zh="此 .3mf 中没有可打印的已切片板。"/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." zh="此 .3mf 需要先转换为 G-code 才能加入队列。请直接从这里打印。"/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." zh="此 .3mf 需要先在打印机上转换为 G-code 才能打印。"/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." zh="此 .3mf 的板仍在加载中。请稍后再试。"/>
   <translation tag="This AFC system does not support bypass mode" zh="此 AFC 系统不支持旁通模式"/>
   <translation tag="This CFS firmware exposes no external spool slot" zh="此 CFS 固件没有外部料盘槽位"/>
   <translation tag="This Happy Hare system does not support bypass mode" zh="此 Happy Hare 系统不支持旁通模式"/>
