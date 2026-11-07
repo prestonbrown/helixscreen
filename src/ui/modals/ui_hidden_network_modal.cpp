@@ -3,6 +3,7 @@
 
 #include "ui_hidden_network_modal.h"
 
+#include "ui_keyboard_manager.h"
 #include "ui_utils.h"
 
 #include "core/log_redact.h"
@@ -54,6 +55,9 @@ void HiddenNetworkModal::on_show() {
     if (lv_obj_t* ssid_input = find_widget("ssid_input")) {
         modal_register_keyboard(dialog(), ssid_input);
         // The SSID is the first thing typed.
+        // Security is the next choice to make, so it stays above the keyboard
+        // while the SSID is typed.
+        KeyboardManager::instance().set_reveal_target(ssid_input, find_widget("security_dropdown"));
         if (lv_group_get_default()) {
             lv_group_focus_obj(ssid_input);
         }

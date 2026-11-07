@@ -25,6 +25,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -451,6 +452,7 @@ void KeyboardManager::textarea_delete_event_cb(lv_event_t* e) {
         mgr.context_textarea_ = nullptr;
         mgr.hide();
     }
+    mgr.reveal_targets_.erase(textarea);
 }
 
 void KeyboardManager::longpress_event_handler(lv_event_t* e) {
@@ -1322,6 +1324,17 @@ void KeyboardManager::register_textarea(lv_obj_t* textarea) {
     }
 }
 
+void KeyboardManager::set_reveal_target(lv_obj_t* textarea, lv_obj_t* target) {
+    if (textarea == nullptr) {
+        return;
+    }
+    if (target == nullptr) {
+        reveal_targets_.erase(textarea);
+        return;
+    }
+    reveal_targets_[textarea] = target;
+}
+
 void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
     if (textarea == nullptr) {
         return;
@@ -1479,10 +1492,22 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     // previous field's lift.
     const int32_t padding = 20;
     const int32_t desired_bottom = kb_coords.y1 - padding;
-    const int32_t ta_bottom = ta_coords.y2 + pending_page_slide(screen, textarea);
+    const int32_t ta_slide = pending_page_slide(screen, textarea);
+    const int32_t ta_bottom = ta_coords.y2 + ta_slide;
+    int32_t shift_up = ta_bottom - desired_bottom;
 
-    if (ta_bottom > desired_bottom) {
-        const int32_t shift_up = ta_bottom - desired_bottom;
+    auto reveal = reveal_targets_.find(textarea);
+    if (reveal != reveal_targets_.end() && reveal->second &&
+        !lv_obj_has_flag(reveal->second, LV_OBJ_FLAG_HIDDEN)) {
+        lv_area_t target_coords;
+        lv_obj_get_coords(reveal->second, &target_coords);
+        const int32_t target_bottom = target_coords.y2 + pending_page_slide(screen, reveal->second);
+        // The field being typed in stays on screen even when that leaves the target covered.
+        const int32_t max_shift = ta_coords.y1 + ta_slide - padding;
+        shift_up = std::max(shift_up, std::min(target_bottom - desired_bottom, max_shift));
+    }
+
+    if (shift_up > 0) {
         spdlog::debug("[KeyboardManager] Shifting screen UP by {} px", shift_up);
         slide_page(screen, keyboard_, lv_anim_path_ease_out,
                    [shift_up](lv_obj_t* child) { return settled_y(child) - shift_up; });
@@ -1608,6 +1633,7 @@ void KeyboardManager::reset() {
     theme_observer_.reset();
 
     context_textarea_ = nullptr; // Child of app_layout — deleted by lv_obj_del(m_app_layout)
+    reveal_targets_.clear();
 
     // Long-press overlay (also child of m_screen) — deferred delete for the same
     // reason (#776); safe_delete_deferred() nulls overlay_ and no-ops if already null.
