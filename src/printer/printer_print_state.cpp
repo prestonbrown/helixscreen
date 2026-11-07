@@ -1596,6 +1596,19 @@ void PrinterPrintState::note_preparing_start_sent() {
     }
 }
 
+void PrinterPrintState::note_start_request(const std::string& filename, StartRequest request) {
+    start_request_file_ = filename;
+    start_request_ = std::move(request);
+}
+
+std::optional<PrinterPrintState::StartRequest>
+PrinterPrintState::start_request_for(const std::string& filename) const {
+    if (filename.empty() || filename != start_request_file_) {
+        return std::nullopt;
+    }
+    return start_request_;
+}
+
 void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) {
     if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return;

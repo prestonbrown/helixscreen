@@ -53,6 +53,13 @@ PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers) {
     return {{"tools", tools}};
 }
 
+PrintStartParams start_request_params(const print_3mf::Route& route, PrintStartParams tool_params) {
+    if (route.kind == print_3mf::RouteKind::NativePlate && route.plate > 0) {
+        tool_params["plateindex"] = std::to_string(route.plate);
+    }
+    return tool_params;
+}
+
 int mapped_backend(const std::vector<ToolMapping>& mappings) {
     for (const auto& m : mappings) {
         if (!m.is_auto && m.mapped_slot >= 0 && m.tool_index >= 0) {

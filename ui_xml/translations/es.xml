@@ -1434,6 +1434,7 @@
   <translation tag="Filament In The Toolhead" es="Filamento en el cabezal"/>
   <translation tag="Filament Jam" es="Atasco de filamento"/>
   <translation tag="Filament Mapping" es="Mapeo de Filamento"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." es="La asignación de filamento no puede reescribir este .3mf aquí. Imprímelo sin reasignar o elige su placa en Archivos de impresión."/>
   <translation tag="Filament Mapping is not available on this device." es="El mapeo de filamento no está disponible en este dispositivo."/>
   <translation tag="Filament Mapping is unavailable" es="El mapeo de filamento no está disponible"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" es="Esta impresora no admite el mapeo de filamento, así que la impresión usa las herramientas asignadas en la impresora"/>
@@ -3788,6 +3789,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." es="El plugin no llega a la cámara, así que esta pantalla toma las fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." es="El plugin no puede guardar sus datos de recuperación."/>
   <translation tag="The plugin is turned off in moonraker.conf." es="El plugin está desactivado en moonraker.conf."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." es="Los pasos previos que desactivaste no se pueden aplicar a este .3mf aquí. Vuelve a activarlos o elige su placa en Archivos de impresión."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." es="La impresión terminó antes de imprimir ninguna capa. No se cambió nada."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." es="La impresión se cancela y eliges la mejor franja de lo impreso hasta ahora."/>
   <translation tag="The print is on its last layer." es="La impresión está en su última capa."/>
@@ -3837,6 +3839,7 @@
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" es="La impresora requiere una conexión cifrada, pero falló la conexión cifrada a {}:{}"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." es="La impresora cambia entre varios cabezales. Gestiona las herramientas en la pantalla del sistema de filamento."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" es="El firmware de la impresora elige a dónde cambiar al agotarse"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." es="La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" es="La posición solicitada está fuera de los límites de la impresora"/>
   <translation tag="The right RFID reader in this CFS unit may need service" es="Puede que el lector RFID derecho de esta unidad CFS necesite servicio"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" es="El sensor de agotamiento indica que no hay filamento cargado. ¿Iniciar la impresión de todos modos?"/>

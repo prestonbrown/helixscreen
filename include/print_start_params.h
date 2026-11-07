@@ -11,6 +11,8 @@
 // that knows which firmwares do that and how the parameter is spelled; filament
 // backends ask it, and the print-start path forwards whatever they return.
 
+#include "print_3mf.h"
+
 #include <map>
 #include <optional>
 #include <string>
@@ -45,6 +47,14 @@ namespace print_start {
 /// the slot, a tool with no slot left empty, so {T0: 2, T2: 1} is "2,,1".
 /// Empty when no tool has a valid slot.
 [[nodiscard]] PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers);
+
+/// What a print start along @p route sends beside its filename: @p tool_params
+/// (the print's tool map, tool_slot_params()) and, for a .3mf plate the printer
+/// starts itself (print_3mf::RouteKind::NativePlate), that plate. Z-Mod's
+/// Moonraker takes the plate as `plateindex`. Every print start builds its
+/// parameters here; nothing else adds a plate or a tool map.
+[[nodiscard]] PrintStartParams start_request_params(const print_3mf::Route& route,
+                                                    PrintStartParams tool_params);
 
 /// The backend a print's map belongs to: the first non-Auto row's (-1 on a
 /// row is the primary, 0), else 0.

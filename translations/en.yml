@@ -4158,6 +4158,9 @@ translations:
     loaded:'
   This .3mf has no sliced plate to print.: This .3mf has no sliced plate to print.
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: This .3mf has to be converted to G-code before it can be queued. Print it from here instead.
+  The queue prints this .3mf's default plate. Print this plate from here instead.: The queue prints this .3mf's default plate. Print this plate from here instead.
+  The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files.: The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files.
+  Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files.: Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files.
   This .3mf has to be converted to G-code on the printer before it can print.: This .3mf has to be converted to G-code on the printer before it can print.
   This AFC system does not support bypass mode: This AFC system does not support bypass mode
   This CFS firmware exposes no external spool slot: This CFS firmware exposes no external spool slot

@@ -1208,7 +1208,10 @@ void HistoryListPanel::handle_reprint() {
     // the pops below inline, and closing the list re-filters filtered_jobs_,
     // which frees the storage `job` points into.
     const std::string filename = job.filename;
-    const int archive_plate = job.archive_plate;
+    // A plate the printer started itself is named only in this session's record.
+    const auto recorded = get_printer_state().print_state().start_request_for(filename);
+    const int archive_plate =
+        job.archive_plate > 0 ? job.archive_plate : (recorded ? recorded->native_plate : 0);
 
     // Navigate to the Print Select file detail view (DRY - reuse existing UI)
     // Step 1: Close all history overlays (detail → list → dashboard)

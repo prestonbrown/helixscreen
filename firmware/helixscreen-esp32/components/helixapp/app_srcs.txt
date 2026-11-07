@@ -122,6 +122,7 @@ src/print/filament_sensor_manager.cpp
 src/print/firmware_3mf_extract.cpp
 src/print/preprint_predictor.cpp
 src/print/preprint_checklist.cpp
+src/print/print_3mf.cpp
 src/print/print_start_phase_label.cpp
 src/ui/print_status_chips.cpp
 src/ui/print_status_tile_layout.cpp
