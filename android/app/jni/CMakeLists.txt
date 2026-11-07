@@ -220,6 +220,17 @@ list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/bluetooth/.*\\.cpp$")
 # never defines HELIX_ENABLE_REMOTE_CONTROL, so every call site is #ifdef'd out and these
 # translation units are dead weight — remote_client.cpp additionally needs lib/linenoise.
 list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/remote/.*\\.cpp$")
+# PCM piped to a rootfs aplay exists for K1-family boards only (HELIX_HAS_PCM_PIPE,
+# which Android never defines), and its posix_spawn needs API 28.
+list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/system/pcm_pipe_sound_backend\\.cpp$")
+# Mock backends build only where HELIX_ENABLE_MOCKS is defined (Debug, below): the
+# same files the Makefile drops when ENABLE_MOCKS is off.
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/(mock|network|platform/usb)/[^/]*_mock[^/]*\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/printer/ams_backend_mock\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/mock/moonraker_api_mock\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/system/mock_performance_source\\.cpp$")
+endif()
 
 # Also exclude Objective-C++ files (.mm) - they're macOS only
 # (CMake won't glob them with *.cpp anyway, but be explicit)

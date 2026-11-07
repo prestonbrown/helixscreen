@@ -1,5 +1,5 @@
 diff --git a/src/drivers/sdl/lv_sdl_sw.c b/src/drivers/sdl/lv_sdl_sw.c
-index b936724a9..d4fd26454 100644
+index b936724a9..b267a6ec8 100644
 --- a/src/drivers/sdl/lv_sdl_sw.c
 +++ b/src/drivers/sdl/lv_sdl_sw.c
 @@ -115,21 +115,21 @@ static lv_result_t init_display(lv_display_t * display)
@@ -60,7 +60,23 @@ index b936724a9..d4fd26454 100644
      if(ddata->texture) {
          SDL_DestroyTexture(ddata->texture);
          ddata->texture = NULL;
-@@ -266,7 +273,7 @@ static void flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * p
+@@ -245,7 +252,15 @@ static void * sdl_draw_buf_realloc_aligned(void * ptr, size_t new_size)
+ #ifndef _WIN32
+     /* Size must be multiple of align, See: https://en.cppreference.com/w/c/memory/aligned_alloc */
+ #define BUF_ALIGN (LV_DRAW_BUF_ALIGN < sizeof(void *) ? sizeof(void *) : LV_DRAW_BUF_ALIGN)
++#if defined(__ANDROID__)
++    /*bionic declares aligned_alloc() only from API 28; posix_memalign() exists at
++     *every API level and its memory is released with free() like aligned_alloc's.*/
++    void * buf = NULL;
++    if(posix_memalign(&buf, BUF_ALIGN, LV_ALIGN_UP(new_size, BUF_ALIGN)) != 0) return NULL;
++    return buf;
++#else
+     return aligned_alloc(BUF_ALIGN, LV_ALIGN_UP(new_size, BUF_ALIGN));
++#endif
+ #else
+     return _aligned_malloc(LV_ALIGN_UP(new_size, LV_DRAW_BUF_ALIGN), LV_DRAW_BUF_ALIGN);
+ #endif /* _WIN32 */
+@@ -266,7 +281,7 @@ static void flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * p
      lv_sdl_sw_display_data_t * ddata = lv_sdl_backend_get_display_data(display);
      uint32_t * argb_px_map = NULL;
  

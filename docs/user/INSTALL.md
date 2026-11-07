@@ -129,7 +129,7 @@ HelixScreen also runs on an Android phone or tablet. It is the same remote clien
 
 **What you need:**
 
-- Android 9.0 or newer
+- Android 7.0 or newer
 - The phone or tablet on the same network as your printer
 - Your printer's IP address
 
