@@ -916,7 +916,6 @@
   <translation tag="Cool Down" ru="Охладить"/>
   <translation tag="Cool nozzle after filament ops" ru="Остужать сопло после операций с филаментом"/>
   <translation tag="Cooling" ru="Охлаждение"/>
-  <translation tag="Cooling Bed..." ru="Охлаждение стола..."/>
   <translation tag="Cooling Tube Length" ru="Длина трубки охлаждения"/>
   <translation tag="Cooling Tube Retraction" ru="Ретракция в трубке охлаждения"/>
   <translation tag="Cooling for probing..." ru="Охлаждение перед зондированием..."/>
@@ -4347,6 +4346,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." ru="Ожидание завершения %s. Только один нагреватель одновременно."/>
   <translation tag="Waiting for Moonraker..." ru="Ожидание Moonraker..."/>
   <translation tag="Waiting for another box to finish." ru="Ожидание завершения другой коробки."/>
+  <translation tag="Waiting for bed temperature..." ru="Ожидание температуры стола..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ru="Ожидание нагрева стола для точной калибровки."/>
   <translation tag="Waiting for chamber {} / {}°C" ru="Ожидание камеры {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" ru="Ожидание камеры {}°C"/>

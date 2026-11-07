@@ -871,7 +871,6 @@
   <translation tag="Cool Down" pt="Resfriar"/>
   <translation tag="Cool nozzle after filament ops" pt="Resfriar bico após operações de filamento"/>
   <translation tag="Cooling" pt="Resfriamento"/>
-  <translation tag="Cooling Bed..." pt="Resfriando mesa..."/>
   <translation tag="Cooling Tube Length" pt="Comprimento do tubo de resfriamento"/>
   <translation tag="Cooling Tube Retraction" pt="Retração do tubo de resfriamento"/>
   <translation tag="Cooling for probing..." pt="Resfriando para sondagem..."/>
@@ -4284,6 +4283,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." pt="Aguardando %s terminar. Um aquecedor por vez."/>
   <translation tag="Waiting for Moonraker..." pt="Aguardando Moonraker..."/>
   <translation tag="Waiting for another box to finish." pt="Aguardando outra caixa terminar."/>
+  <translation tag="Waiting for bed temperature..." pt="Aguardando a temperatura da mesa..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." pt="Aguardando a mesa atingir a temperatura para calibração precisa."/>
   <translation tag="Waiting for chamber {} / {}°C" pt="Aguardando a câmara {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" pt="Aguardando a câmara {}°C"/>

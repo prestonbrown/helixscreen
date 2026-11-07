@@ -871,7 +871,6 @@
   <translation tag="Cool Down" ja="冷却"/>
   <translation tag="Cool nozzle after filament ops" ja="フィラメント操作後にノズルを冷却"/>
   <translation tag="Cooling" ja="冷却中"/>
-  <translation tag="Cooling Bed..." ja="ベッド冷却中..."/>
   <translation tag="Cooling Tube Length" ja="冷却チューブ長"/>
   <translation tag="Cooling Tube Retraction" ja="冷却チューブの引き戻し"/>
   <translation tag="Cooling for probing..." ja="プローブのため冷却中..."/>
@@ -4284,6 +4283,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." ja="%s の完了を待っています。ヒーターは一度に1つだけです。"/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for another box to finish." ja="別のボックスの完了を待っています。"/>
+  <translation tag="Waiting for bed temperature..." ja="ベッド温度を待機中..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for chamber {} / {}°C" ja="チャンバー待機中 {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" ja="チャンバー待機中 {}°C"/>

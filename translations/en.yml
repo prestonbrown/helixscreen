@@ -930,7 +930,6 @@ translations:
   Cool Down: Cool Down
   Cool nozzle after filament ops: Cool nozzle after filament ops
   Cooling: Cooling
-  Cooling Bed...: Cooling Bed...
   Cooling Tube Length: Cooling Tube Length
   Cooling Tube Retraction: Cooling Tube Retraction
   'Cooling for probing...': 'Cooling for probing...'
@@ -4609,6 +4608,7 @@ translations:
   Waiting for Moonraker...: Waiting for Moonraker...
   'Waiting for %s to finish. One heater at a time.': 'Waiting for %s to finish. One heater at a time.'
   Waiting for another box to finish.: Waiting for another box to finish.
+  Waiting for bed temperature...: Waiting for bed temperature...
   Waiting for bed to reach temperature for accurate calibration.: Waiting for bed
     to reach temperature for accurate calibration.
   Waiting for chamber {} / {}°C: Waiting for chamber {} / {}°C
