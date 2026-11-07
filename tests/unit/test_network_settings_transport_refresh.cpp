@@ -136,3 +136,26 @@ TEST_CASE_METHOD(TransportRefreshFixture,
         return lv_subject_get_int(&Access::eth_connected(*overlay)) == 0;
     }));
 }
+
+TEST_CASE_METHOD(TransportRefreshFixture,
+                 "NetworkSettingsOverlay probes Ethernet again after closing mid-probe",
+                 "[network_settings][1976]") {
+    auto wm = make_manager();
+    auto overlay = std::make_unique<NetworkSettingsOverlay>();
+    overlay->init_subjects();
+    overlay->register_callbacks();
+    Access::wifi_manager(*overlay) = wm;
+    REQUIRE(overlay->create(test_screen()) != nullptr);
+
+    // Closed while its probe is out: the answer is dropped, so nothing clears the mark.
+    overlay->on_activate();
+    REQUIRE(Access::eth_refresh_in_flight(*overlay));
+    overlay->on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    overlay->on_activate();
+
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return !Access::eth_refresh_in_flight(*overlay);
+    }));
+}
