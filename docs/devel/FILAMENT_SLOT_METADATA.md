@@ -166,7 +166,10 @@ successful MR fetch always supersedes it.
 An errored or timed-out load leaves the store `namespace_unread()`, because the
 cache says nothing about the records on the printer and every save replaces a
 whole record (prestonbrown/helixscreen#2008). Until the namespace is read, saves
-and clears are held in memory, so a restart during the hold loses them.
+and clears are held, and kept under the backend's `"held"` key in the local cache
+(§4) so a restart does not lose them (prestonbrown/helixscreen#2021): the next
+`load_blocking()` holds them again if its read fails, and if it lands merges them
+onto the records it read and sends them itself.
 `AmsSubscriptionBackend::read_unread_lane_records()` runs after `on_started()` and
 again from status frames, at most every 10 seconds, until a read lands. Then
 `FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and
@@ -312,6 +315,8 @@ incomplete during them. AFC/HH overrides go to a private namespace
 
 - **Write**: atomic — write to `.tmp` sibling, then `std::filesystem::rename`
   into place. Any failure along the way leaves the previous file untouched.
+- **Held writes**: `"held"` beside a backend's `"slots"`, keyed by slot, each
+  `{"cleared": bool, "save": {...}}`; present only while writes are held.
 - **Read**: only when the MR DB fetch fails in `load_blocking`. Never
   authoritative — it exists so a first-boot-after-reconnect on a flaky
   network doesn't lose the user's view of recent edits.
