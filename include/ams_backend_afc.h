@@ -181,6 +181,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     AmsBackendAfc(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAfc() override;
 
+  protected:
+    /// Drops an in-flight lane reset's console watch while the client is still
+    /// alive; the destructor cannot, since the client may already be gone.
+    void on_stopping() override;
+
+  public:
     /**
      * @brief Bare filament-sensor names AFC owns (no AMS keyword).
      *
@@ -402,7 +408,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// load switch triggered, and AFC naming this exact lane as active. See
     /// can_recover_lane_position() for why each is load-bearing.
     [[nodiscard]] bool can_recover_lane_position(int slot_index) const override;
+    /// AFC_LANE_RESET leaves error_state and the lane's Error status set, so a
+    /// reset that reports success on the lane AFC names (current_lane) ends with
+    /// clear_fault() (prestonbrown/helixscreen#2049). The verdict is read off the
+    /// console: AFC reports success and failure alike as a normal script return.
     AmsError recover_lane_position(int slot_index) override;
+    /// The lane shows an error (its own `status: Error`), or AFC's error_state
+    /// is set and this is the lane AFC names. False while a lane reset is in
+    /// flight. The clear is system-wide: AFC has no per-lane fault clear.
+    [[nodiscard]] bool has_clearable_fault(int slot_index) const override;
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
     /// the unit, so an unattributed trigger cannot say whose filament caused it
@@ -1227,10 +1241,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      * @param gcode The G-code command to execute
      * @param success_msg Toast message on success (empty = no toast)
      * @param error_prefix Toast prefix on error (shown as "prefix: error details")
+     * @param on_success Runs on the WebSocket thread once the firmware accepts the command
      * @return AmsError indicating success or failure to queue command
      */
     virtual AmsError execute_gcode_notify(const std::string& gcode, const std::string& success_msg,
-                                          const std::string& error_prefix);
+                                          const std::string& error_prefix,
+                                          helix::SharedCallback<void()> on_success = nullptr);
 
     // Unified slot registry -- single source of truth for all slot-indexed state
     helix::printer::SlotRegistry slots_;
@@ -1391,6 +1407,44 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// Sends one queued AFC_CLEAR_MESSAGE if the drain is armed and a message is
     /// still present. Must be called WITHOUT mutex_ held.
     void maybe_drain_message_queue();
+
+    /// Lane whose AFC_LANE_RESET is in flight, and the notify_gcode_response
+    /// handler watching its console; both empty when none. Guarded by mutex_.
+    std::string lane_reset_in_flight_;
+    std::string lane_reset_handler_;
+
+    /// Lanes AFC still reports as `status: Error` whose error clear_fault()
+    /// acknowledged. RESET_FAILURE never touches a lane's status, so without
+    /// this the lane keeps its error marking after the clear. A lane leaves the
+    /// set when AFC publishes another status for it or raises a new error.
+    /// Guarded by mutex_.
+    std::set<std::string> acknowledged_lane_errors_;
+
+    /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
+    [[nodiscard]] SlotError lane_error_locked() const;
+
+    /// Acknowledges the errors @p lanes still show, once AFC accepted the
+    /// RESET_FAILURE that cleared them. Main thread, mutex_ not held.
+    void acknowledge_lane_errors(const std::vector<std::string>& lanes);
+
+    /// Shows an acknowledged lane's error again: @p lane when it is one,
+    /// otherwise every acknowledged lane. Caller holds mutex_.
+    void rearm_acknowledged_lanes_locked(const std::string& lane);
+
+    /// The lane an AFC message names by its first token ("lane3 Current lane
+    /// not loaded ..."), or empty. Caller holds mutex_.
+    [[nodiscard]] std::string lane_named_by_locked(const std::string& message) const;
+
+    /// Settles an AFC_LANE_RESET of @p lane: clears the fault when the console
+    /// reported success and AFC still names @p lane in its error state. Main
+    /// thread, mutex_ not held.
+    void finish_lane_reset(const std::string& lane, bool reported_success);
+
+    /// AFC's success line for AFC_LANE_RESET, as notify_gcode_response carries
+    /// it: "// <lane> reset to hub, ...". The failure lines quote the lane
+    /// ("!! '<lane>' failed to reset to hub").
+    [[nodiscard]] static bool is_lane_reset_success_line(const std::string& line,
+                                                         const std::string& lane);
 
     // Global state
     bool error_state_{false};       ///< AFC error state

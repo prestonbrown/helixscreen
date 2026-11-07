@@ -447,3 +447,85 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     helix::ui::set_test_toast_hook(nullptr);
 }
+
+// ============================================================================
+// Clear error: a fault that outlived its dialog (prestonbrown/helixscreen#2049)
+// ============================================================================
+
+namespace {
+
+/// A backend latching a fault on one lane, the way AFC keeps error_state after
+/// the recovery that closed its dialog.
+class LatchedFaultMock : public helix::AmsBackendMock {
+  public:
+    using helix::AmsBackendMock::AmsBackendMock;
+    bool has_clearable_fault(int slot_index) const override {
+        return slot_index == faulted_slot;
+    }
+    helix::AmsError clear_fault(int slot_index) override {
+        cleared_slots.push_back(slot_index);
+        return helix::AmsErrorHelper::success();
+    }
+    int faulted_slot = 2;
+    std::vector<int> cleared_slots;
+};
+
+LatchedFaultMock* install_latched_fault_mock() {
+    helix::AmsState::instance().init_subjects(true);
+    auto owned = std::make_unique<LatchedFaultMock>(4);
+    LatchedFaultMock* backend = owned.get();
+    helix::AmsState::instance().set_backend(std::move(owned));
+    helix::AmsState::instance().sync_from_backend();
+    return backend;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: Clear error reaches the backend's clear_fault",
+                 "[ui][ams][context_menu][dispatch][stale_fault]") {
+    LatchedFaultMock* backend = install_latched_fault_mock();
+
+    REQUIRE(helix::ui::ams_dispatch_backend_action(MenuAction::CLEAR_FAULT, 2, nullptr));
+    REQUIRE(backend->cleared_slots == std::vector<int>{2});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams context menu: Clear error shows only on a lane with a clearable fault",
+                 "[ui][ams][context_menu][stale_fault]") {
+    LatchedFaultMock* backend = install_latched_fault_mock();
+    // ams_context_menu.xml is registered lazily by the AMS panels.
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+    { helix::ui::AmsContextMenu registers_subjects; }
+    lv_subject_t* clear_error = lv_xml_get_subject(nullptr, "ams_slot_clear_error");
+    REQUIRE(clear_error != nullptr);
+
+    SECTION("the faulted lane") {
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
+                                      /*is_loaded=*/false, backend));
+        CHECK(lv_subject_get_int(clear_error) == 2);
+        lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_clear_error");
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+    }
+
+    SECTION("another lane, after the faulted one was shown") {
+        {
+            helix::ui::AmsContextMenu first;
+            REQUIRE(first.show_near_widget(test_screen(), 2, test_screen(), false, backend));
+            REQUIRE(lv_subject_get_int(clear_error) == 2);
+        }
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/0, test_screen(),
+                                      /*is_loaded=*/false, backend));
+        CHECK(lv_subject_get_int(clear_error) == 0);
+    }
+
+    SECTION("the external spool menu never offers it") {
+        lv_subject_set_int(clear_error, 2);
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_for_external_spool(test_screen(), test_screen(), true));
+        CHECK(lv_subject_get_int(clear_error) == 0);
+    }
+}

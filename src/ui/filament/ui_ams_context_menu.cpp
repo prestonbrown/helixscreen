@@ -65,6 +65,7 @@ HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_load_hint_visible_subject_;
 HELIX_PSRAM_BSS char AmsContextMenu::slot_load_hint_buf_[192];
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_mount_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_park_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_clear_error_subject_;
 
 // ============================================================================
 // Construction / Destruction
@@ -95,6 +96,7 @@ void AmsContextMenu::init_subjects() {
                                s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_mount_subject_, 0, "ams_slot_mount", s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_park_subject_, 0, "ams_slot_park", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_clear_error_subject_, 0, "ams_slot_clear_error", s_subjects);
     });
 }
 
@@ -187,8 +189,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     int slot_index = get_item_index();
 
     // Hidden until the lane path below says otherwise; the external spool
-    // has no gate to preload.
+    // has no gate to preload and no fault of its own.
     lv_subject_set_int(&slot_preload_subject_, 0);
+    lv_subject_set_int(&slot_clear_error_subject_, 0);
 
     // External spool mode: Load and Unload apply — kExternalSpoolSlot is a
     // target plan_load()/plan_unload() both resolve, and this menu is where a
@@ -427,6 +430,12 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_preload_subject_, preload_blocked ? 1 : 2);
     }
 
+    // Bookkeeping only, so no print gate: the error dialog's dismissal sends the
+    // same clear mid-pause.
+    if (backend_ && backend_->has_clearable_fault(slot_index)) {
+        lv_subject_set_int(&slot_clear_error_subject_, system_busy ? 1 : 2);
+    }
+
     // Show Clear Spool whenever the slot carries an assignment, present or not
     // (should_show_clear_spool). It used to be gated on an EMPTY slot, so it
     // disappeared the moment a spool went in — exactly when stale metadata does
@@ -556,6 +565,11 @@ void AmsContextMenu::handle_bypass_toggle() {
 void AmsContextMenu::handle_gate_check() {
     spdlog::info("[AmsContextMenu] Check gate requested for slot {}", get_item_index());
     dispatch_ams_action(MenuAction::CHECK_GATE);
+}
+
+void AmsContextMenu::handle_clear_fault() {
+    spdlog::info("[AmsContextMenu] Clear error requested for slot {}", get_item_index());
+    dispatch_ams_action(MenuAction::CLEAR_FAULT);
 }
 
 void AmsContextMenu::handle_preload() {
@@ -751,6 +765,7 @@ void AmsContextMenu::register_callbacks() {
         {"ams_context_park_cb", on_park_cb},
         {"ams_context_edit_cb", on_edit_cb},
         {"ams_context_clear_spool_cb", on_clear_spool_cb},
+        {"ams_context_clear_fault_cb", on_clear_fault_cb},
         {"ams_context_spoolman_cb", on_spoolman_cb},
         {"ams_context_scan_qr_cb", on_scan_qr_cb},
         {"ams_context_purge_cb", on_purge_cb},
@@ -803,6 +818,12 @@ void AmsContextMenu::on_mount_cb(lv_event_t* /*e*/) {
 void AmsContextMenu::on_park_cb(lv_event_t* /*e*/) {
     if (auto* self = get_active_instance()) {
         self->handle_park();
+    }
+}
+
+void AmsContextMenu::on_clear_fault_cb(lv_event_t* /*e*/) {
+    if (auto* self = get_active_instance()) {
+        self->handle_clear_fault();
     }
 }
 
@@ -927,8 +948,8 @@ void dispatch_slot_menu_action(const SlotMenuHost& host, AmsContextMenu::MenuAct
                                int slot) {
     using MenuAction = AmsContextMenu::MenuAction;
 
-    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL are pure backend
-    // calls; see ams_dispatch_backend_action().
+    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL / CLEAR_FAULT are
+    // pure backend calls; see ams_dispatch_backend_action().
     if (ams_dispatch_backend_action(action, slot,
                                     host.path_canvas ? host.path_canvas() : nullptr)) {
         return;
