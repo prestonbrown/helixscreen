@@ -93,9 +93,17 @@ its AFC backend.
 
 ### Status the Backend Reads
 
-The subscription is the standing whole-frame `notify_status_update` hook every
-`AmsSubscriptionBackend` gets (`src/printer/ams_subscription_backend.cpp#start`); the
-parse keys off whatever objects the frame carries:
+The backend reads the standing whole-frame `notify_status_update` hook every
+`AmsSubscriptionBackend` gets (`src/printer/ams_subscription_backend.cpp#start`), and the
+parse keys off whatever objects the frame carries. What the frames carry is what
+`AmsBackendSnapmaker::required_status_objects` asks for
+(`src/printer/ams_backend_snapmaker.cpp#required_status_objects`),
+merged by discovery onto its own map. For each extruder that adds `state`, `park_pin`,
+`active_pin` and `activating_move` to the heater and nozzle fields discovery already
+subscribes, never the whole object, which would stream every internal field on each
+temperature tick. `extruder_offset` comes from a one-shot `objects.query` in the nozzle
+offset flow; `switch_count`, `retry_count` and `error_count` parse when a frame carries
+them, but nothing reads them and they are not subscribed.
 
 | Klipper object | Fields used | Meaning |
 |----------------|-------------|---------|
@@ -751,12 +759,9 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
 6. The Nozzle rows are source-derived and mock-tested only: the reply shape through
    Moonraker's proxy, the refusal while printing, and the extruder status update after a
    change have not been checked on the rig.
-7. The discovery subscription lists only `temperature`, `target`, `power`,
-   `pressure_advance`, `nozzle_diameter` and `nozzle_volume_type` for each extruder
-   (`src/api/moonraker_discovery_sequence.cpp`), so the toolchanger fields in the status
-   table above (`state`, `park_pin`, `active_pin`, `activating_move`, `extruder_offset`,
-   `switch_count`, `retry_count`, `error_count`) are not subscribed. Which frames still
-   carry them has not been checked, and the subscription is not changed here.
+7. The extruder toolchanger fields (`state`, `park_pin`, `active_pin`, `activating_move`)
+   are subscribed from source and mock tests only: no frame sequence across a real tool
+   change or park has been captured on the rig.
 
 ---
 
