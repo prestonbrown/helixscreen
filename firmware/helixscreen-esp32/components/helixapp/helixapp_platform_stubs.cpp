@@ -93,6 +93,7 @@ void UsbManager::set_drive_callback(DriveCallback) {}
 static lv_subject_t g_notification_subject;
 static lv_subject_t g_show_beta_features_subject;
 static lv_subject_t g_home_edit_mode_subject;
+static lv_subject_t g_home_edit_page_deletable_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_camera_supported_subject;
@@ -103,6 +104,9 @@ lv_subject_t& get_notification_subject() {
 }
 lv_subject_t& get_home_edit_mode_subject() {
     return g_home_edit_mode_subject;
+}
+lv_subject_t& get_home_edit_page_deletable_subject() {
+    return g_home_edit_page_deletable_subject;
 }
 // These subjects are plain statics with no SubjectManager death signal, so
 // observers get no lifetime, as for any subject panel_widget_manager can't name.
@@ -130,6 +134,9 @@ void app_globals_init_subjects() {
     lv_xml_register_subject(nullptr, "show_beta_features", &g_show_beta_features_subject);
     lv_subject_init_int(&g_home_edit_mode_subject, 0);
     lv_xml_register_subject(nullptr, "home_edit_mode", &g_home_edit_mode_subject);
+    lv_subject_init_int(&g_home_edit_page_deletable_subject, 0);
+    lv_xml_register_subject(nullptr, "home_edit_page_deletable",
+                            &g_home_edit_page_deletable_subject);
     lv_subject_init_int(&g_wizard_active_subject, 0); // not XML-bound, observed programmatically
     // Rows for hardware features outside the firmware cut bind hidden on 0.
     lv_subject_init_int(&g_platform_extras_subject, 0);
