@@ -312,8 +312,15 @@ class MoonrakerManager {
      * so: some firmware (Snapmaker U1) reports PAUSED after a verify_heater
      * shutdown, which should_stop_print_collector() spares. Klippy's own state
      * is the signal that no PRINT_START is still running.
+     *
+     * A start the printer announced has no job to carry it through a restart:
+     * a FIRMWARE_RESTART's STARTUP ends it too.
      */
-    static inline bool should_stop_collector_on_klippy_state(helix::KlippyState state) {
+    static inline bool should_stop_collector_on_klippy_state(helix::KlippyState state,
+                                                             bool armed_by_printer = false) {
+        if (armed_by_printer) {
+            return state != helix::KlippyState::READY;
+        }
         return state == helix::KlippyState::SHUTDOWN || state == helix::KlippyState::ERROR;
     }
 

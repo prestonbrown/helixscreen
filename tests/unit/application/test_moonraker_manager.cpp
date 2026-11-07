@@ -960,6 +960,19 @@ TEST_CASE("should_stop_print_collector spares a printer-side pre-start only acro
         PrintJobState::COMPLETE, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
 }
 
+TEST_CASE("should_stop_collector_on_klippy_state ends a printer-announced start on any restart",
+          "[application][print_start][preparing][2054]") {
+    // A FIRMWARE_RESTART passes through STARTUP and brings print_stats back at
+    // STANDBY, which the STANDBY spare would otherwise hold open.
+    CHECK(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::STARTUP,
+                                                                  /*armed_by_printer=*/true));
+    CHECK(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::SHUTDOWN, true));
+    CHECK_FALSE(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::READY, true));
+    // A run with a job behind it rides out a restart's STARTUP as before.
+    CHECK_FALSE(
+        MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::STARTUP, false));
+}
+
 // ============================================================================
 // Retiring a preparing job that never became a print
 //
