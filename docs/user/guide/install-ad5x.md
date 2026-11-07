@@ -111,7 +111,6 @@ The bundled copy at `/srv/helixscreen/install.sh` needs the same treatment: the 
 
 - IFS (the 4-channel filament system) is supported; see [Filament Management](filament.md)
 - Random solid colors during screen sleep are a known AD5X quirk; see [Troubleshooting](../TROUBLESHOOTING.md#random-solid-colors-during-screen-sleep-ad5x)
-- Changing a lane's color from the color menu can revert within a second once the lane has a Spoolman spool assigned. Change it in the lane's own editor (tap the lane, then edit it) or in Spoolman instead; see [Troubleshooting](../TROUBLESHOOTING.md#color-set-on-the-printers-own-screen-reverts-ad5x-with-spoolman)
 
 ## See Also
 
