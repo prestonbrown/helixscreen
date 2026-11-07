@@ -71,13 +71,14 @@ struct ArchiveStart : HelixTestFixture {
         planted.emplace(kArchive, "", disk_bytes(fixture_dir() + fixture));
     }
 
-    void start() {
+    void start(const PrintStartParams& params = {}) {
         manager.start_print(
             kArchive, "", [this]() { ++navigated; },
             [this](bool ok, const std::string&) {
                 completed = true;
                 succeeded = ok;
-            });
+            },
+            "", params);
         drain_until_quiet();
     }
 
@@ -113,6 +114,8 @@ TEST_CASE_METHOD(ArchiveStart, "a .3mf plate prints as staged G-code that maps b
     REQUIRE(printer.api.job_mock().started_prints().size() == 1);
     CHECK(printer.api.job_mock().started_prints()[0] == staged);
     CHECK(printer.api.job_mock().modified_prints().empty());
+    // The staged copy is G-code: no plate to name.
+    CHECK(printer.api.job_mock().started_print_params()[0].count("plateindex") == 0);
 
     // Neither the archive nor the extracted plate outlives the flow.
     const auto& downloads = printer.api.transfers_mock().download_destinations();
@@ -138,6 +141,104 @@ TEST_CASE_METHOD(ArchiveStart, "a .3mf the printer reads natively starts as itse
     CHECK(printer.api.transfers_mock().download_destinations().empty());
     REQUIRE(printer.api.job_mock().started_prints().size() == 1);
     CHECK(printer.api.job_mock().started_prints()[0] == kArchive);
+}
+
+/// Marks kArchive as a printer-started archive showing @p plate.
+static void mark_native(PrintPreparationManager& manager, int plate) {
+    print_3mf::RouteInputs in;
+    in.reads = print_3mf::PrinterReads::Plates;
+    in.shown_plate = plate;
+    in.printer_plates = {2, 5};
+    in.default_plate = 2;
+    manager.set_archive_route(kArchive, in);
+}
+
+TEST_CASE_METHOD(ArchiveStart,
+                 "a plate the printer starts itself goes as the archive and its plate",
+                 "[print_preparation][three_mf][native_3mf]") {
+    plant("multi_plate.gcode.3mf");
+    mark_native(manager, 5);
+    SECTION("no tool map") {
+        start();
+        REQUIRE(printer.api.job_mock().started_print_params().size() == 1);
+        CHECK(printer.api.job_mock().started_print_params()[0] ==
+              PrintStartParams{{"plateindex", "5"}});
+    }
+    SECTION("with the print's tool map") {
+        start({{"tools", "2,,1"}});
+        REQUIRE(printer.api.job_mock().started_print_params().size() == 1);
+        CHECK(printer.api.job_mock().started_print_params()[0] ==
+              PrintStartParams{{"plateindex", "5"}, {"tools", "2,,1"}});
+    }
+    // Nothing is fetched, extracted or uploaded.
+    CHECK(printer.api.transfers_mock().download_destinations().empty());
+    CHECK(printer.api.transfers_mock().path_uploads().empty());
+    REQUIRE(printer.api.job_mock().started_prints().size() == 1);
+    CHECK(printer.api.job_mock().started_prints()[0] == kArchive);
+    CHECK(succeeded);
+}
+
+TEST_CASE_METHOD(ArchiveStart, "a plate the printer starts itself prints extracted when rewritten",
+                 "[print_preparation][three_mf][native_3mf]") {
+    plant("multi_plate.gcode.3mf");
+    mark_native(manager, 5);
+    manager.set_cached_scan_result(gcode::ScanResult{}, kArchive);
+    PrintPreparationManagerTestAccess::modify_and_print(manager, kArchive);
+    drain_until_quiet();
+
+    // The edit cannot travel with the printer's own start: the plate is
+    // extracted, and its staged G-code starts with no plate to name.
+    const auto& uploads = printer.api.transfers_mock().path_uploads();
+    REQUIRE(uploads.size() == 1);
+    CHECK(gcode::rewritten_archive_plate(uploads[0].dest_path) == 5);
+    REQUIRE(printer.api.job_mock().started_prints().size() == 1);
+    CHECK(printer.api.job_mock().started_prints()[0] == uploads[0].dest_path);
+    CHECK(printer.api.job_mock().started_print_params()[0].count("plateindex") == 0);
+}
+
+TEST_CASE_METHOD(ArchiveStart, "a plain archive plate forgets an earlier printer-started one",
+                 "[print_preparation][three_mf][native_3mf]") {
+    plant("multi_plate.gcode.3mf");
+    mark_native(manager, 5);
+    CHECK(manager.archive_route(kArchive, print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::NativePlate);
+    CHECK(manager.archive_route("Other.gcode.3mf", print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::AsFile);
+    manager.set_archive_plate(kArchive, 5);
+    CHECK(manager.archive_route(kArchive, print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::ExtractPlate);
+    start();
+    REQUIRE(printer.api.transfers_mock().path_uploads().size() == 1);
+}
+
+TEST_CASE_METHOD(ArchiveStart, "a plate the printer does not list prints extracted",
+                 "[print_preparation][three_mf][native_3mf]") {
+    plant("multi_plate.gcode.3mf");
+    print_3mf::RouteInputs in;
+    in.reads = print_3mf::PrinterReads::Plates;
+    in.shown_plate = 5;
+    in.printer_plates = {2};
+    manager.set_archive_route(kArchive, in);
+    start();
+    const auto& uploads = printer.api.transfers_mock().path_uploads();
+    REQUIRE(uploads.size() == 1);
+    CHECK(gcode::rewritten_archive_plate(uploads[0].dest_path) == 5);
+    CHECK(printer.api.job_mock().started_print_params()[0].count("plateindex") == 0);
+}
+
+TEST_CASE_METHOD(ArchiveStart, "a rewrite of an archive the printer picks the plate of is refused",
+                 "[print_preparation][three_mf][native_3mf]") {
+    plant("single_plate.gcode.3mf");
+    manager.set_cached_scan_result(gcode::ScanResult{}, kArchive);
+    PrintPreparationManagerTestAccess::modify_and_print(manager, kArchive);
+    drain_until_quiet();
+    // Nothing here knows which plate's G-code the edit belongs in.
+    CHECK(printer.api.transfers_mock().download_destinations().empty());
+    CHECK(printer.api.transfers_mock().path_uploads().empty());
+    CHECK(printer.api.job_mock().started_prints().empty());
+    CHECK(printer.api.job_mock().edited_prints().empty());
+    CHECK(manager.archive_route(kArchive, print_3mf::Rewrite::Remap).refusal ==
+          print_3mf::Refusal::RemapNeedsPlate);
 }
 
 TEST_CASE_METHOD(ArchiveStart, "a plate whose checksum fails is not uploaded or started",
@@ -182,11 +283,21 @@ TEST_CASE_METHOD(ArchiveStart, "a .3mf plate on a transport without local copies
     plant("single_plate.gcode.3mf");
     printer.api.transfers_mock().mock_no_local_copies();
     manager.set_dependencies(&printer.api, &printer.state);
-    manager.set_archive_plate(kArchive, 9);
-    start();
+    SECTION("Print") {
+        manager.set_archive_plate(kArchive, 9);
+        start();
+    }
+    SECTION("a reprint of the plate") {
+        manager.start_archive_reprint(kArchive, 9, [this](bool ok, const std::string&) {
+            completed = true;
+            succeeded = ok;
+        });
+        drain_until_quiet();
+    }
 
     CHECK(printer.api.transfers_mock().download_destinations().empty());
     CHECK(printer.api.job_mock().started_prints().empty());
+    CHECK(completed);
     CHECK_FALSE(succeeded);
     CHECK_FALSE(printer.state.print_state().has_preparing_job());
 }
@@ -216,7 +327,8 @@ TEST_CASE_METHOD(ArchiveStart, "a plate the printer already converted prints fro
                  "[print_preparation][three_mf]") {
     plant("single_plate.gcode.3mf");
     manager.set_archive_plate(kArchive, 9, "Door_plate9.gcode");
-    CHECK(manager.archive_plate_for(kArchive) == 0);
+    CHECK(manager.archive_route(kArchive, print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::ConvertedOutput);
     CHECK(manager.printable_path(kArchive) == "Door_plate9.gcode");
     start();
 
@@ -395,13 +507,13 @@ TEST_CASE_METHOD(ArchiveStart,
         CHECK(bare_errored);
         CHECK(printer.api.job_mock().started_prints().size() == 1);
     }
-    SECTION("without a plate it starts the file as it is") {
+    SECTION("without a plate, on a printer that reads nothing of a .3mf, nothing starts") {
+        // Such a printer never ran the archive as itself, so no plate of it is known.
         PrintStartController plain{printer.state, &printer.api};
         plain.set_prep_manager(&manager);
         plain.initiate_reprint(kArchive, "", {}, [] {}, [] {});
         drain_until_quiet();
-        REQUIRE(printer.api.job_mock().started_prints().size() == 2);
-        CHECK(printer.api.job_mock().started_prints()[1] == kArchive);
+        CHECK(printer.api.job_mock().started_prints().size() == 1);
     }
 }
 
@@ -607,4 +719,127 @@ TEST_CASE_METHOD(ArchiveStart, "a plate reprint before Print Files is built is r
         CHECK(printer.api.job_mock().started_prints()[0] == "benchy.gcode");
     }
     panel.deinit_subjects();
+}
+
+namespace {
+
+/// What the printer reports of its job, as Moonraker's print_stats does.
+void report_job(PrinterState& state, const char* job_state, const std::string& file) {
+    state.update_from_status(json{{"print_stats", {{"state", job_state}, {"filename", file}}}});
+    drain_until_quiet();
+}
+
+/// Reprint @p file as print status does; the parameters it started with, or
+/// nullopt when it started nothing.
+std::optional<PrintStartParams> reprint(MockPrinter& printer, PrintPreparationManager& manager,
+                                        const std::string& file) {
+    PrintStartController controller{printer.state, &printer.api};
+    controller.set_prep_manager(&manager);
+    const size_t before = printer.api.job_mock().started_print_params().size();
+    controller.initiate_reprint(file, "", {}, [] {}, [] {});
+    drain_until_quiet();
+    const auto& sent = printer.api.job_mock().started_print_params();
+    if (sent.size() == before) {
+        return std::nullopt;
+    }
+    return sent.back();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ArchiveStart,
+                 "a reprint of a confirmed printer-started plate names that plate and no tool map",
+                 "[print_preparation][three_mf][native_3mf][reprint]") {
+    ScopedEnv plates("HELIX_MOCK_3MF_PLATES", "1");
+    plant("multi_plate.gcode.3mf");
+    mark_native(manager, 5);
+    start({{"tools", "2,,1"}});
+    REQUIRE(printer.api.job_mock().started_print_params().size() == 1);
+
+    SECTION("confirmed by the printer") {
+        report_job(printer.state, "printing", kArchive);
+        report_job(printer.state, "complete", kArchive);
+        // A map from the first start may name lanes reloaded since.
+        CHECK(reprint(printer, manager, kArchive) == PrintStartParams{{"plateindex", "5"}});
+    }
+    SECTION("never confirmed: the start was refused") {
+        printer.state.print_state().retire_preparing(PreparingExit::Failed);
+        CHECK_FALSE(reprint(printer, manager, kArchive));
+    }
+    SECTION("the printer took another job instead") {
+        report_job(printer.state, "printing", "other.gcode");
+        report_job(printer.state, "complete", "other.gcode");
+        CHECK_FALSE(reprint(printer, manager, kArchive));
+    }
+    SECTION("a later start of the same file from the queue or another client") {
+        report_job(printer.state, "printing", kArchive);
+        report_job(printer.state, "complete", kArchive);
+        report_job(printer.state, "standby", kArchive);
+        report_job(printer.state, "printing", kArchive); // nothing of ours preparing
+        report_job(printer.state, "complete", kArchive);
+        CHECK_FALSE(reprint(printer, manager, kArchive));
+    }
+    SECTION("another printer") {
+        report_job(printer.state, "printing", kArchive);
+        CHECK(printer.state.print_state().confirmed_start_plate(
+                  PrinterPrintState::start_record_printer_id(), kArchive) == 5);
+        CHECK_FALSE(printer.state.print_state().confirmed_start_plate("another-printer", kArchive));
+    }
+}
+
+TEST_CASE("a printer switch forgets the confirmed start", "[print_state][native_3mf][reprint]") {
+    lv_init_safe();
+    PrinterState state;
+    state.init_subjects(false);
+    const std::string id = PrinterPrintState::start_record_printer_id();
+    state.print_state().begin_preparing(PrintJobRef{kArchive, "", ""});
+    state.print_state().note_start_plate(id, kArchive, 5);
+    state.update_from_status(
+        json{{"print_stats", {{"state", "printing"}, {"filename", kArchive}}}});
+    REQUIRE(state.print_state().confirmed_start_plate(id, kArchive) == 5);
+    // A switch tears the printer's subjects down: the record goes with them.
+    state.print_state().deinit_subjects();
+    state.print_state().init_subjects(false);
+    CHECK_FALSE(state.print_state().confirmed_start_plate(id, kArchive));
+    state.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ArchiveStart, "a .gcode reprint sends no tool map either",
+                 "[print_preparation][native_3mf][reprint]") {
+    PlantedGcode plain("plain.gcode");
+    printer.state.print_state().begin_preparing(PrintJobRef{plain.name(), "", ""});
+    manager.start_print(
+        plain.name(), "", [] {}, [](bool, const std::string&) {}, "", {{"tools", "2,,1"}});
+    drain_until_quiet();
+    REQUIRE(printer.api.job_mock().started_print_params().back() ==
+            PrintStartParams{{"tools", "2,,1"}});
+    report_job(printer.state, "printing", plain.name());
+    report_job(printer.state, "complete", plain.name());
+    CHECK(reprint(printer, manager, plain.name()) == PrintStartParams{});
+}
+
+TEST_CASE_METHOD(ArchiveStart,
+                 "a reprint with no recorded start names a plate only when the printer lists one",
+                 "[print_preparation][three_mf][native_3mf][reprint]") {
+    SECTION("several listed: which one printed is unknown, so nothing starts") {
+        ScopedEnv plates("HELIX_MOCK_3MF_PLATES", "1");
+        plant("multi_plate.gcode.3mf");
+        CHECK_FALSE(reprint(printer, manager, kArchive));
+    }
+    SECTION("one listed: that one") {
+        ScopedEnv plates("HELIX_MOCK_3MF_PLATES", "1");
+        plant("single_plate.gcode.3mf");
+        CHECK(reprint(printer, manager, kArchive) == PrintStartParams{{"plateindex", "9"}});
+    }
+    SECTION("a printer that picks the plate itself: no plate named") {
+        ScopedEnv native("HELIX_MOCK_3MF_METADATA", "1");
+        plant("multi_plate.gcode.3mf");
+        CHECK(reprint(printer, manager, kArchive) == PrintStartParams{});
+    }
+    SECTION("the metadata read fails: nothing starts") {
+        ScopedEnv plates("HELIX_MOCK_3MF_PLATES", "1");
+        ScopedEnv missing("HELIX_MOCK_METADATA_404", "1");
+        plant("single_plate.gcode.3mf");
+        CHECK_FALSE(reprint(printer, manager, kArchive));
+    }
 }

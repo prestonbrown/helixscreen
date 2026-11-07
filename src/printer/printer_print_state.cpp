@@ -13,6 +13,7 @@
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 #include "ui_update_queue.h"
 
+#include "config.h"
 #include "data_root_resolver.h"
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
@@ -171,6 +172,10 @@ void PrinterPrintState::deinit_subjects() {
     }
 
     spdlog::trace("[PrinterPrintState] Deinitializing subjects");
+
+    // A printer switch deinits here: another printer's starts never answer for this one.
+    pending_start_.reset();
+    confirmed_start_.reset();
 
     // Expire any setter callbacks still queued on the UpdateQueue. They capture
     // `this` and write the subjects being torn down below; without this the next
@@ -655,6 +660,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                               state_str, static_cast<int>(new_state),
                               static_cast<int>(current_state));
                 lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
+                // A job the printer took with nothing of ours preparing (the
+                // queue, another client, its own screen) is not one we started.
+                if (printer_has_job(new_state) && !printer_has_job(current_state) &&
+                    preparing_job_.empty()) {
+                    confirmed_start_.reset();
+                }
                 // RAW_PRINT_STATE_OK: M300 waits in Klipper's G-code queue, so the
                 // question is whether the printer's own job is printing, not the
                 // app's lifecycle (Preparing does not run the print's moves).
@@ -1596,11 +1607,36 @@ void PrinterPrintState::note_preparing_start_sent() {
     }
 }
 
+void PrinterPrintState::note_start_plate(const std::string& printer_id, const std::string& filename,
+                                         int plate) {
+    if (preparing_job_.empty()) {
+        return; // no job for the printer to confirm
+    }
+    pending_start_ = StartRecord{printer_id, filename, plate, preparing_epoch_counter_};
+}
+
+std::string PrinterPrintState::start_record_printer_id() {
+    const Config* config = Config::get_instance();
+    return config ? config->get_active_printer_id() : std::string();
+}
+
+std::optional<int> PrinterPrintState::confirmed_start_plate(const std::string& printer_id,
+                                                            const std::string& filename) const {
+    if (!confirmed_start_ || filename.empty() || confirmed_start_->printer_id != printer_id ||
+        confirmed_start_->filename != filename) {
+        return std::nullopt;
+    }
+    return confirmed_start_->plate;
+}
+
 void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) {
     if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return;
     }
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
+    if (!accepted) {
+        pending_start_.reset();
+    }
 }
 
 bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
@@ -1708,6 +1744,15 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     }
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
+    // The printer's last job is ours only when it confirms the one we sent;
+    // a job it took instead replaces whatever ours was.
+    if (reason == PreparingExit::Confirmed) {
+        const bool sent = pending_start_ && pending_start_->epoch == preparing_epoch_counter_;
+        confirmed_start_ = sent ? pending_start_ : std::nullopt;
+    } else if (reason == PreparingExit::Superseded) {
+        confirmed_start_.reset();
+    }
+    pending_start_.reset();
     preparing_job_ = {};
     preparing_cancel_requested_ = false;
     set_preparing_start(PreparingStart::None);
