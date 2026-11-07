@@ -1073,6 +1073,16 @@ class AmsBackend {
     }
 
     /**
+     * @brief Why Clear Spool is not this app's to do on @p slot_index, or empty
+     *
+     * A backend whose spool link another program owns names that program
+     * here; the menu greys Clear with the reason and the dispatch refuses it.
+     */
+    [[nodiscard]] virtual std::string clear_spool_refusal(int /*slot_index*/) const {
+        return {};
+    }
+
+    /**
      * @brief Firmware "seated & loaded" for this slot.
      *
      * The single source of truth for the active-lane highlight, replacing the

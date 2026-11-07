@@ -1961,6 +1961,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] bool openams_spoolman() const {
         return openams_spoolman_;
     }
+    /// Test helper: what server.openams_spoolman.status answers (its linker
+    /// status: schema_version, spoolman_online, bays keyed "<unit>-<bay>").
+    void set_openams_spoolman_status(json status) {
+        openams_spoolman_status_ = std::move(status);
+    }
+    [[nodiscard]] const json& openams_spoolman_status() const {
+        return openams_spoolman_status_;
+    }
     /// Test inspection: the params of every server.openams_spoolman.edit the
     /// component accepted, oldest first.
     [[nodiscard]] const std::vector<json>& openams_spoolman_edits() const {
@@ -2149,6 +2157,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool sim_link_down_{false};
     bool update_manager_busy_{false};
     bool openams_spoolman_{false};
+    json openams_spoolman_status_ =
+        json{{"schema_version", 1}, {"spoolman_online", true}, {"bays", json::object()}};
     std::vector<json> openams_spoolman_edits_;
 
     // Intent of the in-flight send_jsonrpc() dispatch, read by the method

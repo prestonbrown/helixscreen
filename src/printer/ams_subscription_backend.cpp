@@ -279,7 +279,11 @@ void AmsSubscriptionBackend::adopt_lane_records(
     // Every read is filed whole, so a record another client rewrote shows on
     // the next poll, and a Pending edit it echoes is withdrawn. The bypass
     // mirror a backend publishes one past its slots is not a slot's record.
+    const bool file_records = lane_records_describe_slots();
     for (const auto& [slot, entry] : records) {
+        if (!file_records) {
+            break;
+        }
         const helix::ams::LaneId lane = lane_id(slot);
         const bool had_pending = helix::ams::lane_sources(lane).pending.has_value();
         if (!entry.record.external_mirror) {

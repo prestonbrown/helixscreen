@@ -1337,8 +1337,14 @@ void AmsEditOverlay::update_ui() {
                        (has_spoolman && working_info_.spoolman_id == 0) ? 1 : 0);
 
     // Clear acts on what the slot holds now, not on the edits staged over it.
-    lv_subject_set_int(&clear_visible_subject_,
-                       AmsContextMenu::should_show_clear_spool(original_info_) ? 1 : 0);
+    // A slot whose link another program owns has no Clear here; the slot menu
+    // greys its own with the reason.
+    const AmsBackend* clear_backend = AmsState::instance().get_backend();
+    const bool clear_refused = slot_index_ >= 0 && clear_backend &&
+                               !clear_backend->clear_spool_refusal(slot_index_).empty();
+    lv_subject_set_int(
+        &clear_visible_subject_,
+        AmsContextMenu::should_show_clear_spool(original_info_) && !clear_refused ? 1 : 0);
 
     // Title: the slot's own name in the backend's lane noun ("Gate 3").
     if (slot_index_ == -2) {

@@ -1168,71 +1168,83 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS names no macro in its missing-comman
 // Spool links that arrive after start
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLUITestFixture, "OpenAMS shows a spool link written to lane_data after start",
-                 "[ams][openams][filament_slot_override][late_links]") {
-    TmpCacheDir tmp("late_links");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
+namespace {
 
-    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&api, &mock_printer.client);
-    OpenAmsHarness& backend = *backend_reg;
-    backend.feed(shared_manager(0));
-    helix::OpenAmsTestAccess::start(backend); // lane_data is empty: nothing to show yet
-    helix::ui::UpdateQueue::instance().drain();
-    CHECK(backend.get_slot_info(3).spoolman_id == 0);
-
-    // openams_spoolman links slot 3 (lane4) after the app is up, then says so.
-    mock_printer.client.mock_db_set(
-        "lane_data", "lane4",
-        json{{"lane", "3"}, {"color", "#1F3A93"}, {"material", "PETG"}, {"spool_id", 41}});
-    mock_printer.client.dispatch_method_callback(
-        "notify_openams_spoolman_status",
-        json{{"method", "notify_openams_spoolman_status"}, {"params", json::array()}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-
-    const auto info = backend.get_slot_info(3);
-    CHECK(info.spoolman_id == 41);
-    CHECK(info.color_rgb == 0x1F3A93);
-    CHECK(info.material == "PETG");
+/// The component's status with one linked bay.
+json component_status(int spool_id, const char* material, const char* color_hex) {
+    return json{{"schema_version", 1},
+                {"spoolman_online", true},
+                {"bays",
+                 {{"ams2-1",
+                   {{"state", "linked"},
+                    {"spool_id", spool_id},
+                    {"source", "manual"},
+                    {"spool",
+                     {{"material", material},
+                      {"color_hex", color_hex},
+                      {"vendor", "Sunlu"},
+                      {"remaining_g", 500},
+                      {"initial_g", 1000}}}}}}}};
 }
 
+} // namespace
+
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "an OpenAMS edit writes the lane record, unless another writer owns it",
-                 "[ams][openams][filament_slot_override][writer_rule]") {
+                 "with openams_spoolman a bay shows the component's status, not lane_data",
+                 "[ams][openams][openams_spoolman][late_links]") {
     MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-    const bool foreign = GENERATE(false, true);
-    if (foreign) {
-        mock_printer.client.mock_db_set("lane_data", "lane4",
-                                        json{{"lane", "3"},
-                                             {"material", "PLA"},
-                                             {"spool_id", 41},
-                                             {"writer", "openams_spoolman"}});
-    }
-    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&api, &mock_printer.client);
+    mock_printer.client.set_openams_spoolman(true);
+    mock_printer.client.set_openams_spoolman_status(component_status(41, "PETG", "1F3A93"));
+    // Its lane_data is per tool: this record is tool 2's, not slot 2's.
+    mock_printer.client.mock_db_set("lane_data", "lane3",
+                                    json{{"lane", "2"}, {"material", "ABS"}, {"spool_id", 7}});
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&mock_printer.api,
+                                                               &mock_printer.client);
     OpenAmsHarness& backend = *backend_reg;
     backend.feed(shared_manager(0));
     helix::OpenAmsTestAccess::start(backend);
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
-    const SlotInfo original = backend.get_slot_info(3);
-    SlotInfo edited = original;
-    edited.material = "PETG";
-    (void)backend.commit_user_edit(3, original, edited);
+    auto info = backend.get_slot_info(2);
+    CHECK(info.spoolman_id == 41);
+    CHECK(info.material == "PETG");
+    CHECK(info.color_rgb == 0x1F3A93u);
+    CHECK(info.brand == "Sunlu");
+    CHECK(info.remaining_weight_g == Catch::Approx(500.0f));
+    CHECK_FALSE(helix::ams::lane_sources(backend.lane_id(2)).record.has_value());
+    // The poll's read of lane_data files nothing onto the bays either.
+    helix::OpenAmsTestAccess::refresh_lane_records(backend);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK_FALSE(helix::ams::lane_sources(backend.lane_id(2)).record.has_value());
+
+    // A link made after start arrives with the component's notification.
+    mock_printer.client.dispatch_method_callback(
+        "notify_openams_spoolman_status",
+        json{{"method", "notify_openams_spoolman_status"},
+             {"params", json::array({component_status(42, "PLA", "FFFFFF")})}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    info = backend.get_slot_info(2);
+    CHECK(info.spoolman_id == 42);
+    CHECK(info.material == "PLA");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Clear Spool is the component's on an OpenAMS it manages",
+                 "[ams][openams][openams_spoolman]") {
+    MockPrinter mock_printer;
+    const bool component = GENERATE(false, true);
+    mock_printer.client.set_openams_spoolman(component);
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&mock_printer.api,
+                                                               &mock_printer.client);
+    OpenAmsHarness& backend = *backend_reg;
+    backend.feed(shared_manager(0));
+    helix::OpenAmsTestAccess::start(backend);
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
-    const json stored = mock_printer.client.mock_db_get("lane_data", "lane4");
-    REQUIRE(stored.is_object());
-    if (foreign) {
-        // The record is openams_spoolman's: refused, withdrawn, shown as it is.
-        CHECK(stored["writer"] == "openams_spoolman");
-        CHECK(stored["material"] == "PLA");
-        CHECK_FALSE(helix::ams::lane_sources(backend.lane_id(3)).pending.has_value());
-        CHECK(backend.get_slot_info(3).material == "PLA");
-    } else {
-        CHECK(stored["writer"] == "helixscreen");
-        CHECK(stored["filament_type"] == "PETG");
-    }
+    CHECK(backend.clear_spool_refusal(2).empty() == !component);
+    const int deletes = mock_printer.client.call_count("server.database.delete_item");
+    backend.clear_slot_override(2);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK((mock_printer.client.call_count("server.database.delete_item") > deletes) == !component);
 }
 
 namespace {

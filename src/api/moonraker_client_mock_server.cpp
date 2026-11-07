@@ -129,7 +129,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             return true;
         }
         if (success_cb) {
-            success_cb(json{{"jsonrpc", "2.0"}, {"result", {{"spoolman_online", true}}}});
+            success_cb(json{{"jsonrpc", "2.0"}, {"result", self->openams_spoolman_status()}});
         }
         return true;
     };

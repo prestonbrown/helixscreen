@@ -470,6 +470,14 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// baseline, a seated lane).
     virtual void on_lane_records_read_locked() {}
 
+    /// False while another source states this backend's per-slot identity and
+    /// its lane records describe something else (OpenAMS with openams_spoolman,
+    /// whose lane_data is per tool): a read is then kept for the writer rule
+    /// but not filed onto the lanes.
+    [[nodiscard]] virtual bool lane_records_describe_slots() const {
+        return true;
+    }
+
     /// Stage @p info as @p slot_index's record (stage_user_override(), with
     /// @p material in place of info.material) and save it. Caller holds mutex_.
     void persist_user_record_locked(int slot_index, const SlotInfo& info);

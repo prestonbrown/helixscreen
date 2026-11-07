@@ -196,24 +196,30 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
   names another producer is never overwritten (the store's writer rule).
 - **With `[openams_spoolman]`** (the openams Moonraker component, `moonraker/openams_spoolman/`
   in OpenAMSOrg/openams): it registers `lane_data` as a Moonraker local namespace, which clients
-  can read but not write, and its records carry no `writer`. The backend learns it is loaded
-  from `server.openams_spoolman.status` at start or from its status notification
+  can read but not write, and its records there are one per tool for slicers (`laneN`,
+  N = tool + 1), carry no `writer`, and do not describe bays. The backend learns the component is
+  loaded from `server.openams_spoolman.status` at start or from `notify_openams_spoolman_status`
   (`spoolman_component_`), and then:
-  - an edit goes to `server.openams_spoolman.edit` with `unit` (the manager's unit name, its
+  - **reads each bay from the component's status**, not from `lane_data`
+    (`lane_records_describe_slots()` is false, so the poll's read files nothing onto the slots):
+    `bays["<unit>-<bay>"]` gives the linked `spool_id` and the cached Spoolman summary
+    (`material`, `color_hex`, `vendor`, `remaining_g`, `initial_g`), filed as the slot's
+    `Firmware` source (`adopt_component_status()`). The notification carries the same status
+    object, so a link or edit made anywhere shows at once; Spoolman's own fetch for the linked
+    id fills the rest;
+  - **edits** go to `server.openams_spoolman.edit` with `unit` (the manager's unit name, its
     `devices` key), `bay` (0-based) and the fields that moved: `material`, `color_hex`
     (`rrggbb`), `vendor`, `remaining_weight`, `initial_weight`. The component writes Spoolman
-    (creating and linking a spool for an unlinked bay). Its answer acknowledges the edit's
-    pending value (`acknowledge_pending()`; its record states no weights, so no echo would);
-    its error (409 no spool, 503 Spoolman offline, a validation message) withdraws it with that
-    message, which the spool editor shows inline;
+    (creating and linking a spool for an unlinked bay) and notifies its new status, which is
+    the echo; its answer acknowledges whatever that summary does not restate
+    (`acknowledge_pending()`). Its error (409 no spool, 503 Spoolman offline, a validation
+    message) withdraws the edit with that message, which the spool editor shows inline;
   - a name, colour name, catalog pick or link change is refused before anything is sent, since
     the component has nowhere to keep it;
+  - **Clear Spool is the component's**: `clear_spool_refusal()` answers "OpenAMS manages this
+    spool's link", so the slot menu greys Clear with that reason, the editor hides its Clear,
+    and the dispatch and `clear_slot_override()` refuse it;
   - metered weights and Spoolman amends are not written: the component owns both.
-  The component's `lane_data` holds one record per tool (`laneN`, N = tool + 1), not per bay;
-  it matches a slot only where each tool has one bay.
-- **Late links.** `notify_openams_spoolman_status` (sent by `[openams_spoolman]` whenever it
-  updates `lane_data`) starts a refresh at once rather than at the next poll. A manager without
-  the component never sends it.
 - **Clear.** "Clear slot metadata" deletes the record and empties the live slot.
 - **Insert.** A spool inserted into a slot last seen empty is, under the insert rule
   (`docs/specs/filament_slots.md` §6), always "no evidence": the record stays and the "same

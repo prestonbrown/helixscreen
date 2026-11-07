@@ -473,12 +473,16 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // reason beside it, and ams_dispatch_backend_action() refuses the same
         // case independently: a menu rendered before the print started keeps
         // its old subject values until it is rebuilt.
-        const bool clear_blocked = helix::ui::clear_spool_blocked_by_print(
+        // A backend whose link another program owns refuses the same way.
+        const bool print_blocks_clear = helix::ui::clear_spool_blocked_by_print(
             lifecycle, backend_->slot_is_actively_loaded(slot_index));
+        const std::string refusal = backend_->clear_spool_refusal(slot_index);
+        const bool clear_blocked = print_blocks_clear || !refusal.empty();
         lv_subject_set_int(&slot_can_clear_subject_, clear_blocked ? 0 : 1);
         const std::string clear_hint =
-            clear_blocked ? helix::ui::clear_spool_blocked_hint(backend_->lane_noun(), slot_index)
-                          : std::string();
+            print_blocks_clear
+                ? helix::ui::clear_spool_blocked_hint(backend_->lane_noun(), slot_index)
+                : refusal;
         lv_subject_copy_string(&slot_clear_hint_subject_, clear_hint.c_str());
         lv_subject_set_int(&slot_clear_hint_visible_subject_, clear_hint.empty() ? 0 : 1);
     }
