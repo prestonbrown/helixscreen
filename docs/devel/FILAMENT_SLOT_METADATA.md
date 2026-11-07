@@ -169,7 +169,11 @@ whole record (prestonbrown/helixscreen#2008). Until the namespace is read, saves
 and clears are held, and kept under the backend's `"held"` key in the local cache
 (§4) so a restart does not lose them (prestonbrown/helixscreen#2021): the next
 `load_blocking()` holds them again if its read fails, and if it lands merges them
-onto the records it read and sends them itself.
+onto the records it read and sends them itself. A held write replays only on the
+printer that made it (Config's active printer id) and within 24 hours, and one read
+back from the file is dropped when the printer's record changed since on a field it
+touches (`held_write_conflicts()`): the printer wins. Each stays in the file until
+its send is acknowledged.
 `AmsSubscriptionBackend::read_unread_lane_records()` runs after `on_started()` and
 again from status frames, at most every 10 seconds, until a read lands. Then
 `FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and
@@ -316,7 +320,10 @@ incomplete during them. AFC/HH overrides go to a private namespace
 - **Write**: atomic — write to `.tmp` sibling, then `std::filesystem::rename`
   into place. Any failure along the way leaves the previous file untouched.
 - **Held writes**: `"held"` beside a backend's `"slots"`, keyed by slot, each
-  `{"cleared": bool, "save": {...}}`; present only while writes are held.
+  `{"cleared": bool, "save": {...}, "printer": id, "held_at": unix seconds}`;
+  present only while writes are held or unacknowledged.
+- **Locking**: every read-modify-write of the file, from any thread or backend,
+  holds one process-wide mutex.
 - **Read**: only when the MR DB fetch fails in `load_blocking`. Never
   authoritative — it exists so a first-boot-after-reconnect on a flaky
   network doesn't lose the user's view of recent edits.
