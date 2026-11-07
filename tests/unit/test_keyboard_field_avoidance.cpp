@@ -67,6 +67,13 @@ int32_t bottom_of(lv_obj_t* obj) {
     return a.y2;
 }
 
+int32_t top_edge_of(lv_obj_t* obj) {
+    lv_obj_update_layout(obj);
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    return a.y1;
+}
+
 int32_t keyboard_top() {
     lv_obj_t* kb = KeyboardManager::instance().get_instance();
     lv_obj_update_layout(kb);
@@ -116,6 +123,53 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_obj_get_y(overlay) == 0);
 
     lv_obj_delete(overlay);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A field's reveal target is lifted above the keyboard with it",
+                 "[keyboard][keyboard_avoidance]") {
+    auto [w, h] =
+        GENERATE(std::pair<int32_t, int32_t>{480, 320}, std::pair<int32_t, int32_t>{800, 480});
+    CAPTURE(w, h);
+    ScopedResolution res(lv_display_get_default(), w, h);
+    lv_obj_set_size(test_screen(), w, h);
+    ScopedAnimatedKeyboard kb(test_screen());
+
+    lv_obj_t* page = lv_obj_create(test_screen());
+    lv_obj_set_size(page, w, h);
+    lv_obj_set_pos(page, 0, 0);
+    lv_obj_t* reveal = lv_obj_create(page);
+    lv_obj_set_size(reveal, 120, 52);
+
+    SECTION("a row below the field comes up with it") {
+        // The field alone clears the keyboard; the row under it does not.
+        lv_obj_t* field = make_field(page, 10, h / 2 - 70);
+        lv_obj_set_pos(reveal, 10, h / 2 - 30);
+        KeyboardManager::instance().set_reveal_target(field, reveal);
+        lv_obj_update_layout(test_screen());
+
+        lv_group_focus_obj(field);
+        process_lvgl(400);
+        REQUIRE(KeyboardManager::instance().is_visible());
+        CHECK(bottom_of(reveal) < keyboard_top());
+        CHECK(top_edge_of(field) >= 0);
+    }
+
+    SECTION("the field itself never leaves the top of the screen") {
+        lv_obj_t* field = make_field(page, 10, 30);
+        lv_obj_set_pos(reveal, 10, h - 60);
+        KeyboardManager::instance().set_reveal_target(field, reveal);
+        lv_obj_update_layout(test_screen());
+
+        lv_group_focus_obj(field);
+        process_lvgl(400);
+        REQUIRE(KeyboardManager::instance().is_visible());
+        CHECK(top_edge_of(field) >= 0);
+        CHECK(bottom_of(field) < keyboard_top());
+    }
+
+    lv_group_focus_obj(nullptr);
+    process_lvgl(400);
+    lv_obj_delete(page);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "A field already above the keyboard leaves the page alone",
