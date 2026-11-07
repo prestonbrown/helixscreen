@@ -866,6 +866,7 @@
   <translation tag="Cool Down" pt="Resfriar"/>
   <translation tag="Cool nozzle after filament ops" pt="Resfriar bico após operações de filamento"/>
   <translation tag="Cooling" pt="Resfriamento"/>
+  <translation tag="Cooling Bed..." pt="Resfriando mesa..."/>
   <translation tag="Cooling Tube Length" pt="Comprimento do tubo de resfriamento"/>
   <translation tag="Cooling Tube Retraction" pt="Retração do tubo de resfriamento"/>
   <translation tag="Cooling for probing..." pt="Resfriando para sondagem..."/>

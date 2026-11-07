@@ -738,6 +738,7 @@
       "image": "flashforge-creator-5.png",
       "preset": "creator5",
       "z_offset_calibration_strategy": "firmware_managed",
+      "print_start_profile": "creator5",
       "heuristics": [
         {
           "type": "object_exists",
@@ -815,6 +816,7 @@
       "image": "flashforge-creator-5-pro.png",
       "preset": "creator5_pro",
       "z_offset_calibration_strategy": "firmware_managed",
+      "print_start_profile": "creator5",
       "heuristics": [
         {
           "type": "object_exists",

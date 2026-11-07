@@ -866,6 +866,7 @@
   <translation tag="Cool Down" de="Abkühlen"/>
   <translation tag="Cool nozzle after filament ops" de="Düse nach Filamentvorgängen abkühlen"/>
   <translation tag="Cooling" de="Kühlung"/>
+  <translation tag="Cooling Bed..." de="Bett kühlt ab..."/>
   <translation tag="Cooling Tube Length" de="Länge des Kühlrohrs"/>
   <translation tag="Cooling Tube Retraction" de="Kühlrohr-Rückzug"/>
   <translation tag="Cooling for probing..." de="Abkühlen zum Abtasten..."/>
