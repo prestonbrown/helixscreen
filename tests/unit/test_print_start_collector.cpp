@@ -9067,7 +9067,10 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
 
     bool have_profile_ = false;
 
-    Result replay(const std::string& fixture) {
+    /// @param armed_from_commit arm at t=0, as a print this app starts does
+    ///        (the preparing job arms the collector before the printer has a job);
+    ///        otherwise arm where print_stats takes the file.
+    Result replay(const std::string& fixture, bool armed_from_commit = false) {
         Result result;
         std::ifstream f(collector_fixture_dir() + fixture);
         REQUIRE(f.good());
@@ -9126,6 +9129,9 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
             }
             clock_.advance(std::chrono::milliseconds(std::max(0, t_ms - now_ms)));
             now_ms = std::max(now_ms, t_ms);
+            if (armed_from_commit && t_ms >= 0) {
+                arm();
+            }
 
             if (kind == '>') {
                 std::string line;
@@ -9210,4 +9216,26 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     REQUIRE(result.mesh_probe_total == 100);
     REQUIRE(result.mesh_probe_current == 100);
     REQUIRE(result.last_mesh_message == "Bed Mesh (100/100)");
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a Creator 5 Z-Mod start armed before the file opens",
+                 "[print][collector][creator5][integration]") {
+    REQUIRE(have_profile_);
+    // A print started from this app arms at commit, so the collector sees Z-Mod's
+    // preparation that runs before print_stats takes the file: the colour table,
+    // the tool pickup and the two heater normalization waits.
+    const Result result = replay("c5_zmod_saved_mesh_start.txt", /*armed_from_commit=*/true);
+    CAPTURE(result.trace);
+    REQUIRE(result.armed_at_ms == 50);
+    REQUIRE(result.trace == "0:INITIALIZING:Preparing Print...\n"
+                            "0:INITIALIZING:Preparing...\n"
+                            "45:INITIALIZING:Picking up tool\n"
+                            "51:HEATING_NOZZLE:Heating Nozzle...\n"
+                            "75:HEATING_BED:Heating Bed...\n"
+                            "78:INITIALIZING:Starting Print...\n"
+                            "80:HEATING_BED:Cooling Bed...\n"
+                            "279:PURGING:Purging...\n"
+                            "284:COMPLETE:Starting Print...");
+    REQUIRE(result.completed_at_ms == 284133);
 }
