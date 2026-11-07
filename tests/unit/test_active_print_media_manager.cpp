@@ -2192,3 +2192,21 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
         CHECK(get_display_filename() == "benchy");
     }
 }
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "ActivePrintMediaManager: a printer-announced start after a restart drops the "
+                 "kept name",
+                 "[ActivePrintMediaManager][2054]") {
+    // A Klipper restart reports an empty filename, and the last job's name and
+    // picture are kept on purpose; a new start must still replace them.
+    set_print_filename("benchy.gcode");
+    REQUIRE(get_display_filename() == "benchy");
+    set_print_filename("");
+    REQUIRE(get_display_filename() == "benchy");
+
+    state().print_state().set_printer_side_pre_start(true);
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(get_display_filename().empty());
+    CHECK(get_thumbnail_path() == kNoThumb);
+    state().print_state().set_printer_side_pre_start(false);
+}

@@ -1234,7 +1234,13 @@ void PrinterPrintState::set_printer_side_pre_start(bool live) {
         return;
     }
     printer_side_pre_start_ = live;
+    const std::string before = effective_print_filename_;
     recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
+    // After a Klipper restart the reported name is already empty, so the
+    // identity string does not move, but what it means does: announce it.
+    if (effective_print_filename_ == before) {
+        lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+    }
 }
 
 void PrinterPrintState::set_print_identity_override(const std::string& name) {

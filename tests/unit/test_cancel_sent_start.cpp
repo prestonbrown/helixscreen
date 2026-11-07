@@ -527,5 +527,26 @@ TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced ca
     stop();
     CHECK(cancels == 1);
     CHECK(stop_enabled() == 0);
+
+    // The cancel can answer before the file opens, while print_stats still holds
+    // the previous job's CANCELLED: that is not this start ending.
+    REQUIRE(cancel_ok);
+    cancel_ok(json::object());
+    drain();
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
+    CHECK(stop_enabled() == 0);
+
+    SECTION("the start ends when the printer takes the job and cancels it") {
+        report("printing", "next.gcode");
+        report("cancelled", "next.gcode");
+        CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+    }
+    SECTION("the start ends when it is abandoned before the file opens") {
+        ps().set_printer_side_pre_start(false);
+        ps().reset_print_start_state();
+        drain();
+        CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+        CHECK(stop_enabled() == 0); // no print left to stop
+    }
     ps().set_printer_side_pre_start(false);
 }
