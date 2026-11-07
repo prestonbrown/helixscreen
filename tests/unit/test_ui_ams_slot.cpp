@@ -1363,7 +1363,7 @@ TEST_CASE("ams_slot hit band: overlapping slots tile the row with one pitch each
         const int32_t pitch = layout.slot_width - layout.overlap;
         int32_t previous_right = -1;
         for (int i = 0; i < count; ++i) {
-            const AmsSlotHitBand band = ams_slot_hit_band(layout, i, count);
+            const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, count);
             const int32_t left = i * pitch + band.left_inset;
             const int32_t right = i * pitch + layout.slot_width - 1 - band.right_inset;
             const int32_t spool_center = i * pitch + layout.slot_width / 2;
@@ -1382,7 +1382,7 @@ TEST_CASE("ams_slot hit band: a row without overlap keeps every full slot",
     const AmsSlotLayout layout = calculate_ams_slot_layout(470, 4);
     REQUIRE(layout.overlap == 0);
     for (int i = 0; i < 4; ++i) {
-        const AmsSlotHitBand band = ams_slot_hit_band(layout, i, 4);
+        const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, 4);
         CHECK(band.left_inset == 0);
         CHECK(band.right_inset == 0);
     }
@@ -1432,8 +1432,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_set_style_pad_column(row, -layout.overlap, LV_PART_MAIN);
     for (int i = 0; i < kCount; ++i) {
         lv_obj_set_width(slots[i], layout.slot_width);
-        const AmsSlotHitBand band = ams_slot_hit_band(layout, i, kCount);
-        ui_ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
+        const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, kCount);
+        helix::ui::ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
     }
     lv_obj_update_layout(row);
 
