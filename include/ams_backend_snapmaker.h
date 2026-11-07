@@ -1086,6 +1086,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// on_started(); all access under mutex_.
     std::array<std::optional<helix::ams::TagReading>, kNumTools> tag_readings_{};
 
+    /// The Firmware observation each channel's last tag reading files; unset
+    /// when the entry names no tag. file_head_firmware_locked() lays the
+    /// head's print_task_config over it. Under mutex_.
+    std::array<std::optional<helix::ams::Observation>, kNumTools> tag_firmware_{};
+
+    /// File @p head's Firmware observation: the tag's reading with
+    /// print_task_config's type and colour over it, or drop
+    /// the source when neither states anything. Caller holds mutex_.
+    void file_head_firmware_locked(int head);
+
     /// Whether filament_detect.info last showed a real card on each channel: a
     /// CARD_UID with a nonzero byte. Unset until the first entry for it.
     std::array<std::optional<bool>, kNumTools> tag_has_card_{};

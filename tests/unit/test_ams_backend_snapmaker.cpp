@@ -5998,6 +5998,47 @@ TEST_CASE_METHOD(SnapmakerFixture,
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker lane truth: print_task_config is the lane's firmware reading",
+                 "[ams][snapmaker][filament_record][lane_truth]") {
+    lv_init_safe();
+    FilamentRecordHarness h("lane_truth_u1_firmware");
+    helix::ams::FilamentSlotOverride stored;
+    stored.brand = "Polymaker";
+    stored.material = "ABS";
+    stored.color_rgb = 0x123456;
+    stored.color_set = true;
+    SnapmakerTestAccess::seed_override(h.backend, 0, stored);
+    h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+
+    // Another client set the head to PETG: it outranks the stored record.
+    h.frame(make_head_record(0, "PETG", "00FF00FF"));
+    const auto fw = helix::ams::lane_sources(h.backend.lane_id(0)).firmware;
+    REQUIRE(fw.has_value());
+    CHECK(fw->material == std::optional<std::string>("PETG"));
+    CHECK(fw->color_rgb == std::optional<uint32_t>(0x00FF00u));
+    SlotInfo shown = h.backend.get_slot_info(0);
+    CHECK(shown.material == "PETG");
+    CHECK(shown.color_rgb == 0x00FF00u);
+    CHECK(shown.brand == "Polymaker");
+
+    // An edit stands as pending until print_task_config echoes it.
+    SlotInfo asa = h.backend.get_slot_info(0);
+    asa.material = "ASA";
+    asa.color_rgb = 0xFF9800;
+    helix::test::edit_slot_as_user(h.backend, 0, asa);
+    FilamentRecordHarness::drain();
+    CHECK(h.backend.get_slot_info(0).material == "ASA");
+    h.frame(make_head_record(0, "ASA", "FF9800FF"));
+    const auto pending = helix::ams::lane_sources(h.backend.lane_id(0)).pending;
+    CHECK_FALSE((pending.has_value() && pending->material.has_value()));
+    CHECK_FALSE((pending.has_value() && pending->color_rgb.has_value()));
+
+    // A record the firmware reset states nothing: the lane record shows.
+    h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+    CHECK_FALSE(helix::ams::lane_sources(h.backend.lane_id(0)).firmware.has_value());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker writes no dropped record back for a spool that may have changed",
                  "[ams][snapmaker][filament_record][record_drift]") {
     lv_init_safe();
@@ -6092,7 +6133,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker writes nothing back for a head with no declared material",
+                 "Snapmaker writes nothing back for a head whose record names no spool",
                  "[ams][snapmaker][filament_record][record_drift]") {
     lv_init_safe();
     FilamentRecordHarness h("drift_restore_undeclared");
@@ -6100,8 +6141,22 @@ TEST_CASE_METHOD(SnapmakerFixture,
     h.frame(make_head_record(0, "ASA", "FF9800FF"));
     h.printer.client.clear_gcode_script_history();
 
-    h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
-    CHECK(h.config_writes().empty());
+    // The record holds the type it copied from the firmware.
+    helix::ams::FilamentSlotOverride copied;
+    copied.material = "ASA";
+    copied.color_rgb = 0xFF9800;
+    copied.color_set = true;
+    SECTION("and nothing else: no write-back") {
+        SnapmakerTestAccess::seed_override(h.backend, 0, copied);
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(h.config_writes().empty());
+    }
+    SECTION("and the spool an edit named: written back") {
+        copied.brand = "Polymaker";
+        SnapmakerTestAccess::seed_override(h.backend, 0, copied);
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(h.config_writes().size() == 2);
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -6342,6 +6397,9 @@ TEST_CASE_METHOD(SnapmakerFixture,
 
     // Filament left the toolhead: the firmware resets the head to NONE / white.
     h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+    // The lane shows the record Moonraker holds once it is read.
+    h.backend.refresh_lane_records();
+    FilamentRecordHarness::drain();
 
     const auto writes = h.config_writes();
     REQUIRE(writes.size() == 2);

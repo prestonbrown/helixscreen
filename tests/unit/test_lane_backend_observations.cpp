@@ -2464,7 +2464,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker tag that stops naming a vendor re
     CHECK(harness->get_slot_info(0).spool_name.empty());
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's print_task_config writes identity and observes none",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Snapmaker's print_task_config is the firmware's reading of type and colour",
                  "[lane][ingest][snapmaker]") {
     SnapmakerHarness harness(nullptr, nullptr);
 
@@ -2485,10 +2486,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's print_task_config writes identity
         nlohmann::json{{"extruder0", nlohmann::json{{"filament_detected", true}}},
                        {"extruder1", nlohmann::json{{"filament_detected", true}}}});
 
-    // SET_PRINT_FILAMENT_CONFIG takes these as gcode parameters, so whoever
-    // sent that command set them: the machine's screen, a slicer, a console, or
-    // this backend's own write-back, which firmware mirrors into this struct.
-    // It is a write surface and files nothing.
+    // Whoever set it (the machine's screen, a slicer, this backend's edit),
+    // print_task_config is what the head prints with: its type and colour are
+    // the lane's firmware reading, over the tag's. Its vendor is a category,
+    // never the spool's brand.
     feed_print_task_config(
         *harness, nlohmann::json{
                       {"filament_type", nlohmann::json::array({"PETG", "PETG"})},
@@ -2503,20 +2504,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's print_task_config writes identity
     REQUIRE(harness->get_slot_info(1).brand == "SomebodyElse");
     REQUIRE(harness->get_slot_info(1).color_rgb == 0x00FF00u);
 
-    // And it observed none of it. Nothing read that channel's identity, so a
-    // vendor-cache record there could only have come from this write surface.
     const auto untagged = lane_sources(harness.lane(1));
     REQUIRE(untagged.sensed.has_value());
-    CHECK_FALSE(untagged.firmware.has_value());
+    REQUIRE(untagged.firmware.has_value());
+    CHECK(untagged.firmware->material == "PETG");
+    CHECK(untagged.firmware->color_rgb == std::optional<uint32_t>(0x00FF00u));
+    CHECK_FALSE(untagged.firmware->brand.has_value());
 
-    // The tagged channel's record still holds the tag read, which is the only
-    // thing on this backend that was measured rather than declared.
+    // The tagged channel: print_task_config's type and colour over the tag's,
+    // the tag's brand kept.
     const auto lane = lane_sources(harness.lane(0));
     REQUIRE(lane.firmware.has_value());
-    CHECK(lane.firmware->material == "PLA");
+    CHECK(lane.firmware->material == "PETG");
     CHECK(lane.firmware->brand == "Snapmaker");
     REQUIRE(lane.firmware->color_rgb.has_value());
-    CHECK(*lane.firmware->color_rgb == 0xED2C2Cu);
+    CHECK(*lane.firmware->color_rgb == 0x00FF00u);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker edit leaves the tag's next reading whole",

@@ -162,6 +162,12 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return line;
 }
 
+/// Whether @p record says which spool the lane holds (a link, a brand or a
+/// name), beyond the type and colour it copies from the firmware.
+[[nodiscard]] bool record_names_spool(const helix::ams::FilamentSlotOverride& record) {
+    return record.spoolman_id > 0 || !record.brand.empty() || !record.spool_name.empty();
+}
+
 /// The spool name the lane's tag states, or empty. The vendor-cache record
 /// holds the last tag reading with our own write-back already withheld, so this
 /// is the machine's word on the spool and never an echo of an edit.
@@ -360,6 +366,7 @@ void AmsBackendSnapmaker::on_started() {
         task_subtype_.fill(std::nullopt);
         tag_slot_values_.fill(std::nullopt);
         tag_readings_.fill(std::nullopt);
+        tag_firmware_.fill(std::nullopt);
         tag_has_card_.fill(std::nullopt);
         card_seen_.fill(false);
         // The first print state the connection reads decides whether the
@@ -1918,7 +1925,8 @@ void AmsBackendSnapmaker::apply_rfid_entry_locked(int i, const SnapmakerRfidInfo
         // the tag names no line or names it beside a brand that cannot
         // carry it: a kept name would outlive the spool it described.
         slot->spool_name = tag_spool_name(cache);
-        helix::ams::ingest(lane_id(i), cache);
+        tag_firmware_[static_cast<size_t>(i)] = cache;
+        file_head_firmware_locked(i);
     }
     fx.changed = true;
 }
@@ -2422,26 +2430,11 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
         }
     }
 
-    // These three fields write SlotInfo and deliberately file NO lane
-    // observation, unlike the RFID parse.
-    //
-    // print_task_config is a write surface, not a sensor.
-    // SET_PRINT_FILAMENT_CONFIG takes VENDOR / FILAMENT_TYPE / FILAMENT_SUBTYPE /
-    // FILAMENT_COLOR_RGBA as gcode parameters and persists them, so whoever sent
-    // that command set these values: the machine's own screen, a slicer, a
-    // console, or this backend's own write-back. Filing any of it as
-    // Firmware would return a user's own edit as firmware truth.
-    //
-    // The firmware carries the provenance bit itself, and it shows the channel is
-    // redundant rather than merely unsafe: filament_official marks a head whose
-    // entry came from a Snapmaker RFID spool, and SET_PRINT_FILAMENT_CONFIG is
-    // refused on such a head without FORCE. An official entry is the tag
-    // filament_detect.info already reports, which the RFID parse files; an
-    // unofficial one is somebody's declaration. Neither is a reading this key can
-    // contribute.
-    //
-    // A user's declaration reaches the lane model through commit_slot_edit, which
-    // is the funnel that records authorship.
+    // print_task_config is the head's firmware record: whoever set it (the
+    // machine's own screen, a slicer, a console, or this backend's edit), it is
+    // what the head prints with, so converge_lanes_locked() files it as the
+    // lane's Firmware reading (file_head_firmware_locked()). An edit of ours is
+    // shown as pending until this echoes it.
     for (int i = 0; i < kNumTools; i++) {
         auto* slot = system_info_.units[0].get_slot(i);
         if (!slot) {
@@ -2610,6 +2603,7 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         // carries an edit still on its way. A head whose record the firmware
         // reset (NONE once the filament left) states no spool: copying that
         // would erase the identity record_restores_locked() writes back.
+        file_head_firmware_locked(i);
         const auto ti = static_cast<size_t>(i);
         const bool holds_filament =
             slot->status == SlotStatus::AVAILABLE || slot->status == SlotStatus::LOADED;
@@ -2617,7 +2611,7 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         if (holds_filament && !record_reset) {
             if (task_type_[ti] && task_color_[ti]) {
                 mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti]);
-            } else if (const auto tag = helix::ams::lane_sources(lane_id(i)).firmware;
+            } else if (const auto& tag = tag_firmware_[ti];
                        tag && tag->color_rgb && tag->material) {
                 mirror_firmware_identity_locked(i, *tag->color_rgb, *tag->material);
             }
@@ -2688,13 +2682,38 @@ std::optional<helix::ams::TagReading> AmsBackendSnapmaker::tag_reading(int slot_
     return tag_readings_[static_cast<size_t>(slot_index)];
 }
 
+void AmsBackendSnapmaker::file_head_firmware_locked(int head) {
+    const auto idx = static_cast<size_t>(head);
+    helix::ams::Observation stated = tag_firmware_[idx].value_or(
+        helix::ams::Observation(helix::ams::ObservationSource::Firmware));
+    bool says_anything = tag_firmware_[idx].has_value();
+    // print_task_config is what the head prints with: its type and colour
+    // outrank the tag's. A record reset to NONE states nothing. Its vendor is
+    // a category (Snapmaker or the placeholder Generic), not the spool's
+    // brand, so the brand stays the tag's or the lane record's.
+    if (task_type_[idx] && !is_unset_task_field(*task_type_[idx])) {
+        stated.material = *task_type_[idx];
+        if (task_color_[idx]) {
+            stated.color_rgb = *task_color_[idx];
+        }
+        says_anything = true;
+    }
+    const helix::ams::LaneId lane = lane_id(head);
+    if (says_anything) {
+        helix::ams::ingest(lane, stated);
+    } else if (helix::ams::lane_sources(lane).firmware.has_value()) {
+        helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Firmware);
+    }
+}
+
 bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& slot) {
     const helix::ams::LaneId lane = lane_id(slot_index);
-    const std::optional<helix::ams::Observation> cache = helix::ams::lane_sources(lane).firmware;
+    const std::optional<helix::ams::Observation> cache =
+        std::exchange(tag_firmware_[static_cast<size_t>(slot_index)], std::nullopt);
     if (!cache.has_value()) {
         return false;
     }
-    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Firmware);
+    file_head_firmware_locked(slot_index);
 
     // A SlotInfo field still holding the dropped record's value got it from
     // the tag; print_task_config is the firmware's other word on the head, so
@@ -3405,8 +3424,13 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
             helix::snapmaker::channel_state_in_progress(channel_snapshots_[idx].state)) {
             continue;
         }
+        // The record copies every type the firmware states, so a type alone
+        // is no reason to rewrite the head (each write resets its flow
+        // calibration): only a record that also names the spool, which only
+        // an edit or a Spoolman link puts there.
         const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() || ovr->second.material.empty()) {
+        if (ovr == overrides_.end() || ovr->second.material.empty() ||
+            !record_names_spool(ovr->second)) {
             continue;
         }
         std::string gcode = unset_record_restore_locked(head);
@@ -3433,7 +3457,18 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     if (!slot) {
         return {};
     }
-    return build_filament_config_gcode(head, *slot, *needs_force);
+    // The type and colour written back are the record's: the last ones the
+    // firmware itself stated, which the record copied before the reset.
+    SlotInfo restore = *slot;
+    if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
+        if (!ovr->second.material.empty()) {
+            restore.material = ovr->second.material;
+        }
+        if (ovr->second.color_set) {
+            restore.color_rgb = ovr->second.color_rgb;
+        }
+    }
+    return build_filament_config_gcode(head, restore, *needs_force);
 }
 
 void AmsBackendSnapmaker::dispatch_record_scripts(
