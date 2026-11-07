@@ -399,8 +399,11 @@ CapabilityChipFacts gather_capability_chip_facts() {
         const bool tool_changer = is_tool_changer(info->type);
         f.has_tool_changer = f.has_tool_changer || tool_changer;
         const AmsBackend* backend = ams.get_backend(i);
-        f.filament_systems.push_back({info->type_name, info->total_slots, tool_changer,
-                                      backend ? backend->lane_noun() : helix::ui::LaneNoun::Slot});
+        const auto noun = backend ? backend->lane_noun() : helix::ui::LaneNoun::Slot;
+        f.filament_systems.push_back({info->type_name, tool_changer,
+                                      info->total_slots > 0
+                                          ? helix::ui::lane_count_label(noun, info->total_slots)
+                                          : std::string()});
     }
 
     // Only the capabilities whose subject an override drives: there, a chip
