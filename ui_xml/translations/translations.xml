@@ -2279,6 +2279,7 @@
   <translation tag="Mount" de="Montieren" en="Mount" es="Montar" fr="Monter" it="Monta" ja="装着" pt="Montar" ru="Установить" zh="装上"/>
   <translation tag="Mount tool" de="Werkzeug montieren" en="Mount tool" es="Montar herramienta" fr="Monter l&apos;outil" it="Monta strumento" ja="ツールを装着" pt="Montar ferramenta" ru="Установить инструмент" zh="装上工具"/>
   <translation tag="Mount which tool?" de="Welches Werkzeug montieren?" en="Mount which tool?" es="¿Qué herramienta montar?" fr="Monter quel outil ?" it="Quale strumento montare?" ja="どのツールを装着しますか？" pt="Montar qual ferramenta?" ru="Какой инструмент установить?" zh="装上哪个工具？"/>
+  <translation tag="Mount {} before calibrating the Z offset" de="{} montieren, bevor der Z-Offset kalibriert wird" en="Mount {} before calibrating the Z offset" es="Monta {} antes de calibrar el Z-offset" fr="Montez {} avant de calibrer le Z-offset" it="Monta {} prima di calibrare lo Z-offset" ja="Z-offset を校正する前に {} を装着してください" pt="Monte {} antes de calibrar o Z-offset" ru="Установите {} перед калибровкой Z-смещения" zh="校准 Z 偏移前请先安装 {}"/>
   <translation tag="Mount..." de="Montieren..." en="Mount..." es="Montar..." fr="Monter..." it="Monta..." ja="装着..." pt="Montar..." ru="Установить..." zh="装上..."/>
   <translation tag="Move" de="Bewegen" en="Move" es="Mover" fr="Déplacer" it="Sposta" ja="移動" pt="Mover" ru="Двигать" zh="移动"/>
   <translation tag="Move here" de="Hierhin bewegen" en="Move here" es="Mover aquí" fr="Déplacer ici" it="Sposta qui" ja="ここへ移動" pt="Mover aqui" ru="Переместить сюда" zh="移动到此处"/>

@@ -29,6 +29,7 @@
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <string>
@@ -416,4 +417,41 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     const auto start = start_calibration(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, {}, false);
     CHECK(start.scripts.empty());
     CHECK(start.state == ZOffsetCalibrationPanel::State::ERROR);
+}
+
+// --- reference tool --------------------------------------------------------
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration start: a toolchanger with another tool mounted refuses",
+                 "[zoffset][calibration][reference_tool]") {
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        json::array({"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
+    state().set_hardware(hw);
+    auto& tools = helix::ToolState::instance();
+    tools.init_tools(hw);
+    struct ToolReset {
+        ~ToolReset() {
+            helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+        }
+    } tool_reset;
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+
+    tools.update_from_status(json{{"toolchanger", json{{"tool_number", 1}}}});
+    REQUIRE(tools.active_tool_index() == 1);
+    ZOffsetCalibrationTestAccess::start_calibration(panel);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
+    CHECK(client.last_send_script().empty());
+
+    tools.update_from_status(json{{"toolchanger", json{{"tool_number", 0}}}});
+    ZOffsetCalibrationTestAccess::start_calibration(panel);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::ERROR);
 }

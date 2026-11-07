@@ -2319,6 +2319,7 @@ translations:
   Mount: 装着
   Mount tool: 'ツールを装着'
   Mount which tool?: 'どのツールを装着しますか？'
+  Mount {} before calibrating the Z offset: 'Z-offset を校正する前に {} を装着してください'
   Mount...: '装着...'
   Move: 移動
   Move here: ここへ移動

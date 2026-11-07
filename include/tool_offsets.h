@@ -151,6 +151,14 @@ std::string activate_mounted_offset_gcode(const PrinterDiscovery& hw, int tool_i
 /// restart that never comes.
 bool persist_requires_save_config(const PrinterDiscovery& hw);
 
+/// The tool number whose nozzle the probe's z_offset is measured for, or
+/// nullopt where a probe calibration does not depend on the mounted tool.
+///
+/// Where the model adds the mounted tool's own offsets to every move, a
+/// PROBE_CALIBRATE or Z_ENDSTOP_CALIBRATE run with any other tool mounted
+/// folds that tool's offset into the machine's Z and shifts every tool by it.
+std::optional<int> probe_reference_tool(const PrinterDiscovery& hw);
+
 /// Human-readable name of the matched offset model, for logging. Empty when
 /// none.
 std::string provider_name(const PrinterDiscovery& hw);

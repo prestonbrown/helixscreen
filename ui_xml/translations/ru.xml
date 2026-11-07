@@ -2279,6 +2279,7 @@
   <translation tag="Mount" ru="Установить"/>
   <translation tag="Mount tool" ru="Установить инструмент"/>
   <translation tag="Mount which tool?" ru="Какой инструмент установить?"/>
+  <translation tag="Mount {} before calibrating the Z offset" ru="Установите {} перед калибровкой Z-смещения"/>
   <translation tag="Mount..." ru="Установить..."/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move here" ru="Переместить сюда"/>

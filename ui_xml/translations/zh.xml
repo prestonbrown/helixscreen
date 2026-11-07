@@ -2234,6 +2234,7 @@
   <translation tag="Mount" zh="装上"/>
   <translation tag="Mount tool" zh="装上工具"/>
   <translation tag="Mount which tool?" zh="装上哪个工具？"/>
+  <translation tag="Mount {} before calibrating the Z offset" zh="校准 Z 偏移前请先安装 {}"/>
   <translation tag="Mount..." zh="装上..."/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move here" zh="移动到此处"/>

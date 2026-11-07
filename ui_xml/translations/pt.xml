@@ -2234,6 +2234,7 @@
   <translation tag="Mount" pt="Montar"/>
   <translation tag="Mount tool" pt="Montar ferramenta"/>
   <translation tag="Mount which tool?" pt="Montar qual ferramenta?"/>
+  <translation tag="Mount {} before calibrating the Z offset" pt="Monte {} antes de calibrar o Z-offset"/>
   <translation tag="Mount..." pt="Montar..."/>
   <translation tag="Move" pt="Mover"/>
   <translation tag="Move here" pt="Mover aqui"/>

@@ -706,3 +706,17 @@ TEST_CASE("tool offsets: models without a global Z read none", "[tool_offsets]")
     CHECK_FALSE(to_::read_global_z_offset_microns(reader, indx_frame()).has_value());
     CHECK_FALSE(to_::read_global_z_offset_microns(to_::OffsetReader{}, indx_frame()).has_value());
 }
+
+TEST_CASE("tool offsets: klipper-toolchanger's probe offset belongs to T0",
+          "[tool_offsets][reference_tool]") {
+    // Every move adds the mounted tool's own gcode offsets, measured against T0,
+    // so a probe calibration is right only with T0 on the carriage.
+    CHECK(to_::probe_reference_tool(toolchanger_printer()) == std::optional<int>(0));
+}
+
+TEST_CASE("tool offsets: no reference tool without klipper-toolchanger's offset model",
+          "[tool_offsets][reference_tool]") {
+    CHECK_FALSE(to_::probe_reference_tool(plain_printer()).has_value());
+    CHECK_FALSE(to_::probe_reference_tool(tool_offset_macro_printer()).has_value());
+    CHECK_FALSE(to_::probe_reference_tool(stock_medusahc_printer()).has_value());
+}
