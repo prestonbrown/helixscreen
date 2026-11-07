@@ -498,8 +498,40 @@ void FlipClockSim::draw_card(FrameTarget& frame, size_t i) const {
     const auto flap_shade =
         static_cast<uint32_t>(std::lround(255.0f * (0.55f + 0.45f * std::fabs(fold))));
 
+    // The card's thickness shows as a lit band along the flap's free edge, widest when the
+    // flap stands edge-on. It sits above the face on the way up and below it on the way down.
+    const float tilt = moving ? std::sin(kSaverPi * p) : 0.0f;
+    const int32_t edge_px = std::max<int32_t>(2, h / 72);
+    const auto edge_h = static_cast<int32_t>(std::lround(static_cast<float>(edge_px) * tilt));
+    int32_t edge_y1 = 0;
+    int32_t edge_y2 = -1;
+    if (edge_h > 0 && p < 0.5f) {
+        edge_y1 = std::max<int32_t>(0, flap_y1 - edge_h);
+        edge_y2 = flap_y1 - 1;
+    } else if (edge_h > 0) {
+        edge_y1 = flap_y2 + 1;
+        edge_y2 = std::min(h - 1, flap_y2 + edge_h);
+    }
+    // The free edge's rounded ends follow the card's corners.
+    const int32_t edge_corner_row = layout_.corner / 3;
+
+    // The flap shades the half it is passing over, darkest beside its edge.
+    const int32_t free_edge_y = p < 0.5f ? flap_y1 : flap_y2;
+    const float shadow_reach = static_cast<float>(std::max<int32_t>(1, top_h));
+
     for (int32_t y = 0; y < h; y++) {
         const bool in_flap = flap_h > 0 && y >= flap_y1 && y <= flap_y2;
+        const bool in_edge = y >= edge_y1 && y <= edge_y2;
+        uint32_t shadow = 255;
+        if (tilt > 0.0f && !in_flap && !in_edge &&
+            (p < 0.5f ? y < layout_.split_top : y >= layout_.split_bottom)) {
+            const float near =
+                1.0f - std::min(1.0f, static_cast<float>(std::abs(y - free_edge_y)) / shadow_reach);
+            shadow = static_cast<uint32_t>(std::lround(255.0f * (1.0f - 0.45f * tilt * near)));
+        }
+        // The outer row of the band catches the most light.
+        const bool rim = in_edge && (p < 0.5f ? y == edge_y1 : y == edge_y2);
+        const Rgb edge_color = rim ? kFlapRim : kFlapEdge;
         int32_t src_y = 0;
         if (in_flap) {
             src_y = p < 0.5f ? (y - flap_y1) * top_h / flap_h
@@ -510,8 +542,14 @@ void FlipClockSim::draw_card(FrameTarget& frame, size_t i) const {
         const FlipCard& still = (moving && y >= layout_.split_top) ? anim.from : anim.to;
         const FlipCard& flap_card = p < 0.5f ? anim.from : anim.to;
         for (int32_t x = 0; x < w; x++) {
-            Rgb c = blend_cov(kBackground, face_pixel(still, x, y), corner_coverage(x, y));
-            if (in_flap) {
+            Rgb face = face_pixel(still, x, y);
+            if (shadow < 255) {
+                face = scale_rgb(face, shadow);
+            }
+            Rgb c = blend_cov(kBackground, face, corner_coverage(x, y));
+            if (in_edge) {
+                c = blend_cov(c, edge_color, corner_coverage(x, edge_corner_row));
+            } else if (in_flap) {
                 const Rgb flap = scale_rgb(face_pixel(flap_card, x, src_y), flap_shade);
                 c = blend_cov(c, flap, corner_coverage(x, src_y));
             }
