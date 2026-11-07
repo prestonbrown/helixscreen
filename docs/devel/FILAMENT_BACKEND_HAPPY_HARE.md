@@ -204,6 +204,20 @@ only names, so there only `selector_move_speed` is filtered, by selector. A devi
 unit takes is disabled, and the override reapply sends one `MMU_TEST_CONFIG` per parameter on
 every version, leaving out any no unit takes, so one refusal cannot sink the rest.
 
+**Tuning values.** The Device settings sliders and toggles write the MMU with
+`MMU_TEST_CONFIG`, which lasts until Klipper restarts; the configfile holds the value the MMU
+starts with. Where `printer.mmu` reports a value, that is what the row shows and nothing is
+kept here: clog detection reads the encoder's mode (`flowguard_encoder_mode` /
+`clog_detection_enabled`), falling back to the configfile before the first frame. Happy Hare
+reports none of the others, so their last setting is kept per printer, at Config
+`df() + "hh_overrides/<key>/{value,config_default}"`, and re-applied at connect
+(`reapply_overrides()`); an override whose saved `config_default` no longer matches the
+printer's configfile is dropped. The kept keys: `gear_from_buffer_speed`,
+`gear_from_spool_speed`, `gear_unload_speed`, `selector_move_speed`, `extruder_load_speed`,
+`extruder_unload_speed`, `toolhead_sensor_to_nozzle`, `toolhead_extruder_to_nozzle`,
+`toolhead_entry_to_extruder`, `toolhead_ooze_reduction`, `sync_to_extruder`. A record left at
+the old global `/hh_overrides` moves to the active printer once.
+
 **Units.** `happy_hare::read_machine_units()` returns every `mmu_machine.unit_N` (v3.4 and v4
 both publish them; an older v3 falls back to configfile's `[mmu_machine]` as one unit). Each
 unit's `num_gates` sets the slot split in preference to `printer.mmu`'s counts or an even

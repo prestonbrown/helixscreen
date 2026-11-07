@@ -4168,8 +4168,9 @@ TEST_CASE("execute_device_action calibrate_servo is not a valid action",
     REQUIRE_FALSE(result.success());
 }
 
-TEST_CASE("execute_device_action clog_detection saves override",
-          "[ams][happy_hare][device_actions]") {
+TEST_CASE("clog detection is written to the MMU and read back from its status, never kept here",
+          "[ams][happy_hare][device_actions][hh_overrides]") {
+    auto* config = helix::Config::get_instance();
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4178,6 +4179,18 @@ TEST_CASE("execute_device_action clog_detection saves override",
     auto result = helper.execute_device_action("clog_detection", std::any(std::string("Auto")));
     REQUIRE(result.success());
     REQUIRE(helper.has_gcode_containing("CLOG_DETECTION=2"));
+    CHECK_FALSE(config->exists(config->df() + "hh_overrides/clog_detection"));
+
+    // Until the status reports the encoder's mode, the configfile's stands.
+    const auto mode = [&helper]() {
+        for (const auto& a : helper.get_device_actions()) {
+            if (a.id == "clog_detection") {
+                return std::any_cast<std::string>(a.current_value);
+            }
+        }
+        return std::string();
+    };
+    CHECK(mode() == "Off");
 }
 
 // ============================================================================
@@ -6328,7 +6341,6 @@ TEST_CASE("Happy Hare v4 reapplies persisted overrides under the v4 names",
     // all three, so they are left out rather than sinking the rest.
     overrides.sync_to_extruder = 0;
     overrides.gear_from_buffer_speed = 160.0f;
-    overrides.clog_detection = 2;
     helper.clear_captured_gcodes();
 
     helper.test_reapply_overrides();
@@ -6855,11 +6867,11 @@ TEST_CASE("Happy Hare keeps an override saved against the built-in default",
     ScopedConfig config;
     // Saved while the printer's own default could not be read: the record names
     // the built-in 60, the printer's real default is 80.
-    config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
-    config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 60.0f);
+    config->set<float>(config->df() + "hh_overrides/gear_from_spool_speed/value", 95.0f);
+    config->set<float>(config->df() + "hh_overrides/gear_from_spool_speed/config_default", 60.0f);
     // Saved against a real default the printer has since changed: stale.
-    config->set<float>("/hh_overrides/gear_unload_speed/value", 99.0f);
-    config->set<float>("/hh_overrides/gear_unload_speed/config_default", 111.0f);
+    config->set<float>(config->df() + "hh_overrides/gear_unload_speed/value", 99.0f);
+    config->set<float>(config->df() + "hh_overrides/gear_unload_speed/config_default", 111.0f);
 
     QueryCapturingClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
@@ -6871,10 +6883,31 @@ TEST_CASE("Happy Hare keeps an override saved against the built-in default",
     const auto& o = HappyHareTestAccess::user_overrides(helper);
     REQUIRE(o.gear_from_spool_speed);
     CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
-    CHECK(config->get<float>("/hh_overrides/gear_from_spool_speed/config_default", 0.0f) ==
-          Catch::Approx(80.0f));
+    CHECK(config->get<float>(config->df() + "hh_overrides/gear_from_spool_speed/config_default",
+                             0.0f) == Catch::Approx(80.0f));
     CHECK_FALSE(o.gear_unload_speed);
     CHECK(config->get_path().empty()); // the migration's save() wrote no file
+}
+
+TEST_CASE("Happy Hare tunables are kept per printer; the old global record moves to the active one",
+          "[ams][happy_hare][hh_overrides]") {
+    ScopedConfig config;
+    config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
+    config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 80.0f);
+
+    QueryCapturingClient client;
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+    connect_with_fixture(helper, client,
+                         helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json"));
+
+    CHECK_FALSE(config->exists("/hh_overrides"));
+    CHECK(config->get<float>(config->df() + "hh_overrides/gear_from_spool_speed/value", 0.0f) ==
+          Catch::Approx(95.0f));
+    const auto& o = HappyHareTestAccess::user_overrides(helper);
+    REQUIRE(o.gear_from_spool_speed);
+    CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
 }
 
 TEST_CASE("Happy Hare selector speed override survives a restart under either key",
@@ -6888,11 +6921,11 @@ TEST_CASE("Happy Hare selector speed override survives a restart under either ke
             helper.set_config_defaults_for_test();
             REQUIRE(helper.execute_device_action("selector_speed", std::any(180.0)).success());
         }
-        CHECK(config->exists("/hh_overrides/selector_move_speed/value"));
+        CHECK(config->exists(config->df() + "hh_overrides/selector_move_speed/value"));
     }
     SECTION("an older record under the action id") {
-        config->set<float>("/hh_overrides/selector_speed/value", 180.0f);
-        config->set<float>("/hh_overrides/selector_speed/config_default", 200.0f);
+        config->set<float>(config->df() + "hh_overrides/selector_speed/value", 180.0f);
+        config->set<float>(config->df() + "hh_overrides/selector_speed/config_default", 200.0f);
     }
     QueryCapturingClient client;
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
@@ -7006,7 +7039,6 @@ TEST_CASE("Happy Hare reapplies each override alone, under its version's name",
         o.gear_from_spool_speed = 70.0f;
         o.gear_unload_speed = 90.0f;
         o.selector_move_speed = 180.0f;
-        o.clog_detection = 2;
         helper.clear_captured_gcodes();
         helper.test_reapply_overrides();
         return helper.captured_gcodes;
@@ -7016,15 +7048,13 @@ TEST_CASE("Happy Hare reapplies each override alone, under its version's name",
         connect_with_fixture(helper, client, v3_fixture(3.01));
         CHECK(set_overrides() ==
               std::vector<std::string>{"MMU_TEST_CONFIG GEAR_FROM_SPOOL_SPEED=70",
-                                       "MMU_TEST_CONFIG SELECTOR_MOVE_SPEED=180",
-                                       "MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=2"});
+                                       "MMU_TEST_CONFIG SELECTOR_MOVE_SPEED=180"});
     }
     SECTION("3.42 on a selector with no moving carriage") {
         connect_with_fixture(helper, client, v3_fixture(3.42, "VirtualSelector"));
         CHECK(set_overrides() ==
               std::vector<std::string>{"MMU_TEST_CONFIG GEAR_FROM_SPOOL_SPEED=70",
-                                       "MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90",
-                                       "MMU_TEST_CONFIG FLOWGUARD_ENCODER_MODE=2"});
+                                       "MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90"});
     }
 }
 

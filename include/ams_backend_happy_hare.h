@@ -774,7 +774,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     };
     ConfigDefaults config_defaults_;
 
-    /// User overrides (set via UI, persisted to Config)
+    /// Tunables Happy Hare does not report: a change goes to the MMU with
+    /// MMU_TEST_CONFIG, which lasts until Klipper restarts, so the value is
+    /// kept per printer (Config df() + "hh_overrides/<key>") and re-applied at
+    /// connect. Clog detection is not here: the mmu status reports its mode.
     struct UserOverrides {
         std::optional<float> gear_from_buffer_speed;
         std::optional<float> gear_from_spool_speed;
@@ -787,7 +790,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         std::optional<float> toolhead_entry_to_extruder;
         std::optional<float> toolhead_ooze_reduction;
         std::optional<int> sync_to_extruder;
-        std::optional<int> clog_detection;
     };
     UserOverrides user_overrides_;
 

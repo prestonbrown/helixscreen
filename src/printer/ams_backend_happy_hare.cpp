@@ -2083,8 +2083,24 @@ void AmsBackendHappyHare::query_config_from_printer() {
         });
 }
 
+namespace {
+/// Where a Happy Hare tunable is kept: under the active printer, since one
+/// printer's MMU tuning says nothing about another's.
+std::string hh_override_path(helix::Config* config, const std::string& key) {
+    return config->df() + "hh_overrides/" + key;
+}
+} // namespace
+
 void AmsBackendHappyHare::load_persisted_overrides() {
     auto* config = helix::Config::get_instance();
+    // Overrides kept before they were per printer belong to whichever printer
+    // was set up when they were made: the active one takes them, once.
+    if (const nlohmann::json* global = config->try_get_json("/hh_overrides");
+        global && global->is_object() && !config->exists(config->df() + "hh_overrides")) {
+        config->set<nlohmann::json>(config->df() + "hh_overrides", *global);
+        config->get_json("").erase("hh_overrides");
+        config->save();
+    }
     // An override saved against the built-in default, not the printer's own,
     // still applies: the built-ins stood in whenever the printer's config
     // could not be read. Its record is re-pointed at the real default.
@@ -2095,10 +2111,10 @@ void AmsBackendHappyHare::load_persisted_overrides() {
     auto load = [&](const std::string& key, auto& field, auto current_default,
                     auto builtin_default) {
         using T = decltype(current_default);
-        std::string base = "/hh_overrides/" + key;
+        std::string base = hh_override_path(config, key);
         // Records saved under the action id selector_speed load too.
         if (!config->exists(base + "/value") && key == "selector_move_speed") {
-            base = "/hh_overrides/selector_speed";
+            base = hh_override_path(config, "selector_speed");
         }
         if (!config->exists(base + "/value"))
             return;
@@ -2138,7 +2154,6 @@ void AmsBackendHappyHare::load_persisted_overrides() {
     load("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
     load("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
     load("sync_to_extruder", user_overrides_.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
-    load("clog_detection", user_overrides_.clog_detection, config_defaults_.clog_detection, builtin.clog_detection);
     // clang-format on
 
     if (migrated) {
@@ -2175,8 +2190,6 @@ float AmsBackendHappyHare::get_config_default_float(const std::string& key) cons
 int AmsBackendHappyHare::get_config_default_int(const std::string& key) const {
     if (key == "sync_to_extruder")
         return config_defaults_.sync_to_extruder;
-    if (key == "clog_detection")
-        return config_defaults_.clog_detection;
     return 0;
 }
 
@@ -2208,7 +2221,7 @@ void AmsBackendHappyHare::save_override(const std::string& key, float value) {
 
     // Persist to Config JSON (outside lock — disk I/O)
     auto* config = helix::Config::get_instance();
-    std::string base = "/hh_overrides/" + key;
+    const std::string base = hh_override_path(config, key);
     config->set<float>(base + "/value", value);
     config->set<float>(base + "/config_default", get_config_default_float(key));
     config->save();
@@ -2219,13 +2232,11 @@ void AmsBackendHappyHare::save_override(const std::string& key, int value) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (key == "sync_to_extruder")
             user_overrides_.sync_to_extruder = value;
-        else if (key == "clog_detection")
-            user_overrides_.clog_detection = value;
     } // end mutex scope
 
     // Persist to Config JSON (outside lock — disk I/O)
     auto* config = helix::Config::get_instance();
-    std::string base = "/hh_overrides/" + key;
+    const std::string base = hh_override_path(config, key);
     config->set<int>(base + "/value", value);
     config->set<int>(base + "/config_default", get_config_default_int(key));
     config->save();
@@ -2268,7 +2279,6 @@ void AmsBackendHappyHare::reapply_overrides() {
         add_float("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, false);
         // Int toggles
         add_int("sync_to_extruder", user_overrides_.sync_to_extruder);
-        add_int("clog_detection", user_overrides_.clog_detection);
 
         // Each override goes alone, to the unit that takes it: v3 refuses a
         // whole MMU_TEST_CONFIG over one name it does not know, and v4 applies
@@ -3908,10 +3918,10 @@ std::vector<helix::printer::DeviceAction> AmsBackendHappyHare::get_device_action
                 a.current_value = espooler_active_;
             }
         } else if (a.id == "clog_detection") {
-            // Status-backed flowguard_encoder_mode_ takes priority, else override/config
-            int mode = (flowguard_encoder_mode_ >= 0)
-                           ? flowguard_encoder_mode_
-                           : eff_i(user_overrides_.clog_detection, config_defaults_.clog_detection);
+            // The mmu status reports the encoder's mode; the configfile's is
+            // what the MMU runs before its first frame.
+            const int mode = flowguard_encoder_mode_ >= 0 ? flowguard_encoder_mode_
+                                                          : config_defaults_.clog_detection;
             // Map int to display string
             switch (mode) {
             case 1:
@@ -4156,11 +4166,8 @@ AmsError AmsBackendHappyHare::do_execute_device_action(const std::string& action
             mode_int = 1;
         else if (mode_str == "Auto")
             mode_int = 2;
-        auto result = test_config("clog_detection", std::to_string(mode_int));
-        if (result.success()) {
-            save_override(action_id, mode_int);
-        }
-        return result;
+        // The mmu status reports the mode back, so nothing is kept here.
+        return test_config("clog_detection", std::to_string(mode_int));
     }
 
     // --- Runtime gear-motor sync (live action, distinct from config sync_to_extruder) ---
