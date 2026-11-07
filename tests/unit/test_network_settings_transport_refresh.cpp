@@ -131,9 +131,12 @@ TEST_CASE_METHOD(TransportRefreshFixture,
         }
     } restore{eth};
 
+    // Settle every probe create() and on_activate() started: one still in
+    // flight would read the pulled cable without the link watch.
     REQUIRE(wait_until([&] {
         helix::ui::UpdateQueue::instance().drain();
-        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 1;
+        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 1 &&
+               Access::eth_refresh_idle(*overlay);
     }));
 
     // The cable comes out; only the manager's link watch sees it.
