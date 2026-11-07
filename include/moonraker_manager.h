@@ -276,6 +276,8 @@ class MoonrakerManager {
         if (helix::printer_has_job(new_state)) {
             return false;
         }
+        // RAW_PRINT_STATE_OK: the STANDBY hop is a wire state; the lifecycle
+        // already reads Preparing through it.
         if (printer_side_pre_start && new_state == helix::PrintJobState::STANDBY) {
             return false;
         }
