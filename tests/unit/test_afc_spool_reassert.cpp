@@ -99,8 +99,6 @@ class AfcReassertHelper : public AmsBackendAfc {
         spoolman.material = material;
         spoolman.brand = brand;
         helix::ams::ingest(lane_id(slot_index), spoolman);
-        std::lock_guard<std::mutex> lock(mutex_);
-        apply_resolved_lane(AfcTestAccess::slots(*this).get_mut(slot_index)->info, slot_index);
     }
 
     [[nodiscard]] bool has_override(int slot_index) const {
@@ -309,6 +307,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                                              {"spool_id", 127},
                                              {"material", "ASA"}});
     afc.ingest_spoolman(0, 127, "ASA", "Overture");
+    afc.feed_stepper("lane1", nlohmann::json{{"weight", 430.0}}); // the next frame paints it
     REQUIRE(afc.visible_spool_id(0) == 127);
     REQUIRE(afc.visible_material(0) == "ASA");
 

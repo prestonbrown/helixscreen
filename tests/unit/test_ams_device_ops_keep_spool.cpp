@@ -6,15 +6,14 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 
@@ -73,7 +72,7 @@ class DeviceOpsKeepSpoolFixture : public LVGLUITestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(10);
     }
 
