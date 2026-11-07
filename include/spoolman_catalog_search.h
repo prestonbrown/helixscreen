@@ -88,9 +88,10 @@ std::string new_filament_name(const std::string& product, const std::string& col
 /// its material and @p color_name ("ABS Gray").
 std::string filament_display_name(const FilamentInfo& filament, const std::string& color_name);
 
-/// The one temperature Spoolman stores for a range: the midpoint, or the one
-/// end that is set; 0 when neither is.
-int temperature_for_range(int min_temp, int max_temp);
+/// The one temperature Spoolman stores for a range: @p recommended when it is
+/// set and inside the range, else the midpoint, or the one end that is set; 0
+/// when nothing is.
+int temperature_for_range(int min_temp, int max_temp, int recommended = 0);
 
 /// Of @p filaments not already an exact match, the one that is most likely the
 /// same product: a material that records as @p material (filament::slicer_material()

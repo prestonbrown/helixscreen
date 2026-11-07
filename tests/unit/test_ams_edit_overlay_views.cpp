@@ -150,6 +150,10 @@ class AmsEditOverlayViewTestAccess {
         overlay_.sel_ = sel;
         overlay_.rebuild_option_lists();
     }
+    void stage_selection() {
+        overlay_.selection_moved_ = true;
+        overlay_.stage_selection_into_working();
+    }
     void call_apply_weight(float grams) {
         overlay_.apply_weight(grams);
     }
@@ -2943,6 +2947,39 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     CHECK_FALSE(access.sel().product_id.empty());
     CHECK(std::string(lv_subject_get_string(temps)).find("199") == std::string::npos);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a catalog pick files the product's recommended nozzle temperature",
+                 "[ams_edit_overlay][spoolman][2029]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    const SlotInfo info = untracked_slot();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    const auto* ef = catalog.resolve_id("coex-3d-coex-pla-plus-silk");
+    REQUIRE(ef != nullptr);
+    REQUIRE(ef->nozzle_recommended != (ef->nozzle_min + ef->nozzle_max) / 2);
+
+    AmsEditOverlay::SpoolEditSelection sel;
+    sel.family = "PLA";
+    sel.brand = ef->brand;
+    sel.product_id = ef->id;
+    access.set_sel(sel);
+    access.stage_selection();
+    const SlotInfo staged = access.working_info();
+    CHECK(staged.nozzle_temp_recommended == ef->nozzle_recommended);
+    CHECK(helix::SpoolmanSlotSaver::new_filament_for(info, staged).extruder_temp ==
+          ef->nozzle_recommended);
+
+    // A family with no product attached files the material's midpoint.
+    sel.product_id.clear();
+    access.set_sel(sel);
+    access.stage_selection();
+    CHECK(access.working_info().nozzle_temp_recommended == 0);
     close_editor_overlay();
 }
 

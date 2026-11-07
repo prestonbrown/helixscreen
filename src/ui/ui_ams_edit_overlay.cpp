@@ -1886,6 +1886,7 @@ void AmsEditOverlay::stage_selection_into_working() {
         if (const auto* ef = catalog_->resolve_id(sel_.product_id)) {
             working_info_.nozzle_temp_min = ef->nozzle_min;
             working_info_.nozzle_temp_max = ef->nozzle_max;
+            working_info_.nozzle_temp_recommended = ef->nozzle_recommended;
             working_info_.bed_temp = ef->bed_temp;
             working_info_.catalog_id = ef->id;
             working_info_.product_name = ef->name;
@@ -1895,6 +1896,7 @@ void AmsEditOverlay::stage_selection_into_working() {
         }
     }
     // No product: temperatures follow the material's database range.
+    working_info_.nozzle_temp_recommended = 0;
     working_info_.catalog_id.clear();
     working_info_.product_name.clear();
     if (auto mat = filament::find_material(type)) {
