@@ -236,18 +236,10 @@ TEST_CASE("PrintStartProfile: forge_x response patterns match temperature wait l
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
-    SECTION("Default profile uses weighted mode") {
-        auto profile = get_default_profile();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
-    }
-
-    SECTION("Artillery M1 profile uses sequential mode") {
-        auto profile = PrintStartProfile::load("artillery_m1");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->name() == "Artillery M1 Pro");
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
-    }
+    CHECK(get_default_profile()->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
+    auto artillery = PrintStartProfile::load("artillery_m1");
+    REQUIRE(artillery->name() == "Artillery M1 Pro");
+    CHECK(artillery->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
 }
 
 TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a soak",
