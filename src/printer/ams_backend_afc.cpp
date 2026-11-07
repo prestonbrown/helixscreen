@@ -17,6 +17,7 @@
 #include "ams_status_json.h"
 #include "config.h"
 #include "filament_variants.h"
+#include "gcode_response_lines.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -619,7 +620,18 @@ AmsError AmsBackendAfc::clear_fault(int slot_index) {
             timed_out_detail_.clear();
         }
         action_start_time_ = std::chrono::steady_clock::now();
+
+        // RESET_FAILURE leaves every lane's status alone, so the lane errors
+        // being cleared are retired here.
+        for (int i = 0; i < slots_.slot_count(); ++i) {
+            auto* entry = slots_.get_mut(i);
+            if (entry && entry->info.error.has_value()) {
+                acknowledged_lane_errors_.insert(slots_.name_of(i));
+                entry->info.error.reset();
+            }
+        }
     }
+    emit_event(EVENT_STATE_CHANGED);
 
     // Deliberately does NOT route through cancel(): cancel() returns early when
     // the action is IDLE, which is the common case for a queued message — AFC
@@ -2446,7 +2458,18 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 
     // Parse error state
     if (afc_data.contains("error_state") && afc_data["error_state"].is_boolean()) {
+        const bool was_in_error = error_state_;
         error_state_ = afc_data["error_state"].get<bool>();
+        if (error_state_ && !was_in_error) {
+            // A new error: AFC publishes no status delta for a lane that fails
+            // again while still marked Error, so an acknowledged lane shows again.
+            for (const auto& lane : acknowledged_lane_errors_) {
+                if (auto* entry = slots_.get_mut(slots_.index_of(lane))) {
+                    entry->info.error = lane_error_locked();
+                }
+            }
+            acknowledged_lane_errors_.clear();
+        }
         if (error_state_) {
             // Use unlocked helper since we're already holding mutex_
             error_segment_ = compute_filament_segment_unlocked();
@@ -3002,17 +3025,17 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     if (has_status) {
         std::string status_str = data["status"].get<std::string>();
         if (status_str == "Error") {
-            SlotError err;
-            err.message = last_seen_message_.empty() ? "Lane error" : last_seen_message_;
-            err.severity =
-                (last_message_type_ == "warning") ? SlotError::WARNING : SlotError::ERROR;
-            slot.error = err;
-            spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name, slot_index,
-                          err.message);
-        } else if (slot.error.has_value()) {
-            // Lane exited error state - clear the error
-            spdlog::debug("[AMS AFC] Lane {} (slot {}): error cleared", lane_name, slot_index);
-            slot.error.reset();
+            if (acknowledged_lane_errors_.count(lane_name) == 0) {
+                slot.error = lane_error_locked();
+                spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name,
+                              slot_index, slot.error->message);
+            }
+        } else {
+            acknowledged_lane_errors_.erase(lane_name);
+            if (slot.error.has_value()) {
+                spdlog::debug("[AMS AFC] Lane {} (slot {}): error cleared", lane_name, slot_index);
+                slot.error.reset();
+            }
         }
     }
 
@@ -5775,14 +5798,11 @@ AmsError AmsBackendAfc::recover_lane_position(int slot_index) {
         handler = "helix_afc_lane_reset_" + std::to_string(++s_lane_reset_watch_seq);
         client_->register_method_callback(
             "notify_gcode_response", handler, [succeeded, lane_name](const nlohmann::json& msg) {
-                const auto params = msg.find("params");
-                if (params == msg.end() || !params->is_array() || params->empty() ||
-                    !(*params)[0].is_string()) {
-                    return;
-                }
-                if (is_lane_reset_success_line((*params)[0].get<std::string>(), lane_name)) {
-                    succeeded->store(true);
-                }
+                for_each_gcode_response_line(msg, [&](const std::string& line) {
+                    if (is_lane_reset_success_line(line, lane_name)) {
+                        succeeded->store(true);
+                    }
+                });
             });
     }
     auto unwatch = [client = client_, handler]() {
@@ -5794,6 +5814,7 @@ AmsError AmsBackendAfc::recover_lane_position(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         lane_reset_in_flight_ = lane_name;
+        lane_reset_handler_ = handler;
     }
     spdlog::info("[AMS AFC] Resetting lane {}", lane_name);
     AmsError sent = execute_gcode(
@@ -5812,9 +5833,24 @@ AmsError AmsBackendAfc::recover_lane_position(int slot_index) {
 
 bool AmsBackendAfc::is_lane_reset_success_line(const std::string& line, const std::string& lane) {
     static constexpr std::string_view kSuffix = " reset to hub";
-    return !lane.empty() && line.size() >= lane.size() + kSuffix.size() &&
-           line.compare(0, lane.size(), lane) == 0 &&
-           line.compare(lane.size(), kSuffix.size(), kSuffix) == 0;
+    const std::string_view text = strip_respond_info_prefix(line);
+    return !lane.empty() && text.size() >= lane.size() + kSuffix.size() &&
+           text.substr(0, lane.size()) == lane &&
+           text.substr(lane.size(), kSuffix.size()) == kSuffix;
+}
+
+void AmsBackendAfc::on_stopping() {
+    if (client_ && !lane_reset_handler_.empty()) {
+        client_->unregister_method_callback("notify_gcode_response", lane_reset_handler_);
+        lane_reset_handler_.clear();
+    }
+}
+
+SlotError AmsBackendAfc::lane_error_locked() const {
+    SlotError err;
+    err.message = last_seen_message_.empty() ? "Lane error" : last_seen_message_;
+    err.severity = (last_message_type_ == "warning") ? SlotError::WARNING : SlotError::ERROR;
+    return err;
 }
 
 void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_success) {
@@ -5823,6 +5859,7 @@ void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_suc
         std::lock_guard<std::mutex> lock(mutex_);
         if (lane_reset_in_flight_ == lane) {
             lane_reset_in_flight_.clear();
+            lane_reset_handler_.clear();
         }
         if (!reported_success || !error_state_ || active_load_lane_ != lane) {
             spdlog::debug("[AMS AFC] Lane reset of {} settled: success={} error_state={} "
@@ -5838,14 +5875,14 @@ void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_suc
 
 bool AmsBackendAfc::has_clearable_fault(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!error_state_ || !lane_reset_in_flight_.empty()) {
+    if (!lane_reset_in_flight_.empty()) {
         return false;
     }
     const std::string lane = slots_.name_of(slot_index);
     if (lane.empty()) {
         return false;
     }
-    if (lane == active_load_lane_) {
+    if (error_state_ && lane == active_load_lane_) {
         return true;
     }
     const auto* entry = slots_.get(slot_index);
