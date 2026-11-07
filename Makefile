@@ -491,21 +491,24 @@ else
 endif
 
 # PWM sysfs buzzer backend — ad5m/ad5m-br probe it; the generic SBC builds
-# (pi, pi32, x86, yocto, native) carry it for a sound.pwm_channel setting, a
-# buzzer the user wired to any board's hardware PWM pin.
+# (pi, pi32, x86, yocto, native) and the unified MIPS build (mips, k1, ad5x)
+# carry it for a sound.pwm_channel setting, a buzzer wired to any board's
+# hardware PWM pin. With no channel named, those builds never select it.
 #
 # The backend's own runtime probe is just "does /sys/class/pwm/pwmchip0 exist",
 # which is true on boards whose PWM controller drives something else entirely: a
 # CC1 has 8 channels there, no beeper on any of them, and its backlight on the
 # same controller. So the probe cannot be trusted to decide this — the platform
 # must, or the user naming the channel. M300 (the PRINTER's beeper, over gcode) is deliberately NOT gated and
-# keeps working everywhere. Neither MIPS board exposes a sysfs pwmchip (the
-# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1's card through the PCM pipe).
+# keeps working everywhere. The stock MIPS boards expose no sysfs pwmchip (the
+# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1's card through
+# the PCM pipe); a MIPS board whose kernel does, such as a custom AD5X image,
+# reaches its buzzer through the named channel.
 #
 # Decided HERE, above APP_OBJS, and not down in the sound-flags section: APP_OBJS
 # is computed from APP_SRCS a few lines below, so a filter-out placed after it is
 # a silent no-op that still compiles and still links the backend.
-ifneq (,$(filter ad5m ad5m-br pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both yocto native,$(PLATFORM_TARGET)))
+ifneq (,$(filter ad5m ad5m-br mips k1 ad5x pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both yocto native,$(PLATFORM_TARGET)))
     PWM_SOUND_CXXFLAGS := -DHELIX_HAS_PWM_SOUND
     # Auto-export: the stock AD5M kernel ships the beeper channel unexported
     # and nothing materializes pwm6, so initialize() writes the channel to
