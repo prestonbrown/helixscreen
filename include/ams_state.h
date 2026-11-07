@@ -1728,9 +1728,8 @@ class AmsState {
      * @brief Get per-slot spool-name subject (primary backend's flat array).
      *
      * Holds the name the slot card shows above its material
-     * (helix::slot_card_name(): spool name, then the cached Spoolman filament
-     * name, then the catalog product name), or "" when nothing names the
-     * spool. Written
+     * (helix::slot_card_name(): the brand, then the cached Spoolman vendor),
+     * or "" when there is none or it is "Generic". Written
      * wherever the material subject is, and re-derived by refresh_slot_names()
      * when a Spoolman identity arrives.
      *

@@ -23,6 +23,7 @@
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
 #include "observer_factory.h"
@@ -104,7 +105,7 @@ struct AmsSlotData {
     lv_obj_t* lane_spool = nullptr;
 
     // Other UI elements
-    lv_obj_t* name_label = nullptr; // Spool name, above the material
+    lv_obj_t* name_label = nullptr; // Brand, above the material
     lv_obj_t* material_label = nullptr;
     lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
     lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
@@ -252,6 +253,31 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
         data->total_count, data->last_lane_state == helix::ui::LaneState::Empty);
 }
 
+/// Whether @p name fits the slot's width on one line. A slot not laid out yet
+/// counts as fitting: its first SIZE_CHANGED repaints the label.
+static bool card_name_fits(const AmsSlotData* data, const std::string& name) {
+    if (name.empty() || !data->name_label || !data->container) {
+        return true;
+    }
+    const int32_t room = lv_obj_get_content_width(data->container);
+    if (room <= 0) {
+        return true;
+    }
+    const lv_font_t* font = lv_obj_get_style_text_font(data->name_label, LV_PART_MAIN);
+    const int32_t letter_space = lv_obj_get_style_text_letter_space(data->name_label, LV_PART_MAIN);
+    return helix::ui::text_width(name.c_str(), font, letter_space) <= room;
+}
+
+/// What the card reads: slot_lines(), with a name too wide for the slot
+/// dropped rather than cut to its first letters.
+static helix::SlotCardLines card_lines(const AmsSlotData* data) {
+    helix::SlotCardLines lines = slot_lines(data);
+    if (!card_name_fits(data, lines.name)) {
+        lines.name.clear();
+    }
+    return lines;
+}
+
 /**
  * The name line takes its row's space in every slot of the row or in none. The
  * spools stand below the label lines, so one slot laid out with the line and
@@ -264,7 +290,7 @@ static void apply_row_name_lines(lv_obj_t* row) {
     const uint32_t count = lv_obj_get_child_count(row);
     for (uint32_t i = 0; i < count && !any_name; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
-        any_name = d && d->slot_index >= 0 && d->name_label && !slot_lines(d).name.empty();
+        any_name = d && d->slot_index >= 0 && d->name_label && !card_lines(d).name.empty();
     }
     for (uint32_t i = 0; i < count; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
@@ -281,7 +307,7 @@ static void apply_row_name_lines(lv_obj_t* row) {
 static void apply_slot_label(AmsSlotData* data) {
     if (!data || data->slot_index < 0)
         return;
-    const helix::SlotCardLines lines = slot_lines(data);
+    const helix::SlotCardLines lines = card_lines(data);
 
     if (data->material_label)
         lv_label_set_text(data->material_label, lines.lower.c_str());
@@ -624,6 +650,10 @@ static void ams_slot_event_cb(lv_event_t* e) {
 
         // Use the registry for cleanup - more reliable than user_data during lv_deinit()
         unregister_slot_data(obj);
+    } else if (code == LV_EVENT_SIZE_CHANGED) {
+        // Whether the brand fits depends on the width the row gave the slot.
+        lv_obj_t* obj = lv_event_get_target_obj(e);
+        apply_slot_label(obj ? get_slot_data(obj) : nullptr);
     } else if (code == LV_EVENT_HIT_TEST) {
         lv_obj_t* obj = lv_event_get_target_obj(e);
         auto* info = static_cast<lv_hit_test_info_t*>(lv_event_get_param(e));
@@ -948,6 +978,7 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     register_slot_data(obj, data_ptr.release());
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_HIT_TEST, nullptr);
+    lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
     lv_obj_add_flag(obj, LV_OBJ_FLAG_ADV_HITTEST);
 
     // Apply responsive slot width
