@@ -33,6 +33,7 @@
 #include "static_subject_registry.h"
 #include "ui/ams_drawing_utils.h"
 
+#include <algorithm>
 #include <array>
 
 #include "../catch_amalgamated.hpp"
@@ -1404,7 +1405,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "ams_slot: a tap on a spool in an overlapping row opens that slot",
                  "[ui][ams_slot][hit_band]") {
     ui_ams_slot_register();
-    constexpr int kCount = 6;
+    constexpr int kCount = 8;
 
     lv_obj_t* row = lv_obj_create(test_screen());
     lv_obj_set_size(row, 700, 300);
@@ -1416,18 +1417,37 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         slots[i] = create_ams_slot(row, i);
         REQUIRE(slots[i] != nullptr);
         ui_ams_slot_set_layout_info(slots[i], i, kCount);
+        // Every child a lane can show, shown: an empty lane's placeholder and a
+        // faulted lane's error dot both stand on top of the spool.
+        for (const char* name : {"empty_placeholder", "error_indicator"}) {
+            lv_obj_t* child = UITest::find_by_name(slots[i], name);
+            REQUIRE(child != nullptr);
+            lv_obj_remove_flag(child, LV_OBJ_FLAG_HIDDEN);
+        }
     }
     lv_obj_update_layout(row);
 
-    // A row as tight as 800x480's: neighbouring spools stand closer than one
-    // spool's width, so their containers overlap as well as their slots.
+    // A row as tight as the smallest screens: neighbouring spools, their
+    // containers and their placeholders all overlap, as well as the slots.
+    lv_obj_t* placeholder = UITest::find_by_name(slots[0], "empty_placeholder");
     const int32_t spool_w = lv_obj_get_width(UITest::find_by_name(slots[0], "spool_container"));
-    const int32_t target_pitch = spool_w * 4 / 5;
+    const int32_t placeholder_w = lv_obj_get_width(placeholder);
+    // The error dot stands off the spool's centre, past the half pitch, so it
+    // overhangs the neighbour's band as it does on a 480x320 screen of 8 lanes.
+    lv_area_t ph_area;
+    lv_area_t dot_area0;
+    lv_obj_get_coords(placeholder, &ph_area);
+    lv_obj_get_coords(UITest::find_by_name(slots[0], "error_indicator"), &dot_area0);
+    const int32_t dot_offset = dot_area0.x1 - (ph_area.x1 + ph_area.x2) / 2;
+    REQUIRE(dot_offset > 4);
+    const int32_t target_pitch = std::min<int32_t>(placeholder_w * 3 / 4, 2 * dot_offset - 6);
     const AmsSlotLayout layout =
         calculate_ams_slot_layout(target_pitch * 2 * (kCount + 1) / 2, kCount);
     const int32_t pitch = layout.slot_width - layout.overlap;
     REQUIRE(layout.overlap > 0);
     REQUIRE(spool_w > pitch + 4);
+    REQUIRE(placeholder_w > pitch + 4);
+    REQUIRE(dot_offset > pitch / 2 + 1);
 
     lv_obj_set_style_pad_column(row, -layout.overlap, LV_PART_MAIN);
     for (int i = 0; i < kCount; ++i) {
@@ -1436,19 +1456,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::ui::ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
     }
     lv_obj_update_layout(row);
-
+    lv_area_t bands[kCount];
     for (int i = 0; i < kCount; ++i) {
-        lv_obj_t* spool = UITest::find_by_name(slots[i], "spool_container");
-        REQUIRE(spool != nullptr);
-        lv_area_t a;
-        lv_obj_get_coords(spool, &a);
-        const int32_t cx = (a.x1 + a.x2) / 2;
-        const int32_t cy = (a.y1 + a.y2) / 2;
-        // The spool's centre and both halves of it, out to the pitch.
-        for (int32_t dx : {0, -(pitch / 2 - 2), pitch / 2 - 2}) {
-            lv_point_t p{cx + dx, cy};
-            CAPTURE(i, dx);
-            CHECK(slot_owning(lv_indev_search_obj(row, &p), slots, kCount) == slots[i]);
+        const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, kCount);
+        lv_obj_get_coords(slots[i], &bands[i]);
+        bands[i].x1 += band.left_inset;
+        bands[i].x2 -= band.right_inset;
+    }
+
+    lv_area_t spool_area;
+    lv_area_t dot_area;
+    lv_obj_get_coords(placeholder, &spool_area);
+    lv_obj_get_coords(UITest::find_by_name(slots[0], "error_indicator"), &dot_area);
+    const int32_t rows_y[] = {(spool_area.y1 + spool_area.y2) / 2, (dot_area.y1 + dot_area.y2) / 2};
+
+    // Every pixel across the row, at the spool's middle and at the error dot's
+    // height, belongs to the slot whose band holds it.
+    for (int32_t y : rows_y) {
+        for (int32_t x = bands[0].x1; x <= bands[kCount - 1].x2; ++x) {
+            int owner = -1;
+            for (int i = 0; i < kCount; ++i) {
+                if (x >= bands[i].x1 && x <= bands[i].x2)
+                    owner = i;
+            }
+            lv_point_t p{x, y};
+            CAPTURE(x, y, owner);
+            REQUIRE(owner >= 0);
+            REQUIRE(slot_owning(lv_indev_search_obj(row, &p), slots, kCount) == slots[owner]);
         }
     }
     lv_obj_delete(row);
