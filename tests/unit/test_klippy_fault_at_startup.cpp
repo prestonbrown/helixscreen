@@ -17,6 +17,7 @@
 #include "core/update_queue.h"
 #include "klippy_state.h"
 #include "moonraker_client_mock.h"
+#include "power_device_state.h"
 #include "printer_state.h"
 
 #include <string>
@@ -192,6 +193,45 @@ TEST_CASE_METHOD(StartupFaultFixture,
     lv_obj_t* actions = lv_obj_find_by_name(recovery_card(), "recovery_restart_actions");
     REQUIRE(actions != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(actions));
+}
+
+TEST_CASE_METHOD(StartupFaultFixture, "A mainboard powered off at connect shows no dialog",
+                 "[klippy_startup_fault][power]") {
+    constexpr const char* kUnreachable = "mcu 'mcu': Unable to connect";
+    struct PowerReset {
+        ~PowerReset() {
+            PowerDeviceState::instance().deinit_subjects();
+        }
+    } power_reset;
+
+    SECTION("the printer's power device is off") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "off", false}});
+        report("error", kUnreachable);
+        CHECK(recovery_card() == nullptr);
+    }
+    SECTION("the power device is on, so the MCU really is unreachable") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "on", false}});
+        report("error", kUnreachable);
+        REQUIRE(recovery_card() != nullptr);
+        CHECK(recovery_label("recovery_message").find(kUnreachable) != std::string::npos);
+    }
+    SECTION("a config error still shows while the power is off") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "off", false}});
+        report("error", kConfigError);
+        CHECK(recovery_card() != nullptr);
+    }
+}
+
+TEST_CASE("Klipper's MCU connect failures are told apart from other faults",
+          "[klippy_startup_fault][power]") {
+    CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Unable to connect"));
+    CHECK(is_klippy_mcu_connect_error("mcu 'toolboard': Unable to connect\nOnce the underlying "
+                                      "issue is corrected, use the \"FIRMWARE_RESTART\" command"));
+    CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Timeout on connect"));
+
+    CHECK_FALSE(is_klippy_mcu_connect_error(""));
+    CHECK_FALSE(is_klippy_mcu_connect_error("MCU 'mcu' shutdown: Timer too close"));
+    CHECK_FALSE(is_klippy_mcu_connect_error(kConfigError));
 }
 
 TEST_CASE_METHOD(StartupFaultFixture, "Klipper coming up after a startup fault dismisses it",

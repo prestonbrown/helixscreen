@@ -68,6 +68,14 @@ bool is_klippy_config_error(std::string_view state_message) {
     return false;
 }
 
+bool is_klippy_mcu_connect_error(std::string_view state_message) {
+    if (state_message.find("mcu '") == std::string_view::npos) {
+        return false;
+    }
+    return state_message.find("Unable to connect") != std::string_view::npos ||
+           state_message.find("Timeout on connect") != std::string_view::npos;
+}
+
 PrinterNetworkState::PrinterNetworkState() {
     // Initialize string buffer
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
