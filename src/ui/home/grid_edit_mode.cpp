@@ -472,7 +472,7 @@ void GridEditMode::exit() {
     withdraw_undo();
 
     // The widgets stay as they are; only the session's own objects go: the
-    // shield (its lattice and delete-page button are its children), the
+    // shield (it draws the lattice), the
     // selection chrome and both previews. Deferred, since an exit can run
     // inside input dispatch (#814). Restoring the widgets' clicks is the
     // owner's, which disarmed every page.
@@ -484,6 +484,7 @@ void GridEditMode::exit() {
     }
     forget_container_children();
 
+    lv_subject_set_int(&get_home_edit_page_deletable_subject(), 0);
     lv_subject_set_int(&get_home_edit_mode_subject(), 0);
 
     // Every change the session made (a drop, a resize, a removal, a catalog
@@ -882,16 +883,11 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         return lv_point_t{a.x1 - container_area.x1 - pad_left, a.y1 - container_area.y1 - pad_top};
     };
 
-    // A pill floats above the shield and every widget, so one drawn over the
-    // delete-page button or another tile would take the tap meant for it.
-    // With no safe spot outside, a pill goes on the tile's corner.
+    // A pill floats above the shield and every widget, so one drawn over
+    // another tile would take the tap meant for it. With no safe spot
+    // outside, a pill goes on the tile's corner.
     std::vector<lv_area_t> pill_blocked;
     std::vector<lv_area_t> other_tiles;
-    if (delete_page_btn_) {
-        lv_area_t content{};
-        current_metrics(&content);
-        pill_blocked.push_back(delete_page_button_area(content));
-    }
     {
         const uint32_t n = lv_obj_get_child_count(container_);
         for (uint32_t i = 0; i < n; ++i) {
@@ -973,20 +969,7 @@ bool GridEditMode::pill_release_acts(lv_event_t* e) {
     // Signed: a press read before the pill's first frame stamped the clock
     // is inside the lockout too.
     const auto since_shown = static_cast<int32_t>(pressed_at - pills_drawn_tick_);
-    if (!released_over_target(e) || since_shown < static_cast<int32_t>(kPillLockoutMs)) {
-        return false;
-    }
-    // A packed corner can leave a pill no spot but one over the delete-page
-    // button, which sits beneath it; a tap there was aimed at the button.
-    lv_indev_t* indev = lv_indev_active();
-    if (!indev || !delete_page_btn_) {
-        return true;
-    }
-    lv_point_t point;
-    lv_indev_get_point(indev, &point);
-    lv_area_t del;
-    lv_obj_get_coords(delete_page_btn_, &del);
-    return !(point.x >= del.x1 && point.x <= del.x2 && point.y >= del.y1 && point.y <= del.y2);
+    return released_over_target(e) && since_shown >= static_cast<int32_t>(kPillLockoutMs);
 }
 
 void GridEditMode::destroy_selection_chrome() {
@@ -1652,12 +1635,19 @@ lv_area_t GridEditMode::corner_pill_area(const lv_area_t& tile, int pill_px, int
     return home;
 }
 
-lv_area_t GridEditMode::delete_page_button_area(const lv_area_t& content) {
-    constexpr int kDelBtnSize = 40;
-    constexpr int kDelBtnMargin = 8;
-    const int32_t x1 = content.x2 + 1 - kDelBtnMargin - kDelBtnSize;
-    const int32_t y1 = content.y1 + kDelBtnMargin;
-    return lv_area_t{x1, y1, x1 + kDelBtnSize - 1, y1 + kDelBtnSize - 1};
+bool GridEditMode::page_deletable() const {
+    return config_ && !on_next_page_slot() &&
+           static_cast<size_t>(page_index_) != config_->main_page_index() &&
+           config_->page_count() > 1;
+}
+
+void GridEditMode::request_delete_page() {
+    if (!grid_input_acts() || !delete_page_cb_ || !page_deletable()) {
+        return;
+    }
+    // An Undo under the confirmation would move or re-add pages.
+    withdraw_undo();
+    delete_page_cb_();
 }
 
 int GridEditMode::edge_hit_band() const {
@@ -2977,7 +2967,6 @@ void GridEditMode::forget_container_children() {
     configure_btn_ = nullptr;
     shield_ = nullptr;
     lattice_spec_ = nullptr;
-    delete_page_btn_ = nullptr;
     // The previews live on the top layer, so the page going away does not
     // take them with it.
     delete_outline(snap_preview_);
@@ -3159,7 +3148,7 @@ void GridEditMode::ensure_shield() {
         // fall through to widgets that re-add CLICKABLE on async updates (e.g.
         // the AMS mini-status), launching them mid-edit. The selection's
         // configure and remove buttons are created after this overlay, so
-        // they stay on top; the delete-page button is one of its children.
+        // they stay on top.
         lv_obj_add_flag(shield_, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(shield_, LV_OBJ_FLAG_EVENT_BUBBLE);
         lv_obj_remove_flag(shield_, LV_OBJ_FLAG_SCROLLABLE);
@@ -3222,16 +3211,13 @@ void GridEditMode::rebuild_lattice() {
     const int cell = GridLayout::TRACKS_PER_CELL;
     auto [col_step, row_step] =
         selected_ ? snap_step_for(selected_widget_id()) : std::pair<int, int>{cell, cell};
-    // On a config page other than the main page while more than one page
-    // exists; the next-page slot is no page to delete.
-    const bool show_delete_page = config_ && !on_next_page_slot() &&
-                                  static_cast<size_t>(page_index_) != config_->main_page_index() &&
-                                  config_->page_count() > 1;
+    // Every page switch, page-set change and rebuild redraws the lattice, so
+    // the navbar's delete-page button follows the session's page from here.
+    lv_subject_set_int(&get_home_edit_page_deletable_subject(), page_deletable() ? 1 : 0);
 
     // A lattice change repaints the whole page, so a selection change, a drop
     // or a resize that asks for the lattice already drawn leaves it alone.
-    const LatticeKey key{shield_,  container_, ncols, nrows,           col_step,
-                         row_step, w,          h,     show_delete_page};
+    const LatticeKey key{shield_, container_, ncols, nrows, col_step, row_step, w, h};
     if (key == lattice_key_) {
         return;
     }
@@ -3252,60 +3238,6 @@ void GridEditMode::rebuild_lattice() {
     lattice_spec_->metrics = m;
     lattice_spec_->color = theme_manager_get_contrast_color(screen_bg);
     lv_obj_invalidate(shield_);
-
-    // The delete-page button is the shield's only child. Never the indev's
-    // press target, so replacing it mid-gesture is indev-neutral by LVGL's own
-    // rules.
-    if (delete_page_btn_) {
-        helix::ui::safe_delete_deferred(delete_page_btn_);
-    }
-
-    // Create "Delete Page" button — hidden for the main page, shown for secondary pages
-    delete_page_btn_ = nullptr;
-    if (show_delete_page) {
-        const lv_area_t del_area = delete_page_button_area(content_area);
-
-        delete_page_btn_ = lv_obj_create(shield_);
-        lv_obj_set_name(delete_page_btn_, "edit_delete_page_btn");
-        lv_obj_set_size(delete_page_btn_, lv_area_get_width(&del_area),
-                        lv_area_get_height(&del_area));
-        lv_obj_set_style_radius(delete_page_btn_, LV_RADIUS_CIRCLE, 0);
-        const lv_color_t del_bg = ThemeManager::instance().current_palette().danger;
-        lv_obj_set_style_bg_color(delete_page_btn_, del_bg, 0);
-        lv_obj_set_style_bg_opa(delete_page_btn_, LV_OPA_80, 0);
-        lv_obj_set_style_border_width(delete_page_btn_, 0, 0);
-        lv_obj_set_style_pad_all(delete_page_btn_, 0, 0);
-        lv_obj_add_flag(delete_page_btn_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(delete_page_btn_, LV_OBJ_FLAG_SCROLLABLE);
-        ignore_release_after_hold(delete_page_btn_);
-        lv_obj_set_pos(delete_page_btn_, del_area.x1 - content_area.x1,
-                       del_area.y1 - content_area.y1);
-
-        // Trash icon label: contrasted against the danger fill composited over
-        // the screen background at the pill's opacity
-        lv_obj_t* icon = lv_label_create(delete_page_btn_);
-        lv_label_set_text(icon, ICON_TRASH);
-        lv_obj_set_style_text_font(icon, &mdi_icons_16, 0);
-        lv_obj_set_style_text_color(icon,
-                                    theme_manager_get_contrast_adjusted_text(
-                                        lv_color_white(), del_bg, screen_bg, LV_OPA_80),
-                                    0);
-        lv_obj_center(icon);
-
-        // Click handler
-        lv_obj_add_event_cb(
-            delete_page_btn_,
-            [](lv_event_t* ev) {
-                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-                if (self && self->grid_input_acts() && self->delete_page_cb_ &&
-                    released_over_target(ev)) {
-                    // An Undo under the confirmation would move or re-add pages.
-                    self->withdraw_undo();
-                    self->delete_page_cb_();
-                }
-            },
-            LV_EVENT_CLICKED, this);
-    }
 
     spdlog::trace("[GridEditMode] Drew the lattice: {}x{} grid, {}x{} area (page {})", ncols, nrows,
                   w, h, page_index_);

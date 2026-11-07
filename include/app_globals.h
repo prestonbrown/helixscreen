@@ -172,6 +172,17 @@ lv_subject_t& get_notification_subject();
 lv_subject_t& get_home_edit_mode_subject();
 
 /**
+ * @brief Get the global home edit page deletable subject
+ *
+ * Controls the navbar delete-page button during grid edit mode.
+ * Value 1 = the edit session's page may be deleted, 0 = it may not.
+ *
+ * @return Reference to the home edit page deletable subject
+ */
+// NAMESPACE_OK: sits with get_home_edit_mode_subject(), this header's file-scope API
+lv_subject_t& get_home_edit_page_deletable_subject();
+
+/**
  * @brief Death signal for the file-static app_globals subjects
  *
  * home_edit_mode, wizard_active and siblings are freed by

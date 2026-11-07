@@ -350,8 +350,8 @@ void HomePanel::on_home_grid_press_cancelled(lv_event_t* e) {
 
 **The shield** is a full-grid, clickable, bubbling child of the scoped container, created by
 `GridEditMode::ensure_shield()`. As the topmost full-grid child it is the press target of every
-edit gesture, so no widget underneath is ever pressed. Its children are the lattice dots and the
-delete-page button. The selection's configure and remove buttons are its siblings, created after
+edit gesture, so no widget underneath is ever pressed. It draws the lattice dots and has no
+children. The selection's configure and remove buttons are its siblings, created after
 it, which puts them above it. The shield carries no callback: a shield that outlives the session,
 because the rebuild that would delete it never runs once the session's lifetime token expired,
 holds nothing that calls into the session.
@@ -596,7 +596,8 @@ The catalog opens from a hold on empty grid with nothing selected, at the cell t
 - `is_catalog_open()` is true, `switch_page()` keeps the session's page, and the swipe policy is
   `Disabled`.
 - Grid input takes no action: `grid_input_acts()` is false, so no press, hold or click the grid
-  handlers pass on, and no tap on the configure, remove or delete-page button, acts.
+  handlers pass on, no tap on the configure or remove button, and no tap on the navbar's
+  delete-page button, acts.
   Navigation's dismiss backdrop normally takes every press beside the catalog; the gate holds
   when that backdrop could not be created.
 - The shield and its lattice stay drawn. The catalog is a later child of the screen than the
@@ -718,9 +719,12 @@ shifted. Where each change lands:
 | The delete-page button | The page that takes the deleted page's index, or the new last page. Edit mode has ended | The same page |
 | Undo of a removal that pruned its page | The page on screen, one later when it sits at or after the page put back | The page put back, one slide on when it is another page |
 
-The delete-page button is drawn on the shield on a config page other than the main page while
-more than one page exists, and never on the next-page slot
-(`src/ui/home/grid_edit_mode.cpp#rebuild_lattice`). Its click withdraws a held Undo, then asks first, through the confirmation
+The delete-page button sits in the navbar beside + and Done, off the grid, so it never covers a
+tile. It shows while `home_edit_page_deletable` is 1: on a config page other than the main page
+while more than one page exists, and never on the next-page slot
+(`src/ui/home/grid_edit_mode.cpp#page_deletable`, published from `rebuild_lattice`, which every
+page switch and rebuild runs). Its click (`GridEditMode::request_delete_page`) withdraws a held
+Undo, then asks first, through the confirmation
 `HomePanel::wire_grid_edit_page_callbacks()` installs. The confirmation's action is
 `delete_edit_page(page_id)`, with the id of the session's page taken when the confirmation opens
 (`HomePanel::delete_page_action`), so the page deleted is the page asked about.
@@ -751,12 +755,15 @@ expires the token too. A late tap is a no-op.
 | Subject | Type | Owner | Meaning |
 |---------|------|-------|---------|
 | `home_edit_mode` | int | App globals (`src/app_globals.cpp#app_globals_init_subjects`) | 1 while a session is live, written only by `enter()` and `exit()` |
+| `home_edit_page_deletable` | int | App globals (`src/app_globals.cpp#app_globals_init_subjects`) | 1 while the session's page may be deleted, written by `rebuild_lattice()` and `exit()` |
 | `home_page_badge` | string | HomePanel | "N / M": the active page among config pages |
 | `home_populated_pages` | int | HomePanel | Pages holding a placed widget (`page_is_populated`) |
 
 `home_edit_mode` has several readers. The navbar's + and Done buttons show only while it is 1
-(`ui_xml/navigation_bar.xml#nav_btn_edit_add`, `nav_btn_edit_done`), and its Home, Controls,
-Filament, Settings and Advanced buttons and the printer badge are disabled while it is 1. The page
+(`ui_xml/navigation_bar.xml#nav_btn_edit_add`, `nav_btn_edit_done`), and its delete-page button
+only while `home_edit_page_deletable` is 1 as well (`nav_btn_edit_delete_page`). Its Home,
+Controls, Filament, Settings and Advanced buttons and the printer badge are disabled and hidden
+while it is 1, leaving the bar to the edit buttons. The page
 badge binds it, and `CameraWidget` observes it to cut its stream's frame rate during edit mode
 (`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`).
 
