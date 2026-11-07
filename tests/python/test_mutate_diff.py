@@ -1251,6 +1251,109 @@ def test_the_printer_database_reaches_the_tests_reading_it_through_code():
                           and "[#test_probe_sensor_manager]" in filt), filt
 
 
+PARSER_CPP = (
+    '#include "ifs_parser.h"\n'
+    'namespace ifs {\n'
+    'SlotMap parse_slots(const json& j) {\n'
+    '    SlotMap out;\n'
+    '    return out;\n'
+    '}\n'
+    'class LaneReader {};\n'
+    'struct SensorFrame {\n'
+    '    std::optional<bool> motion_detected;\n'
+    '    std::array<int, 4> port_counts{};\n'
+    '};\n'
+    '}\n'
+)
+BACKEND_PRE = 'void Backend::update(const json& j) {\n    for (auto& s : j["slots"]) {}\n}\n'
+
+
+def _hunk(path, body, new_file=False):
+    head = "--- /dev/null\n" if new_file else f"--- a/{path}\n"
+    return {"file": path, "line": 1, "old_line": 1,
+            "body": ["@@ -1,2 +1,2 @@\n", *body],
+            "patch": f"diff --git a/{path} b/{path}\n{head}+++ b/{path}\n"}
+
+
+def test_an_added_file_is_one_whose_patch_starts_from_nothing():
+    hunks = [_hunk("src/ifs_parser.cpp", ["+x\n"], new_file=True),
+             _hunk("src/backend.cpp", ["-a\n", "+b\n"])]
+    assert md.added_files(hunks) == {"src/ifs_parser.cpp"}
+
+
+def test_a_survivor_calling_into_an_added_file_is_an_extraction():
+    swap = _hunk("src/backend.cpp", ['-    for (auto& s : j["slots"]) {}\n',
+                                     "+    slots_ = ifs::parse_slots(j);\n"])
+    plain = _hunk("src/backend.cpp", ["-    return 1;\n", "+    return 2;\n"])
+    # A name the pre-image already has (update, json) is no evidence of a move.
+    reuse = _hunk("src/backend.cpp", ["-    x();\n", "+    update(j);\n"])
+    # A member of a struct the added file declares is a moved name too.
+    field = _hunk("src/backend.cpp", ["-    if (j.contains(\"m\")) {\n",
+                                      "+    if (frame.motion_detected) {\n"])
+    field["line"] = 9
+    # Only adding a call is new behaviour, whose survival is a real gap.
+    added_call = _hunk("src/backend.cpp", ["+    ifs::parse_slots(j);\n"])
+    added_call["line"] = 20
+    found = md.extraction_targets([swap, plain, reuse, field, added_call], {"src/ifs_parser.cpp": PARSER_CPP},
+                                  {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp",
+                     "src/backend.cpp:9": "src/ifs_parser.cpp"}
+    assert md.extraction_targets([swap], {}, {"src/backend.cpp": BACKEND_PRE}) == {}
+
+
+def test_a_name_an_added_header_declares_is_credited_to_its_source():
+    swap = _hunk("src/backend.cpp", ["-    int k = 0;\n", "+    LaneFrame k = read();\n"])
+    found = md.extraction_targets(
+        [swap], {"include/ifs_parser.h": "struct LaneFrame { int n; };\n",
+                 "src/ifs_parser.cpp": PARSER_CPP}, {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp"}
+
+
+def test_declared_names_cover_functions_types_and_members():
+    names = md.declared_names(PARSER_CPP)
+    assert {"parse_slots", "LaneReader", "ifs", "SensorFrame", "motion_detected",
+            "port_counts", "out"} <= names
+    assert "SlotMap" not in names and "return" not in names
+
+
+def test_the_summary_groups_extraction_survivors_by_the_file_they_moved_into():
+    lines = md.extraction_report({"src/backend.cpp:12": "src/ifs_parser.cpp",
+                                  "src/backend.cpp:40": "src/ifs_parser.cpp"},
+                                 ["src/ifs_parser.cpp:1", "src/ifs_parser.cpp:30",
+                                  "src/other.cpp:5"])
+    text = "\n".join(lines)
+    assert "2 survivor(s) replace code with a call into a file this diff adds" in text
+    assert "src/ifs_parser.cpp <- src/backend.cpp:12, src/backend.cpp:40" in text
+    assert "2 hunk(s) inside src/ifs_parser.cpp cannot be judged by a revert" in text
+    assert "--inside N --only src/ifs_parser.cpp" in text
+    assert "other.cpp" not in text
+    assert md.extraction_report({}, ["src/other.cpp:5"]) == []
+
+
+EXTRACTION_MAKEFILE = """test-build:
+\t@if grep -q parse_gizmo src/feature.cpp && ! grep -qs parse_gizmo src/gizmo_parser.cpp; \\
+\t    then echo 'undefined reference to parse_gizmo'; exit 1; fi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
+def test_a_run_over_an_extraction_names_the_shape_instead_of_listing_survivors(tmp_path):
+    work = _fixture(tmp_path, EXTRACTION_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text("int f(int n) {\n    return parse_gizmo(n);\n}\n")
+    (work / "src" / "gizmo_parser.cpp").write_text(
+        "int parse_gizmo(int n) {\n    return n + 1;\n}\n")
+    _git(work, "add", "-N", "src/gizmo_parser.cpp")
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--no-auto-tests")
+    assert r.returncode == 1, r.stdout
+    assert "EXTRACTION: 1 survivor(s) replace code with a call" in r.stdout, r.stdout
+    assert "src/gizmo_parser.cpp <- src/feature.cpp:1" in r.stdout
+    assert "1 hunk(s) inside src/gizmo_parser.cpp cannot be judged by a revert" in r.stdout
+    summary = r.stdout.split("hunk(s) survived reversion", 1)[1].split("EXTRACTION:", 1)[0]
+    assert "src/feature.cpp:1" not in summary, r.stdout
+
+
 def test_reach_names_are_the_stem_the_implemented_header_and_its_class():
     assert md.reach_names("src/gizmo_bar.cpp", SPLIT_TU) == ["gizmo_bar", "gizmo", "Gizmo"]
     assert md.reach_names("src/gizmo_bar.cpp", "") == ["gizmo_bar"]

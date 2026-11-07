@@ -2780,6 +2780,95 @@ def record_proof(root, message, head):
     return True, ''
 
 
+# ---------------------------------------------------------------------------
+# EXTRACTIONS
+#
+# A refactor that moves code into a new file reverts badly. Each hunk that swaps
+# inline code for a call into the new file restores, when reverted, the code that
+# moved, which behaves the same, so it survives; each hunk of the new file is
+# uncompilable, since its callers still need it. Neither verdict says whether a
+# test watches the moved logic. The summary names that shape: a survivor that
+# introduces a name an added file declares (one the file's pre-image does not
+# have), grouped by the added file, with that file's hunks no revert could judge
+# and the --inside run that mutates its added lines instead.
+# ---------------------------------------------------------------------------
+_IDENT = re.compile(r'[A-Za-z_]\w*')
+_DECLARED_FUNC = re.compile(
+    r'^\s*(?!(?:return|else|new|delete|throw|co_return|case|goto)\b)[\w:<>,]+'
+    r'(?:\s*[*&]+\s*|\s+)(?:\w+::)*(\w+)\s*\(', re.M)
+_DECLARED_TYPE = re.compile(r'\b(?:class|struct|enum(?:\s+class)?|namespace|using)\s+(\w+)')
+# A member or variable: `std::optional<bool> motion_detected;`, `int n = 0;`.
+_DECLARED_VAR = re.compile(
+    r'^\s*(?!(?:return|else|delete|throw|co_return|case|goto|using|typedef)\b)'
+    r'[\w:]+(?:<[^;()]*>)?(?:\s*[*&]+\s*|\s+)(\w+)\s*(?:=[^;]*|\{[^;]*\})?;', re.M)
+
+
+def text_at(root, rev, path):
+    """`path`'s text at `rev`, or '' when it did not exist there."""
+    r = run(['git', 'show', f'{rev}:{path}'], cwd=root)
+    return r.stdout if r.returncode == 0 else ''
+
+
+def added_files(hunks):
+    """The paths whose hunks the diff adds from nothing."""
+    return {h['file'] for h in hunks if '\n--- /dev/null' in '\n' + h['patch']}
+
+
+def declared_names(text):
+    """The functions, types, members and variables a source declares."""
+    return (set(_DECLARED_FUNC.findall(text)) | set(_DECLARED_TYPE.findall(text))
+            | set(_DECLARED_VAR.findall(text)))
+
+
+def extraction_targets(survivors, added_texts, pre_texts):
+    """{survivor label: added file} for each survivor hunk that replaces code (it
+    removes a line as well as adding one) and whose added lines bring in a name
+    (four characters or more) the file did not have and an added file declares.
+    A hunk that only adds a call is new behaviour, not moved code. A name an added
+    header declares is credited to the added source of the same stem, the file
+    whose lines --inside can mutate. `added_texts` and `pre_texts` map paths to
+    their text."""
+    by_kind = sorted(added_texts, key=lambda p: (p.endswith(HEADER_SUFFIXES), p))
+    declared = [(path, declared_names(added_texts[path])) for path in by_kind]
+    sources = {Path(p).stem: p for p in by_kind if not p.endswith(HEADER_SUFFIXES)}
+    out = {}
+    for h in survivors:
+        pre = pre_texts.get(h['file'])
+        if h['file'] in added_texts or not pre:
+            continue
+        if not any(line.startswith('-') and line[1:].strip() for line in h['body'][1:]):
+            continue
+        had = set(_IDENT.findall(pre))
+        new_names = {n for line in h['body'] if line.startswith('+')
+                     for n in _IDENT.findall(line[1:]) if len(n) >= 4 and n not in had}
+        for path, names in declared:
+            if new_names & names:
+                out[f"{h['file']}:{h['line']}"] = sources.get(Path(path).stem, path)
+                break
+    return out
+
+
+def extraction_report(targets, unjudged):
+    """The summary's lines for `targets` (extraction_targets), given the label of
+    every hunk its revert could not judge; [] when there are none."""
+    if not targets:
+        return []
+    lines = [f'EXTRACTION: {len(targets)} survivor(s) replace code with a call into a file '
+             'this diff adds. A revert restores the code it replaced, which likely '
+             'behaves the same, so their survival says little about whether a test '
+             'watches the moved logic:']
+    for added in sorted(set(targets.values())):
+        callers = sorted((label for label, t in targets.items() if t == added),
+                         key=lambda x: (x.rsplit(':', 1)[0], int(x.rsplit(':', 1)[1])))
+        lines.append(f'  {added} <- {", ".join(callers)}')
+        inside = [u for u in unjudged if u.rsplit(':', 1)[0] == added]
+        if inside:
+            lines.append(f'    {len(inside)} hunk(s) inside {added} cannot be judged by a '
+                         'revert.')
+        lines.append(f'    --inside N --only {added} mutates the lines it adds instead.')
+    return lines
+
+
 # The progress line each verdict gets. `killed` is deliberately the quiet one:
 # it is the expected outcome, and everything else wants reading.
 LOUD_VERDICT = {'survived': 'SURVIVED', 'inconclusive': 'INCONCLUSIVE'}
@@ -4122,10 +4211,18 @@ def main():
         where = 'its own filter' if pool else ' + '.join(sorted(judged_by))
         if 'catch2' in judged_by and not pool:
             where = where.replace('catch2', f'catch2 {args.tests!r}')
+        hunk_of = {f"{h['file']}:{h['line']}": h for h in mutable}
+        moved = extraction_targets(
+            [hunk_of[label] for label, _, _ in survived if label in hunk_of],
+            {p: read_or_empty(root / p) for p in added_files(hunks)},
+            {p: text_at(root, base, p)
+             for p in {label.rsplit(':', 1)[0] for label, _, _ in survived}})
         sys.stdout.flush()
         print(f'\nFAIL: {len(survived)} hunk(s) survived reversion - nothing in '
               f'{where} detects them:', file=sys.stderr)
         for label, _, _ in survived:
+            if label in moved:
+                continue
             judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
             print(f'  {label}{judged}', file=sys.stderr)
         auto_judged = sorted({label.rsplit(':', 1)[0] for label, _, _ in survived
@@ -4137,6 +4234,8 @@ def main():
                   file=sys.stderr)
         for label in inside_survived:
             print(f'  {label} (inside)', file=sys.stderr)
+        for line in extraction_report(moved, [label for label, _, _ in unproven + unjudged]):
+            print(line, file=sys.stderr)
         return 1
     n_killed = sum(1 for r in results if r[1].startswith('killed'))
     if not (unproven or unjudged or deferred or unexamined):
