@@ -1448,6 +1448,7 @@
   <translation tag="Filament In The Toolhead" es="Filamento en el cabezal"/>
   <translation tag="Filament Jam" es="Atasco de filamento"/>
   <translation tag="Filament Mapping" es="Mapeo de Filamento"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf here. Print it without remapping, or pick its plate in Print Files." es="La asignación de filamento no puede reescribir este .3mf aquí. Imprímelo sin reasignar o elige su placa en Archivos de impresión."/>
   <translation tag="Filament Mapping is not available on this device." es="El mapeo de filamento no está disponible en este dispositivo."/>
   <translation tag="Filament Mapping is unavailable" es="El mapeo de filamento no está disponible"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" es="Esta impresora no admite el mapeo de filamento, así que la impresión usa las herramientas asignadas en la impresora"/>
@@ -3823,6 +3824,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." es="El plugin no llega a la cámara, así que esta pantalla toma las fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." es="El plugin no puede guardar sus datos de recuperación."/>
   <translation tag="The plugin is turned off in moonraker.conf." es="El plugin está desactivado en moonraker.conf."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf here. Turn them back on, or pick its plate in Print Files." es="Los pasos previos que desactivaste no se pueden aplicar a este .3mf aquí. Vuelve a activarlos o elige su placa en Archivos de impresión."/>
   <translation tag="The previous IPv4 settings come back when the print ends." es="La configuración IPv4 anterior volverá cuando termine la impresión."/>
   <translation tag="The previous IPv4 settings could not be checked: {} could not be read" es="No se pudo comprobar la configuración IPv4 anterior: no se pudo leer {}"/>
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" es="No se pudo restaurar la configuración IPv4 anterior ni actualizar el registro del cambio: {}"/>
@@ -3867,7 +3869,6 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." es="La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud."/>
   <translation tag="The printer moves the toolhead and measures its motors." es="La impresora mueve el cabezal y mide sus motores."/>
   <translation tag="The printer no longer has a print to resume." es="La impresora ya no tiene una impresión para reanudar."/>
-  <translation tag="The printer picks this .3mf&apos;s plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it." es="La impresora elige la placa de este .3mf por sí misma, así que los pasos previos que desactivaste no se pueden aplicar. Vuelve a activarlos para imprimirlo."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." es="La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" es="La impresora registra el carril {} en el cabezal, no este"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." es="La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."/>

@@ -16,6 +16,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace helix::print_3mf {
 
@@ -33,9 +34,23 @@ enum class PrinterReads {
 /// Whether the user picks the plate that prints (the plate stepper shows).
 [[nodiscard]] bool user_picks_plate(PrinterReads reads);
 
+/// The plates of an archive the user can pick from, in its order: every one of
+/// @p archive_plates, or for a printer that starts plates by number only those
+/// it lists in @p printer_plates.
+[[nodiscard]] std::vector<int> offered_plates(PrinterReads reads,
+                                              const std::vector<int>& archive_plates,
+                                              const std::vector<int>& printer_plates);
+
 enum class Purpose {
     Print, ///< started from this screen
     Queue, ///< queued: the printer's job queue starts it later, naming the file alone
+};
+
+/// What a start changes in the G-code that prints.
+enum class Rewrite {
+    None,
+    Steps, ///< a step the file embeds turned off, or START_PRINT skip parameters
+    Remap, ///< a filament remap of its tools
 };
 
 /// What decides a .3mf's route.
@@ -44,24 +59,24 @@ struct RouteInputs {
     /// The plate the user picked (the archive's plate number); nullopt before
     /// the archive is read, or when it holds no sliced plate.
     std::optional<int> shown_plate;
+    /// Plates: the plates the printer lists (`sliced_plates`); only these start by number.
+    std::vector<int> printer_plates;
     /// The plate the printer's metadata describes, which a start naming no plate prints.
     int default_plate = 0;
     /// The printer-side converter's current output of the shown plate, if any.
     std::string converted_output;
     /// The transport can download a whole file and upload one (extraction needs both).
     bool keeps_local_copies = true;
-    /// The start rewrites the G-code that prints (a step the file embeds
-    /// turned off, START_PRINT skip parameters, a filament remap).
-    bool rewrites = false;
+    Rewrite rewrite = Rewrite::None;
     Purpose purpose = Purpose::Print;
 };
 
 enum class RouteKind {
     AsFile,          ///< the archive starts as itself, naming no plate
     ConvertedOutput, ///< the converter's output starts, as any G-code does
-    NativePlate,     ///< the archive starts with the plate named (print_start::plate_params())
-    ExtractPlate,    ///< the plate is extracted here, staged as G-code and started
-    Refuse,          ///< nothing starts; refusal says why
+    NativePlate,  ///< the archive starts with the plate named (print_start::start_request_params())
+    ExtractPlate, ///< the plate is extracted here, staged as G-code and started
+    Refuse,       ///< nothing starts; refusal says why
 };
 
 enum class Refusal {
@@ -70,7 +85,8 @@ enum class Refusal {
     NeedsLocalCopies,     ///< extracting needs a transport that keeps local copies
     QueueNeedsConversion, ///< the queue cannot extract; only a converted plate can wait there
     QueueNotDefaultPlate, ///< a queued start prints the printer's default plate, not this one
-    NoPlateToRewrite,     ///< the start would rewrite an archive the printer picks the plate of
+    StepsNeedPlate,       ///< steps turned off, in an archive no plate of which is known here
+    RemapNeedsPlate,      ///< a filament remap, in an archive no plate of which is known here
 };
 
 struct Route {
@@ -92,6 +108,12 @@ enum class ScanFrom {
 /// What the pre-print operations scan reads for @p in: the G-code its Print
 /// route prints, so the toggles act on what runs.
 [[nodiscard]] ScanFrom scan_from(const RouteInputs& in);
+
+/// The plate a Reprint of a .3mf that printed as itself names, when no start
+/// request was recorded for it: 0 (name none, as the first start did) for a
+/// printer whose metadata lists no plates; the one plate it lists; nullopt when
+/// it lists several, since which of them printed is unknown.
+[[nodiscard]] std::optional<int> unrecorded_reprint_plate(const FileMetadata* printer_metadata);
 
 /// The English toast for @p refusal (translate it with lv_tr); empty for None.
 [[nodiscard]] const char* refusal_message(Refusal refusal);

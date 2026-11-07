@@ -98,6 +98,8 @@ struct PrintFileData {
     bool archive_native = false;
     /// The plate the printer's metadata describes, which a start naming no plate prints.
     int archive_native_plate = 0;
+    /// The plates the printer lists for this .3mf (`sliced_plates`); only these start by number.
+    std::vector<int> printer_plates;
     /// Its archive read has been started; it is not started again for this entry.
     bool archive_requested = false;
     /// The plate the card and the detail view show and Print prints (0 = the first).

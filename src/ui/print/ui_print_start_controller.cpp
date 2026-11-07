@@ -37,6 +37,7 @@
 #include "json_utils.h"
 #include "lvgl.h"
 #include "pre_start_exclude.h"
+#include "print_3mf.h"
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "tool_state.h"
@@ -557,11 +558,53 @@ void PrintStartController::initiate_reprint_with_routing(const std::string& file
     reprint_impl(filename, "", tools_used, routing, std::move(on_started), std::move(on_error), 0);
 }
 
-void PrintStartController::reprint_impl(const std::string& filename, const std::string& path,
-                                        const std::set<int>& tools_used,
-                                        const std::optional<std::map<int, int>>& routing,
-                                        helix::SharedCallback<void()> on_started,
-                                        helix::SharedCallback<void()> on_error, int archive_plate) {
+void PrintStartController::resolve_archive_reprint(
+    const std::string& filename,
+    std::function<void(helix::PrinterPrintState::StartRequest)> on_params,
+    helix::SharedCallback<void()> on_error) {
+    if (auto recorded = printer_state_.print_state().start_request_for(filename)) {
+        on_params(std::move(*recorded));
+        return;
+    }
+    // No start of it this session: only the printer's metadata can say
+    // which plate a start naming none printed.
+    auto decide = [filename, on_params, on_error](const FileMetadata* metadata) {
+        const std::optional<int> plate = helix::print_3mf::unrecorded_reprint_plate(metadata);
+        if (!plate) {
+            spdlog::warn("[PrintStartController] Not reprinting {}: which plate printed is unknown",
+                         filename);
+            NOTIFY_WARNING(lv_tr("Open the .3mf in Print Files to print this plate again."));
+            if (on_error) {
+                on_error();
+            }
+            return;
+        }
+        helix::print_3mf::Route route;
+        if (*plate > 0) {
+            route.kind = helix::print_3mf::RouteKind::NativePlate;
+            route.plate = *plate;
+        }
+        on_params({*plate, helix::print_start::start_request_params(route, {})});
+    };
+    auto tok = lifetime_.token();
+    api_->files().get_file_metadata(
+        filename,
+        [tok, decide](const FileMetadata& metadata) {
+            tok.defer("PrintStartController::archive_reprint_metadata",
+                      [decide, metadata]() { decide(&metadata); });
+        },
+        [tok, decide](const MoonrakerError&) {
+            tok.defer("PrintStartController::archive_reprint_no_metadata",
+                      [decide]() { decide(nullptr); });
+        },
+        /*silent=*/true);
+}
+
+void PrintStartController::reprint_impl(
+    const std::string& filename, const std::string& path, const std::set<int>& tools_used,
+    const std::optional<std::map<int, int>>& routing, helix::SharedCallback<void()> on_started,
+    helix::SharedCallback<void()> on_error, int archive_plate,
+    std::optional<helix::PrinterPrintState::StartRequest> request) {
     // path is used for the preparing-job identity; the start RPC takes the bare name.
 
     if (!api_) {
@@ -569,6 +612,20 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         if (on_error) {
             on_error();
         }
+        return;
+    }
+
+    // A .3mf that printed as itself may have printed a plate it named: the
+    // reprint names the same one, or does not start.
+    if (!request && archive_plate == 0 && helix::gcode::is_3mf(filename)) {
+        resolve_archive_reprint(
+            filename,
+            [this, filename, path, tools_used, routing, on_started,
+             on_error](helix::PrinterPrintState::StartRequest resolved) {
+                reprint_impl(filename, path, tools_used, routing, on_started, on_error, 0,
+                             std::move(resolved));
+            },
+            on_error);
         return;
     }
 
@@ -603,7 +660,9 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     // Lightweight start — the file is already on the printer; no upload/prep.
     // An archive printed as an extracted plate cannot start as itself: it goes
     // the way Print sends it, extracted again through the preparation manager.
-    auto start = [this, filename, on_started, on_error, archive_plate, epoch]() {
+    auto start = [this, filename, on_started, on_error, archive_plate, epoch,
+                  request = request.value_or(helix::PrinterPrintState::StartRequest{
+                      0, helix::print_start::start_request_params({}, {})})]() {
         // The pre-print send runs first, and Stop can withdraw the job while it
         // does; a withdrawn job must not reach the printer.
         if (lv_subject_get_int(printer_state_.print_state().get_preparing_epoch_subject()) !=
@@ -641,6 +700,7 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                 });
             return;
         }
+        printer_state_.print_state().note_start_request(filename, request);
         printer_state_.print_state().note_preparing_start_sent();
         api_->job().start_print(
             filename,
@@ -669,7 +729,8 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                         on_error();
                     }
                 });
-            });
+            },
+            request.params);
     };
 
     // Backends that need a pre-print send (Snapmaker U1) emit the firmware-native

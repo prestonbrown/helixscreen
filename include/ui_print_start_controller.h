@@ -14,6 +14,7 @@
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "print_start_params.h"
+#include "printer_print_state.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -285,7 +286,18 @@ class PrintStartController {
                       const std::set<int>& tools_used,
                       const std::optional<std::map<int, int>>& routing,
                       helix::SharedCallback<void()> on_started,
-                      helix::SharedCallback<void()> on_error, int archive_plate);
+                      helix::SharedCallback<void()> on_error, int archive_plate,
+                      std::optional<helix::PrinterPrintState::StartRequest> request = std::nullopt);
+
+    /// What a Reprint of the .3mf @p filename, which printed as itself, sends:
+    /// the start recorded for it, else the plate the printer's metadata leaves
+    /// no doubt about (print_3mf::unrecorded_reprint_plate()). Calls
+    /// @p on_params with them, or toasts and calls @p on_error when which plate
+    /// printed is unknown.
+    void
+    resolve_archive_reprint(const std::string& filename,
+                            std::function<void(helix::PrinterPrintState::StartRequest)> on_params,
+                            helix::SharedCallback<void()> on_error);
 
     /// @p routed false sends the backend's unrouted step for @p tools_used
     /// (build_unrouted_preprint_gcode()) instead of a map.

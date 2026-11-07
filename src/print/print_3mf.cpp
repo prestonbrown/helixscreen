@@ -6,6 +6,8 @@
 #include "moonraker_types.h"
 #include "translation_loader.h"
 
+#include <algorithm>
+
 namespace helix::print_3mf {
 
 namespace {
@@ -45,8 +47,17 @@ Route route_from_here(const RouteInputs& in) {
     return plate_route(RouteKind::ExtractPlate, *in.shown_plate);
 }
 
+Refusal rewrite_refusal(Rewrite rewrite) {
+    return rewrite == Rewrite::Remap ? Refusal::RemapNeedsPlate : Refusal::StepsNeedPlate;
+}
+
+bool printer_lists_plate(const std::vector<int>& plates, int plate) {
+    return std::find(plates.begin(), plates.end(), plate) != plates.end();
+}
+
 /// A printer that starts the plate it is named; a rewritten plate cannot
-/// travel with that start, so it prints extracted.
+/// travel with that start, and a plate it does not list is not its to start,
+/// so both print as they would on a printer that reads nothing.
 Route route_by_plate(const RouteInputs& in) {
     if (in.purpose == Purpose::Queue) {
         return !in.shown_plate || *in.shown_plate == in.default_plate
@@ -54,15 +65,14 @@ Route route_by_plate(const RouteInputs& in) {
                    : refuse(Refusal::QueueNotDefaultPlate);
     }
     if (!in.shown_plate) {
-        return in.rewrites ? refuse(Refusal::NoPlateToRewrite) : Route{};
+        return in.rewrite != Rewrite::None ? refuse(rewrite_refusal(in.rewrite)) : Route{};
     }
-    if (!in.rewrites) {
+    if (in.rewrite == Rewrite::None && printer_lists_plate(in.printer_plates, *in.shown_plate)) {
         return plate_route(RouteKind::NativePlate, *in.shown_plate);
     }
-    if (!in.keeps_local_copies) {
-        return refuse(Refusal::NeedsLocalCopies);
-    }
-    return plate_route(RouteKind::ExtractPlate, *in.shown_plate);
+    RouteInputs here = in;
+    here.converted_output.clear();
+    return route_from_here(here);
 }
 
 } // namespace
@@ -78,6 +88,20 @@ bool user_picks_plate(PrinterReads reads) {
     return reads != PrinterReads::Archive;
 }
 
+std::vector<int> offered_plates(PrinterReads reads, const std::vector<int>& archive_plates,
+                                const std::vector<int>& printer_plates) {
+    if (reads != PrinterReads::Plates) {
+        return archive_plates;
+    }
+    std::vector<int> offered;
+    for (int plate : archive_plates) {
+        if (printer_lists_plate(printer_plates, plate)) {
+            offered.push_back(plate);
+        }
+    }
+    return offered;
+}
+
 Route classify(const RouteInputs& in) {
     switch (in.reads) {
     case PrinterReads::Nothing:
@@ -89,14 +113,15 @@ Route classify(const RouteInputs& in) {
     }
     // The printer picks the plate: nothing here can say which G-code a
     // rewrite would have to edit.
-    return in.rewrites && in.purpose == Purpose::Print ? refuse(Refusal::NoPlateToRewrite)
-                                                       : Route{};
+    return in.rewrite != Rewrite::None && in.purpose == Purpose::Print
+               ? refuse(rewrite_refusal(in.rewrite))
+               : Route{};
 }
 
 ScanFrom scan_from(const RouteInputs& in) {
     RouteInputs print = in;
     print.purpose = Purpose::Print;
-    print.rewrites = false;
+    print.rewrite = Rewrite::None;
     switch (classify(print).kind) {
     case RouteKind::ConvertedOutput:
         return ScanFrom::ConvertedOutput;
@@ -108,6 +133,17 @@ ScanFrom scan_from(const RouteInputs& in) {
         break;
     }
     return ScanFrom::Nothing;
+}
+
+std::optional<int> unrecorded_reprint_plate(const FileMetadata* printer_metadata) {
+    if (printer_reads(printer_metadata) != PrinterReads::Plates) {
+        return 0;
+    }
+    const std::vector<int>& plates = *printer_metadata->sliced_plates;
+    if (plates.size() == 1) {
+        return plates.front();
+    }
+    return std::nullopt;
 }
 
 const char* refusal_message(Refusal refusal) {
@@ -126,10 +162,12 @@ const char* refusal_message(Refusal refusal) {
     case Refusal::QueueNotDefaultPlate:
         return TR_NOOP(
             "The queue prints this .3mf's default plate. Print this plate from here instead.");
-    case Refusal::NoPlateToRewrite:
-        return TR_NOOP(
-            "The printer picks this .3mf's plate itself, so the pre-print steps you turned "
-            "off cannot be applied. Turn them back on to print it.");
+    case Refusal::StepsNeedPlate:
+        return TR_NOOP("The pre-print steps you turned off cannot be applied to this .3mf here. "
+                       "Turn them back on, or pick its plate in Print Files.");
+    case Refusal::RemapNeedsPlate:
+        return TR_NOOP("Filament Mapping cannot rewrite this .3mf here. Print it without "
+                       "remapping, or pick its plate in Print Files.");
     }
     return "";
 }

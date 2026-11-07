@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <lvgl.h>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -447,6 +448,21 @@ class PrinterPrintState {
      * (prestonbrown/helixscreen#1890). No-op without a preparing job.
      */
     void note_preparing_start_sent();
+
+    /// What one print start sent beside its filename.
+    struct StartRequest {
+        int native_plate = 0; ///< the .3mf plate the printer was told to start, or 0
+        std::map<std::string, std::string> params; ///< print_start::start_request_params()
+    };
+
+    /// Records what the print start of @p filename (its gcodes-relative path)
+    /// sent, so a Reprint of it starts the same plate with the same tool map.
+    /// The last start is kept.
+    void note_start_request(const std::string& filename, StartRequest request);
+
+    /// What the last recorded start of @p filename sent, or nullopt when no
+    /// start of it was recorded this session.
+    [[nodiscard]] std::optional<StartRequest> start_request_for(const std::string& filename) const;
 
     /// The start sent for the job armed at @p epoch answered: OK when
     /// @p accepted, else refused, which leaves the printer nothing to cancel.
@@ -1114,6 +1130,8 @@ class PrinterPrintState {
     void reconcile_preparing();
 
   private:
+    std::string start_request_file_;
+    StartRequest start_request_;
     friend class PrinterPrintStateTestAccess;
 
     /**

@@ -2065,7 +2065,7 @@ void PrintPreparationManager::modify_and_print(
         return;
     }
 
-    const print_3mf::Route plate_route = archive_route(file_path, true);
+    const print_3mf::Route plate_route = archive_route(file_path, print_3mf::Rewrite::Steps);
     if (refuse_archive_route(plate_route, on_completion)) {
         return;
     }
@@ -2159,7 +2159,7 @@ void PrintPreparationManager::modify_and_print_with_remap(
     spdlog::info("[PrintPreparationManager] Remap modification: {} tool mapping(s), downloading {}",
                  remap.size(), file_path);
 
-    const print_3mf::Route plate_route = archive_route(file_path, true);
+    const print_3mf::Route plate_route = archive_route(file_path, print_3mf::Rewrite::Remap);
     if (refuse_archive_route(plate_route, on_completion)) {
         return;
     }
@@ -2571,8 +2571,10 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         api_->job().start_modified_print(job->file_path, remote_temp_path, job->mod_names,
                                          on_plugin_accepted, on_print_error);
     } else {
-        api_->job().start_print(remote_temp_path, on_print_success, on_print_error,
-                                std::exchange(start_params_, {}));
+        // A staged copy is G-code: the builder adds no plate to its tool map.
+        api_->job().start_print(
+            remote_temp_path, on_print_success, on_print_error,
+            helix::print_start::start_request_params({}, std::exchange(start_params_, {})));
     }
 }
 
@@ -2599,7 +2601,7 @@ void PrintPreparationManager::set_archive_route(const std::string& file_path,
 }
 
 print_3mf::Route PrintPreparationManager::archive_route(const std::string& file_path,
-                                                        bool rewrites) const {
+                                                        print_3mf::Rewrite rewrite) const {
     if (!gcode::is_3mf(file_path)) {
         return {};
     }
@@ -2607,7 +2609,7 @@ print_3mf::Route PrintPreparationManager::archive_route(const std::string& file_
                                     ? archive_inputs_
                                     : print_3mf::RouteInputs{};
     in.keeps_local_copies = keeps_local_copies_;
-    in.rewrites = rewrites;
+    in.rewrite = rewrite;
     in.purpose = print_3mf::Purpose::Print;
     return print_3mf::classify(in);
 }
@@ -2619,16 +2621,8 @@ void PrintPreparationManager::start_archive_reprint(const std::string& file_path
     start_print_directly(file_path, nullptr, std::move(on_completion));
 }
 
-int PrintPreparationManager::archive_plate_for(const std::string& file_path) const {
-    const print_3mf::Route route = archive_route(file_path, false);
-    return route.kind == print_3mf::RouteKind::ExtractPlate ||
-                   route.kind == print_3mf::RouteKind::NativePlate
-               ? route.plate
-               : 0;
-}
-
 std::string PrintPreparationManager::printable_path(const std::string& file_path) const {
-    const print_3mf::Route route = archive_route(file_path, false);
+    const print_3mf::Route route = archive_route(file_path, print_3mf::Rewrite::None);
     return route.kind == print_3mf::RouteKind::ConvertedOutput ? route.print_path : file_path;
 }
 
@@ -2745,7 +2739,7 @@ void PrintPreparationManager::print_archive_plate(const std::string& file_path, 
 void PrintPreparationManager::start_print_directly(const std::string& filename,
                                                    NavigateToStatusCallback on_navigate_to_status,
                                                    PrintCompletionCallback on_completion) {
-    const print_3mf::Route route = archive_route(filename, false);
+    const print_3mf::Route route = archive_route(filename, print_3mf::Rewrite::None);
     if (refuse_archive_route(route, on_completion)) {
         return;
     }
@@ -2763,13 +2757,16 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
     case print_3mf::RouteKind::NativePlate:
         spdlog::info("[PrintPreparationManager] Printing plate {} of {} by the printer's own start",
                      route.plate, filename);
-        for (auto& [name, value] : helix::print_start::plate_params(route.plate)) {
-            start_params_[name] = value;
-        }
         break;
     case print_3mf::RouteKind::AsFile:
     case print_3mf::RouteKind::Refuse:
         break;
+    }
+    const helix::PrintStartParams params =
+        helix::print_start::start_request_params(route, std::exchange(start_params_, {}));
+    if (printer_state_) {
+        printer_state_->print_state().note_start_request(
+            filename, {route.kind == print_3mf::RouteKind::NativePlate ? route.plate : 0, params});
     }
     note_start_sent();
     helix::PrinterState* ps = printer_state_;
@@ -2812,7 +2809,7 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
                     }
                 });
         },
-        std::exchange(start_params_, {}));
+        params);
 }
 
 } // namespace helix::ui

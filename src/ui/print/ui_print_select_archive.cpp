@@ -24,14 +24,10 @@ using namespace helix;
 
 namespace {
 
-/// Where the plate @p index sits among @p summary's plates, or 0.
-size_t plate_position(const three_mf::ArchiveSummary& summary, int index) {
-    for (size_t p = 0; p < summary.plates.size(); ++p) {
-        if (summary.plates[p].index == index) {
-            return p;
-        }
-    }
-    return 0;
+/// Where @p plate sits among @p plates, or 0.
+size_t plate_position(const std::vector<int>& plates, int plate) {
+    const auto at = std::find(plates.begin(), plates.end(), plate);
+    return at == plates.end() ? 0 : static_cast<size_t>(at - plates.begin());
 }
 
 } // namespace
@@ -160,20 +156,33 @@ void PrintSelectPanel::fetch_archive_thumbnail(size_t i) {
 #endif
 }
 
+std::vector<int> PrintSelectPanel::offered_plates(const PrintFileData& file) {
+    std::vector<int> archive_plates;
+    if (file.archive) {
+        for (const auto& p : file.archive->plates) {
+            archive_plates.push_back(p.index);
+        }
+    }
+    return print_3mf::offered_plates(file.printer_reads(), archive_plates, file.printer_plates);
+}
+
 void PrintSelectPanel::step_archive_plate(int step) {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
     if (it == file_list_.end() || !it->archive ||
-        !print_3mf::user_picks_plate(it->printer_reads()) || it->archive->plates.size() < 2) {
+        !print_3mf::user_picks_plate(it->printer_reads())) {
         return;
     }
-    const auto& plates = it->archive->plates;
+    const std::vector<int> plates = offered_plates(*it);
+    if (plates.size() < 2) {
+        return;
+    }
     const size_t count = plates.size();
     const size_t at =
-        plate_position(*it->archive, three_mf::find_plate(*it->archive, it->archive_plate)->index);
+        plate_position(plates, three_mf::find_plate(*it->archive, it->archive_plate)->index);
     const size_t next = step > 0 ? (at + 1) % count : (at + count - 1) % count;
-    show_archive_plate(static_cast<size_t>(it - file_list_.begin()), plates[next].index);
+    show_archive_plate(static_cast<size_t>(it - file_list_.begin()), plates[next]);
 }
 
 void PrintSelectPanel::show_archive_plate(size_t i, int plate_index) {
@@ -217,15 +226,15 @@ void PrintSelectPanel::update_plate_stepper() {
     });
     if (it != file_list_.end() && it->archive && print_3mf::user_picks_plate(it->printer_reads())) {
         const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
-        count = static_cast<int>(it->archive->plates.size());
+        const std::vector<int> plates = offered_plates(*it);
+        count = static_cast<int>(plates.size());
         // The plate's name in the project, else the slicer's own plate number,
         // so it matches the project; with several, where it sits among them.
         if (plate) {
             text = plate->name.empty() ? fmt::format(fmt::runtime(lv_tr("Plate {}")), plate->index)
                                        : plate->name;
             if (count > 1) {
-                position =
-                    fmt::format("{}/{}", plate_position(*it->archive, plate->index) + 1, count);
+                position = fmt::format("{}/{}", plate_position(plates, plate->index) + 1, count);
             }
         }
     }
@@ -241,6 +250,7 @@ print_3mf::RouteInputs PrintSelectPanel::archive_route_inputs(const PrintFileDat
     in.reads = file.printer_reads();
     in.purpose = purpose;
     in.default_plate = file.archive_native_plate;
+    in.printer_plates = file.printer_plates;
     in.keeps_local_copies = ui::PrintPreparationManager::keeps_local_copies(api_);
     const auto* plate =
         file.archive ? three_mf::find_plate(*file.archive, file.archive_plate) : nullptr;

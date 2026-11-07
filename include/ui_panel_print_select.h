@@ -425,6 +425,9 @@ class PrintSelectPanel : public PanelBase {
     /// Publishes the selected file's plate stepper: its plate count and label.
     void update_plate_stepper();
 
+    /// The plates of @p file's archive its stepper offers (print_3mf::offered_plates()).
+    static std::vector<int> offered_plates(const PrintFileData& file);
+
     /// What decides @p file's route (print_3mf::classify()) for @p purpose:
     /// what the printer reads of it, the plate shown, that plate's converted
     /// output, and whether this transport can extract.
