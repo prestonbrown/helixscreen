@@ -466,9 +466,16 @@ void ScreensaverManager::on_idle_check_tick() {
         active_ = nullptr;
         active_info_ = nullptr;
         gate_enabled_ = false;
-        // Unmarked, the saver would resolve to itself again: a print blanks the rest of the run.
+        // Unmarked, the saver would resolve to itself again. During a print the flip clock
+        // takes over, since it shows the print and costs least; black only when it is the one
+        // that was too heavy.
         if (printing) {
-            run_black_screen(type);
+            const ScreensaverType fallback = helix::ui::kDefaultScreensaverType;
+            if (type != fallback && !too_heavy_for_identity(fallback)) {
+                launch(fallback);
+            } else {
+                run_black_screen(type);
+            }
         } else {
             launch(runnable_type_for_identity(type));
         }

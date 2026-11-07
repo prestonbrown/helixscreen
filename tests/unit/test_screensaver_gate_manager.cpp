@@ -472,7 +472,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a step-down taken while printing lasts only f
     CHECK(gate.running()->level() == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and marks nothing",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a saver too heavy during a print gives way to the flip clock and marks nothing",
                  "[screensaver][screensaver_gate]") {
     GateHarness gate;
     setenv("HELIX_SCREENSAVER_BUDGET_PCT", "10", 1);
@@ -485,11 +486,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and 
     run_past_bottom(gate, *maze);
 
     CHECK_FALSE(maze->is_active());
-    CHECK(gate.running() == nullptr);
-    CHECK(gate.mgr.is_active());
-    CHECK(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    REQUIRE(gate.running() != nullptr);
+    CHECK(gate.running()->type() == ScreensaverType::FLIP_CLOCK);
+    CHECK_FALSE(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
     CHECK(helix::active_screen_hide_hold().is_held());
-    CHECK_FALSE(helix::active_refresh_period_hold().is_held());
     CHECK_FALSE(gate.stored("maze").has_value());
     CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::MAZE_3D));
 
@@ -500,6 +500,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and 
     REQUIRE(gate.running() != nullptr);
     CHECK(gate.running()->type() == ScreensaverType::MAZE_3D);
     CHECK(gate.running()->level() == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the flip clock too heavy during a print shows the black screen",
+                 "[screensaver][screensaver_gate]") {
+    GateHarness gate;
+    setenv("HELIX_SCREENSAVER_BUDGET_PCT", "10", 1);
+    gate.run(10.0, 0.0);
+    gate.printing = true;
+    gate.mgr.start(ScreensaverType::FLIP_CLOCK);
+    helix::ui::SaverBase* flip = gate.running();
+    REQUIRE(flip != nullptr);
+
+    run_past_bottom(gate, *flip);
+
+    CHECK(gate.running() == nullptr);
+    CHECK(gate.mgr.is_active());
+    CHECK(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    CHECK_FALSE(helix::active_refresh_period_hold().is_held());
+    CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::FLIP_CLOCK));
+    gate.mgr.stop();
 }
 
 namespace {
