@@ -37,9 +37,9 @@ class NetworkSettingsOverlayTestAccess {
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
         return o.wifi_manager_;
     }
-    /// The overlay's EthernetManager, created by create().
-    static EthernetManager* ethernet_manager(NetworkSettingsOverlay& o) {
-        return o.ethernet_manager_.get();
+    /// The overlay's EthernetManager. create() makes one only when none is set.
+    static std::unique_ptr<EthernetManager>& ethernet_manager(NetworkSettingsOverlay& o) {
+        return o.ethernet_manager_;
     }
     /// No Ethernet probe in flight or queued behind one.
     static bool eth_refresh_idle(NetworkSettingsOverlay& o) {

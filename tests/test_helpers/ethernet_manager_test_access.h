@@ -21,13 +21,4 @@ class EthernetManagerTestAccess {
     static EthernetBackend* backend(const EthernetManager& mgr) {
         return mgr.backend_.get();
     }
-    /// Run one link-watch tick now; the watch timer is periodic, which the
-    /// test harness never fires.
-    static void tick(EthernetManager& mgr) {
-        mgr.link_watch_tick();
-    }
-    /// Whether the link watch is running.
-    static bool watching(const EthernetManager& mgr) {
-        return static_cast<bool>(mgr.link_timer_);
-    }
 };

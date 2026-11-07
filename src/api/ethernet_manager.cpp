@@ -24,6 +24,9 @@ EthernetManager::EthernetManager() {
     spdlog::debug("[EthernetManager] Ethernet manager initialized");
 }
 
+EthernetManager::EthernetManager(std::shared_ptr<EthernetBackend> backend)
+    : backend_(std::move(backend)) {}
+
 EthernetManager::~EthernetManager() {
     // Use fprintf - spdlog may be destroyed during static cleanup
     fprintf(stderr, "[EthernetManager] Shutting down Ethernet manager\n");
@@ -143,7 +146,7 @@ void EthernetManager::add_link_observer(helix::LifetimeToken token,
                   link_events_ ? "backend events" : "periodic probe");
     lv_timer_t* timer = lv_timer_create(
         [](lv_timer_t* t) {
-            static_cast<EthernetManager*>(lv_timer_get_user_data(t))->link_watch_tick();
+            static_cast<EthernetManager*>(lv_timer_get_user_data(t))->check_link();
         },
         kLinkWatchPeriodMs, this);
     link_timer_.reset(timer);
@@ -154,7 +157,7 @@ void EthernetManager::add_link_observer(helix::LifetimeToken token,
     }
 }
 
-void EthernetManager::link_watch_tick() {
+void EthernetManager::check_link() {
     link_observers_.erase(
         std::remove_if(link_observers_.begin(), link_observers_.end(),
                        [](const LinkObserver& obs) { return obs.token.expired(); }),

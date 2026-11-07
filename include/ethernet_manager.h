@@ -53,6 +53,9 @@ class EthernetManager {
      */
     EthernetManager();
 
+    /// Use @p backend instead of the platform's (a mock, in tests).
+    explicit EthernetManager(std::shared_ptr<EthernetBackend> backend);
+
     /**
      * @brief Destructor - ensures clean shutdown
      */
@@ -130,6 +133,15 @@ class EthernetManager {
      */
     void add_link_observer(helix::LifetimeToken token, helix::SharedCallback<void()> on_change);
 
+    /// One watch pass, now: drop expired observers, then check for a change.
+    /// The watch timer runs it every kLinkWatchPeriodMs. UI thread only.
+    void check_link();
+
+    /// Whether the link watch is running (some observer still lives).
+    bool watching_link() const {
+        return static_cast<bool>(link_timer_);
+    }
+
     /// How often the watch checks for link events, in milliseconds.
     static constexpr uint32_t kLinkWatchPeriodMs = 500;
     /// How often a backend without link events is re-probed, in milliseconds.
@@ -143,8 +155,6 @@ class EthernetManager {
         helix::SharedCallback<void()> callback;
     };
 
-    /// One watch tick: drop expired observers, then check for a change.
-    void link_watch_tick();
     void stop_link_watch();
     void notify_link_observers();
 
