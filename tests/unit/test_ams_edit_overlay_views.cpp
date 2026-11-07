@@ -3682,8 +3682,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record ne
 
     CHECK_FALSE(fired);                          // still open
     CHECK(access.detail_comment() == "keep me"); // edits kept
-    REQUIRE(toasts.size() == 1);                 // and the user is told
-    CHECK(toasts[0].find("haven't loaded") != std::string::npos);
+    CHECK(toasts.empty());                       // told in the editor, not a toast
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error().find("haven't loaded") != std::string::npos);
     access.set_detail_field("detail_field_comment", "");
     close_editor_overlay();
     set_spoolman_available(false);
@@ -3929,14 +3930,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         notes_patched = notes_patched || upd.patch.dump().find("kept") != std::string::npos;
     }
     REQUIRE(notes_patched);
-    bool honest = false;
-    bool false_claim = false;
-    for (const auto& t : toasts) {
-        honest = honest || t.find("saved the price, location, lot and notes") != std::string::npos;
-        false_claim = false_claim || t.find("Nothing changed on this printer") != std::string::npos;
-    }
-    CHECK(honest);
-    CHECK_FALSE(false_claim);
+    // Told in the editor that stays open, not in a toast.
+    CHECK(toasts.empty());
+    const std::string said = access.save_error();
+    CHECK(said.find("saved the price, location, lot and notes") != std::string::npos);
+    CHECK(said.find("Nothing changed on this printer") == std::string::npos);
     close_editor_overlay();
     set_spoolman_available(false);
 }
@@ -3978,8 +3976,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(results[0].slot_info.remaining_weight_g == 321);
     CHECK(access.view() == AmsEditOverlay::kViewEditor); // still open
     CHECK(access.detail_comment() == "later");
-    REQUIRE(toasts.size() == 1);
-    CHECK(toasts[0].find("offline") != std::string::npos);
+    CHECK(toasts.empty());
+    CHECK(access.save_error().find("offline") != std::string::npos);
     access.set_detail_field("detail_field_comment", "");
     close_editor_overlay();
     set_spoolman_available(false);

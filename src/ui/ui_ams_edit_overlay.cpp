@@ -2035,7 +2035,7 @@ void AmsEditOverlay::handle_add_to_spoolman() {
     const helix::MissingFilamentFields missing =
         helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
     if (missing.any()) {
-        show_missing_filament_toast(missing);
+        report_save_problem(true, missing_filament_message(missing));
         return;
     }
     do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
@@ -2054,10 +2054,10 @@ void AmsEditOverlay::handle_save() {
 
     spdlog::info("[AmsEditOverlay] Saving edits for slot {}", slot_index_);
 
+    set_save_state(kSaveIdle);
     read_detail_fields();
     if (detail_working_.price < 0) {
-        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Values must not be negative"),
-                                      3000);
+        report_save_problem(true, lv_tr("Values must not be negative"));
         return;
     }
 
@@ -2087,9 +2087,8 @@ void AmsEditOverlay::handle_save() {
         // The record those fields edit has not arrived, so there is nothing to
         // diff them against. Keep them, ask for the record again, and say so
         // rather than closing on a Save that wrote them nowhere.
-        ToastManager::instance().show(
-            ToastSeverity::WARNING,
-            lv_tr("This spool's details haven't loaded from Spoolman yet. Try Save again."), 4000);
+        report_save_problem(
+            true, lv_tr("This spool's details haven't loaded from Spoolman yet. Try Save again."));
         if (!linked_fetch_pending_) {
             fetch_linked_spool();
         }
@@ -2156,10 +2155,11 @@ void AmsEditOverlay::handle_save() {
                 spdlog::error("[AmsEditOverlay] Logistics PATCH for spool {} failed: {}", spool_id,
                               err.message);
                 token.defer("AmsEditOverlay::logistics_error", [this, cap]() {
-                    ToastManager::instance().show(ToastSeverity::ERROR,
-                                                  lv_tr("Failed to save spool"), 3000);
                     if (cap.session == session_) {
                         save_in_flight_ = false;
+                    }
+                    report_save_problem(save_is_live(cap), lv_tr("Failed to save spool"));
+                    if (cap.session == session_) {
                         update_sync_button_state();
                     }
                     end_slot_save(cap.slot_index);
@@ -2230,12 +2230,8 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         details_color_ = working_info_.color_rgb;
         details_color_set_ = false;
         update_summary();
-        update_sync_button_state();
-        ToastManager::instance().show(
-            ToastSeverity::WARNING,
-            lv_tr("Saved. Spoolman is offline, so price, location, lot and notes stay here "
-                  "unsaved."),
-            4000);
+        report_save_problem(true, lv_tr("Saved. Spoolman is offline, so price, location, lot "
+                                        "and notes stay here unsaved."));
         return;
     }
     if (save_is_live(cap)) {
@@ -2353,12 +2349,8 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
     // slot claiming an identity the server never heard.
     if (identity_locked(original, saving, get_printer_state().is_spoolman_available()) &&
         (saving.brand != original.brand || saving.material != original.material)) {
-        ToastManager::instance().show(
-            ToastSeverity::ERROR,
-            lv_tr("Spoolman is offline, so brand and material can't be saved."), 3000);
-        if (live) {
-            stay_open_after_failed_save();
-        }
+        report_save_problem(live,
+                            lv_tr("Spoolman is offline, so brand and material can't be saved."));
         return;
     }
 
@@ -2395,18 +2387,29 @@ void AmsEditOverlay::stay_open_after_failed_save() {
     update_sync_button_state();
 }
 
-void AmsEditOverlay::show_missing_filament_toast(const helix::MissingFilamentFields& missing) {
-    const char* message = nullptr;
+const char* AmsEditOverlay::missing_filament_message(const helix::MissingFilamentFields& missing) {
     if (missing.brand) {
-        message = lv_tr("Spoolman needs a brand for this filament.");
-    } else if (missing.material) {
-        message = lv_tr("Spoolman needs a material for this filament.");
-    } else if (missing.color) {
-        message = lv_tr("Spoolman needs a color for this filament.");
+        return lv_tr("Spoolman needs a brand for this filament.");
     }
-    if (message) {
-        ToastManager::instance().show(ToastSeverity::ERROR, message, 3000);
+    if (missing.material) {
+        return lv_tr("Spoolman needs a material for this filament.");
     }
+    if (missing.color) {
+        return lv_tr("Spoolman needs a color for this filament.");
+    }
+    return nullptr;
+}
+
+void AmsEditOverlay::report_save_problem(bool live, const char* message) {
+    if (message == nullptr) {
+        return;
+    }
+    if (live) {
+        set_save_state(kSaveFailed, message);
+        update_sync_button_state();
+        return;
+    }
+    ToastManager::instance().show(ToastSeverity::WARNING, message, 4000);
 }
 
 void AmsEditOverlay::do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent intent) {
@@ -2454,10 +2457,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 if (result.missing.any()) {
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "
                                  "missing a field it is identified by");
-                    show_missing_filament_toast(result.missing);
-                    if (live) {
-                        stay_open_after_failed_save();
-                    }
+                    report_save_problem(live, missing_filament_message(result.missing));
                     end_slot_save(cap.slot_index);
                     return;
                 }
@@ -2467,18 +2467,14 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     // of it did land, and an editor that has closed keeps no
                     // edits, so both say so.
                     if (cap.more_saved) {
-                        ToastManager::instance().show(
-                            ToastSeverity::WARNING,
-                            lv_tr("Spoolman saved the price, location, lot and notes, but not the "
-                                  "rest. Nothing else changed on this printer."),
-                            4000);
+                        report_save_problem(
+                            live, lv_tr("Spoolman saved the price, location, lot and notes, but "
+                                        "not the rest. Nothing else changed on this printer."));
                     } else if (!live) {
-                        ToastManager::instance().show(
-                            ToastSeverity::INFO,
-                            lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."),
-                            4000);
-                    }
-                    if (live) {
+                        report_save_problem(
+                            live,
+                            lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."));
+                    } else {
                         stay_open_after_failed_save();
                     }
                     end_slot_save(cap.slot_index);
@@ -2487,17 +2483,13 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 if (!result.success) {
                     spdlog::error("[AmsEditOverlay] Spoolman save failed; nothing written");
                     // A More PATCH that ran ahead of this save did land.
-                    ToastManager::instance().show(
-                        ToastSeverity::ERROR,
-                        cap.more_saved
-                            ? lv_tr("Spoolman saved the price, location, lot and notes, but "
-                                    "not the rest. Nothing else changed on this printer.")
-                            : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
-                                    "printer."),
-                        4000);
-                    if (live) {
-                        stay_open_after_failed_save();
-                    }
+                    report_save_problem(
+                        live, cap.more_saved
+                                  ? lv_tr("Spoolman saved the price, location, lot and notes, "
+                                          "but not the rest. Nothing else changed on this "
+                                          "printer.")
+                                  : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
+                                          "printer."));
                     end_slot_save(cap.slot_index);
                     return;
                 }
