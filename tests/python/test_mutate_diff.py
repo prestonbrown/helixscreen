@@ -1134,6 +1134,65 @@ def test_auto_filter_gives_up_on_a_stem_too_many_files_name():
     assert md.auto_tests_filter("src/ui/widget_base.cpp", some) != ""
 
 
+SPLIT_TU = (
+    '#include "gizmo_bar_internal.h"\n'
+    '#include "gizmo.h"\n'
+    '#include "gizmo_bar_zap.h"\n'
+    'void Gizmo::discover() {}\n'
+)
+SPLIT_SOURCES = {
+    "test_gizmo": '#include "gizmo.h"\nTEST_CASE("x") { auto g = make_one(); g->connect(); }\n',
+    "test_unrelated": '#include "bar.h"\ngizmo_bar_zap and gizmobar\n',
+}
+
+
+def test_auto_filter_selects_the_tests_of_the_header_a_split_tu_implements():
+    # gizmo_bar.cpp implements gizmo.h: a test including gizmo.h reaches it, though
+    # it never names gizmo_bar. gizmo_bar_internal.h is not a prefix of the stem.
+    filt = md.auto_tests_filter("src/gizmo_bar.cpp", SPLIT_SOURCES, source_text=SPLIT_TU)
+    assert filt == "[#test_gizmo]~[.]~[slow]"
+
+
+def test_auto_filter_selects_tests_naming_the_class_a_tu_defines():
+    tu = '#include "printer_print_state.h"\nvoid PrinterPrintState::reset() {}\n'
+    sources = {"test_reach": "PrinterPrintState& s = get();\n",
+               "test_file": '#include "printer_print_state.h"\n',
+               "test_other": "PrinterState and PrinterPrintStateX\n"}
+    filt = md.auto_tests_filter("src/printer/printer_print_state.cpp", sources, source_text=tu)
+    assert filt == "[#test_file]~[.]~[slow],[#test_reach]~[.]~[slow]"
+    # A class the TU defines nothing of is no evidence: only the stem counts.
+    assert md.auto_tests_filter("src/printer/printer_print_state.cpp", sources,
+                                source_text='#include "printer_print_state.h"\n') \
+        == "[#test_file]~[.]~[slow]"
+
+
+def test_auto_filter_abstains_when_the_implemented_header_is_too_common():
+    # A narrow filter that misses the header's tests reads as false survivors,
+    # so a header too many tests include gives the whole --tests instead.
+    sources = {f"test_{i}": '#include "gizmo.h"\n' for i in range(md.AUTO_TESTS_MAX_FILES)}
+    sources["test_named"] = "gizmo_bar\n"
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text="") \
+        == "[#test_named]~[.]~[slow]"
+
+
+def test_reach_names_are_the_stem_the_implemented_header_and_its_class():
+    assert md.reach_names("src/gizmo_bar.cpp", SPLIT_TU) == ["gizmo_bar", "gizmo", "Gizmo"]
+    assert md.reach_names("src/gizmo_bar.cpp", "") == ["gizmo_bar"]
+    # A header's own includes are its dependencies, not what it implements.
+    assert md.reach_names("include/gizmo_bar.h", SPLIT_TU) == ["gizmo_bar"]
+    # The longest prefix header wins; an unrelated include is ignored.
+    tu = '#include "gizmo.h"\n#include "gizmo_bar.h"\n#include "zap.h"\n'
+    assert md.reach_names("src/gizmo_bar_baz.cpp", tu) == ["gizmo_bar_baz", "gizmo_bar"]
+
+
+def test_filter_for_reads_the_split_tu_it_is_given():
+    assert md.filter_for("src/gizmo_bar.cpp", [], True, SPLIT_SOURCES, "[all]",
+                         source_text=SPLIT_TU) == ("[#test_gizmo]~[.]~[slow]",
+                                                   "test files reaching it")
+    assert md.filter_for("src/gizmo_bar.cpp", [], True, SPLIT_SOURCES, "[all]")[0] == "[all]"
+
+
 def test_filter_for_prefers_explicit_then_auto_then_default():
     tests_for = [("src/utils/*", "[explicit]")]
     assert md.filter_for("src/utils/network_validation.cpp", tests_for, True, SOURCES,
@@ -1243,6 +1302,22 @@ def test_a_pool_names_the_filter_a_hunk_survived(tmp_path):
     assert r.returncode == 1, r.stdout
     assert re.search(r"src/other.cpp:\d+  \[oth\]", r.stdout), r.stdout
 
+
+
+@linux_only
+def test_a_survivor_judged_by_the_tests_reaching_it_says_how_to_run_more(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "tests" / "unit").mkdir(parents=True, exist_ok=True)
+    (work / "tests" / "unit" / "test_other.cpp").write_text('#include "other.h"\n')
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]", "--no-record")
+    assert r.returncode == 1, r.stdout
+    assert re.search(r"src/other.cpp:\d+  \[#test_other\]", r.stdout), r.stdout
+    assert "ran only the tests that name them (src/other.cpp)" in r.stdout, r.stdout
+    assert "--tests-for 'PATH=[tag]'" in r.stdout
+    explicit = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                     "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert explicit.returncode == 1, explicit.stdout
+    assert "ran only the tests that name them" not in explicit.stdout
 
 NARROW_GREEN_SUITE = """#!/usr/bin/env bash
 case "$1" in *feat*) exit 0 ;; esac

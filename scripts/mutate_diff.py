@@ -480,13 +480,16 @@ def filter_scope(key, default_key, is_compiled):
 #
 # One filter for the whole run makes every hunk pay for the union of every
 # file's tests, which is most of what a run costs. Each changed file gets its
-# own: an explicit --tests-for GLOB=FILTER first, else the test files that name
-# the file's stem (Catch2's [#<test file>] tags), else --tests. Hunks sharing a
+# own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
+# it (Catch2's [#<test file>] tags): those naming its stem, the header a source
+# implements, or that header's class (reach_names), else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
 # A stem more test files name than this is a common word, not a file's own tests.
 AUTO_TESTS_MAX_FILES = 12
+# The why of a filter auto_tests_filter chose.
+AUTO_TESTS_WHY = 'test files reaching it'
 
 
 def parse_tests_for(specs):
@@ -511,18 +514,54 @@ def _test_sources(root):
     return out
 
 
-def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES):
-    """`[#test_a]~[.]~[slow],...` for the test files naming `path`'s stem, or ''.
+_QUOTED_INCLUDE = re.compile(r'^\s*#\s*include\s*"([^"]+)"', re.M)
 
-    The stem is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
-    `foo_modal` callers' includes but not `foobar`. A stem named by more than
-    `max_files` files says nothing about which tests are this file's.
+
+def reach_names(path, source_text=''):
+    """The words a test that reaches `path` names: its stem, and for a source file
+    the header it implements and that header's class.
+
+    A source implements the included header whose stem is its own or a `_`-prefix
+    of it (the longest), so `foo_bar.cpp` split out of `foo.h`'s class is reached
+    through `foo.h` by tests that never name `foo_bar`. The class is the header
+    stem in CamelCase (`foo_bar` -> `FooBar`), counted only when the source
+    defines a member of it (`FooBar::`), since tests reach a class by its name.
     """
     stem = path.rsplit('/', 1)[-1].rsplit('.', 1)[0]
-    if len(stem) < 4:
-        return ''
-    word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(stem) + r'(?![A-Za-z0-9_])')
-    hits = [name for name, text in test_sources.items() if word.search(text)]
+    names = [stem]
+    if path.endswith(HEADER_SUFFIXES) or not source_text:
+        return names
+    implemented = ''
+    for inc in _QUOTED_INCLUDE.findall(source_text):
+        h = inc.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+        if (h == stem or stem.startswith(h + '_')) and len(h) > len(implemented):
+            implemented = h
+    if not implemented:
+        return names
+    if implemented != stem:
+        names.append(implemented)
+    cls = ''.join(part[:1].upper() + part[1:] for part in implemented.split('_'))
+    if re.search(r'(?<![A-Za-z0-9_])' + re.escape(cls) + r'\s*::', source_text):
+        names.append(cls)
+    return names
+
+
+def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text=''):
+    """`[#test_a]~[.]~[slow],...` for the test files naming any of `path`'s
+    reach_names, or ''.
+
+    Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
+    `foo_modal` callers' includes but not `foobar`. Names under four characters
+    say nothing and are skipped. When more than `max_files` files name them the
+    answer is '': a filter missing some of the file's tests reports their kills
+    as survivors, so the whole --tests judges it instead.
+    """
+    hits = set()
+    for name in reach_names(path, source_text):
+        if len(name) < 4:
+            continue
+        word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
+        hits.update(t for t, text in test_sources.items() if word.search(text))
     if not hits or len(hits) > max_files:
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
@@ -584,15 +623,16 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
     return shell_default, python_default, 'the whole bats and pytest suites'
 
 
-def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES):
-    """(filter, why) for one changed file."""
+def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES,
+               source_text=''):
+    """(filter, why) for one changed file, whose text is `source_text`."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources, max_files)
+        filt = auto_tests_filter(path, test_sources, max_files, source_text)
         if filt:
-            return filt, 'test files naming it'
+            return filt, AUTO_TESTS_WHY
     return default, '--tests'
 
 
@@ -3663,8 +3703,12 @@ def main():
         if path in key_of:
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
+            try:
+                text = (root / path).read_text(errors='replace') if auto else ''
+            except OSError:
+                text = ''
             filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
-                                            args.auto_tests_max)
+                                            args.auto_tests_max, text)
             # No script suite in the key: a C++ file sharing a group with a
             # script nothing names would pay the whole bats suite's baseline.
             key_of[path] = (filt, '', '')
@@ -4027,6 +4071,13 @@ def main():
         for label, _, _ in survived:
             judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
             print(f'  {label}{judged}', file=sys.stderr)
+        auto_judged = sorted({label.rsplit(':', 1)[0] for label, _, _ in survived
+                              if why_of.get(label.rsplit(':', 1)[0]) == AUTO_TESTS_WHY})
+        if auto_judged:
+            print(f'  {len(auto_judged)} of these file(s) ran only the tests that name them '
+                  f'({", ".join(auto_judged)}); a test reaching them another way did not '
+                  "run. Rerun with --tests-for 'PATH=[tag]', or --pool --confirm-survivors.",
+                  file=sys.stderr)
         for label in inside_survived:
             print(f'  {label} (inside)', file=sys.stderr)
         return 1
