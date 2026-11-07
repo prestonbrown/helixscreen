@@ -2014,22 +2014,22 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // and the new file has no name anywhere before it opens.
     state().update_from_status(
         json{{"print_stats", {{"state", "cancelled"}, {"filename", "benchy.gcode"}}}});
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(get_display_filename() == "benchy");
 
     state().print_state().set_printer_side_pre_start(true);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(get_display_filename().empty());
     CHECK(get_thumbnail_path() == kNoThumb);
 
     SECTION("a reprint of the same file is named once it opens") {
         state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(get_display_filename() == "benchy");
     }
     SECTION("an abandoned start gives the previous job its name back") {
         state().print_state().set_printer_side_pre_start(false);
-        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(get_display_filename() == "benchy");
     }
 }
@@ -2046,7 +2046,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     REQUIRE(get_display_filename() == "benchy");
 
     state().print_state().set_printer_side_pre_start(true);
-    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(get_display_filename().empty());
     CHECK(get_thumbnail_path() == kNoThumb);
     state().print_state().set_printer_side_pre_start(false);

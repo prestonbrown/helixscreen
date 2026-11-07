@@ -532,20 +532,28 @@ TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced ca
     REQUIRE(cancel_ok);
     cancel_ok(json::object());
     drain();
-    CHECK(PrintControlButtonsTestAccess::cancel_requested());
     CHECK(stop_enabled() == 0);
 
     SECTION("the start ends when the printer takes the job and cancels it") {
         report("printing", "next.gcode");
+        CHECK(stop_enabled() == 0); // the cancel still covers the job
         report("cancelled", "next.gcode");
-        CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
     }
     SECTION("the start ends when it is abandoned before the file opens") {
         ps().set_printer_side_pre_start(false);
         ps().reset_print_start_state();
         drain();
-        CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
         CHECK(stop_enabled() == 0); // no print left to stop
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
     }
     ps().set_printer_side_pre_start(false);
 }
