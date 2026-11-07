@@ -4488,6 +4488,9 @@
   <translation tag="tall" zh="高"/>
   <translation tag="target {}%" zh="目标 {}%"/>
   <translation tag="target {}°" zh="目标 {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" zh="ACE 需要材料及其喷嘴温度"/>
+  <translation tag="the QIDI Box filament list has not loaded" zh="QIDI Box 的耗材列表尚未加载"/>
+  <translation tag="the QIDI Box has no {} in its filament list" zh="QIDI Box 的耗材列表中没有 {}"/>
   <translation tag="the extruder" zh="挤出机"/>
   <translation tag="the left belt" zh="左皮带"/>
   <translation tag="the lower belt" zh="下皮带"/>

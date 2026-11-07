@@ -4488,6 +4488,9 @@
   <translation tag="tall" pt="de altura"/>
   <translation tag="target {}%" pt="alvo {}%"/>
   <translation tag="target {}°" pt="alvo {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" pt="o ACE precisa de um material e da sua temperatura do bico"/>
+  <translation tag="the QIDI Box filament list has not loaded" pt="a lista de filamentos da QIDI Box não foi carregada"/>
+  <translation tag="the QIDI Box has no {} in its filament list" pt="a QIDI Box não tem {} na sua lista de filamentos"/>
   <translation tag="the extruder" pt="o extrusor"/>
   <translation tag="the left belt" pt="correia esquerda"/>
   <translation tag="the lower belt" pt="correia inferior"/>
