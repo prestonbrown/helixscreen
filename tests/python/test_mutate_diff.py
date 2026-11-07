@@ -1166,14 +1166,30 @@ def test_auto_filter_selects_tests_naming_the_class_a_tu_defines():
         == "[#test_file]~[.]~[slow]"
 
 
-def test_auto_filter_abstains_when_the_implemented_header_is_too_common():
+def test_auto_filter_lets_header_reached_tests_past_the_stem_cap():
     # A narrow filter that misses the header's tests reads as false survivors,
-    # so a header too many tests include gives the whole --tests instead.
+    # so the header's includers widen it up to AUTO_TESTS_MAX_REACHED files.
     sources = {f"test_{i}": '#include "gizmo.h"\n' for i in range(md.AUTO_TESTS_MAX_FILES)}
     sources["test_named"] = "gizmo_bar\n"
-    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
+    filt = md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU)
+    assert filt.count("[#test_") == md.AUTO_TESTS_MAX_FILES + 1
     assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text="") \
         == "[#test_named]~[.]~[slow]"
+
+
+def test_auto_filter_abstains_when_the_implemented_header_is_too_common():
+    sources = {f"test_{i}": '#include "gizmo.h"\n' for i in range(md.AUTO_TESTS_MAX_REACHED)}
+    sources["test_named"] = "gizmo_bar\n"
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
+    # --auto-tests-max past the reached cap raises it too.
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU,
+                                max_files=md.AUTO_TESTS_MAX_REACHED + 1).count("[#test_") \
+        == md.AUTO_TESTS_MAX_REACHED + 1
+
+
+def test_auto_filter_still_gives_up_on_a_common_stem_whatever_its_header():
+    sources = {f"test_{i}": "gizmo_bar\n" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
 
 
 def test_reach_names_are_the_stem_the_implemented_header_and_its_class():

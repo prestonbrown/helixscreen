@@ -488,6 +488,10 @@ def filter_scope(key, default_key, is_compiled):
 # ---------------------------------------------------------------------------
 # A stem more test files name than this is a common word, not a file's own tests.
 AUTO_TESTS_MAX_FILES = 12
+# The tests reaching a class through its header or name: a class's own state
+# is reached by under two dozen test files, while the mock client (~290) or the
+# AMS backend base (~80) is reached by so much of the suite that it runs whole.
+AUTO_TESTS_MAX_REACHED = 40
 # The why of a filter auto_tests_filter chose.
 AUTO_TESTS_WHY = 'test files reaching it'
 
@@ -552,17 +556,21 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
 
     Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. Names under four characters
-    say nothing and are skipped. When more than `max_files` files name them the
-    answer is '': a filter missing some of the file's tests reports their kills
-    as survivors, so the whole --tests judges it instead.
+    say nothing and are skipped. A stem more than `max_files` files name is a
+    common word, and the answer is ''. The header and class a source implements
+    may bring the total up to AUTO_TESTS_MAX_REACHED (or `max_files`, if larger);
+    past that the answer is '' too: a filter missing some of the file's tests
+    reports their kills as survivors, so the whole --tests judges it instead.
     """
     hits = set()
-    for name in reach_names(path, source_text):
+    for i, name in enumerate(reach_names(path, source_text)):
         if len(name) < 4:
             continue
         word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
         hits.update(t for t, text in test_sources.items() if word.search(text))
-    if not hits or len(hits) > max_files:
+        if i == 0 and len(hits) > max_files:
+            return ''
+    if not hits or len(hits) > max(max_files, AUTO_TESTS_MAX_REACHED):
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
     # the exclusions --tests' default has: [.] and [slow] stay out.
