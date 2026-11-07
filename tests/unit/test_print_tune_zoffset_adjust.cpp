@@ -454,6 +454,14 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     helix::ui::UpdateQueue::instance().drain();
     CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
 
+    // A firmware that keeps each head's own offset: the machine-wide value is
+    // not the mounted head's, so the line goes.
+    state().profile_state().set_z_offset_per_head(true);
+    overlay.handle_z_adjust(-1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    state().profile_state().set_z_offset_per_head(false);
+
     state().capabilities_state().set_stepper_z_endstop_microns(0);
     SettingsManager::instance().set_z_offset_save_mode(save_mode);
 }

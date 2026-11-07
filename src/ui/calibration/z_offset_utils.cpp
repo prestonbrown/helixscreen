@@ -376,9 +376,12 @@ std::optional<SavedOffsetLine> saved_offset_line() {
     if (configured != 0 && !(probe && configured == -1)) {
         saved = configured;
     }
+    // A firmware that re-applies each head's own offset at pickup is per-tool
+    // too: the live offset belongs to the mounted head.
     const bool per_tool_z =
         lv_subject_get_int(
-            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1;
+            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1 ||
+        ps.profile_state().z_offset_reapplied_per_head();
     return saved_offset_line(current_save_availability(), per_tool_z, saved,
                              lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()));
 }

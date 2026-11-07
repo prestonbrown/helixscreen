@@ -257,9 +257,9 @@ struct SavedOffsetLine {
 /// Whether to show the saved offset, and what it is.
 ///
 /// nullopt where the line would mislead: the firmware persists the offset itself
-/// (no manual save), saving is turned off, each tool keeps its own Z offset (a
-/// machine-wide value says nothing about the mounted tool), or the saved value
-/// has not been read.
+/// (no manual save), saving is turned off, each tool or head keeps its own Z
+/// offset (@p per_tool_z: a machine-wide value says nothing about the mounted
+/// one), or the saved value has not been read.
 ///
 /// @param live_microns gcode_move.homing_origin[2], the session adjustment
 [[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line(const SaveAvailability& facts,
