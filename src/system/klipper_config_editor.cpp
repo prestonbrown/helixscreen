@@ -867,6 +867,21 @@ KlipperConfigEditor::apply_edits(const std::string& content, const std::string& 
             break;
         }
 
+        case ConfigEdit::Type::ADD_IF_ABSENT:
+            if (parse_structure(current).find_key(section, edit.key).has_value()) {
+                spdlog::debug("[ConfigEditor] apply_edits: [{}] {} already set, kept", section,
+                              edit.key);
+                break;
+            }
+            result = add_key(current, section, edit.key, edit.value);
+            if (!result.has_value()) {
+                spdlog::error("[ConfigEditor] apply_edits: ADD_IF_ABSENT failed for [{}] {}",
+                              section, edit.key);
+                return std::nullopt;
+            }
+            current = *result;
+            break;
+
         case ConfigEdit::Type::REMOVE_KEY:
             result = remove_key(current, section, edit.key);
             if (!result.has_value()) {
@@ -999,6 +1014,16 @@ PluginConfigEditPlan plan_plugin_config_edits(const std::string& section,
             }
             [[fallthrough]];
         case ConfigEdit::Type::ADD_KEY:
+            plan.edits.push_back({{"section", section},
+                                  {"option", edit.key},
+                                  {"action", "set"},
+                                  {"value", edit.value},
+                                  {"expect", expect}});
+            value = edit.value;
+            break;
+        case ConfigEdit::Type::ADD_IF_ABSENT:
+            if (value)
+                break;
             plan.edits.push_back({{"section", section},
                                   {"option", edit.key},
                                   {"action", "set"},

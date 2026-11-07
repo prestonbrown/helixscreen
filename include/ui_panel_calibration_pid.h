@@ -101,10 +101,16 @@ class PIDCalibrationPanel : public OverlayBase {
      * section may carry, which Klipper would reject once no MPC object reads
      * them. Calibration results live in the autosave block and are left alone.
      *
+     * MPC also names the part fan as `cooling_fan`, which Kalico's model needs to
+     * measure fan heat loss, unless the section already names a fan of its own.
+     *
      * @param heater_wattage Heater power in watts, used only for MPC
+     * @param cooling_fan Klipper object of the fan cooling this heater ("fan",
+     *        "fan_generic <name>"), used only for MPC; empty for none
      */
     [[nodiscard]] static std::vector<helix::system::ConfigEdit>
-    build_control_migration_edits(CalibMethod target, int heater_wattage);
+    build_control_migration_edits(CalibMethod target, int heater_wattage,
+                                  const std::string& cooling_fan = "");
 
     PIDCalibrationPanel();
     ~PIDCalibrationPanel() override;
@@ -489,6 +495,11 @@ class PIDCalibrationPanel : public OverlayBase {
     /// Part-fan gcode (M106/M107) drives the active tool's fan, so it only
     /// cools the heater being tuned when that heater is the active tool's.
     bool part_fan_reaches_heater() const;
+    /// The Klipper fan object that cools the heater being tuned, or "" where
+    /// no part fan reaches it.
+    std::string mpc_cooling_fan() const;
+    /// build_control_migration_edits() for the selected heater.
+    std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
 
     // Event handlers
     void handle_heater_extruder_clicked();

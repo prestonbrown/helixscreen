@@ -59,7 +59,10 @@ struct SectionLocation {
 };
 
 struct ConfigEdit {
-    enum class Type { SET_VALUE, ADD_KEY, REMOVE_KEY };
+    /// SET_VALUE needs the key; ADD_KEY sets or adds it; ADD_IF_ABSENT adds it
+    /// only where the section does not already name it, so a value the user
+    /// chose survives; REMOVE_KEY of an absent key is skipped.
+    enum class Type { SET_VALUE, ADD_KEY, ADD_IF_ABSENT, REMOVE_KEY };
     Type type;
     std::string key;
     std::string value; // ignored for REMOVE_KEY
@@ -120,8 +123,9 @@ struct PluginConfigEditPlan {
 
 /// The server.helix.config_edit edit list for @p edits on @p section, each
 /// carrying the value it expects to replace, read from @p config. Mirrors
-/// apply_edits(): SET_VALUE needs the key, ADD_KEY sets or adds, REMOVE_KEY of
-/// an absent key is skipped, and only an all-ADD_KEY list may create a section.
+/// apply_edits(): SET_VALUE needs the key, ADD_KEY sets or adds, ADD_IF_ABSENT
+/// adds only an absent key, REMOVE_KEY of an absent key is skipped, and only an
+/// all-ADD_KEY list may create a section.
 PluginConfigEditPlan plan_plugin_config_edits(const std::string& section,
                                               const std::vector<ConfigEdit>& edits,
                                               const nlohmann::json& config);

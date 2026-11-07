@@ -247,6 +247,21 @@ TEST_CASE("plan_plugin_config_edits carries each option's current value",
         CHECK(plan.edits[0]["expect"].is_null());
     }
 
+    SECTION("ADD_IF_ABSENT adds an absent key and leaves a present one") {
+        auto plan =
+            plan_plugin_config_edits("extruder",
+                                     {{ConfigEdit::Type::ADD_IF_ABSENT, "control", "mpc"},
+                                      {ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", "fan"}},
+                                     config);
+        REQUIRE(plan.kind == Kind::Edits);
+        REQUIRE(plan.edits.size() == 1);
+        CHECK(plan.edits[0] == json{{"section", "extruder"},
+                                    {"option", "cooling_fan"},
+                                    {"action", "set"},
+                                    {"value", "fan"},
+                                    {"expect", nullptr}});
+    }
+
     SECTION("REMOVE_KEY comments out a present key and skips an absent one") {
         auto plan = plan_plugin_config_edits("extruder",
                                              {{ConfigEdit::Type::REMOVE_KEY, "pid_kp", ""},
