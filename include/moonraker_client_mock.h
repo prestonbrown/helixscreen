@@ -846,6 +846,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /** @} */
 
     /**
+     * @brief Leave a command out of printer.gcode.help, as a firmware that never
+     * registered it does
+     *
+     * The mock lists a fixed set of stock Klipper commands, including
+     * Z_OFFSET_APPLY_PROBE.
+     */
+    void set_gcode_command_unregistered(const std::string& command) {
+        unregistered_gcode_commands_.insert(command);
+    }
+
+    [[nodiscard]] bool is_gcode_command_unregistered(const std::string& command) const {
+        return unregistered_gcode_commands_.count(command) > 0;
+    }
+
+    /**
      * @brief Report stepper_z position_endstop as JSON null
      *
      * Klipper emits `position_endstop: null` for any printer configured with
@@ -2500,8 +2515,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     double shaper_freq_y_{47.6};
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
-    double extruder_max_temp_{300.0};    ///< Extruder max_temp reported in configfile.settings
-    double extruder_min_temp_{0.0};      ///< Extruder min_temp reported in configfile.settings
+    std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help
+    double extruder_max_temp_{300.0};         ///< Extruder max_temp reported in configfile.settings
+    double extruder_min_temp_{0.0};           ///< Extruder min_temp reported in configfile.settings
     double extruder_min_extrude_temp_{170.0}; ///< Extruder min_extrude_temp in configfile.settings
     json extra_config_settings_ = json::object();   ///< set_config_settings_section() sections
     std::atomic<int> skip_flags_[3] = {1, 1, 1};    ///< `_HELIX_PREP` run_* by skip_wrappers::Op

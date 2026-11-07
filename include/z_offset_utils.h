@@ -161,6 +161,10 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 ///   FIRMWARE_MANAGED -> no-op (firmware/macros auto-persist)
 ///
+/// The apply command is sent only where printer.gcode.help lists it, or where
+/// the list cannot be read. A firmware that never registered it gets
+/// @p on_error and no SAVE_CONFIG, since a save then keeps nothing.
+///
 /// SAVE_CONFIG's rpc is dropped by the restart it triggers, so @p save_watch -
 /// not the rpc - decides the outcome: it absorbs the dropped reply and reports
 /// success once Klipper is back READY. Reporting the drop cost every successful

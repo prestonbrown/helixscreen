@@ -4366,6 +4366,7 @@ translations:
   This printer has no IFS.: "Dieser Drucker hat kein IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus.
+  'This printer has no {} command, so the Z-offset cannot be saved.': 'Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an.
   "This printer's INDX macros are missing: {}": "Den INDX-Makros dieses Druckers fehlt: {}"

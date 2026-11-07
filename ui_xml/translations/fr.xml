@@ -3967,6 +3967,7 @@
   <translation tag="This printer has no IFS." fr="Cette imprimante n&apos;a pas d&apos;IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" fr="Cette imprimante n&apos;a pas de macro INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
+  <translation tag="This printer has no {} command, so the Z-offset cannot be saved." fr="Cette imprimante n&apos;a pas de commande {}, le décalage Z ne peut donc pas être enregistré."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." fr="Le Moonraker de cette imprimante a refusé sa clé API. Vérifiez la clé dans Paramètres &gt; Connexion."/>

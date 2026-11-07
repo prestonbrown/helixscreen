@@ -3967,6 +3967,7 @@
   <translation tag="This printer has no IFS." en="This printer has no IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" en="This printer has no INDX LOAD_FILAMENT macro"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." en="This printer has no automatic unload. Cut the filament at the head and pull it out by hand."/>
+  <translation tag="This printer has no {} command, so the Z-offset cannot be saved." en="This printer has no {} command, so the Z-offset cannot be saved."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" en="This printer&apos;s INDX macros are missing: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." en="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection."/>

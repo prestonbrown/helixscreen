@@ -317,6 +317,36 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         return true;
     };
 
+    // printer.gcode.help - The registered commands that carry a description
+    registry["printer.gcode.help"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        static const std::pair<const char*, const char*> kCommands[] = {
+            {"ACCEPT", "Accept the current Z position"},
+            {"ABORT", "Abort manual Z probing tool"},
+            {"TESTZ", "Move to new Z height"},
+            {"PROBE_CALIBRATE", "Calibrate the probe's z_offset"},
+            {"Z_OFFSET_APPLY_PROBE", "Adjust the probe's z_offset"},
+            {"Z_ENDSTOP_CALIBRATE", "Calibrate a Z endstop"},
+            {"Z_OFFSET_APPLY_ENDSTOP", "Adjust the z endstop_position"},
+            {"SET_GCODE_OFFSET", "Set a virtual offset to g-code positions"},
+            {"SAVE_CONFIG", "Overwrite config file and restart"},
+            {"RESTART", "Reload config file and restart host software"},
+            {"FIRMWARE_RESTART", "Restart firmware, host, and reload config"},
+        };
+        json commands = json::object();
+        for (const auto& [name, desc] : kCommands) {
+            if (!self->is_gcode_command_unregistered(name)) {
+                commands[name] = desc;
+            }
+        }
+        if (success_cb) {
+            success_cb(json{{"result", commands}});
+        }
+        return true;
+    };
+
     // printer.objects.query - Query printer object state
     registry["printer.objects.query"] =
         [](MoonrakerClientMock* self, const json& params,
