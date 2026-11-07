@@ -222,6 +222,13 @@ void ZOffsetCalibrationPanel::on_activate() {
 
     spdlog::debug("[ZOffsetCal] on_activate()");
 
+    // A wake from the screensaver resumes what the panel showed: a warm-up, a
+    // probe, a save or a result that landed behind it.
+    if (take_wake() && state_ != State::IDLE) {
+        spdlog::info("[ZOffsetCal] Woke - keeping state {}", static_cast<int>(state_));
+        return;
+    }
+
     // If manual probe is already active (e.g., started from Mainsail before HelixScreen
     // launched), skip to ADJUSTING with the current Z position instead of resetting to IDLE
     auto& ps = get_printer_state();
@@ -258,6 +265,12 @@ void ZOffsetCalibrationPanel::on_activate() {
 
 void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[ZOffsetCal] on_deactivating({})", deactivate_reason_name(reason));
+
+    // An idle screen is not a walk-away: the warm-up keeps its heater and the
+    // probe keeps running for the next touch.
+    if (reason == DeactivateReason::Suspended) {
+        return;
+    }
 
     // A run in progress is abandoned only when the user walks away from it.
     // Shutdown and hot-reload take the UI out from under a calibration that

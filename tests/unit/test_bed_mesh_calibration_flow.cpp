@@ -413,6 +413,35 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
+                 "a mesh that finishes behind the screensaver still cools down and saves",
+                 "[bed_mesh_flow][1516]") {
+    use_printer("Elegoo Centauri Carbon");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    get_printer_state().update_from_status(
+        {{"extruder", {{"temperature", 25.0}, {"target", 0.0}}}});
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.init_subjects();
+
+    client.defer_next("printer.gcode.script");
+    calibrate_as(panel, "default");
+    REQUIRE(client.call_count("printer.gcode.script") == 1); // the mesh command, held
+    REQUIRE(successes.empty());
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    client.fire_deferred("printer.gcode.script");
+    drain();
+    panel.on_activate();
+    drain();
+
+    CHECK(any_sent(sent(), "HEATER=extruder TARGET=0"));
+    CHECK(any_sent(sent(), "HEATER=heater_bed TARGET=0"));
+    CHECK(errors.empty());
+    REQUIRE(successes.size() == 1);
+    CHECK(mentions(successes[0], "'default'"));
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a plain BED_MESH_CALIBRATE still gets the panel's preheat and homing",
                  "[bed_mesh_flow]") {
     use_printer("");

@@ -53,4 +53,8 @@ class ZOffsetCalibrationTestAccess {
     static void force_state(ZOffsetCalibrationPanel& panel, ZOffsetCalibrationPanel::State state) {
         panel.state_ = state;
     }
+
+    static ZOffsetCalibrationPanel::State state(const ZOffsetCalibrationPanel& panel) {
+        return panel.state_;
+    }
 };

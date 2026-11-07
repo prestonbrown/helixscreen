@@ -224,6 +224,39 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: a hot-reload rebuil
     CHECK(abort_sends_for(DeactivateReason::Rebuild).empty());
 }
 
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration screensaver: a bed warm-up keeps its heat and its phase",
+                 "[ui_integration][zoffset][1516]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::mark_bed_warmed(panel);
+    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::WARMING);
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(client.last_send_script().empty()); // no M140 S0
+    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::WARMING);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration screensaver: a finished result is still shown on wake",
+                 "[ui_integration][zoffset][1516]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::COMPLETE);
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+
+    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::COMPLETE);
+}
+
 // ============================================================================
 // A failed run does not leave Klipper in a manual probe session
 // ============================================================================
