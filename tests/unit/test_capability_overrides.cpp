@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "capability_overrides.h"
+#include "config.h"
 #include "printer_discovery.h"
 
 #include "../catch_amalgamated.hpp"
@@ -208,6 +209,7 @@ TEST_CASE("CapabilityOverrides - summary", "[printer][overrides]") {
         REQUIRE(summary.find("heat_soak=") != std::string::npos);
         REQUIRE(summary.find("chamber=") != std::string::npos);
         REQUIRE(summary.find("speaker=") != std::string::npos);
+        REQUIRE(summary.find("led=") != std::string::npos);
     }
 
     SECTION("Summary shows auto(Y) for detected capabilities") {
@@ -297,6 +299,16 @@ TEST_CASE("CapabilityOverrides - led override", "[printer][overrides]") {
         CHECK(overrides.has_led());
         overrides.set_hardware(without_led);
         CHECK_FALSE(overrides.has_led());
+    }
+
+    SECTION("A saved override loads back from the printer's config") {
+        helix::Config* cfg = helix::Config::get_instance();
+        const std::string path = cfg->df() + "capability_overrides/led";
+        const std::string before = cfg->get<std::string>(path, "auto");
+        cfg->set<std::string>(path, "disable");
+        overrides.load_from_config();
+        cfg->set<std::string>(path, before);
+        CHECK(overrides.get_override(capability::LED) == OverrideState::DISABLE);
     }
 }
 
