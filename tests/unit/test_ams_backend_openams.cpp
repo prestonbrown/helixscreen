@@ -19,6 +19,7 @@
 #include "filament_op_execute.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_source_store.h"
 #include "lvgl_ui_test_fixture.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -1191,6 +1192,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "OpenAMS shows a spool link written to lane_
     CHECK(info.spoolman_id == 41);
     CHECK(info.color_rgb == 0x1F3A93);
     CHECK(info.material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "an OpenAMS edit writes the lane record, unless another writer owns it",
+                 "[ams][openams][filament_slot_override][writer_rule]") {
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+    const bool foreign = GENERATE(false, true);
+    if (foreign) {
+        mock_printer.client.mock_db_set("lane_data", "lane4",
+                                        json{{"lane", "3"},
+                                             {"material", "PLA"},
+                                             {"spool_id", 41},
+                                             {"writer", "openams_spoolman"}});
+    }
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&api, &mock_printer.client);
+    OpenAmsHarness& backend = *backend_reg;
+    backend.feed(shared_manager(0));
+    helix::OpenAmsTestAccess::start(backend);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    const SlotInfo original = backend.get_slot_info(3);
+    SlotInfo edited = original;
+    edited.material = "PETG";
+    (void)backend.commit_user_edit(3, original, edited);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    const json stored = mock_printer.client.mock_db_get("lane_data", "lane4");
+    REQUIRE(stored.is_object());
+    if (foreign) {
+        // The record is openams_spoolman's: refused, withdrawn, shown as it is.
+        CHECK(stored["writer"] == "openams_spoolman");
+        CHECK(stored["material"] == "PLA");
+        CHECK_FALSE(helix::ams::lane_sources(backend.lane_id(3)).pending.has_value());
+        CHECK(backend.get_slot_info(3).material == "PLA");
+    } else {
+        CHECK(stored["writer"] == "helixscreen");
+        CHECK(stored["filament_type"] == "PETG");
+    }
 }
 
 // ============================================================================

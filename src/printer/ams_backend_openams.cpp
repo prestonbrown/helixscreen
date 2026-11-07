@@ -140,12 +140,6 @@ std::optional<PathTopology> topology_from_token(const std::string& topology) {
     return std::nullopt;
 }
 
-/// Put @p info's filament fields on @p slot, so get_slot_info returns them at
-/// once rather than after the next frame.
-void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
-    slot.assign_filament_fields(info);
-}
-
 } // namespace
 
 json AmsBackendOpenAms::required_status_objects(const PrinterDiscovery& hw) {
@@ -1293,11 +1287,11 @@ AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 system_info_.total_slots - 1);
         }
-        write_filament_fields(*slot, info);
-        helix::ams::stage_user_override(overrides_, slot_index, info);
-    }
-    if (override_store_) {
-        persist_override(slot_index);
+        slot->assign_filament_fields(info);
+        // OpenAMS holds no identity, so the lane record is the whole of it.
+        // Where [openams_spoolman] writes lane_data, the store's writer rule
+        // refuses the save and the edit is withdrawn.
+        persist_user_record_locked(slot_index, info);
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
@@ -1311,7 +1305,12 @@ AmsError AmsBackendOpenAms::sync_external_identity(int slot_index, const SlotInf
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 system_info_.total_slots - 1);
         }
-        write_filament_fields(*slot, info);
+        // The record holds the link, so a link from elsewhere is written to it.
+        const bool relinked = info.spoolman_id > 0 && info.spoolman_id != slot->spoolman_id;
+        slot->assign_filament_fields(info);
+        if (relinked) {
+            persist_user_record_locked(slot_index, info);
+        }
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
