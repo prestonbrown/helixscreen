@@ -95,15 +95,14 @@ std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index, 
  *
  * Behind a hub (a CFS, an ACE, a Box Turtle feeding one extruder) a tool is
  * not a thing on the machine; it is the slicer's name for a lane. Full names
- * the lane in the backend's own noun beside the G-code name, "Slot 1 (T0)",
- * so a remapped tool reads "Slot 3 (T0)". Code is the G-code name alone.
+ * the lane beside the G-code name, "Slot 1 (T0)" or "1A (T0)", so a remapped
+ * tool reads "Slot 3 (T0)". Code is the G-code name alone.
  *
- * @param lane_noun what the backend calls a position (active_lane_noun())
- * @param slot      global index of the lane the tool feeds
- * @param tool      0-based G-code tool
- * @return empty when @p slot or @p tool is negative
+ * @param lane what the lane is called (active_lane_label())
+ * @param tool 0-based G-code tool
+ * @return empty when @p lane is empty or @p tool is negative
  */
-std::string fed_lane_tool_label(LaneNoun lane_noun, int slot, int tool, ToolLabelForm form);
+std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm form);
 
 /**
  * @brief The most informative form @p fits accepts.
@@ -229,6 +228,17 @@ std::string lane_count_label(LaneNoun noun, int count);
  * @return the active AMS backend's lane_noun(), else LaneNoun::Slot
  */
 LaneNoun active_lane_noun();
+
+/**
+ * @brief What the connected printer calls the lane at @p slot.
+ *
+ * The active backend's own lane name when its hardware prints one ("1A" on a
+ * CFS), else lane_label() under active_lane_noun() ("Slot 3").
+ *
+ * @param slot global index of the lane
+ * @return empty when @p slot is negative and the backend has no name for it
+ */
+std::string active_lane_label(int slot);
 
 /**
  * @brief The noun for the printing end of the currently connected printer.
