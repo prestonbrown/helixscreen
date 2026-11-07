@@ -29,6 +29,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
@@ -56,27 +57,40 @@ using helix::ui::FilamentRunoutHandler;
 
 namespace {
 
+constexpr const char* kRunoutSensor = "filament_switch_sensor runout_sensor";
+
+nlohmann::json sensor_status(bool detected) {
+    return nlohmann::json{{kRunoutSensor, {{"filament_detected", detected}, {"enabled", true}}}};
+}
+
+/// One RUNOUT-roled switch sensor reading present, out of its startup grace.
+void arm_runout_sensor() {
+    helix::AmsState::instance().clear_backends();
+    auto& fsm = FilamentSensorManager::instance();
+    helix::PostUnloadGraceTestAccess::reset(fsm);
+    fsm.set_master_enabled(true);
+    discover_filament_sensors(fsm, {kRunoutSensor});
+    fsm.set_role(kRunoutSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    // Baseline present so the sensor is "available", then let each test choose.
+    fsm.update_from_status(sensor_status(true));
+    helix::PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+}
+
+void disarm_runout_sensor() {
+    helix::PostUnloadGraceTestAccess::reset(FilamentSensorManager::instance());
+    helix::AmsState::instance().clear_backends();
+}
+
 /// A plain single-extruder runout printer: one RUNOUT-roled switch sensor and no
 /// AMS backend. That shape leaves has_real_runout() unscoped (no lane to check
 /// against) and should_show_runout_modal() true, so the guards under test are the
 /// only thing standing between a pause and the dialog.
 class RunoutGuidanceFixture : public LVGLUITestFixture {
   public:
-    static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
-
     RunoutGuidanceFixture() {
-        helix::AmsState::instance().clear_backends();
-
-        auto& fsm = FilamentSensorManager::instance();
-        helix::PostUnloadGraceTestAccess::reset(fsm);
-        fsm.set_master_enabled(true);
-        discover_filament_sensors(fsm, {SENSOR});
-        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
-        // Baseline present so the sensor is "available", then let each test choose.
-        fsm.update_from_status(sensor_status(true));
-        helix::PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+        arm_runout_sensor();
         settle();
-        REQUIRE_FALSE(fsm.is_in_startup_grace_period());
+        REQUIRE_FALSE(FilamentSensorManager::instance().is_in_startup_grace_period());
         REQUIRE(get_runtime_config()->should_show_runout_modal());
 
         handler = std::make_unique<FilamentRunoutHandler>(api());
@@ -88,12 +102,7 @@ class RunoutGuidanceFixture : public LVGLUITestFixture {
             handler.reset();
         }
         settle();
-        helix::PostUnloadGraceTestAccess::reset(FilamentSensorManager::instance());
-        helix::AmsState::instance().clear_backends();
-    }
-
-    static nlohmann::json sensor_status(bool detected) {
-        return nlohmann::json{{SENSOR, {{"filament_detected", detected}, {"enabled", true}}}};
+        disarm_runout_sensor();
     }
 
     /// Flip the physical sensor. `false` is the runout the guards look for.
@@ -378,4 +387,29 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     ps.update_from_status(print_stats({{"state", "standby"}}));
     settle();
     dm.reset_for_test();
+}
+
+TEST_CASE_METHOD(print_status_panel_test::PrintStatusPanelFixture,
+                 "the runout guidance dialog stays up behind the screensaver",
+                 "[runout_guidance][gate][suspend]") {
+    arm_runout_sensor();
+    FilamentSensorManager::instance().update_from_status(sensor_status(false));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(FilamentSensorManager::instance().has_real_runout());
+
+    panel().on_activate();
+    auto& handler = PrintStatusPanelTestAccess::runout_handler(panel());
+    handler.on_print_state_changed(::PrintState::Printing, ::PrintState::Paused);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(handler.is_modal_visible());
+
+    panel().on_deactivate(DeactivateReason::Suspended);
+    CHECK(handler.is_modal_visible());
+    panel().on_activate();
+    CHECK(handler.is_modal_visible());
+
+    // Leaving the panel still closes it.
+    panel().on_deactivate(DeactivateReason::NavigateAway);
+    CHECK_FALSE(handler.is_modal_visible());
+    disarm_runout_sensor();
 }

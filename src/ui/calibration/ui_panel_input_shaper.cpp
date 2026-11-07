@@ -412,6 +412,14 @@ void InputShaperPanel::on_activate() {
 
     spdlog::debug("[InputShaper] on_activate()");
 
+    // A wake from the screensaver returns to the run or the results the user
+    // left on screen; the run's callbacks kept landing behind it.
+    if (take_wake()) {
+        spdlog::debug("[InputShaper] Woke into state {}", static_cast<int>(state_));
+        analysis_elapsed_.resume();
+        return;
+    }
+
     // Reset to idle state
     set_state(State::IDLE);
     clear_results();
@@ -451,16 +459,17 @@ void InputShaperPanel::on_activate() {
 void InputShaperPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[InputShaper] on_deactivating({})", deactivate_reason_name(reason));
 
-    // Stop the analysis elapsed timer even when the state check below does not
-    // run; the label it refreshes is going off screen either way.
-    cancel_analysis_display();
-
     // An idle screen is not a walk-away: this panel is reactivated on the next
     // touch. A resonance run takes minutes with nobody touching anything, which
-    // is exactly when the screensaver fires.
+    // is exactly when the screensaver fires. The elapsed label stops ticking
+    // but keeps its start, so the wake shows the run's true analysis time.
     if (reason == DeactivateReason::Suspended) {
+        analysis_elapsed_.pause();
         return;
     }
+
+    // The label the elapsed timer refreshes is going off screen.
+    cancel_analysis_display();
 
     // A rebuild frees the whole widget tree without firing on_ui_destroyed(),
     // and every chart's objects are children of hosts inside that tree. Drop
