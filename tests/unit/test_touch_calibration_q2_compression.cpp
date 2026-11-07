@@ -259,7 +259,7 @@ class Q2CompressionFixture : public XMLTestFixture {
         for (int step = 0; step < 3; ++step) {
             const helix::Point target = panel_->get_target_position(step);
             const helix::Point raw{static_cast<int>(target.x * s), static_cast<int>(target.y * s)};
-            for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+            for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
                 panel_->on_press(raw);
             }
         }
@@ -369,7 +369,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     for (int step = 0; step < 3; ++step) {
         const helix::Point t = panel_->get_target_position(step);
         const helix::Point raw{t.x, (kMicroH - 1) - t.y}; // Y inverted at capture
-        for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
             panel_->on_press(raw);
         }
     }
@@ -864,7 +864,7 @@ void capture_with_raw(helix::TouchCalibrationPanel& panel, double shear) {
         const helix::Point raw{target.x + static_cast<int>(target.y * shear), target.y};
         const helix::Point touch{evdev_scale(raw.x, kMicroW - 1, kMicroW - 1),
                                  evdev_scale(raw.y, kDeclaredMaxY, kMicroH - 1)};
-        for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        for (int i = 0; i < panel.get_progress().total_samples; ++i) {
             panel.add_sample(touch, &raw);
         }
     }
@@ -903,5 +903,35 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     CHECK(sink_.live.range.max_y == kDeclaredMaxY);
     CHECK(sink_.live.source == helix::TouchRangeSource::Declared);
+    CHECK(sink_.affine_enabled);
+}
+
+// ============================================================================
+// Screensaver: a suspend keeps the capture session
+// ============================================================================
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Touch calibration: a screensaver wake resumes the capture session",
+                 "[touch][calibration][suspend]") {
+    sink_.stored = identity_cal();
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    activate_at_idle();
+    panel_->start();
+    const helix::Point first = panel_->get_target_position(0);
+    for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
+        panel_->on_press(first);
+    }
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    REQUIRE_FALSE(sink_.affine_enabled);
+
+    overlay_->on_deactivate(DeactivateReason::Suspended);
+    overlay_->on_activate();
+
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    CHECK_FALSE(sink_.affine_enabled);
+
+    // Dismissing the overlay still ends the session and re-arms touch.
+    overlay_->on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::IDLE);
     CHECK(sink_.affine_enabled);
 }

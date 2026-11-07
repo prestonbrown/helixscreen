@@ -326,7 +326,12 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
 void NetworkSettingsOverlay::on_activate() {
     // Call base class first
     OverlayBase::on_activate();
-    forget_read_pending_ = false;
+    // A wake from the screensaver keeps lifetime_, so what it registered and
+    // what it has in flight are still live.
+    const bool waking = take_wake();
+    if (!waking) {
+        forget_read_pending_ = false;
+    }
 
     spdlog::debug("[NetworkSettingsOverlay] on_activate()");
 
@@ -340,9 +345,10 @@ void NetworkSettingsOverlay::on_activate() {
     // single-transport platform (netd enforces this) a join or leave downs
     // and re-ups the OTHER transport too, and nothing here re-queries it
     // until the user taps something (prestonbrown/helixscreen#1398).
-    // Registered per activation — on_deactivate() invalidates lifetime_, so
-    // a create()-time token would die at the first close and never return.
-    if (wifi_manager_) {
+    // Registered per opening: closing invalidates lifetime_, so a
+    // create()-time token would die at the first close and never return. A
+    // wake keeps lifetime_ and with it the observers already registered.
+    if (wifi_manager_ && !waking) {
         wifi_manager_->add_state_observer(lifetime_.token(),
                                           [this]() { refresh_transport_status(); });
         wifi_manager_->add_country_observer(lifetime_.token(), [this]() { refresh_country(); });

@@ -112,7 +112,7 @@ TEST_CASE_METHOD(TouchCalibrationResetFixture,
     panel_->start();
     const Point taps[3] = {{100, 120}, {380, 390}, {660, 60}};
     for (const auto& tap : taps) {
-        for (int s = 0; s < TouchCalibrationPanelTestAccess::samples_required(); ++s) {
+        for (int s = 0; s < panel_->get_progress().total_samples; ++s) {
             clear_refractory();
             panel_->on_press(tap);
             panel_->on_release();

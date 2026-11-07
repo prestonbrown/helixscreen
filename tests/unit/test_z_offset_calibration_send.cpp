@@ -243,6 +243,51 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: a hot-reload rebuil
     CHECK(abort_sends_for(DeactivateReason::Rebuild).empty());
 }
 
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration screensaver: a bed warm-up keeps its heat and its phase",
+                 "[ui_integration][zoffset][1516]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    auto& panel = get_global_zoffset_cal_panel();
+    panel.init_subjects();
+    panel.set_api(&api);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    lv_xml_get_event_cb(nullptr, "on_zoffset_start_clicked")(nullptr);
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+    REQUIRE(client.last_send_script().rfind("M140 S", 0) == 0);
+    const std::string warm = client.last_send_script();
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(client.last_send_script() == warm);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+
+    // Leaving for real turns the bed off.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(client.last_send_script() == "M140 S0");
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+    lv_xml_get_event_cb(nullptr, "on_zoffset_retry_clicked")(nullptr);
+    panel.set_api(nullptr);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration screensaver: a finished result is still shown on wake",
+                 "[ui_integration][zoffset][1516]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    panel.on_calibration_result(true, "");
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
+}
+
 // ============================================================================
 // A failed run does not leave Klipper in a manual probe session
 // ============================================================================

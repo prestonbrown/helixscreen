@@ -970,6 +970,7 @@ void PrintSelectDetailView::on_activate() {
 
 void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[DetailView] on_deactivating({})", deactivate_reason_name(reason));
+    const bool suspending = reason == DeactivateReason::Suspended;
 
     // Exclude mode closes on every reason: the viewer is cleared below. Picks
     // live in exclude_objects_; a blanked screen keeps them, leaving the file
@@ -982,8 +983,9 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     }
 
     // The owning panel's close bookkeeping runs for every dismissal path —
-    // this hook is the only one ESC/go_back() and a navbar switch reach.
-    if (on_dismissed_cb_) {
+    // this hook is the only one ESC/go_back() and a navbar switch reach. The
+    // screensaver dismisses nothing: the view wakes with its pending start.
+    if (on_dismissed_cb_ && !suspending) {
         on_dismissed_cb_();
     }
 
@@ -1005,31 +1007,43 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     // follows: a late scan answer from a still-running worker is cancelled
     // with the view's lifetime anyway, and the next open must not treat
     // the previous open's settlement as authorization to delete files.
-    headless_scan_done_ = false;
-    headless_scan_settled_ = false;
-    printer_stop_wait_timed_out_ = false;
-    palette_settled_ = false;
+    // A suspend keeps them: the wake reactivates the same file without show(),
+    // and its scan answers still hold.
+    if (!suspending) {
+        headless_scan_done_ = false;
+        headless_scan_settled_ = false;
+        printer_stop_wait_timed_out_ = false;
+        palette_settled_ = false;
+    }
     publish_mapping_ready();
 
     // Drop any pending run_when_loaded() callback. If the user tapped Print
     // before parse completed (deferring the attempt) and then navigated away,
     // a late load callback firing fire_on_loaded() would call start_print() on
     // a hidden panel → a ghost print with no UI. Clearing here prevents that.
-    on_loaded_cb_ = nullptr;
+    // Behind the screensaver the view is still the user's: a tapped Print
+    // stays deferred, and the wake's reload or scan releases it.
+    if (!suspending) {
+        on_loaded_cb_ = nullptr;
 
-    // Same protection for the preflight-ready deferral + its safety timer: a late
-    // scan completion (or timeout) must not start a print on a hidden panel.
-    on_preflight_ready_cb_ = nullptr;
-    if (preflight_ready_timeout_timer_) {
-        lv_timer_delete(preflight_ready_timeout_timer_);
-        preflight_ready_timeout_timer_ = nullptr;
+        // Same protection for the preflight-ready deferral + its safety timer: a
+        // late scan completion (or timeout) must not start a print on a hidden
+        // panel.
+        on_preflight_ready_cb_ = nullptr;
+        if (preflight_ready_timeout_timer_) {
+            lv_timer_delete(preflight_ready_timeout_timer_);
+            preflight_ready_timeout_timer_ = nullptr;
+        }
     }
 
     // Nothing left to report progress for.
     cancel_progress_timer();
 
-    // Hide any open delete confirmation modal
-    hide_delete_confirmation();
+    // Hide any open delete confirmation modal; one the user is answering
+    // stays up behind the screensaver.
+    if (!suspending) {
+        hide_delete_confirmation();
+    }
 
     // Note: We don't cancel scans here because PrintPreparationManager
     // has its own lifetime guard. Async callbacks in prep_manager_

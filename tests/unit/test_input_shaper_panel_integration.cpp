@@ -981,3 +981,29 @@ TEST_CASE_METHOD(InputShaperPreviewFixture, "the results view's legend, colors a
         CHECK(checked >= 6);
     }
 }
+
+TEST_CASE_METHOD(InputShaperPreviewFixture,
+                 "the live sweep stops behind the screensaver and streams again on wake",
+                 "[input_shaper][panel][preview][suspend]") {
+    panel_->handle_calibrate_x_clicked();
+    REQUIRE(run_until([&] { return subject_int("is_measuring_has_chart") == 1; }));
+    REQUIRE(log_.created == 1);
+    REQUIRE(log_.stopped == 0);
+
+    panel_->on_deactivate(DeactivateReason::Suspended);
+    CHECK(log_.stopped == 1);
+    CHECK(subject_int("is_measuring_has_chart") == 0);
+    for (int i = 0; i < 5; ++i) {
+        tick();
+    }
+    CHECK(log_.created == 1);
+
+    panel_->on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(panel_state() == 1);
+    // The preview opens its stream at the next console frequency.
+    CHECK(run_until([&] { return log_.created == 2; }));
+    CHECK(log_.stopped == 1);
+
+    REQUIRE(run_until([&] { return panel_state() == 2; }));
+}

@@ -152,6 +152,20 @@ TEST_CASE_METHOD(MoonrakerTestFixture,
     CHECK(token.expired());
 }
 
+TEST_CASE_METHOD(MoonrakerTestFixture,
+                 "A screensaver suspend keeps screen-scoped callbacks until a real exit",
+                 "[lifecycle][navigation][suspend]") {
+    // The suspended view wakes into on_activate(); a calibration or probe it
+    // started is still running and its result is still this screen's.
+    BareOverlay overlay;
+    auto token = overlay.screen_token();
+    overlay.on_deactivate(DeactivateReason::Suspended);
+    CHECK_FALSE(token.expired());
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(token.expired());
+}
+
 TEST_CASE_METHOD(MoonrakerTestFixture, "The hook runs before the screen guard is invalidated",
                  "[1516][lifecycle][navigation]") {
     // A hook that cancels work by hand has to see that work still live. The

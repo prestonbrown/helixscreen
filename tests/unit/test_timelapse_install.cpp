@@ -3,7 +3,13 @@
 
 #include "ui_overlay_timelapse_install.h"
 
+#include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
+#include "core/update_queue.h"
+#include "moonraker_api.h"
+#include "moonraker_client_mock.h"
 #include "moonraker_config_manager.h"
+#include "printer_state.h"
 
 #include <string>
 
@@ -195,4 +201,35 @@ TEST_CASE("Timelapse config can coexist with spoolman config", "[timelapse][conf
     REQUIRE(helix::MoonrakerConfigManager::has_section(without_spoolman, "timelapse") == true);
     REQUIRE(helix::MoonrakerConfigManager::has_section(without_spoolman,
                                                        "update_manager timelapse") == true);
+}
+
+// ============================================================================
+// Screensaver
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wizard where it was",
+                 "[timelapse][suspend]") {
+    REQUIRE_FALSE(get_printer_state().has_webcam());
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    REQUIRE(overlay.create(test_screen()) != nullptr);
+    lv_obj_t* ssh = lv_obj_find_by_name(overlay.get_panel(), "ssh_instructions_container");
+    REQUIRE(ssh != nullptr);
+
+    // The webcam and plugin replies land behind the screensaver and walk the
+    // wizard on to its install step.
+    overlay.on_activate();
+    overlay.on_deactivate(DeactivateReason::Suspended);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    overlay.on_activate();
+    CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+
+    // Leaving the overlay ends the run; opening it again starts over.
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    overlay.on_activate();
+    CHECK(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }

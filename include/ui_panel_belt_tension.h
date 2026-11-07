@@ -552,9 +552,6 @@ class BeltTensionPanel : public OverlayBase {
     /// The low-RAM warning was accepted in this tuning session; later rounds
     /// do not ask again.
     bool tune_low_ram_accepted_ = false;
-    /// Deactivated for the screensaver: the next activation is a wake, which
-    /// keeps the view, the run and the tuning session.
-    bool suspended_ = false;
     /// RESULTS's Re-test menu on compact layouts.
     helix::ui::BeltRetestMenu retest_menu_;
     /// "Which belt is which?", reshown on each open.

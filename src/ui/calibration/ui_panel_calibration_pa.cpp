@@ -233,11 +233,6 @@ void PACalibrationPanel::deinit_subjects() {
 void PACalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
-    // A run never survives leaving the screen, so opening it is always a clean
-    // slate, except for the last measured value, which is the most useful
-    // thing on the screen when coming back.
-    attempts_seen_ = 0;
-
     // The chips must show what is actually mounted. A toolchange started from
     // here takes ~20s and is confirmed by the printer, not by the tap, so the
     // selection follows ToolState rather than leading it.
@@ -248,6 +243,24 @@ void PACalibrationPanel::on_activate() {
         tool_state.get_active_tool_subject(), this,
         [](PACalibrationPanel* self, int) { self->refresh_tools(); },
         tool_state.get_subjects_lifetime());
+
+    // A wake from the screensaver resumes what the screen showed: the run, its
+    // result or its error, and the user's selection.
+    if (take_wake()) {
+        refresh_tools();
+        if (state_ == HEATING) {
+            arm_eta_timer();
+            update_progress_display();
+        }
+        spdlog::debug("[{}] on_activate (wake, state={})", get_name(), static_cast<int>(state_));
+        return;
+    }
+
+    // A run never survives leaving the screen, so opening it is always a clean
+    // slate, except for the last measured value, which is the most useful
+    // thing on the screen when coming back.
+    attempts_seen_ = 0;
+
     // Seed from the mounted tool exactly once, as the screen opens.
     refresh_tools(/*adopt_active=*/true);
     refresh_presets();
@@ -258,8 +271,15 @@ void PACalibrationPanel::on_activate() {
     spdlog::debug("[{}] on_activate (tool={}, temp={})", get_name(), selected_tool_, target_temp_);
 }
 
-void PACalibrationPanel::on_deactivating(DeactivateReason) {
+void PACalibrationPanel::on_deactivating(DeactivateReason reason) {
     active_tool_observer_.reset();
+    // An idle screen is not a walk-away: the run keeps its heater and its
+    // result wait, and the nozzle watch that starts the measurement stays on.
+    // Only the remaining-time clock stops; the wake restarts it.
+    if (reason == DeactivateReason::Suspended) {
+        cancel_eta_timer();
+        return;
+    }
     // Leaving mid-run stops it: the machine is extruding, and a run nobody is
     // watching has no way to report anything.
     if (state_ == HEATING || state_ == MEASURING) {
@@ -670,7 +690,7 @@ void PACalibrationPanel::start_heat_tracking() {
         temp_subj, this, [](PACalibrationPanel* self, int value) { self->on_nozzle_temp(value); },
         temp_lifetime_);
 
-    eta_timer_ = lv_timer_create(on_eta_tick, 1000, this);
+    arm_eta_timer();
     update_progress_display();
 }
 
@@ -679,6 +699,11 @@ void PACalibrationPanel::stop_heat_tracking() {
     temp_lifetime_.reset();
     temp_observer_.reset();
     cancel_eta_timer();
+}
+
+void PACalibrationPanel::arm_eta_timer() {
+    cancel_eta_timer();
+    eta_timer_ = lv_timer_create(on_eta_tick, 1000, this);
 }
 
 void PACalibrationPanel::cancel_eta_timer() {

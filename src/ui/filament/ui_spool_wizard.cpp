@@ -346,6 +346,11 @@ void SpoolWizardOverlay::on_activate() {
     OverlayBase::on_activate();
     spdlog::debug("[{}] on_activate()", get_name());
 
+    // A wake resumes the half-filled wizard on the step it showed.
+    if (take_wake()) {
+        return;
+    }
+
     // Reset ALL wizard state for a fresh session
     reset_state();
 
@@ -357,8 +362,14 @@ void SpoolWizardOverlay::on_activate() {
     probe_catalog_search();
 }
 
-void SpoolWizardOverlay::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void SpoolWizardOverlay::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
+
+    // Behind the screensaver the wizard keeps its search and its open create
+    // dialogs: nothing here draws on its own, and the user comes back to them.
+    if (reason == DeactivateReason::Suspended) {
+        return;
+    }
 
     // A search answering after the wizard closed has nothing to show.
     cancel_search_timer();

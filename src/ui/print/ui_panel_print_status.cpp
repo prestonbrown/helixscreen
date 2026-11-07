@@ -1217,7 +1217,7 @@ void PrintStatusPanel::on_activate() {
     crash_handler::breadcrumb::note("pstat_act", "exit");
 }
 
-void PrintStatusPanel::on_deactivating(DeactivateReason) {
+void PrintStatusPanel::on_deactivating(DeactivateReason reason) {
     is_active_ = false;
     exclude_map_requested_ = false;
     spdlog::debug("[{}] on_deactivating()", get_name());
@@ -1255,8 +1255,10 @@ void PrintStatusPanel::on_deactivating(DeactivateReason) {
         }
     }
 
-    // Hide runout guidance modal if panel is deactivated (e.g., navbar navigation)
-    if (runout_handler_) {
+    // Hide runout guidance modal if panel is deactivated (e.g., navbar navigation).
+    // The screensaver keeps it: the pause it guides through is still waiting,
+    // and the handler shows it only once per pause.
+    if (runout_handler_ && reason != DeactivateReason::Suspended) {
         runout_handler_->hide_modal();
     }
 

@@ -225,7 +225,18 @@ void ZOffsetCalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[ZOffsetCal] on_activate()");
-    close_tool_confirm();
+
+    // A wake from the screensaver resumes what the panel showed: a warm-up, a
+    // probe, a save or a result that landed behind it, and the reference-tool
+    // question if it was open.
+    const bool waking = take_wake();
+    if (waking && state_ != State::IDLE) {
+        spdlog::info("[ZOffsetCal] Woke - keeping state {}", static_cast<int>(state_));
+        return;
+    }
+    if (!waking) {
+        close_tool_confirm();
+    }
 
     // If manual probe is already active (e.g., started from Mainsail before HelixScreen
     // launched), skip to ADJUSTING with the current Z position instead of resetting to IDLE
@@ -263,6 +274,12 @@ void ZOffsetCalibrationPanel::on_activate() {
 
 void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[ZOffsetCal] on_deactivating({})", deactivate_reason_name(reason));
+
+    // An idle screen is not a walk-away: the warm-up keeps its heater, the
+    // probe keeps running and an open question stays open for the next touch.
+    if (reason == DeactivateReason::Suspended) {
+        return;
+    }
 
     // Answered after the panel left, the question would start a calibration
     // nobody is watching.

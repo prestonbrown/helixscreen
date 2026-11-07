@@ -245,6 +245,26 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros edit mode toggles a row and Save hid
     CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("PRINT_START")});
 }
 
+TEST_CASE_METHOD(MacrosRowsFixture, "A screensaver wake keeps an unsaved Macros edit",
+                 "[macros][macros_rows][suspend]") {
+    open({"CLEAN_NOZZLE", "LOAD_FILAMENT", "_HOME_Z"});
+    long_press(row_named("CLEAN_NOZZLE"));
+    tap(row_named("LOAD_FILAMENT"));
+    REQUIRE_FALSE(checked(row_named("LOAD_FILAMENT")));
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+    settle();
+    REQUIRE(labels().size() == 3); // still in edit mode, which lists _HOME_Z
+    CHECK_FALSE(checked(row_named("LOAD_FILAMENT")));
+
+    // Leaving the panel discards the edit.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    panel.on_activate();
+    settle();
+    CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("LOAD_FILAMENT")});
+}
+
 namespace {
 
 std::vector<std::string> many_macros(int n) {

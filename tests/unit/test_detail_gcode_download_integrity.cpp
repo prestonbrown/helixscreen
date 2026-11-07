@@ -37,6 +37,7 @@
  */
 
 #include "ui_callback_helpers.h"
+#include "ui_modal.h"
 #include "ui_print_select_detail_view.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -663,6 +664,40 @@ TEST_CASE_METHOD(DetailDownloadFixture,
         CHECK_FALSE(prep->has_printer_stop_answer_for(name));
         CHECK(prep->printer_stop_check_for(name).state == helix::PrinterStopCheck::State::NotRun);
     }
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "A Print tap waiting on the file scan still starts after the screensaver",
+                 "[print_select][detail_view][printer_stop][suspend]") {
+    CacheDirGuard guard;
+    helix::ScopedEnv mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+    StopMacroCache macros;
+    const std::string content = "G28\nG1 X10 Y10 E1\n";
+    PlantedGcode file("suspend_tap_" + std::to_string(::getpid()) + ".gcode", "", content);
+
+    transfers_.hold_partials = true;
+    view_.show(file.name(), "", "PLA", {"#FF0000"}, {}, content.size(), 42);
+    REQUIRE(wait_until([this]() { return view_.is_preflight_ready(); }, 15000));
+    REQUIRE_FALSE(view_.is_print_start_ready());
+
+    int taps = 0;
+    view_.run_when_preflight_ready([&taps]() { ++taps; });
+    drain_queue_chain();
+    REQUIRE(taps == 0);
+    // A question the user was answering stays up too.
+    view_.show_delete_confirmation(file.name());
+    REQUIRE_FALSE(ModalStack::instance().empty());
+
+    view_.on_deactivate(DeactivateReason::Suspended);
+    transfers_.release_held_partials();
+    drain_queue_chain();
+    view_.on_activate();
+    drain_queue_chain();
+
+    CHECK(taps == 1);
+    CHECK_FALSE(ModalStack::instance().empty());
+    view_.hide_delete_confirmation();
+    pop_and_drain();
 }
 
 // ============================================================================
