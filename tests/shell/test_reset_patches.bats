@@ -185,6 +185,7 @@ run_switched_reset() {
     local none="$BATS_TEST_TMPDIR/none"
     run run_mk_fragment "$PATCHES_MK" '^CHECK_PATCH_DRIFT :=' reset-patches \
         CHECK_PATCH_DRIFT="python3 $REPO_ROOT/scripts/check_patch_drift.py --repo-root $FIX" \
+        OWN_GIT_DIR="bash $REPO_ROOT/scripts/own_git_dir.sh" \
         LVGL_DIR="$SUB" LVGL_PATCHED_FILES=two.txt \
         LIBHV_DIR="$none" LIBHV_PATCHED_FILES= LUA_DIR="$none" LUA_PATCHED_FILES=
 }
@@ -217,4 +218,56 @@ run_switched_reset() {
     run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --stamped-files "$SUB"
     [ "$status" -eq 0 ]
     [ "$output" = "one.txt" ]
+}
+
+# The switched fixture as a source tarball inside a git superproject: the
+# submodule is a plain directory, its patches applied, and the nearest
+# repository is the superproject's.
+untarred_fixture() {
+    switched_fixture
+    rm -rf "$SUB/.git"
+    git -C "$FIX" init -q
+}
+
+@test "reset-patches leaves a submodule with no .git alone" {
+    # git would answer from the superproject, where these files are untracked,
+    # and the recipe would delete the upstream file it cannot restore.
+    untarred_fixture
+    run run_mk_fragment "$PATCHES_MK" '^CHECK_PATCH_DRIFT :=' reset-patches \
+        CHECK_PATCH_DRIFT="python3 $REPO_ROOT/scripts/check_patch_drift.py --repo-root $FIX" \
+        OWN_GIT_DIR="bash $REPO_ROOT/scripts/own_git_dir.sh" \
+        LVGL_DIR="$SUB" LVGL_PATCHED_FILES="one.txt two.txt" \
+        LIBHV_DIR="$BATS_TEST_TMPDIR/none" LIBHV_PATCHED_FILES= \
+        LUA_DIR="$BATS_TEST_TMPDIR/none" LUA_PATCHED_FILES=
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    grep -q 'not a git checkout' <<<"$output" || fail "no skip notice: $output"
+    [ -f "$SUB/one.txt" ] || fail "upstream one.txt deleted"
+    [ -f "$SUB/two.txt" ] || fail "upstream two.txt deleted"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+}
+
+@test "the patch stamp is never filed in an enclosing repository's git dir" {
+    untarred_fixture
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX" --write-stamp
+    [ "$status" -eq 0 ] || fail "write-stamp failed: $output"
+    [ ! -e "$FIX/.git/helix-patches-applied.json" ] || fail "stamp filed in the superproject's git dir"
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX"
+    [ "$status" -eq 0 ] || fail "drift check failed: $output"
+    grep -q 'not a git checkout' <<<"$output"
+}
+
+@test "make names no git dir for a submodule that has none" {
+    untarred_fixture
+    run bash "$REPO_ROOT/scripts/own_git_dir.sh" "$SUB"
+    [ "$status" -ne 0 ]
+    [ -z "$output" ]
+    # Every submodule git dir mk/patches.mk derives goes through that answer.
+    [ "$(grep -cE '^(LVGL|LIBHV|LUA)_GIT_DIR := \$\(shell \$\(OWN_GIT_DIR\) ' "$PATCHES_MK")" -eq 3 ]
+}
+
+@test "own_git_dir.sh names a real checkout's git dir" {
+    switched_fixture
+    run bash "$REPO_ROOT/scripts/own_git_dir.sh" "$SUB"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$(git -C "$SUB" rev-parse --absolute-git-dir)" ]
 }

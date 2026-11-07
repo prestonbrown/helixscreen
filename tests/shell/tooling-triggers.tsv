@@ -23,7 +23,7 @@ tests/shell/test_android_feature_gates.bats	Makefile android/app/build.gradle an
 tests/shell/test_android_libhv_isolation.bats	android/app/jni/CMakeLists.txt lib/libhv
 tests/shell/test_android_release_abis.bats	.github/workflows/build.yml .github/workflows/cache-prune.yml .github/workflows/ccache-warm.yml .github/workflows/release.yml android/app/build.gradle
 tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp scripts/changelog-section.sh
-tests/shell/test_apply_submodule_patch.bats	mk/patches.mk scripts/apply_submodule_patch.sh
+tests/shell/test_apply_submodule_patch.bats	mk/patches.mk scripts/apply_submodule_patch.sh scripts/own_git_dir.sh
 tests/shell/test_asan_leak_gate.bats	include/core/observer_factory.h scripts/check_asan_leaks.py src/mock/moonraker_client_mock.cpp src/core/observer_factory.cpp src/ui/components/ui_button.cpp src/ui/controls/ui_panel_controls.cpp src/ui/components/ui_split_button.cpp tests/catch_amalgamated.hpp tests/unit/test_panel_widget_manager.cpp tests/unit/test_temp_graph_controller.cpp
 tests/shell/test_audit_codebase_staged_content.bats	scripts/audit_codebase.sh
 tests/shell/test_bats_inert_assertions_gate.bats	scripts/check_bats_inert_assertions.py scripts/qc/bats_inert.sh scripts/quality-checks.sh scripts/staged_content.py
@@ -125,7 +125,7 @@ tests/shell/test_overlay_boilerplate_gate.bats	scripts/check_overlay_boilerplate
 tests/shell/test_overlay_width_gate.bats	scripts/check_overlay_width.py scripts/staged_content.py
 tests/shell/test_packaging_manifest.bats	assets/ config/ scripts/gen-packaging-manifest.sh ui_xml/
 tests/shell/test_panel_widget_scrollable_gate.bats	scripts/check_panel_widget_scrollable.py scripts/qc/design_pixels.sh scripts/staged_content.py src/ui/components/ui_card.cpp
-tests/shell/test_patch_drift_gate.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push Makefile lib/lvgl mk/patches.mk patches/ scripts/check_clang_diagnostics.py scripts/check_patch_drift.py scripts/compile_command.py scripts/diff_base.py scripts/merge_compile_commands.py scripts/qc/decl_ui.sh scripts/qc/patch_drift.sh scripts/quality-checks.sh
+tests/shell/test_patch_drift_gate.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push Makefile lib/lvgl mk/patches.mk patches/ scripts/check_clang_diagnostics.py scripts/check_patch_drift.py scripts/compile_command.py scripts/diff_base.py scripts/merge_compile_commands.py scripts/qc/decl_ui.sh scripts/qc/patch_drift.sh scripts/quality-checks.sh scripts/own_git_dir.sh
 tests/shell/test_patch_markers.bats	lib/libhv lib/lua lib/lvgl mk/egl-link.mk mk/patch-markers.tsv mk/patches.mk mk/rules.mk scripts/apply_submodule_patch.sh scripts/check_patch_markers.py scripts/gen_patch_markers.py
 tests/shell/test_perf_farm_check.bats	scripts/perf-farm-check.sh config/perf_budgets.json
 tests/shell/test_pi32_static_libstdcxx.bats	Makefile mk/cross.mk mk/rules.mk
@@ -152,7 +152,7 @@ tests/shell/test_release_naming_agreement.bats	scripts/dev-release.sh scripts/ge
 tests/shell/test_release_packaging_artifacts.bats	lv_conf.h mk/cross.mk moonraker-plugin/helix_print.py moonraker-plugin/install.sh scripts/gen_splash_3d.py scripts/lib/lvgl_image_lib.sh
 tests/shell/test_release_packaging_make.bats	Makefile mk/cross.mk
 tests/shell/test_required_names_gate.bats	scripts/check_required_names.py src/layout_manager.cpp
-tests/shell/test_reset_patches.bats	Makefile lib/libhv lib/lua lib/lvgl mk/patches.mk scripts/check_patch_drift.py
+tests/shell/test_reset_patches.bats	Makefile lib/libhv lib/lua lib/lvgl mk/patches.mk scripts/check_patch_drift.py scripts/own_git_dir.sh
 tests/shell/test_resolve_backtrace.bats	scripts/resolve-backtrace.sh
 tests/shell/test_resource_advisor.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/pool-docker.sh scripts/resource-advisor.sh scripts/test-host-run.sh
 tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py src/ui/theme/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml

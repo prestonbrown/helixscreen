@@ -1112,6 +1112,16 @@ The build system automatically applies patches to git submodules before compilat
 verdict for every patch: apply it, recognize it as already applied (reverse
 check), or report that it matches no reachable state of the submodule.
 
+**Building from a source tarball.** A submodule that is not its own git checkout
+(no `.git`, as a distribution package unpacks it) is patched too, with the same
+verdict. `scripts/own_git_dir.sh` decides whether a directory is its own checkout;
+when it is not, the helper runs `git apply` inside the directory with repository
+discovery stopped there, so an enclosing repository cannot claim the paths and
+skip them, and falls back to GNU `patch -p1 --fuzz=0` when git is not installed.
+Such a tree has no drift stamp (there is no git dir to keep it in), never takes the
+from-clean fatal, and `make reset-patches` leaves it alone with a warning:
+re-extract the source to reset it.
+
 **Status Messages**:
 - `✓ <label> applied` - Patch was applied during this build
 - `✓ <label> already applied` - Reverse check recognized it; the tree keeps it
