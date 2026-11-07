@@ -64,10 +64,10 @@ class EmptyFilamentColumnMenu : public BareContextMenu {
 
   protected:
     void on_created(lv_obj_t* menu) override {
-        // btn_preload is bound to ams_slot_preload, which AmsState keeps across tests, so it
-        // is hidden here rather than left to that subject's current value.
+        // btn_preload and btn_clear_error are bound to subjects that outlive a test, so
+        // they are hidden here rather than left to those subjects' current values.
         for (const char* name : {"btn_load", "btn_unload", "btn_purge", "btn_gate_check",
-                                 "btn_preload", "btn_mount", "btn_park"}) {
+                                 "btn_preload", "btn_clear_error", "btn_mount", "btn_park"}) {
             if (lv_obj_t* btn = lv_obj_find_by_name(menu, name))
                 lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
         }
@@ -176,6 +176,11 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the wh
 
     ScopedResolution tall(lv_display_get_default(), 800, 1280);
 
+    // Show Preload and Clear Error as well, so the narrower group holds four rows
+    // whatever the other lane rows' defaults are.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 2);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 2);
+
     BareContextMenu menu;
     lv_obj_t* card = show_and_get_card(menu, test_screen());
 
@@ -208,6 +213,8 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the wh
 
     menu.hide();
     process_lvgl(50);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 0);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 0);
 }
 
 // The whole point of the reflow: whatever the layout ends up being, the card has to
