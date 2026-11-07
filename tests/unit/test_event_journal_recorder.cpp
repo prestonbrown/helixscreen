@@ -208,6 +208,18 @@ TEST_CASE_METHOD(RecorderFixture, "recorder backfills the reconnect gap from his
     CHECK(held[1].filename == "gap.gcode");
 }
 
+TEST_CASE_METHOD(RecorderFixture, "recorder backfills from a bounded slice of the console history",
+                 "[plugin_event_journal][event_journal_recorder][2053]") {
+    client_.fire_notification("notify_klippy_ready", json::object());
+    settle();
+    EventJournalRecorderTestAccess::connected(*recorder_);
+
+    // Moonraker returns only the latest N entries, so N bounds the reply size: a whole
+    // 1000-entry store of verbose macro output can outgrow the client's frame cap.
+    REQUIRE(client_.last_gcode_store_count > 0);
+    CHECK(client_.last_gcode_store_count <= 200);
+}
+
 TEST_CASE_METHOD(RecorderFixture, "recorder leaves no handler behind",
                  "[plugin_event_journal][event_journal_recorder]") {
     CHECK(client_.handler_count("notify_gcode_response", "event_journal") == 1);
