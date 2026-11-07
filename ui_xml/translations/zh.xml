@@ -652,6 +652,7 @@
   <translation tag="Change Tool While Paused" zh="暂停时切换工具"/>
   <translation tag="Change heater control?" zh="更改加热器控制？"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." zh="通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。"/>
+  <translation tag="Change the name or the linked spool in Spoolman." zh="请在 Spoolman 中更改名称或关联的料盘。"/>
   <translation tag="Change tool" zh="切换工具"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
@@ -2038,6 +2039,8 @@
   <translation tag="Loading filament..." zh="正在加载耗材..."/>
   <translation tag="Loading filaments..." zh="正在加载耗材..."/>
   <translation tag="Loading history..." zh="正在加载历史..."/>
+  <translation tag="Loading lane details. Try again in a moment." zh="正在加载耗材通道详情，请稍后重试。"/>
+  <translation tag="Loading lane details…" zh="正在加载耗材通道详情…"/>
   <translation tag="Loading photo" zh="正在加载照片"/>
   <translation tag="Loading spools..." zh="正在加载料盘..."/>
   <translation tag="Loading vendors..." zh="正在加载供应商…"/>
@@ -2121,6 +2124,7 @@
   <translation tag="Main LED Strip" zh="主 LED 灯带"/>
   <translation tag="Maintaining" zh="保持中"/>
   <translation tag="Maintenance" zh="维护"/>
+  <translation tag="Make color, material and spool changes in Spoolman." zh="请在 Spoolman 中更改颜色、材料和料盘。"/>
   <translation tag="Make sure every nozzle is clean." zh="请确保所有喷嘴都干净。"/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." zh="请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。"/>
   <translation tag="MakeID (Bluetooth)" zh="MakeID（蓝牙）"/>
@@ -2447,6 +2451,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." zh="没有足够的空间恢复此小组件。它仍处于移除状态。"/>
   <translation tag="Not in your spools? Set it up" zh="不在您的料盘中？立即设置"/>
   <translation tag="Not now" zh="暂不"/>
+  <translation tag="Not saved: {}. Try again." zh="未保存：{}。请重试。"/>
   <translation tag="Not set" zh="未设置"/>
   <translation tag="Not turned" zh="未转动"/>
   <translation tag="Not yet available on this display" zh="此屏幕暂不支持"/>
@@ -2543,6 +2548,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." zh="请在打印文件中打开该 .3mf 以再次打印此板。"/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" zh="请打开 CFS 单元并从槽位中取出断裂的耗材"/>
   <translation tag="Open the slot editor when you load a new spool" zh="装入新料盘时打开槽位编辑器"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" zh="OpenAMS 在 Spoolman 中管理此料盘，此处只能更改材料、颜色、品牌和重量"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" zh="此料盘的关联由 OpenAMS 管理"/>
   <translation tag="Opened" zh="已打开"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operation timed out" zh="操作超时"/>
@@ -4484,8 +4491,11 @@
   <translation tag="the extruder" zh="挤出机"/>
   <translation tag="the left belt" zh="左皮带"/>
   <translation tag="the lower belt" zh="下皮带"/>
+  <translation tag="the printer did not confirm it" zh="打印机未确认"/>
+  <translation tag="the printer refused it" zh="打印机拒绝了"/>
   <translation tag="the right belt" zh="右皮带"/>
   <translation tag="the upper belt" zh="上皮带"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" zh="此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"/>
   <translation tag="this week" zh="本周"/>
   <translation tag="too slow" zh="太慢"/>
   <translation tag="tool(s)" zh="工具"/>

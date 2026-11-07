@@ -691,6 +691,7 @@
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
   <translation tag="Change heater control?" ru="Изменить управление нагревателем?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ru="Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера."/>
+  <translation tag="Change the name or the linked spool in Spoolman." ru="Меняйте название или привязанную катушку в Spoolman."/>
   <translation tag="Change tool" ru="Сменить инструмент"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
@@ -2083,6 +2084,8 @@
   <translation tag="Loading filament..." ru="Загрузка филамента..."/>
   <translation tag="Loading filaments..." ru="Загрузка филаментов..."/>
   <translation tag="Loading history..." ru="Загрузка истории..."/>
+  <translation tag="Loading lane details. Try again in a moment." ru="Загрузка сведений о канале. Повторите попытку через минуту."/>
+  <translation tag="Loading lane details…" ru="Загрузка сведений о канале…"/>
   <translation tag="Loading photo" ru="Загрузка фото"/>
   <translation tag="Loading spools..." ru="Загрузка катушек..."/>
   <translation tag="Loading vendors..." ru="Загрузка производителей..."/>
@@ -2166,6 +2169,7 @@
   <translation tag="Main LED Strip" ru="Основная LED-лента"/>
   <translation tag="Maintaining" ru="Поддержание"/>
   <translation tag="Maintenance" ru="Обслуживание"/>
+  <translation tag="Make color, material and spool changes in Spoolman." ru="Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="Make sure every nozzle is clean." ru="Убедитесь, что все сопла чистые."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ru="Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол."/>
   <translation tag="MakeID (Bluetooth)" ru="MakeID (Bluetooth)"/>
@@ -2492,6 +2496,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
+  <translation tag="Not saved: {}. Try again." ru="Не сохранено: {}. Попробуйте ещё раз."/>
   <translation tag="Not set" ru="Не задана"/>
   <translation tag="Not turned" ru="Не повёрнут"/>
   <translation tag="Not yet available on this display" ru="Пока недоступно на этом дисплее"/>
@@ -2588,6 +2593,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." ru="Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" ru="Откройте блок CFS и извлеките сломанный филамент из слота"/>
   <translation tag="Open the slot editor when you load a new spool" ru="Открывать редактор слота при установке новой катушки"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" ru="OpenAMS хранит эту катушку в Spoolman, который здесь принимает только материал, цвет, бренд и вес"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" ru="Привязкой этой катушки управляет OpenAMS"/>
   <translation tag="Opened" ru="Открыта"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operation timed out" ru="Время ожидания операции истекло"/>
@@ -4547,8 +4554,11 @@
   <translation tag="the extruder" ru="экструдер"/>
   <translation tag="the left belt" ru="левый ремень"/>
   <translation tag="the lower belt" ru="нижний ремень"/>
+  <translation tag="the printer did not confirm it" ru="принтер не подтвердил"/>
+  <translation tag="the printer refused it" ru="принтер отклонил"/>
   <translation tag="the right belt" ru="правый ремень"/>
   <translation tag="the upper belt" ru="верхний ремень"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" ru="этот принтер берёт гейты из Spoolman, меняйте катушку там"/>
   <translation tag="this week" ru="за неделю"/>
   <translation tag="too slow" ru="слишком медленно"/>
   <translation tag="tool(s)" ru="инструмент(ы)"/>
