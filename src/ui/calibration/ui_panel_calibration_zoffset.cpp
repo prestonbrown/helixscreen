@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "display_numbering.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
 #include "motion_presets.h"
@@ -499,12 +500,12 @@ void ZOffsetCalibrationPanel::start_calibration() {
 }
 
 void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int active_tool) {
-    const std::string reference = "T" + std::to_string(reference_tool);
+    const std::string reference = helix::ui::tool_label(reference_tool);
     const std::string message =
         active_tool >= 0
             ? fmt::format(fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
                                              "with {1}. Continue with {0}?")),
-                          "T" + std::to_string(active_tool), reference)
+                          helix::ui::tool_label(active_tool), reference)
             : fmt::format(fmt::runtime(lv_tr("No tool is known to be mounted. With one shared "
                                              "probe, calibrate with {}. Continue anyway?")),
                           reference);
