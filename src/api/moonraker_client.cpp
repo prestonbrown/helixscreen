@@ -189,7 +189,7 @@ void MoonrakerClient::poll_klippy_state() {
         return;
     }
     if (const long long elapsed = steady_ms_since(started); elapsed > kKlippyStatePollMaxMs) {
-        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after disconnect — "
+        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after polling began — "
                      "no longer polling printer.info",
                      elapsed);
         stop_klippy_state_poll("unsettled");
