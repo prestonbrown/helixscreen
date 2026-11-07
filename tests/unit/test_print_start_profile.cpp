@@ -259,7 +259,6 @@ TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile][print][mesh]") {
-    // Snapmaker U1 declares it; the default and Forge-X profiles do not.
     for (const auto& [name, adaptive] :
          {std::pair{"snapmaker_u1", true}, std::pair{"default", false},
           std::pair{"forge_x", false}}) {

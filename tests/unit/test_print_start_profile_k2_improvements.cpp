@@ -36,8 +36,7 @@ TEST_CASE("PrintStartProfile: k2_improvements maps the mod's narration",
     }
 
     SECTION("M191 chamber wait, bed assist included, is chamber heating, not a soak") {
-        // M191 drives the bed to 105C to help the chamber. Matching that on
-        // the bed heater would walk the phase backwards mid-wait.
+        // M191 drives the bed to help the chamber; that is still the chamber's wait.
         for (const char* line :
              {"// [START_PRINT]: Waiting for chamber to reach 45C...",
               "// The chamber heater alone can not reach 45.0c, using bed assist ..."}) {
