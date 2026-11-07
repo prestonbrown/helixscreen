@@ -58,6 +58,8 @@ class TimelapseInstallOverlay : public OverlayBase {
     static bool has_timelapse_section(const std::string& content);
 
   private:
+    friend struct TimelapseInstallOverlayTestAccess;
+
     enum class Step {
         CHECKING_WEBCAM = 0,
         CHECKING_PLUGIN = 1,
