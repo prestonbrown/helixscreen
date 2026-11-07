@@ -17,6 +17,7 @@
 #include "filament_op_dispatch.h" // kExternalSpoolSlot — the shared bypass sentinel
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "gcode_response_lines.h"
 #include "json_utils.h"
 #include "klipper_error_table.h"
 #include "lane_apply.h"
@@ -4058,12 +4059,7 @@ AmsBackendCfs::classify_error(const std::string& raw_line,
 
     // Klipper's respond_info() emits "// <text>". Strip it for display; match on
     // the remainder so a firmware that drops the prefix still hits.
-    std::string detail = raw_line;
-    if (detail.rfind("// ", 0) == 0) {
-        detail = detail.substr(3);
-    } else if (detail.rfind("//", 0) == 0) {
-        detail = detail.substr(2);
-    }
+    std::string detail(helix::strip_respond_info_prefix(raw_line));
 
     // The two give-up paths, matched on the distinctive fragment rather than the
     // whole sentence. These are untranslated English literals emitted by one

@@ -181,6 +181,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     AmsBackendAfc(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAfc() override;
 
+  protected:
+    /// Drops an in-flight lane reset's console watch while the client is still
+    /// alive; the destructor cannot, since the client may already be gone.
+    void on_stopping() override;
+
+  public:
     /**
      * @brief Bare filament-sensor names AFC owns (no AMS keyword).
      *
@@ -407,8 +413,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// clear_fault() (prestonbrown/helixscreen#2049). The verdict is read off the
     /// console: AFC reports success and failure alike as a normal script return.
     AmsError recover_lane_position(int slot_index) override;
-    /// AFC's error_state is set and this lane is the one AFC names, or carries
-    /// its own Error status. False while a lane reset is in flight.
+    /// The lane shows an error (its own `status: Error`), or AFC's error_state
+    /// is set and this is the lane AFC names. False while a lane reset is in
+    /// flight. The clear is system-wide: AFC has no per-lane fault clear.
     [[nodiscard]] bool has_clearable_fault(int slot_index) const override;
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
@@ -1399,16 +1406,29 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// still present. Must be called WITHOUT mutex_ held.
     void maybe_drain_message_queue();
 
-    /// Lane whose AFC_LANE_RESET is in flight; empty when none. Guarded by mutex_.
+    /// Lane whose AFC_LANE_RESET is in flight, and the notify_gcode_response
+    /// handler watching its console; both empty when none. Guarded by mutex_.
     std::string lane_reset_in_flight_;
+    std::string lane_reset_handler_;
+
+    /// Lanes AFC still reports as `status: Error` whose error clear_fault()
+    /// acknowledged. RESET_FAILURE never touches a lane's status, so without
+    /// this the lane keeps its error marking after the clear. A lane leaves the
+    /// set when AFC publishes another status for it or raises a new error.
+    /// Guarded by mutex_.
+    std::set<std::string> acknowledged_lane_errors_;
+
+    /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
+    [[nodiscard]] SlotError lane_error_locked() const;
 
     /// Settles an AFC_LANE_RESET of @p lane: clears the fault when the console
     /// reported success and AFC still names @p lane in its error state. Main
     /// thread, mutex_ not held.
     void finish_lane_reset(const std::string& lane, bool reported_success);
 
-    /// AFC's success line for AFC_LANE_RESET: "<lane> reset to hub, ...". The
-    /// failure lines quote the lane ("'<lane>' failed to reset to hub").
+    /// AFC's success line for AFC_LANE_RESET, as notify_gcode_response carries
+    /// it: "// <lane> reset to hub, ...". The failure lines quote the lane
+    /// ("!! '<lane>' failed to reset to hub").
     [[nodiscard]] static bool is_lane_reset_success_line(const std::string& line,
                                                          const std::string& lane);
 

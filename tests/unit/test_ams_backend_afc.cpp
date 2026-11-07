@@ -3012,6 +3012,8 @@ struct StaleFaultRig {
         helper.clear_captured_gcodes();
     }
 
+    // Exactly what notify_gcode_response carries: respond_info lines arrive as
+    // "// <text>", AFC errors as "!! <text>".
     void console(const std::string& line) {
         client.fire_notification(
             "notify_gcode_response",
@@ -3034,7 +3036,7 @@ TEST_CASE("AFC clears the fault after a successful reset of the faulted lane",
     REQUIRE(rig.helper.has_gcode("AFC_LANE_RESET LANE=lane3"));
     REQUIRE(rig.console_watched());
 
-    rig.console("lane3 reset to hub, take necessary action");
+    rig.console("// lane3 reset to hub, take necessary action");
     REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
     REQUIRE(rig.helper.pending_gcode_complete);
     rig.helper.pending_gcode_complete();
@@ -3049,14 +3051,14 @@ TEST_CASE("AFC keeps the fault after a failed lane reset", "[ams][afc][recovery]
     REQUIRE(rig.helper.recover_lane_position(2).success());
 
     SECTION("failure line") {
-        rig.console("'lane3' failed to reset to hub");
+        rig.console("!! 'lane3' failed to reset to hub");
     }
     SECTION("wrong-lane failure line") {
-        rig.console("'lane3' failed to reset to hub, load switch became false during reset");
+        rig.console("!! 'lane3' failed to reset to hub, load switch became false during reset");
     }
     SECTION("no verdict at all") {}
     SECTION("another lane's success") {
-        rig.console("lane1 reset to hub, take necessary action");
+        rig.console("// lane1 reset to hub, take necessary action");
     }
 
     rig.helper.pending_gcode_complete();
@@ -3070,7 +3072,7 @@ TEST_CASE("AFC leaves a fault on another lane after a lane reset succeeds",
     rig.helper.feed_afc_state({{"current_lane", "lane1"}});
 
     REQUIRE(rig.helper.recover_lane_position(2).success());
-    rig.console("lane3 reset to hub, take necessary action");
+    rig.console("// lane3 reset to hub, take necessary action");
     rig.helper.pending_gcode_complete();
 
     REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
@@ -3080,7 +3082,7 @@ TEST_CASE("AFC sends no clear when the fault cleared during the reset",
           "[ams][afc][recovery][stale_fault]") {
     StaleFaultRig rig;
     REQUIRE(rig.helper.recover_lane_position(2).success());
-    rig.console("lane3 reset to hub, take necessary action");
+    rig.console("// lane3 reset to hub, take necessary action");
     rig.helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
     rig.helper.pending_gcode_complete();
 
@@ -3121,6 +3123,68 @@ TEST_CASE("AFC offers a fault clear on the faulted lane only while nothing is in
         h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
         REQUIRE_FALSE(h.has_clearable_fault(2));
     }
+}
+
+TEST_CASE("AFC keeps Clear Error on a lane still marked Error after error_state clears",
+          "[ams][afc][recovery][stale_fault]") {
+    // RESET_FAILURE clears error_state but never the lane's own status, so the
+    // lane keeps its dot. The action has to stay with it.
+    StaleFaultRig rig;
+    rig.helper.feed_afc_stepper("lane3", {{"status", "Error"}});
+    rig.helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+
+    REQUIRE(rig.helper.get_slot_info(2).error.has_value());
+    REQUIRE(rig.helper.has_clearable_fault(2));
+}
+
+TEST_CASE("AFC still marks a lane that failed outside an error state",
+          "[ams][afc][recovery][stale_fault]") {
+    // A load failure outside a print calls handle_lane_failure(pause=False):
+    // the lane goes to Error and error_state never rises. That is a live fault,
+    // which is why error_state alone cannot retire a lane's Error status.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    REQUIRE(helper.has_clearable_fault(1));
+}
+
+TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    auto& h = rig.helper;
+    h.feed_afc_stepper("lane3", {{"status", "Error"}});
+    REQUIRE(h.get_slot_info(2).error.has_value());
+
+    REQUIRE(h.clear_fault(2).success());
+    // AFC answers RESET_FAILURE with error_state false and no lane status delta.
+    h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    h.feed_afc_stepper("lane3", {{"prep", true}});
+
+    REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+    REQUIRE_FALSE(h.has_clearable_fault(2));
+
+    SECTION("a new AFC error brings the marking back") {
+        h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+    SECTION("the lane failing again after moving on brings it back") {
+        h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
+        h.feed_afc_stepper("lane3", {{"status", "Error"}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+}
+
+TEST_CASE("AFC drops the console watch when the backend stops mid-reset",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    REQUIRE(rig.console_watched());
+
+    rig.helper.stop();
+    REQUIRE_FALSE(rig.console_watched());
 }
 
 TEST_CASE("AFC drains the message queue until it empties", "[ams][afc][recovery]") {
