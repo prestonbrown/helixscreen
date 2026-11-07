@@ -4212,6 +4212,7 @@ translations:
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   "This printer's INDX macros are missing: {}": "This printer's INDX macros are missing: {}"

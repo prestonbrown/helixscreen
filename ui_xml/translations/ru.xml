@@ -3979,6 +3979,7 @@
   <translation tag="This printer has no IFS." ru="У этого принтера нет IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
+  <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ru="Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки &gt; Соединение."/>

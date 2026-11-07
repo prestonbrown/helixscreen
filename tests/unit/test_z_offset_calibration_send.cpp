@@ -142,12 +142,13 @@ namespace {
 
 /// Accept a probe calibration with saving set to @p mode and return every
 /// script that went on the wire.
-std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
+std::vector<std::string> probe_accept_scripts(
+    helix::zoffset::SaveMode mode,
+    ZOffsetCalibrationStrategy strategy = ZOffsetCalibrationStrategy::PROBE_CALIBRATE) {
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
     settings.set_z_offset_save_mode(static_cast<int>(mode));
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(
-        get_printer_state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(get_printer_state(), strategy);
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
@@ -200,8 +201,15 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     REQUIRE(lv_subject_get_int(state().motion_state().get_gcode_z_offset_subject()) == -200);
 
-    const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
-    CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+    SECTION("probe") {
+        const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
+        CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+    }
+    SECTION("endstop") {
+        const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show,
+                                               ZOffsetCalibrationStrategy::ENDSTOP);
+        CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+    }
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture, "Calibration accept: an eddy probe saves its sweep",

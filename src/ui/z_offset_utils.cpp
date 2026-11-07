@@ -163,6 +163,16 @@ void begin_save_config(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watc
         });
 }
 
+/// Whether a printer.gcode.help reply (the full JSON-RPC envelope) lists
+/// @p command; nullopt when the reply carries no command list.
+std::optional<bool> gcode_help_lists(const nlohmann::json& response, const char* command) {
+    const auto result = response.find("result");
+    if (result == response.end() || !result->is_object()) {
+        return std::nullopt;
+    }
+    return result->contains(command);
+}
+
 } // namespace
 
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
@@ -194,26 +204,59 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
     spdlog::info("[ZOffsetUtils] Applying Z-offset with {} strategy (cmd: {})", strategy_name,
                  apply_cmd);
 
-    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
-    // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
-    // calibration result in ZOffsetCalibrationPanel). The gate reads only the
-    // callback body, where that hand-off looks like logging and nothing else.
-    api->execute_gcode(
-        apply_cmd,
-        [api, apply_cmd, &save_watch, on_saved, on_error]() {
-            spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
-            begin_save_config(api, save_watch, on_saved, on_error);
-        },
-        [apply_cmd, on_error](const MoonrakerError& err) {
-            spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
+    auto send_apply = [api, apply_cmd, &save_watch, on_saved, on_error]() {
+        // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
+        // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
+        // calibration result in ZOffsetCalibrationPanel). The gate reads only the
+        // callback body, where that hand-off looks like logging and nothing else.
+        api->execute_gcode(
+            apply_cmd,
+            [api, apply_cmd, &save_watch, on_saved, on_error]() {
+                spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
+                begin_save_config(api, save_watch, on_saved, on_error);
+            },
+            [apply_cmd, on_error](const MoonrakerError& err) {
+                spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
+                if (!on_error)
+                    return;
+                // Klipper's reply arrives on the WebSocket thread; on_error is UI-facing.
+                helix::ui::run_on_main("ZOffsetUtils::apply_error", [on_error, apply_cmd, err]() {
+                    on_error(fmt::format(fmt::runtime(lv_tr("{} failed: {}")), apply_cmd,
+                                         err.localized_message()));
+                });
+            });
+    };
+
+    // A firmware that never registered the apply command (Creality's Klipper
+    // with BTT's Eddy module) cannot fold the offset into its config, and a bare
+    // SAVE_CONFIG would report a save that kept nothing. An unreadable command
+    // list sends the apply as usual.
+    api->get_client().send_jsonrpc(
+        "printer.gcode.help", nlohmann::json::object(),
+        [apply_cmd, on_error, send_apply](const nlohmann::json& response) {
+            if (gcode_help_lists(response, apply_cmd) != false) {
+                send_apply();
+                return;
+            }
+            spdlog::warn("[ZOffsetUtils] {} is not registered; the offset cannot be saved",
+                         apply_cmd);
             if (!on_error)
                 return;
-            // Klipper's reply arrives on the WebSocket thread; on_error is UI-facing.
-            helix::ui::run_on_main("ZOffsetUtils::apply_error", [on_error, apply_cmd, err]() {
-                on_error(fmt::format(fmt::runtime(lv_tr("{} failed: {}")), apply_cmd,
-                                     err.localized_message()));
+            helix::ui::run_on_main("ZOffsetUtils::apply_missing", [on_error, apply_cmd]() {
+                on_error(fmt::format(
+                    fmt::runtime(
+                        lv_tr("This printer has no {} command, so the Z-offset cannot be saved.")),
+                    apply_cmd));
             });
-        });
+        },
+        [send_apply](const MoonrakerError& err) {
+            spdlog::debug("[ZOffsetUtils] Could not list gcode commands ({}); applying as usual",
+                          err.message);
+            send_apply();
+        },
+        0,   // default timeout
+        true // silent: a probe; the apply goes ahead without it
+    );
 }
 
 void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
