@@ -65,8 +65,9 @@ class PrinterSwitchFlow {
 
     /// Adds the printer at `host`:`port` and switches to it the way request_switch() does. An
     /// address already in the list switches to that printer instead of adding a duplicate.
-    /// Returns whether it switched before returning.
-    bool add_printer(const std::string& host, int port);
+    /// A non-blank `api_key` becomes the added or found printer's key. Returns whether it
+    /// switched before returning.
+    bool add_printer(const std::string& host, int port, const std::string& api_key = {});
 
     /// The printer the app is connected to. Compared against instead of the config's active
     /// id, which a removal moves to another printer before the switch is requested.

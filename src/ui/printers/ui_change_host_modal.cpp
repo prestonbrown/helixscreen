@@ -96,7 +96,7 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
 
     lv_subject_copy_string(&host_ip_subject_, host.c_str());
     lv_subject_copy_string(&host_port_subject_, std::to_string(port).c_str());
-    // The key belongs to the active printer's entry; a printer being added has none yet.
+    // The key belongs to the active printer's entry; a printer being added starts without one.
     const std::string api_key = adding ? std::string{} : active_printer_credential().api_key;
     lv_subject_copy_string(&api_key_subject_, api_key.c_str());
 
@@ -332,7 +332,7 @@ void ChangeHostModal::handle_save() {
     const std::string host(helix::text_io::trim(ip));
     if (add_callback_) {
         if (lv_subject_get_int(&validated_subject_) != 0) {
-            commit_add(host, port);
+            commit_add(host, port, entered_api_key());
             return;
         }
         // Untested, failed or still testing: the printer may be off right now, so adding it
@@ -341,7 +341,8 @@ void ChangeHostModal::handle_save() {
         options.owner_token = lifetime_.token();
         helix::ui::modal_confirm(
             lv_tr("Add Printer"), lv_tr("Can't reach this printer. Save anyway?"),
-            ModalSeverity::Warning, lv_tr("Save"), [this, host, port] { commit_add(host, port); },
+            ModalSeverity::Warning, lv_tr("Save"),
+            [this, host, port, api_key = entered_api_key()] { commit_add(host, port, api_key); },
             options);
         return;
     }
@@ -364,12 +365,12 @@ void ChangeHostModal::handle_save() {
     }
 }
 
-void ChangeHostModal::commit_add(const std::string& host, int port) {
+void ChangeHostModal::commit_add(const std::string& host, int port, const std::string& api_key) {
     // The caller runs on the next tick, outside any UpdateQueue drain, where a switch runs
     // in place and its answer is final.
     hide();
     auto on_add = add_callback_;
-    helix::ui::run_next_tick([on_add, host, port]() { on_add(host, port); });
+    helix::ui::run_next_tick([on_add, host, port, api_key]() { on_add(host, port, api_key); });
 }
 
 void ChangeHostModal::update_save_lock() {
@@ -562,7 +563,8 @@ ChangeHostModal& shared_change_host_modal() {
 
 } // namespace
 
-void show_add_printer_modal(std::function<bool(const std::string& host, int port)> on_add) {
+void show_add_printer_modal(
+    std::function<bool(const std::string& host, int port, const std::string& api_key)> on_add) {
     ChangeHostModal& modal = shared_change_host_modal();
     modal.set_completion_callback(nullptr);
     modal.show_modal(lv_screen_active(), std::move(on_add));

@@ -51,10 +51,8 @@
                       width="100%" bind_text="change_host_port" placeholder_text="7125" keyboard_hint="numeric"/>
         </lv_obj>
       </lv_obj>
-      <!-- API key for a Moonraker that requires a login: the active printer's only, so not when adding -->
-      <api_key_field name="api_key_section" subject="change_host_api_key">
-        <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="1"/>
-      </api_key_field>
+      <!-- API key for a Moonraker that requires a login: the active printer's, or the one being added -->
+      <api_key_field name="api_key_section" subject="change_host_api_key"/>
       <!-- Test Connection button + Status row -->
       <lv_obj width="100%"
               height="content" style_pad_all="0" style_pad_gap="#space_md" flex_flow="row" style_flex_main_place="start"
