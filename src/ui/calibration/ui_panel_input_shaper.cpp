@@ -417,6 +417,9 @@ void InputShaperPanel::on_activate() {
     if (take_wake()) {
         spdlog::debug("[InputShaper] Woke into state {}", static_cast<int>(state_));
         analysis_elapsed_.resume();
+        if (state_ == State::MEASURING && sweeping_) {
+            begin_axis_preview(current_axis_);
+        }
         return;
     }
 
@@ -465,6 +468,7 @@ void InputShaperPanel::on_deactivating(DeactivateReason reason) {
     // but keeps its start, so the wake shows the run's true analysis time.
     if (reason == DeactivateReason::Suspended) {
         analysis_elapsed_.pause();
+        stop_preview(); // the wake streams again if the sweep is still running
         return;
     }
 
@@ -562,6 +566,7 @@ void InputShaperPanel::set_state(State new_state) {
         // The analysis elapsed timer only makes sense while its spinner is on
         // screen; every exit from MEASURING stops it.
         cancel_analysis_display();
+        sweeping_ = false;
     }
     state_ = new_state;
 
@@ -782,6 +787,7 @@ void InputShaperPanel::start_calibration(char axis) {
     cancel_analysis_display(); // no elapsed label from a previous run
     set_state(State::MEASURING);
     spdlog::info("[InputShaper] Starting calibration for axis {}", axis);
+    sweeping_ = true;
     begin_axis_preview(axis);
 
     // Delegate to calibrator. lifetime_.bg_cb marshals each callback to the main
@@ -796,6 +802,7 @@ void InputShaperPanel::start_calibration(char axis) {
                     spdlog::debug("[InputShaper] Discarding stale progress callback");
                     return;
                 }
+                sweeping_ = phase == ShaperCalibrationPhase::Sweeping;
                 sweep_chart_.on_progress(phase, freq_hz);
                 lv_subject_set_int(&is_measuring_progress_, percent);
                 // The phase comes from the collector — the percentage cannot be
@@ -867,6 +874,10 @@ void InputShaperPanel::query_preview_facts() {
 }
 
 void InputShaperPanel::begin_axis_preview(char axis) {
+    // Behind the screensaver nothing streams; the wake begins the preview.
+    if (suspended()) {
+        return;
+    }
     lv_obj_t* host =
         overlay_root_
             ? helix::ui::find_required(overlay_root_, "chart_container_measuring", get_name())
