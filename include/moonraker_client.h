@@ -670,6 +670,17 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     void emit_event(const MoonrakerEvent& evt);
 
     /**
+     * @brief Poll printer.info until Klippy's state settles, starting now
+     *
+     * For discovery finding Klippy in startup or error: with the gate closed no
+     * subscription carries webhooks.state, and Moonraker never announces a failed
+     * start, so without this a printer faulted at connect reads as the SHUTDOWN
+     * placeholder with no reason. The first request goes out immediately rather
+     * than on the next health tick. Any thread.
+     */
+    void poll_klippy_state_until_settled();
+
+    /**
      * @brief Dispatch printer status to all registered notify callbacks
      *
      * Wraps raw status data (e.g., from subscription response) into a
@@ -883,7 +894,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     std::atomic<ConnectFailureKind> last_connect_failure_{ConnectFailureKind::Unknown};
     uint32_t initial_connect_failure_ms_{60000};
 
-    /// Klippy's state is polled from printer.info after notify_klippy_disconnected,
+    /// Klippy's state is polled from printer.info after notify_klippy_disconnected
+    /// (and from poll_klippy_state_until_settled() when discovery finds it down),
     /// because Moonraker announces a successful start (notify_klippy_ready) but never
     /// a failed one: without the poll a startup error reads as SHUTDOWN forever. The
     /// health timer drives it; it ends on a ready/shutdown/error answer, on

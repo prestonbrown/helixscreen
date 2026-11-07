@@ -867,6 +867,7 @@
   <translation tag="Connected to" ru="Подключен к"/>
   <translation tag="Connected to " ru="Подключен к "/>
   <translation tag="Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts." ru="Подключено к Moonraker, но Klipper не запущен. Можно продолжить — HelixScreen покажет ошибку Klipper, а определение оборудования будет ограничено до запуска Klipper."/>
+  <translation tag="Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts." ru="Подключено к Moonraker, но Klipper сообщил об ошибке. Можно продолжить, HelixScreen покажет её снова после настройки. Обнаружение оборудования ограничено, пока Klipper не запустится."/>
   <translation tag="Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds." ru="Подключено к Moonraker, но поиск принтера не завершён. Можно продолжить — определение оборудования будет ограничено, пока принтер не ответит."/>
   <translation tag="Connected to {}" ru="Подключен к {}"/>
   <translation tag="Connected! Discovering printer..." ru="Подключен! Обнаружение принтера..."/>
@@ -1948,8 +1949,10 @@
   <translation tag="Kinematics" ru="Кинематика"/>
   <translation tag="Klippain Shake&amp;Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd." ru="На принтере установлены макросы Klippain Shake&amp;Tune. HelixScreen обнаруживает их, но не использует; запускайте их из Mainsail или Fluidd."/>
   <translation tag="Klipper" ru="Klipper"/>
+  <translation tag="Klipper Config Error" ru="Ошибка конфигурации Klipper"/>
   <translation tag="Klipper Error" ru="Ошибка Klipper"/>
   <translation tag="Klipper already reports the ACE slots." ru="Klipper уже сообщает слоты ACE."/>
+  <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." ru="Klipper не смог загрузить конфигурацию. Исправьте указанный ниже параметр в файлах конфигурации принтера, затем перезапустите Klipper."/>
   <translation tag="Klipper disconnected" ru="Klipper отключён"/>
   <translation tag="Klipper failed to start with the skip macros, so they were removed" ru="Klipper не запустился с макросами пропуска, поэтому они удалены"/>
   <translation tag="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg." ru="Klipper не запустился. Удалите include helix_skips.cfg из printer.cfg."/>

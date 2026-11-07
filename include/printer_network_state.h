@@ -141,6 +141,12 @@ class PrinterNetworkState {
         return klippy_state_from_live_.load();
     }
 
+    /// Whether the klippy_state subject holds a state a source reported, rather
+    /// than the SHUTDOWN placeholder it starts with. Main thread only.
+    bool klippy_state_reported() const {
+        return klippy_state_reported_;
+    }
+
     /// Start a new connection session: clears the watermark and the live latch and
     /// advances klippy_epoch(). Synchronous, any thread.
     void reset_klippy_state_freshness();
@@ -273,6 +279,7 @@ class PrinterNetworkState {
     // Klipper state message (error/shutdown reason from webhooks.state_message)
     std::string klippy_state_message_;
     std::optional<KlippyState> klippy_state_message_describes_;
+    bool klippy_state_reported_ = false;
 
     // Track if we've ever successfully connected (for UI display)
     bool was_ever_connected_ = false;

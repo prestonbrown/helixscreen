@@ -950,6 +950,8 @@ translations:
   'Connected to ': 'Подключен к '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Подключено к Moonraker, но Klipper не запущен. Можно продолжить — HelixScreen покажет ошибку Klipper, а определение оборудования будет ограничено до запуска Klipper.
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : "Подключено к Moonraker, но Klipper сообщил об ошибке. Можно продолжить, HelixScreen покажет её снова после настройки. Обнаружение оборудования ограничено, пока Klipper не запустится."
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Подключено к Moonraker, но поиск принтера не завершён. Можно продолжить — определение оборудования будет ограничено, пока принтер не ответит.
   Connected to {}: Подключен к {}
@@ -2132,8 +2134,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : 'На принтере установлены макросы Klippain Shake&Tune. HelixScreen обнаруживает их, но не использует; запускайте их из Mainsail или Fluidd.'
   Klipper: Klipper
+  Klipper Config Error: "Ошибка конфигурации Klipper"
   Klipper Error: Ошибка Klipper
   Klipper already reports the ACE slots.: "Klipper уже сообщает слоты ACE."
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper не смог загрузить конфигурацию. Исправьте указанный ниже параметр в файлах конфигурации принтера, затем перезапустите Klipper."
   Klipper disconnected: Klipper отключён
   Klipper failed to start with the skip macros, so they were removed: 'Klipper не запустился с макросами пропуска, поэтому они удалены'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper не запустился. Удалите include helix_skips.cfg из printer.cfg.'

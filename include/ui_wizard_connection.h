@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "async_lifetime_guard.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
@@ -329,6 +331,14 @@ class WizardConnectionStep : public helix::wizard::Step {
 
     /// Shared tail of allow_continue_without_klipper() / discovery_watchdog_expired()
     void unblock_after_incomplete_discovery(const char* message);
+
+    /// The Klipper-down status, carrying Klipper's own reason once it is known.
+    std::string klipper_unavailable_status() const;
+
+    /// The status line currently shows klipper_unavailable_status(). Cleared by
+    /// every other set_status(). Main thread only.
+    bool showing_klipper_unavailable_ = false;
+    ObserverGuard klippy_message_observer_;
 
     // Auto-probe methods for localhost detection
     bool should_auto_probe() const;
