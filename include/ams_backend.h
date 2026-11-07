@@ -2882,6 +2882,21 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
+     * @brief The name the hardware prints on a lane, when it is not a number.
+     *
+     * Most backends number their lanes and lane_label() spells them ("Slot 3").
+     * A backend whose hardware labels each lane with its own name returns that
+     * name, and a list of lanes shows it in place of the numbered label.
+     *
+     * @param global_slot global index of the lane
+     * @return the lane's own name; empty for a numbered lane or an index with no lane
+     */
+    [[nodiscard]] virtual std::string lane_name(int global_slot) const {
+        (void)global_slot;
+        return {};
+    }
+
+    /**
      * @brief The word this backend's hardware uses for the printing end.
      *
      * Distinct from lane_noun(): most backends use one noun for both the

@@ -75,13 +75,13 @@ std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index,
     return fmt::format(lv_tr("{} ({})"), tool_name_label(noun, name, index), code);
 }
 
-std::string fed_lane_tool_label(LaneNoun lane_noun, int slot, int tool, ToolLabelForm form) {
-    if (slot < 0 || tool < 0)
+std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm form) {
+    if (lane.empty() || tool < 0)
         return {};
     const std::string code = tool_label(tool);
     if (form == ToolLabelForm::Code)
         return code;
-    return fmt::format(lv_tr("{} ({})"), lane_label(lane_noun, slot), code);
+    return fmt::format(lv_tr("{} ({})"), lane, code);
 }
 
 ToolLabelForm pick_tool_label_form(const std::function<bool(ToolLabelForm)>& fits) {
@@ -218,6 +218,13 @@ LaneNoun active_lane_noun() {
     auto& ams = AmsState::instance();
     const auto* backend = ams.get_backend(ams.active_backend_index());
     return backend ? backend->lane_noun() : LaneNoun::Slot;
+}
+
+std::string active_lane_label(int slot) {
+    auto& ams = AmsState::instance();
+    const auto* backend = ams.get_backend(ams.active_backend_index());
+    std::string name = backend ? backend->lane_name(slot) : std::string();
+    return name.empty() ? lane_label(backend ? backend->lane_noun() : LaneNoun::Slot, slot) : name;
 }
 
 LaneNoun active_tool_noun() {
