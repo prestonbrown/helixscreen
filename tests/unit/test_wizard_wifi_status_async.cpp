@@ -6,6 +6,7 @@
 // control-socket round trip that can wait 10s, so no path may make one on the
 // UI thread.
 
+#include "ui_modal.h"
 #include "ui_update_queue.h"
 #include "ui_wizard_wifi.h"
 
@@ -197,4 +198,28 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
     CHECK_FALSE(ran);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
+}
+
+TEST_CASE_METHOD(WizardWifiStatusFixture,
+                 "wizard wifi: Add Hidden Network joins a typed SSID as hidden",
+                 "[wizard_wifi][hidden]") {
+    Access::add_hidden_clicked(step());
+    lv_obj_t* modal = Modal::get_top();
+    REQUIRE(modal != nullptr);
+    lv_obj_t* ssid_input = lv_obj_find_by_name(modal, "ssid_input");
+    lv_obj_t* security = lv_obj_find_by_name(modal, "security_dropdown");
+    lv_obj_t* connect = lv_obj_find_by_name(modal, "connect_btn");
+    REQUIRE((ssid_input && security && connect));
+    // An open network the mock stocks, so the join succeeds after its connect delay.
+    const std::string joining = "Guest-Access";
+    REQUIRE_FALSE(names(Access::status(step()), joining));
+    lv_textarea_set_text(ssid_input, joining.c_str());
+    lv_dropdown_set_selected(security, 0);
+
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+
+    // "Connected to <ssid>" names the SSID the Started report recorded.
+    REQUIRE(
+        wait_until([&]() { return Access::status(step()) == "Connected to " + joining; }, 10000));
+    CHECK(wifi->last_connect_hidden());
 }

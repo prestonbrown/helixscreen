@@ -127,6 +127,8 @@ This step appears on-screen as **Printer Setup: Network**. If your device needs 
 3. Enter the password using the on-screen keyboard
 4. Tap **Connect** and wait for confirmation
 
+A network that doesn't broadcast its name never appears in the list: tap **Add Hidden Network** below the list and type its name, security and password instead.
+
 The wizard shows signal strength for each network and indicates which one you're currently connected to. If you're using Ethernet, you'll see your connection status on the left — just skip ahead with **Next**.
 
 ### About WiFi Network Lists

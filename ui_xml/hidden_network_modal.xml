@@ -94,7 +94,9 @@
       </lv_obj>
       <!-- Error message (hidden when empty) -->
       <text_small name="error_label"
-                  width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>
+                  width="100%" bind_text="hidden_network_error" style_text_align="center" style_text_color="#danger">
+        <bind_flag_if_eq subject="hidden_network_has_error" flag="hidden" ref_value="0"/>
+      </text_small>
     </lv_obj>
     <!-- ============================================================ -->
     <!-- STATE: CONNECTING - Spinner and status (shown when connecting) -->
@@ -105,10 +107,10 @@
       <bind_flag_if_eq subject="hidden_connecting" flag="hidden" ref_value="0"/>
       <connecting_state text="Connecting..."/>
     </lv_obj>
-    <!-- Connect is withdrawn while a connection attempt runs; Cancel stays. -->
+    <!-- Connect is withdrawn while a connection attempt runs; Cancel stays. HiddenNetworkModal
+         wires both buttons. -->
     <modal_button_row secondary_name="cancel_btn"
-                      secondary_text="Cancel" secondary_callback="on_hidden_cancel_clicked" primary_name="connect_btn"
-                      primary_text="Connect" primary_callback="on_hidden_connect_clicked"
+                      secondary_text="Cancel" primary_name="connect_btn" primary_text="Connect"
                       primary_hide_subject="hidden_connecting"/>
   </view>
 </component>
