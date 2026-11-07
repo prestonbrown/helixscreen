@@ -33,7 +33,6 @@ qr_scanner_overlay.xml
 rotation_probe_screen.xml
 screws_tilt_panel.xml
 screws_tilt_share_modal.xml
-settings_safety_overlay.xml
 spoolman_context_menu.xml
 spoolman_edit_modal.xml
 spoolman_panel.xml
