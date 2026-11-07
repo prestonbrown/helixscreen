@@ -4,7 +4,6 @@
 #include "ui_ipv4_revert_retry.h"
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -70,6 +69,15 @@ struct Ipv4ManagerFixture : LVGLTestFixture {
         setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
         unsetenv("HELIX_MOCK_IPV4_APPLY_FAIL");
         HttpExecutor::fast().start();
+        get_printer_state().init_subjects(true);
+        // Another test may have left a job holding the machine.
+        lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(), 0);
+    }
+
+    /// The printer reports its print state, which the startup revert waits for.
+    static void printer_reports() {
+        lv_subject_t* seq = get_printer_state().print_state().get_print_state_report_seq_subject();
+        lv_subject_set_int(seq, lv_subject_get_int(seq) + 1);
     }
 
     /// Builds the manager over a mock already holding @p initial.
@@ -312,9 +320,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a revert waits on a job only while the printer can end it",
                  "[ipv4][ipv4_manager]") {
-    PrinterState& printer = get_printer_state();
-    helix::PrinterStateTestAccess::reset(printer);
-    printer.init_subjects(true);
+    helix::PrinterState& printer = get_printer_state();
     lv_subject_t* connection = printer.network_state().get_printer_connection_state_subject();
     lv_subject_set_int(printer.print_state().get_job_holds_machine_subject(), 1);
     lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::CONNECTED));
@@ -374,7 +380,13 @@ TEST_CASE_METHOD(Ipv4ManagerFixture,
         unsetenv("HELIX_MOCK_IPV4_APPLY_FAIL");
         told.reset();
         helix::settings::start_ipv4_startup_revert();
-        CHECK(wait_until([&] { return !record_exists(); }));
+        printer_reports();
+        CHECK(wait_until([&] {
+            if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+                t->timer_cb(t);
+            }
+            return !record_exists();
+        }));
         CHECK(backend_config() == was);
         CHECK(told == Ipv4RevertEnd::Restored);
     }
@@ -416,6 +428,41 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "an undecodable startup record is given up 
     helix::settings::set_ipv4_revert_listener(nullptr);
 }
 
+TEST_CASE_METHOD(Ipv4ManagerFixture, "the startup revert waits for the printer's print state",
+                 "[ipv4][ipv4_manager]") {
+    const auto fire = [] {
+        if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+            t->timer_cb(t);
+        }
+    };
+    const Ipv4Config was = static_config("192.168.1.40");
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(was).ok());
+    PendingIpv4Revert p;
+    p.previous = was;
+    p.owner = "another-run";
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(static_config("192.168.1.50")).ok());
+    REQUIRE(save_pending_ipv4_revert(p));
+
+    helix::settings::start_ipv4_startup_revert();
+    process_lvgl(static_cast<int>(kIpv4StartupHoldMs) - 1000);
+    fire();
+    CHECK_FALSE(wait_until([&] { return !record_exists(); }, 300));
+    CHECK(backend_config() == static_config("192.168.1.50"));
+
+    SECTION("a report of no job lets it run") {
+        printer_reports();
+    }
+    SECTION("a printer that never reports stops holding it") {
+        process_lvgl(1000);
+    }
+    CHECK(wait_until([&] {
+        fire();
+        return !record_exists();
+    }));
+    CHECK(backend_config() == was);
+}
+
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is read again",
                  "[ipv4][ipv4_manager]") {
     // The test binary runs no periodic timer, so each tick is fired by hand.
@@ -439,9 +486,15 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is rea
         std::filesystem::remove(pending_ipv4_revert_path());
         REQUIRE(save_pending_ipv4_revert(p));
         process_lvgl(static_cast<int>(kIpv4RetryEveryMs));
+        printer_reports();
         fire();
         CHECK(helix::settings::ipv4_startup_read_timer_for_test() == nullptr);
-        CHECK(wait_until([&] { return !record_exists(); }));
+        CHECK(wait_until([&] {
+            if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+                t->timer_cb(t);
+            }
+            return !record_exists();
+        }));
         CHECK(backend_config() == was);
     }
     SECTION("one that never reads stops in two minutes and is left as it is") {

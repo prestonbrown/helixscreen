@@ -452,6 +452,38 @@ class Ipv4RevertRetry {
     uint32_t last_ms_ = 0;
 };
 
+/// How long the startup revert waits for the printer's first print state.
+constexpr uint32_t kIpv4StartupHoldMs = 30000;
+
+/**
+ * @brief The startup revert's wait for the printer to say whether a job runs
+ *
+ * At start the print state is its boot default, which reads as no job, so the
+ * first attempt waits for a print-state report (a count that moves with each
+ * one). A screen on an address the printer cannot reach may never get one, so
+ * the wait ends after kIpv4StartupHoldMs regardless.
+ */
+class Ipv4StartupHold {
+  public:
+    void arm(int report_count, uint32_t now_ms) {
+        armed_ = true;
+        report_count_ = report_count;
+        since_ms_ = now_ms;
+    }
+    /// Still waiting. Once the wait ends it stays ended.
+    bool waiting(int report_count, uint32_t now_ms) {
+        if (armed_ && (report_count != report_count_ || now_ms - since_ms_ >= kIpv4StartupHoldMs)) {
+            armed_ = false;
+        }
+        return armed_;
+    }
+
+  private:
+    bool armed_ = false;
+    int report_count_ = 0;
+    uint32_t since_ms_ = 0;
+};
+
 /// How long a lost printer connection keeps its last print state counting.
 constexpr uint32_t kIpv4StaleJobMs = 60000;
 

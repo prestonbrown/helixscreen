@@ -50,7 +50,8 @@ std::optional<std::string> ipv4_revert_unrecorded(helix::net::Ipv4Link link);
 /// so. One listener; an empty function clears it. LVGL thread.
 void set_ipv4_revert_listener(std::function<void(helix::net::Ipv4Link, Ipv4RevertEnd)> listener);
 
-/// At app start: retry a record another run left. A record that fails to read
+/// At app start: retry a record another run left, from the printer's first
+/// print-state report (helix::net::Ipv4StartupHold). A record that fails to read
 /// is read again on the retry's schedule, and a notice says so if it never
 /// reads; its bytes are left as they are. LVGL thread.
 void start_ipv4_startup_revert();

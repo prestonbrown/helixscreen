@@ -58,6 +58,25 @@ std::string& unrecorded_why(net::Ipv4Link link) {
     return link == net::Ipv4Link::Ethernet ? ethernet : wifi;
 }
 
+net::Ipv4StartupHold& startup_hold() {
+    static net::Ipv4StartupHold h;
+    return h;
+}
+
+int print_state_reports() {
+    return lv_subject_get_int(
+        get_printer_state().print_state().get_print_state_report_seq_subject());
+}
+
+/// Nothing is tried while a job holds the machine, nor at startup before the
+/// printer has said whether one does.
+bool revert_held() {
+    if (startup_hold().waiting(print_state_reports(), lv_tick_get())) {
+        return true;
+    }
+    return ipv4_job_holds_machine();
+}
+
 std::function<void(net::Ipv4Link, Ipv4RevertEnd)>& listener() {
     static std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l;
     return l;
@@ -111,7 +130,7 @@ void tick() {
     if (s.in_flight) {
         return;
     }
-    switch (s.schedule.tick(lv_tick_get(), ipv4_job_holds_machine())) {
+    switch (s.schedule.tick(lv_tick_get(), revert_held())) {
     case net::Ipv4RevertRetry::Step::Wait:
         return;
     case net::Ipv4RevertRetry::Step::Attempt:
@@ -216,7 +235,8 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
         pending.owner == net::ipv4_process_owner()) {
         return true;
     }
-    spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {}",
+    spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {} once the printer "
+                 "reports whether a job runs",
                  net::ipv4_link_name(pending.link), net::ipv4_config_text(pending.previous));
     retry_ipv4_revert(pending.link, /*include_own=*/false);
     return true;
@@ -247,6 +267,7 @@ void startup_read_tick() {
 } // namespace
 
 void start_ipv4_startup_revert() {
+    startup_hold().arm(print_state_reports(), lv_tick_get());
     if (act_on_startup_record(net::read_pending_ipv4_revert())) {
         return;
     }
