@@ -46,17 +46,34 @@ using nlohmann::json;
 
 namespace {
 
-class CalibrationSendFixture : public LVGLTestFixture {
+/// Seed the calibration strategy as a connected printer gets it, through its type:
+/// the database names a firmware-managed and an endstop printer, and an unnamed
+/// type takes the probe strategy once discovery has found a probe among @p objects.
+void use_strategy(ZOffsetCalibrationStrategy strategy, json objects = json::array()) {
+    auto& ps = get_printer_state();
+    if (strategy == ZOffsetCalibrationStrategy::PROBE_CALIBRATE) {
+        objects.push_back("probe");
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        ps.set_hardware(hw);
+    }
+    ps.set_printer_type_sync(strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED
+                                 ? "FlashForge Adventurer 5X"
+                             : strategy == ZOffsetCalibrationStrategy::ENDSTOP ? "FLSUN S1 / S1 Pro"
+                                                                               : "Unknown Printer");
+    REQUIRE(ps.profile_state().z_offset_calibration_strategy() == strategy);
+}
+
+class CalibrationSendFixture : public LVGLUITestFixture {
   public:
     CalibrationSendFixture() {
         helix::PrinterStateTestAccess::reset(state());
         state().init_subjects(false);
-        helix::PrinterStateTestAccess::pin_z_offset_strategy(
-            state(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
         state().set_klippy_state_sync(helix::KlippyState::READY);
         // The discovery snapshot persists on the process-wide state across test
         // cases; start each one plain so only set_zmod() cases see the provider.
         state().set_hardware(helix::PrinterDiscovery{});
+        use_strategy(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
         // The calibrate command follows the discovered probe's type, and the probe
         // manager is process-wide: start each case with no probe, as a plain
         // printer has, so a scan probe another case discovered cannot pick it.
@@ -146,8 +163,7 @@ std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
     settings.set_z_offset_save_mode(static_cast<int>(mode));
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(
-        get_printer_state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
@@ -337,7 +353,7 @@ struct StartOutcome {
 StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::PrinterDiscovery hw = {},
                                bool travel_known = true) {
     auto& ps = get_printer_state();
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(ps, strategy);
+    use_strategy(strategy);
     json toolhead{{"homed_axes", "xyz"}};
     if (travel_known) {
         toolhead["axis_minimum"] = json::array({0.0, 0.0, 0.0, 0.0});
@@ -429,23 +445,15 @@ TEST_CASE_METHOD(CalibrationSendFixture,
 namespace {
 
 /// A klipper-toolchanger rig on the probe strategy, with the dialog layer up.
-class ToolGateFixture : public LVGLUITestFixture {
+class ToolGateFixture : public CalibrationSendFixture {
   public:
     ToolGateFixture() {
         helix::ui::modal_init_subjects();
-        auto& ps = get_printer_state();
-        helix::PrinterStateTestAccess::reset(ps);
-        ps.init_subjects(false);
-        helix::PrinterStateTestAccess::pin_z_offset_strategy(
-            ps, ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
-        ps.set_klippy_state_sync(helix::KlippyState::READY);
-        auto& probes = helix::sensors::ProbeSensorManager::instance();
-        probes.discover(helix::PrinterDiscovery{});
-        probes.set_probe_type_override(helix::sensors::ProbeSensorType::STANDARD);
+        const json objects = json::array(
+            {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"});
+        use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, objects);
         helix::PrinterDiscovery hw;
-        hw.parse_objects(json::array(
-            {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
-        ps.set_hardware(hw);
+        hw.parse_objects(objects);
         helix::ToolState::instance().init_tools(hw);
         panel.set_api(&api);
     }
@@ -486,9 +494,19 @@ class ToolGateFixture : public LVGLUITestFixture {
     ZOffsetCalibrationPanel panel;
 };
 
+/// Per-head storage on for one case, whatever the case does.
+struct PerHeadScope {
+    PerHeadScope() {
+        get_printer_state().profile_state().set_z_offset_per_head(true);
+    }
+    ~PerHeadScope() {
+        get_printer_state().profile_state().set_z_offset_per_head(false);
+    }
+};
+
 } // namespace
 
-TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks, then continues",
+TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks before starting",
                  "[zoffset][calibration][reference_tool]") {
     panel.on_activate();
     mount(1);
@@ -498,34 +516,51 @@ TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks,
     CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
     CHECK(client.last_send_script().empty());
 
-    // A second tap while the question is open asks nothing more.
-    start();
-    CHECK(Modal::get_top() == dialog);
-
-    press("btn_primary");
-    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
-    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::ERROR);
-    CHECK_FALSE(client.last_send_script().empty());
+    SECTION("Continue starts it, and a second Start meanwhile asks nothing more") {
+        start();
+        CHECK(Modal::get_top() == dialog);
+        press("btn_primary");
+        CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
+        CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::ERROR);
+        CHECK_FALSE(client.last_send_script().empty());
+    }
+    SECTION("Cancel starts nothing, and Start asks again") {
+        press("btn_secondary");
+        CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        CHECK(client.last_send_script().empty());
+        start();
+        CHECK(Modal::get_top() != nullptr);
+    }
+    SECTION("Continue once a print has started starts nothing") {
+        get_printer_state().update_from_status(json{{"print_stats", json{{"state", "printing"}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        REQUIRE(lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) !=
+                0);
+        press("btn_primary");
+        CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        CHECK(client.last_send_script().empty());
+        get_printer_state().update_from_status(json{{"print_stats", json{{"state", "standby"}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    SECTION("leaving the panel closes it, and Start asks again on return") {
+        panel.on_deactivate(DeactivateReason::NavigateAway);
+        process_lvgl(400);
+        CHECK(Modal::get_top() == nullptr);
+        panel.on_activate();
+        start();
+        CHECK(Modal::get_top() != nullptr);
+    }
 }
 
-TEST_CASE_METHOD(ToolGateFixture, "Calibration start: declining the tool question starts nothing",
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration start: an unknown tool asks too, and the reference tool asks nothing",
                  "[zoffset][calibration][reference_tool]") {
     panel.on_activate();
     mount(-1);
     start();
     REQUIRE(Modal::get_top() != nullptr);
     press("btn_secondary");
-    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
-    CHECK(client.last_send_script().empty());
 
-    // Declined, Start asks again rather than staying latched shut.
-    start();
-    CHECK(Modal::get_top() != nullptr);
-}
-
-TEST_CASE_METHOD(ToolGateFixture, "Calibration start: the reference tool mounted asks nothing",
-                 "[zoffset][calibration][reference_tool]") {
-    panel.on_activate();
     mount(0);
     start();
     CHECK(Modal::get_top() == nullptr);
@@ -545,72 +580,16 @@ TEST_CASE_METHOD(ToolGateFixture,
     CHECK(client.last_send_script().empty());
 }
 
-TEST_CASE_METHOD(ToolGateFixture,
-                 "Calibration start: Continue once a print has started starts nothing",
-                 "[zoffset][calibration][reference_tool]") {
-    panel.on_activate();
-    mount(1);
-    start();
-    REQUIRE(Modal::get_top() != nullptr);
-    get_printer_state().update_from_status(json{{"print_stats", json{{"state", "printing"}}}});
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-    REQUIRE(lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0);
-
-    press("btn_primary");
-    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
-    CHECK(client.last_send_script().empty());
-
-    get_printer_state().update_from_status(json{{"print_stats", json{{"state", "standby"}}}});
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-}
-
-TEST_CASE_METHOD(ToolGateFixture, "Calibration start: leaving the panel closes the tool question",
-                 "[zoffset][calibration][reference_tool]") {
-    panel.on_activate();
-    mount(1);
-    start();
-    REQUIRE(Modal::get_top() != nullptr);
-
-    panel.on_deactivate(DeactivateReason::NavigateAway);
-    process_lvgl(400);
-    CHECK(Modal::get_top() == nullptr);
-
-    // Back on screen, Start asks again rather than staying latched shut.
-    panel.on_activate();
-    start();
-    CHECK(Modal::get_top() != nullptr);
-}
-
 // --- per-head offsets -------------------------------------------------------
 
-namespace {
-/// Per-head storage on for one case, whatever the case does.
-struct PerHeadScope {
-    PerHeadScope() {
-        get_printer_state().profile_state().set_z_offset_per_head(true);
-    }
-    ~PerHeadScope() {
-        get_printer_state().profile_state().set_z_offset_per_head(false);
-    }
-};
-} // namespace
-
-TEST_CASE_METHOD(CalibrationSendFixture,
+TEST_CASE_METHOD(ToolGateFixture,
                  "Calibration start: a printer that applies head offsets at pickup refuses",
                  "[zoffset][calibration][per_head]") {
+    // T0 mounted on the probe strategy would otherwise start and send.
     PerHeadScope per_head;
-    REQUIRE(state().profile_state().z_offset_reapplied_per_head());
-    // A strategy that would otherwise start and send, so the refusal is what stops it.
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(
-        state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state());
-    ZOffsetCalibrationPanel panel;
-    panel.set_api(&api);
-
-    ZOffsetCalibrationTestAccess::start_calibration(panel);
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-
+    panel.on_activate();
+    mount(0);
+    start();
     CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
     CHECK(client.last_send_script().empty());
 }

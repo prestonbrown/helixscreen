@@ -201,32 +201,16 @@ TEST_CASE("PrinterDiscovery: the probe XY offset comes from the probe's config s
 
 // --- reference tool gate --------------------------------------------------
 
-TEST_CASE("Z-offset tool gate: the reference tool mounted proceeds",
+TEST_CASE("Z-offset tool gate: asks unless the probe's reference tool is mounted",
           "[zoffset_cal][reference_tool]") {
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 0) ==
-          ToolGate::Proceed);
-}
-
-TEST_CASE("Z-offset tool gate: another tool mounted asks before starting",
-          "[zoffset_cal][reference_tool]") {
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 2) ==
-          ToolGate::ConfirmFirst);
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::ENDSTOP, 0, 1) == ToolGate::ConfirmFirst);
-}
-
-TEST_CASE("Z-offset tool gate: an unknown mounted tool asks before starting",
-          "[zoffset_cal][reference_tool]") {
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, -1) ==
-          ToolGate::ConfirmFirst);
-}
-
-TEST_CASE("Z-offset tool gate: no reference tool leaves calibration as it was",
-          "[zoffset_cal][reference_tool]") {
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, -1) ==
-          ToolGate::Proceed);
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, 3) ==
-          ToolGate::Proceed);
+    using S = ZOffsetCalibrationStrategy;
+    CHECK(reference_tool_gate(S::PROBE_CALIBRATE, 0, 0) == ToolGate::Proceed);
+    CHECK(reference_tool_gate(S::PROBE_CALIBRATE, 0, 2) == ToolGate::ConfirmFirst);
+    CHECK(reference_tool_gate(S::ENDSTOP, 0, 1) == ToolGate::ConfirmFirst);
+    CHECK(reference_tool_gate(S::PROBE_CALIBRATE, 0, -1) == ToolGate::ConfirmFirst); // unknown
+    // No reference tool leaves calibration as it was.
+    CHECK(reference_tool_gate(S::PROBE_CALIBRATE, std::nullopt, -1) == ToolGate::Proceed);
+    CHECK(reference_tool_gate(S::PROBE_CALIBRATE, std::nullopt, 3) == ToolGate::Proceed);
     // A firmware-managed printer runs no calibrate command of ours.
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, 0, 2) ==
-          ToolGate::Proceed);
+    CHECK(reference_tool_gate(S::FIRMWARE_MANAGED, 0, 2) == ToolGate::Proceed);
 }

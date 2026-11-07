@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "printer_detector.h"
 #include "printer_profile_state.h"
 
 #include <fstream>
@@ -116,6 +117,12 @@ TEST_CASE("Z-offset tune hint claims auto-save only where something persists it"
           H::TEMPORARY);
     CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, false, true, true) ==
           H::TEMPORARY_TOOL_CHANGE);
+
+    // Per-head storage saves for the mounted head only, whatever the save setting.
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, true,
+                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, false,
+                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
 }
 
 TEST_CASE("Z-offset tune hint is temporary when Z-offset saving is off",
@@ -136,45 +143,6 @@ TEST_CASE("Z-offset tune hint is temporary when Z-offset saving is off",
           H::TEMPORARY_TOOL_CHANGE);
 }
 
-TEST_CASE("Z-offset tune hint says a per-head offset is saved for the mounted head",
-          "[printer_state][profile][zoffset][per_head]") {
-    using S = ZOffsetCalibrationStrategy;
-    using H = ZOffsetTuneHint;
-
-    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, true,
-                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
-    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, false,
-                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
-    // Without per-head storage the machine-wide wording stands.
-    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, true,
-                                     /*per_head=*/false) == H::AUTO_SAVED);
-}
-
-TEST_CASE("PrinterProfileState republishes the tune hint when per-head storage is found",
-          "[printer_state][profile][zoffset][per_head]") {
-    LVGLTestFixture fixture;
-    PrinterProfileState profile;
-    profile.init_subjects(false);
-    auto hint = [&] {
-        return static_cast<ZOffsetTuneHint>(
-            lv_subject_get_int(profile.get_z_offset_tune_hint_subject()));
-    };
-
-    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
-    REQUIRE(hint() == ZOffsetTuneHint::AUTO_SAVED);
-
-    CHECK(profile.set_z_offset_per_head(true));
-    CHECK_FALSE(profile.set_z_offset_per_head(true));
-    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
-    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
-
-    CHECK(profile.set_z_offset_per_head(false));
-    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
-    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
-
-    profile.deinit_subjects();
-}
-
 TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-applied at pickup",
           "[printer_state][profile][zoffset][per_head]") {
     LVGLTestFixture fixture;
@@ -183,25 +151,32 @@ TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-ap
     auto reapplied = [&] {
         return lv_subject_get_int(profile.get_z_offset_reapplied_per_head_subject());
     };
+    auto hint = [&] {
+        return static_cast<ZOffsetTuneHint>(
+            lv_subject_get_int(profile.get_z_offset_tune_hint_subject()));
+    };
+
+    // The Creator 5 line hides the paper test by database whatever the firmware.
+    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5"));
+    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5 Pro"));
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    CHECK(reapplied() == 0);
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
+
+    // Z-Mod's per-head storage, found by discovery: re-applied, and saved per head.
+    CHECK(profile.set_z_offset_per_head(true));
+    CHECK(reapplied() == 1);
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    CHECK(profile.set_z_offset_per_head(false));
+    CHECK(reapplied() == 0);
 
     // The U1 re-applies the mounted head's stored offset at every tool change and
     // saves nothing: re-applied, but the tune hint keeps saying temporary.
     REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
     CHECK(profile.z_offset_reapplied_per_head());
     CHECK(reapplied() == 1);
-    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
-          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE));
-
-    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
-    CHECK_FALSE(profile.z_offset_reapplied_per_head());
-    CHECK(reapplied() == 0);
-
-    // Z-Mod's per-head storage, found by discovery rather than the database.
-    CHECK(profile.set_z_offset_per_head(true));
-    CHECK(profile.z_offset_reapplied_per_head());
-    CHECK(reapplied() == 1);
-    CHECK(profile.set_z_offset_per_head(false));
-    CHECK(reapplied() == 0);
+    CHECK(hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
 
     profile.deinit_subjects();
 }

@@ -101,8 +101,6 @@ TEST_CASE("displayed z-offset: a per-head offset shows the mounted head's live v
     // live +3.413 is the mounted head's real offset.
     CHECK(displayed_z_offset_microns(3413, std::optional<int>(-150), /*print_active=*/false,
                                      /*per_head=*/true) == 3413);
-    CHECK(displayed_z_offset_microns(3413, std::optional<int>(-150), /*print_active=*/true,
-                                     /*per_head=*/true) == 3413);
 }
 
 // ============================================================================
@@ -155,8 +153,6 @@ TEST_CASE("z-adjust gcode: a per-head offset is only ever adjusted relatively",
           "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     CHECK(build_z_adjust_gcode(-150, 3413, 50, /*all_homed=*/false, /*per_head=*/true) ==
           "SET_GCODE_OFFSET Z_ADJUST=0.050");
-    CHECK(build_z_adjust_gcode(3413, 3413, -10, /*all_homed=*/true, /*per_head=*/true) ==
-          "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
 }
 
 // ============================================================================

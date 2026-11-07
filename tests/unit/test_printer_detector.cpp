@@ -2775,15 +2775,6 @@ TEST_CASE("PrinterDetector: hide_manual_z_calibration defaults to false",
     REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Some Random Printer"));
 }
 
-TEST_CASE("PrinterDetector: the Creator 5 line hides manual Z calibration",
-          "[printer_detector][tool_offset_cal][per_head]") {
-    // Every head carries its own Z offset, measured by the changer's own
-    // calibration; a paper test sets one absolute offset for whichever head is
-    // mounted.
-    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5"));
-    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5 Pro"));
-}
-
 TEST_CASE("PrinterDetector: hide_manual_z_calibration reads the database field",
           "[printer_detector][tool_offset_cal][seed_resolution]") {
     namespace fs = std::filesystem;
