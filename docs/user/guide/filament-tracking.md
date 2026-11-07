@@ -75,12 +75,10 @@ With Spoolman connected, HelixScreen doesn't decrement weight itself — Spoolma
 
 > **Note:** Because Spoolman owns consumption for any spool you've assigned from it, HelixScreen's own estimator stands down for those spools — you won't get two systems fighting over the same number. HelixScreen only writes to Spoolman when *you* make an explicit change (assigning a spool, editing weight, or creating a spool), plus switching the active spool when a lane loads or, with **Switch spools at each tool change** on, when the tool changes.
 
-> **Color from the printer's own screen (AD5X):** on a lane with a Spoolman spool
-> linked, the spool's own color wins over anything the machine itself reports - a change
-> made in the printer's color menu does not override it. Pick a color in HelixScreen's
-> lane editor instead (a color you pick beats the linked spool's), or edit the spool in
-> Spoolman. Lanes with no spool linked are unaffected.
-> See [Troubleshooting](../TROUBLESHOOTING.md#color-set-on-the-printers-own-screen-reverts-ad5x-with-spoolman).
+> **Color from the printer's own screen (AD5X):** the printer holds each lane's color
+> and material, so a change made in the printer's color menu shows in HelixScreen even on
+> a lane with a Spoolman spool linked. The linked spool fills in only what the printer
+> does not hold, such as the brand and the remaining weight.
 
 ### Browsing and assigning spools
 

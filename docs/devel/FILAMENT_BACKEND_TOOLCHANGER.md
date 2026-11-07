@@ -275,11 +275,12 @@ the lane record and Spoolman's details.
 Once a frame has carried both `slots` and `palette`, a user edit that moves colour or
 material also sends the writer's gcode
 (`src/printer/ams_backend_toolchanger.cpp#apply_user_edit`). The lane shows the edit as
-pending until an echo matches it or 30 s pass; the firmware's reading then wins. The
-`T<n>` record still carries the whole edit, colour and material included: this backend
-copies no firmware reading into its record, and the record is what OrcaSlicer reads.
-Before the first such frame (a Z-Mod build without ghzserg/z_c5pro#1) the edit goes to
-the record alone, as on any tool changer.
+pending until an echo matches it or 30 s pass; the firmware's reading then wins. As on
+AD5X IFS and the U1, the `T<n>` record takes the edit's other fields and copies colour and
+material from the firmware on each frame for a head that states both and is not reported
+empty (`apply_material_reading_locked`, `firmware_holds_identity_locked`), so OrcaSlicer
+reads what the head holds. Before the first such frame (a Z-Mod build without
+ghzserg/z_c5pro#1) the edit goes to the record alone, as on any tool changer.
 
 - **Types:** `zmod_color.valid_types` becomes `get_supported_materials()`, so the edit
   dropdown offers only those. `AmsBackend::normalize_material()` maps anything else by

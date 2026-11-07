@@ -219,8 +219,11 @@ that empties while the toolhead holds nothing, call `filament_detect`'s
 `request_clear_filament_info`, which resets the head's `print_task_config` record to
 `NONE` / `FFFFFFFF` without a log line. A
 tagless spool resting in the feeder after an unload-at-end therefore reads `NONE` to
-every other client while its lane still declares it. The backend writes the lane's
-declaration back when the record reads unset, the lane declares a material, the port or
+every other client while its lane record still names it. The backend writes the lane
+record's type and colour back when the firmware's record reads unset, the lane record holds a
+type and names the spool (a link, brand or name, which only an edit or a Spoolman link puts
+there; a record that only copied the firmware's type is not written back, since every write
+resets the head's flow calibration), the port or
 the nozzle latch holds filament, no spool has gone into the port since the declaration,
 no feed is moving the head, and the heads are free (the same hold as an edit). It sends
 once per drop: the record naming a type re-arms it, and an edit's own write counts as the
@@ -250,13 +253,19 @@ save the record already agrees with sends nothing, forced head or not; FORCE=1 o
 decides the flag and that both lines go.
 
 **Lane identity.** Type, vendor, subtype and colour are the firmware's
-(`print_task_config`). The `lane_data` record (`T<n>`, writer `helixscreen`) holds the
+(`print_task_config`), filed as the lane's Firmware reading over the tag's
+(`src/printer/ams_backend_snapmaker.cpp#file_head_firmware_locked`): its type and colour.
+Its vendor (Snapmaker or the placeholder Generic) is a category, not the spool's brand, so
+the brand stays the tag's or the record's. It outranks the record, so a change from the stock screen or a slicer shows at
+once, and an edit stands as pending until it echoes. A record reset to `NONE` states
+nothing, and the tag's reading or the record shows. The `lane_data` record (`T<n>`, writer `helixscreen`) holds the
 spool id, name, brand, weights and temperatures from an edit, and copies type and colour
 from `print_task_config` (else the tag the reader names) on every frame for a head that
 holds filament, never from the painted slot, so it never names an edit still on its way
 (`src/printer/ams_backend_snapmaker.cpp#converge_lanes_locked`). Nothing is copied before
 the first record read lands. A head whose record the firmware reset to `NONE` is not
-copied: the record keeps the last type, which the write-back above restores.
+copied: the record keeps the last type, which the write-back above restores (the
+write-back sends the record's type and colour).
 
 A head an earlier endpoint write left official is repaired once per session: official,
 its `filament_detect` entry filled with `CARD_UID` known to be no card, no card seen on

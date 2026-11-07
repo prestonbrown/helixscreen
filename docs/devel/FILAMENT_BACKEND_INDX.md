@@ -40,7 +40,7 @@ contract. Nothing outside these two tables is read or sent.
 | Tools with no hotend | `gcode_macro TOOL_POSITIONS.no_heat_tools` | A pen or cutter: never heated, no filament ops |
 | Docks measured | `gcode_macro TOOL_POSITIONS.docks_calibrated` | `False` refuses every change and park |
 | Load presets | `gcode_macro LOAD_FILAMENT.filament_presets` | `TYPE=` names for Load, sent as the printer spells them |
-| Per-tool spool | `gcode_macro T<n>.spool_id` | Not upstream: read where a macro set declares it, filed as the firmware's link for the lane, so a macro or another client changing it wins over the `T<n>` record. An edit that moves the link writes it with `SET_GCODE_VARIABLE MACRO=T<n> VARIABLE=spool_id VALUE=<id>` (0 to unlink), only for a tool whose variable has been seen (`src/printer/ams_backend_indx.cpp#apply_user_edit`) |
+| Per-tool spool | `gcode_macro T<n>.spool_id` | Not upstream: read where a macro set declares it, filed as the firmware's link for the lane, so a macro or another client changing it wins over the `T<n>` record. `None`, 0 and a negative id read as no spool. An edit that moves the link makes the two writes Mainsail's spool dialog makes for a tool, `SET_GCODE_VARIABLE MACRO=T<n> VARIABLE=spool_id VALUE=<id>` and `SAVE_VARIABLE VARIABLE=t<n>__spool_id VALUE=<id>` (`None` to unlink), only for a tool whose variable has been seen (`src/printer/ams_backend_indx.cpp#apply_user_edit`) |
 
 Status keys are matched case-insensitively and subscribed under the configured case
 (`PrinterDiscovery::macro_config_name`).

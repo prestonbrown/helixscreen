@@ -1754,30 +1754,6 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 Details: [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
-### Color set on the printer's own screen reverts (AD5X with Spoolman)
-
-**Known limitation.** On an AD5X, once a lane has been assigned a Spoolman spool,
-changing that lane's color from the printer's own color menu does not stick: the panel
-goes back to showing the spool's color within a second.
-
-This is the lane ranking working as designed. When more than one source can describe a
-lane, HelixScreen takes each detail from the most trustworthy source rather than from
-whichever wrote last: a color you pick on the lane's editor outranks the linked spool's,
-and a linked spool's color outranks what the machine itself reports. A change made in
-the printer's own color menu is a machine report, so while a Spoolman spool is linked
-to that lane it loses to the spool's record. The same ranking protects your own pick:
-a color set on the lane's editor in HelixScreen sticks, and the machine cannot
-overwrite it either.
-
-**What works instead:** change the color in HelixScreen, on the lane's own editor
-(tap the lane, then edit it), or change the spool's color in Spoolman. Both take
-effect and persist.
-
-**Unaffected:** lanes with no Spoolman spool assigned. With no spool record to lose
-to, the machine's report is the strongest source and the change shows as set. Note
-that a linked spool also owns the lane's material and spool name, so machine-side
-changes to those revert the same way while the link is in place.
-
 ### Only some spools showing in Spoolman lists
 
 **Symptoms:**
