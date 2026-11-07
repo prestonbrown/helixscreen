@@ -3351,17 +3351,16 @@ void AmsBackendAfc::detect_afc_commands() {
 }
 
 bool AmsBackendAfc::apply_gcode_help_response(const nlohmann::json& response) {
-    const std::optional<bool> listed = gcode_help_lists(response, "AFC_TOOLHEAD_CALIBRATION");
-    if (!listed) {
+    const auto has_toolhead_cal = gcode_help_lists(response, "AFC_TOOLHEAD_CALIBRATION");
+    if (!has_toolhead_cal) {
         return false;
     }
-    const bool has_toolhead_cal = *listed;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        has_toolhead_calibration_ = has_toolhead_cal;
+        has_toolhead_calibration_ = *has_toolhead_cal;
     }
     spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}",
-                  has_toolhead_cal ? "available" : "not registered");
+                  *has_toolhead_cal ? "available" : "not registered");
     return true;
 }
 
