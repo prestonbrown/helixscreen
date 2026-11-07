@@ -885,7 +885,6 @@ translations:
   Cool Down: 冷却
   Cool nozzle after filament ops: フィラメント操作後にノズルを冷却
   Cooling: 冷却中
-  Cooling Bed...: ベッド冷却中...
   Cooling Tube Length: '冷却チューブ長'
   Cooling Tube Retraction: '冷却チューブの引き戻し'
   Cooling for probing...: プローブのため冷却中...
@@ -4410,6 +4409,7 @@ translations:
   Waiting for Moonraker...: Moonraker を待機中...
   Waiting for %s to finish. One heater at a time.: '%s の完了を待っています。ヒーターは一度に1つだけです。'
   Waiting for another box to finish.: 別のボックスの完了を待っています。
+  Waiting for bed temperature...: ベッド温度を待機中...
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
   Waiting for chamber {} / {}°C: 'チャンバー待機中 {} / {}°C'
   Waiting for chamber {}°C: 'チャンバー待機中 {}°C'

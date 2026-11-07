@@ -866,7 +866,6 @@
   <translation tag="Cool Down" en="Cool Down"/>
   <translation tag="Cool nozzle after filament ops" en="Cool nozzle after filament ops"/>
   <translation tag="Cooling" en="Cooling"/>
-  <translation tag="Cooling Bed..." en="Cooling Bed..."/>
   <translation tag="Cooling Tube Length" en="Cooling Tube Length"/>
   <translation tag="Cooling Tube Retraction" en="Cooling Tube Retraction"/>
   <translation tag="Cooling for probing..." en="Cooling for probing..."/>
@@ -4233,6 +4232,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." en="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for another box to finish." en="Waiting for another box to finish."/>
+  <translation tag="Waiting for bed temperature..." en="Waiting for bed temperature..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for chamber {} / {}°C" en="Waiting for chamber {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" en="Waiting for chamber {}°C"/>

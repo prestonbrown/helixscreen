@@ -951,7 +951,6 @@ translations:
   Cool Down: Resfriar
   Cool nozzle after filament ops: Resfriar bico após operações de filamento
   Cooling: Resfriamento
-  Cooling Bed...: Resfriando mesa...
   Cooling Tube Length: 'Comprimento do tubo de resfriamento'
   Cooling Tube Retraction: 'Retração do tubo de resfriamento'
   Cooling for probing...: Resfriando para sondagem...
@@ -4659,6 +4658,7 @@ translations:
   Waiting for Moonraker...: Aguardando Moonraker...
   Waiting for %s to finish. One heater at a time.: Aguardando %s terminar. Um aquecedor por vez.
   Waiting for another box to finish.: Aguardando outra caixa terminar.
+  Waiting for bed temperature...: Aguardando a temperatura da mesa...
   Waiting for bed to reach temperature for accurate calibration.: Aguardando a mesa
     atingir a temperatura para calibração precisa.
   Waiting for chamber {} / {}°C: 'Aguardando a câmara {} / {}°C'

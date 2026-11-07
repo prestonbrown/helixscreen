@@ -72,9 +72,9 @@ TEST_CASE("PrintStartProfile: creator5 maps Z-Mod's START_PRINT narration",
         {"// Waiting for temperature normalization. Bed: 62.0-68.0. T0: 218.0-222.0 _T_PREPARE",
                                                                                    PrintStartPhase::HEATING_BED,    "Heating Bed..."},
         {"// Waiting for temperature normalization. Bed: 52.0-58.0. T0: 218.0-222.0 START_PRINT",
-                                                                                   PrintStartPhase::HEATING_BED,    "Cooling Bed..."},
+                                                                                   PrintStartPhase::HEATING_BED,    "Waiting for bed temperature..."},
         {"info Bed calibration. Profile auto. Extruder temp: 220.0 / Bed temp: 55.0",
-                                                                                   PrintStartPhase::HEATING_BED,    "Cooling for probing..."},
+                                                                                   PrintStartPhase::HEATING_BED,    "Waiting for bed temperature..."},
         {"info Nozzle line purge. Algorithm: LINE_PURGE",                          PrintStartPhase::PURGING,        "Purging..."},
         {"// KAMP purge starts at 113.0, 78.0 and purges 30.0mm of filament, required flow rate is 12.0mm\xC2\xB3/s",
                                                                                    PrintStartPhase::PURGING,        "Purging..."},
@@ -125,6 +125,42 @@ TEST_CASE("PrintStartProfile: creator5 reads Z-Mod's START_PRINT settings banner
     for (const char* line : lines) {
         CAPTURE(line);
         CHECK_FALSE(map_line(*profile, line).matched);
+    }
+}
+
+TEST_CASE(
+    "PrintStartProfile: creator5 keeps the generic patterns for the Creator 5's other firmwares",
+    "[profile][print][creator5]") {
+    auto profile = get_creator5_profile();
+    auto generic = PrintStartProfile::load_default();
+    REQUIRE(profile != nullptr);
+    REQUIRE(generic != nullptr);
+
+    // Narration a stock or OpenCreator start may print, none of which Z-Mod's
+    // START_PRINT prints: each maps as it does with the generic profile.
+    const char* const lines[] = {
+        "G28",
+        "M190 S60",
+        "Bed: 60 C",
+        "Heat soaking for 5 minutes",
+        "M109 S220",
+        "Nozzle: 220 C",
+        "QUAD_GANTRY_LEVEL",
+        "Z_TILT_ADJUST",
+        "BED_MESH_CALIBRATE",
+        "Loading bed mesh",
+        "CLEAN_NOZZLE",
+        "NOZZLE_CLEAR",
+        "VORON_PURGE",
+    };
+    for (const char* line : lines) {
+        CAPTURE(line);
+        PrintStartProfile::MatchResult expected;
+        REQUIRE(generic->try_match_pattern(line, expected));
+        const Mapped m = map_line(*profile, line);
+        REQUIRE(m.matched);
+        CHECK(m.phase == expected.phase);
+        CHECK(m.message == expected.message);
     }
 }
 

@@ -9188,7 +9188,7 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     REQUIRE(result.armed_at_ms == 77809);
     REQUIRE(result.trace == "77:INITIALIZING:Preparing Print...\n"
                             "78:INITIALIZING:Starting Print...\n"
-                            "80:HEATING_BED:Cooling Bed...\n"
+                            "80:HEATING_BED:Waiting for bed temperature...\n"
                             "279:PURGING:Purging...\n"
                             "284:COMPLETE:Starting Print...");
     REQUIRE(result.completed_at_ms == 284133);
@@ -9202,12 +9202,12 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     CAPTURE(result.trace);
     REQUIRE(result.trace == "89:INITIALIZING:Preparing Print...\n"
                             "90:INITIALIZING:Starting Print...\n"
-                            "91:HEATING_BED:Cooling for probing...\n"
+                            "91:HEATING_BED:Waiting for bed temperature...\n"
                             "264:INITIALIZING:Docking tool\n"
                             "296:BED_MESH:Bed Mesh (5/100)\n"
                             "912:HEATING_NOZZLE:Heating Nozzle...\n"
                             "933:INITIALIZING:Picking up tool\n"
-                            "941:HEATING_BED:Cooling Bed...\n"
+                            "941:HEATING_BED:Waiting for bed temperature...\n"
                             "941:PURGING:Purging...\n"
                             "946:COMPLETE:Starting Print...");
     // The mesh shows once five distinct points confirm a sweep (15 probe lines,
@@ -9234,7 +9234,7 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                             "51:HEATING_NOZZLE:Heating Nozzle...\n"
                             "75:HEATING_BED:Heating Bed...\n"
                             "78:INITIALIZING:Starting Print...\n"
-                            "80:HEATING_BED:Cooling Bed...\n"
+                            "80:HEATING_BED:Waiting for bed temperature...\n"
                             "279:PURGING:Purging...\n"
                             "284:COMPLETE:Starting Print...");
     REQUIRE(result.completed_at_ms == 284133);
