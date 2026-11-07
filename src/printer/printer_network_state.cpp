@@ -48,6 +48,26 @@ const char* klippy_state_name(KlippyState state) {
     return "error";
 }
 
+bool is_klippy_config_error(std::string_view state_message) {
+    // Klipper's configfile/pins errors, verbatim. Each one names the option,
+    // section, pin or file at fault, so the message itself says where to look.
+    static constexpr std::string_view kConfigErrorPhrases[] = {
+        "in section '", // Option 'x' in section 'y' must .../is not valid ...
+        "is not a valid config section",
+        "Unable to open config file",
+        "Unable to parse option",
+        "Error loading template", // gcode_macro templates are config too
+        "Unknown pin chip name",
+        "used multiple times in config",
+    };
+    for (std::string_view phrase : kConfigErrorPhrases) {
+        if (state_message.find(phrase) != std::string_view::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 PrinterNetworkState::PrinterNetworkState() {
     // Initialize string buffer
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
@@ -74,6 +94,7 @@ void PrinterNetworkState::init_subjects(bool register_xml) {
     // Klipper firmware state subject (default to SHUTDOWN until confirmed ready)
     INIT_SUBJECT_INT(klippy_state, static_cast<int>(KlippyState::SHUTDOWN), subjects_,
                      register_xml);
+    klippy_state_reported_ = false;
 
     // Combined nav button enabled subject (connected AND klippy ready)
     // Starts disabled (0) - will be updated when connection/klippy state changes
@@ -257,8 +278,17 @@ void PrinterNetworkState::reset_klippy_state_freshness() {
 bool PrinterNetworkState::set_klippy_state_internal(KlippyState state) {
     const char* state_names[] = {"READY", "STARTUP", "SHUTDOWN", "ERROR"};
     int state_int = static_cast<int>(state);
-    if (lv_subject_get_int(&klippy_state_) == state_int)
+    const bool first_report = !klippy_state_reported_;
+    klippy_state_reported_ = true;
+    if (lv_subject_get_int(&klippy_state_) == state_int) {
+        // The subject's placeholder is SHUTDOWN, so a printer that really is shut
+        // down when first heard from sets no new value. Observers that ignore the
+        // placeholder still have to learn it has become the reported state.
+        if (first_report) {
+            lv_subject_notify(&klippy_state_);
+        }
         return false;
+    }
     spdlog::debug("[PrinterNetworkState] Klippy state changed: {} ({})", state_names[state_int],
                   state_int);
     lv_subject_set_int(&klippy_state_, state_int);

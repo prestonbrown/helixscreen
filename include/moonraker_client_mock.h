@@ -229,6 +229,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         klippy_state_.store(state);
     }
 
+    /// The state_message printer.info reports while Klippy is in ERROR. Empty
+    /// keeps the generic text. Set before connecting: not synchronised.
+    void set_klippy_error_message(std::string message) {
+        klippy_error_message_ = std::move(message);
+    }
+    const std::string& klippy_error_message() const {
+        return klippy_error_message_;
+    }
+
     /**
      * @brief Check if motors are currently enabled
      * @return true if motors enabled (Ready/Printing), false if disabled (Idle via M84)
@@ -2340,6 +2349,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Klippy service state (for RESTART/FIRMWARE_RESTART simulation)
     std::atomic<KlippyState> klippy_state_{KlippyState::READY};
+    std::string klippy_error_message_;
 
     // Fan speed tracking (multiple fans by name)
     std::map<std::string, double> fan_speeds_; // Fan name -> speed (0.0-1.0)

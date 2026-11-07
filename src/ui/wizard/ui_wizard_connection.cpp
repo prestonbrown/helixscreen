@@ -14,6 +14,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -28,6 +29,7 @@
 #include "printer_discovery.h"
 #include "printer_discovery_list.h"
 #include "printer_retarget.h"
+#include "printer_state.h"
 #include "runtime_config.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -989,6 +991,9 @@ void WizardConnectionStep::cleanup() {
     // would fire into a torn-down screen.
     cancel_discovery_watchdog();
 
+    klippy_message_observer_.reset();
+    showing_klipper_unavailable_ = false;
+
     // If a connection test or auto-probe is in progress, cancel it
     if (lv_subject_get_int(&connection_testing_) == 1 ||
         auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
@@ -1143,6 +1148,7 @@ void WizardConnectionStep::adopt_probed_port(int port) {
 
 void WizardConnectionStep::set_status(const char* icon_name, StatusVariant variant,
                                       const char* text) {
+    showing_klipper_unavailable_ = false;
     if (!screen_root_) {
         return;
     }
@@ -1201,10 +1207,36 @@ void WizardConnectionStep::allow_continue_without_klipper() {
     // is already persisted — only Klipper is unusable. Report that plainly and
     // unblock Next: the app's own error surfaces show the actual Klipper fault,
     // which is far more useful than a wizard the user cannot leave.
-    unblock_after_incomplete_discovery(
-        lv_tr("Connected to Moonraker, but Klipper is not running. You can continue "
-              "— HelixScreen will show the Klipper error, and hardware detection "
-              "stays limited until Klipper starts."));
+    unblock_after_incomplete_discovery(klipper_unavailable_status().c_str());
+    showing_klipper_unavailable_ = true;
+
+    // Klippy's reason is fetched after discovery gives up, so it usually lands
+    // a moment after this text. Re-render when it does, while the text is still up.
+    if (!klippy_message_observer_ && get_printer_state().are_subjects_initialized()) {
+        klippy_message_observer_ = helix::ui::observe<int>(
+            get_printer_state().network_state().get_klippy_state_message_seq_subject(), this,
+            [](WizardConnectionStep* self, int /*seq*/) {
+                if (self->showing_klipper_unavailable_) {
+                    self->set_status("icon_triangle_exclamation", StatusVariant::Warning,
+                                     self->klipper_unavailable_status().c_str());
+                    self->showing_klipper_unavailable_ = true;
+                }
+            },
+            get_printer_state().get_subjects_lifetime());
+    }
+}
+
+std::string WizardConnectionStep::klipper_unavailable_status() const {
+    const std::string fault = get_printer_state().network_state().get_klippy_fault_message();
+    if (fault.empty()) {
+        return lv_tr("Connected to Moonraker, but Klipper is not running. You can continue "
+                     "— HelixScreen will show the Klipper error, and hardware detection "
+                     "stays limited until Klipper starts.");
+    }
+    return std::string(lv_tr("Connected to Moonraker, but Klipper reported an error. You can "
+                             "continue, and HelixScreen will show it again after setup. "
+                             "Hardware detection stays limited until Klipper starts.")) +
+           "\n\n" + fault;
 }
 
 // ============================================================================

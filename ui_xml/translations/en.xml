@@ -829,6 +829,7 @@
   <translation tag="Connected to" en="Connected to"/>
   <translation tag="Connected to " en="Connected to "/>
   <translation tag="Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts." en="Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts."/>
+  <translation tag="Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts." en="Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts."/>
   <translation tag="Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds." en="Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds."/>
   <translation tag="Connected to {}" en="Connected to {}"/>
   <translation tag="Connected! Discovering printer..." en="Connected! Discovering printer..."/>
@@ -1927,8 +1928,10 @@
   <translation tag="Kinematics" en="Kinematics"/>
   <translation tag="Klippain Shake&amp;Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd." en="Klippain Shake&amp;Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd."/>
   <translation tag="Klipper" en="Klipper"/>
+  <translation tag="Klipper Config Error" en="Klipper Config Error"/>
   <translation tag="Klipper Error" en="Klipper Error"/>
   <translation tag="Klipper already reports the ACE slots." en="Klipper already reports the ACE slots."/>
+  <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." en="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper."/>
   <translation tag="Klipper disconnected" en="Klipper disconnected"/>
   <translation tag="Klipper failed to start with the skip macros, so they were removed" en="Klipper failed to start with the skip macros, so they were removed"/>
   <translation tag="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg." en="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg."/>

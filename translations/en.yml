@@ -885,6 +885,8 @@ translations:
   'Connected to ': 'Connected to '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   Connected to {}: Connected to {}
@@ -2062,8 +2064,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   Klipper: Klipper
+  Klipper Config Error: Klipper Config Error
   Klipper Error: Klipper Error
   Klipper already reports the ACE slots.: Klipper already reports the ACE slots.
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.
   Klipper disconnected: Klipper disconnected
   Klipper failed to start with the skip macros, so they were removed: Klipper failed to start with the skip macros, so they were removed
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.

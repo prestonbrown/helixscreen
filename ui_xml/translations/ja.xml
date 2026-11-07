@@ -829,6 +829,7 @@
   <translation tag="Connected to" ja="接続先"/>
   <translation tag="Connected to " ja="接続先: "/>
   <translation tag="Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts." ja="Moonraker に接続しましたが、Klipper が実行されていません。続行できます — HelixScreen は Klipper のエラーを表示し、Klipper が起動するまでハードウェア検出は制限されます。"/>
+  <translation tag="Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts." ja="Moonrakerに接続しましたが、Klipperがエラーを報告しました。続行できます。セットアップ後にHelixScreenが再度表示します。Klipperが起動するまでハードウェア検出は制限されます。"/>
   <translation tag="Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds." ja="Moonraker に接続しましたが、プリンターの検出が完了しませんでした。続行できます — プリンターが応答するまでハードウェア検出は制限されます。"/>
   <translation tag="Connected to {}" ja="{} に接続しました"/>
   <translation tag="Connected! Discovering printer..." ja="接続完了！プリンターを検出中..."/>
@@ -1927,8 +1928,10 @@
   <translation tag="Kinematics" ja="キネマティクス"/>
   <translation tag="Klippain Shake&amp;Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd." ja="Klippain Shake&amp;Tuneのマクロがプリンターにインストールされています。HelixScreenは検出しますが使用しません。MainsailまたはFluiddから実行してください。"/>
   <translation tag="Klipper" ja="Klipper"/>
+  <translation tag="Klipper Config Error" ja="Klipper設定エラー"/>
   <translation tag="Klipper Error" ja="Klipper エラー"/>
   <translation tag="Klipper already reports the ACE slots." ja="KlipperがすでにACEのスロットを報告しています。"/>
+  <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." ja="Klipperが設定を読み込めませんでした。プリンターの設定ファイルで下記の設定を修正してから、Klipperを再起動してください。"/>
   <translation tag="Klipper disconnected" ja="Klipper切断"/>
   <translation tag="Klipper failed to start with the skip macros, so they were removed" ja="スキップ用マクロでは Klipper が起動しなかったため、削除しました"/>
   <translation tag="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg." ja="Klipper を起動できませんでした。printer.cfg から helix_skips.cfg の include を削除してください。"/>

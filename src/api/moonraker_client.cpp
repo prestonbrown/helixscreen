@@ -169,6 +169,11 @@ void MoonrakerClient::start_klippy_state_poll() {
     spdlog::debug("[Moonraker Client] Polling printer.info until Klippy's state settles");
 }
 
+void MoonrakerClient::poll_klippy_state_until_settled() {
+    start_klippy_state_poll();
+    poll_klippy_state();
+}
+
 void MoonrakerClient::stop_klippy_state_poll(const char* why) {
     if (klippy_state_poll_->started_at.exchange(0) == 0) {
         return;
@@ -218,8 +223,7 @@ void MoonrakerClient::poll_klippy_state() {
             }
             poll->started_at.store(0);
 
-            spdlog::info("[Moonraker Client] Klippy state after disconnect: '{}' ({})", state,
-                         message);
+            spdlog::info("[Moonraker Client] Klippy state settled: '{}' ({})", state, message);
             json webhooks = {{"state", state}, {"state_message", message}};
             const uint64_t epoch = get_printer_state().network_state().klippy_epoch();
             helix::ui::queue_update("MoonrakerClient::klippy_state_poll", [webhooks, epoch]() {

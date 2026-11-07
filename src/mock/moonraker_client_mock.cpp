@@ -443,6 +443,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                      display_message_);
     }
 
+    // HELIX_MOCK_KLIPPY_ERROR=<state_message> — Klipper refused to start, as on a
+    // printer.cfg it cannot load: Klippy reports `error` with this reason until a
+    // restart brings it up.
+    if (const char* klippy_error = std::getenv("HELIX_MOCK_KLIPPY_ERROR");
+        klippy_error && klippy_error[0]) {
+        klippy_state_.store(KlippyState::ERROR);
+        klippy_error_message_ = klippy_error;
+        spdlog::info("[MoonrakerClientMock] HELIX_MOCK_KLIPPY_ERROR — Klippy in error: \"{}\"",
+                     klippy_error_message_);
+    }
+
     // HELIX_MOCK_EXCLUDE_OBJECTS=<n>|1 — publish a synthetic multi-object plate at
     // print start. The stock test G-codes declare a single EXCLUDE_OBJECT_DEFINE,
     // and the objects button is gated on two or more, so without this the
@@ -2332,8 +2343,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
         {"fan", {{"speed", fan / 255.0}}},
         {"webhooks",
          {{"state", klippy_str},
-          {"state_message",
-           klippy == KlippyState::SHUTDOWN ? kM112ShutdownMessage : "Printer is ready"}}},
+          {"state_message", klippy == KlippyState::SHUTDOWN ? std::string(kM112ShutdownMessage)
+                            : klippy == KlippyState::ERROR && !klippy_error_message_.empty()
+                                ? klippy_error_message_
+                                : std::string("Printer is ready")}}},
         {"print_stats", {{"state", print_state_str}, {"filename", filename}}},
         {"virtual_sdcard", {{"progress", progress}}},
         {"bed_mesh", bed_mesh_status()}};
