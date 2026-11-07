@@ -8,10 +8,10 @@
  */
 
 #include "ui_panel_screws_tilt.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "calibration_types.h"
+#include "core/update_queue.h"
 
 #include <vector>
 

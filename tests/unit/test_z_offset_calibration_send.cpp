@@ -229,17 +229,28 @@ TEST_CASE_METHOD(CalibrationSendFixture,
                  "[ui_integration][zoffset][1516]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
-    ZOffsetCalibrationPanel panel;
+    auto& panel = get_global_zoffset_cal_panel();
+    panel.init_subjects();
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::mark_bed_warmed(panel);
-    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::WARMING);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    lv_xml_get_event_cb(nullptr, "on_zoffset_start_clicked")(nullptr);
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+    REQUIRE(client.last_send_script().rfind("M140 S", 0) == 0);
+    const std::string warm = client.last_send_script();
 
     panel.on_deactivate(DeactivateReason::Suspended);
     panel.on_activate();
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(client.last_send_script().empty()); // no M140 S0
-    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::WARMING);
+    CHECK(client.last_send_script() == warm);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+
+    // Leaving for real turns the bed off.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(client.last_send_script() == "M140 S0");
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+    lv_xml_get_event_cb(nullptr, "on_zoffset_retry_clicked")(nullptr);
+    panel.set_api(nullptr);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,
@@ -249,12 +260,13 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerAPI api(client, state());
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::COMPLETE);
+    panel.on_calibration_result(true, "");
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
 
     panel.on_deactivate(DeactivateReason::Suspended);
     panel.on_activate();
 
-    CHECK(ZOffsetCalibrationTestAccess::state(panel) == ZOffsetCalibrationPanel::State::COMPLETE);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
 }
 
 // ============================================================================

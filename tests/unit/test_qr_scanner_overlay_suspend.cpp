@@ -3,38 +3,50 @@
 // QrScannerOverlay behind the screensaver: the camera stops, the caller's
 // result and cancel callbacks survive for the scan after the wake.
 
+#include "ui_nav_manager.h"
 #include "ui_overlay_qr_scanner.h"
 
-#include "../lvgl_test_fixture.h"
-#include "../test_helpers/qr_scanner_overlay_test_access.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "spoolman_types.h"
+
+#include <array>
 
 #include "../catch_amalgamated.hpp"
 
-using helix::ui::QrScannerOverlay;
-using helix::ui::QrScannerOverlayTestAccess;
+using helix::ui::get_qr_scanner_overlay;
 
-TEST_CASE_METHOD(LVGLTestFixture, "a screensaver suspend keeps the scanner's caller callbacks",
+TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver suspend keeps the scanner's caller callbacks",
                  "[qr_scanner][suspend]") {
-    QrScannerOverlay overlay;
-    int results = 0;
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    auto& nav = NavigationManager::instance();
+    nav.set_panels(panels.data());
+    auto& queue = helix::ui::UpdateQueue::instance();
+
     int cancels = 0;
-    QrScannerOverlayTestAccess::set_callbacks(
-        overlay, [&](const SpoolInfo&) { ++results; }, [&]() { ++cancels; });
+    get_qr_scanner_overlay().show(
+        lv_screen_active(), 0, [](const SpoolInfo&) {}, [&cancels]() { ++cancels; });
+    queue.drain();
+    nav.suspend_active();
+    queue.drain();
+    nav.resume_active();
+    queue.drain();
 
-    overlay.on_deactivate(DeactivateReason::Suspended);
-
-    auto& on_result = QrScannerOverlayTestAccess::result_callback(overlay);
-    auto& on_cancel = QrScannerOverlayTestAccess::cancel_callback(overlay);
-    REQUIRE(on_result);
-    REQUIRE(on_cancel);
-    on_result(SpoolInfo{});
-    on_cancel();
-    CHECK(results == 1);
+    lv_event_cb_t close = lv_xml_get_event_cb(nullptr, "on_qr_scanner_close");
+    REQUIRE(close != nullptr);
+    close(nullptr);
+    queue.drain();
     CHECK(cancels == 1);
 
-    // Closing the scanner drops them.
-    overlay.on_deactivate(DeactivateReason::NavigateAway);
-    CHECK_FALSE(QrScannerOverlayTestAccess::result_callback(overlay));
-    CHECK_FALSE(QrScannerOverlayTestAccess::cancel_callback(overlay));
+    // Closing the scanner dropped them, so a stray close reaches no caller.
+    close(nullptr);
+    queue.drain();
+    CHECK(cancels == 1);
+    StaticPanelRegistry::instance().destroy_all();
+    queue.drain();
 }

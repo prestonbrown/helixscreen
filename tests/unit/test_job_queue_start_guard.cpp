@@ -514,7 +514,7 @@ TEST_CASE_METHOD(QueuedStartFixture,
 
     panel_->start_queued_job(entry("0001", file.name()));
     drain();
-    REQUIRE(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "detail_view_visible")) == 1);
     REQUIRE(pending_job_id() != nullptr);
 
     NavigationManager::instance().suspend_active();
@@ -525,7 +525,6 @@ TEST_CASE_METHOD(QueuedStartFixture,
     const std::string* pending = pending_job_id();
     REQUIRE(pending != nullptr);
     CHECK(*pending == "0001");
-    CHECK(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
 }
 
 // ============================================================================

@@ -283,7 +283,6 @@ std::string progress_text() {
     return lv_subject_get_string(s);
 }
 void discover_extruder() {
-    helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
@@ -302,14 +301,14 @@ void nozzle_at(double c) {
 TEST_CASE_METHOD(PidHeadsFixture, "A calibration's progress follows the heater after a wake",
                  "[pid][pid_progress]") {
     discover_extruder();
-    Access::activate(panel);
+    panel.on_activate();
     start();
     nozzle_at(100.0);
     REQUIRE(progress_text().find("100") != std::string::npos);
 
-    Access::suspend(panel);
+    panel.on_deactivate(DeactivateReason::Suspended);
     nozzle_at(140.0);
-    Access::activate(panel);
+    panel.on_activate();
     nozzle_at(160.0);
     CHECK(progress_text().find("160") != std::string::npos);
 }
@@ -319,7 +318,7 @@ TEST_CASE_METHOD(PidHeadsFixture, "A calibration's progress follows the heater a
 TEST_CASE_METHOD(PidHeadsFixture, "An MPC run shows the firmware's phase, not PID heat-up text",
                  "[pid][pid_progress]") {
     discover_extruder();
-    Access::activate(panel);
+    panel.on_activate();
     Access::use_mpc(panel);
     start();
     REQUIRE(sent("MPC_CALIBRATE HEATER=extruder "));
@@ -348,13 +347,13 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC run shows the firmware's phase, not PI
 TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensaver is kept",
                  "[pid][pid_progress]") {
     discover_extruder();
-    Access::activate(panel);
+    panel.on_activate();
     Access::use_mpc(panel);
     start();
     REQUIRE(subject_int("pid_cal_state") == 1); // CALIBRATING
     client.clear_gcode_script_history();
 
-    Access::suspend(panel);
+    panel.on_deactivate(DeactivateReason::Suspended);
     client.dispatch_gcode_response("// Finished MPC calibration of heater 'extruder'\n"
                                    "// Measured:\n"
                                    "// block_heat_capacity=17.9784 [J/K]\n"
@@ -365,12 +364,12 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensav
         helix::ui::UpdateQueue::instance().drain();
         return sent("SAVE_CONFIG");
     }));
-    Access::activate(panel);
+    panel.on_activate();
     CHECK(subject_int("pid_cal_state") >= 2); // SAVING or COMPLETE, not reset to IDLE
 
     // Leaving for real after a later suspend: the next visit starts fresh.
-    Access::suspend(panel);
-    Access::navigate_away(panel);
-    Access::activate(panel);
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    panel.on_activate();
     CHECK(subject_int("pid_cal_state") == 0);
 }

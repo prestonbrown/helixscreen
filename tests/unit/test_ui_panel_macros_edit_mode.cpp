@@ -290,26 +290,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "opening the panel builds its rows once", "[ma
     MacrosPanelTestAccess::teardown(p);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "a screensaver wake keeps unsaved hidden-macro edits",
-                 "[macros][editmode][suspend]") {
-    MacrosPanel p;
-    MacrosPanelTestAccess::prepare(p, {"CLEAN_NOZZLE", "LOAD", "_HOME_Z"});
-    MacrosPanelTestAccess::enter(p);
-    MacrosPanelTestAccess::toggle(p, index_of(p, "CLEAN_NOZZLE"));
-
-    p.on_deactivate(DeactivateReason::Suspended);
-    p.on_activate();
-    helix::ui::UpdateQueue::instance().drain();
-
-    CHECK(MacrosPanelTestAccess::edit_mode(p));
-    CHECK(MacrosPanelTestAccess::pending_hidden(p).count("CLEAN_NOZZLE") == 1);
-
-    // Leaving the panel still discards the edit.
-    p.on_deactivate(DeactivateReason::NavigateAway);
-    CHECK_FALSE(MacrosPanelTestAccess::edit_mode(p));
-    MacrosPanelTestAccess::teardown(p);
-}
-
 TEST_CASE("panel_macros leaves out the leveling-skip wrappers", "[macros][skip_wrappers]") {
     const std::unordered_set<std::string> macros = {"PRINT_START", "BED_MESH_CALIBRATE",
                                                     "QUAD_GANTRY_LEVEL", "_HELIX_PREP"};

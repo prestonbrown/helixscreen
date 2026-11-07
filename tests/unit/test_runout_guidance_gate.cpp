@@ -25,6 +25,7 @@
  */
 
 #include "ui_filament_runout_handler.h"
+#include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -397,19 +398,26 @@ TEST_CASE_METHOD(print_status_panel_test::PrintStatusPanelFixture,
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(FilamentSensorManager::instance().has_real_runout());
 
+    // The app's global Print Status panel shows its own dialog underneath; this
+    // panel's is the one on top.
+    const auto top_guidance = [] {
+        return ModalStack::instance().dialog_for_component("runout_guidance_modal");
+    };
     panel().on_activate();
-    auto& handler = PrintStatusPanelTestAccess::runout_handler(panel());
-    handler.on_print_state_changed(::PrintState::Printing, ::PrintState::Paused);
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(handler.is_modal_visible());
+    state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* dialog = top_guidance();
+    REQUIRE(dialog != nullptr);
 
     panel().on_deactivate(DeactivateReason::Suspended);
-    CHECK(handler.is_modal_visible());
+    CHECK(top_guidance() == dialog);
     panel().on_activate();
-    CHECK(handler.is_modal_visible());
+    CHECK(top_guidance() == dialog);
 
     // Leaving the panel still closes it.
     panel().on_deactivate(DeactivateReason::NavigateAway);
-    CHECK_FALSE(handler.is_modal_visible());
+    CHECK(top_guidance() != dialog);
     disarm_runout_sensor();
 }

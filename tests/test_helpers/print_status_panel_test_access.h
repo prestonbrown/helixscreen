@@ -42,11 +42,6 @@ class PrintStatusPanelTestAccess {
         PrintStatusPanel::release_kept_tree_after_job();
     }
 
-    /// The panel's filament runout handler, which owns the guidance dialog.
-    static helix::ui::FilamentRunoutHandler& runout_handler(PrintStatusPanel& panel) {
-        return *panel.runout_handler_;
-    }
-
     /// True between on_activate() and the next on_deactivate().
     static bool is_active(const PrintStatusPanel& panel) {
         return panel.is_active_;

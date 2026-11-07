@@ -78,7 +78,7 @@ class WizardAutoAcceptFixture {
 
     // kSamplesRequired clean taps to fully capture one calibration point.
     void capture_point_via_release(Point p) {
-        for (int i = 0; i < TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
             tap(p);
         }
     }
