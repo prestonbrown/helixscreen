@@ -276,6 +276,9 @@ class PIDCalibrationPanel : public OverlayBase {
     /// Set while the screensaver has the panel suspended: the wake resumes
     /// whatever the panel showed instead of resetting it.
     bool suspended_ = false;
+    /// A run entered CALIBRATING behind the screensaver: the wake starts its
+    /// progress tracking instead of resuming one.
+    bool tracking_starts_on_wake_ = false;
     int target_temp_ = 200;         // Default for extruder
     int fan_speed_ = 0;             // Part cooling fan speed for extruder PID
     std::string selected_material_; // Active material preset name

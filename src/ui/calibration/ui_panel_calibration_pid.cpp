@@ -54,6 +54,9 @@ static bool s_callbacks_registered = false;
 // slow-cooling beds (e.g. AD5M Pro) legitimately take far longer to cycle.
 static constexpr uint32_t kPidOvertimeExtruderMs = 12u * 60u * 1000u; // 12 min
 static constexpr uint32_t kPidOvertimeBedMs = 30u * 60u * 1000u;      // 30 min
+// MPC_CALIBRATE settles to ambient, heats, then holds at each fan breakpoint.
+static constexpr uint32_t kMpcOvertimeExtruderMs = 30u * 60u * 1000u; // 30 min
+static constexpr uint32_t kMpcOvertimeBedMs = 60u * 60u * 1000u;      // 60 min
 
 // Non-creating view of the global instance (defined with it at the bottom of
 // this file). Returns nullptr when the panel does not currently exist, so
@@ -303,13 +306,20 @@ void PIDCalibrationPanel::on_activate() {
     // would also make on_mpc_result() discard its result, since it only
     // accepts one while the state says CALIBRATING.
     const bool waking = std::exchange(suspended_, false);
-    if (waking || state_ == State::CALIBRATING || state_ == State::MIGRATING) {
+    if ((waking && state_ != State::IDLE) || state_ == State::CALIBRATING ||
+        state_ == State::MIGRATING) {
         spdlog::info("[PIDCal] Reactivated (wake={}) - keeping state {}", waking,
                      static_cast<int>(state_));
         // on_deactivating() stopped following the heater; the run did not stop.
         if (state_ == State::CALIBRATING) {
             setup_pid_graph();
-            attach_progress_tracking();
+            // A run that began behind the screensaver (a migration finishing)
+            // has no tracker yet; one that was suspended keeps what it measured.
+            if (std::exchange(tracking_starts_on_wake_, false)) {
+                start_progress_tracking();
+            } else {
+                attach_progress_tracking();
+            }
         }
         return;
     }
@@ -391,6 +401,7 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
         return;
     }
     run_lifetime_.invalidate();
+    suspended_ = false;
 
     // Klipper runs one command at a time, so a running print owns the fan and
     // heaters. A paused one accepts commands: a calibration started then set the
@@ -417,6 +428,8 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
         if (api_) {
             api_->execute_gcode("TURN_OFF_HEATERS", nullptr, nullptr);
         }
+        // The run is over; coming back shows the panel ready for another.
+        set_state(State::IDLE);
     }
 }
 
@@ -492,7 +505,9 @@ void PIDCalibrationPanel::set_state(State new_state) {
 
     // Setup graph and progress tracking when entering CALIBRATING state
     if (new_state == State::CALIBRATING) {
-        setup_pid_graph();
+        // Behind the screensaver nothing is drawn; the wake sets these up.
+        if (!suspended_)
+            setup_pid_graph();
         // Reset progress
         cal_start_tick_ms_ = lv_tick_get();
         pid_estimated_total_ = 3;
@@ -500,7 +515,9 @@ void PIDCalibrationPanel::set_state(State new_state) {
         lv_subject_set_int(&subj_pid_progress_, 0);
         lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Starting..."));
         lv_subject_copy_string(&subj_pid_eta_, "");
-        start_progress_tracking();
+        tracking_starts_on_wake_ = suspended_;
+        if (!suspended_)
+            start_progress_tracking();
     } else {
         cal_start_tick_ms_ = 0;
         stop_progress_tracking();
@@ -1268,26 +1285,29 @@ void PIDCalibrationPanel::update_progress_display() {
     // per fan speed. The heat-then-oscillate model behind the PID wording, bar
     // and ETA does not describe that, so an MPC run shows the phases the
     // firmware narrates (on_mpc_progress) and no estimate.
-    if (selected_method_ == CalibMethod::MPC) {
-        lv_subject_copy_string(&subj_pid_eta_, "");
-        return;
-    }
+    const bool mpc = selected_method_ == CalibMethod::MPC;
+    const bool extruder = selected_heater_ == Heater::EXTRUDER;
     int progress = progress_tracker_.progress_percent();
     // Cap at 95% until actual completion
     if (progress > 95 && progress_tracker_.phase() != PidProgressTracker::Phase::COMPLETE)
         progress = 95;
-    lv_subject_set_int(&subj_pid_progress_, progress);
+    if (!mpc)
+        lv_subject_set_int(&subj_pid_progress_, progress);
 
     // Overtime backstop (#988): once a run exceeds its generous per-heater threshold,
     // reassure the user that the printer may still be working and point at the existing
     // Abort button, instead of leaving them staring at a stalled progress bar. The RPC
     // timeout no longer hard-fails, so this is the only "something may be wrong" signal.
-    const uint32_t overtime_ms =
-        (selected_heater_ == Heater::EXTRUDER) ? kPidOvertimeExtruderMs : kPidOvertimeBedMs;
+    const uint32_t overtime_ms = mpc ? (extruder ? kMpcOvertimeExtruderMs : kMpcOvertimeBedMs)
+                                     : (extruder ? kPidOvertimeExtruderMs : kPidOvertimeBedMs);
     if (cal_start_tick_ms_ != 0 && lv_tick_elaps(cal_start_tick_ms_) > overtime_ms) {
         lv_subject_copy_string(&subj_pid_progress_text_,
                                lv_tr("Still working... taking longer than usual"));
         lv_subject_copy_string(&subj_pid_eta_, lv_tr("Press Abort to stop"));
+        return;
+    }
+    if (mpc) {
+        lv_subject_copy_string(&subj_pid_eta_, "");
         return;
     }
 

@@ -367,4 +367,10 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensav
     }));
     Access::activate(panel);
     CHECK(subject_int("pid_cal_state") >= 2); // SAVING or COMPLETE, not reset to IDLE
+
+    // Leaving for real after a later suspend: the next visit starts fresh.
+    Access::suspend(panel);
+    Access::navigate_away(panel);
+    Access::activate(panel);
+    CHECK(subject_int("pid_cal_state") == 0);
 }
