@@ -121,11 +121,29 @@ PrintStartCollector::PrintStartCollector(IMoonrakerClient& client, PrinterState&
 
 std::shared_ptr<PrintStartCollector> PrintStartCollector::create(IMoonrakerClient& client,
                                                                  PrinterState& state) {
-    return std::shared_ptr<PrintStartCollector>(
+    auto collector = std::shared_ptr<PrintStartCollector>(
         new PrintStartCollector(client, state), [](PrintStartCollector* collector) {
             helix::ui::run_on_main("PrintStartCollector::destroy",
                                    [collector]() { delete collector; });
         });
+    // Listening from creation, not from the first start(): an idle collector
+    // arms on a start the printer announces.
+    collector->register_console_handler();
+    return collector;
+}
+
+void PrintStartCollector::register_console_handler() {
+    // Stays registered until detach(): on_gcode_response() returns early when
+    // !active_, apart from a start announcement. Registering it only at start()
+    // would lose the first responses from START_PRINT.
+    if (!handler_name_.empty()) {
+        return;
+    }
+    static std::atomic<uint64_t> s_collector_id{0};
+    handler_name_ = "print_start_collector_" + std::to_string(++s_collector_id);
+    auto self = shared_from_this();
+    client_.register_method_callback("notify_gcode_response", handler_name_,
+                                     [self](const json& msg) { self->on_gcode_response(msg); });
 }
 
 PrintStartCollector::~PrintStartCollector() {
@@ -204,33 +222,31 @@ void PrintStartCollector::start() {
     // Compute duration-proportional weights from predictions + thermal model
     compute_predicted_weights();
 
-    // Ensure we have a profile for pattern matching
+    // Ensure we have a profile for pattern matching. Written under state_mutex_:
+    // the inactive collector reads it from the WebSocket thread for a start
+    // announcement.
     if (!profile_) {
+        std::shared_ptr<PrintStartProfile> loaded;
         // Try printer-specific profile first (printer type may not have been known at init time)
         std::string printer_type = state_.profile_state().printer_type();
         if (!printer_type.empty()) {
             std::string profile_name = PrinterDetector::get_print_start_profile(printer_type);
             if (!profile_name.empty()) {
-                profile_ = PrintStartProfile::load(profile_name);
+                loaded = PrintStartProfile::load(profile_name);
                 spdlog::info("[PrintStartCollector] Loaded profile '{}' for '{}'", profile_name,
                              printer_type);
             }
         }
-        if (!profile_) {
-            profile_ = PrintStartProfile::load_default();
+        if (!loaded) {
+            loaded = PrintStartProfile::load_default();
         }
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile_ = std::move(loaded);
     }
 
     auto self = shared_from_this();
 
-    // Register gcode response handler if not already registered (stays registered
-    // permanently — on_gcode_response() returns early when !active_)
-    if (handler_name_.empty()) {
-        static std::atomic<uint64_t> s_collector_id{0};
-        handler_name_ = "print_start_collector_" + std::to_string(++s_collector_id);
-        client_.register_method_callback("notify_gcode_response", handler_name_,
-                                         [self](const json& msg) { self->on_gcode_response(msg); });
-    }
+    register_console_handler();
 
     // Register for printer status updates (fallback for printers with KAMP/custom macros)
     // This watches for _START_PRINT.print_started, START_PRINT.preparation_done, etc.
@@ -308,6 +324,7 @@ void PrintStartCollector::start() {
                 // shared_from_this() would throw.
                 if (collector && !collector->weak_from_this().expired()) {
                     collector->update_eta_display();
+                    collector->check_printer_start_retirement();
                     collector->check_purge_shape();
                     collector->check_fallback_completion();
                     collector->flush_deferred_start_block_step();
@@ -330,6 +347,9 @@ void PrintStartCollector::stop() {
     // Mark inactive first to stop callbacks from processing
     bool was_active = active_.exchange(false);
     bool was_registered = registered_.exchange(false);
+    if (armed_by_printer_.exchange(false)) {
+        state_.print_state().set_printer_side_pre_start(false);
+    }
 
     // Keep gcode response handler registered permanently — it checks active_ and
     // returns early when not collecting. This avoids the race where early responses
@@ -1189,8 +1209,78 @@ bool PrintStartCollector::is_own_pre_start_echo_locked(const std::string& line) 
     return false;
 }
 
+void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
+    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
+        !msg["params"][0].is_string()) {
+        return;
+    }
+    std::shared_ptr<PrintStartProfile> profile;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile = profile_;
+    }
+    if (!profile ||
+        !profile->announces_print_start(msg["params"][0].get_ref<const std::string&>())) {
+        return;
+    }
+    auto self = shared_from_this();
+    helix::ui::queue_update("PrintStartCollector::arm_from_printer_start",
+                            [self, msg]() { self->arm_from_printer_start(msg); });
+}
+
+void PrintStartCollector::arm_from_printer_start(const json& msg) {
+    if (active_.load()) {
+        return;
+    }
+    auto& print_state = state_.print_state();
+    // RAW_PRINT_STATE_OK: whether the printer holds a job decides if a start
+    // announcement can be a new print; mid-print the same line is not one.
+    if (helix::printer_has_job(print_state.get_print_job_state()) ||
+        print_state.has_preparing_job()) {
+        return;
+    }
+    spdlog::info("[PrintStartCollector] The printer announced a print start; arming");
+    print_state.set_printer_side_pre_start(true);
+    start();
+    armed_by_printer_.store(true);
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        printer_start_last_line_ = helix::sim::SimulatedClock::now();
+    }
+    on_gcode_response(msg);
+}
+
+void PrintStartCollector::check_printer_start_retirement() {
+    if (!active_.load() || !armed_by_printer_.load()) {
+        return;
+    }
+    // RAW_PRINT_STATE_OK: a printer-announced start ends its pre-file window
+    // when print_stats takes the job; until then nothing else times it out.
+    if (helix::printer_has_job(state_.print_state().get_print_job_state())) {
+        return;
+    }
+    helix::sim::SimulatedClock::time_point last;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        last = std::max(printer_start_last_line_, last_inferred_activity_time_);
+    }
+    if (helix::sim::SimulatedClock::now() - last < kPrinterStartQuietLimit) {
+        return;
+    }
+    spdlog::info("[PrintStartCollector] A printer-announced start went quiet with no job; "
+                 "retiring it");
+    // Deferred: the ETA tick runs this, and stop() deletes that tick's timer.
+    auto self = shared_from_this();
+    helix::ui::queue_update("PrintStartCollector::retire_printer_start", [self]() {
+        if (self->armed_by_printer_.load()) {
+            self->stop();
+        }
+    });
+}
+
 void PrintStartCollector::on_gcode_response(const json& msg) {
     if (!active_.load()) {
+        arm_if_printer_announces_start(msg);
         return;
     }
 
@@ -1211,6 +1301,11 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     }
 
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
+
+    if (armed_by_printer_.load()) {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        printer_start_last_line_ = helix::sim::SimulatedClock::now();
+    }
 
     // Klipper echoes dispatched gcode back through the console. A line that
     // reproduces the host-side pre-start block is our own text being repeated
@@ -2674,7 +2769,10 @@ void PrintStartCollector::set_profile(std::shared_ptr<PrintStartProfile> profile
         spdlog::warn("[PrintStartCollector] set_profile() called while active, ignoring");
         return;
     }
-    profile_ = std::move(profile);
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile_ = std::move(profile);
+    }
     if (profile_) {
         spdlog::debug("[PrintStartCollector] Using profile: {}", profile_->name());
     } else {
