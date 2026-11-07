@@ -2260,6 +2260,7 @@
   <translation tag="Mount" ja="装着"/>
   <translation tag="Mount tool" ja="ツールを装着"/>
   <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
+  <translation tag="Mount {} before calibrating the Z offset" ja="Z-offset を校正する前に {} を装着してください"/>
   <translation tag="Mount..." ja="装着..."/>
   <translation tag="Move" ja="移動"/>
   <translation tag="Move here" ja="ここへ移動"/>

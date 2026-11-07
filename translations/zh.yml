@@ -2339,6 +2339,7 @@ translations:
   Mount: 装上
   Mount tool: '装上工具'
   Mount which tool?: '装上哪个工具？'
+  Mount {} before calibrating the Z offset: '校准 Z 偏移前请先安装 {}'
   Mount...: '装上...'
   Move: 移动
   Move here: 移动到此处

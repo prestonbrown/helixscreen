@@ -21,6 +21,8 @@
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
+#include "tool_offsets.h"
+#include "tool_state.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
 #include "z_offset_calibration_approach.h"
@@ -456,6 +458,31 @@ void ZOffsetCalibrationPanel::start_calibration() {
         spdlog::error("[ZOffsetCal] No IMoonrakerAPI");
         on_calibration_result(false, lv_tr("No printer connection"));
         return;
+    }
+
+    // A tool changer's probe offset belongs to one tool. Refusing rather than
+    // mounting it here keeps a calibration entry from starting a tool change.
+    {
+        PrinterState& ps = get_printer_state();
+        const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
+        const auto& tools = ToolState::instance();
+        if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
+                                             reference, tools.active_tool_index()) ==
+            zoffset_cal::ToolGate::MountReferenceFirst) {
+            std::string label = "T" + std::to_string(*reference);
+            for (const auto& tool : tools.tools()) {
+                if (tool.index == *reference) {
+                    label = tool.display_label;
+                    break;
+                }
+            }
+            spdlog::info("[ZOffsetCal] Refusing: tool {} mounted, calibration needs {}",
+                         tools.active_tool_index(), label);
+            on_calibration_result(
+                false, fmt::format(fmt::runtime(lv_tr("Mount {} before calibrating the Z offset")),
+                                   label));
+            return;
+        }
     }
 
     // Check if warm bed is requested

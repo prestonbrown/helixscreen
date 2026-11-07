@@ -2472,6 +2472,7 @@ translations:
   Mount: Montar
   Mount tool: 'Montar ferramenta'
   Mount which tool?: 'Montar qual ferramenta?'
+  Mount {} before calibrating the Z offset: 'Monte {} antes de calibrar o Z-offset'
   Mount...: 'Montar...'
   Move: Mover
   Move here: Mover aqui

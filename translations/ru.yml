@@ -2514,6 +2514,7 @@ translations:
   Mount: Установить
   Mount tool: 'Установить инструмент'
   Mount which tool?: 'Какой инструмент установить?'
+  Mount {} before calibrating the Z offset: 'Установите {} перед калибровкой Z-смещения'
   Mount...: 'Установить...'
   Move: Двигать
   Move here: Переместить сюда

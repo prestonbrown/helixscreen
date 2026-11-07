@@ -12,6 +12,14 @@
 
 namespace helix::zoffset_cal {
 
+ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<int> reference_tool,
+                             int active_tool) {
+    if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED || !reference_tool) {
+        return ToolGate::Proceed;
+    }
+    return active_tool == *reference_tool ? ToolGate::Proceed : ToolGate::MountReferenceFirst;
+}
+
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
                                        sensors::ProbeSensorType probe_type) {
     switch (strategy) {
