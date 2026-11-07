@@ -2164,3 +2164,31 @@ TEST_CASE_METHOD(
     REQUIRE(files().has_pending());
     CHECK(state().print_state().print_materials().empty());
 }
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "ActivePrintMediaManager: a printer-announced start names no file until the "
+                 "printer does",
+                 "[ActivePrintMediaManager][2054]") {
+    // print_stats still names the previous job while another app's start runs,
+    // and the new file has no name anywhere before it opens.
+    state().update_from_status(
+        json{{"print_stats", {{"state", "cancelled"}, {"filename", "benchy.gcode"}}}});
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(get_display_filename() == "benchy");
+
+    state().print_state().set_printer_side_pre_start(true);
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(get_display_filename().empty());
+    CHECK(get_thumbnail_path() == kNoThumb);
+
+    SECTION("a reprint of the same file is named once it opens") {
+        state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(get_display_filename() == "benchy");
+    }
+    SECTION("an abandoned start gives the previous job its name back") {
+        state().print_state().set_printer_side_pre_start(false);
+        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(get_display_filename() == "benchy");
+    }
+}

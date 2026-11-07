@@ -510,3 +510,22 @@ TEST_CASE_METHOD(SentStartFixture, "The start hand-over belongs to one preparing
     ps().begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
     CHECK(ps().preparing_start() == PreparingStart::None);
 }
+
+TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced cancels at once",
+                 "[print_control][preparing_cancel][2054]") {
+    // Another app started it: no preparing job of ours, and print_stats still
+    // reports the previous job. The printer has the start already.
+    report("cancelled", "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    REQUIRE(ps().get_print_lifecycle() == PrintState::Preparing);
+    REQUIRE(stop_enabled() == 1);
+    // The home card opens this print's status, and nothing starts over it.
+    CHECK_FALSE(ps().can_start_new_print());
+
+    stop();
+    CHECK(cancels == 1);
+    CHECK(stop_enabled() == 0);
+    ps().set_printer_side_pre_start(false);
+}
