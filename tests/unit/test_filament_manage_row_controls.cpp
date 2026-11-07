@@ -94,21 +94,16 @@ struct ManageRowHarness {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Filament manage row: multi-tool without AMS gets the tool selector",
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: multi-tool gets the tool selector",
                  "[filament][ui][tool]") {
-    ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
+    // With no backend, Manage would navigate to an AMS panel that returns early;
+    // the tools exist in ToolState whether or not a backend claimed them.
+    ManageRowHarness h(*this, {"extruder", "extruder1"}, GENERATE(AmsType::NONE, AmsType::AFC));
 
     REQUIRE(ToolState::instance().is_multi_tool());
-
-    // The row is the container both controls live in; it must be on screen for
-    // either assertion below to describe what the user sees.
+    // The row holds both controls, so it must be on screen for either check to mean anything.
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
-
-    // Manage navigates to the AMS panel, which returns early with no backend.
     CHECK(h.hidden("btn_manage_slots"));
-
-    // The tools exist in ToolState whether or not a backend claimed them.
     CHECK_FALSE(h.hidden("extruder_selector_group"));
 }
 
@@ -120,16 +115,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: single-tool with AMS g
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK_FALSE(h.hidden("btn_manage_slots"));
     CHECK(h.hidden("extruder_selector_group"));
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: multi-tool with AMS gets the selector",
-                 "[filament][ui][tool]") {
-    ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::AFC);
-
-    REQUIRE(ToolState::instance().is_multi_tool());
-    REQUIRE_FALSE(h.hidden("ams_manage_row"));
-    CHECK(h.hidden("btn_manage_slots"));
-    CHECK_FALSE(h.hidden("extruder_selector_group"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Cool Down keeps its grid cell while nothing is heating",
@@ -195,34 +180,27 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Closed tool dropdown keeps T<n> for a confi
     CHECK(std::string(options) == "Left (T0)\nRight (T1)");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Open tool list names each tool's G-code name beside it",
+TEST_CASE_METHOD(LVGLUITestFixture, "Open tool list names a head by tool and a hub's tool by lane",
                  "[filament][ui][tool][1769]") {
     // The open list sizes itself to its widest option, so it always has room
     // for the full form; the closed control stays the G-code name above.
-    ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
-
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-    REQUIRE(dd != nullptr);
-    const char* options = lv_dropdown_get_options(dd);
-    REQUIRE(options != nullptr);
-    CHECK(std::string(options) == "Tool 1 (T0)\nTool 2 (T1)");
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Open tool list names a hub's tools by the lane each feeds",
-                 "[filament][ui][tool]") {
-    // One extruder behind a 4-slot hub: the tools are lanes, not toolheads.
-    ManageRowHarness h(*this, {"extruder"}, AmsType::CFS);
-    ToolTopology topo;
-    topo.tool_count = 4;
-    topo.tool_to_slot = {0, 1, 3, -1};
-    ToolState::instance().set_ams_topology(topo);
-    REQUIRE_FALSE(ToolState::instance().has_multiple_toolheads());
-    TA::populate_extruder_dropdown(*h.panel);
-
+    const bool hub = GENERATE(false, true);
+    ManageRowHarness h(*this,
+                       hub ? std::vector<std::string>{"extruder"}
+                           : std::vector<std::string>{"extruder", "extruder1"},
+                       hub ? AmsType::CFS : AmsType::NONE);
+    if (hub) {
+        // One head behind a 4-slot hub: each tool is a lane, remapped or unmapped.
+        ToolTopology topo;
+        topo.tool_count = 4;
+        topo.tool_to_slot = {0, 1, 3, -1};
+        ToolState::instance().set_ams_topology(topo);
+        TA::populate_extruder_dropdown(*h.panel);
+    }
     const char* options = lv_dropdown_get_options(TA::extruder_dropdown(*h.panel));
     REQUIRE(options != nullptr);
-    // A remapped tool names the lane it feeds; an unmapped one keeps its tool number.
-    CHECK(std::string(options) == "Slot 1 (T0)\nSlot 2 (T1)\nSlot 4 (T2)\nTool 4 (T3)");
+    CHECK(std::string(options) == (hub ? "Slot 1 (T0)\nSlot 2 (T1)\nSlot 4 (T2)\nTool 4 (T3)"
+                                       : "Tool 1 (T0)\nTool 2 (T1)"));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
