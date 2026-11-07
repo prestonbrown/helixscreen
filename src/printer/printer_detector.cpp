@@ -1265,15 +1265,30 @@ std::string PrinterDetector::apply_preset_with_variants(helix::Config* config,
                                   : nullptr;
     bool is_zmod = !preset_is_forgex && zmod_signal != nullptr;
 
+    // OpenCreator (Kalico with AFC standalone on the Creator 5 line) publishes
+    // its own changer extra. Its runout switches are AFC's tool_start sensors
+    // and its chamber heater fan a heater_fan_throttled, not the stock names.
+    static constexpr const char* kOpenCreatorSignal = "creator5_toolchanger";
+    const char* variant_suffix = nullptr;
+    const char* variant_signal = nullptr;
+    if (has_object(kOpenCreatorSignal)) {
+        variant_suffix = "_opencreator";
+        variant_signal = kOpenCreatorSignal;
+    } else if (is_zmod) {
+        variant_suffix = "_zmod";
+        variant_signal = zmod_signal;
+    }
+
     std::string applied = preset;
-    if (is_zmod) {
-        std::string zmod_preset = preset + "_zmod";
-        spdlog::info("[PrinterDetector] ZMOD firmware detected ({}), trying preset '{}'",
-                     zmod_signal, zmod_preset);
-        if (config->apply_preset_file(zmod_preset)) {
-            applied = zmod_preset;
+    if (variant_suffix != nullptr) {
+        std::string variant_preset = preset + variant_suffix;
+        spdlog::info("[PrinterDetector] Firmware variant detected ({}), trying preset '{}'",
+                     variant_signal, variant_preset);
+        if (config->apply_preset_file(variant_preset)) {
+            applied = variant_preset;
         } else {
-            spdlog::info("[PrinterDetector] No ZMOD preset variant, using '{}'", preset);
+            spdlog::info("[PrinterDetector] No '{}' preset variant, using '{}'", variant_suffix,
+                         preset);
             if (!config->apply_preset_file(preset)) {
                 return "";
             }

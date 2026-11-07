@@ -18,10 +18,13 @@ namespace {
 /// Raspberry Pi whose driver hands back the official 7" touchscreen's exact
 /// active area for a ~115mm panel.
 ///
+/// A diagonal of 0 marks a panel whose framebuffer and mount are known but whose
+/// size is not: it supplies the mount and leaves DPI to the fallback.
+///
 /// Deliberately absent: Generic (Pi, x86 and ESP32 drive a user-chosen display, so
 /// a panel size here would be a guess imposed on every user of that build), the
-/// AD5X and Creator 5 line (no hardware to measure) and the Snapmaker U1 (its
-/// reported size is bogus and the true diagonal is not yet measured).
+/// AD5X (no hardware to measure) and the Snapmaker U1 (its reported size is bogus
+/// and the true diagonal is not yet measured).
 struct PanelEntry {
     board::Board board;
     PanelSpec spec;
@@ -38,6 +41,12 @@ constexpr PanelEntry kKnownPanels[] = {
     // other mips box that resolves to K1 is told apart by its framebuffer geometry
     // (board_mount_rotation). Geometry and mount must match platforms.json "k1".
     {board::Board::K1, {480, 800, 108.6, 270}},
+    // FlashForge Creator 5 / 5 Pro - landscape panel behind a 480x800 portrait
+    // framebuffer, upright at 90 (verified on a 5 Pro). Diagonal unmeasured. A Z-Mod
+    // install has no installer to write the preset's rotation, so this is its only
+    // source. Geometry and mount must match the platforms.json "mips" candidates.
+    {board::Board::Creator5, {480, 800, 0.0, 90}},
+    {board::Board::Creator5Pro, {480, 800, 0.0, 90}},
     // Creality K2 Plus - 218.2 DPI. One of only two devices that measured honestly.
     {board::Board::K2, {480, 800, 108.6}},
 };
@@ -160,7 +169,7 @@ ResolvedDpi DisplayMetrics::resolve_dpi(int user_override_dpi,
         return {*platform_measured, DpiSource::PlatformMeasured};
     }
 
-    if (const auto panel = known_panel(board)) {
+    if (const auto panel = known_panel(board); panel && panel->diagonal_mm > 0.0) {
         return {dpi_of(*panel), DpiSource::KnownPanel};
     }
 

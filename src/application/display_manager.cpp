@@ -1122,7 +1122,19 @@ void DisplayManager::run_rotation_probe() {
         [this, phys_w, phys_h](lv_display_rotation_t rot) {
             settle_display_rotation(rot, phys_w, phys_h);
         },
-        [this](bool suspended) { set_resize_fanout_suspended(suspended); }};
+        [this](bool suspended) { set_resize_fanout_suspended(suspended); },
+        // init() lit the panel, but the probe outlasts the window before a stock firmware
+        // dims it (schedule_brightness_reassert()), so every prompt relights it.
+        [this] {
+            if (m_backlight && m_backlight->is_available()) {
+                m_backlight->set_brightness(DisplaySettingsManager::instance().user_brightness());
+            }
+        }};
+    // Relighting every second is a sysfs write on the boards whose firmware dims the panel;
+    // elsewhere nothing dims it, and one backend relights by running a shell command.
+    if (helix::board::current_info().firmware_dims_backlight_after_boot) {
+        host.backlight_reassert_ms = 1000;
+    }
     helix::RotationProbe(std::move(host)).run();
 }
 

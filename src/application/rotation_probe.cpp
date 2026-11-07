@@ -27,6 +27,11 @@ constexpr int kMaxCycles = 3;
 
 } // namespace
 
+bool rotation_probe_unanswered(const Config& config) {
+    return !config.get<bool>("/display/rotation_probed", false) &&
+           !config.exists("/display/rotate");
+}
+
 RotationProbe::RotationProbe(RotationProbeHost host)
     : m_host(std::move(host)), m_tap_latch(!m_host.is_sdl) {
     // The subjects exist before the screen that binds to them is created.
@@ -62,6 +67,10 @@ void RotationProbe::show_screen(Phase phase, int rot_deg, int step, int steps,
         lv_subject_copy_string(&m_help_subject, "");
     }
     set_subtitle(phase, rot_deg, static_cast<int>(timeout_ms / 1000), step, steps);
+
+    if (m_host.keep_backlight_on) {
+        m_host.keep_backlight_on();
+    }
 
     lv_obj_t* scr = lv_screen_active();
     lv_obj_clean(scr);
@@ -107,6 +116,7 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
                                  int steps) {
     const uint32_t start = DisplayManager::get_ticks();
     int last_sec = -1;
+    uint32_t last_backlight = start;
 
     // Drop anything latched by the previous screen, and re-baseline the coordinate so the
     // position the last tap left behind cannot read as a fresh one. A contact still down here
@@ -154,6 +164,12 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
         if (m_tap_latch.latched()) {
             accept_tap();
             return true;
+        }
+
+        if (m_host.backlight_reassert_ms > 0 && m_host.keep_backlight_on &&
+            DisplayManager::get_ticks() - last_backlight >= m_host.backlight_reassert_ms) {
+            m_host.keep_backlight_on();
+            last_backlight = DisplayManager::get_ticks();
         }
 
         const int remaining_sec = static_cast<int>((timeout_ms - elapsed + 999) / 1000);
@@ -220,17 +236,21 @@ int RotationProbe::run() {
         }
     }
 
+    // Silence is not an answer: whoever installs the printer may not be standing at it on its
+    // first boot. Saving nothing leaves the probe due on the next one, and Settings > Display
+    // can still set the rotation by hand in the meantime.
     if (confirmed_rotation < 0) {
-        spdlog::warn("[RotationProbe] no confirmation after {} cycles, defaulting to 0°",
+        spdlog::warn("[RotationProbe] no confirmation after {} cycles, using 0° for this session; "
+                     "the probe runs again next boot",
                      kMaxCycles);
         confirmed_rotation = 0;
+    } else {
+        Config* cfg = Config::get_instance();
+        cfg->set("/display/rotation_probed", true);
+        cfg->set("/display/rotate", confirmed_rotation);
+        cfg->save();
+        spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
     }
-
-    Config* cfg = Config::get_instance();
-    cfg->set("/display/rotation_probed", true);
-    cfg->set("/display/rotate", confirmed_rotation);
-    cfg->save();
-    spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
 
     if (!m_host.is_sdl) {
         m_host.settle_rotation(degrees_to_lv_rotation(confirmed_rotation));

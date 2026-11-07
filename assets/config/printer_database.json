@@ -751,6 +751,13 @@
         {
           "type": "object_exists",
           "field": "printer_objects",
+          "pattern": "creator5_toolchanger",
+          "confidence": 99,
+          "reason": "[creator5_toolchanger] tool-changer extra (OpenCreator's Kalico fork)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
           "pattern": "gcode_button extruder_grab1",
           "confidence": 95,
           "reason": "Head-dock grab sensor; names Z-Mod C5 (grab1..4) and the stock changer alike (grab0..3)"
@@ -819,6 +826,13 @@
           "pattern": "ff_toolchange",
           "confidence": 99,
           "reason": "[ff_toolchange] tool-changer extra (Klipper4Creator5 port)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "creator5_toolchanger",
+          "confidence": 99,
+          "reason": "[creator5_toolchanger] tool-changer extra (OpenCreator's Kalico fork)"
         },
         {
           "type": "object_exists",

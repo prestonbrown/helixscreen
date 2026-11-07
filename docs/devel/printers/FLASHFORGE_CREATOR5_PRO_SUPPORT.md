@@ -39,7 +39,7 @@ wording, the bar stays silently suppressed until the parser learns it.
 | SoC | Ingenic X2600 (XBurst2, MIPS32r2, 2 cores), the AD5X's SoC: the device tree reports `ingenic,x2600` |
 | FPU / ABI | Hard float, 64-bit FPU (`-mfp64`), **NaN2008** (`/lib/ld-linux-mipsn8.so.1`) |
 | RAM | 512 MB (MemTotal ~473 MB on 59 of 61 Creator 5 devices in telemetry). U-Boot sets `mem=` from the DRAM it detects; a unit that detects 256 MB boots with about 228 MB (see `../PERFORMANCE.md`) |
-| Display | 800x480 panel; the framebuffer is exposed **portrait (480x800)**, so the preset sets `display.rotate = 90` (verified on the printer); fbdev `/dev/fb0`, no X11/Wayland/DRM |
+| Display | 800x480 panel; the framebuffer (`jzfb`, mode `U:480x800p-60`, virtual 480x1600) is exposed **portrait (480x800)**, upright at `display.rotate = 90` (verified on the printer). The preset carries it for installer installs and the board-mount table (`kKnownPanels` in `src/application/display_metrics.cpp`) applies it on a first boot without one, such as a Z-Mod unzip; fbdev `/dev/fb0`, no X11/Wayland/DRM |
 | Touch | evdev, `/dev/input/event2` (auto-detected; override with `HELIX_TOUCH_DEVICE`) |
 | Stock UI | `firmwareExe` - LVGL 8 on fbdev. **Also** hosts the port-8898 REST API, the MQTT cloud link, and the tool-pickup orchestration for UI-started prints |
 | C library | glibc 2.33, built with Ingenic "MIPS Linux Tools GCC12.1 Release6.0.1 xburst2" (`mips-gcc1210-glibc233`), min kernel 3.10.14 |
@@ -346,7 +346,10 @@ Each item below says whether it is done or still open.
    `flashforge_creator_5` for the heater-free model (same fingerprints, excluding on the
    chamber heater). Presets: `creator5_pro.json` (4 hotends, chamber heater,
    part/chamber fans, LED, `fd_ex*` switches as per-head runout sensors, rotate 90) and
-   `creator5.json` (the same minus the chamber heater and chamber fans). Without the
+   `creator5.json` (the same minus the chamber heater and chamber fans). OpenCreator
+   (`creator5_toolchanger`, also a 99 establisher) gets the `_opencreator` variant of
+   each, which names no filament sensors: AFC owns its `extruder<N>_tool_start`
+   switches and handles runout itself. Without the
    entries the detector resolves the AD5X, which matches on hostname, MIPS and 4 tools;
    the entries are what tell them apart, with the AD5X side excluding on
    `gcode_button extruder_grab1`. Each entry carries its own image:

@@ -143,7 +143,8 @@ class DisplayMetrics {
     static bool dpi_is_trustworthy(double dpi);
 
     /// The integrated panel for a board, or nullopt when the board drives an
-    /// arbitrary user-chosen display or its panel is unmeasured.
+    /// arbitrary user-chosen display or its panel is unmeasured. A diagonal_mm of
+    /// 0 means the geometry and mount are known but the physical size is not.
     static std::optional<PanelSpec> known_panel(board::Board board);
 
     /// The board's known panel mount (upright_rotation), or -1 when the board has

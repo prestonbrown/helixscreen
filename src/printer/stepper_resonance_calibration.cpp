@@ -58,12 +58,30 @@ std::string tester_build(const PrinterDiscovery& hw, int /*tool*/) {
     return calibrate + "\nSAVE_CONFIG";
 }
 
+// --- Firmware wrapper: VFA_COMPENSATION ---------------------------------------
+//
+// OpenCreator's VFA_COMPENSATION (printer.vibration.cfg) refuses unless every
+// head is docked, homes, parks the bare carriage at Z100/X130/Y130, runs
+// STEPPER_RESONANCE_FACTORY_CALIBRATE and ends in SAVE_CONFIG. Sending the
+// stock macro directly skips the dock check and the park. The macro name alone
+// is not the routine: it drives the stepper_resonance_tester extra above.
+bool compensation_detect(const PrinterDiscovery& hw) {
+    return hw.has_macro("VFA_COMPENSATION") && tester_detect(hw);
+}
+
+std::string compensation_build(const PrinterDiscovery& /*hw*/, int /*tool*/) {
+    return "VFA_COMPENSATION";
+}
+
 /// Most specific first: a wrapper that knows the machine outranks the bare
 /// extra it drives.
 const Row kRows[] = {
     {{"Z-Mod CALIBRATE_VFA", /*per_tool=*/true, /*needs_home=*/true,
       /*restarts_klipper=*/true, wrapper_build},
      wrapper_detect},
+    {{"OpenCreator VFA_COMPENSATION", /*per_tool=*/false, /*needs_home=*/false,
+      /*restarts_klipper=*/true, compensation_build},
+     compensation_detect},
     {{"stepper_resonance_tester", /*per_tool=*/false, /*needs_home=*/true,
       /*restarts_klipper=*/true, tester_build},
      tester_detect},

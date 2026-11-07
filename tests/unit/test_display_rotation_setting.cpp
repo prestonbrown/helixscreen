@@ -13,12 +13,15 @@
  */
 
 #include "ui_settings_display.h"
+#include "ui_test_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "rotation_probe.h"
 #include "screensaver_registry.h"
+#include "test_helpers/config_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -196,6 +199,64 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DisplayRotation: the dropdown callback is r
     // fails silently - the dropdown moves and nothing is saved.
     helix::settings::get_display_settings_overlay().register_callbacks();
     REQUIRE(lv_xml_get_event_cb(nullptr, "on_display_rotation_changed") != nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "DisplayRotation: tapping the Normal it already shows pins the probe",
+                 "[display_settings][rotation][ui]") {
+    // An unanswered first boot shows Normal, the value the screen is using for the session.
+    // Tapping that same item is how a user stops the probe from returning every boot.
+    Config* config = Config::get_instance();
+    std::string& path = ConfigTestAccess::path(*config);
+    const std::string saved_path = path;
+    const json saved_data = ConfigTestAccess::data(*config);
+    path.clear();
+    json& display = config->get_json("/display");
+    if (!display.is_object()) {
+        display = json::object();
+    }
+    display.erase("rotate");
+    display.erase("rotation_probed");
+    REQUIRE(rotation_probe_unanswered(*config));
+
+    helix::settings::get_display_settings_overlay().register_callbacks();
+    lv_obj_t* overlay = static_cast<lv_obj_t*>(
+        lv_xml_create(lv_screen_active(), "settings_display_overlay", nullptr));
+    REQUIRE(overlay != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(overlay, "row_display_rotation");
+    REQUIRE(row != nullptr);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_selected(dropdown) == 0);
+    lv_obj_scroll_to_view_recursive(dropdown, LV_ANIM_OFF);
+    lv_obj_update_layout(lv_screen_active());
+
+    UITest::init(lv_screen_active());
+    lv_area_t box;
+    lv_obj_get_coords(dropdown, &box);
+    REQUIRE(UITest::click_at((box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2));
+    REQUIRE(lv_dropdown_is_open(dropdown));
+
+    lv_obj_t* list = lv_dropdown_get_list(dropdown);
+    REQUIRE(list != nullptr);
+    lv_obj_update_layout(list);
+    lv_obj_t* label = lv_obj_get_child(list, 0);
+    REQUIRE(label != nullptr);
+    lv_area_t first;
+    lv_obj_get_coords(label, &first);
+    REQUIRE(UITest::click_at((first.x1 + first.x2) / 2, first.y1 + 4));
+    UITest::cleanup();
+
+    CHECK_FALSE(lv_dropdown_is_open(dropdown));
+    CHECK(lv_dropdown_get_selected(dropdown) == 0);
+    CHECK(config->get<int>("/display/rotate", -1) == 0);
+    CHECK(config->get<bool>("/display/rotation_probed", false));
+    CHECK_FALSE(rotation_probe_unanswered(*config));
+
+    lv_obj_delete(overlay);
+    ConfigTestAccess::data(*config) = saved_data;
+    path = saved_path;
 }
 
 // ============================================================================

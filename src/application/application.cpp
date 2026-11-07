@@ -66,6 +66,7 @@
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "remote_screen_service.h"
+#include "rotation_probe.h"
 #include "rpc_error_correlation.h"
 #include "screenshot.h"
 #include "sensor_state.h"
@@ -1496,11 +1497,10 @@ bool Application::rotation_probe_wanted() const {
     }
 #if defined(HELIX_DISPLAY_FBDEV) || defined(HELIX_DISPLAY_DRM)
     if (m_args.rotation == 0 && !std::getenv("HELIX_DISPLAY_ROTATION")) {
-        bool probed = m_config->get<bool>("/display/rotation_probed", false);
-        bool has_rotate_key = m_config->exists("/display/rotate");
-        if (probed || has_rotate_key) {
+        if (!helix::rotation_probe_unanswered(*m_config)) {
             spdlog::info("[Application] Rotation probe skipped: probed={}, has_rotate_key={}",
-                         probed, has_rotate_key);
+                         m_config->get<bool>("/display/rotation_probed", false),
+                         m_config->exists("/display/rotate"));
             return false;
         }
         return true;
