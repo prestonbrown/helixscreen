@@ -5,6 +5,7 @@
 
 #include <cstdlib>
 #include <string>
+#include <string_view>
 
 #include "hv/json.hpp"
 
@@ -27,6 +28,18 @@ template <typename Fn> void for_each_gcode_response_line(const nlohmann::json& m
             fn(line.get<std::string>());
         }
     }
+}
+
+/// The text of a respond_info() line: Klipper sends "// <text>", and a firmware
+/// that drops the space or the prefix entirely still yields its text.
+inline std::string_view strip_respond_info_prefix(std::string_view line) {
+    if (line.substr(0, 3) == "// ") {
+        return line.substr(3);
+    }
+    if (line.substr(0, 2) == "//") {
+        return line.substr(2);
+    }
+    return line;
 }
 
 /// Layer numbers a G-code response line reports; -1 for a field the line does not carry.
