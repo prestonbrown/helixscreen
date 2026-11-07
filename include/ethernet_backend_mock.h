@@ -6,6 +6,7 @@
 #include "ethernet_backend.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 
 /**
@@ -34,6 +35,8 @@ class EthernetBackendMock : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
+    /// Fires after each set_connected_state() that changes the link.
+    std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() override;
 
     /// In memory, one config for the process (helix::net::mock_ipv4_store).
     /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
@@ -58,7 +61,9 @@ class EthernetBackendMock : public EthernetBackend {
     /// present (has_interface() is a hardware-presence question, not a link
     /// one); only get_info()'s connected/status reflect this.
     void set_connected_state(bool connected) {
-        connected_ = connected;
+        if (connected_.exchange(connected) != connected) {
+            ++*link_generation_;
+        }
     }
 
     /// Test helper — the link state mocks constructed from now on start with,
@@ -72,4 +77,7 @@ class EthernetBackendMock : public EthernetBackend {
     static inline bool default_connected_ = true;
     /// Set by tests on the main thread, read by get_info() on executor threads.
     std::atomic<bool> connected_{default_connected_};
+    /// Bumped on each link change; shared so an event feed may outlive us.
+    std::shared_ptr<std::atomic<unsigned>> link_generation_ =
+        std::make_shared<std::atomic<unsigned>>(0);
 };

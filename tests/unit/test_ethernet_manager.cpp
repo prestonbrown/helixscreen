@@ -1,8 +1,14 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/ethernet_manager_test_access.h"
+#include "../test_helpers/scoped_runtime_config.h"
+#include "core/update_queue.h"
 #include "ethernet_backend.h"
+#include "ethernet_backend_mock.h"
 #include "ethernet_manager.h"
+#include "runtime_config.h"
 
 #include <atomic>
 #include <chrono>
@@ -322,4 +328,77 @@ TEST_CASE("Ethernet selection reports the interface that carries traffic",
         CHECK_FALSE(info.connected);
         CHECK(info.status == "No connection");
     }
+}
+
+// ============================================================================
+// Link observers (#1976)
+// ============================================================================
+
+namespace {
+
+class LinkWatchFixture : public LVGLTestFixture {
+  protected:
+    ScopedRuntimeConfig scoped_config;
+    helix::AsyncLifetimeGuard owner;
+
+    EthernetBackendMock* mock_of(EthernetManager& mgr) {
+        // RTTI_OK: test-only check that test mode handed out the mock backend.
+        return dynamic_cast<EthernetBackendMock*>(EthernetManagerTestAccess::backend(mgr));
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LinkWatchFixture, "EthernetManager tells link observers about a cable change",
+                 "[network][ethernet_link][1976]") {
+    get_runtime_config()->test_mode = true;
+    get_runtime_config()->use_real_ethernet = false;
+    EthernetManager mgr;
+    auto* eth = mock_of(mgr);
+    REQUIRE(eth != nullptr);
+
+    int calls = 0;
+    mgr.add_link_observer(owner.token(), [&calls]() { ++calls; });
+    REQUIRE(EthernetManagerTestAccess::watching(mgr));
+
+    // No change, no call.
+    EthernetManagerTestAccess::tick(mgr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(calls == 0);
+
+    eth->set_connected_state(false);
+    EthernetManagerTestAccess::tick(mgr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(calls == 1);
+
+    // Setting the same state again is not a change.
+    eth->set_connected_state(false);
+    EthernetManagerTestAccess::tick(mgr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(calls == 1);
+
+    eth->set_connected_state(true);
+    EthernetManagerTestAccess::tick(mgr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(calls == 2);
+}
+
+TEST_CASE_METHOD(LinkWatchFixture, "EthernetManager stops watching once its observers expire",
+                 "[network][ethernet_link][1976]") {
+    get_runtime_config()->test_mode = true;
+    get_runtime_config()->use_real_ethernet = false;
+    EthernetManager mgr;
+    auto* eth = mock_of(mgr);
+    REQUIRE(eth != nullptr);
+
+    int calls = 0;
+    mgr.add_link_observer(owner.token(), [&calls]() { ++calls; });
+    owner.invalidate();
+
+    eth->set_connected_state(false);
+    EthernetManagerTestAccess::tick(mgr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(calls == 0);
+    CHECK_FALSE(EthernetManagerTestAccess::watching(mgr));
+    eth->set_connected_state(true);
 }

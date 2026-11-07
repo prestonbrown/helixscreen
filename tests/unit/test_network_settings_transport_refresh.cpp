@@ -19,11 +19,13 @@
 #include "ui_overlay_network_settings.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ethernet_manager_test_access.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "core/update_queue.h"
+#include "ethernet_backend_mock.h"
 #include "ipv4_config_system.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -123,4 +125,41 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     CHECK_FALSE(ran);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
+}
+
+TEST_CASE_METHOD(TransportRefreshFixture,
+                 "NetworkSettingsOverlay follows an Ethernet cable change while open",
+                 "[network_settings][1976][observers]") {
+    auto wm = make_manager();
+    auto overlay = std::make_unique<NetworkSettingsOverlay>();
+    overlay->init_subjects();
+    overlay->register_callbacks();
+    Access::wifi_manager(*overlay) = wm;
+    REQUIRE(overlay->create(test_screen()) != nullptr);
+    overlay->on_activate();
+
+    EthernetManager* eth_mgr = Access::ethernet_manager(*overlay);
+    REQUIRE(eth_mgr != nullptr);
+    // RTTI_OK: test-only check that test mode handed out the mock backend.
+    auto* eth = dynamic_cast<EthernetBackendMock*>(EthernetManagerTestAccess::backend(*eth_mgr));
+    REQUIRE(eth != nullptr);
+    struct RestoreCable {
+        EthernetBackendMock* eth;
+        ~RestoreCable() {
+            eth->set_connected_state(true);
+        }
+    } restore{eth};
+
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 1;
+    }));
+
+    // The cable comes out; only the manager's link watch sees it.
+    eth->set_connected_state(false);
+    EthernetManagerTestAccess::tick(*eth_mgr);
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 0;
+    }));
 }

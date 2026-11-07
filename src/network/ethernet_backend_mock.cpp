@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+#include <utility>
 #include <vector>
 
 EthernetBackendMock::EthernetBackendMock() {
@@ -62,4 +63,29 @@ EthernetInfo EthernetBackendMock::get_info() {
 
     spdlog::trace("[EthernetMock] get_info() → {} ({})", info.ip_address, info.status);
     return info;
+}
+
+namespace {
+
+class MockLinkEvents : public helix::ethernet::LinkEvents {
+  public:
+    explicit MockLinkEvents(std::shared_ptr<std::atomic<unsigned>> generation)
+        : generation_(std::move(generation)), seen_(generation_->load()) {}
+
+    bool poll() override {
+        const unsigned now = generation_->load();
+        const bool changed = now != seen_;
+        seen_ = now;
+        return changed;
+    }
+
+  private:
+    std::shared_ptr<std::atomic<unsigned>> generation_;
+    unsigned seen_;
+};
+
+} // namespace
+
+std::unique_ptr<helix::ethernet::LinkEvents> EthernetBackendMock::open_link_events() {
+    return std::make_unique<MockLinkEvents>(link_generation_);
 }
