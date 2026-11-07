@@ -317,7 +317,10 @@ politeness mirror of an upstream guard.* Do not remove it as redundant.
 **A filament swap resets lane identity when `remember_spool` is false.** AFC re-applies
 `[afc] default_material_type` and `full_weight`, discarding material, colour and weight. Lanes
 carrying a Spoolman `spool_id` survive; lanes without one silently revert. HelixScreen's
-`FilamentSlotOverrideStore` (private AFC namespace) exists to preserve identity across this.
+`FilamentSlotOverrideStore` (private AFC namespace) keeps identity across this only on AFC that
+does not report `remember_spool`. Where a lane reports it, HelixScreen follows AFC: a `false` lane
+that empties drops HelixScreen's records too, and the Keep Spool Info switch writes
+`AFC_SET_REMEMBER_SPOOL`.
 
 **Moonraker database** (AFC namespace, `lane_data` key -- v1.0.32+; outer keys
 are `T(n)` per mapping on the virtual-tools firmware, `laneN` before):

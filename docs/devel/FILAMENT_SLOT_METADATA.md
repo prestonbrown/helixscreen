@@ -409,11 +409,10 @@ record does not come back at the next start.
   while the lane still declares a positive id is the plugin's own eject
   signal, and it clears only when the `ams/keep_spool_info_on_eject`
   setting is off (default on — "Keep Spool Info on Eject" toggle in the AMS
-  Management overlay, shown only where the capability is true). Caveat: with
-  AFC's own retention on (`remember_spool = true` everywhere) firmware never
-  reports the eject zero, so this rule cannot fire and the toggle is a no-op —
-  `printer_retains_spool_info()` detects that shape and the overlay disables
-  the toggle with a note instead.
+  Management overlay, shown only where the capability is true). On an AFC
+  lane that reports `remember_spool`, AFC's value decides instead of the
+  setting: `false` drops the lane's records when it empties, `true` keeps
+  them because firmware does (FILAMENT_MANAGEMENT.md, slot metadata).
 
 The id `classify_binding()` compares against must be firmware's own standing
 word for the lane, never a `SlotInfo` field: `apply_resolved_lane()` writes the

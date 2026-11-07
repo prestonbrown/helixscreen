@@ -191,12 +191,12 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     lv_subject_t reports_spool_ids_subject_{};
     lv_subject_t tags_name_spools_subject_{};
 
-    /// Subject disabling the keep-spool-info-on-eject toggle (0=enabled,
-    /// 1=firmware retention owns it). Set from
-    /// AmsBackend::printer_retains_spool_info(): with AFC's per-lane
-    /// remember_spool true everywhere, the toggle has no observable effect,
-    /// so it is shown disabled with a note instead of silently lying.
+    /// The firmware's own Keep Spool Info value on every lane
+    /// (AmsBackend::printer_retains_spool_info()), shown by the switch when
+    /// the firmware owns the setting.
     lv_subject_t printer_retains_spool_info_subject_{};
+    /// AmsBackend::firmware_owns_spool_retention(): which Keep Spool Info row shows.
+    lv_subject_t firmware_owns_spool_retention_subject_{};
 
     /// Subject gating the "Reset Endless Spool" row (0=hidden, 1=shown).
     /// Set from EndlessSpoolCapabilities::editable(), so the row lights up for

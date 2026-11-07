@@ -2949,6 +2949,12 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
         if (remembers == lane_remember_spool_.end() || !remembers->second) {
             set_unlinked_spool(slot_index, 0);
         }
+        // AFC's own setting, where the lane reports one, decides what an
+        // eject keeps. A lane that never reported it is left to HelixScreen's
+        // "Keep Spool Info on Eject".
+        if (remembers != lane_remember_spool_.end() && !remembers->second) {
+            forget_lane_spool_locked(slot_index, lane_name);
+        }
     }
     if (filament_present_now && !filament_present_before) {
         maybe_reassert_retained_spool_link(slot_index, lane_name);
@@ -3210,17 +3216,55 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
 bool AmsBackendAfc::printer_retains_spool_info() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // ALL semantics: any lane at remember_spool = false still clears on
-    // eject, so the HelixScreen toggle keeps governing those lanes and must
-    // stay enabled. A lane that never reported the key is conservatively
-    // treated as not retaining too, and an empty map (nothing reported —
-    // the everyday default) is not retaining either.
-    if (lane_remember_spool_.empty() ||
-        static_cast<int>(lane_remember_spool_.size()) != slots_.slot_count()) {
+    // ALL semantics: any lane at remember_spool = false clears on eject. A
+    // lane that never reported the key is not retaining either.
+    if (!every_lane_reports_remember_spool_locked()) {
         return false;
     }
     return std::all_of(lane_remember_spool_.begin(), lane_remember_spool_.end(),
                        [](const auto& entry) { return entry.second; });
+}
+
+bool AmsBackendAfc::firmware_owns_spool_retention() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return every_lane_reports_remember_spool_locked();
+}
+
+bool AmsBackendAfc::every_lane_reports_remember_spool_locked() const {
+    return !lane_remember_spool_.empty() &&
+           static_cast<int>(lane_remember_spool_.size()) == slots_.slot_count();
+}
+
+AmsError AmsBackendAfc::set_firmware_spool_retention(bool keep) {
+    std::vector<std::string> lanes;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (int i = 0; i < slots_.slot_count(); ++i) {
+            lanes.push_back(slots_.name_of(i));
+        }
+    }
+    // AFC saves the value per lane in its own config; the next status frame
+    // reports it back.
+    for (const auto& lane : lanes) {
+        AmsError err = execute_gcode(
+            fmt::format("AFC_SET_REMEMBER_SPOOL LANE={} REMEMBER_SPOOL={}", lane, keep ? 1 : 0));
+        if (!err) {
+            return err;
+        }
+    }
+    return AmsErrorHelper::success();
+}
+
+void AmsBackendAfc::forget_lane_spool_locked(int slot_index, const std::string& lane_name) {
+    // AFC's remember_spool is off for this lane, so AFC's eject cleared it.
+    // HelixScreen clears the same lane: every record of what the spool was,
+    // whoever declared it, goes, and the lane shows what AFC reports.
+    spdlog::info("[AMS AFC] Lane {} (slot {}): remember_spool off, forgetting the ejected spool",
+                 lane_name, slot_index);
+    own_write_echoes_.abandon(slot_index);
+    helix::ams::clear_persisted_override(override_store_.get(), overrides_, slot_index,
+                                         backend_log_tag());
+    helix::ams::drop_previous_spool_declarations(lane_id(slot_index));
 }
 
 void AmsBackendAfc::maybe_reassert_retained_spool_link(int slot_index,
