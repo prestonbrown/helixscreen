@@ -404,13 +404,11 @@ void ALSASoundBackend::render_loop() {
 
         // Check for external render source (tracker PCM playback)
         {
-            std::function<void(float*, size_t, int)> source;
-            {
-                std::lock_guard<std::mutex> lock(render_source_mutex_);
-                source = render_source_;
-            }
-            if (source) {
-                source(mix_buf_.data(), frames, static_cast<int>(sample_rate_));
+            // Held across the call: the source captures a tracker its owner destroys
+            // right after clear_render_source() returns.
+            std::lock_guard<std::mutex> lock(render_source_mutex_);
+            if (render_source_) {
+                render_source_(mix_buf_.data(), frames, static_cast<int>(sample_rate_));
                 // Apply shared filter for tracker output
                 auto ft = filter_type_.load(std::memory_order_acquire);
                 if (ft != helix::audio::FilterType::NONE) {

@@ -199,13 +199,11 @@ void SDLSoundBackend::audio_callback(void* userdata, uint8_t* stream, int len) {
 
     // Render tracker PCM if active
     {
-        std::function<void(float*, size_t, int)> source;
-        {
-            std::lock_guard<std::mutex> lock(self->render_source_mutex_);
-            source = self->render_source_;
-        }
-        if (source) {
-            source(mix, static_cast<size_t>(num_samples), self->sample_rate_);
+        // Held across the call: the source captures a tracker its owner destroys
+        // right after clear_render_source() returns.
+        std::lock_guard<std::mutex> lock(self->render_source_mutex_);
+        if (self->render_source_) {
+            self->render_source_(mix, static_cast<size_t>(num_samples), self->sample_rate_);
             has_audio = true;
         }
     }

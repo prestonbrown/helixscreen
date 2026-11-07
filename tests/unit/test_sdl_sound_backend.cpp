@@ -7,7 +7,10 @@
 #include "sound_synthesis.h"
 
 #include <SDL.h>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -97,6 +100,40 @@ TEST_CASE("SDL sound backend releases the audio subsystem on shutdown", "[sound]
     // The destructor calls shutdown() a second time; it must stay balanced and
     // must not double-release.
     REQUIRE(SDL_WasInit(SDL_INIT_AUDIO) == before);
+}
+
+// The source captures a tracker its owner destroys as soon as
+// clear_render_source() returns (prestonbrown/helixscreen#2010).
+TEST_CASE("SDL clear_render_source waits out a render call in flight", "[sound][sdl]") {
+    SDL_setenv("SDL_AUDIODRIVER", "dummy", 1);
+    SDLSoundBackend backend;
+    if (!backend.initialize()) {
+        SKIP("no audio device available");
+    }
+
+    std::atomic<bool> in_call{false};
+    std::atomic<int> calls{0};
+    backend.set_render_source([&](float*, size_t, int) {
+        in_call = true;
+        ++calls;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        in_call = false;
+    });
+    backend.resume();
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (!in_call.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::yield();
+    }
+    REQUIRE(in_call.load());
+
+    backend.clear_render_source();
+    CHECK_FALSE(in_call.load());
+    const int calls_at_clear = calls.load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(calls.load() == calls_at_clear);
+
+    backend.shutdown();
 }
 
 TEST_CASE("SDL backend reports correct capabilities", "[sound][sdl]") {
