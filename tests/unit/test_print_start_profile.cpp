@@ -252,18 +252,13 @@ TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
 
 TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a soak",
           "[profile][print][chamber]") {
-    const struct {
-        const char* profile;
-        const char* line;
-    } rows[] = {{"qidi", "M191 S45"}, {"artillery_m1", "[AM1P] State: HEAT_CHAMBER"}};
-    for (const auto& row : rows) {
-        CAPTURE(row.profile, row.line);
-        auto profile = PrintStartProfile::load(row.profile);
-        REQUIRE(profile != nullptr);
-        PrintStartProfile::MatchResult result;
-        REQUIRE((profile->try_match_signal(row.line, result) ||
-                 profile->try_match_pattern(row.line, result)));
-        CHECK(result.phase == PrintStartPhase::HEATING_CHAMBER);
+    for (const auto& [name, line] :
+         {std::pair{"qidi", "M191 S45"}, std::pair{"artillery_m1", "[AM1P] State: HEAT_CHAMBER"}}) {
+        CAPTURE(name, line);
+        auto profile = PrintStartProfile::load(name);
+        PrintStartProfile::MatchResult r;
+        REQUIRE((profile->try_match_signal(line, r) || profile->try_match_pattern(line, r)));
+        CHECK(r.phase == PrintStartPhase::HEATING_CHAMBER);
     }
 }
 
@@ -272,22 +267,14 @@ TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile][print][mesh]") {
-    SECTION("Snapmaker U1 declares adaptive_meshing=true") {
-        auto profile = PrintStartProfile::load("snapmaker_u1");
+    // Snapmaker U1 declares it; the default and Forge-X profiles do not.
+    for (const auto& [name, adaptive] :
+         {std::pair{"snapmaker_u1", true}, std::pair{"default", false},
+          std::pair{"forge_x", false}}) {
+        CAPTURE(name);
+        auto profile = PrintStartProfile::load(name);
         REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == true);
-    }
-
-    SECTION("Default profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load_default();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
-    }
-
-    SECTION("Forge-X profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load("forge_x");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
+        CHECK(profile->adaptive_meshing() == adaptive);
     }
 }
 
