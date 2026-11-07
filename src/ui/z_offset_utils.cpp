@@ -356,6 +356,42 @@ bool save_enabled() {
     return save_enabled(mode, per_tool_z);
 }
 
+std::optional<SavedOffsetLine> saved_offset_line(const SaveAvailability& facts, bool per_tool_z,
+                                                 std::optional<int> saved_microns,
+                                                 int live_microns) {
+    if (!facts.manual_save_supported || !facts.save_enabled || per_tool_z || !saved_microns) {
+        return std::nullopt;
+    }
+    return SavedOffsetLine{*saved_microns, *saved_microns - live_microns};
+}
+
+std::optional<SavedOffsetLine> saved_offset_line() {
+    PrinterState& ps = get_printer_state();
+    // 0 is "nothing read": the endstop's unset default, and the probe reading of
+    // a probe whose config carries no z_offset (Beacon and Cartographer keep
+    // theirs in their own models). The probe subject's -1 is "no Z probe".
+    std::optional<int> saved;
+    const int configured = ps.get_configured_z_offset_microns();
+    const bool probe = ps.capabilities_state().has_probe();
+    if (configured != 0 && !(probe && configured == -1)) {
+        saved = configured;
+    }
+    const bool per_tool_z =
+        lv_subject_get_int(
+            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1;
+    return saved_offset_line(current_save_availability(), per_tool_z, saved,
+                             lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()));
+}
+
+std::string format_saved_offset_line(const SavedOffsetLine& line) {
+    const std::string saved = fmt::format("{:.3f}", line.saved_microns / 1000.0);
+    if (line.after_save_microns == line.saved_microns) {
+        return fmt::format(fmt::runtime(lv_tr("Saved {} mm")), saved);
+    }
+    return fmt::format(fmt::runtime(lv_tr("Saved {} mm, {} mm after Save")), saved,
+                       fmt::format("{:.3f}", line.after_save_microns / 1000.0));
+}
+
 void set_save_enabled(bool enabled) {
     spdlog::info("[zoffset] Z-offset save {} for this printer", enabled ? "enabled" : "disabled");
     SettingsManager::instance().set_z_offset_save_mode(

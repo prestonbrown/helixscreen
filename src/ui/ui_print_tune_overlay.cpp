@@ -114,6 +114,10 @@ void PrintTuneOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(z_tune_target_subject_, 0, "z_tune_target", subjects_);
     UI_MANAGED_SUBJECT_STRING(tune_z_other_subject_, tune_z_other_buf_, "", "tune_z_other_display",
                               subjects_);
+    UI_MANAGED_SUBJECT_STRING(tune_z_offset_saved_subject_, tune_z_offset_saved_buf_, "",
+                              "tune_z_offset_saved_text", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_z_offset_saved_visible_subject_, 0, "tune_z_offset_saved_visible",
+                           subjects_);
     UI_MANAGED_SUBJECT_STRING(tune_z_tool_label_subject_, tune_z_tool_label_buf_, "T0",
                               "tune_z_tool_label", subjects_);
 }
@@ -557,6 +561,15 @@ void PrintTuneOverlay::update_tool_z_displays() {
         tune_z_other_buf_[0] = '\0';
     }
     lv_subject_copy_string(&tune_z_other_subject_, tune_z_other_buf_);
+
+    const auto saved = helix::zoffset::saved_offset_line();
+    if (saved) {
+        lv_strlcpy(tune_z_offset_saved_buf_,
+                   helix::zoffset::format_saved_offset_line(*saved).c_str(),
+                   sizeof(tune_z_offset_saved_buf_));
+        lv_subject_copy_string(&tune_z_offset_saved_subject_, tune_z_offset_saved_buf_);
+    }
+    lv_subject_set_int(&tune_z_offset_saved_visible_subject_, saved ? 1 : 0);
 }
 
 void PrintTuneOverlay::handle_z_adjust(int direction) {

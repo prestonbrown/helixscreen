@@ -242,6 +242,37 @@ constexpr bool save_enabled(SaveMode mode, bool per_tool_z_offsets) {
 /// save_enabled() asked of the live setting and ToolState.
 [[nodiscard]] bool save_enabled();
 
+/// The offset saved in the printer config, shown beside the session adjustment
+/// (prestonbrown/helixscreen#1998).
+struct SavedOffsetLine {
+    /// What Klipper loaded: the probe's z_offset, or stepper_z's position_endstop.
+    int saved_microns = 0;
+    /// What a save writes. Z_OFFSET_APPLY_PROBE and Z_OFFSET_APPLY_ENDSTOP both
+    /// store the saved value minus the gcode offset, so it moves opposite to the
+    /// buttons.
+    int after_save_microns = 0;
+};
+
+/// Whether to show the saved offset, and what it is.
+///
+/// nullopt where the line would mislead: the firmware persists the offset itself
+/// (no manual save), saving is turned off, each tool keeps its own Z offset (a
+/// machine-wide value says nothing about the mounted tool), or the saved value
+/// has not been read.
+///
+/// @param live_microns gcode_move.homing_origin[2], the session adjustment
+[[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line(const SaveAvailability& facts,
+                                                               bool per_tool_z,
+                                                               std::optional<int> saved_microns,
+                                                               int live_microns);
+
+/// saved_offset_line() asked of live state.
+[[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line();
+
+/// "Saved 1.250 mm", or "Saved 1.250 mm, 1.230 mm after Save" while an adjustment is
+/// unsaved. Translated.
+[[nodiscard]] std::string format_saved_offset_line(const SavedOffsetLine& line);
+
 /// Record an explicit choice for the active printer, overriding Auto.
 void set_save_enabled(bool enabled);
 
