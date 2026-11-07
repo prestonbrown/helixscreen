@@ -4411,6 +4411,7 @@ translations:
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
+  'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
   "This printer's INDX macros are missing: {}": "В макросах INDX этого принтера отсутствует: {}"

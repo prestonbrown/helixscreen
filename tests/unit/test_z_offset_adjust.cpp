@@ -270,3 +270,25 @@ TEST_CASE_METHOD(LVGLTestFixture, "the z step index round-trips through Config",
     helix::zoffset::set_persisted_step_index(-1);
     REQUIRE(helix::zoffset::persisted_step_index() == 3);
 }
+
+TEST_CASE_METHOD(ZOffsetFixture,
+                 "a probe save on a printer without Z_OFFSET_APPLY_PROBE reports it and saves "
+                 "nothing",
+                 "[z_offset][adjust][mock][eddy]") {
+    set_homed("xyz");
+    helix::zoffset::adjust(api.get(), &state, 0.0, 0.0, 0.05);
+    mock_client.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return !error.empty(); }, 3000));
+    CHECK(error.find("Z_OFFSET_APPLY_PROBE") != std::string::npos);
+    CHECK_FALSE(saved);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=0.050 MOVE=1");
+    CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
+}
