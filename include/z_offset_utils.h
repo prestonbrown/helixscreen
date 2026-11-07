@@ -180,6 +180,22 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     helix::SharedCallback<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
 
+/// Save a calibration that ACCEPT has just staged in the printer config.
+///
+/// Every calibrate command writes its result into configfile on ACCEPT, so the
+/// save only has to commit it. Under PROBE_CALIBRATE this asks the printer
+/// (printer.gcode.help) whether it registered Z_OFFSET_APPLY_PROBE: where it did,
+/// or the list cannot be read, this is apply_and_save(); where it did not
+/// (Creality's Klipper with BTT's Eddy module, #1994), it is SAVE_CONFIG alone.
+/// Other strategies go straight to apply_and_save().
+///
+/// Parameters and callbacks are apply_and_save()'s.
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               helix::SharedCallback<void()> on_success,
+                               helix::SharedCallback<void(const std::string& error)> on_error,
+                               PrinterState* ps = nullptr);
+
 /// The facts the "is there an offset worth saving" decision is made from.
 struct SaveAvailability {
     /// The firmware does not persist the offset on its own, so a manual save is

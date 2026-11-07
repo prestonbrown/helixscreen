@@ -20,6 +20,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace helix::zoffset_cal {
 
@@ -31,12 +32,15 @@ enum class ReadingPoint {
 
 /// The command a strategy and probe run, and where it reads.
 struct CalibrationCommand {
-    const char* gcode; ///< Empty for FIRMWARE_MANAGED, which runs no calibrate command
+    std::string gcode; ///< Empty for FIRMWARE_MANAGED, which runs no calibrate command
     ReadingPoint point;
 };
 
+/// @param chip the probe's sensor name (ProbeSensorConfig::sensor_name), which
+///             names the chip for a probe whose calibrate command takes one
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
-                                       sensors::ProbeSensorType probe_type);
+                                       sensors::ProbeSensorType probe_type,
+                                       std::string_view chip = {});
 
 /// Whether a calibration may start with the tool on the carriage.
 enum class ToolGate {
