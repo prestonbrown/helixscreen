@@ -3511,6 +3511,7 @@ translations:
   Save to Spool: Salvar no carretel
   Save to Spoolman: Salvar no Spoolman
   Saved Z-Offset: Z-Offset Salvo
+  Saved for the mounted head; other heads keep their own: 'Salvo para o cabeçote montado; os outros cabeçotes mantêm o seu'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Salvo no Spoolman, mas o preço, a localização, o lote e as notas do carretel não foram salvos.'
   Saved to crash_report.txt (QR not available): Salvo em crash_report.txt (QR não
     disponível)

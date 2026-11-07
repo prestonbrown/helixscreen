@@ -173,6 +173,59 @@ TEST_CASE("z-offset persistence: a near-miss macro detects nothing", "[zoffset][
 }
 
 // ============================================================================
+// Per-head offsets on a head changer
+// ============================================================================
+
+namespace {
+
+/// A printer whose objects list carries the given objects plus gcode macros.
+PrinterDiscovery printer_with(std::initializer_list<const char*> objects_in,
+                              std::initializer_list<const char*> macros) {
+    json objects = json::array();
+    objects.push_back("gcode_move");
+    objects.push_back("toolhead");
+    for (const char* o : objects_in) {
+        objects.push_back(o);
+    }
+    for (const char* m : macros) {
+        objects.push_back(std::string("gcode_macro ") + m);
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("z-offset persistence: a Z-Mod head changer applies the offset per head",
+          "[zoffset][persistence][per_head]") {
+    // Z-Mod on the Creator 5 sets the mounted head's offset absolutely at every
+    // pickup and saves a Z_ADJUST against that head: the ZMOD row plus the
+    // changer's colour registry and carriage grab buttons.
+    PrinterDiscovery c5 =
+        printer_with({"zmod_color", "gcode_button extruder_grab1", "gcode_button extruder_grab2"},
+                     {"SAVE_ZMOD_DATA"});
+
+    CHECK(helix::zoffset::firmware_persists_z_offset(c5));
+    CHECK(helix::zoffset::firmware_applies_z_offset_per_head(c5));
+}
+
+TEST_CASE("z-offset persistence: one machine-wide offset is not per head",
+          "[zoffset][persistence][per_head]") {
+    // The AD5X Z-Mod publishes zmod_color too, but it has one head and one
+    // stored offset: no carriage buttons, no per-head treatment.
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(
+        printer_with({"zmod_color"}, {"SAVE_ZMOD_DATA"})));
+    // The changer's objects without Z-Mod's offset storage name no firmware
+    // this module knows to save per head.
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(
+        printer_with({"zmod_color", "gcode_button extruder_grab1"}, {})));
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(printer_with({}, {"SET_MOD"})));
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(
+        printer_with({}, {"START_PRINT", "END_PRINT"})));
+}
+
+// ============================================================================
 // Clearing the stale probe delta before an idle adjustment
 // ============================================================================
 

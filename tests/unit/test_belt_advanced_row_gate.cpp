@@ -11,7 +11,8 @@
  * printer_has_accelerometer and printer_supports_belt_compare (1 only on
  * corexy/limited_corexy); Tool Offsets needs printer_has_tool_offset_cal;
  * Z-Offset Calibration needs a probe and steps aside where the tool offset
- * routine also sets the reference tool's Z.
+ * routine also sets the reference tool's Z, or where the firmware keeps a
+ * Z offset per head.
  */
 
 #include "ui_status_pill.h"
@@ -50,6 +51,7 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
         ensure_subject("printer_has_tool_offset_cal", 0);
         ensure_subject("printer_has_probe", 1);
         ensure_subject("hide_manual_z_calibration", 0);
+        ensure_subject("printer_z_offset_per_head", 0);
         beta_ = subject("show_beta_features");
         beta_before_ = lv_subject_get_int(beta_);
         lv_subject_set_int(beta_, 0);
@@ -98,9 +100,9 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
     /// untouched.
     static void ensure_subject(const char* name, int value) {
         if (!lv_xml_get_subject(nullptr, name)) {
-            static lv_subject_t subjects[6];
+            static lv_subject_t subjects[7];
             static size_t next = 0;
-            REQUIRE(next < 6);
+            REQUIRE(next < 7);
             lv_subject_init_int(&subjects[next], value);
             lv_xml_register_subject(nullptr, name, &subjects[next]);
             next++;
@@ -186,4 +188,24 @@ TEST_CASE_METHOD(AdvancedBeltRowFixture,
 
     lv_subject_set_int(tool_offset_cal, 0);
     lv_subject_set_int(hide_manual, 0);
+}
+
+TEST_CASE_METHOD(AdvancedBeltRowFixture,
+                 "Advanced Z-Offset row steps aside where the firmware keeps a Z offset per head",
+                 "[tool_offsets][advanced][xml][per_head]") {
+    auto* per_head = subject("printer_z_offset_per_head");
+    lv_subject_set_int(subject("printer_has_probe"), 1);
+    lv_subject_set_int(subject("printer_has_tool_offset_cal"), 0);
+    lv_subject_set_int(subject("hide_manual_z_calibration"), 0);
+    lv_obj_t* z_offset = row("row_z_offset");
+
+    lv_subject_set_int(per_head, 0);
+    process_lvgl(10);
+    CHECK_FALSE(hidden_in_panel(z_offset));
+
+    lv_subject_set_int(per_head, 1);
+    process_lvgl(10);
+    CHECK(hidden_in_panel(z_offset));
+
+    lv_subject_set_int(per_head, 0);
 }

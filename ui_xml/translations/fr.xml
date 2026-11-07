@@ -3223,6 +3223,7 @@
   <translation tag="Save to Spool" fr="Enregistrer sur la bobine"/>
   <translation tag="Save to Spoolman" fr="Enregistrer dans Spoolman"/>
   <translation tag="Saved Z-Offset" fr="Z-Offset enregistré"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" fr="Enregistré pour la tête d&apos;outil montée ; les autres têtes d&apos;outil gardent le leur"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." fr="Enregistré dans Spoolman, mais le prix, l&apos;emplacement, le lot et les notes de la bobine n&apos;ont pas été enregistrés."/>
   <translation tag="Saved to crash_report.txt (QR not available)" fr="Enregistré dans crash_report.txt (QR non disponible)"/>
   <translation tag="Saved to printer configuration." fr="Enregistré dans la configuration de l&apos;imprimante."/>

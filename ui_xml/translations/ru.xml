@@ -3277,6 +3277,7 @@
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" ru="Сохранено для установленной печатающей головки; остальные головки сохраняют своё"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ru="Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились."/>
   <translation tag="Saved to crash_report.txt (QR not available)" ru="Сохранено в crash_report.txt (QR недоступен)"/>
   <translation tag="Saved to printer configuration." ru="Сохранено в конфигурацию принтера."/>

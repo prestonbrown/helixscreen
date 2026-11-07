@@ -3223,6 +3223,7 @@
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" ja="装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ja="Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
   <translation tag="Saved to printer configuration." ja="プリンター設定に保存しました。"/>

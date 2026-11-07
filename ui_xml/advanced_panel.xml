@@ -260,12 +260,13 @@
         <!-- Z-Offset Calibration (hidden if no probe) -->
         <setting_action_row name="row_z_offset"
                             label="Z-Offset Calibration" icon="z_closer" description="Interactive probe calibration">
-          <!-- One binding, both tests (two flag bindings on a widget fight):
-               needs a probe, and steps aside for automatic tool offset
-               calibration only where the database says that routine covers
-               the reference tool's Z too (see the same bind in
-               controls_panel.xml). -->
-          <bind_flag_if cond="printer_has_probe eq 0 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
+          <!-- One binding, every test (two flag bindings on a widget fight):
+               needs a probe; steps aside where the firmware keeps a Z offset
+               per head, whose mounted head an absolute offset would move;
+               and steps aside for automatic tool offset calibration where
+               the database says that routine covers the reference tool's Z
+               too (see the same bind in controls_panel.xml). -->
+          <bind_flag_if cond="printer_has_probe eq 0 or printer_z_offset_per_head eq 1 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
                         flag="hidden"/>
           <event_cb trigger="clicked" callback="on_zoffset_row_clicked"/>
         </setting_action_row>

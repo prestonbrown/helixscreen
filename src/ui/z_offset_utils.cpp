@@ -60,8 +60,8 @@ void format_offset_compact(int microns, char* buf, size_t buf_size) {
 }
 
 int displayed_z_offset_microns(int live_microns, std::optional<int> persisted_microns,
-                               bool print_active) {
-    if (print_active || !persisted_microns.has_value()) {
+                               bool print_active, bool per_head) {
+    if (print_active || per_head || !persisted_microns.has_value()) {
         return live_microns;
     }
     return *persisted_microns;
@@ -71,16 +71,17 @@ int displayed_z_offset_microns(helix::PrinterState& state) {
     return displayed_z_offset_microns(
         lv_subject_get_int(state.motion_state().get_gcode_z_offset_subject()),
         state.get_persisted_z_offset_microns(),
-        lv_subject_get_int(state.print_state().get_print_active_subject()) != 0);
+        lv_subject_get_int(state.print_state().get_print_active_subject()) != 0,
+        firmware_applies_z_offset_per_head(state.get_discovery()));
 }
 
 std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
-                                 bool all_homed) {
+                                 bool all_homed, bool per_head) {
     // MOVE=1 makes the toolhead take up the new offset immediately, which is what
     // makes baby stepping usable. Klipper errors on it when an axis is unhomed.
     const char* move = all_homed ? " MOVE=1" : "";
 
-    if (base_microns == live_microns) {
+    if (per_head || base_microns == live_microns) {
         return fmt::format("SET_GCODE_OFFSET Z_ADJUST={:.3f}{}",
                            static_cast<double>(delta_microns) / 1000.0, move);
     }
@@ -269,7 +270,8 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
     // Read the live offset before the optimistic write below overwrites it.
     const int live_microns =
         ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
-    const bool adjusting_from_persisted = ps && base_microns != live_microns;
+    const bool per_head = ps && firmware_applies_z_offset_per_head(ps->get_discovery());
+    const bool adjusting_from_persisted = ps && !per_head && base_microns != live_microns;
 
     if (ps) {
         ps->motion_state().add_pending_z_offset_delta(delta_microns);
@@ -296,7 +298,8 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
 
     // Relative Z_ADJUST resolves against homing_origin, so it is only right when
     // the base we adjusted from IS the live offset. See build_z_adjust_gcode().
-    std::string gcode = build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed);
+    std::string gcode =
+        build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed, per_head);
 
     // ZMOD persists the adjustment as `z - _TEST_POINT.temp_z_offset`, and
     // through 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - so while

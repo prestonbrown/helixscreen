@@ -3223,6 +3223,7 @@
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" zh="已为当前安装的工具头保存；其他工具头保留各自的值"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
