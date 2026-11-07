@@ -2331,6 +2331,7 @@ translations:
   Main LED Strip: Fita de LED Principal
   Maintaining: Mantendo
   Maintenance: 'Manutenção'
+  Make color, material and spool changes in Spoolman.: "Altere cor, material e carretel no Spoolman."
   Make sure every nozzle is clean.: Certifique-se de que todos os bicos estejam limpos.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Verifique se não há filamento carregado no cabeçote: ele pode amolecer na extrusora enquanto a mesa aquece.'
 
@@ -4936,6 +4937,7 @@ translations:
   the printer refused it: "a impressora recusou"
   the right belt: "correia direita"
   the upper belt: "correia superior"
+  this printer fills its gates from Spoolman, so change the spool there: "esta impressora preenche os gates pelo Spoolman, altere o carretel lá"
   this week: esta semana
   too slow: lento demais
   tool(s): ferramenta(s)

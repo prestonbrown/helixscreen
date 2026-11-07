@@ -2200,6 +2200,7 @@ translations:
   Main LED Strip: 主 LED 灯带
   Maintaining: 保持中
   Maintenance: '维护'
+  Make color, material and spool changes in Spoolman.: "请在 Spoolman 中更改颜色、材料和料盘。"
   Make sure every nozzle is clean.: 请确保所有喷嘴都干净。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。
 
@@ -4667,6 +4668,7 @@ translations:
   the printer refused it: "打印机拒绝了"
   the right belt: "右皮带"
   the upper belt: "上皮带"
+  this printer fills its gates from Spoolman, so change the spool there: "此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"
   this week: 本周
   too slow: 太慢
   tool(s): 工具

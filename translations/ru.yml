@@ -2370,6 +2370,7 @@ translations:
   Main LED Strip: Основная LED-лента
   Maintaining: Поддержание
   Maintenance: 'Обслуживание'
+  Make color, material and spool changes in Spoolman.: "Меняйте цвет, материал и катушку в Spoolman."
   Make sure every nozzle is clean.: Убедитесь, что все сопла чистые.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол.'
 
@@ -4973,6 +4974,7 @@ translations:
   the printer refused it: "принтер отклонил"
   the right belt: "правый ремень"
   the upper belt: "верхний ремень"
+  this printer fills its gates from Spoolman, so change the spool there: "этот принтер берёт гейты из Spoolman, меняйте катушку там"
   this week: за неделю
   too slow: слишком медленно
   tool(s): инструмент(ы)

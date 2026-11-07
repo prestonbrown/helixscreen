@@ -2206,6 +2206,7 @@ translations:
   Main LED Strip: メインLEDストリップ
   Maintaining: 維持中
   Maintenance: 'メンテナンス'
+  Make color, material and spool changes in Spoolman.: "色、素材、スプールの変更は Spoolman で行ってください。"
   Make sure every nozzle is clean.: すべてのノズルが清潔であることを確認してください。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'ツールヘッドにフィラメントがロードされていないことを確認してください: ベッドの加熱中にエクストルーダー内で柔らかくなることがあります。'
 
@@ -4677,6 +4678,7 @@ translations:
   the printer refused it: "プリンターが拒否しました"
   the right belt: "右ベルト"
   the upper belt: "上ベルト"
+  this printer fills its gates from Spoolman, so change the spool there: "このプリンターはゲートを Spoolman から取得するため、スプールは Spoolman で変更してください"
   this week: 今週
   too slow: 遅すぎ
   tool(s): ツール
