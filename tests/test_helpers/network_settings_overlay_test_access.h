@@ -41,6 +41,10 @@ class NetworkSettingsOverlayTestAccess {
     static EthernetManager* ethernet_manager(NetworkSettingsOverlay& o) {
         return o.ethernet_manager_.get();
     }
+    /// No Ethernet probe in flight or queued behind one.
+    static bool eth_refresh_idle(NetworkSettingsOverlay& o) {
+        return !o.eth_refresh_in_flight_ && !o.eth_refresh_trailing_;
+    }
     /// The eth_connected subject (0/1) the Ethernet row binds to.
     static lv_subject_t& eth_connected(NetworkSettingsOverlay& o) {
         return o.eth_connected_;

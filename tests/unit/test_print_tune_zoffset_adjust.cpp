@@ -28,7 +28,9 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "tool_state.h"
+#include "z_offset_utils.h"
 
 #include <array>
 #include <memory>
@@ -431,6 +433,12 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     // Z_OFFSET_APPLY_ENDSTOP saves it minus the gcode offset.
     state().capabilities_state().set_stepper_z_endstop_microns(235000);
     lv_subject_set_int(state().profile_state().get_z_offset_can_save_subject(), 1);
+    // The save setting is per printer and persists across cases.
+    const int save_mode = SettingsManager::instance().get_z_offset_save_mode();
+    helix::zoffset::set_save_enabled(true);
+    // A single-tool printer; another case's toolchanger can leave this set.
+    lv_subject_set_int(
+        helix::ToolState::instance().get_per_tool_axis_supported_subject(helix::Axis::Z), 0);
     set_live_offset(0.02);
     set_printing(true);
     set_homed(true);
@@ -438,7 +446,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     lv_obj_t* line = lv_obj_find_by_name(overlay.get_root(), "z_offset_saved_line");
     REQUIRE(line != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(line));
     CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.980 mm after Save");
 
     overlay.handle_z_step_select(2); // 0.010mm
@@ -447,4 +455,5 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
 
     state().capabilities_state().set_stepper_z_endstop_microns(0);
+    SettingsManager::instance().set_z_offset_save_mode(save_mode);
 }
