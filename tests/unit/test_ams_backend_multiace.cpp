@@ -24,6 +24,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <filesystem>
@@ -1284,6 +1285,28 @@ TEST_CASE_METHOD(MultiAceFixture, "a bay edit lands and survives the engine's fr
     // writes the bay, and nothing else.
     CHECK(b.get_slot_info(1).material.empty());
     CHECK(b.get_slot_info(1).color_rgb != edited.color_rgb);
+}
+
+TEST_CASE_METHOD(MultiAceFixture, "a bay's lane record stands over the engine's table",
+                 "[multiace][ams]") {
+    helix::test::RegisteredBackend<CapturingMultiAce> reg;
+    CapturingMultiAce& b = *reg;
+    b.frame(ace_frame("head_mode_4ace.json"));
+    const int bay = multiace::bay_global(1, 0);
+
+    // The edit's record, read back from Moonraker: no engine command stores a
+    // bay label, so the record is the edit once it is no longer pending.
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG";
+    record.brand = "Polymaker";
+    record.color_rgb = 0x1E5AA8;
+    record.color_set = true;
+    helix::test::file_override_as_lane_records(b, bay, record);
+    b.frame(ace_frame("head_mode_4ace.json"));
+
+    CHECK(b.get_slot_info(bay).material == "PETG");
+    CHECK(b.get_slot_info(bay).brand == "Polymaker");
+    CHECK(b.get_slot_info(bay).color_rgb == 0x1E5AA8u);
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "a bay edit clears when a different spool is detected",

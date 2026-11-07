@@ -4938,6 +4938,9 @@ translations:
   tall: hoch
   target {}%: 'Ziel {}%'
   target {}°: 'Ziel {}°'
+  the ACE needs a material and its nozzle temperature: "der ACE braucht ein Material und dessen Düsentemperatur"
+  the QIDI Box filament list has not loaded: "die Filamentliste der QIDI Box ist nicht geladen"
+  the QIDI Box has no {} in its filament list: "die QIDI Box hat kein {} in ihrer Filamentliste"
   the extruder: den Extruder
   the left belt: "Riemen links"
   the lower belt: "Riemen unten"

@@ -806,17 +806,65 @@ std::optional<helix::ams::TagReading> AmsBackendAce::tag_reading(int slot_index)
     return tag_readings_[static_cast<size_t>(slot_index)];
 }
 
+std::string AmsBackendAce::set_slot_gcode(int slot_index, const SlotInfo& info) const {
+    // ACE_SET_SLOT takes the whole inventory entry: COLOR=R,G,B, MATERIAL= and
+    // TEMP=1..300 are all required, or EMPTY=1 for a slot with none.
+    if (info.material.empty() && !helix::ams::is_declarable_color(info.color_rgb)) {
+        return slot_command("ACE_SET_SLOT", slot_index) + " EMPTY=1";
+    }
+    helix::ams::FilamentSlotOverride temps;
+    temps.material = info.material;
+    helix::ams::populate_temps_from_slot_info(temps, info);
+    const int nozzle = helix::ams::resolved_temps(temps).nozzle_temp;
+    if (info.material.empty() || nozzle <= 0 || nozzle > 300) {
+        return {};
+    }
+    const uint32_t rgb =
+        helix::ams::is_declarable_color(info.color_rgb) ? info.color_rgb & 0xFFFFFFu : 0u;
+    return slot_command("ACE_SET_SLOT", slot_index) +
+           fmt::format(" COLOR={},{},{} MATERIAL={} TEMP={}", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF,
+                       rgb & 0xFF, helix::text_io::quote_gcode_param(info.material), nozzle);
+}
+
 AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
+    bool hub_stores_edits = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (!mutable_slot_locked(slot_index)) {
+            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
+        }
+        hub_stores_edits = instance_commands_;
+    }
 
+    // The ACEPRO driver keeps each slot's colour, material and temperature in
+    // its inventory, so the edit goes there and the lane waits for the hub to
+    // restate it. Other drivers hold no write: the lane record is the edit.
+    if (hub_stores_edits) {
+        const std::string gcode = set_slot_gcode(slot_index, info);
+        if (gcode.empty()) {
+            return AmsError(AmsResult::WRONG_STATE,
+                            fmt::format("ACE_SET_SLOT needs a material and a nozzle temperature "
+                                        "(material '{}')",
+                                        info.material),
+                            lv_tr("the ACE needs a material and its nozzle temperature"), "",
+                            slot_index);
+        }
+        if (auto err = execute_gcode(gcode); !err.success()) {
+            return err;
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
         SlotInfo* slot = mutable_slot_locked(slot_index);
         if (!slot) {
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
         }
-        const bool temps_moved = info.nozzle_temp_min != slot->nozzle_temp_min ||
-                                 info.nozzle_temp_max != slot->nozzle_temp_max;
-        if (temps_moved) {
+        // The hub states its own temperatures on the REST bridge, and the
+        // record keeps one for every edit, so only an edit that moved them
+        // marks them the user's (apply_hub_temps_locked).
+        if (info.nozzle_temp_min != slot->nozzle_temp_min ||
+            info.nozzle_temp_max != slot->nozzle_temp_max) {
             const auto idx = static_cast<size_t>(slot_index);
             if (user_temps_.size() <= idx) {
                 user_temps_.resize(idx + 1, false);
@@ -824,19 +872,9 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
             user_temps_[idx] = true;
         }
         write_filament_fields(*slot, info);
-
-        // Stage the override into overrides_ so the edit survives a restart;
-        // the lane's own declaration, filed when the edit is committed, is what
-        // apply_resolved_lane paints on every subsequent parse.
-        helix::ams::stage_user_override(overrides_, slot_index, info);
+        persist_user_record_locked(slot_index, info);
     }
-
     spdlog::info("[ACE] Updated slot {} info: {} {}", slot_index, info.material, info.color_name);
-
-    if (override_store_) {
-        persist_override(slot_index);
-    }
-
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
 }
@@ -1627,15 +1665,13 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
                 helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
                 cache.color_rgb = observed_color;
                 cache.material = observed_material;
-                helix::ams::ingest(lane_id(idx), cache);
+                file_hub_reading_locked(idx, cache);
                 note_tag_frame_locked(idx, tag_read, slot_json, observed_material, observed_color,
                                       observed_present);
 
-                // Layer user-configured overrides on top of firmware-reported
-                // data. Override wins for any non-default field - for ACE
-                // that includes color and material, since ACE hardware
-                // doesn't carry brand/spool_name/weights at all and the user
-                // edit is the authoritative source for color/material too.
+                // Lay the lane over the hub's paint: the hub's own colour and
+                // material where it holds them, the record for everything it
+                // does not (and, on drivers that store no edit, for those too).
                 // The REST poll brings every slot through here each
                 // kPollIntervalMs, so ACE names no slot to cached_slot_locked().
                 apply_resolved_lane(slot, idx);
@@ -2368,7 +2404,7 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
         helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         cache.color_rgb = observed_color;
         cache.material = material;
-        helix::ams::ingest(lane_id(idx), cache);
+        file_hub_reading_locked(idx, cache);
 
         apply_hub_temps_locked(idx, slot, slot_json);
         note_tag_frame_locked(idx, helix::ace::read_tag_state(slot_json), slot_json, material,
@@ -2778,6 +2814,7 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
 }
 
 void AmsBackendAce::clear_slot_override(int slot_index) {
+    bool hub_stores_edits = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = mutable_slot_locked(slot_index);
@@ -2789,9 +2826,23 @@ void AmsBackendAce::clear_slot_override(int slot_index) {
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
         forget_user_temps_locked(slot_index);
+        hub_stores_edits = instance_commands_;
     }
 
+    // The ACEPRO hub forgets the slot's colour, material and temperature too;
+    // its presence comes back from the hardware on the next heartbeat.
+    if (hub_stores_edits) {
+        execute_gcode(slot_command("ACE_SET_SLOT", slot_index) + " EMPTY=1");
+    }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
+}
+
+void AmsBackendAce::file_hub_reading_locked(int slot_index, helix::ams::Observation& hub) {
+    const helix::ams::LaneId lane = lane_id(slot_index);
+    if (!instance_commands_) {
+        helix::ace::yield_to_record(hub, helix::ams::lane_sources(lane).record);
+    }
+    helix::ams::ingest(lane, hub);
 }
 
 } // namespace helix

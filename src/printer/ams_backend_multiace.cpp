@@ -6,6 +6,7 @@
 #include "ace_slot_parse.h"
 #include "ams_fault_event.h"
 #include "klipper_extruder_naming.h"
+#include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "snapmaker_exceptions.h"
 
@@ -302,7 +303,11 @@ void AmsBackendMultiAce::rebuild_units_locked() {
                     }
                     engine.color_rgb = bay->color;
                 }
-                helix::ams::ingest(lane_id(slot.global_index), engine);
+                // No documented engine command stores a bay edit, so the
+                // lane record holds it and stands over the engine's table.
+                const helix::ams::LaneId lane = lane_id(slot.global_index);
+                helix::ace::yield_to_record(engine, helix::ams::lane_sources(lane).record);
+                helix::ams::ingest(lane, engine);
                 apply_resolved_lane(slot, slot.global_index);
                 if (const auto ovr = overrides_.find(slot.global_index); ovr != overrides_.end()) {
                     const ams::ResolvedTemps temps = ams::resolved_temps(ovr->second);
@@ -365,14 +370,9 @@ AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& inf
                                                 system_info_.total_slots - 1);
         }
         slot->assign_filament_fields(info);
-        // The staged record survives the restart; the lane's declaration, filed
-        // by commit_user_edit() once this returns, is what rebuild_units_locked
-        // lays back over every engine frame.
-        helix::ams::stage_user_override(overrides_, slot_index, info);
-    }
-
-    if (override_store_) {
-        persist_override(slot_index);
+        // No documented engine command stores a bay edit, so the lane record
+        // holds it; rebuild_units_locked lets it stand over the engine's table.
+        persist_user_record_locked(slot_index, info);
     }
 
     emit_event(kEventSlotChanged, std::to_string(slot_index));

@@ -478,6 +478,24 @@ class AmsSubscriptionBackend : public AmsBackend {
         return true;
     }
 
+    /// The same read's namespace keys that are not lane records
+    /// (FilamentSlotOverrideStore::save_key_async()), each with its value; a
+    /// key nobody has written is absent. Return true when what they say
+    /// changed something shown. Runs under mutex_, beside
+    /// on_lane_records_read_locked().
+    virtual bool on_lane_record_keys_locked(const nlohmann::json& keys) {
+        (void)keys;
+        return false;
+    }
+
+    /// Take off a lane record's reading the fields this backend's firmware
+    /// holds, so the record cannot fill a field the firmware states as unset.
+    /// The default keeps every field: one the firmware states outranks the
+    /// record anyway. Main thread.
+    virtual void drop_firmware_held_fields(helix::ams::Observation& record) const {
+        (void)record;
+    }
+
     /// Stage @p info as @p slot_index's record (stage_user_override(), with
     /// @p material in place of info.material) and save it. Caller holds mutex_.
     void persist_user_record_locked(int slot_index, const SlotInfo& info);
@@ -579,7 +597,8 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// record as the lane's Record source, drop it from a lane whose record is
     /// gone, repaint, and announce a change. Main thread.
     void adopt_lane_records(helix::ams::FilamentSlotOverrideStore* store,
-                            std::unordered_map<int, helix::ams::LaneDataRecord> records);
+                            std::unordered_map<int, helix::ams::LaneDataRecord> records,
+                            const nlohmann::json& keys);
 
     /// Each slot's record as last read, so an unchanged read announces nothing.
     /// Main thread.

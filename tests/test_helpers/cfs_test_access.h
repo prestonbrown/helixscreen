@@ -126,6 +126,16 @@ class CfsTestAccess {
         b.system_info_.supports_bypass = true;
     }
 
+    /// What a lane-record read carrying @p keys does to the backend.
+    static bool adopt_lane_keys(helix::printer::AmsBackendCfs& b, const nlohmann::json& keys) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.on_lane_record_keys_locked(keys);
+    }
+
+    static void mark_running(helix::printer::AmsBackendCfs& b) {
+        b.running_ = true;
+    }
+
     static void set_seated_bay(helix::printer::AmsBackendCfs& b, int slot) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.system_info_.current_slot = slot;

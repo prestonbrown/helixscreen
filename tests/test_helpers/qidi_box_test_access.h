@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "lane_translation.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -126,6 +127,13 @@ class QidiBoxTestAccess {
         if (it == b.overrides_.end())
             return std::nullopt;
         return it->second;
+    }
+    /// What a lane-record read files for @p record on this backend.
+    static helix::ams::Observation record_reading(const AmsBackendQidi& b,
+                                                  const helix::ams::FilamentSlotOverride& record) {
+        helix::ams::Observation read = helix::ams::record_observation(record);
+        b.drop_firmware_held_fields(read);
+        return read;
     }
     static void inject_override_store(AmsBackendQidi& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
