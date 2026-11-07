@@ -541,6 +541,8 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     for (int i = 0; i < count; ++i) {
         if (slot_widgets[i]) {
             lv_obj_set_width(slot_widgets[i], result.layout.slot_width);
+            const AmsSlotHitBand band = ams_slot_hit_band(result.layout, i, count);
+            ui_ams_slot_set_hit_band(slot_widgets[i], band.left_inset, band.right_inset);
         }
     }
 

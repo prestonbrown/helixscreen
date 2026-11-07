@@ -76,7 +76,7 @@
     <!-- Size is set dynamically in C++ based on space_lg token -->
     <lv_obj name="spool_container"
             width="72" height="72" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
-            overflow_visible="true" event_bubble="true">
+            overflow_visible="true" clickable="false" event_bubble="true">
 
       <!-- Lane spool graphic: sizes itself from the ams_slot_spool_size token;
            slot_index is assigned by ui_ams_slot.cpp once parsed. Created first

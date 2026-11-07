@@ -17,6 +17,7 @@
  */
 
 #include "ui_ams_slot.h"
+#include "ui_ams_slot_layout.h"
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -1348,4 +1349,154 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a load pulses the current and tar
     display.set_animations_enabled(animations_were);
     lv_subject_set_int(ams.get_pending_target_slot_subject(), -1);
     lv_subject_set_int(ams.get_current_slot_subject(), -1);
+}
+
+// ============================================================================
+// Overlapping rows (5+ slots): tap bands and badge placement
+// ============================================================================
+
+TEST_CASE("ams_slot hit band: overlapping slots tile the row with one pitch each",
+          "[ams_slot][hit_band]") {
+    for (int count : {5, 6, 8, 16}) {
+        const AmsSlotLayout layout = calculate_ams_slot_layout(470, count);
+        REQUIRE(layout.overlap > 0);
+        const int32_t pitch = layout.slot_width - layout.overlap;
+        int32_t previous_right = -1;
+        for (int i = 0; i < count; ++i) {
+            const AmsSlotHitBand band = ams_slot_hit_band(layout, i, count);
+            const int32_t left = i * pitch + band.left_inset;
+            const int32_t right = i * pitch + layout.slot_width - 1 - band.right_inset;
+            const int32_t spool_center = i * pitch + layout.slot_width / 2;
+            CAPTURE(count, i, left, right, spool_center);
+            CHECK(left == previous_right + 1); // no gap, no shared pixel
+            CHECK(left <= spool_center);
+            CHECK(spool_center <= right);
+            previous_right = right;
+        }
+        CHECK(previous_right == (count - 1) * pitch + layout.slot_width - 1);
+    }
+}
+
+TEST_CASE("ams_slot hit band: a row without overlap keeps every full slot",
+          "[ams_slot][hit_band]") {
+    const AmsSlotLayout layout = calculate_ams_slot_layout(470, 4);
+    REQUIRE(layout.overlap == 0);
+    for (int i = 0; i < 4; ++i) {
+        const AmsSlotHitBand band = ams_slot_hit_band(layout, i, 4);
+        CHECK(band.left_inset == 0);
+        CHECK(band.right_inset == 0);
+    }
+}
+
+namespace {
+lv_obj_t* slot_owning(lv_obj_t* hit, lv_obj_t* const* slots, int count) {
+    for (lv_obj_t* obj = hit; obj; obj = lv_obj_get_parent(obj)) {
+        for (int i = 0; i < count; ++i) {
+            if (slots[i] == obj)
+                return obj;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_slot: a tap on a spool in an overlapping row opens that slot",
+                 "[ui][ams_slot][hit_band]") {
+    ui_ams_slot_register();
+    constexpr int kCount = 6;
+
+    lv_obj_t* row = lv_obj_create(test_screen());
+    lv_obj_set_size(row, 700, 300);
+    lv_obj_set_style_pad_all(row, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+
+    lv_obj_t* slots[kCount] = {};
+    for (int i = 0; i < kCount; ++i) {
+        slots[i] = create_ams_slot(row, i);
+        REQUIRE(slots[i] != nullptr);
+        ui_ams_slot_set_layout_info(slots[i], i, kCount);
+    }
+    lv_obj_update_layout(row);
+
+    // A row as tight as 800x480's: neighbouring spools stand closer than one
+    // spool's width, so their containers overlap as well as their slots.
+    const int32_t spool_w = lv_obj_get_width(UITest::find_by_name(slots[0], "spool_container"));
+    const int32_t target_pitch = spool_w * 4 / 5;
+    const AmsSlotLayout layout =
+        calculate_ams_slot_layout(target_pitch * 2 * (kCount + 1) / 2, kCount);
+    const int32_t pitch = layout.slot_width - layout.overlap;
+    REQUIRE(layout.overlap > 0);
+    REQUIRE(spool_w > pitch + 4);
+
+    lv_obj_set_style_pad_column(row, -layout.overlap, LV_PART_MAIN);
+    for (int i = 0; i < kCount; ++i) {
+        lv_obj_set_width(slots[i], layout.slot_width);
+        const AmsSlotHitBand band = ams_slot_hit_band(layout, i, kCount);
+        ui_ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
+    }
+    lv_obj_update_layout(row);
+
+    for (int i = 0; i < kCount; ++i) {
+        lv_obj_t* spool = UITest::find_by_name(slots[i], "spool_container");
+        REQUIRE(spool != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(spool, &a);
+        const int32_t cx = (a.x1 + a.x2) / 2;
+        const int32_t cy = (a.y1 + a.y2) / 2;
+        // The spool's centre and both halves of it, out to the pitch.
+        for (int32_t dx : {0, -(pitch / 2 - 2), pitch / 2 - 2}) {
+            lv_point_t p{cx + dx, cy};
+            CAPTURE(i, dx);
+            CHECK(slot_owning(lv_indev_search_obj(row, &p), slots, kCount) == slots[i]);
+        }
+    }
+    lv_obj_delete(row);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_slot: a staggered slot's badge sits on the drawn spool's lower corner",
+                 "[ui][ams_slot][badge]") {
+    ui_ams_slot_register();
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+    ui_ams_slot_set_layout_info(slot, 0, 6);
+    lv_obj_set_width(slot, 118);
+    lv_obj_update_layout(slot);
+
+    lv_obj_t* label = UITest::find_by_name(slot, "material_label");
+    REQUIRE(label != nullptr);
+    REQUIRE(lv_obj_has_flag(label, LV_OBJ_FLAG_IGNORE_LAYOUT)); // staggered: out of the flow
+
+    lv_obj_t* badge = UITest::find_by_name(slot, "status_badge");
+    REQUIRE(badge != nullptr);
+
+    lv_obj_t* layer = lv_obj_create(test_screen());
+    lv_obj_set_style_pad_all(layer, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(layer, 0, LV_PART_MAIN);
+    lv_obj_set_pos(layer, lv_obj_get_x(slot), lv_obj_get_y(slot));
+    lv_obj_set_size(layer, 300, 300);
+    lv_obj_update_layout(layer);
+
+    lv_obj_t* graphic = UITest::find_by_name(slot, "spool_graphic");
+    REQUIRE(graphic != nullptr);
+    lv_area_t slot_area;
+    lv_area_t spool_area;
+    lv_obj_get_coords(slot, &slot_area);
+    lv_obj_get_coords(graphic, &spool_area);
+    const int32_t slot_center_x = (slot_area.x2 - slot_area.x1 + 1) / 2;
+
+    ui_ams_slot_move_badge_to_layer(slot, layer, slot_center_x);
+    lv_obj_update_layout(layer);
+    REQUIRE(lv_obj_get_parent(badge) == layer);
+
+    // Inset by the badge's own 2px translate from the drawn spool's corner.
+    lv_area_t on_layer;
+    lv_obj_get_coords(badge, &on_layer);
+    CHECK(on_layer.y2 == spool_area.y2 - 2);
+    CHECK(on_layer.x2 == spool_area.x2 - 2);
+
+    ui_ams_slot_detach_layers(slot);
+    lv_obj_delete(layer);
+    lv_obj_delete(slot);
 }
