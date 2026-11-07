@@ -8,11 +8,18 @@
  */
 
 #include "ui_fan_control_overlay.h"
+#include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_settings_fans.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/mock_printer.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "chamber_air_settings.h"
+#include "config.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
@@ -93,14 +100,69 @@ PrinterDiscovery u1(std::initializer_list<const char*> extra = {}) {
     return hw;
 }
 
-void cover(bool fitted, int mode = 0) {
+void cover(bool fitted, int mode = 0, double exhaust_speed = 0.0) {
     get_printer_state().update_from_status(
         json{{"purifier",
               {{"power_detected", fitted},
                {"mode", mode},
-               {"exhaust_fan", {{"speed", 0.0}, {"speed_threshold", 0.6}}},
+               {"exhaust_fan", {{"speed", exhaust_speed}, {"speed_threshold", 0.6}}},
                {"inner_fan", {{"speed", 0.0}, {"speed_threshold", 0.6}}}}}});
 }
+
+/// The arc of the dial whose card reads @p name.
+lv_obj_t* dial_arc(lv_obj_t* root, const std::string& name) {
+    lv_obj_t* fans = lv_obj_find_by_name(root, "fans_container");
+    for (uint32_t i = 0; i < lv_obj_get_child_count(fans); ++i) {
+        lv_obj_t* card = lv_obj_get_child(fans, static_cast<int32_t>(i));
+        if (has_label(card, name)) {
+            return lv_obj_find_by_name(card, "dial_arc");
+        }
+    }
+    return nullptr;
+}
+
+/// A finger turning @p arc to @p pct and lifting.
+void turn(lv_obj_t* arc, int pct) {
+    lv_arc_set_value(arc, pct);
+    lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_send_event(arc, LV_EVENT_RELEASED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+/// Lets the deferred fan rebuilds an open queues run, so the dials found next are the live ones.
+void settle() {
+    for (int i = 0; i < 2; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+        UITest::advance_ms(50);
+    }
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+uint32_t observers(lv_subject_t* s) {
+    return lv_ll_get_len(&s->subs_ll);
+}
+
+/// The overlay's commands go to a mock printer for the test's lifetime.
+struct RecordedApi {
+    MockPrinter printer;
+    RecordedApi() {
+        set_moonraker_api(&printer.api);
+    }
+    ~RecordedApi() {
+        set_moonraker_api(nullptr);
+    }
+    const std::vector<std::string>& sent() const {
+        return printer.client.gcode_script_history();
+    }
+    bool sent_containing(const std::string& text) const {
+        for (const auto& g : sent()) {
+            if (g.find(text) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 } // namespace
 
@@ -182,4 +244,180 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_remove_state(arc, LV_STATE_PRESSED);
     process_lvgl(1200);
     CHECK(sent == std::vector<int>{40});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan dial: a moved dial keeps holding its send until the finger lifts",
+                 "[fan_overlay][chamber_air]") {
+    auto run = [this](FanDial& dial) {
+        std::vector<int> sent;
+        dial.set_on_speed_changed([&sent](const std::string&, int pct) { sent.push_back(pct); });
+        lv_obj_t* arc = lv_obj_find_by_name(dial.get_root(), "dial_arc");
+        REQUIRE(arc != nullptr);
+        lv_obj_add_state(arc, LV_STATE_PRESSED);
+        lv_arc_set_value(arc, 40);
+        lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
+        process_lvgl(1600);
+        CHECK(sent.empty());
+        lv_obj_remove_state(arc, LV_STATE_PRESSED);
+        process_lvgl(1200);
+        CHECK(sent == std::vector<int>{40});
+    };
+    SECTION("move-constructed") {
+        FanDial held(test_screen(), "Exhaust fan", "chamber_air_exhaust", 0);
+        held.set_hold_until_release(true);
+        FanDial moved(std::move(held));
+        run(moved);
+    }
+    SECTION("move-assigned") {
+        FanDial held(test_screen(), "Exhaust fan", "chamber_air_exhaust", 0);
+        held.set_hold_until_release(true);
+        FanDial target(test_screen(), "Other", "other", 0);
+        target = std::move(held);
+        run(target);
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: an air mode tap sends the targets the settings row stored",
+                 "[fan_overlay][chamber_air]") {
+    FreshOverlays fresh;
+    RecordedApi api;
+    Config* cfg = Config::get_instance();
+    cfg->set<json>(cfg->df() + "chamber_air", json());
+    get_printer_state().set_hardware(u1());
+    state().fan_state().init_fans({"fan"});
+    cover(true);
+    seed_nav_panels(test_screen());
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "chamber_air_exhaust_target_pct"), 85);
+    helix::settings::get_fan_settings_overlay().register_callbacks();
+    lv_event_cb_t commit = lv_xml_get_event_cb(nullptr, "on_chamber_air_targets_commit");
+    REQUIRE(commit != nullptr);
+    commit(nullptr);
+    CHECK(helix::chamber_air::load_targets().exhaust_pct == 85);
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(root, "btn_chamber_air_exhaust"), LV_EVENT_CLICKED,
+                      nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(api.sent_containing("SET_PURIFIER_MODE MODE=1 FAN_SPEED=0.85"));
+    cfg->set<json>(cfg->df() + "chamber_air", json());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: a republished cover fan waits for the finger to lift",
+                 "[fan_overlay][chamber_air]") {
+    FreshOverlays fresh;
+    set_moonraker_api(api());
+    get_printer_state().set_hardware(u1({"fan_generic exhaust_fan"}));
+    state().fan_state().init_fans({"fan", "fan_generic exhaust_fan"});
+    cover(true);
+    seed_nav_panels(test_screen());
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    settle();
+    lv_subject_t* speed = state().fan_state().get_fan_speed_subject("fan_generic exhaust_fan");
+    REQUIRE(speed != nullptr);
+
+    lv_obj_t* fans = lv_obj_find_by_name(root, "fans_container");
+    REQUIRE(lv_obj_get_child_count(fans) >= 2);
+    lv_obj_t* arc = lv_obj_find_by_name(lv_obj_get_child(fans, 1), "dial_arc");
+    REQUIRE(arc != nullptr);
+    lv_obj_add_state(arc, LV_STATE_PRESSED);
+    lv_arc_set_value(arc, 40);
+    lv_obj_send_event(arc, LV_EVENT_VALUE_CHANGED, nullptr);
+    process_lvgl(1600);
+    // The send's optimistic update moves the printer's speed: still held, it has not.
+    CHECK(lv_subject_get_int(speed) == 0);
+    lv_obj_remove_state(arc, LV_STATE_PRESSED);
+    process_lvgl(1200);
+    CHECK(lv_subject_get_int(speed) == 40);
+    set_moonraker_api(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: a refused or questioned cover fan change puts that dial back",
+                 "[fan_overlay][chamber_air]") {
+    FreshOverlays fresh;
+    RecordedApi api;
+    get_printer_state().set_hardware(u1());
+    state().fan_state().init_fans({"fan"});
+    seed_nav_panels(test_screen());
+
+    SECTION("recirculating refuses the exhaust fan") {
+        cover(true, 3);
+        lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+        REQUIRE(root != nullptr);
+        settle();
+        lv_obj_t* exhaust = dial_arc(root, "Exhaust fan");
+        REQUIRE(exhaust != nullptr);
+        turn(exhaust, 40);
+        CHECK(lv_arc_get_value(exhaust) == 0);
+        CHECK(api.sent().empty());
+    }
+    SECTION("one lower-speed question at a time") {
+        cover(true, 1, 0.8);
+        lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+        REQUIRE(root != nullptr);
+        settle();
+        lv_obj_t* exhaust = dial_arc(root, "Exhaust fan");
+        REQUIRE(exhaust != nullptr);
+        turn(exhaust, 30);
+        lv_obj_t* question = ModalStack::instance().top_dialog();
+        REQUIRE(question != nullptr);
+        CHECK(api.sent().empty());
+        turn(exhaust, 20);
+        CHECK(ModalStack::instance().top_dialog() == question);
+        CHECK(lv_arc_get_value(exhaust) == 80);
+        Modal::hide(question);
+        process_lvgl(50);
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: rebuilding the fans and losing the tree leave no observer behind",
+                 "[fan_overlay][chamber_air]") {
+    FreshOverlays fresh;
+    get_printer_state().set_hardware(u1({"heater_fan hotend_fan"}));
+    state().fan_state().init_fans({"fan", "heater_fan hotend_fan"});
+    cover(true);
+    seed_nav_panels(test_screen());
+    lv_subject_t* hotend = state().fan_state().get_fan_speed_subject("heater_fan hotend_fan");
+    REQUIRE(hotend != nullptr);
+    lv_subject_t* available = get_printer_state().chamber_air().available_subject();
+    const uint32_t hotend_before = observers(hotend);
+    const uint32_t available_before = observers(available);
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    settle();
+    const uint32_t hotend_open = observers(hotend);
+    CHECK(hotend_open > hotend_before);
+    for (int i = 0; i < 2; ++i) {
+        cover(false);
+        helix::ui::UpdateQueue::instance().drain();
+        cover(true);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(observers(hotend) == hotend_open);
+
+    lv_obj_delete(root);
+    CHECK(observers(available) == available_before);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "fan overlay: closing keeps the tree for the next open",
+                 "[fan_overlay][chamber_air]") {
+    FreshOverlays fresh;
+    get_printer_state().set_hardware(u1());
+    state().fan_state().init_fans({"fan"});
+    seed_nav_panels(test_screen());
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+    NavigationManager::instance().go_back();
+    process_lvgl(600);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(helix::test::widget_in_tree(root));
+    CHECK(helix::open_fan_control_overlay(test_screen()) == root);
 }
