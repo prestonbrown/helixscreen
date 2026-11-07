@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "../test_helpers/config_test_access.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_types.h"
@@ -19,6 +20,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -4579,6 +4581,204 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
         CHECK(std::find(writes.clears.begin(), writes.clears.end(), 2) != writes.clears.end());
         printer.client.fire_deferred("server.database.get_item");
     }
+}
+
+namespace {
+
+/// Config's active printer for a scope, as a printer switch leaves it.
+struct ActivePrinter {
+    helix::Config* cfg = helix::Config::get_instance();
+    std::string saved = helix::ConfigTestAccess::active_printer_id(*cfg);
+    explicit ActivePrinter(const std::string& id) {
+        helix::ConfigTestAccess::active_printer_id(*cfg) = id;
+    }
+    ~ActivePrinter() {
+        helix::ConfigTestAccess::active_printer_id(*cfg) = saved;
+    }
+};
+
+/// A run whose read of lane_data never lands makes @p edit, then the app stops.
+void hold_until_restart(MockPrinter& printer, const TmpCacheDir& tmp,
+                        const std::function<void(FilamentSlotOverrideStore&)>& edit) {
+    FilamentSlotOverrideStore before(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(before, tmp.path);
+    load_without_an_answer(printer, before);
+    REQUIRE(before.namespace_unread());
+    edit(before);
+    printer.client.fire_deferred("server.database.get_item");
+}
+
+/// Saves @p record on @p slots through a run that read the printer, which leaves
+/// both the printer's records and the cache holding it.
+void seed_slots(MockPrinter& printer, const TmpCacheDir& tmp, const FilamentSlotOverride& record,
+                std::initializer_list<int> slots) {
+    FilamentSlotOverrideStore seed(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
+    for (const int slot : slots) {
+        seed.save_async(slot, record, nullptr);
+    }
+}
+
+json cache_file(const TmpCacheDir& tmp) {
+    std::ifstream in(tmp.path / "filament_slot_overrides.json");
+    return json::parse(in, nullptr, false);
+}
+
+FilamentSlotOverride green_edit_of(const FilamentSlotOverride& record) {
+    FilamentSlotOverride edit = record;
+    edit.color_rgb = 0x00FF00;
+    edit.declared = helix::ams::declared_fields_from_names(json::array({"color_rgb"}));
+    return edit;
+}
+
+} // namespace
+
+TEST_CASE("a held edit made on one printer is not sent to another",
+          "[filament_slot_override][2021]") {
+    TmpCacheDir tmp("held_other_printer");
+    MockPrinter printer;
+    const FilamentSlotOverride cached = polymaker_record();
+    {
+        ActivePrinter a("printer-a");
+        seed_slots(printer, tmp, cached, {1, 2});
+        hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
+            store.save_async(1, green_edit_of(cached), nullptr);
+            store.clear_async(2, nullptr);
+        });
+    }
+    REQUIRE(cache_file(tmp)["ifs"].contains("held"));
+
+    ActivePrinter b("printer-b");
+    const int posts = printer.client.call_count("server.database.post_item");
+    FilamentSlotOverrideStore after(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
+    (void)after.load_blocking();
+
+    CHECK(printer.client.call_count("server.database.post_item") == posts);
+    const auto lane2 =
+        helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
+    REQUIRE(lane2);
+    CHECK(lane2->second.color_rgb == 0xFF9800u);
+    CHECK_FALSE(printer.client.mock_db_get("lane_data", "lane3").is_null());
+    CHECK_FALSE(cache_file(tmp)["ifs"].contains("held"));
+}
+
+TEST_CASE("a held edit gives way to a record the printer changed since",
+          "[filament_slot_override][2021]") {
+    TmpCacheDir tmp("held_newer_live");
+    MockPrinter printer;
+    const FilamentSlotOverride cached = polymaker_record();
+    seed_slots(printer, tmp, cached, {1, 2});
+    hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
+        store.save_async(1, green_edit_of(cached), nullptr);
+        store.clear_async(2, nullptr);
+    });
+
+    // While the app was down: a different spool was linked on slot 1, and a new
+    // spool loaded into the slot the edit cleared.
+    FilamentSlotOverride relinked = cached;
+    relinked.color_rgb = 0x0000FF;
+    relinked.spoolman_id = 42;
+    printer.client.mock_db_set("lane_data", "lane2", helix::ams::to_lane_data_record(1, relinked));
+    FilamentSlotOverride loaded = cached;
+    loaded.material = "PETG";
+    loaded.color_rgb = 0xFFFFFF;
+    printer.client.mock_db_set("lane_data", "lane3", helix::ams::to_lane_data_record(2, loaded));
+
+    FilamentSlotOverrideStore after(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
+    const auto shown = after.load_blocking();
+
+    const auto lane2 =
+        helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
+    REQUIRE(lane2);
+    CHECK(lane2->second.color_rgb == 0x0000FFu);
+    CHECK(lane2->second.spoolman_id == 42);
+    const auto lane3 =
+        helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane3"));
+    REQUIRE(lane3);
+    CHECK(lane3->second.material == "PETG");
+    REQUIRE(shown.count(2) == 1);
+    CHECK(shown.at(2).material == "PETG");
+    CHECK_FALSE(cache_file(tmp)["ifs"].contains("held"));
+}
+
+TEST_CASE("a held edit stays in the cache until the printer takes it",
+          "[filament_slot_override][2021]") {
+    TmpCacheDir tmp("held_until_acked");
+    MockPrinter printer;
+    const FilamentSlotOverride cached = polymaker_record();
+    seed_slots(printer, tmp, cached, {1});
+    hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
+        store.save_async(1, green_edit_of(cached), nullptr);
+    });
+
+    {
+        FilamentSlotOverrideStore failed(&printer.api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(failed, tmp.path);
+        printer.client.fail_next("server.database.post_item");
+        (void)failed.load_blocking();
+        REQUIRE_FALSE(failed.namespace_unread());
+    }
+    REQUIRE(cache_file(tmp)["ifs"]["held"].contains("1"));
+
+    FilamentSlotOverrideStore next(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(next, tmp.path);
+    (void)next.load_blocking();
+    const auto lane2 =
+        helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
+    REQUIRE(lane2);
+    CHECK(lane2->second.color_rgb == 0x00FF00u);
+    CHECK_FALSE(cache_file(tmp)["ifs"].contains("held"));
+}
+
+TEST_CASE("a held edit older than a day is dropped unsent", "[filament_slot_override][2021]") {
+    TmpCacheDir tmp("held_too_old");
+    MockPrinter printer;
+    const FilamentSlotOverride cached = polymaker_record();
+    seed_slots(printer, tmp, cached, {1});
+    hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
+        store.save_async(1, green_edit_of(cached), nullptr);
+    });
+    json doc = cache_file(tmp);
+    const auto held_at = doc["ifs"]["held"]["1"]["held_at"].get<std::int64_t>();
+    doc["ifs"]["held"]["1"]["held_at"] = held_at - 25 * 3600;
+    std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump();
+
+    const int posts = printer.client.call_count("server.database.post_item");
+    FilamentSlotOverrideStore after(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
+    (void)after.load_blocking();
+    CHECK(printer.client.call_count("server.database.post_item") == posts);
+    CHECK_FALSE(cache_file(tmp)["ifs"].contains("held"));
+}
+
+TEST_CASE("held writes and slot writes from two backends both reach the cache file",
+          "[filament_slot_override][2021]") {
+    TmpCacheDir tmp("held_two_backends");
+    MockPrinter printer;
+    FilamentSlotOverrideStore held(&printer.api, "ace");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(held, tmp.path);
+    load_without_an_answer(printer, held);
+    REQUIRE(held.namespace_unread());
+    FilamentSlotOverrideStore sent(&printer.api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(sent, tmp.path);
+
+    constexpr int kSlots = 60;
+    std::thread holder([&] {
+        for (int slot = 0; slot < kSlots; ++slot) {
+            held.save_async(slot, polymaker_record(), nullptr);
+        }
+    });
+    for (int slot = 0; slot < kSlots; ++slot) {
+        sent.save_async(slot, polymaker_record(), nullptr);
+    }
+    holder.join();
+    printer.client.fire_deferred("server.database.get_item");
+
+    const json doc = cache_file(tmp);
+    CHECK(doc["ace"]["held"].size() == kSlots);
+    CHECK(doc["ifs"]["slots"].size() == kSlots);
 }
 
 TEST_CASE("merge_held_save moves only what the held save changed",
