@@ -176,6 +176,11 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the wh
 
     ScopedResolution tall(lv_display_get_default(), 800, 1280);
 
+    // Show Preload and Clear Error as well, so the narrower group holds four rows
+    // whatever the other lane rows' defaults are.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 2);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 2);
+
     BareContextMenu menu;
     lv_obj_t* card = show_and_get_card(menu, test_screen());
 
@@ -208,6 +213,8 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the wh
 
     menu.hide();
     process_lvgl(50);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 0);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 0);
 }
 
 // The whole point of the reflow: whatever the layout ends up being, the card has to
