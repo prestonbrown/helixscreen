@@ -280,7 +280,7 @@ Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load
 |----------|-------|
 | **Values** | the `state_message` text; empty sets nothing |
 | **Default** | unset (Klippy ready) |
-| **File** | `src/api/moonraker_client_mock.cpp` |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
 
 ```bash
 HELIX_MOCK_KLIPPY_ERROR="Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0" ./build/bin/helix-screen --test -vv
