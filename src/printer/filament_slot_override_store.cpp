@@ -141,8 +141,6 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["helix_fingerprint"] = o.fingerprint;
     if (o.external_mirror)
         j["helix_external"] = true;
-    if (o.unlinked_spool_id > 0)
-        j["helix_unlinked_spool_id"] = o.unlinked_spool_id;
     return j;
 }
 
@@ -205,7 +203,6 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
     o.fingerprint = helix::json_util::safe_string(j, "helix_fingerprint");
     o.external_mirror = helix::json_util::safe_bool(j, "helix_external", false);
-    o.unlinked_spool_id = helix::json_util::safe_int(j, "helix_unlinked_spool_id", 0);
     if (j.contains("loaded") && j["loaded"].is_boolean())
         o.loaded = j["loaded"].get<bool>();
     return std::make_pair(slot_index, o);
@@ -220,7 +217,6 @@ FilamentSlotOverride extras_only(const FilamentSlotOverride& o) {
     kept.product_name = o.product_name;
     kept.total_weight_g = o.total_weight_g;
     kept.fingerprint = o.fingerprint;
-    kept.unlinked_spool_id = o.unlinked_spool_id;
     return kept;
 }
 
@@ -317,9 +313,6 @@ FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
     populate_temps_from_slot_info(ovr, edited);
     // Bookkeeping, not an editable value, so a rebuilt record inherits it.
     ovr.fingerprint = prior != nullptr ? prior->fingerprint : std::string{};
-    // A link made here ends the unlink; any other edit leaves it standing.
-    ovr.unlinked_spool_id =
-        prior != nullptr && edited.spoolman_id <= 0 ? prior->unlinked_spool_id : 0;
     return ovr;
 }
 

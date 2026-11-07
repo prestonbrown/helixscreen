@@ -1038,8 +1038,11 @@ TEST_CASE("AFC persistence: persist=false is the only thing that skips G-code",
     info.remaining_weight_g = 850;
     info.spoolman_id = 42;
 
+    // A sync writes only the link AFC holds.
     helper.sync_external_identity(0, info);
-    REQUIRE(helper.captured_gcodes.empty());
+    REQUIRE(helper.captured_gcodes.size() == 1);
+    REQUIRE(helper.captured_gcodes[0].rfind("SET_SPOOL_ID", 0) == 0);
+    helper.captured_gcodes.clear();
 
     helix::test::apply_edit(helper, 0, info);
     REQUIRE_FALSE(helper.captured_gcodes.empty());
@@ -1648,10 +1651,11 @@ TEST_CASE("AFC persist=false: updates local state without G-code",
     info.remaining_weight_g = 850;
     info.spoolman_id = 42;
 
-    // persist=false should NOT send any G-code
+    // A sync writes only the link AFC holds: no colour, material or weight.
     helper.sync_external_identity(0, info);
 
-    REQUIRE(helper.captured_gcodes.empty());
+    REQUIRE(helper.captured_gcodes.size() == 1);
+    CHECK(helper.captured_gcodes[0].rfind("SET_SPOOL_ID", 0) == 0);
 
     // But local state SHOULD be updated
     SlotInfo stored = helper.get_slot_info(0);
@@ -8028,83 +8032,29 @@ TEST_CASE("AFC version never gates behaviour", "[ams][afc][version]") {
     CHECK(slot.material == "PLA");
 }
 
-TEST_CASE("AFC lane_data reads vendor_name for the brand, with brand as fallback (#808)",
+TEST_CASE("AFC lane_data's vendor_name is the brand, and an empty one clears it (#808)",
           "[ams][afc][lane_data]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_zero_based(4);
     helper.initialize_slots_from_discovery();
 
-    // Upstream is naming this vendor_name, NOT vendor, to match Happy Hare's
-    // mmu_server.py so both backends share one spelling.
-    //
-    // All four lanes in ONE payload: parse_lane_data re-initializes the registry
-    // when the lane count changes, so feeding lanes piecemeal would collapse it
-    // to a single slot and make these assertions read default-constructed slots.
+    // All four lanes in one payload: parse_lane_data re-initializes the
+    // registry when the lane count changes.
     nlohmann::json lanes;
-    lanes["lane0"] = {{"brand", "Prusament"}}; // legacy spelling
-    lanes["lane1"] = {{"vendor_name", "Polymaker"},
-                      {"brand", "Prusament"}};       // both -> upstream wins
-    lanes["lane2"] = {{"vendor_name", "Polymaker"}}; // upstream spelling
-    lanes["lane3"] = {{"material", "PLA"}};          // neither
-    helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Prusament");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Polymaker");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE("AFC lane_data also reads the `vendor` spelling we write ourselves (#808)",
-          "[ams][afc][lane_data]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_zero_based(4);
-    helper.initialize_slots_from_discovery();
-
-    // `vendor` is the name we originally proposed upstream AND the key our own
-    // FilamentSlotOverrideStore::to_lane_data_record() emits alongside vendor_name.
-    //
-    // For AFC that record currently lands in a PRIVATE namespace (#1158), so this
-    // reader does not meet it yet — but it will the moment #1158 migrates AFC's
-    // overrides into lane_data proper, and a record written by any other producer
-    // using the originally-proposed spelling reads correctly today.
-    nlohmann::json lanes;
-    lanes["lane0"] = {{"vendor", "Hatchbox"}};
-    lanes["lane1"] = {{"vendor_name", "Polymaker"}, {"vendor", "Hatchbox"}}; // upstream wins
-    lanes["lane2"] = {{"vendor", "Hatchbox"}, {"brand", "Prusament"}}; // vendor outranks brand
+    lanes["lane0"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane1"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane2"] = {{"brand", "Prusament"}, {"vendor", "Hatchbox"}}; // not AFC's spellings
     lanes["lane3"] = {{"material", "PLA"}};
     helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE("AFC an empty vendor never clears an existing brand (#808)", "[ams][afc][lane_data]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_zero_based(4);
-    helper.initialize_slots_from_discovery();
-
-    nlohmann::json lanes;
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", "Polymaker"}};
-    helper.feed_afc_state({{"lanes", lanes}});
     REQUIRE(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(2).brand.empty());
+    CHECK(helper.get_slot_info(3).brand.empty());
 
-    // #808 is unimplemented, so we do not know whether an unlinked lane will omit
-    // the key or publish "". Treating "" as a clear would silently wipe a user's
-    // brand override, and parse_lane_data does NOT call apply_overrides() to put it
-    // back. Ignoring empties is the recoverable direction.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", ""}};
+    lanes["lane0"] = {{"vendor_name", ""}}; // AFC states no vendor
+    lanes["lane1"] = {{"material", "PLA"}}; // a record silent on the vendor
     helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
-
-    // Absent behaves the same as empty.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"material", "PLA"}};
-    helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(0).brand.empty());
+    CHECK(helper.get_slot_info(1).brand == "Polymaker");
 }
 
 TEST_CASE("AFC reads vendor_name from the AFC_stepper status object (#808)", "[ams][afc][vendor]") {

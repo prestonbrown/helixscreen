@@ -162,3 +162,51 @@ TEST_CASE_METHOD(LVGLTestFixture, "an AFC weight flush writes the weight and no 
     CHECK_FALSE(afc.has_gcode_starting_with("SET_MATERIAL"));
     CHECK_FALSE(afc.has_gcode_starting_with("SET_SPOOL_ID"));
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "an AFC unlink is AFC's empty SET_SPOOL_ID, and AFC's id is shown",
+                 "[ams][afc][1717]") {
+    helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
+    AfcRetentionHelper& afc = *afc_reg;
+    afc.feed_stepper(
+        "lane1", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}, {"spool_id", 42}});
+    REQUIRE(afc.get_slot_info(0).spoolman_id == 42);
+
+    const helix::SlotInfo original = afc.get_slot_info(0);
+    helix::SlotInfo unlinked = original;
+    unlinked.spoolman_id = 0;
+    (void)afc.commit_user_edit(0, original, unlinked);
+    CHECK(afc.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID="));
+
+    // A remember_spool lane keeps its id through the unlink; once the
+    // unlink's wait ends, the lane shows what AFC holds.
+    helix::ams::withdraw_pending(afc_reg.lane(0));
+    afc.feed_stepper("lane1", nlohmann::json{{"spool_id", 42}});
+    CHECK(afc.get_slot_info(0).spoolman_id == 42);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC's spool vendor reads as a value, a clear or nothing",
+                 "[ams][afc]") {
+    helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
+    AfcRetentionHelper& afc = *afc_reg;
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}, {"spool_vendor", "Sunlu"}});
+    REQUIRE(afc.get_slot_info(0).brand == "Sunlu");
+
+    afc.feed_stepper("lane1", nlohmann::json{{"weight", 500}});
+    CHECK(afc.get_slot_info(0).brand == "Sunlu");
+
+    afc.feed_stepper("lane1", nlohmann::json{{"spool_vendor", ""}});
+    CHECK(afc.get_slot_info(0).brand.empty());
+    CHECK_FALSE(helix::ams::lane_sources(afc_reg.lane(0)).firmware->brand.has_value());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a link from outside the editor is written to AFC",
+                 "[ams][afc][spoolman]") {
+    helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
+    AfcRetentionHelper& afc = *afc_reg;
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}});
+    helix::SlotInfo linked = afc.get_slot_info(0);
+    linked.spoolman_id = 77;
+    REQUIRE(afc.sync_external_identity(0, linked).success());
+    CHECK(afc.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=77"));
+}
