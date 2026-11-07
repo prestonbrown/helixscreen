@@ -391,6 +391,26 @@ bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uin
         /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
 }
 
+void AmsSubscriptionBackend::restate_pending_as_stored(int slot_index,
+                                                       std::optional<uint32_t> color,
+                                                       const std::string& material) {
+    const helix::ams::LaneId lane = lane_id(slot_index);
+    const auto pending = helix::ams::lane_sources(lane).pending;
+    if (!pending.has_value()) {
+        return;
+    }
+    helix::ams::Observation stored(helix::ams::ObservationSource::Pending);
+    if (color && pending->color_rgb && (*pending->color_rgb & 0xFFFFFFu) != (*color & 0xFFFFFFu)) {
+        stored.color_rgb = *color;
+    }
+    if (!material.empty() && pending->material && *pending->material != material) {
+        stored.material = material;
+    }
+    if (stored.color_rgb || stored.material) {
+        helix::ams::file_pending(lane, stored);
+    }
+}
+
 void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,
                                                  float total_weight_g) {
     std::lock_guard<std::mutex> lock(mutex_);

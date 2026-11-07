@@ -492,6 +492,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                          const std::string& material);
 
+    /// An edit's pending colour and material, restated as the firmware will
+    /// store them (@p material normalized, @p color snapped), so the edit
+    /// stands until those echo rather than for the whole pending timeout. Only
+    /// a field the pending edit holds, and holds differently, is restated.
+    void restate_pending_as_stored(int slot_index, std::optional<uint32_t> color,
+                                   const std::string& material);
+
     /// Save @p slot_index's staged record. A failure is reported to the user
     /// and withdraws the lane's pending edit. Takes mutex_; call without it.
     void persist_override(int slot_index, const char* noun = "Override");

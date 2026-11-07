@@ -559,6 +559,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+
+    /// Whether this machine's firmware holds each head's colour and material
+    /// (a material source with a writer, whose slots and palette a frame has
+    /// carried): an edit writes them there, and the lane record copies them
+    /// from the firmware. Caller holds mutex_.
+    [[nodiscard]] bool firmware_holds_identity_locked() const;
+
+    /// Copy each head's firmware colour and material into its record.
+    void on_lane_records_read_locked() override;
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }
@@ -840,6 +849,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Each head's material and colour as the firmware last stated them, so a
     /// frame restating them is not taken for a change.
     std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_slot_values_;
+    /// Per head, the material and colour the firmware states for a head that
+    /// holds filament; what on_lane_records_read_locked() copies into the
+    /// record. Under mutex_.
+    std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_identity_;
     /// Each afclite lane's spool_id as last published, by lane name.
     std::unordered_map<std::string, int> afc_lane_spool_seen_;
     /// Latest per-dock occupancy from the dock sensors, indexed by slot: true

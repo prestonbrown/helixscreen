@@ -305,6 +305,23 @@ AmsType AmsBackendToolChanger::get_type() const {
     return AmsType::TOOL_CHANGER;
 }
 
+void AmsBackendToolChanger::on_lane_records_read_locked() {
+    // The record copies colour and material from the firmware once each read
+    // lands, never from the frame that changed them: that frame schedules a
+    // read because a tag reader may have rewritten the record, and a copy made
+    // before it lands would save over the reader's spool.
+    for (size_t i = 0; i < firmware_identity_.size(); ++i) {
+        if (const auto& stated = firmware_identity_[i]) {
+            mirror_firmware_identity_locked(static_cast<int>(i), stated->second, stated->first);
+        }
+    }
+}
+
+bool AmsBackendToolChanger::firmware_holds_identity_locked() const {
+    return material_source_.present && material_source_.write_gcode && firmware_slots_seen_ &&
+           firmware_palette_ && !firmware_palette_->empty();
+}
+
 SlotInfo* AmsBackendToolChanger::cached_slot_locked(int slot_index) {
     return system_info_.get_slot_global(slot_index);
 }
@@ -1242,6 +1259,15 @@ void AmsBackendToolChanger::apply_material_reading_locked(
             vendor.color_rgb = *slot->rgb;
         }
         helix::ams::ingest(lane_id(static_cast<int>(i)), vendor);
+        // What the record copies at the next read (on_lane_records_read_locked):
+        // a head stating both, and not reported empty.
+        if (i >= firmware_identity_.size()) {
+            firmware_identity_.resize(i + 1);
+        }
+        firmware_identity_[i].reset();
+        if (slot->rgb && !slot->material.empty() && slot->filament_present != false) {
+            firmware_identity_[i] = std::make_pair(slot->material, *slot->rgb);
+        }
         if (slot->filament_present) {
             if (i >= head_filament_.size()) {
                 head_filament_.resize(i + 1);
@@ -2824,6 +2850,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     std::string (*write_gcode)(int, const std::string&, std::uint32_t) = nullptr;
     std::string firmware_type;
     bool remap_refused = false;
+    bool firmware_holds_identity = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2831,6 +2858,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
         if (!slot_valid) {
             return slot_valid;
         }
+        firmware_holds_identity = firmware_holds_identity_locked();
 
         // Decide the firmware write from the current slot reading. Only the
         // decision inputs are taken here: the material check below has to run
@@ -2838,9 +2866,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
         if (!system_info_.units.empty() &&
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
             const auto& slot = system_info_.units[0].slots[slot_index];
-            firmware_edit = material_source_.present && material_source_.write_gcode &&
-                            firmware_slots_seen_ && firmware_palette_ &&
-                            !firmware_palette_->empty() &&
+            firmware_edit = firmware_holds_identity_locked() &&
                             (slot.color_rgb != info.color_rgb || slot.material != info.material);
             if (firmware_edit) {
                 palette = *firmware_palette_;
@@ -2892,17 +2918,18 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
                 physical_tool_name = tool_names_[slot_index];
             }
 
-            // Stage the user's edit. Every field is override-exclusive here:
-            // klipper-toolchanger supplies no material, colour, brand or weight,
-            // so there is nothing underneath for these to fall through to.
-            helix::ams::stage_user_override(overrides_, slot_index, info);
+            // klipper-toolchanger supplies no material, colour, brand or
+            // weight, so the record holds the whole edit. Where the firmware
+            // holds colour and material, those go to it below and the record
+            // copies them from its echo. Saved BEFORE the remap's early
+            // return, or an edit that also moved a tool number would send
+            // ASSIGN_TOOL and drop the metadata.
+            if (firmware_holds_identity) {
+                persist_record_beside_firmware_locked(slot_index, info);
+            } else {
+                persist_user_record_locked(slot_index, info);
+            }
         }
-    }
-
-    // Persist BEFORE the remap's early return, or a slot edit that also moved a
-    // tool number would send ASSIGN_TOOL and silently drop the metadata.
-    if (override_store_) {
-        persist_override(slot_index);
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks, and ahead of the
@@ -2920,6 +2947,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
                 break;
             }
         }
+        restate_pending_as_stored(slot_index, rgb, firmware_type);
         AmsError sent = execute_gcode(
             write_gcode(slot_index, IMoonrakerAPI::gcode_param_value(firmware_type), rgb));
         if (!sent.success()) {

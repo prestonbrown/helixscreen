@@ -353,16 +353,23 @@ TEST_CASE("An unsafe type is refused", "[toolchanger][zmod][material][write]") {
     tc.feed(frame);
 
     const SlotInfo before = tc.get_system_info().units[0].slots[0];
+    const auto record_before = ToolChangerTestAccess::get_override(tc, 0);
     auto err = tc.commit_user_edit(0, before, edited(tc, 0, 0xF72224, "PLA;M112"));
     CHECK_FALSE(err.success());
     CHECK_FALSE(err.partially_applied);
     CHECK(zcolor_sends(tc) == 0);
-    // The refusal changes nothing: the slot keeps the firmware reading and no
-    // override is staged anywhere.
+    // The refusal changes nothing: the slot keeps the firmware reading and the
+    // record keeps what the firmware stated.
     const SlotInfo after = tc.get_system_info().units[0].slots[0];
     CHECK(after.material == before.material);
     CHECK(after.color_rgb == before.color_rgb);
-    CHECK_FALSE(ToolChangerTestAccess::has_overrides(tc));
+    const auto record_after = ToolChangerTestAccess::get_override(tc, 0);
+    REQUIRE(record_after.has_value() == record_before.has_value());
+    if (record_after) {
+        CHECK(record_after->material == record_before->material);
+        CHECK(record_after->color_rgb == record_before->color_rgb);
+        CHECK(record_after->brand.empty());
+    }
     CHECK_FALSE(helix::ams::lane_sources(tc.lane_id(0)).pending.has_value());
 }
 

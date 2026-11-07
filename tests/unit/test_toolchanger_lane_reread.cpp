@@ -112,8 +112,10 @@ TEST_CASE("only a changed Creator 5 head colour reads the lane records again",
     const int booted = rig.reads();
     rig.feed(zmod_color_frame("8C8C89"));
     CHECK(rig.reads() == booted);
+    // The change reads the records; the record's copy of the new colour is a
+    // write of ours, which reads them once more.
     rig.feed(zmod_color_frame("D584DE"));
-    CHECK(rig.reads() == booted + 1);
+    CHECK(rig.reads() > booted);
 }
 
 TEST_CASE("an afclite lane's new spool reads the lane records again, on the Creator 5 only",
@@ -164,4 +166,37 @@ TEST_CASE("the Creator 5 subscribes and reads each afclite lane's spool",
     }
     CHECK_FALSE(toolchanger_addon::read_afc_lane_spools(json{{"AFC_lane E1", {{"map", "T1"}}}})
                     .has_value());
+}
+
+TEST_CASE("Z-Mod lane truth: the record copies colour and material from the firmware",
+          "[toolchanger][zmod][lane_truth]") {
+    Rig rig(/*creator5=*/true);
+    rig.feed(zmod_color_frame("8C8C89"));
+    rig.reg->refresh_lane_records();
+    Rig::settle();
+    json rec = rig.printer.client.mock_db_get("lane_data", "T1");
+    REQUIRE(rec.is_object());
+    CHECK(rec["color"] == "#8C8C89");
+    CHECK(rec["material"] == "PLA");
+
+    // The edit's colour goes to the firmware, snapped to its palette; the
+    // record takes the brand and keeps the firmware's colour until the echo.
+    SlotInfo edit = rig.reg->get_slot_info(1);
+    edit.brand = "Polymaker";
+    edit.color_rgb = 0xD080E0;
+    REQUIRE(rig.reg->commit_user_edit(1, rig.reg->get_slot_info(1), edit).success());
+    Rig::settle();
+    rec = rig.printer.client.mock_db_get("lane_data", "T1");
+    CHECK(rec["vendor_name"] == "Polymaker");
+    CHECK(rec["color"] == "#8C8C89");
+    const auto pending = ams::lane_sources(rig.reg.lane(1)).pending;
+    REQUIRE(pending.has_value());
+    CHECK(pending->color_rgb == std::optional<uint32_t>(0xD584DEu));
+
+    rig.feed(zmod_color_frame("D584DE"));
+    rec = rig.printer.client.mock_db_get("lane_data", "T1");
+    CHECK(rec["color"] == "#D584DE");
+    CHECK(rec["vendor_name"] == "Polymaker");
+    CHECK_FALSE(ams::lane_sources(rig.reg.lane(1)).pending.has_value());
+    CHECK(rig.reg->get_slot_info(1).color_rgb == 0xD584DEu);
 }

@@ -3043,17 +3043,7 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         settle_port_locked(slot_index);
     }
 
-    // The firmware stores the type in its own spelling, so the edit stands
-    // until that spelling echoes rather than the one the user picked.
-    if (!normalized_material.empty() && normalized_material != info.material) {
-        const helix::ams::LaneId lane = lane_id(slot_index);
-        const auto pending = helix::ams::lane_sources(lane).pending;
-        if (pending.has_value() && pending->material.has_value()) {
-            helix::ams::Observation spelled(helix::ams::ObservationSource::Pending);
-            spelled.material = normalized_material;
-            helix::ams::file_pending(lane, spelled);
-        }
-    }
+    restate_pending_as_stored(slot_index, std::nullopt, normalized_material);
 
     // Bare-hex spelling of the edit's colour — the wire form IFS_SET_MATERIAL,
     // Adventurer5M.json and the _IFS_VARS payloads all carry. The caches still
