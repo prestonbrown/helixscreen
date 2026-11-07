@@ -2543,6 +2543,7 @@ translations:
   Not in your spools? Set it up: スプールにない？登録する
   Not now: 後で
   Not turned: '未回転'
+  'Not saved: {}. Try again.': "保存されていません: {}。もう一度お試しください。"
   Not set: 未設定
   Not yet available on this display: 'このディスプレイではまだ利用できません'
   Not yet calibrated: 未キャリブレーション
@@ -4672,6 +4673,8 @@ translations:
   the extruder: エクストルーダー
   the left belt: "左ベルト"
   the lower belt: "下ベルト"
+  the printer did not confirm it: "プリンターが確認しませんでした"
+  the printer refused it: "プリンターが拒否しました"
   the right belt: "右ベルト"
   the upper belt: "上ベルト"
   this week: 今週

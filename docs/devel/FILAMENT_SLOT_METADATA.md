@@ -239,7 +239,7 @@ A Pending value is withdrawn by whichever comes first:
 | Event | Where |
 |-------|-------|
 | **Echo.** A `Firmware` or `Record` reading states the same value | `ingest()` strips the echoed fields (`strip_echoed_fields()`, `include/lane_source_store.h#strip_echoed_fields`). Weights compare within 0.1 g, colours on their RGB. A cleared Pending field is echoed by a `Record` that leaves the field unset, since a record states "none" as `null`; firmware silent on a field is no echo, because most firmware never holds it |
-| **Write failure.** The record write fails, or the firmware refuses the command | `save_override_async()` withdraws the lane's Pending and logs at warn; AFC withdraws on a refused `SET_COLOR` / `SET_MATERIAL`. No toast: a failed save belongs in the editor (an inline error under Save is planned follow-up work) |
+| **Write failure.** The record write fails, or the firmware refuses the command | `save_override_async()` withdraws the lane's Pending and logs at warn; AFC withdraws on a refused `SET_COLOR` / `SET_MATERIAL`. No toast: the spool editor, which waits on the lane (`await_pending()`), stays open with "Not saved: <reason>. Try again." under Save and keeps the user's values. The store's `set_on_write_failed()` hook repaints the lane |
 | **Refusal.** `apply_user_edit()` fails outright | `commit_user_edit()` withdraws at once and returns the error; a partially applied edit keeps what reached firmware |
 | **Timeout.** Neither echo nor failure within `kPendingWriteTimeout` (30 s) | `expire_pending()`, run by the poll and lazily on read, withdraws it with a warn log; the lane shows what Moonraker holds. No popup |
 

@@ -22,8 +22,10 @@
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_platform_tier.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -282,6 +284,22 @@ class AmsEditOverlayViewTestAccess {
     }
     void call_handle_weight_tap() {
         overlay_.handle_weight_tap();
+    }
+    int save_state() {
+        return lv_subject_get_int(&overlay_.save_state_subject_);
+    }
+    std::string save_error() {
+        return lv_subject_get_string(&overlay_.save_error_subject_);
+    }
+    bool closed() const {
+        return overlay_.completion_fired_;
+    }
+    SlotInfo working_info() const {
+        return overlay_.working_info_;
+    }
+    static std::string not_saved_message(helix::ams::PendingOutcome outcome,
+                                         const std::string& reason) {
+        return AmsEditOverlay::not_saved_message(outcome, reason);
     }
     void set_save_in_flight(bool in_flight) {
         overlay_.save_in_flight_ = in_flight;
@@ -4488,4 +4506,153 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(false);
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+// ============================================================================
+// Save waits for the lane to hold it
+// ============================================================================
+
+namespace {
+
+/// A tool changer whose lane records are its only identity, on the mock
+/// Moonraker, as AmsState's backend.
+class RecordBackedChanger : public helix::AmsBackendToolChanger {
+  public:
+    explicit RecordBackedChanger(helix::IMoonrakerAPI* api)
+        : helix::AmsBackendToolChanger(api, nullptr) {
+        set_discovered_tools({"T0", "T1"});
+        running_ = true;
+    }
+    helix::AmsError execute_gcode(const std::string&) override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+
+void settle() {
+    for (int i = 0; i < 4; ++i) {
+        UpdateQueue::instance().drain();
+    }
+}
+
+struct SaveAckFixture : LVGLUITestFixture {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api;
+    RecordBackedChanger* backend = nullptr;
+
+    SaveAckFixture() : api(client, get_printer_state()) {
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        get_printer_state().init_subjects(false);
+        ams.init_subjects(false);
+        get_printer_state().capabilities_state().set_spoolman_available(false);
+
+        client.mock_db_set("lane_data", "T1",
+                           {{"lane", "1"}, {"material", "PLA"}, {"color", "#FFFFFF"}});
+        auto owned = std::make_unique<RecordBackedChanger>(&api);
+        backend = owned.get();
+        ams.set_backend(std::move(owned));
+        ams.set_moonraker_api(&api);
+        helix::ToolChangerTestAccess::call_on_started(*backend);
+        settle();
+        REQUIRE(backend->get_slot_info(1).material == "PLA");
+    }
+
+    ~SaveAckFixture() override {
+        auto& ams = AmsState::instance();
+        ams.set_moonraker_api(nullptr);
+        UpdateQueue::instance().drain();
+        ams.clear_backends();
+        UpdateQueue::instance().drain();
+        ams.deinit_subjects();
+    }
+
+    /// Open the editor on lane 1 with the production consumer's commit, stage
+    /// PETG and press Save.
+    void save_petg(AmsEditOverlayViewTestAccess& access) {
+        auto& overlay = get_ams_edit_overlay();
+        REQUIRE(overlay.show_for_slot(
+            test_screen(), 1, backend->get_slot_info(1), &api,
+            [](const AmsEditOverlay::EditResult& r) {
+                if (!r.saved || r.slot_index < 0) {
+                    return;
+                }
+                const SlotInfo original =
+                    AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+                (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+            }));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        SlotInfo edited = backend->get_slot_info(1);
+        edited.material = "PETG";
+        access.set_working_info(edited);
+        access.call_handle_save();
+        UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SaveAckFixture, "the spool editor closes once the lane holds the save",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+
+    // The write is out: the editor waits, saying so, with the edit pending.
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 1);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+
+    client.fire_deferred("server.database.post_item");
+    settle();
+    CHECK(access.closed());
+    CHECK(access.save_state() == 0);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+    REQUIRE(access.save_state() == 1);
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: database is read-only. Try again.");
+    // The form keeps the user's values; the lane shows what Moonraker holds.
+    CHECK(access.working_info().material == "PETG");
+    CHECK(backend->get_slot_info(1).material == "PLA");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save refused before it is written keeps the editor open",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.fail_next("server.database.post_item", MoonrakerError::unknown("disk full"));
+    save_petg(access);
+    settle();
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: disk full. Try again.");
+    close_editor_overlay();
+}
+
+TEST_CASE("a save that is not confirmed names the reason, or a generic one",
+          "[ams_edit_overlay][save_ack]") {
+    CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed,
+                                                          "lane busy") ==
+          "Not saved: lane busy. Try again.");
+    CHECK(
+        AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::TimedOut, "") ==
+        "Not saved: the printer did not confirm it. Try again.");
+    CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed, "") ==
+          "Not saved: the printer refused it. Try again.");
 }

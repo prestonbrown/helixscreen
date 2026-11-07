@@ -189,6 +189,8 @@ class AmsBackendMock : public AmsBackend {
      * tool mapping, and nothing else. Passing a status other than UNKNOWN that
      * differs from the slot's current one logs a warning rather than silently
      * doing nothing — use force_slot_status() to stage a mock slot state.
+     * The edit is also filed as the lane's Record, which echoes the fields the
+     * simulated firmware does not hold.
      */
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 

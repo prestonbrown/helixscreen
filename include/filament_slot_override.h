@@ -145,7 +145,7 @@ void populate_temps_from_slot_info(FilamentSlotOverride& ovr, const SlotInfo& in
 // colour" sentinel (is_declarable_color()); a deliberate pure black records.
 // Temps come from populate_temps_from_slot_info(). @p prior is the record the
 // lane already had, or nullptr: its bookkeeping (fingerprint, unlink marker)
-// carries forward. updated_at is left default so save_async stamps it.
+// carries forward.
 FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
                                                   const std::string& material,
                                                   const FilamentSlotOverride* prior);

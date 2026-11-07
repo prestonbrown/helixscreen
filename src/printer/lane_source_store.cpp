@@ -111,40 +111,68 @@ LaneSourceStore& LaneSourceStore::instance() {
     return store;
 }
 
-void LaneSourceStore::write(LaneId lane, const Observation& obs, bool amend) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    LaneSources& sources = lanes_[lane];
-    if (amend) {
-        const auto& existing = record_for(sources, obs.source);
-        Observation merged = existing.has_value() ? *existing : Observation(obs.source);
-        merge_observed_fields(merged, obs);
-        if (obs.source == ObservationSource::Pending) {
-            withdraw_cleared_fields(merged, obs);
-        }
-        if (!any_observed(merged)) {
-            sources.drop(obs.source);
-            pending_deadline_.erase(lane);
-            return;
-        }
-        sources.apply(merged);
-    } else {
-        sources.apply(obs);
-    }
-    if (obs.source == ObservationSource::Pending) {
-        pending_deadline_[lane] = std::chrono::steady_clock::now() + kPendingWriteTimeout;
+void LaneSourceStore::settle_locked(LaneId lane, PendingOutcome outcome, const std::string& reason,
+                                    Settlements& out) {
+    last_ended_[lane] = Ended{filings_[lane], outcome, reason};
+    auto it = waiters_.find(lane);
+    if (it == waiters_.end()) {
         return;
     }
-    if ((obs.source == ObservationSource::Firmware || obs.source == ObservationSource::Record) &&
-        sources.pending.has_value()) {
-        strip_echoed_fields(*sources.pending, obs);
-        if (!any_observed(*sources.pending)) {
-            sources.pending.reset();
-            pending_deadline_.erase(lane);
+    for (auto& settled : it->second) {
+        out.push_back(Settlement{std::move(settled), outcome, reason});
+    }
+    waiters_.erase(it);
+}
+
+void LaneSourceStore::run(Settlements& settlements) {
+    for (auto& s : settlements) {
+        if (s.settled) {
+            s.settled(s.outcome, s.reason);
         }
     }
 }
 
-bool LaneSourceStore::expire_locked(LaneId lane, std::chrono::steady_clock::time_point now) {
+void LaneSourceStore::write(LaneId lane, const Observation& obs, bool amend) {
+    Settlements settled;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        LaneSources& sources = lanes_[lane];
+        // Only file_pending() amends.
+        if (amend) {
+            ++filings_[lane];
+            const auto& existing = record_for(sources, obs.source);
+            Observation merged = existing.has_value() ? *existing : Observation(obs.source);
+            merge_observed_fields(merged, obs);
+            if (obs.source == ObservationSource::Pending) {
+                withdraw_cleared_fields(merged, obs);
+            }
+            if (!any_observed(merged)) {
+                sources.drop(obs.source);
+                pending_deadline_.erase(lane);
+                settle_locked(lane, PendingOutcome::Echoed, {}, settled);
+            } else {
+                sources.apply(merged);
+                pending_deadline_[lane] = std::chrono::steady_clock::now() + kPendingWriteTimeout;
+            }
+        } else {
+            sources.apply(obs);
+        }
+        if ((obs.source == ObservationSource::Firmware ||
+             obs.source == ObservationSource::Record) &&
+            sources.pending.has_value()) {
+            strip_echoed_fields(*sources.pending, obs);
+            if (!any_observed(*sources.pending)) {
+                sources.pending.reset();
+                pending_deadline_.erase(lane);
+                settle_locked(lane, PendingOutcome::Echoed, {}, settled);
+            }
+        }
+    }
+    run(settled);
+}
+
+bool LaneSourceStore::expire_locked(LaneId lane, std::chrono::steady_clock::time_point now,
+                                    Settlements& out) {
     auto deadline = pending_deadline_.find(lane);
     if (deadline == pending_deadline_.end() || now < deadline->second) {
         return false;
@@ -158,47 +186,108 @@ bool LaneSourceStore::expire_locked(LaneId lane, std::chrono::steady_clock::time
     spdlog::warn("[LaneSourceStore] lane {}: edit not echoed within {}s; showing what Moonraker "
                  "holds",
                  lane, kPendingWriteTimeout.count());
+    settle_locked(lane, PendingOutcome::TimedOut, {}, out);
     return true;
 }
 
 LaneSources LaneSourceStore::get(LaneId lane) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    expire_locked(lane, std::chrono::steady_clock::now());
-    auto it = lanes_.find(lane);
-    return it == lanes_.end() ? LaneSources{} : it->second;
+    Settlements settled;
+    LaneSources out;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        expire_locked(lane, std::chrono::steady_clock::now(), settled);
+        auto it = lanes_.find(lane);
+        if (it != lanes_.end()) {
+            out = it->second;
+        }
+    }
+    run(settled);
+    return out;
 }
 
 std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_point now) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::vector<LaneId> lanes;
-    for (const auto& entry : pending_deadline_) {
-        lanes.push_back(entry.first);
-    }
+    Settlements settled;
     std::vector<LaneId> expired;
-    for (LaneId lane : lanes) {
-        if (expire_locked(lane, now)) {
-            expired.push_back(lane);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<LaneId> lanes;
+        for (const auto& entry : pending_deadline_) {
+            lanes.push_back(entry.first);
+        }
+        for (LaneId lane : lanes) {
+            if (expire_locked(lane, now, settled)) {
+                expired.push_back(lane);
+            }
         }
     }
+    run(settled);
     return expired;
 }
 
 void LaneSourceStore::clear() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    lanes_.clear();
-    pending_deadline_.clear();
-    warned_drop_.reset();
+    Settlements settled;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        lanes_.clear();
+        pending_deadline_.clear();
+        warned_drop_.reset();
+        std::vector<LaneId> waiting;
+        for (const auto& entry : waiters_) {
+            waiting.push_back(entry.first);
+        }
+        for (LaneId lane : waiting) {
+            settle_locked(lane, PendingOutcome::Failed, {}, settled);
+        }
+        filings_.clear();
+        last_ended_.clear();
+    }
+    run(settled);
 }
 
-void LaneSourceStore::drop_source(LaneId lane, ObservationSource source) {
+void LaneSourceStore::drop_source(LaneId lane, ObservationSource source,
+                                  const std::string& reason) {
+    Settlements settled;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (source == ObservationSource::Pending) {
+            pending_deadline_.erase(lane);
+            settle_locked(lane, PendingOutcome::Failed, reason, settled);
+        }
+        auto it = lanes_.find(lane);
+        if (it != lanes_.end()) {
+            it->second.drop(source);
+        }
+    }
+    run(settled);
+}
+
+std::uint64_t LaneSourceStore::filings(LaneId lane) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (source == ObservationSource::Pending) {
-        pending_deadline_.erase(lane);
+    const auto it = filings_.find(lane);
+    return it == filings_.end() ? 0 : it->second;
+}
+
+void LaneSourceStore::await(LaneId lane, std::optional<std::uint64_t> since,
+                            PendingSettled settled) {
+    Settlements ready;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        expire_locked(lane, std::chrono::steady_clock::now(), ready);
+        auto it = lanes_.find(lane);
+        if (it != lanes_.end() && it->second.pending.has_value()) {
+            waiters_[lane].push_back(std::move(settled));
+        } else {
+            const std::uint64_t filed = filings_.count(lane) ? filings_[lane] : 0;
+            const auto ended = last_ended_.find(lane);
+            const bool ended_since = since.has_value() && filed > *since &&
+                                     ended != last_ended_.end() && ended->second.filings > *since;
+            ready.push_back(
+                ended_since
+                    ? Settlement{std::move(settled), ended->second.outcome, ended->second.reason}
+                    : Settlement{std::move(settled), PendingOutcome::Echoed, {}});
+        }
     }
-    auto it = lanes_.find(lane);
-    if (it != lanes_.end()) {
-        it->second.drop(source);
-    }
+    run(ready);
 }
 
 bool LaneSourceStore::first_drop_of(LaneId lane) {
@@ -255,8 +344,35 @@ void file_pending(LaneId lane, const Observation& obs) {
     LaneSourceStore::instance().write(lane, obs, /*amend=*/true);
 }
 
-void withdraw_pending(LaneId lane) {
-    drop_lane_source(lane, ObservationSource::Pending);
+void withdraw_pending(LaneId lane, const std::string& reason) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().drop_source(lane, ObservationSource::Pending, reason);
+}
+
+std::uint64_t pending_filings(LaneId lane) {
+    return is_lane_id(lane) ? LaneSourceStore::instance().filings(lane) : 0;
+}
+
+void await_pending(LaneId lane, std::uint64_t since, PendingSettled settled) {
+    if (!is_lane_id(lane)) {
+        if (settled) {
+            settled(PendingOutcome::Echoed, {});
+        }
+        return;
+    }
+    LaneSourceStore::instance().await(lane, since, std::move(settled));
+}
+
+void await_pending(LaneId lane, PendingSettled settled) {
+    if (!is_lane_id(lane)) {
+        if (settled) {
+            settled(PendingOutcome::Echoed, {});
+        }
+        return;
+    }
+    LaneSourceStore::instance().await(lane, std::nullopt, std::move(settled));
 }
 
 std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now) {

@@ -442,6 +442,8 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
         spdlog::warn("[FilamentSlotOverrideStore:{}] save refused: {}", backend_id_, refusal);
         if (cb)
             cb(false, refusal);
+        if (on_write_failed_)
+            on_write_failed_(slot_index);
         return;
     }
     nlohmann::json record =
@@ -459,11 +461,14 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             if (cb)
                 cb(true, "");
         },
-        [cb, backend_id_copy, key](const MoonrakerError& err) {
+        [cb, backend_id_copy, key, slot_index,
+         on_failed = on_write_failed_](const MoonrakerError& err) {
             spdlog::warn("[FilamentSlotOverrideStore:{}] save failed for key {}: {}",
                          backend_id_copy, key, err.message);
             if (cb)
                 cb(false, err.message);
+            if (on_failed)
+                on_failed(slot_index);
         });
 }
 
@@ -1021,7 +1026,7 @@ void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
             // editor is where a failed save belongs.
             spdlog::warn("{} {} write failed for slot {}: {}", tag, noun, slot_index, err);
             if (is_lane_id(lane)) {
-                withdraw_pending(lane);
+                withdraw_pending(lane, err);
             }
         });
 }

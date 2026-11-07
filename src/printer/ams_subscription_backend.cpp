@@ -217,6 +217,12 @@ void AmsSubscriptionBackend::open_lane_record_store(std::string backend_id, std:
             token.defer("AmsSubscriptionBackend::refresh_after_write",
                         [this]() { refresh_lane_records(); });
         });
+        override_store_->set_on_write_failed([this, token = lifetime_.token()](int slot_index) {
+            token.defer("AmsSubscriptionBackend::repaint_after_failed_write", [this, slot_index]() {
+                repaint_slot_from_lane(slot_index);
+                emit_event(kEventSlotChanged, std::to_string(slot_index));
+            });
+        });
         overrides_.clear();
         lane_wire_seen_.clear();
         lane_records_unread_ = true;

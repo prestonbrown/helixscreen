@@ -2615,6 +2615,7 @@ translations:
   Not in your spools? Set it up: Not in your spools? Set it up
   Not now: Not now
   Not turned: Not turned
+  'Not saved: {}. Try again.': 'Not saved: {}. Try again.'
   Not set: Not set
   Not yet available on this display: Not yet available on this display
   Not yet calibrated: Not yet calibrated
@@ -4823,6 +4824,8 @@ translations:
   the extruder: the extruder
   the left belt: the left belt
   the lower belt: the lower belt
+  the printer did not confirm it: the printer did not confirm it
+  the printer refused it: the printer refused it
   the right belt: the right belt
   the upper belt: the upper belt
   this week: this week

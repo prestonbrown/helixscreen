@@ -2716,6 +2716,7 @@ translations:
   Not in your spools? Set it up: Нет в ваших катушках? Настроить
   Not now: Не сейчас
   Not turned: 'Не повёрнут'
+  'Not saved: {}. Try again.': "Не сохранено: {}. Попробуйте ещё раз."
   Not set: Не задана
   Not yet available on this display: 'Пока недоступно на этом дисплее'
   Not yet calibrated: Ещё не откалибровано
@@ -4968,6 +4969,8 @@ translations:
   the extruder: экструдер
   the left belt: "левый ремень"
   the lower belt: "нижний ремень"
+  the printer did not confirm it: "принтер не подтвердил"
+  the printer refused it: "принтер отклонил"
   the right belt: "правый ремень"
   the upper belt: "верхний ремень"
   this week: за неделю

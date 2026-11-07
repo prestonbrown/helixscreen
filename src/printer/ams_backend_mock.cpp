@@ -1282,7 +1282,17 @@ AmsError AmsBackendMock::check_all_gates() {
 }
 
 AmsError AmsBackendMock::apply_user_edit(int slot_index, const SlotInfo& info) {
-    return write_slot(slot_index, info);
+    AmsError err = write_slot(slot_index, info);
+    if (err.success()) {
+        // What the simulated firmware does not hold (a colour's name, the
+        // catalog pick, Spoolman's other ids, weights) lands in a lane record,
+        // the way a record-backed printer keeps it, so every edited field
+        // echoes and the edit's Pending record retires.
+        helix::ams::ingest(lane_id(slot_index),
+                           helix::ams::record_observation(
+                               helix::ams::user_override_from_slot_info(info, nullptr)));
+    }
+    return err;
 }
 
 void AmsBackendMock::clear_slot_override(int slot_index) {

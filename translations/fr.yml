@@ -2692,6 +2692,7 @@ translations:
   Not in your spools? Set it up: Pas dans vos bobines ? Configurez-la
   Not now: Pas maintenant
   Not turned: 'Pas tourné'
+  'Not saved: {}. Try again.': "Non enregistré : {}. Réessayez."
   Not set: Non défini
   Not yet available on this display: 'Pas encore disponible sur cet écran'
   Not yet calibrated: Pas encore calibré
@@ -4962,6 +4963,8 @@ translations:
   the extruder: l'extrudeur
   the left belt: "la courroie gauche"
   the lower belt: "la courroie du bas"
+  the printer did not confirm it: "l'imprimante ne l'a pas confirmé"
+  the printer refused it: "l'imprimante l'a refusé"
   the right belt: "la courroie droite"
   the upper belt: "la courroie du haut"
   this week: cette semaine

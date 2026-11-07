@@ -2536,6 +2536,7 @@ translations:
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not turned: '未转动'
+  'Not saved: {}. Try again.': "未保存：{}。请重试。"
   Not set: 未设置
   Not yet available on this display: '此屏幕暂不支持'
   Not yet calibrated: 尚未校准
@@ -4662,6 +4663,8 @@ translations:
   the extruder: 挤出机
   the left belt: "左皮带"
   the lower belt: "下皮带"
+  the printer did not confirm it: "打印机未确认"
+  the printer refused it: "打印机拒绝了"
   the right belt: "右皮带"
   the upper belt: "上皮带"
   this week: 本周

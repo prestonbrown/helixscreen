@@ -12,6 +12,7 @@
 #include "ams_types.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
+#include "lane_source_store.h"
 #include "overlay_base.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
@@ -379,6 +380,12 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
     char summary_buf_[96] = {0};
+    /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
+    /// kSaveWaiting while the commit waits for Moonraker to hold it,
+    /// kSaveFailed with save_error_subject_ saying why.
+    lv_subject_t save_state_subject_{};
+    lv_subject_t save_error_subject_{}; ///< "ams_edit_save_error"
+    char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
     char weight_hint_buf_[32] = {0};
@@ -462,6 +469,14 @@ class AmsEditOverlay : public OverlayBase {
     bool save_is_live(const SaveCapture& cap) const;
     /// Close that editor with @p committed, or hand it to @p cap's callback.
     void deliver_commit(const SaveCapture& cap, const SlotInfo& committed);
+    /// Hand @p committed to the live editor's callback, then wait for the lane
+    /// to hold it: the editor closes on the echo and stays open with an inline
+    /// error, keeping the user's values, when the commit is refused or its
+    /// write fails or times out.
+    void commit_then_await(const SaveCapture& cap, const SlotInfo& committed);
+    void finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
+                             const std::string& reason);
+    void set_save_state(int state, const std::string& error = {});
     /// The commit decision (offline lock, relink, Spoolman save, local) over a
     /// capture; commit_and_close() runs it over the current state.
     void commit_capture(const SaveCapture& cap);
@@ -485,6 +500,13 @@ class AmsEditOverlay : public OverlayBase {
     // spool from the working slot: only via the explicit "Add to Spoolman"
     // link (the switch is gone), and only when the metadata is complete.
     static bool should_create_new_spool(const SlotInfo& working_info, bool add_requested);
+
+    static constexpr int kSaveIdle = 0;
+    static constexpr int kSaveWaiting = 1;
+    static constexpr int kSaveFailed = 2;
+    /// The inline line a save that did not stick shows under Save.
+    [[nodiscard]] static std::string not_saved_message(helix::ams::PendingOutcome outcome,
+                                                       const std::string& reason);
 
     // Whether Save is unavailable, from the three things that decide it.
     [[nodiscard]] static bool save_is_disabled(int view, bool save_in_flight, bool dirty);

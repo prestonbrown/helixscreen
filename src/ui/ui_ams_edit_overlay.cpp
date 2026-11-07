@@ -182,6 +182,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
     save_in_flight_ = false;
+    set_save_state(kSaveIdle);
     editor_entered_ = false;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
@@ -470,6 +471,9 @@ void AmsEditOverlay::init_subjects() {
         // editor view only; picker and color views hide it. Written
         // exclusively from set_view().
         UI_MANAGED_SUBJECT_INT(save_hidden_subject_, 0, "ams_edit_save_hidden", subjects_);
+        UI_MANAGED_SUBJECT_INT(save_state_subject_, kSaveIdle, "ams_edit_save_state", subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_error_subject_, save_error_buf_, "", "ams_edit_save_error",
+                                  subjects_);
 
         // Managed-vs-untracked signal: drives the header Spoolman badge, the
         // More section's Spoolman-owned fields and the Add-link's absence.
@@ -2236,7 +2240,7 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
     }
     if (save_is_live(cap)) {
         working_info_ = committed;
-        close_editor(true);
+        commit_then_await(cap, committed);
         return;
     }
     if (cap.owed) {
@@ -2249,6 +2253,87 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         late.slot_info = committed;
         cap.owed(late);
     }
+}
+
+std::string AmsEditOverlay::not_saved_message(helix::ams::PendingOutcome outcome,
+                                              const std::string& reason) {
+    std::string why = reason;
+    if (why.empty()) {
+        why = outcome == helix::ams::PendingOutcome::TimedOut
+                  ? lv_tr("the printer did not confirm it")
+                  : lv_tr("the printer refused it");
+    }
+    return fmt::format(fmt::runtime(lv_tr("Not saved: {}. Try again.")), why);
+}
+
+void AmsEditOverlay::set_save_state(int state, const std::string& error) {
+    if (!subjects_initialized_) {
+        return;
+    }
+    snprintf(save_error_buf_, sizeof(save_error_buf_), "%s", error.c_str());
+    lv_subject_copy_string(&save_error_subject_, save_error_buf_);
+    lv_subject_set_int(&save_state_subject_, state);
+}
+
+void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& committed) {
+    // The caller's completion commits the edit; the editor stays until the lane
+    // holds it, so a write that does not stick leaves the user's values here.
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const helix::ams::LaneId lane =
+        backend ? backend->lane_id(cap.slot_index) : helix::ams::kInvalidLaneId;
+    const std::uint64_t filed_before = helix::ams::pending_filings(lane);
+    if (cap.owed) {
+        EditResult result;
+        result.saved = true;
+        result.slot_index = cap.slot_index;
+        result.slot_info = committed;
+        cap.owed(result);
+    }
+    if (const std::optional<AmsError> err =
+            AmsState::instance().take_slot_edit_result(cap.slot_index);
+        err && !err->success() && !err->partially_applied) {
+        finish_awaited_save(cap, helix::ams::PendingOutcome::Failed, err->user_msg);
+        return;
+    }
+    save_in_flight_ = true;
+    set_save_state(kSaveWaiting);
+    update_sync_button_state();
+    begin_slot_save(cap.slot_index);
+    auto token = object_lifetime_.token();
+    // A write that fails at once (a refusal, a reply already in) has ended
+    // before this waits; filed_before lets the store report it.
+    helix::ams::await_pending(
+        lane, filed_before,
+        [this, token, cap](helix::ams::PendingOutcome outcome, const std::string& reason) {
+            token.defer("AmsEditOverlay::save_settled", [this, cap, outcome, reason]() {
+                end_slot_save(cap.slot_index);
+                finish_awaited_save(cap, outcome, reason);
+            });
+        });
+}
+
+void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
+                                         const std::string& reason) {
+    if (cap.session != session_ || completion_fired_) {
+        return;
+    }
+    save_in_flight_ = false;
+    if (outcome == helix::ams::PendingOutcome::Echoed) {
+        set_save_state(kSaveIdle);
+        // The callback already has the edit: close without firing it again.
+        completion_fired_ = true;
+        helix::nav::go_back();
+        return;
+    }
+    spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,
+                 reason.empty() ? "no echo" : reason);
+    // The lane shows what Moonraker holds again; the form keeps the user's
+    // values, so Save is live for a retry and Back asks before discarding.
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        original_info_ = backend->get_slot_info(cap.slot_index);
+    }
+    set_save_state(kSaveFailed, not_saved_message(outcome, reason));
+    update_sync_button_state();
 }
 
 void AmsEditOverlay::commit_and_close() {

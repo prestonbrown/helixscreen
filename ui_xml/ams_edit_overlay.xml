@@ -169,6 +169,15 @@
                     width="100%" long_mode="wrap" text="Loading lane details…" style_text_color="#text_muted">
           <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
         </text_small>
+        <!-- A save waits for the lane to hold it; one that does not stick says
+             why here and keeps the form, so Save retries it. -->
+        <text_small name="save_waiting" width="100%" long_mode="wrap" text="Saving..." style_text_color="#text_muted">
+          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="1"/>
+        </text_small>
+        <text_small name="save_error"
+                    width="100%" long_mode="wrap" bind_text="ams_edit_save_error" style_text_color="#danger">
+          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="2"/>
+        </text_small>
 
         <!-- Summary: colour dot + "eSUN Silk PETG, Blue" + from-tag badge +
              the weight pill. -->

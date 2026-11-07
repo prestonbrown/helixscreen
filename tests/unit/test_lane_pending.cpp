@@ -10,6 +10,8 @@
 #include "lane_source_store.h"
 
 #include <chrono>
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -224,4 +226,79 @@ TEST_CASE_METHOD(LaneFixture, "a clear drops the record, the edit, Spoolman and 
     CHECK_FALSE(sources.pending.has_value());
     CHECK_FALSE(sources.spoolman.has_value());
     CHECK_FALSE(sources.metered.has_value());
+}
+
+TEST_CASE_METHOD(LaneFixture, "a waiter on a lane with nothing pending hears Echoed at once",
+                 "[lane][pending][save_ack]") {
+    std::optional<helix::ams::PendingOutcome> heard;
+    helix::ams::await_pending(lane,
+                              [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
+    CHECK(heard == helix::ams::PendingOutcome::Echoed);
+}
+
+TEST_CASE_METHOD(LaneFixture, "a waiter hears how the pending edit ended",
+                 "[lane][pending][save_ack]") {
+    std::optional<helix::ams::PendingOutcome> heard;
+    std::string why;
+    auto listen = [&](helix::ams::PendingOutcome o, const std::string& reason) {
+        heard = o;
+        why = reason;
+    };
+    edit(pending_material("PETG"));
+
+    SECTION("the echo") {
+        helix::ams::await_pending(lane, listen);
+        REQUIRE_FALSE(heard.has_value());
+        Observation record(ObservationSource::Record);
+        record.material = "PETG";
+        helix::ams::ingest(lane, record);
+        CHECK(heard == helix::ams::PendingOutcome::Echoed);
+    }
+    SECTION("a failed write") {
+        helix::ams::await_pending(lane, listen);
+        helix::ams::withdraw_pending(lane, "database is read-only");
+        CHECK(heard == helix::ams::PendingOutcome::Failed);
+        CHECK(why == "database is read-only");
+    }
+    SECTION("the timeout") {
+        helix::ams::await_pending(lane, listen);
+        helix::ams::expire_pending(std::chrono::steady_clock::now() +
+                                   helix::ams::kPendingWriteTimeout + std::chrono::seconds(1));
+        CHECK(heard == helix::ams::PendingOutcome::TimedOut);
+    }
+    SECTION("a partial echo leaves the waiter waiting") {
+        Observation colour(ObservationSource::Pending);
+        colour.color_rgb = 0x00FF00;
+        edit(colour);
+        helix::ams::await_pending(lane, listen);
+        Observation record(ObservationSource::Record);
+        record.material = "PETG";
+        helix::ams::ingest(lane, record);
+        CHECK_FALSE(heard.has_value());
+        helix::ams::withdraw_pending(lane);
+        CHECK(heard == helix::ams::PendingOutcome::Failed);
+    }
+}
+
+TEST_CASE_METHOD(LaneFixture, "a waiter that arrives after the edit ended hears how it ended",
+                 "[lane][pending][save_ack]") {
+    const std::uint64_t before = helix::ams::pending_filings(lane);
+    edit(pending_material("PETG"));
+    helix::ams::withdraw_pending(lane, "refused");
+
+    std::optional<helix::ams::PendingOutcome> heard;
+    std::string why;
+    helix::ams::await_pending(lane, before,
+                              [&](helix::ams::PendingOutcome o, const std::string& reason) {
+                                  heard = o;
+                                  why = reason;
+                              });
+    CHECK(heard == helix::ams::PendingOutcome::Failed);
+    CHECK(why == "refused");
+
+    // Asked from after that edit, nothing has been filed: nothing to wait on.
+    heard.reset();
+    helix::ams::await_pending(lane, helix::ams::pending_filings(lane),
+                              [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
+    CHECK(heard == helix::ams::PendingOutcome::Echoed);
 }

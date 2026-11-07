@@ -405,7 +405,7 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     AmsError err = apply_user_edit(slot_index, applied);
     // A partly applied edit still changed what it applied.
     if (!err.success() && !err.partially_applied) {
-        helix::ams::withdraw_pending(lane);
+        helix::ams::withdraw_pending(lane, err.user_msg);
         repaint_slot_from_lane(slot_index);
         return err;
     }

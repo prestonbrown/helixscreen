@@ -2472,6 +2472,23 @@ bool AmsState::external_spool_feeds() const {
 
 AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
                                     const SlotInfo& info) {
+    AmsError err = commit_slot_edit_unrecorded(slot_index, original, info);
+    last_slot_edit_ = std::make_pair(slot_index, err);
+    return err;
+}
+
+std::optional<AmsError> AmsState::take_slot_edit_result(int slot_index) {
+    assert_main_thread();
+    if (!last_slot_edit_ || last_slot_edit_->first != slot_index) {
+        return std::nullopt;
+    }
+    std::optional<AmsError> out = last_slot_edit_->second;
+    last_slot_edit_.reset();
+    return out;
+}
+
+AmsError AmsState::commit_slot_edit_unrecorded(int slot_index, const SlotInfo& original,
+                                               const SlotInfo& info) {
     assert_main_thread();
     AmsBackend* backend = get_backend();
     if (!backend) {

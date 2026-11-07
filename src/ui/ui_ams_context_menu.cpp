@@ -925,14 +925,11 @@ void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_inde
             SlotInfo original = backend->get_slot_info(result.slot_index);
             AmsError err = AmsState::instance().commit_slot_edit(result.slot_index, original,
                                                                  result.slot_info);
+            // The editor reports the outcome inline: it closes once the lane
+            // holds the edit and stays open saying why when it does not.
             if (err.success() || err.partially_applied) {
                 offer_edit_follow_up(result.slot_index, original, result.slot_info);
             }
-            if (!err.success()) {
-                notify_ams_error(err);
-                return;
-            }
-            NOTIFY_INFO(lv_tr("{} updated"), lane_label(backend->lane_noun(), result.slot_index));
         },
         open_on_picker);
 }

@@ -117,6 +117,12 @@ class FilamentSlotOverrideStore {
         on_written_ = std::move(on_written);
     }
 
+    /// Called with the slot, after the save's own callback, whenever a save
+    /// fails or is refused: the owner repaints the lane from what is left.
+    void set_on_write_failed(std::function<void(int slot_index)> on_failed) {
+        on_write_failed_ = std::move(on_failed);
+    }
+
     /// Remember what a read returned, for the writer rule. Main thread.
     void adopt_read(const std::unordered_map<int, LaneDataRecord>& records);
 
@@ -152,6 +158,7 @@ class FilamentSlotOverrideStore {
     std::chrono::milliseconds load_timeout_{5000};
 
     std::function<void()> on_written_;
+    std::function<void(int)> on_write_failed_;
 
     mutable std::mutex mutex_;
     /// The writer of each slot's record at the last read.

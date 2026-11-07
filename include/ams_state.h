@@ -27,6 +27,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Forward declarations
@@ -2057,28 +2058,25 @@ class AmsState {
      *    its apply_user_edit()).
      * 4. S4+S7: sync_from_backend().
      *
-     * This is the method layer: it performs the edit against every backing
-     * store. It also calls the declaration layer,
-     * helix::ams::commit_slot_edit() (lane_source_store.h), once the backend
-     * has applied the edit, recording the user's authorship as a lane source
-     * record. The user's declaration is computed once, from @p original and
-     * @p info, and the backend records its stored authorship from that same
-     * answer. Every backend paints its slots from the lane model through
-     * AmsBackend::apply_resolved_lane(), so that record is what the lane shows
-     * for each field the user declared. Once it is filed, the backend repaints
-     * the slot (AmsBackend::repaint_slot_from_lane()), so a backend that paints
-     * while applying the edit shows the new declaration at once.
+     * The backend files the edit as the lane's Pending value and starts its
+     * writes; the lane shows the edit until the write echoes, fails or times
+     * out (helix::ams::await_pending() tells a caller which).
      *
-     * @param slot_index a global slot index on the primary backend. A slot
-     *        outside that backend's lane block derives no lane id, and the
-     *        declaration layer drops it rather than filing the edit on a
-     *        neighbouring backend's lane. The edit itself still runs.
+     * Refused while the connection is lost or the lane records are unread.
      *
-     * @return the AmsError from apply_user_edit so callers keep their error toasts.
-     *         An error the backend marks AmsError::partially_applied still
-     *         files what it applied.
+     * @param slot_index a global slot index on the primary backend.
+     *
+     * @return the AmsError from apply_user_edit. An error the backend marks
+     *         AmsError::partially_applied still files what it applied. The
+     *         result is also kept for take_slot_edit_result().
      */
     AmsError commit_slot_edit(int slot_index, const SlotInfo& original, const SlotInfo& info);
+
+    /// The result of the last commit_slot_edit() on @p slot_index, taken (a
+    /// second call answers nullopt). Lets the spool editor, which hands its
+    /// edit to a caller's completion, learn whether the commit was refused.
+    /// Main thread.
+    [[nodiscard]] std::optional<AmsError> take_slot_edit_result(int slot_index);
 
     /**
      * @brief Link a backend slot to a Spoolman spool, the way a person's pick does.
@@ -2497,6 +2495,10 @@ class AmsState {
     lv_subject_t ams_nozzle_heat_blocked_{};
     lv_subject_t ams_can_cancel_{};
     lv_subject_t ams_lane_records_ready_{};
+    /// commit_slot_edit()'s last result, for take_slot_edit_result().
+    std::optional<std::pair<int, AmsError>> last_slot_edit_;
+    AmsError commit_slot_edit_unrecorded(int slot_index, const SlotInfo& original,
+                                         const SlotInfo& info);
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
     lv_subject_t ams_is_filament_system_{};

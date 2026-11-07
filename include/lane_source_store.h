@@ -6,10 +6,12 @@
 #include "lane_sources.h"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace helix::ams {
@@ -148,7 +150,32 @@ void ingest(LaneId lane, const Observation& obs);
 void file_pending(LaneId lane, const Observation& obs);
 
 /// Withdraw a lane's Pending record whole: the write failed, or was refused.
-void withdraw_pending(LaneId lane);
+/// @p reason is handed to await_pending() waiters.
+void withdraw_pending(LaneId lane, const std::string& reason = {});
+
+/// How a lane's Pending record ended.
+enum class PendingOutcome {
+    Echoed,   ///< Moonraker holds every pending value (or nothing was pending)
+    Failed,   ///< The write failed, was refused, or the record was dropped
+    TimedOut, ///< No echo inside kPendingWriteTimeout
+};
+
+using PendingSettled = std::function<void(PendingOutcome, const std::string& reason)>;
+
+/// How many edits have been filed on @p lane: taken before a commit, it lets
+/// await_pending() report an edit that ended before anyone waited on it.
+[[nodiscard]] std::uint64_t pending_filings(LaneId lane);
+
+/// Call @p settled once, when @p lane's Pending record ends. An edit filed
+/// after @p since (a pending_filings() count) that has already ended reports
+/// how it ended; a lane with nothing filed since answers Echoed at once. It
+/// runs on whichever thread ended the record (a database callback can),
+/// outside the store's lock, so a UI caller defers it. Several waiters on one
+/// lane all run.
+void await_pending(LaneId lane, std::uint64_t since, PendingSettled settled);
+
+/// await_pending() for the record the lane holds now.
+void await_pending(LaneId lane, PendingSettled settled);
 
 /// Withdraw every Pending record whose window closed before @p now, logging
 /// each at warn. Returns the lanes withdrawn so a caller can repaint them.
@@ -212,8 +239,10 @@ class LaneSourceStore {
     [[nodiscard]] std::vector<LaneId> lanes() const;
 
     void clear();
-    void drop_source(LaneId lane, ObservationSource source);
+    void drop_source(LaneId lane, ObservationSource source, const std::string& reason = {});
     std::vector<LaneId> expire(std::chrono::steady_clock::time_point now);
+    void await(LaneId lane, std::optional<std::uint64_t> since, PendingSettled settled);
+    [[nodiscard]] std::uint64_t filings(LaneId lane) const;
 
     LaneSourceStore(const LaneSourceStore&) = delete;
     LaneSourceStore& operator=(const LaneSourceStore&) = delete;
@@ -221,11 +250,22 @@ class LaneSourceStore {
   private:
     LaneSourceStore() = default;
 
+    /// A waiter taken off the map under the lock, run after it is released.
+    struct Settlement {
+        PendingSettled settled;
+        PendingOutcome outcome;
+        std::string reason;
+    };
+    using Settlements = std::vector<Settlement>;
+    void settle_locked(LaneId lane, PendingOutcome outcome, const std::string& reason,
+                       Settlements& out);
+    static void run(Settlements& settlements);
+
     /// @p amend false replaces the source's record whole; true merges the
     /// observed fields onto whatever that source already holds.
     void write(LaneId lane, const Observation& obs, bool amend);
 
-    bool expire_locked(LaneId lane, std::chrono::steady_clock::time_point now);
+    bool expire_locked(LaneId lane, std::chrono::steady_clock::time_point now, Settlements& out);
 
     /// True when @p lane differs from the last lane a funnel warned about,
     /// latching it: a producer filing through an unregistered backend reaches
@@ -240,6 +280,16 @@ class LaneSourceStore {
     mutable std::mutex mutex_;
     std::map<LaneId, LaneSources> lanes_;
     std::map<LaneId, std::chrono::steady_clock::time_point> pending_deadline_;
+    std::map<LaneId, std::vector<PendingSettled>> waiters_;
+    /// Per lane: edits filed, and how the last one ended (with the filing
+    /// count it ended at), for a waiter that arrives after the end.
+    std::map<LaneId, std::uint64_t> filings_;
+    struct Ended {
+        std::uint64_t filings = 0;
+        PendingOutcome outcome = PendingOutcome::Echoed;
+        std::string reason;
+    };
+    std::map<LaneId, Ended> last_ended_;
     std::optional<LaneId> warned_drop_;
 };
 
