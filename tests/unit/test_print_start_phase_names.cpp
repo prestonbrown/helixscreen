@@ -53,10 +53,8 @@ TEST_CASE("PrintStartPhase: every declared phase has a unique, round-tripping na
 
 TEST_CASE("PrintStartPhase: soak and chamber heat sit between bed heat and nozzle heat",
           "[print][phase][names]") {
-    // The numeric order gates silent progression (a phase never moves backward),
-    // so each is declared where it happens: the bed is commanded, the soak
-    // dwell holds it, the chamber wait follows (COSMOS and the K2 Kalico
-    // START_PRINT both soak first), then the nozzle comes up to temperature.
+    // The numeric order gates silent progression (a phase never moves backward), so
+    // each sits where it happens: COSMOS and the K2 Kalico START_PRINT soak, then wait.
     CHECK(static_cast<int>(PrintStartPhase::HEATING_BED) <
           static_cast<int>(PrintStartPhase::SOAKING));
     CHECK(static_cast<int>(PrintStartPhase::SOAKING) <
