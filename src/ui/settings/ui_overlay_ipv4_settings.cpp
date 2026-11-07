@@ -154,6 +154,7 @@ void Ipv4SettingsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(dns_, dns_buf_, "", "ipv4_dns", subjects_);
         UI_MANAGED_SUBJECT_STRING(error_, error_buf_, "", "ipv4_error", subjects_);
         UI_MANAGED_SUBJECT_INT(busy_, 1, "ipv4_busy", subjects_);
+        UI_MANAGED_SUBJECT_INT(job_held_, 0, "ipv4_job_held", subjects_);
         UI_MANAGED_SUBJECT_STRING(keep_title_, keep_title_buf_, "", "ipv4_keep_title", subjects_);
         UI_MANAGED_SUBJECT_STRING(keep_message_, keep_message_buf_, "", "ipv4_keep_message",
                                   subjects_);
@@ -161,6 +162,7 @@ void Ipv4SettingsOverlay::init_subjects() {
         job_observer_ = helix::ui::observe<int>(
             state.print_state().get_job_holds_machine_subject(), this,
             [](Ipv4SettingsOverlay* self, int holds) {
+                self->refresh_job_held();
                 if (holds) {
                     self->perform(self->flow_.job_started());
                 }
@@ -252,12 +254,27 @@ void Ipv4SettingsOverlay::on_activate() {
     if (!change_pending()) {
         load_current();
     }
+    refresh_job_held();
+    job_held_timer_.reset(lv_timer_create(
+        [](lv_timer_t*) { get_ipv4_settings_overlay().refresh_job_held(); }, 1000, nullptr));
+}
+
+void Ipv4SettingsOverlay::on_deactivating(DeactivateReason) {
+    job_held_timer_.reset();
 }
 
 void Ipv4SettingsOverlay::cleanup() {
     OverlayBase::cleanup();
     stop_countdown();
+    job_held_timer_.reset();
     ethernet_manager_.reset();
+}
+
+void Ipv4SettingsOverlay::refresh_job_held() {
+    const int held = ipv4_job_holds_machine() ? 1 : 0;
+    if (lv_subject_get_int(&job_held_) != held) {
+        lv_subject_set_int(&job_held_, held);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -332,7 +349,7 @@ void Ipv4SettingsOverlay::load_current() {
         set_busy(false);
         // A revert the retry gave up on stays on show until a change replaces it.
         const auto pending = helix::net::load_pending_ipv4_revert();
-        if (pending && pending->failed && pending->link == link_) {
+        if (pending && pending->given_up() && pending->concerns(link_)) {
             set_error(fmt::format(fmt::runtime(lv_tr(
                                       "The previous IPv4 settings could not be restored: {}")),
                                   pending->failure)
@@ -410,7 +427,7 @@ void Ipv4SettingsOverlay::perform(helix::net::Ipv4ChangeFlow::Action action) {
         if (keep_modal_.is_visible()) {
             keep_modal_.hide();
         }
-        if (job_holds_machine()) {
+        if (ipv4_job_holds_machine()) {
             // A revert can bounce the link a print's clients use: it waits for
             // the job to end, on the retry.
             flow_.handed_off();
@@ -486,7 +503,7 @@ void Ipv4SettingsOverlay::run_apply() {
         if (status == helix::net::Ipv4Result::Status::Failed) {
             set_error(lv_tr("Could not apply the new IPv4 settings."));
         }
-        perform(flow_.applied(status, lv_tick_get(), job_holds_machine()));
+        perform(flow_.applied(status, lv_tick_get(), ipv4_job_holds_machine()));
     };
     if (!link_supported()) {
         on_done(helix::net::Ipv4Result::Status::NotSupported);
@@ -524,7 +541,7 @@ void Ipv4SettingsOverlay::on_reverted(const helix::net::Ipv4RestoreOutcome& outc
         set_busy(false);
         loaded_ = false;
         set_error(lv_tr("Could not restore the previous IPv4 settings"));
-        give_up_ipv4_revert(link_, outcome.detail);
+        give_up_ipv4_revert(link_, outcome.detail, helix::net::Ipv4GiveUp::Terminal);
         return;
     case Kind::Nothing:
     case Kind::Skipped:
@@ -558,11 +575,6 @@ void Ipv4SettingsOverlay::abandon_change() {
 
 bool Ipv4SettingsOverlay::earlier_change_pending() const {
     return helix::net::ipv4_record_blocks_change(helix::net::read_pending_ipv4_revert());
-}
-
-bool Ipv4SettingsOverlay::job_holds_machine() {
-    return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
-           0;
 }
 
 void Ipv4SettingsOverlay::show_keep_prompt() {

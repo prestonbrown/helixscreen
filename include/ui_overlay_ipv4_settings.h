@@ -90,6 +90,7 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void register_callbacks() override;
     void before_show() override;
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
     void cleanup() override;
 
     /// Opens the keypad on @p field, prefilled with its text.
@@ -131,7 +132,8 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void on_revert_ended(helix::net::Ipv4Link link);
     /// A record this screen did not write still waits to be undone.
     bool earlier_change_pending() const;
-    static bool job_holds_machine();
+    /// Publishes ipv4_job_holds_machine() to the buttons it greys.
+    void refresh_job_held();
     /// The overlay is going away: an unconfirmed change is reverted, and one
     /// still being applied reverts itself when it lands.
     void abandon_change();
@@ -147,7 +149,8 @@ class Ipv4SettingsOverlay : public OverlayBase {
     lv_subject_t gateway_{};
     lv_subject_t dns_{};
     lv_subject_t error_{};
-    lv_subject_t busy_{}; ///< 1 while a read or apply runs, or the form has nothing loaded
+    lv_subject_t busy_{};     ///< 1 while a read or apply runs, or the form has nothing loaded
+    lv_subject_t job_held_{}; ///< 1 while a job holds the machine (ipv4_job_holds_machine())
     lv_subject_t keep_title_{};
     lv_subject_t keep_message_{};
 
@@ -173,6 +176,9 @@ class Ipv4SettingsOverlay : public OverlayBase {
     Ipv4KeepModal keep_modal_;
     /// A print starting mid-countdown keeps the change.
     ObserverGuard job_observer_;
+    /// Rereads job_held_ while the screen shows: a lost connection releases it
+    /// on the clock, with no subject changing.
+    helix::ui::LvglTimerGuard job_held_timer_;
 
     std::unique_ptr<EthernetManager> ethernet_manager_;
 };

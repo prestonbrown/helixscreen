@@ -351,7 +351,23 @@ struct PendingIpv4Revert {
     /// The restore gave up for good: kept for the user, never retried, and a
     /// new change may replace it.
     bool failed = false;
+    /// A retry ran out of time and said so. Unlike failed, the next start tries
+    /// it again, quietly unless the outcome changes; until then a new change
+    /// may replace it.
+    bool notified = false;
     std::string failure; ///< Why, for the screen and the log
+    /// A failed stub for a record that named no link it could be read for: its
+    /// failure is shown on every link.
+    bool any_link = false;
+
+    /// Given up for now, with `failure` for the screen.
+    bool given_up() const {
+        return failed || notified;
+    }
+    /// Whether the record is @p l's to restore or show.
+    bool concerns(Ipv4Link l) const {
+        return any_link || link == l;
+    }
 };
 
 /// A record file larger than this is not one this app wrote, and is not read.
@@ -373,6 +389,8 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
 /// <user config dir>/ipv4_pending_revert.json: beside settings.json but not in
 /// it, so a restored settings backup can never replay a stale revert.
 std::string pending_ipv4_revert_path();
+/// Why a record whose text does not decode can never restore anything.
+std::string pending_ipv4_undecodable_detail();
 bool save_pending_ipv4_revert(const PendingIpv4Revert& pending);
 
 /// A record file that exists but cannot be used is a failure to report, never
@@ -383,12 +401,14 @@ struct Ipv4RecordLoad {
     enum class Kind { None, Ok, ReadError, Unreadable };
     Kind kind = Kind::None;
     PendingIpv4Revert record;
+    /// Unreadable: the link its text still names, if it names one.
+    std::optional<Ipv4Link> unreadable_link;
 };
 Ipv4RecordLoad read_pending_ipv4_revert();
 /// The usable record, if any.
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert();
 /// True while the record still holds the only way back: anything but none or
-/// one marked failed, including one that cannot be read or decoded.
+/// one given up, including one that cannot be read or decoded.
 bool ipv4_record_blocks_change(const Ipv4RecordLoad& loaded);
 /// True when no record remains (removed now, or there was none).
 bool clear_pending_ipv4_revert();
@@ -430,6 +450,68 @@ class Ipv4RevertRetry {
   private:
     uint32_t first_ms_ = 0;
     uint32_t last_ms_ = 0;
+};
+
+/// How long the startup revert waits for the printer's first print state.
+constexpr uint32_t kIpv4StartupHoldMs = 30000;
+
+/**
+ * @brief The startup revert's wait for the printer to say whether a job runs
+ *
+ * At start the print state is its boot default, which reads as no job, so the
+ * first attempt waits for a print-state report (a count that moves with each
+ * one). A screen on an address the printer cannot reach may never get one, so
+ * the wait ends after kIpv4StartupHoldMs regardless.
+ */
+class Ipv4StartupHold {
+  public:
+    void arm(int report_count, uint32_t now_ms) {
+        armed_ = true;
+        report_count_ = report_count;
+        since_ms_ = now_ms;
+    }
+    /// Still waiting. Once the wait ends it stays ended.
+    bool waiting(int report_count, uint32_t now_ms) {
+        if (armed_ && (report_count != report_count_ || now_ms - since_ms_ >= kIpv4StartupHoldMs)) {
+            armed_ = false;
+        }
+        return armed_;
+    }
+
+  private:
+    bool armed_ = false;
+    int report_count_ = 0;
+    uint32_t since_ms_ = 0;
+};
+
+/// How long a lost printer connection keeps its last print state counting.
+constexpr uint32_t kIpv4StaleJobMs = 60000;
+
+/**
+ * @brief Whether a job holds the machine, as far as an IPv4 change goes
+ *
+ * The print state is only as fresh as the printer connection. Once that has
+ * been down for kIpv4StaleJobMs, counted from the first sample that finds it
+ * down, the last state stops counting: the status that would end the job
+ * cannot arrive until the network is back, which may take this very change.
+ */
+class Ipv4JobHold {
+  public:
+    void sample(bool connected, uint32_t now_ms) {
+        if (connected) {
+            down_ = false;
+        } else if (!down_) {
+            down_ = true;
+            down_since_ms_ = now_ms;
+        }
+    }
+    bool holds(bool job_holds_machine, uint32_t now_ms) const {
+        return job_holds_machine && (!down_ || now_ms - down_since_ms_ < kIpv4StaleJobMs);
+    }
+
+  private:
+    bool down_ = false;
+    uint32_t down_since_ms_ = 0;
 };
 
 /// Held around every prepare, apply and restore, so a revert never runs

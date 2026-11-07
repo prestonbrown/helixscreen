@@ -313,7 +313,6 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/bed_drying_modal.xml", 1},
     {"ui_xml/calibration_tool_offset_panel.xml", 2},
     {"ui_xml/chamber_dryer_modal.xml", 1},
-    {"ui_xml/ipv4_settings_overlay.xml", 2},
     {"ui_xml/cfs_chute_calibration_overlay.xml", 2},
     {"ui_xml/snapmaker_nozzle_offset_overlay.xml", 3},
     {"ui_xml/stepper_resonance_cal_modal.xml", 1},
@@ -538,6 +537,9 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/info_qr_modal.xml",
     "ui_xml/input_shaper_panel.xml",
     "ui_xml/ipv4_keep_modal.xml",
+    // A print greys Apply and Use DHCP through the screen's own ipv4_job_held,
+    // which a lost printer connection releases once stale.
+    "ui_xml/ipv4_settings_overlay.xml",
     "ui_xml/job_queue_modal.xml",
     "ui_xml/klipper_recovery_dialog.xml",
     "ui_xml/label_printer_settings.xml",

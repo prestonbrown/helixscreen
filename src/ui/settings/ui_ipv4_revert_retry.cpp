@@ -7,6 +7,7 @@
 #include "ui_timer_guard.h"
 
 #include "app_globals.h"
+#include "connection_state.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "ipv4_config_system.h"
@@ -14,6 +15,8 @@
 
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
+
+#include <vector>
 
 namespace helix::settings {
 
@@ -55,6 +58,25 @@ std::string& unrecorded_why(net::Ipv4Link link) {
     return link == net::Ipv4Link::Ethernet ? ethernet : wifi;
 }
 
+net::Ipv4StartupHold& startup_hold() {
+    static net::Ipv4StartupHold h;
+    return h;
+}
+
+int print_state_reports() {
+    return lv_subject_get_int(
+        get_printer_state().print_state().get_print_state_report_seq_subject());
+}
+
+/// Nothing is tried while a job holds the machine, nor at startup before the
+/// printer has said whether one does.
+bool revert_held() {
+    if (startup_hold().waiting(print_state_reports(), lv_tick_get())) {
+        return true;
+    }
+    return ipv4_job_holds_machine();
+}
+
 std::function<void(net::Ipv4Link, Ipv4RevertEnd)>& listener() {
     static std::function<void(net::Ipv4Link, Ipv4RevertEnd)> l;
     return l;
@@ -64,11 +86,6 @@ void announce(net::Ipv4Link link, Ipv4RevertEnd end) {
     if (auto& l = listener()) {
         l(link, end);
     }
-}
-
-bool job_holds_machine() {
-    return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
-           0;
 }
 
 void finish(const net::Ipv4RestoreOutcome& outcome) {
@@ -88,7 +105,7 @@ void finish(const net::Ipv4RestoreOutcome& outcome) {
         s.timer.reset();
         return;
     case Kind::Terminal:
-        give_up_ipv4_revert(s.link, outcome.detail);
+        give_up_ipv4_revert(s.link, outcome.detail, net::Ipv4GiveUp::Terminal);
         return;
     case Kind::Retry:
         s.last_failure = outcome.detail;
@@ -113,21 +130,35 @@ void tick() {
     if (s.in_flight) {
         return;
     }
-    switch (s.schedule.tick(lv_tick_get(), job_holds_machine())) {
+    switch (s.schedule.tick(lv_tick_get(), revert_held())) {
     case net::Ipv4RevertRetry::Step::Wait:
         return;
     case net::Ipv4RevertRetry::Step::Attempt:
         attempt();
         return;
     case net::Ipv4RevertRetry::Step::GiveUp:
-        give_up_ipv4_revert(s.link, s.last_failure.empty()
-                                        ? std::string("no restore succeeded in two minutes")
-                                        : s.last_failure);
+        give_up_ipv4_revert(s.link,
+                            s.last_failure.empty()
+                                ? std::string("no restore succeeded in two minutes")
+                                : s.last_failure,
+                            net::Ipv4GiveUp::UntilNextStart);
         return;
     }
 }
 
 } // namespace
+
+bool ipv4_job_holds_machine() {
+    static net::Ipv4JobHold hold;
+    PrinterState& printer = get_printer_state();
+    const uint32_t now = lv_tick_get();
+    hold.sample(
+        lv_subject_get_int(printer.network_state().get_printer_connection_state_subject()) ==
+            static_cast<int>(ConnectionState::CONNECTED),
+        now);
+    return hold.holds(
+        lv_subject_get_int(printer.print_state().get_job_holds_machine_subject()) != 0, now);
+}
 
 void retry_ipv4_revert(net::Ipv4Link link, bool include_own) {
     RevertRetry& s = state();
@@ -143,26 +174,33 @@ void retry_ipv4_revert(net::Ipv4Link link, bool include_own) {
     tick();
 }
 
-void give_up_ipv4_revert(net::Ipv4Link link, const std::string& why) {
+void give_up_ipv4_revert(std::optional<net::Ipv4Link> link, const std::string& why,
+                         net::Ipv4GiveUp how) {
     state().timer.reset();
-    spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}: {}",
-                  net::ipv4_link_name(link), why);
+    spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}{}: {}",
+                  link ? net::ipv4_link_name(*link) : "every link",
+                  how == net::Ipv4GiveUp::UntilNextStart ? " until the next start" : "", why);
+    const std::vector<net::Ipv4Link> told =
+        link ? std::vector<net::Ipv4Link>{*link}
+             : std::vector<net::Ipv4Link>{net::Ipv4Link::Wifi, net::Ipv4Link::Ethernet};
     http::HttpExecutor::fast().start();
-    http::HttpExecutor::fast().submit([link, why]() {
-        const bool marked = net::mark_pending_ipv4_failed(link, why);
-        ui::queue_update("Ipv4RevertRetry::gave_up", [link, why, marked]() {
-            if (marked) {
-                unrecorded_why(link).clear();
+    http::HttpExecutor::fast().submit([link, told, why, how]() {
+        const net::Ipv4Mark mark = net::mark_pending_ipv4_given_up(link, why, how);
+        ui::queue_update("Ipv4RevertRetry::gave_up", [told, why, mark]() {
+            const bool marked = mark != net::Ipv4Mark::Unmarked;
+            if (mark == net::Ipv4Mark::Marked) {
                 NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
-                announce(link, Ipv4RevertEnd::GaveUp);
-                return;
+            } else if (!marked) {
+                spdlog::error("[Ipv4] {} could not be marked failed",
+                              net::pending_ipv4_revert_path());
+                NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the "
+                                   "record of the change could not be updated: {}"),
+                             why);
             }
-            spdlog::error("[Ipv4] {} could not be marked failed", net::pending_ipv4_revert_path());
-            unrecorded_why(link) = why;
-            NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the record "
-                               "of the change could not be updated: {}"),
-                         why);
-            announce(link, Ipv4RevertEnd::GaveUpUnrecorded);
+            for (const net::Ipv4Link l : told) {
+                unrecorded_why(l) = marked ? std::string() : why;
+                announce(l, marked ? Ipv4RevertEnd::GaveUp : Ipv4RevertEnd::GaveUpUnrecorded);
+            }
         });
     });
 }
@@ -188,8 +226,8 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
         return false;
     }
     if (loaded.kind == RecordKind::Unreadable) {
-        give_up_ipv4_revert(net::Ipv4Link::Wifi,
-                            net::pending_ipv4_revert_path() + " cannot be read");
+        give_up_ipv4_revert(loaded.unreadable_link, net::pending_ipv4_undecodable_detail(),
+                            net::Ipv4GiveUp::Terminal);
         return true;
     }
     const auto& pending = loaded.record;
@@ -197,7 +235,8 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
         pending.owner == net::ipv4_process_owner()) {
         return true;
     }
-    spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {}",
+    spdlog::warn("[Ipv4] An IPv4 change on {} was never kept: restoring {} once the printer "
+                 "reports whether a job runs",
                  net::ipv4_link_name(pending.link), net::ipv4_config_text(pending.previous));
     retry_ipv4_revert(pending.link, /*include_own=*/false);
     return true;
@@ -205,7 +244,7 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
 
 void startup_read_tick() {
     StartupRead& s = startup_read();
-    switch (s.schedule.tick(lv_tick_get(), job_holds_machine())) {
+    switch (s.schedule.tick(lv_tick_get(), ipv4_job_holds_machine())) {
     case net::Ipv4RevertRetry::Step::Wait:
         return;
     case net::Ipv4RevertRetry::Step::Attempt:
@@ -228,6 +267,7 @@ void startup_read_tick() {
 } // namespace
 
 void start_ipv4_startup_revert() {
+    startup_hold().arm(print_state_reports(), lv_tick_get());
     if (act_on_startup_record(net::read_pending_ipv4_revert())) {
         return;
     }
@@ -235,6 +275,10 @@ void start_ipv4_startup_revert() {
     StartupRead& s = startup_read();
     s.schedule.start(lv_tick_get());
     s.timer.reset(lv_timer_create([](lv_timer_t*) { startup_read_tick(); }, kTickMs, nullptr));
+}
+
+lv_timer_t* ipv4_revert_retry_timer_for_test() {
+    return state().timer.get();
 }
 
 lv_timer_t* ipv4_startup_read_timer_for_test() {

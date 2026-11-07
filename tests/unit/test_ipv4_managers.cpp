@@ -5,14 +5,17 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "connection_state.h"
 #include "core/http_executor.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "ethernet_manager.h"
 #include "ipv4_config_system.h"
 #include "misc/lv_timer_private.h" // timer_cb: each tick is fired by hand
+#include "printer_state.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -22,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -65,6 +69,15 @@ struct Ipv4ManagerFixture : LVGLTestFixture {
         setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
         unsetenv("HELIX_MOCK_IPV4_APPLY_FAIL");
         HttpExecutor::fast().start();
+        get_printer_state().init_subjects(true);
+        // Another test may have left a job holding the machine.
+        lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(), 0);
+    }
+
+    /// The printer reports its print state, which the startup revert waits for.
+    static void printer_reports() {
+        lv_subject_t* seq = get_printer_state().print_state().get_print_state_report_seq_subject();
+        lv_subject_set_int(seq, lv_subject_get_int(seq) + 1);
     }
 
     /// Builds the manager over a mock already holding @p initial.
@@ -191,7 +204,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "WiFiManager applies a change and the recor
         CHECK(backend_config() == static_config("192.168.1.50"));
         CHECK(load_pending_ipv4_revert()->previous == was);
 
-        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "edited by hand"));
+        REQUIRE(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "edited by hand",
+                                           Ipv4GiveUp::Terminal) == Ipv4Mark::Marked);
         CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Skipped);
         wm->apply_ipv4_change_async(static_config("192.168.1.50"), static_config("192.168.1.60"),
                                     std::make_shared<std::atomic<bool>>(false), guard.token(),
@@ -234,7 +248,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Terminal);
 
     SECTION("its bytes are kept beside the failed stub") {
-        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "undecodable"));
+        REQUIRE(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "undecodable", Ipv4GiveUp::Terminal) ==
+                Ipv4Mark::Marked);
         CHECK(std::filesystem::exists(pending_ipv4_revert_path() + ".unreadable"));
     }
     SECTION("a dhcpcd record left by another build is given up, not restored") {
@@ -261,7 +276,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a given-up revert is announced once its re
             const auto record = load_pending_ipv4_revert();
             failed_when_told = record && record->failed;
         });
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Ethernet, "unreachable");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Ethernet, "unreachable", Ipv4GiveUp::Terminal);
     CHECK(wait_until([&] { return failed_when_told.has_value(); }));
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(failed_when_told.value_or(false));
@@ -273,7 +288,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that fails to read is retried, ne
     REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
     CHECK(read_pending_ipv4_revert().kind == Ipv4RecordLoad::Kind::ReadError);
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Retry);
-    CHECK_FALSE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "read error"));
+    CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "read error", Ipv4GiveUp::Terminal) ==
+          Ipv4Mark::Unmarked);
     CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
 }
 
@@ -283,7 +299,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
     std::optional<Ipv4RevertEnd> told;
     helix::settings::set_ipv4_revert_listener([&](Ipv4Link, Ipv4RevertEnd end) { told = end; });
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "read error");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "read error", Ipv4GiveUp::Terminal);
     REQUIRE(wait_until([&] { return told.has_value(); }));
     CHECK(told == Ipv4RevertEnd::GaveUpUnrecorded);
     CHECK(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi) == "read error");
@@ -295,11 +311,156 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
     REQUIRE(save_pending_ipv4_revert(p));
     told.reset();
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "unreachable");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "unreachable", Ipv4GiveUp::Terminal);
     REQUIRE(wait_until([&] { return told.has_value(); }));
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(told == Ipv4RevertEnd::GaveUp);
     CHECK_FALSE(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a revert waits on a job only while the printer can end it",
+                 "[ipv4][ipv4_manager]") {
+    helix::PrinterState& printer = get_printer_state();
+    lv_subject_t* connection = printer.network_state().get_printer_connection_state_subject();
+    lv_subject_set_int(printer.print_state().get_job_holds_machine_subject(), 1);
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::CONNECTED));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::RECONNECTING));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    process_lvgl(static_cast<int>(kIpv4StaleJobMs) - 1000);
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    process_lvgl(1000);
+    CHECK_FALSE(helix::settings::ipv4_job_holds_machine());
+
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::CONNECTED));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    lv_subject_set_int(printer.print_state().get_job_holds_machine_subject(), 0);
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture,
+                 "a revert that runs out of time is tried again at the next start",
+                 "[ipv4][ipv4_manager]") {
+    using helix::settings::Ipv4RevertEnd;
+    const Ipv4Config was = static_config("192.168.1.40");
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(was).ok());
+    PendingIpv4Revert p;
+    p.previous = was;
+    p.owner = "another-run";
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(static_config("192.168.1.50")).ok());
+    REQUIRE(save_pending_ipv4_revert(p));
+
+    std::optional<Ipv4RevertEnd> told;
+    helix::settings::set_ipv4_revert_listener([&](Ipv4Link, Ipv4RevertEnd end) { told = end; });
+    setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
+    helix::settings::retry_ipv4_revert(Ipv4Link::Wifi, /*include_own=*/false);
+    process_lvgl(static_cast<int>(kIpv4RetryForMs));
+    REQUIRE(wait_until([&] {
+        if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+            t->timer_cb(t);
+        }
+        return told.has_value();
+    }));
+    CHECK(told == Ipv4RevertEnd::GaveUp);
+    const auto record = load_pending_ipv4_revert();
+    REQUIRE(record);
+    CHECK(record->notified);
+    CHECK_FALSE(record->failed);
+    CHECK_FALSE(record->failure.empty());
+    CHECK_FALSE(ipv4_record_blocks_change(read_pending_ipv4_revert()));
+
+    SECTION("the same outcome again says nothing new") {
+        CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, record->failure,
+                                         Ipv4GiveUp::UntilNextStart) == Ipv4Mark::Unchanged);
+        CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "something else",
+                                         Ipv4GiveUp::UntilNextStart) == Ipv4Mark::Marked);
+    }
+    SECTION("the next start restores it once the network allows") {
+        unsetenv("HELIX_MOCK_IPV4_APPLY_FAIL");
+        told.reset();
+        helix::settings::start_ipv4_startup_revert();
+        printer_reports();
+        CHECK(wait_until([&] {
+            if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+                t->timer_cb(t);
+            }
+            return !record_exists();
+        }));
+        CHECK(backend_config() == was);
+        CHECK(told == Ipv4RevertEnd::Restored);
+    }
+    helix::settings::set_ipv4_revert_listener(nullptr);
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "an undecodable startup record is given up on its own link",
+                 "[ipv4][ipv4_manager]") {
+    using helix::settings::Ipv4RevertEnd;
+    std::vector<Ipv4Link> told;
+    helix::settings::set_ipv4_revert_listener([&](Ipv4Link link, Ipv4RevertEnd end) {
+        CHECK(end == Ipv4RevertEnd::GaveUp);
+        told.push_back(link);
+    });
+
+    SECTION("the link its text names") {
+        REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(),
+                                                  R"({"link":"ethernet","store":"dhcpcd"})"));
+        helix::settings::start_ipv4_startup_revert();
+        REQUIRE(wait_until([&] { return !told.empty(); }));
+        CHECK(told == std::vector<Ipv4Link>{Ipv4Link::Ethernet});
+        const auto stub = load_pending_ipv4_revert();
+        REQUIRE(stub);
+        CHECK(stub->failed);
+        CHECK(stub->concerns(Ipv4Link::Ethernet));
+        CHECK_FALSE(stub->concerns(Ipv4Link::Wifi));
+        CHECK(stub->failure == pending_ipv4_undecodable_detail());
+    }
+    SECTION("every link, when it names none") {
+        REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(), "{not json"));
+        helix::settings::start_ipv4_startup_revert();
+        REQUIRE(wait_until([&] { return told.size() == 2; }));
+        CHECK(told == std::vector<Ipv4Link>{Ipv4Link::Wifi, Ipv4Link::Ethernet});
+        const auto stub = load_pending_ipv4_revert();
+        REQUIRE(stub);
+        CHECK(stub->concerns(Ipv4Link::Wifi));
+        CHECK(stub->concerns(Ipv4Link::Ethernet));
+    }
+    helix::settings::set_ipv4_revert_listener(nullptr);
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "the startup revert waits for the printer's print state",
+                 "[ipv4][ipv4_manager]") {
+    const auto fire = [] {
+        if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+            t->timer_cb(t);
+        }
+    };
+    const Ipv4Config was = static_config("192.168.1.40");
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(was).ok());
+    PendingIpv4Revert p;
+    p.previous = was;
+    p.owner = "another-run";
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(static_config("192.168.1.50")).ok());
+    REQUIRE(save_pending_ipv4_revert(p));
+
+    helix::settings::start_ipv4_startup_revert();
+    process_lvgl(static_cast<int>(kIpv4StartupHoldMs) - 1000);
+    fire();
+    CHECK_FALSE(wait_until([&] { return !record_exists(); }, 300));
+    CHECK(backend_config() == static_config("192.168.1.50"));
+
+    SECTION("a report of no job lets it run") {
+        printer_reports();
+    }
+    SECTION("a printer that never reports stops holding it") {
+        process_lvgl(1000);
+    }
+    CHECK(wait_until([&] {
+        fire();
+        return !record_exists();
+    }));
+    CHECK(backend_config() == was);
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is read again",
@@ -325,9 +486,15 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is rea
         std::filesystem::remove(pending_ipv4_revert_path());
         REQUIRE(save_pending_ipv4_revert(p));
         process_lvgl(static_cast<int>(kIpv4RetryEveryMs));
+        printer_reports();
         fire();
         CHECK(helix::settings::ipv4_startup_read_timer_for_test() == nullptr);
-        CHECK(wait_until([&] { return !record_exists(); }));
+        CHECK(wait_until([&] {
+            if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+                t->timer_cb(t);
+            }
+            return !record_exists();
+        }));
         CHECK(backend_config() == was);
     }
     SECTION("one that never reads stops in two minutes and is left as it is") {

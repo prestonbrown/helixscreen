@@ -499,6 +499,26 @@ TEST_CASE("Ipv4RevertRetry ends: retries fast failures, then gives up", "[ipv4]"
     }
 }
 
+TEST_CASE("Ipv4JobHold: a job stops counting once the connection has been down a while", "[ipv4]") {
+    Ipv4JobHold h;
+    h.sample(true, 0);
+    CHECK(h.holds(true, 0));
+    CHECK_FALSE(h.holds(false, 0));
+
+    h.sample(false, 1000);
+    // A later sample of the same outage does not restart its clock.
+    h.sample(false, 1000 + kIpv4StaleJobMs / 2);
+    CHECK(h.holds(true, 1000 + kIpv4StaleJobMs - 1));
+    CHECK_FALSE(h.holds(true, 1000 + kIpv4StaleJobMs));
+
+    SECTION("a reconnect trusts the print state again") {
+        h.sample(true, 1000 + kIpv4StaleJobMs);
+        CHECK(h.holds(true, 1000 + kIpv4StaleJobMs));
+        h.sample(false, 5 * kIpv4StaleJobMs);
+        CHECK(h.holds(true, 5 * kIpv4StaleJobMs));
+    }
+}
+
 TEST_CASE("nm_restore_step writes only over what the change wrote", "[ipv4]") {
     const NmIpv4Values original{"manual", "10.0.0.2/24,10.0.0.3/24", "10.0.0.1", "1.1.1.1"};
     const NmIpv4Values written = nm_values_for(Ipv4Config{});
