@@ -64,6 +64,8 @@ inline AmsSlotLayout calculate_ams_slot_layout(int32_t available_width, int slot
     return layout;
 }
 
+namespace helix::ui {
+
 /// Pixels trimmed off each side of a slot's tap area.
 struct AmsSlotHitBand {
     int32_t left_inset = 0;
@@ -88,8 +90,6 @@ inline AmsSlotHitBand ams_slot_hit_band(const AmsSlotLayout& layout, int slot_in
         band.right_inset = layout.overlap / 2;
     return band;
 }
-
-namespace helix::ui {
 
 /// The stagger row a slot's label stands in: @p rows rows, row 0 nearest the spools.
 struct AmsLabelRow {
