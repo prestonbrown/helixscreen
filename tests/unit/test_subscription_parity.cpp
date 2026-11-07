@@ -108,7 +108,7 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
 
     SECTION("Snapmaker with the batch macro") {
         Printer p;
-        p.obj("filament_detect").obj("gcode_macro Auto_Feeding_Batch");
+        p.obj("filament_detect").obj("extruder1").obj("gcode_macro Auto_Feeding_Batch");
         check_against_golden("subscription_parity", "snapmaker_batch", p.build());
     }
 
