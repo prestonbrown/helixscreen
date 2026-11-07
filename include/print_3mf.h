@@ -116,6 +116,15 @@ enum class ScanFrom {
 /// it lists; nullopt when it lists several, since which printed is unknown.
 [[nodiscard]] std::optional<int> unrecorded_reprint_plate(const FileMetadata& printer_metadata);
 
+/// The plate an active .3mf job prints, whose archive entries describe it on
+/// screen: the plate its staged copy was extracted from (@p extracted_plate,
+/// 0 for none), else the plate the start HelixScreen confirmed named
+/// (@p confirmed_plate, PrinterPrintState::confirmed_start_plate()). nullopt
+/// when neither names one: the printer picked the plate, and its metadata
+/// describes the job.
+[[nodiscard]] std::optional<int> printing_plate(int extracted_plate,
+                                                std::optional<int> confirmed_plate);
+
 /// The English toast for @p refusal (translate it with lv_tr); empty for None.
 [[nodiscard]] const char* refusal_message(Refusal refusal);
 

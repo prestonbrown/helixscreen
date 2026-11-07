@@ -146,6 +146,16 @@ std::optional<int> unrecorded_reprint_plate(const FileMetadata& printer_metadata
     return std::nullopt;
 }
 
+std::optional<int> printing_plate(int extracted_plate, std::optional<int> confirmed_plate) {
+    if (extracted_plate > 0) {
+        return extracted_plate;
+    }
+    if (confirmed_plate && *confirmed_plate > 0) {
+        return confirmed_plate;
+    }
+    return std::nullopt;
+}
+
 const char* refusal_message(Refusal refusal) {
     switch (refusal) {
     case Refusal::None:
