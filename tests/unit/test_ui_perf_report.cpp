@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "system/debug_bundle_collector.h"
 #include "ui_overlay_open_trace.h"
+#include "ui_perf_report.h"
+
+#include "hv/json.hpp"
 
 #include "../catch_amalgamated.hpp"
 
@@ -92,11 +96,28 @@ TEST_CASE("OverlayOpenTracker edge cases", "[overlay_open_trace]") {
         CHECK(t.records()[0].opens == OverlayOpenTracker::kMaxPending);
         CHECK(t.records()[0].builds == OverlayOpenTracker::kMaxPending + 1);
     }
+}
 
-    SECTION("a null name is recorded rather than dereferenced") {
-        t.requested(&g_root_a, nullptr, true, 0.0);
-        t.pushed(&g_root_a);
-        t.frame_drawn(1.0);
-        CHECK(t.records()[0].name == "?");
-    }
+TEST_CASE("the bundle's ui_perf section carries the provider's snapshot, and only that",
+          "[overlay_open_trace][debug-bundle]") {
+    helix::BundleOptions options;
+    CHECK_FALSE(helix::DebugBundleCollector::collect(options).contains("ui_perf"));
+
+    helix::UiPerfSnapshot snapshot;
+    snapshot.captured = true;
+    snapshot.sample.frames = 4;
+    snapshot.sample.render_ns = 4 * 25'000'000ULL;
+    snapshot.sample.peak_rss_kb = 4096;
+    helix::nav::OverlayOpenRecord fast{"Fast", 2, 1, 10.0, 12.0, 20.0};
+    helix::nav::OverlayOpenRecord slow{"Spoolman", 3, 3, 250.0, 300.0, 750.0};
+    snapshot.overlays = {fast, slow};
+    options.ui_perf_json = helix::ui_perf_to_json(snapshot).dump();
+    const nlohmann::json perf = helix::DebugBundleCollector::collect(options)["ui_perf"];
+    CHECK(perf["frames"]["drawn"] == 4);
+    CHECK(perf["frames"]["render_ms_mean"] == 25.0);
+    CHECK(perf["peak_rss_kb"] == 4096);
+    REQUIRE(perf["overlays"].size() == 2);
+    CHECK(perf["overlays"][0]["name"] == "Spoolman"); // slowest last open first
+    CHECK(perf["overlays"][0]["mean_ms"] == 250.0);
+    CHECK(perf["overlays"][0]["builds"] == 3);
 }

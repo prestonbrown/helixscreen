@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_perf_report.h"
-
 #include "board_identity.h"
 #include "json_fwd.h"
 #include "platform_table.h"

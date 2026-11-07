@@ -2183,27 +2183,3 @@ TEST_CASE("DebugBundleCollector: a printer's Moonraker API key never reaches a b
     CHECK(out["printers"]["default"]["moonraker_api_key"].get<std::string>() == "[REDACTED]");
     CHECK(out.dump().find("0123456789abcdef0123456789abcdef") == std::string::npos);
 }
-
-TEST_CASE("DebugBundleCollector: ui_perf carries the captured snapshot, and only that",
-          "[debug-bundle]") {
-    helix::BundleOptions options;
-    CHECK_FALSE(helix::DebugBundleCollector::collect(options).contains("ui_perf"));
-
-    helix::UiPerfSnapshot snapshot;
-    snapshot.captured = true;
-    snapshot.sample.frames = 4;
-    snapshot.sample.render_ns = 4 * 25'000'000ULL;
-    snapshot.sample.peak_rss_kb = 4096;
-    helix::nav::OverlayOpenRecord fast{"Fast", 2, 1, 10.0, 12.0, 20.0};
-    helix::nav::OverlayOpenRecord slow{"Spoolman", 3, 3, 250.0, 300.0, 750.0};
-    snapshot.overlays = {fast, slow};
-    options.ui_perf_json = helix::ui_perf_to_json(snapshot).dump();
-    const json perf = helix::DebugBundleCollector::collect(options)["ui_perf"];
-    CHECK(perf["frames"]["drawn"] == 4);
-    CHECK(perf["frames"]["render_ms_mean"] == 25.0);
-    CHECK(perf["peak_rss_kb"] == 4096);
-    REQUIRE(perf["overlays"].size() == 2);
-    CHECK(perf["overlays"][0]["name"] == "Spoolman"); // slowest last open first
-    CHECK(perf["overlays"][0]["mean_ms"] == 250.0);
-    CHECK(perf["overlays"][0]["builds"] == 3);
-}
