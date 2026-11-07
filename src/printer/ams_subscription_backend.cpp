@@ -365,20 +365,7 @@ void AmsSubscriptionBackend::adopt_unread_lane_records(
                  writes.clears.size());
     helix::ams::ingest_legacy_records(*store, helix::ams::LegacyLockKeys::LaneData,
                                       backend_index());
-    const std::string tag = backend_log_tag();
-    for (const int slot : writes.clears) {
-        // A slot saved again after its clear replaces the record instead.
-        if (writes.saves.count(slot) == 0) {
-            store->clear_async(slot, [tag, slot](bool ok, std::string err) {
-                if (!ok) {
-                    spdlog::warn("{} held clear failed for slot {}: {}", tag, slot, err);
-                }
-            });
-        }
-    }
-    for (const auto& [slot, held] : writes.saves) {
-        helix::ams::save_override_async(store, slot, held, tag, "Held edit");
-    }
+    helix::ams::send_held_writes(store, writes, backend_log_tag());
     for (int slot = 0; slot < bound; ++slot) {
         repaint_slot_from_lane(slot);
     }

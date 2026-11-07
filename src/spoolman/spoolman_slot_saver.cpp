@@ -76,7 +76,8 @@ NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& original, const 
         f.name = f.material;
     }
 
-    f.extruder_temp = spoolman::temperature_for_range(slot.nozzle_temp_min, slot.nozzle_temp_max);
+    f.extruder_temp = spoolman::temperature_for_range(slot.nozzle_temp_min, slot.nozzle_temp_max,
+                                                      slot.nozzle_temp_recommended);
     f.bed_temp = std::max(slot.bed_temp, 0);
     return f;
 }
