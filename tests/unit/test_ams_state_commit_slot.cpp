@@ -801,3 +801,78 @@ TEST_CASE("unlinking the loaded lane clears only its own spool, not one made act
 
     CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 55);
 }
+
+namespace {
+
+/// A backend that refuses every edit, the way firmware refuses a write.
+class RefusingMock : public AmsBackendMock {
+  public:
+    using AmsBackendMock::AmsBackendMock;
+    AmsError apply_user_edit(int, const SlotInfo&) override {
+        return AmsError(AmsResult::NOT_CONNECTED, "refused", "Refused");
+    }
+};
+
+} // namespace
+
+TEST_CASE("a commit the backend refuses leaves no pending edit and the lane as it was",
+          "[ams][commit][lane][pending]") {
+    CommitFixture f;
+    auto owned = std::make_unique<RefusingMock>(4);
+    RefusingMock* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+
+    const SlotInfo original = backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+    REQUIRE_FALSE(AmsState::instance().commit_slot_edit(0, original, edited).success());
+
+    CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).pending.has_value());
+    CHECK(backend->get_slot_info(0).color_rgb == original.color_rgb);
+    // The refusal is kept for the editor, once.
+    const auto result = AmsState::instance().take_slot_edit_result(0);
+    REQUIRE(result.has_value());
+    CHECK_FALSE(result->success());
+    CHECK_FALSE(AmsState::instance().take_slot_edit_result(0).has_value());
+}
+
+TEST_CASE("tearing down the backends empties the lane store", "[ams][commit][lane]") {
+    CommitFixture f;
+    f.setup(0);
+    const SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.color_rgb = 0xBCBCBC;
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, edited).success());
+    REQUIRE_FALSE(helix::ams::known_lanes().empty());
+
+    // The next printer's first backend takes this one's index, so a lane that
+    // outlived its backend would be read as a statement about other hardware.
+    AmsState::instance().clear_backends();
+    CHECK(helix::ams::known_lanes().empty());
+}
+
+TEST_CASE("a relink drops the previous spool's catalog pick and Spoolman details",
+          "[ams][commit][lane][spoolman][1653]") {
+    CommitFixture f;
+    f.setup(42);
+    SlotInfo linked = f.backend->get_slot_info(0);
+    linked.catalog_id = "sunlu-pla-plus-2-0";
+    linked.product_name = "PLA+ 2.0";
+    f.backend->sync_external_identity(0, linked);
+    helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+    spoolman.spoolman_id = 42;
+    spoolman.brand = "Polymaker";
+    helix::ams::ingest(lane_of(0), spoolman);
+
+    const SlotInfo original = f.backend->get_slot_info(0);
+    REQUIRE(original.catalog_id == "sunlu-pla-plus-2-0");
+    SlotInfo relinked = original;
+    relinked.spoolman_id = 99;
+    REQUIRE(AmsState::instance().commit_slot_edit(0, original, relinked).success());
+
+    const SlotInfo after = f.backend->get_slot_info(0);
+    CHECK(after.spoolman_id == 99);
+    CHECK(after.catalog_id.empty());
+    CHECK(after.product_name.empty());
+    CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).spoolman.has_value());
+}

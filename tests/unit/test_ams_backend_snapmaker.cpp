@@ -6330,3 +6330,33 @@ TEST_CASE_METHOD(SnapmakerFixture,
     FilamentRecordHarness::drain();
     CHECK(ok); // the old print's failed load no longer holds the new one
 }
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes a declared spool back after the firmware drops its record",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    FilamentRecordHarness h("drift_restore");
+    declare_head0_asa(h);
+
+    // Filament left the toolhead: the firmware resets the head to NONE / white.
+    h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Generic "
+                       "FILAMENT_TYPE=ASA FILAMENT_SUBTYPE=Basic");
+    CHECK(writes[1] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 FILAMENT_COLOR_RGBA=FF9800FF");
+    CHECK(h.backend.get_slot_info(0).material == "ASA");
+
+    SECTION("the same silence again sends nothing more") {
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(h.config_writes().empty());
+    }
+    SECTION("a later drop, after the record came back, is written back again") {
+        h.frame(make_head_record(0, "ASA", "FF9800FF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(h.config_writes().size() == 2);
+    }
+}

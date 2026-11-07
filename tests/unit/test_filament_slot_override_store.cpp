@@ -11,8 +11,12 @@
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "moonraker_spoolman_api.h"
+#include "spoolman_types.h"
 
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -624,4 +628,371 @@ TEST_CASE("SlotFingerprintTracker forget releases only one write's claims",
     // W's only claim left with the forget, so W now reads as external.
     CHECK(tracker.observe(0, "W") == FingerprintEvent::Changed);
     CHECK_FALSE(tracker.has_expected(0));
+}
+
+// ============================================================================
+// Callbacks outlive the store
+// ============================================================================
+
+TEST_CASE("a save or clear answered after its store is gone still reports, without the store",
+          "[filament_slot_override][lifetime]") {
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+    bool fired = false;
+    bool ok = false;
+    int written = 0;
+    int failed_slot = -1;
+    const auto make_store = [&]() {
+        auto store = std::make_unique<FilamentSlotOverrideStore>(&api, "tc", LaneKeyStyle::Tool);
+        store->set_on_written([&written]() { ++written; });
+        store->set_on_write_failed([&failed_slot](int slot) { failed_slot = slot; });
+        return store;
+    };
+    const auto report = [&](bool success, const std::string&) {
+        fired = true;
+        ok = success;
+    };
+
+    SECTION("a save that lands") {
+        mock_printer.client.defer_next("server.database.post_item");
+        make_store()->save_async(0, polymaker_pla(), report);
+        mock_printer.client.fire_deferred("server.database.post_item");
+        CHECK(ok);
+        CHECK(written == 1);
+    }
+    SECTION("a save the database refuses") {
+        mock_printer.client.defer_next("server.database.post_item");
+        make_store()->save_async(1, polymaker_pla(), report);
+        mock_printer.client.fire_deferred_error("server.database.post_item",
+                                                MoonrakerError::unknown("internal"));
+        CHECK_FALSE(ok);
+        CHECK(failed_slot == 1);
+    }
+    SECTION("a clear") {
+        mock_printer.client.defer_next("server.database.delete_item");
+        make_store()->clear_async(0, report);
+        mock_printer.client.fire_deferred("server.database.delete_item");
+        CHECK(ok);
+        CHECK(written == 1);
+    }
+    CHECK(fired);
+}
+
+TEST_CASE("clearing a record that is not there succeeds; a missing method does not",
+          "[filament_slot_override]") {
+    MockPrinter mock_printer;
+    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+    std::optional<bool> ok;
+    const auto clear = [&]() {
+        ok.reset();
+        store.clear_async(3, [&](bool success, const std::string&) { ok = success; });
+        REQUIRE(ok.has_value());
+        return *ok;
+    };
+
+    CHECK(clear()); // nothing stored under the key
+
+    MoonrakerError missing_key;
+    missing_key.code = -32601;
+    missing_key.message = "Key 'lane4' in namespace 'lane_data' not found";
+    mock_printer.client.fail_next("server.database.delete_item", missing_key);
+    CHECK(clear());
+
+    MoonrakerError http_404;
+    http_404.code = 404;
+    http_404.message = "Key 'lane4' not found";
+    mock_printer.client.fail_next("server.database.delete_item", http_404);
+    CHECK(clear());
+
+    MoonrakerError no_method;
+    no_method.code = -32601;
+    no_method.message = "Method not found";
+    mock_printer.client.fail_next("server.database.delete_item", no_method);
+    CHECK_FALSE(clear());
+}
+
+// ============================================================================
+// The seated slot (AD5X boot)
+// ============================================================================
+
+TEST_CASE("the seated slot saves, loads and clears beside the lane records",
+          "[filament_slot_override][seated]") {
+    MockPrinter mock_printer;
+    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+    CHECK_FALSE(store.load_seated_slot_blocking().has_value());
+
+    bool ok = false;
+    store.save_seated_slot_async(2, [&](bool success, std::string) { ok = success; });
+    REQUIRE(ok);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "seated") == 2);
+    store.save_async(0, polymaker_pla(), nullptr);
+    CHECK(store.load_seated_slot_blocking() == 2);
+    // The sibling key is not a lane.
+    const auto records = read_back(store);
+    CHECK(records.size() == 1);
+    CHECK(records.count(0) == 1);
+
+    ok = false;
+    store.clear_seated_slot_async([&](bool success, std::string) { ok = success; });
+    CHECK(ok);
+    CHECK_FALSE(store.load_seated_slot_blocking().has_value());
+}
+
+TEST_CASE("a store with no API reports failure for the seated slot and never blocks",
+          "[filament_slot_override][seated]") {
+    FilamentSlotOverrideStore store(nullptr, "ifs");
+    CHECK_FALSE(store.load_seated_slot_blocking().has_value());
+    std::optional<bool> saved;
+    store.save_seated_slot_async(1, [&](bool ok, std::string) { saved = ok; });
+    CHECK(saved == false);
+    std::optional<bool> cleared;
+    store.clear_seated_slot_async([&](bool ok, std::string) { cleared = ok; });
+    CHECK(cleared == false);
+}
+
+// ============================================================================
+// Orca's filament_id
+// ============================================================================
+
+namespace {
+
+/// A Spoolman spool whose filament carries @p orca_extra as its
+/// orca_filament_id extra, the way Spoolman serves it.
+json spool_with_orca_extra(const json& orca_extra) {
+    return {{"id", 42},
+            {"filament",
+             {{"id", 55},
+              {"material", "ABS"},
+              {"vendor", {{"id", 3}, {"name", "Bambu Lab"}}},
+              {"extra", {{"orca_filament_id", orca_extra}}}}}};
+}
+
+/// The record a lane linked to @p spool_json persists, with @p catalog_id as
+/// the user's catalog pick.
+FilamentSlotOverride linked_record(const json& spool_json, const std::string& catalog_id) {
+    helix::SlotInfo slot;
+    apply_spool_to_slot(slot, helix::spoolman_detail::parse_spool_info(spool_json));
+    slot.catalog_id = catalog_id;
+    return helix::ams::user_override_from_slot_info(slot, nullptr);
+}
+
+} // namespace
+
+TEST_CASE("a linked spool's Orca id is the lane's filament_id and reads back",
+          "[filament_slot_override][orca][spoolman]") {
+    const FilamentSlotOverride ovr =
+        linked_record(spool_with_orca_extra("\"OGFL99\""), "bambu-lab-bambu-abs");
+    REQUIRE(ovr.spoolman_orca_filament_id == "OGFL99");
+    const json wire = helix::ams::to_lane_data_record(0, ovr);
+    // The spool's own id outranks the catalog product's ("OFhuaUQB").
+    CHECK(wire["filament_id"] == "OGFL99");
+    CHECK(wire["helix_filament_id_source"] == "spoolman");
+
+    const auto parsed = helix::ams::from_lane_data_record(wire);
+    REQUIRE(parsed.has_value());
+    CHECK(parsed->second.spoolman_orca_filament_id == "OGFL99");
+    CHECK(helix::ams::record_observation(parsed->second).spoolman_orca_filament_id == "OGFL99");
+
+    SECTION("without the source marker it is another tool's id, not ours") {
+        json foreign = wire;
+        foreign.erase("helix_filament_id_source");
+        const auto read = helix::ams::from_lane_data_record(foreign);
+        REQUIRE(read.has_value());
+        CHECK(read->second.spoolman_orca_filament_id.empty());
+    }
+}
+
+TEST_CASE("with no live link or no usable Orca id, the catalog's filament_id stands",
+          "[filament_slot_override][orca][spoolman]") {
+    SECTION("an unlinked record") {
+        FilamentSlotOverride ovr =
+            linked_record(spool_with_orca_extra("\"OGFL99\""), "bambu-lab-bambu-abs");
+        ovr.spoolman_id = 0;
+        const json wire = helix::ams::to_lane_data_record(0, ovr);
+        CHECK(wire["filament_id"] == "OFhuaUQB");
+        CHECK_FALSE(wire.contains("helix_filament_id_source"));
+    }
+    SECTION("an unusable Orca id") {
+        const json extra = GENERATE(json("123"), json(123), json("\"\""), json("\"GFL99\""),
+                                    json("\"55\""), json("\"P bad\""), json("P123abcd"));
+        const FilamentSlotOverride ovr =
+            linked_record(spool_with_orca_extra(extra), "bambu-lab-bambu-abs");
+        CHECK(ovr.spoolman_orca_filament_id.empty());
+        CHECK(helix::ams::to_lane_data_record(0, ovr)["filament_id"] == "OFhuaUQB");
+    }
+    SECTION("no catalog pick and no link: no filament_id") {
+        FilamentSlotOverride ovr;
+        ovr.material = "ABS";
+        CHECK(helix::ams::to_lane_data_record(0, ovr)["filament_id"].is_null());
+    }
+}
+
+// ============================================================================
+// The record a user edit builds
+// ============================================================================
+
+TEST_CASE("a user edit's record keeps a chosen colour and refuses the no-colour sentinel",
+          "[filament_slot_override]") {
+    helix::SlotInfo info;
+    SECTION("pure black is a colour a user can choose") {
+        info.color_rgb = 0x000000;
+        const auto ovr = helix::ams::user_override_from_slot_info(info, nullptr);
+        CHECK(ovr.color_set);
+        CHECK(ovr.color_rgb == 0x000000u);
+    }
+    SECTION("the default-slot grey is no colour, but its name is the user's text") {
+        info.color_rgb = 0x808080;
+        info.color_name = "Warm Grey";
+        const auto ovr = helix::ams::user_override_from_slot_info(info, nullptr);
+        CHECK_FALSE(ovr.color_set);
+        CHECK(ovr.color_name == "Warm Grey");
+    }
+}
+
+TEST_CASE("a user edit's record carries the prior record's bookkeeping forward",
+          "[filament_slot_override]") {
+    helix::SlotInfo edited;
+    edited.brand = "Draft";
+    edited.material = "PETG";
+    FilamentSlotOverride prior;
+    prior.fingerprint = "PLA|Polymaker|PolyLite Orange|FF5500";
+    CHECK(helix::ams::user_override_from_slot_info(edited, &prior).fingerprint ==
+          prior.fingerprint);
+    CHECK(helix::ams::user_override_from_slot_info(edited, nullptr).fingerprint.empty());
+}
+
+TEST_CASE("a user edit's record takes the nozzle midpoint and clears temps the slot lacks",
+          "[filament_slot_override]") {
+    FilamentSlotOverride o;
+    helix::SlotInfo info;
+    SECTION("a range gives its midpoint") {
+        info.bed_temp = 60;
+        info.nozzle_temp_min = 200;
+        info.nozzle_temp_max = 220;
+        helix::ams::populate_temps_from_slot_info(o, info);
+        CHECK(o.bed_temp == 60);
+        CHECK(o.nozzle_temp == 210);
+    }
+    SECTION("a single value, or a min alone, is that value") {
+        info.nozzle_temp_min = 215;
+        info.nozzle_temp_max = GENERATE(215, 0);
+        helix::ams::populate_temps_from_slot_info(o, info);
+        CHECK(o.nozzle_temp == 215);
+    }
+    SECTION("no temps clear stale ones so the material table can answer") {
+        o.bed_temp = 99;
+        o.nozzle_temp = 99;
+        helix::ams::populate_temps_from_slot_info(o, info);
+        CHECK(o.bed_temp == 0);
+        CHECK(o.nozzle_temp == 0);
+    }
+}
+
+// ============================================================================
+// Fingerprints persist through the record
+// ============================================================================
+
+TEST_CASE("fingerprint persistence seeds from records and saves a baseline into the record",
+          "[filament_slot_override][fingerprint]") {
+    MockPrinter mock_printer;
+    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride with_fp = polymaker_pla();
+    with_fp.fingerprint = "PLA|Polymaker|PolyLite Orange|FF5500";
+    overrides[0] = with_fp;
+    FilamentSlotOverride without_fp;
+    without_fp.brand = "Bambu";
+    overrides[1] = without_fp;
+
+    helix::ams::SlotFingerprintTracker tracker;
+    helix::ams::bind_fingerprint_persistence(tracker, &store, overrides);
+    REQUIRE(tracker.baseline(0) == "PLA|Polymaker|PolyLite Orange|FF5500");
+    CHECK_FALSE(tracker.baseline(1).has_value());
+
+    CHECK(tracker.observe(1, "1,2,3,4") == helix::ams::FingerprintEvent::Baseline);
+    CHECK(overrides[1].fingerprint == "1,2,3,4");
+    const json lane2 = mock_printer.client.mock_db_get("lane_data", "lane2");
+    REQUIRE(lane2.is_object());
+    CHECK(lane2["helix_fingerprint"] == "1,2,3,4");
+    // And it reads back onto the record.
+    CHECK(read_back(store).at(1).record.fingerprint == "1,2,3,4");
+
+    // A change does not persist: the clear that follows it deletes the record.
+    CHECK(tracker.observe(0, "PETG|Bambu|Basic Green|00FF00") ==
+          helix::ams::FingerprintEvent::Changed);
+    CHECK(overrides[0].fingerprint == "PLA|Polymaker|PolyLite Orange|FF5500");
+    // A slot with no record saves nothing.
+    CHECK(tracker.observe(2, "9,9,9,9") == helix::ams::FingerprintEvent::Baseline);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "lane3").is_null());
+}
+
+// ============================================================================
+// Spoolman's word on a linked spool amends the stored record
+// ============================================================================
+
+TEST_CASE("a Spoolman fetch amends the linked lane's record and keeps its colour",
+          "[filament_slot_override][spoolman][1653]") {
+    using helix::ams::Observation;
+    using helix::ams::ObservationSource;
+    using helix::ams::persist_override_external_identity;
+
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride linked;
+    linked.spoolman_id = 42;
+    linked.brand = "Polymaker";
+    linked.material = "PLA";
+    linked.spool_name = "PolyLite PLA";
+    linked.color_rgb = 0xBCBCBC;
+    linked.color_set = true;
+    linked.remaining_weight_g = 730.0f;
+    linked.catalog_id = "sunlu-pla-plus-2-0";
+    linked.spoolman_orca_filament_id = "OGFL99";
+
+    Observation spoolman(ObservationSource::Spoolman);
+    spoolman.spoolman_id = 42;
+    spoolman.spoolman_filament_id = 55;
+    spoolman.brand = "Sunlu";
+    spoolman.material = "PETG";
+    spoolman.spool_name = "PLA Plus";
+    spoolman.spoolman_vendor_id = 9;
+    spoolman.color_rgb = 0xFF0000u;
+
+    SECTION("the server's identity lands; colour, weight and the pick stand") {
+        overrides[0] = linked;
+        CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        const FilamentSlotOverride& amended = overrides.at(0);
+        CHECK(amended.brand == "Sunlu");
+        CHECK(amended.material == "PETG");
+        CHECK(amended.spool_name == "PLA Plus");
+        CHECK(amended.spoolman_vendor_id == 9);
+        CHECK(amended.spoolman_filament_id == 55);
+        // A filament that no longer names an Orca preset takes the id away.
+        CHECK(amended.spoolman_orca_filament_id.empty());
+        CHECK(amended.color_rgb == 0xBCBCBCu);
+        CHECK(amended.remaining_weight_g == Catch::Approx(730.0f));
+        CHECK(amended.catalog_id == "sunlu-pla-plus-2-0");
+        // Unchanged a second time: nothing to write.
+        CHECK_FALSE(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+    }
+    SECTION("a record with no colour takes the spool's") {
+        linked.color_set = false;
+        overrides[0] = linked;
+        CHECK(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).color_rgb == 0xFF0000u);
+    }
+    SECTION("a record naming another spool, or no record, is left alone") {
+        linked.spoolman_id = 7;
+        overrides[0] = linked;
+        CHECK_FALSE(persist_override_external_identity(nullptr, overrides, 0, spoolman, "[test]"));
+        CHECK(overrides.at(0).material == "PLA");
+        CHECK_FALSE(persist_override_external_identity(nullptr, overrides, 1, spoolman, "[test]"));
+        CHECK(overrides.count(1) == 0);
+    }
+    SECTION("with a store, the amended record is written") {
+        MockPrinter mock_printer;
+        FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+        overrides[0] = linked;
+        CHECK(persist_override_external_identity(&store, overrides, 0, spoolman, "[test]"));
+        CHECK(mock_printer.client.mock_db_get("lane_data", "lane1")["vendor_name"] == "Sunlu");
+    }
 }

@@ -70,10 +70,8 @@ using helix::Ad5xIfsTestAccess;
 using helix::AmsBackendAd5xIfs;
 
 namespace {
-// Per-test tmp cache dir — same idiom as test_filament_slot_override_store.cpp.
-// The store's save callback writes a local JSON cache so the UI can show
-// last-known overrides when Moonraker is unreachable. Without redirection,
-// that cache lands in the developer's real helixscreen config dir.
+// Per-test tmp dir for the firmware's own Adventurer5M.json and other files
+// a case writes, so nothing lands in the developer's real config dir.
 struct Ad5xIfsTmpCacheDir {
     std::filesystem::path path;
     explicit Ad5xIfsTmpCacheDir(const std::string& suffix) {
@@ -11563,4 +11561,103 @@ TEST_CASE("AD5X IFS update_slot_weight preserves identity and does not write Adv
     // apply_overrides here, so it still shows firmware-level state — not what
     // this test is about.)
     CHECK(backend.get_slot_info(0).remaining_weight_g == 42.0f);
+}
+
+TEST_CASE("an AD5X linked lane records Spoolman's material spelling; firmware gets a valid one",
+          "[ams][ad5x_ifs][filament_slot_override][1653]") {
+    Ad5xIfsTmpCacheDir tmp("linked_material_spelling");
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
+    AmsBackendAd5xIfs& backend = *backend_reg;
+    Ad5xIfsTestAccess::inject_override_store(
+        backend, std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs"));
+
+    const std::string json_path = (tmp.path / "Adventurer5M.json").string();
+    { std::ofstream(json_path) << R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})"; }
+    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, json_path);
+
+    helix::ams::FilamentSlotOverride linked;
+    linked.spoolman_id = 42;
+    linked.brand = "Polymaker";
+    linked.material = "SILK";
+    Ad5xIfsTestAccess::seed_override(backend, 0, linked);
+
+    // Spoolman spells the linked spool's material in a way the AD5X
+    // whitelist does not.
+    SpoolInfo spool;
+    spool.id = 42;
+    spool.vendor = "Polymaker";
+    spool.filament_name = "PolyLite Silk";
+    spool.material = "Silk PLA";
+    spool.color_hex = "FF0000";
+    helix::test::spool_states(backend, 0, spool);
+    backend.repaint_slot_from_lane(0);
+
+    // A colour-only edit that keeps the spool.
+    SlotInfo edit = backend.get_slot_info(0);
+    INFO("shown material " << edit.material);
+    edit.color_rgb = 0x1E5AA8;
+    helix::test::edit_slot_as_user(backend, 0, edit);
+
+    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
+    REQUIRE(staged.has_value());
+    CHECK(staged->material == "Silk PLA");
+    std::ifstream written_file(json_path);
+    const nlohmann::json written = nlohmann::json::parse(written_file, nullptr, false);
+    REQUIRE(written.is_object());
+    CHECK(written["FFMInfo"]["ffmType1"] == "SILK");
+}
+
+TEST_CASE("AD5X IFS debounce workers end with the backend", "[ams][ad5x][ad5x_ifs][threading]") {
+    // Each debounce holds a fast-lane worker for its window. A backend torn
+    // down mid-window has nothing left for that worker to do, so the worker
+    // has to give the lane back at once rather than sleep the window out.
+    using Clock = std::chrono::steady_clock;
+    auto& fast = helix::http::HttpExecutor::fast();
+    const auto settle_deadline = Clock::now() + std::chrono::seconds(3);
+    while (fast.inflight() != 0 && Clock::now() < settle_deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    REQUIRE(fast.inflight() == 0);
+
+    // Each bound sits well under its window, so a worker that sleeps the
+    // window out fails it while a loaded shard still has room to clear one
+    // that wakes on teardown.
+    int bound_ms = 0;
+    MockPrinter mock_printer;
+    {
+        helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
+        AmsBackendAd5xIfs& backend = *backend_reg;
+        SECTION("Adventurer5M.json re-read") {
+            bound_ms = 1000; // of a 2s window
+            Ad5xIfsTestAccess::schedule_json_reread(backend);
+        }
+        SECTION("GET_ZCOLOR query") {
+            bound_ms = 400; // of a 500ms window
+            Ad5xIfsTestAccess::schedule_zcolor_query(backend);
+        }
+        SECTION("GET_ZCOLOR response collection") {
+            bound_ms = 400; // of a 500ms window
+            // The window starts in execute_gcode's success callback, which
+            // may arrive on another thread after the call returns.
+            Ad5xIfsTestAccess::query_zcolor_silent(backend);
+            const auto submitted_deadline = Clock::now() + std::chrono::seconds(2);
+            while (fast.inflight() == 0 && Clock::now() < submitted_deadline) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+        REQUIRE(fast.inflight() > 0);
+    }
+
+    const auto destroyed = Clock::now();
+    const auto deadline = destroyed + std::chrono::seconds(3);
+    while (fast.inflight() != 0 && Clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    const auto waited =
+        std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - destroyed);
+    CHECK(fast.inflight() == 0);
+    CHECK(waited.count() < bound_ms);
+    helix::ui::UpdateQueue::instance().drain();
 }

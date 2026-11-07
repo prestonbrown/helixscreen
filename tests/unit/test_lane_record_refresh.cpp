@@ -256,3 +256,61 @@ TEST_CASE_METHOD(LVGLTestFixture, "lane editing waits for the first lane-record 
     ams.sync_from_backend();
     CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "an AFC edit writes only AFC's extras, never lane_data",
+                 "[lane][refresh][extras][writer_rule][afc]") {
+    MockPrinter printer;
+    helix::test::RegisteredBackend<StartedAfc> reg(&printer.api);
+    reg->start_now();
+
+    const helix::SlotInfo original = reg->get_slot_info(0);
+    helix::SlotInfo edited = original;
+    edited.brand = "Polymaker";
+    edited.material = "PETG";
+    edited.color_rgb = 0x1E5AA8;
+    (void)reg->commit_user_edit(0, original, edited);
+    settle();
+
+    CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
+    const nlohmann::json extras = printer.client.mock_db_get("helix-screen-afc-overrides", "lane1");
+    REQUIRE(extras.is_object());
+    CHECK(extras["vendor_name"] == "Polymaker");
+    // AFC holds these itself; the extras record never states them.
+    CHECK(extras["material"].is_null());
+    CHECK(extras["color"].is_null());
+    CHECK(extras["spool_id"].is_null());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a read asked for while one is out runs once more, not twice",
+                 "[lane][refresh][toolchanger]") {
+    MockPrinter printer;
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    const int before = printer.client.call_count("server.database.get_item");
+
+    printer.client.defer_next("server.database.get_item");
+    helix::ToolChangerTestAccess::refresh_lane_records(*reg);
+    helix::ToolChangerTestAccess::refresh_lane_records(*reg);
+    helix::ToolChangerTestAccess::refresh_lane_records(*reg);
+    CHECK(printer.client.call_count("server.database.get_item") == before + 1);
+    printer.client.fire_deferred("server.database.get_item");
+    settle();
+    CHECK(printer.client.call_count("server.database.get_item") == before + 2);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the poll reads the lane records and shows another client's change",
+                 "[lane][refresh][toolchanger]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE(reg->get_slot_info(1).material == "PETG");
+
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    helix::ToolChangerTestAccess::poll_lane_records(*reg);
+    settle();
+    CHECK(reg->get_slot_info(1).material == "ABS");
+}

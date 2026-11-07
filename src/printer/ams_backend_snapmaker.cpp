@@ -2618,10 +2618,18 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         // written, and the user's override is persisted to lane_data
         // separately. See mirror_firmware_to_lane_data docs and AD5X IFS for
         // the same pattern.
-        helix::ams::mirror_firmware_to_lane_data(
-            override_store_.get(), overrides_, i, slot->color_rgb, slot->material,
-            slot->status == SlotStatus::AVAILABLE, helix::ams::MirrorPolicy::OverwriteAlways,
-            backend_log_tag());
+        //
+        // A head whose record the firmware reset (NONE / white once the
+        // filament left) states no spool: mirroring that would erase the
+        // lane's record, and with it the identity record_restores_locked()
+        // writes back.
+        const bool record_reset = task_type_[i] && is_unset_task_field(*task_type_[i]);
+        if (!record_reset) {
+            helix::ams::mirror_firmware_to_lane_data(
+                override_store_.get(), overrides_, i, slot->color_rgb, slot->material,
+                slot->status == SlotStatus::AVAILABLE, helix::ams::MirrorPolicy::OverwriteAlways,
+                backend_log_tag());
+        }
 
         // Lane presence: the port/buffer sensor OR the loaded-at-toolhead
         // latch. The port sensor is the spool-side reading; the latch

@@ -186,6 +186,10 @@ class ToolChangerTestAccess {
     static void refresh_lane_records(AmsBackendToolChanger& b) {
         b.refresh_lane_records();
     }
+    /// One tick of the lane-record poll timer.
+    static void poll_lane_records(AmsBackendToolChanger& b) {
+        b.poll_lane_records();
+    }
 
     /// The override standing for @p slot_index, or nullopt when it has none.
     static std::optional<helix::ams::FilamentSlotOverride>

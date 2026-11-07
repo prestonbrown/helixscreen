@@ -536,6 +536,10 @@ class AmsSubscriptionBackend : public AmsBackend {
     static bool debounce_wait(const std::shared_ptr<DebounceCancel>& cancel,
                               std::chrono::milliseconds window);
 
+  protected:
+    /// The poll: withdraw expired pending edits, then refresh. Main thread.
+    void poll_lane_records();
+
   private:
     /// How often the lane records are read while the backend runs.
     static constexpr std::chrono::seconds kLaneRecordPollPeriod{10};
@@ -545,9 +549,6 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// gone, repaint, and announce a change. Main thread.
     void adopt_lane_records(helix::ams::FilamentSlotOverrideStore* store,
                             std::unordered_map<int, helix::ams::LaneDataRecord> records);
-
-    /// The poll: withdraw expired pending edits, then refresh. Main thread.
-    void poll_lane_records();
 
     /// Each slot's record as last read, so an unchanged read announces nothing.
     /// Main thread.
