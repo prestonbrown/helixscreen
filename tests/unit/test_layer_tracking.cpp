@@ -1061,3 +1061,26 @@ TEST_CASE("ETA: smoother not seeded from extrapolation while print_duration==0",
     // is NOT seeded. The slicer-estimate fallback applies: 3600 * (100-10)/100.
     REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 3240);
 }
+
+TEST_CASE("Layer tracking: a cancelled print's layer line drops the park height",
+          "[layer_tracking][layer_line_z]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    state.update_from_status({{"print_stats", {{"state", "printing"}, {"print_duration", 30}}}});
+    state.print_state().set_print_layer_total(6);
+    state.print_state().set_print_layer_heights(0.2, 0.25);
+    helix::ui::UpdateQueue::instance().drain();
+    state.update_from_status({{"gcode_move", {{"gcode_position", {10.0, 10.0, 0.45, 0.0}}}}});
+    const int layer = lv_subject_get_int(state.print_state().get_print_layer_current_subject());
+    REQUIRE(layer == 2);
+    REQUIRE(state.print_state().layer_line_z_centimm(layer, 45) == 45);
+
+    // The cancel parks the head at 110.2mm; the line keeps layer 2's height.
+    state.update_from_status({{"print_stats", {{"state", "cancelled"}}},
+                              {"gcode_move", {{"gcode_position", {10.0, 10.0, 110.2, 0.0}}}}});
+    REQUIRE(state.print_state().layer_line_z_centimm(layer, 11020) == 45);
+}

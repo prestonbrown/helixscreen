@@ -2235,8 +2235,8 @@ void PrintStatusWidget::DetailedFormatter::update_layer_text() {
         helix::ui::format_layer_progress_compact(cur, tot, ps.print_state().layer_is_accurate(), 0);
     snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
     lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
-    std::string z = helix::ui::format_layer_z(
-        lv_subject_get_int(ps.motion_state().get_gcode_position_z_subject()));
+    std::string z = helix::ui::format_layer_z(ps.print_state().layer_line_z_centimm(
+        cur, lv_subject_get_int(ps.motion_state().get_gcode_position_z_subject())));
     snprintf(layer_z_text_buf_, sizeof(layer_z_text_buf_), "%s", z.c_str());
     lv_subject_copy_string(&layer_z_text_subject_, layer_z_text_buf_);
     // The count and the Z both grow as the print climbs, so the room for the Z
