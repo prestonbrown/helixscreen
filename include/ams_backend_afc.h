@@ -402,7 +402,14 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// load switch triggered, and AFC naming this exact lane as active. See
     /// can_recover_lane_position() for why each is load-bearing.
     [[nodiscard]] bool can_recover_lane_position(int slot_index) const override;
+    /// AFC_LANE_RESET leaves error_state and the lane's Error status set, so a
+    /// reset that reports success on the lane AFC names (current_lane) ends with
+    /// clear_fault() (prestonbrown/helixscreen#2049). The verdict is read off the
+    /// console: AFC reports success and failure alike as a normal script return.
     AmsError recover_lane_position(int slot_index) override;
+    /// AFC's error_state is set and this lane is the one AFC names, or carries
+    /// its own Error status. False while a lane reset is in flight.
+    [[nodiscard]] bool has_clearable_fault(int slot_index) const override;
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
     /// the unit, so an unattributed trigger cannot say whose filament caused it
@@ -1391,6 +1398,19 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// Sends one queued AFC_CLEAR_MESSAGE if the drain is armed and a message is
     /// still present. Must be called WITHOUT mutex_ held.
     void maybe_drain_message_queue();
+
+    /// Lane whose AFC_LANE_RESET is in flight; empty when none. Guarded by mutex_.
+    std::string lane_reset_in_flight_;
+
+    /// Settles an AFC_LANE_RESET of @p lane: clears the fault when the console
+    /// reported success and AFC still names @p lane in its error state. Main
+    /// thread, mutex_ not held.
+    void finish_lane_reset(const std::string& lane, bool reported_success);
+
+    /// AFC's success line for AFC_LANE_RESET: "<lane> reset to hub, ...". The
+    /// failure lines quote the lane ("'<lane>' failed to reset to hub").
+    [[nodiscard]] static bool is_lane_reset_success_line(const std::string& line,
+                                                         const std::string& lane);
 
     // Global state
     bool error_state_{false};       ///< AFC error state

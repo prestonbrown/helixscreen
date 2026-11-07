@@ -772,6 +772,7 @@
   <translation tag="Clear All" ru="Очистить всё"/>
   <translation tag="Clear All Events" ru="Очистить все события"/>
   <translation tag="Clear Console?" ru="Очистить консоль?"/>
+  <translation tag="Clear Error" ru="Сбросить ошибку"/>
   <translation tag="Clear Spool" ru="Убрать катушку"/>
   <translation tag="Clear every Endless Spool backup" ru="Очистить все резервы бесконечной катушки"/>
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>

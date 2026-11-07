@@ -7,6 +7,7 @@
 #include "ui_print_start_controller.h"
 #include "ui_test_utils.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "ams_backend_afc.h"
@@ -72,6 +73,9 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     AmsBackendAfcTestHelper() : AmsBackendAfc(nullptr, nullptr) {}
+    // With a client, for paths that watch the console while a macro runs.
+    explicit AmsBackendAfcTestHelper(helix::IMoonrakerClient* client)
+        : AmsBackendAfc(nullptr, client) {}
 
     // Version is display/diagnostics only — nothing gates on it (AFC stopped
     // writing the afc-install namespace in its #451). Kept so tests can assert
@@ -349,12 +353,17 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 
     // SET_COLOR/SET_MATERIAL dispatch through the error-callback form so a
     // refused macro can cancel its echo guard. Capture it like the others.
-    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
-                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/ = true) override {
         captured_gcodes.push_back(gcode);
+        pending_gcode_complete = std::move(on_complete);
+        pending_gcode_error = std::move(on_error);
         return AmsErrorHelper::success();
     }
+
+    helix::SharedCallback<void()> pending_gcode_complete;
+    helix::SharedCallback<void(const MoonrakerError&)> pending_gcode_error;
 
     // Override execute_gcode_notify to capture commands (avoids real API call)
     AmsError execute_gcode_notify(const std::string& gcode, const std::string& /*success_msg*/,
@@ -2982,6 +2991,136 @@ TEST_CASE("AFC clear_fault is scope-independent of the slot argument", "[ams][af
 
     REQUIRE(helper.clear_fault(-1).success());
     REQUIRE(helper.has_gcode("AFC_CLEAR_MESSAGE"));
+}
+
+// AFC_LANE_RESET clears neither error_state nor the lane's Error status, so a
+// successful reset of the faulted lane leaves the error on screen until
+// RESET_FAILURE (prestonbrown/helixscreen#2049). The verdict arrives only on the
+// console: success and failure both return the script normally.
+namespace {
+
+struct StaleFaultRig {
+    helix::test::FakeMoonrakerClient client;
+    AmsBackendAfcTestHelper helper{&client};
+
+    StaleFaultRig() {
+        helper.initialize_test_lanes_with_slots(4);
+        helper.set_running(true);
+        // As captured from the Voron after the reset: still Error, lane3 named.
+        helper.feed_afc_state(
+            {{"current_state", "Error"}, {"error_state", true}, {"current_lane", "lane3"}});
+        helper.clear_captured_gcodes();
+    }
+
+    void console(const std::string& line) {
+        client.fire_notification(
+            "notify_gcode_response",
+            {{"method", "notify_gcode_response"}, {"params", nlohmann::json::array({line})}});
+    }
+
+    bool console_watched() const {
+        auto it = client.method_callbacks.find("notify_gcode_response");
+        return it != client.method_callbacks.end() && !it->second.empty();
+    }
+};
+
+} // namespace
+
+TEST_CASE("AFC clears the fault after a successful reset of the faulted lane",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    REQUIRE(rig.helper.has_gcode("AFC_LANE_RESET LANE=lane3"));
+    REQUIRE(rig.console_watched());
+
+    rig.console("lane3 reset to hub, take necessary action");
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE(rig.helper.pending_gcode_complete);
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE(rig.helper.has_gcode("AFC_CLEAR_MESSAGE"));
+    REQUIRE_FALSE(rig.console_watched());
+}
+
+TEST_CASE("AFC keeps the fault after a failed lane reset", "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+
+    SECTION("failure line") {
+        rig.console("'lane3' failed to reset to hub");
+    }
+    SECTION("wrong-lane failure line") {
+        rig.console("'lane3' failed to reset to hub, load switch became false during reset");
+    }
+    SECTION("no verdict at all") {}
+    SECTION("another lane's success") {
+        rig.console("lane1 reset to hub, take necessary action");
+    }
+
+    rig.helper.pending_gcode_complete();
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE_FALSE(rig.console_watched());
+}
+
+TEST_CASE("AFC leaves a fault on another lane after a lane reset succeeds",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    rig.helper.feed_afc_state({{"current_lane", "lane1"}});
+
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    rig.console("lane3 reset to hub, take necessary action");
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+}
+
+TEST_CASE("AFC sends no clear when the fault cleared during the reset",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    rig.console("lane3 reset to hub, take necessary action");
+    rig.helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+}
+
+TEST_CASE("AFC offers a fault clear on the faulted lane only while nothing is in flight",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    auto& h = rig.helper;
+
+    REQUIRE(h.has_clearable_fault(2));
+    REQUIRE_FALSE(h.has_clearable_fault(0));
+    REQUIRE_FALSE(h.has_clearable_fault(99));
+
+    SECTION("a lane AFC marks Error is clearable too") {
+        h.feed_afc_stepper("lane2", {{"status", "Error"}});
+        REQUIRE(h.has_clearable_fault(1));
+    }
+
+    SECTION("not while the lane reset is in flight") {
+        REQUIRE(h.recover_lane_position(2).success());
+        REQUIRE_FALSE(h.has_clearable_fault(2));
+
+        SECTION("back once it completes") {
+            h.pending_gcode_complete();
+        }
+        SECTION("back once it errors") {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::TIMEOUT;
+            h.pending_gcode_error(err);
+            REQUIRE_FALSE(rig.console_watched());
+        }
+        REQUIRE(h.has_clearable_fault(2));
+    }
+
+    SECTION("not once AFC leaves its error state") {
+        h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+        REQUIRE_FALSE(h.has_clearable_fault(2));
+    }
 }
 
 TEST_CASE("AFC drains the message queue until it empties", "[ams][afc][recovery]") {
