@@ -3867,6 +3867,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
   <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
+  <translation tag="The printer picks this .3mf&apos;s plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it." en="The printer picks this .3mf&apos;s plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" en="The printer records lane {} in the toolhead, not this one"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." en="The printer refused that port: check the port (Moonraker is usually 7125)."/>
@@ -3875,6 +3876,7 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." en="The printer reports no lane record, so only clearing the extruder can unload it."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." en="The printer swaps between several toolheads. Manage the tools on the filament system screen."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" en="The printer&apos;s firmware chooses where to switch on runout"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." en="The queue prints this .3mf&apos;s default plate. Print this plate from here instead."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>
   <translation tag="The right RFID reader in this CFS unit may need service" en="The right RFID reader in this CFS unit may need service"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" en="The runout sensor indicates no filament is loaded. Start print anyway?"/>

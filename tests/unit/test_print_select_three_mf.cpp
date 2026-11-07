@@ -470,3 +470,55 @@ TEST_CASE_METHOD(ArchivePanel, "a refresh stops the archive reads under way and 
     REQUIRE(row);
     CHECK(row->archive);
 }
+
+TEST_CASE_METHOD(ArchivePanel,
+                 "a .3mf whose printer lists its plates steps them and Print names the shown one",
+                 "[print_select][three_mf][native_3mf]") {
+    ScopedEnv plates("HELIX_MOCK_3MF_PLATES", "1");
+    PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
+    const PrintFileData& row = load(file.name());
+    CHECK(row.archive_native);
+    CHECK_FALSE(row.archive_extract);
+    // The plate the printer's metadata describes (its first sliced one) shows first.
+    CHECK(row.archive_native_plate == 2);
+
+    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 2);
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+
+    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    REQUIRE(prep);
+    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    CHECK(prep->archive_plate_for(file.name()) == 2);
+    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::NativePlate);
+    // The default plate is what a queued start, which names none, prints.
+    CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
+          std::optional<std::string>(file.name()));
+
+    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
+          std::vector<std::string>{"#000000", "#FF0000"});
+    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    CHECK(prep->archive_plate_for(file.name()) == 5);
+    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::NativePlate);
+    CHECK_FALSE(PrintSelectPanelTestAccess::queueable_path(*panel_));
+}
+
+TEST_CASE_METHOD(ArchivePanel, "a .3mf whose printer metadata lists no plates keeps today's route",
+                 "[print_select][three_mf][native_3mf]") {
+    ScopedEnv native("HELIX_MOCK_3MF_METADATA", "1");
+    PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
+    const PrintFileData& row = load(file.name());
+    CHECK_FALSE(row.archive_native);
+    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 0);
+    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    REQUIRE(prep);
+    CHECK(prep->archive_plate_for(file.name()) == 0);
+    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::AsFile);
+}

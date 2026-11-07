@@ -4296,6 +4296,8 @@ translations:
     compatible cargado:'
   This .3mf has no sliced plate to print.: 'Este .3mf no tiene ninguna placa laminada para imprimir.'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Este .3mf debe convertirse a G-code antes de poder ponerse en cola. Imprímelo desde aquí.'
+  The queue prints this .3mf's default plate. Print this plate from here instead.: 'La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí.'
+  The printer picks this .3mf's plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it.: 'La impresora elige la placa de este .3mf por sí misma, así que los pasos previos que desactivaste no se pueden aplicar. Vuelve a activarlos para imprimirlo.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Este .3mf debe convertirse a G-code en la impresora antes de poder imprimirse.'
   This AFC system does not support bypass mode: 'Este sistema AFC no es compatible con el modo bypass'
   This CFS firmware exposes no external spool slot: 'Este firmware del CFS no ofrece una ranura para bobina externa'

@@ -164,8 +164,8 @@ void PrintSelectPanel::step_archive_plate(int step) {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
-    if (it == file_list_.end() || !it->archive || !it->archive_extract ||
-        it->archive->plates.size() < 2) {
+    if (it == file_list_.end() || !it->archive ||
+        !print_3mf::user_picks_plate(it->printer_reads()) || it->archive->plates.size() < 2) {
         return;
     }
     const auto& plates = it->archive->plates;
@@ -215,7 +215,7 @@ void PrintSelectPanel::update_plate_stepper() {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
-    if (it != file_list_.end() && it->archive && it->archive_extract) {
+    if (it != file_list_.end() && it->archive && print_3mf::user_picks_plate(it->printer_reads())) {
         const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
         count = static_cast<int>(it->archive->plates.size());
         // The plate's name in the project, else the slicer's own plate number,
@@ -235,6 +235,26 @@ void PrintSelectPanel::update_plate_stepper() {
     sync_archive_scan_source();
 }
 
+print_3mf::RouteInputs PrintSelectPanel::archive_route_inputs(const PrintFileData& file,
+                                                              print_3mf::Purpose purpose) const {
+    print_3mf::RouteInputs in;
+    in.reads = file.printer_reads();
+    in.purpose = purpose;
+    in.default_plate = file.archive_native_plate;
+    in.keeps_local_copies = ui::PrintPreparationManager::keeps_local_copies(api_);
+    const auto* plate =
+        file.archive ? three_mf::find_plate(*file.archive, file.archive_plate) : nullptr;
+    if (plate) {
+        in.shown_plate = plate->index;
+        // Only a printer that reads nothing of the archive has a converter.
+        if (const auto out = file.archive_outputs.find(plate->index);
+            in.reads == print_3mf::PrinterReads::Nothing && out != file.archive_outputs.end()) {
+            in.converted_output = out->second;
+        }
+    }
+    return in;
+}
+
 void PrintSelectPanel::sync_archive_scan_source() {
     auto* prep = print_preparation_manager();
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
@@ -243,23 +263,17 @@ void PrintSelectPanel::sync_archive_scan_source() {
     if (!prep || it == file_list_.end() || !helix::gcode::is_3mf(it->filename)) {
         return;
     }
-    // A .3mf the printer extracts nothing for prints the shown plate as
-    // G-code: that is what the pre-print scan reads.
+    // The scan reads what the Print route prints, so the toggles act on it.
     std::optional<ui::PrintPreparationManager::ArchiveScanSource> source;
-    const auto* plate = it->archive && it->archive_extract
-                            ? three_mf::find_plate(*it->archive, it->archive_plate)
-                            : nullptr;
-    if (plate && plate->gcode) {
-        const auto out = it->archive_outputs.find(plate->index);
-        const bool converted = out != it->archive_outputs.end();
-        // A plate that has to be extracted here cannot print over a transport
-        // with no local copies, so nothing that prints is there to scan.
-        if (converted || ui::PrintPreparationManager::keeps_local_copies(api_)) {
-            source.emplace();
-            source->plate_gcode = *plate->gcode;
-            if (converted) {
-                source->converted_output = out->second;
-            }
+    const print_3mf::RouteInputs inputs = archive_route_inputs(*it, print_3mf::Purpose::Print);
+    const print_3mf::ScanFrom from = print_3mf::scan_from(inputs);
+    const auto* plate =
+        it->archive ? three_mf::find_plate(*it->archive, it->archive_plate) : nullptr;
+    if (from != print_3mf::ScanFrom::Nothing && plate && plate->gcode) {
+        source.emplace();
+        source->plate_gcode = *plate->gcode;
+        if (from == print_3mf::ScanFrom::ConvertedOutput) {
+            source->converted_output = inputs.converted_output;
         }
     }
     prep->set_archive_scan_source(it->filename, current_path_,

@@ -4064,6 +4064,8 @@ translations:
   'These tools have no matching filament loaded:': 以下工具未加载匹配的耗材：
   This .3mf has no sliced plate to print.: '此 .3mf 中没有可打印的已切片板。'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: '此 .3mf 需要先转换为 G-code 才能加入队列。请直接从这里打印。'
+  The queue prints this .3mf's default plate. Print this plate from here instead.: '队列会打印此 .3mf 的默认板。请直接从这里打印此板。'
+  The printer picks this .3mf's plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it.: '此 .3mf 的板由打印机自行选择，因此无法应用你关闭的打印前步骤。请重新打开它们后再打印。'
   This .3mf has to be converted to G-code on the printer before it can print.: '此 .3mf 需要先在打印机上转换为 G-code 才能打印。'
   This AFC system does not support bypass mode: '此 AFC 系统不支持旁通模式'
   This CFS firmware exposes no external spool slot: '此 CFS 固件没有外部料盘槽位'

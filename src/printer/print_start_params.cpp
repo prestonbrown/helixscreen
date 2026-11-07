@@ -32,6 +32,13 @@ PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers) {
     return {{"tools", tools}};
 }
 
+PrintStartParams plate_params(int plate) {
+    if (plate < 1) {
+        return {};
+    }
+    return {{"plateindex", std::to_string(plate)}};
+}
+
 int mapped_backend(const std::vector<ToolMapping>& mappings) {
     for (const auto& m : mappings) {
         if (!m.is_auto && m.mapped_slot >= 0 && m.tool_index >= 0) {

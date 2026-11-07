@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -376,6 +377,11 @@ struct FileMetadata {
     uint64_t gcode_end_byte = 0;
     std::string uuid;                      // Slicer-generated UUID (for history matching)
     std::vector<ThumbnailInfo> thumbnails; // Thumbnails with dimensions
+    /// A .3mf's sliced plates (`sliced_plates`), as a Moonraker that starts a plate
+    /// it is given reports them; nullopt when the metadata has no such list.
+    std::optional<std::vector<int>> sliced_plates;
+    /// The plate the rest of this metadata describes (`plate_index`); 0 when absent.
+    int plate_index = 0;
 };
 
 // ============================================================================
