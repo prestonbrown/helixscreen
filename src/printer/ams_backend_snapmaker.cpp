@@ -227,6 +227,11 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
     for (int i = 0; i < 4; ++i) {
         objects[fmt::format("filament_motion_sensor e{}_filament", i)] = nullptr;
     }
+    // Each head's toolchanger state, merged by discovery onto the extruder's heater fields.
+    for (const auto& name : hw.heaters()) {
+        if (is_extruder_name(name))
+            objects[name] = {"state", "park_pin", "active_pin", "activating_move"};
+    }
     // The batch macro's `doing` variable drives batch-feed progress, so it needs a
     // subscription to be readable while a feed runs. Klipper keeps the config's case
     // for the status object key, so subscribe under the name as written in

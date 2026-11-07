@@ -22,7 +22,11 @@
     "power",
     "pressure_advance",
     "nozzle_diameter",
-    "nozzle_volume_type"
+    "nozzle_volume_type",
+    "state",
+    "park_pin",
+    "active_pin",
+    "activating_move"
   ],
   "fan": [
     "speed"
