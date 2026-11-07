@@ -306,7 +306,7 @@ void PIDCalibrationPanel::on_activate() {
     // the screensaver stays on screen. Resetting under a live calibration
     // would also make on_mpc_result() discard its result, since it only
     // accepts one while the state says CALIBRATING.
-    const bool waking = std::exchange(suspended_, false);
+    const bool waking = take_wake();
     if ((waking && state_ != State::IDLE) || state_ == State::CALIBRATING ||
         state_ == State::MIGRATING) {
         spdlog::info("[PIDCal] Reactivated (wake={}) - keeping state {}", waking,
@@ -398,11 +398,9 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
     // heaters and goes on reporting here. A calibration runs for minutes with
     // nobody touching the screen, which is exactly when the screensaver fires.
     if (reason == DeactivateReason::Suspended) {
-        suspended_ = true;
         return;
     }
     run_lifetime_.invalidate();
-    suspended_ = false;
 
     // Klipper runs one command at a time, so a running print means any
     // calibration started here already ended, and the fan and heaters are the
@@ -441,7 +439,6 @@ void PIDCalibrationPanel::on_deactivating(DeactivateReason reason) {
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
     run_lifetime_.invalidate();
-    suspended_ = false;
     active_tool_observer_.reset();
 
     // Stop progress tracking before cleanup
@@ -511,7 +508,7 @@ void PIDCalibrationPanel::set_state(State new_state) {
     // Setup graph and progress tracking when entering CALIBRATING state
     if (new_state == State::CALIBRATING) {
         // Behind the screensaver nothing is drawn; the wake sets these up.
-        if (!suspended_)
+        if (!suspended())
             setup_pid_graph();
         // Reset progress
         cal_start_tick_ms_ = lv_tick_get();
@@ -520,8 +517,8 @@ void PIDCalibrationPanel::set_state(State new_state) {
         lv_subject_set_int(&subj_pid_progress_, 0);
         lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Starting..."));
         lv_subject_copy_string(&subj_pid_eta_, "");
-        tracking_starts_on_wake_ = suspended_;
-        if (!suspended_)
+        tracking_starts_on_wake_ = suspended();
+        if (!suspended())
             start_progress_tracking();
     } else {
         cal_start_tick_ms_ = 0;
