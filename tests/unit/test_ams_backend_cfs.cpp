@@ -130,7 +130,15 @@ class CfsRemapHelper : public AmsBackendCfs {
     // Expose protected firmware-writeback helper for direct test calls.
     // push_slot_identity_to_firmware is protected (called from apply_user_edit
     // but not part of the public IAmsBackend surface).
-    using AmsBackendCfs::push_slot_identity_to_firmware;
+    AmsError push(int slot, const std::string& material, const std::string& brand,
+                  const std::string& catalog_id, uint32_t color_rgb) {
+        SlotInfo info;
+        info.material = material;
+        info.brand = brand;
+        info.catalog_id = catalog_id;
+        info.color_rgb = color_rgb;
+        return push_slot_identity_to_firmware(slot, info);
+    }
 
     // Capture the assembled load/swap/unload script that change_tool /
     // load_filament / unload_filament hand to dispatch_action_script. Returns
@@ -388,28 +396,6 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
         REQUIRE(backend.dispatched.empty());
     }
 
-    SECTION("enable persists the declaration; disable clears it") {
-        SettingsManager::instance().set_bypass_declared(false);
-        backend.enable_bypass();
-        REQUIRE(SettingsManager::instance().get_bypass_declared());
-
-        backend.disable_bypass();
-        REQUIRE_FALSE(SettingsManager::instance().get_bypass_declared());
-    }
-
-    SECTION("declaration survives a restart via on_started restore") {
-        SettingsManager::instance().set_bypass_declared(false);
-        backend.enable_bypass();
-        REQUIRE(SettingsManager::instance().get_bypass_declared());
-
-        // New backend instance = new process, same persisted settings.
-        CfsRemapHelper restarted;
-        CfsTestAccess::call_on_started(restarted);
-        REQUIRE(restarted.is_bypass_active());
-
-        SettingsManager::instance().set_bypass_declared(false); // test-env cleanup
-    }
-
     SECTION("the box re-arming itself does NOT drop the declaration") {
         // This section used to assert the opposite, on the premise that enable=1
         // meant "someone re-enabled the CFS through Creality's own screen". That
@@ -423,7 +409,6 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
         // first full frame after a restart — so bypass survived all session and
         // died on relaunch, while the external spool was still feeding the
         // nozzle and Unload greyed out.
-        SettingsManager::instance().set_bypass_declared(false);
         backend.enable_bypass();
         REQUIRE(backend.is_bypass_active());
 
@@ -435,8 +420,6 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
                       "remain_len":["-1"],"color_value":["-1"],
                       "material_type":["-1"]}})")));
         REQUIRE(backend.is_bypass_active());
-
-        SettingsManager::instance().set_bypass_declared(false); // test-env cleanup
     }
 
     SECTION("bay filament at the toolhead blocks enable") {
@@ -2088,42 +2071,39 @@ TEST_CASE("CFS change_tool selects load-vs-swap from filament_loaded (#968)", "[
 // push_slot_identity_to_firmware (#968 material-type writeback)
 // =============================================================================
 //
-// The push writes color_value always, and material_type ONLY when a code for
-// the user's pick exists in the firmware-observed vocabulary harvested by
-// handle_status (observed_material_*_). Codes are never synthesized —
-// a value the firmware never reported could poison the wrapper's material-DB
-// lookups (flush temps, same-material matching) and the stock LCD display.
+// The push writes color_value always, and material_type as the code
+// material_code_locked() finds: a code this box reported, else the catalog's
+// generic code in the 0-prefix form. A branded code the box never reported is
+// never synthesized: its prefix digit is the box's own.
 //
 // K1 codes below (000001 = Generic PLA, 000003 = Generic PETG) come from the
 // #968 reporter's real tn_data.json / box dumps.
-TEST_CASE("CFS push_slot_identity_to_firmware writes color + observed material code",
+TEST_CASE("CFS push_slot_identity_to_firmware writes color + material code",
           "[ams][cfs][firmware_writeback][968]") {
     CfsRemapHelper helper;
 
-    SECTION("no firmware-observed code → color-only + same-material refresh") {
+    SECTION("no code reported: the generic catalog code, then the same-material refresh") {
         CfsTestAccess::handle_status(helper, make_cfs_notification(make_multi_unit_box(1)));
-        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        REQUIRE(helper.push(0, "PETG", "Generic", "", 0xFF0000).success());
         // The follow-up BOX_UPDATE_SAME_MATERIAL_LIST mirrors Creality's own
         // master-server, which refreshes the auto-refill equivalence groups
         // after every BOX_MODIFY_TN_DATA write (group membership requires
         // exact color equality).
-        REQUIRE(helper.captured.size() == 2);
-        REQUIRE(helper.captured[0] ==
-                "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000");
-        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
-        for (const auto& c : helper.captured) {
-            REQUIRE(c.find("PART=material_type") == std::string::npos);
-        }
+        REQUIRE(helper.captured ==
+                std::vector<std::string>{
+                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=material_type DATA=000003\n"
+                    "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000",
+                    "BOX_UPDATE_SAME_MATERIAL_LIST"});
     }
 
-    SECTION("baseline present but code never observed → still color-only") {
-        // Slot 5 is a bay on the second unit, so the box reports two units.
-        CfsTestAccess::handle_status(helper, make_cfs_notification(make_multi_unit_box(2)));
-        CfsTestAccess::set_last_rfid_uid(helper, 5, "101001|0FF0000");
-        helper.push_slot_identity_to_firmware(5, "PETG", "Generic", "", 0x00FF00);
+    SECTION("a branded product the box never reported falls back to the generic code") {
+        CfsTestAccess::handle_status(
+            helper, make_cfs_notification(
+                        make_single_unit_box({"-1", "-1", "-1", "-1"}, {"-1", "-1", "-1", "-1"})));
+        REQUIRE(helper.push(1, "PLA", "Creality", "creality-hyper-pla", 0x00FF00).success());
         REQUIRE(helper.captured.size() == 2);
-        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
-        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+        CAPTURE(helper.captured[0]);
+        CHECK(helper.captured[0].find("PART=material_type DATA=000001") != std::string::npos);
     }
 
     SECTION("K1: brand|type observed on another slot → material + color written") {
@@ -2132,7 +2112,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware writes color + observed material c
         CfsTestAccess::handle_status(
             helper, make_cfs_notification(make_single_unit_box({"-1", "000003", "-1", "-1"},
                                                                {"-1", "01B04AE", "-1", "-1"})));
-        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        helper.push(0, "PETG", "Generic", "", 0xFF0000);
         REQUIRE(helper.captured.size() == 2);
         REQUIRE(helper.captured[0] ==
                 "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=material_type DATA=000003\n"
@@ -2140,61 +2120,46 @@ TEST_CASE("CFS push_slot_identity_to_firmware writes color + observed material c
         REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
     }
 
-    SECTION("type-only fallback when brand is unknown") {
+    SECTION("a branded code the box reported is replayed in its full form") {
         CfsTestAccess::handle_status(
-            helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
-                                                               {"01B04AE", "-1", "-1", "-1"})));
-        helper.push_slot_identity_to_firmware(1, "PETG", "", "", 0x00FF00);
-        REQUIRE(helper.captured.size() == 2);
-        REQUIRE(helper.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
-        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
+            helper, make_cfs_notification(make_single_unit_box({"101001", "-1", "-1", "-1"},
+                                                               {"0FF0000", "-1", "-1", "-1"})));
+        helper.push(1, "PLA", "Creality", "creality-hyper-pla", 0x00FF00);
+        REQUIRE(helper.captured[0].find("PART=material_type DATA=101001") != std::string::npos);
     }
 
     SECTION("catalog product pick resolves through its own cfs code id") {
         CfsTestAccess::handle_status(
             helper, make_cfs_notification(make_single_unit_box({"-1", "-1", "000003", "-1"},
                                                                {"-1", "-1", "0000000", "-1"})));
-        helper.push_slot_identity_to_firmware(0, "PETG", "Generic", "generic-petg", 0xFF0000);
+        helper.push(0, "PETG", "Generic", "generic-petg", 0xFF0000);
         REQUIRE(helper.captured.size() == 2);
         REQUIRE(helper.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
         REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
     }
 
-    SECTION("unknown material → color-only even with a rich vocabulary") {
+    SECTION("a material with no code is not written; the record holds it") {
         CfsTestAccess::handle_status(
             helper, make_cfs_notification(make_single_unit_box({"000003", "-1", "-1", "-1"},
                                                                {"01B04AE", "-1", "-1", "-1"})));
-        helper.push_slot_identity_to_firmware(2, "Unobtanium", "ACME", "", 0xFF0000);
+        helper.push(2, "Unobtanium", "ACME", "", 0xFF0000);
         REQUIRE(helper.captured.size() == 2);
-        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
-        REQUIRE(helper.captured[1] == "BOX_UPDATE_SAME_MATERIAL_LIST");
-        REQUIRE(helper.captured[0].find("PART=material_type") == std::string::npos);
+        REQUIRE(helper.captured[0] ==
+                "BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=color_value DATA=0FF0000");
     }
 
-    SECTION("invalid slot index skips the write (must not crash klippy)") {
-        helper.push_slot_identity_to_firmware(99, "PETG", "Generic", "", 0xFF0000);
+    SECTION("an emptied material and colour write the box's own unset value") {
+        CfsTestAccess::handle_status(helper, make_cfs_notification(make_multi_unit_box(1)));
+        helper.push(0, "", "", "", helix::kAmsDefaultSlotColor);
+        REQUIRE(helper.captured[0] == "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=material_type DATA=-1\n"
+                                      "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=-1");
+    }
+
+    SECTION("invalid slot index refuses the write (must not crash klippy)") {
+        CHECK_FALSE(helper.push(99, "PETG", "Generic", "", 0xFF0000).success());
         REQUIRE(helper.captured.empty());
     }
 }
-
-// The two PART writes land as one script, but a status poll can slip between
-// their echoes and observe the intermediate composite (new material + old
-// color). expect_any_of must classify BOTH echoes as OwnWriteEcho so the
-// fresh override survives its own writeback; a subsequent genuine change must
-// still clear it.
-// Capture harness whose dispatch failure is toggleable: one push lands and a
-// later one never reaches the box, so the first push's in-flight echo
-// expectation must survive the second's failed dispatch.
-class FailToggleCfsRemap : public CfsRemapHelper {
-  public:
-    AmsError execute_gcode(const std::string& gcode) override {
-        if (fail_dispatch)
-            return AmsErrorHelper::not_supported("fixture dispatch failure");
-        return CfsRemapHelper::execute_gcode(gcode);
-    }
-
-    bool fail_dispatch = false;
-};
 
 TEST_CASE("CFS backend ctor latches macro variant from PrinterDetector (#968)", "[ams][cfs]") {
     // The constructor reads PrinterDetector::is_creality_k1() once and caches
@@ -2471,7 +2436,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware emits BOX_MODIFY_TN_DATA",
     CfsTestAccess::handle_status(helper, make_cfs_notification(make_multi_unit_box(4)));
 
     SECTION("Slot 0 (T1A) red 0xFF0000 → ADDR=1 NUM=A DATA=0FF0000") {
-        helper.push_slot_identity_to_firmware(0, "", "", "", 0xFF0000);
+        helper.push(0, "Unobtanium", "", "", 0xFF0000);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0FF0000",
@@ -2479,7 +2444,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware emits BOX_MODIFY_TN_DATA",
     }
 
     SECTION("Slot 5 (T2B) green 0x00FF00 → ADDR=2 NUM=B DATA=000FF00") {
-        helper.push_slot_identity_to_firmware(5, "", "", "", 0x00FF00);
+        helper.push(5, "Unobtanium", "", "", 0x00FF00);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
                     "BOX_MODIFY_TN_DATA ADDR=2 NUM=B PART=color_value DATA=000FF00",
@@ -2487,7 +2452,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware emits BOX_MODIFY_TN_DATA",
     }
 
     SECTION("Slot 15 (T4D) white 0xFFFFFF → ADDR=4 NUM=D DATA=0FFFFFF") {
-        helper.push_slot_identity_to_firmware(15, "", "", "", 0xFFFFFF);
+        helper.push(15, "Unobtanium", "", "", 0xFFFFFF);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
                     "BOX_MODIFY_TN_DATA ADDR=4 NUM=D PART=color_value DATA=0FFFFFF",
@@ -2497,7 +2462,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware emits BOX_MODIFY_TN_DATA",
     SECTION("Color masks high bits — alpha byte from caller is ignored") {
         // If a caller passes 0xAA112233, the alpha byte is dropped. The
         // firmware's leading nibble is always our own '0'.
-        helper.push_slot_identity_to_firmware(0, "", "", "", 0xAA112233);
+        helper.push(0, "Unobtanium", "", "", 0xAA112233);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0112233",
@@ -2516,7 +2481,7 @@ TEST_CASE("CFS push_slot_identity_to_firmware skips invalid inputs (must NOT cra
         // Caller (apply_user_edit) is responsible for not invoking when color
         // wasn't actually set (color_set=false on the override).
         CfsTestAccess::handle_status(helper, make_cfs_notification(make_multi_unit_box(1)));
-        helper.push_slot_identity_to_firmware(0, "", "", "", 0);
+        helper.push(0, "Unobtanium", "", "", 0);
         REQUIRE(helper.captured ==
                 std::vector<std::string>{
                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=A PART=color_value DATA=0000000",
@@ -2524,14 +2489,14 @@ TEST_CASE("CFS push_slot_identity_to_firmware skips invalid inputs (must NOT cra
     }
 
     SECTION("Negative slot index is skipped") {
-        helper.push_slot_identity_to_firmware(-1, "", "", "", 0xFF0000);
+        CHECK_FALSE(helper.push(-1, "", "", "", 0xFF0000).success());
         REQUIRE(helper.captured.empty());
     }
 
     SECTION("slot_index >= 16 is skipped") {
-        helper.push_slot_identity_to_firmware(16, "", "", "", 0xFF0000);
+        helper.push(16, "", "", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
-        helper.push_slot_identity_to_firmware(99, "", "", "", 0xFF0000);
+        helper.push(99, "", "", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
     }
 }
@@ -2648,7 +2613,7 @@ TEST_CASE("CFS slot bounds agree across entry points (#1623)", "[ams][cfs][slot-
     }
 
     SECTION("push_slot_identity_to_firmware skips an unattached bay") {
-        helper.push_slot_identity_to_firmware(7, "PLA", "Generic", "", 0xFF0000);
+        helper.push(7, "PLA", "Generic", "", 0xFF0000);
         REQUIRE(helper.captured.empty());
     }
 
@@ -2703,7 +2668,7 @@ TEST_CASE("CFS slot bounds before the first box frame (#1623)", "[ams][cfs][slot
     }
 
     SECTION("an identity write before the first box frame still leaves the app") {
-        helper.push_slot_identity_to_firmware(2, "PLA", "Generic", "", 0xFF0000);
+        helper.push(2, "PLA", "Generic", "", 0xFF0000);
         REQUIRE_FALSE(helper.captured.empty());
     }
 
@@ -3198,10 +3163,8 @@ json make_flat_box(const std::string& material, const std::string& brand, const 
 }
 
 // Backend + store + tmp cache wired together — every override test repeats this.
-// Flat-schema rig backend whose every gcode dispatch fails, for the write
-// paths that must drop their echo expectation when the command never reaches
-// the box (a later frame reporting the pushed value is then a genuine change,
-// not our echo).
+// Flat-schema rig backend whose every gcode dispatch fails: an edit the box
+// never receives.
 class FlatFailDispatchCfs : public AmsBackendCfs {
   public:
     FlatFailDispatchCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
@@ -3210,23 +3173,6 @@ class FlatFailDispatchCfs : public AmsBackendCfs {
     AmsError execute_gcode(const std::string&) override {
         return AmsErrorHelper::not_supported("fixture dispatch failure");
     }
-};
-
-// Same shape, but the failure is toggleable: one write lands and a later one
-// never reaches the box, so the first write's in-flight echo expectation must
-// survive the second's failed dispatch.
-class ToggleFailDispatchCfs : public AmsBackendCfs {
-  public:
-    ToggleFailDispatchCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
-        : AmsBackendCfs(api, client) {}
-
-    AmsError execute_gcode(const std::string& gcode) override {
-        if (fail_dispatch)
-            return AmsErrorHelper::not_supported("fixture dispatch failure");
-        return AmsBackendCfs::execute_gcode(gcode);
-    }
-
-    bool fail_dispatch = false;
 };
 
 template <typename BackendT = AmsBackendCfs> struct CfsOverrideRig {
@@ -3253,9 +3199,100 @@ template <typename BackendT = AmsBackendCfs> struct CfsOverrideRig {
     void poll(const json& box) {
         CfsTestAccess::handle_status(*backend, make_cfs_notification(box));
     }
+
+    /// The lane-record read that follows a save: each staged record is read
+    /// back as the lane's Record, which echoes what the box holds no field for.
+    void record_lands() {
+        for (int slot = 0; slot < 4; ++slot) {
+            if (const auto ovr = CfsTestAccess::get_override(*backend, slot)) {
+                helix::test::file_override_as_lane_records(*backend, slot, *ovr);
+            }
+        }
+    }
 };
 
 } // namespace
+
+TEST_CASE("CFS a material the box has no code for shows from the lane record",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    const json box = make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                          {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"});
+    CfsTestAccess::handle_status(b, make_cfs_notification(box));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "Unobtanium";
+    edit.brand = "ACME";
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    for (const auto& gcode : b.captured) {
+        CHECK(gcode.find("PART=material_type") == std::string::npos);
+    }
+
+    // The record lands, and the box still carries the previous label's code.
+    const auto record = CfsTestAccess::get_override(b, 0);
+    REQUIRE(record.has_value());
+    helix::test::file_override_as_lane_records(b, 0, *record);
+    CfsTestAccess::handle_status(b, make_cfs_notification(box));
+    CHECK(b.get_slot_info(0).material == "Unobtanium");
+    CHECK(b.get_slot_info(0).brand == "ACME");
+}
+
+TEST_CASE("CFS a generic code leaves the lane record's brand standing",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    CfsTestAccess::handle_status(b, make_cfs_notification(make_single_unit_box(
+                                        {"-1", "-1", "-1", "-1"}, {"-1", "-1", "-1", "-1"})));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PLA";
+    edit.brand = "Sunlu";
+    edit.color_rgb = 0x00FF00;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.captured[0].find("PART=material_type DATA=000001") != std::string::npos);
+
+    const auto record = CfsTestAccess::get_override(b, 0);
+    REQUIRE(record.has_value());
+    helix::test::file_override_as_lane_records(b, 0, *record);
+    // The box restates the generic code it was given, which names no brand.
+    CfsTestAccess::handle_status(
+        b, make_cfs_notification(
+               make_single_unit_box({"000001", "-1", "-1", "-1"}, {"000FF00", "-1", "-1", "-1"})));
+    CHECK(b.get_slot_info(0).material == "PLA");
+    CHECK(b.get_slot_info(0).brand == "Sunlu");
+    CHECK_FALSE(helix::ams::lane_sources(reg.lane(0)).pending.has_value());
+}
+
+TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
+          "[ams][cfs][bypass][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_bypass_declared_key");
+    CfsTestAccess::mark_running(*rig.backend);
+    rig.poll(make_single_unit_box({"-1", "-1", "-1", "-1"}, {"-1", "-1", "-1", "-1"}));
+    rig.backend->refresh_lane_records();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(rig.backend->is_bypass_active());
+
+    SECTION("enable writes the key and disable deletes it") {
+        REQUIRE(rig.backend->enable_bypass().success());
+        CHECK(rig.client.mock_db_get("lane_data", "helix_bypass_declared") == true);
+        REQUIRE(rig.backend->disable_bypass().success());
+        CHECK(rig.client.mock_db_get("lane_data", "helix_bypass_declared").is_null());
+    }
+
+    SECTION("another client's declaration is picked up by the poll") {
+        rig.client.mock_db_set("lane_data", "helix_bypass_declared", true);
+        rig.backend->refresh_lane_records();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(rig.backend->is_bypass_active());
+
+        // And its withdrawal.
+        rig.client.mock_db()["lane_data"].erase("helix_bypass_declared");
+        rig.backend->refresh_lane_records();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(rig.backend->is_bypass_active());
+    }
+}
 
 TEST_CASE("CFS two color edits in one poll window both survive their echoes",
           "[ams][cfs][filament_slot_override][firmware_writeback]") {
@@ -3288,20 +3325,22 @@ TEST_CASE("CFS two color edits in one poll window both survive their echoes",
     rig.poll(box_before);
     REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
 
-    // First write lands: colour 01A1A1A. The second is still in flight.
-    rig.poll(make_single_unit_box({"101001", "101001", "101001", "101001"},
+    // First write lands: the generic ASA-CF code and colour 01A1A1A. The
+    // second is still in flight, then its record lands.
+    rig.poll(make_single_unit_box({"000033", "101001", "101001", "101001"},
                                   {"01A1A1A", "0FFFFFF", "00A2989", "0C12E1F"}));
     REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    rig.record_lands();
 
     // Second write lands: colour 02B2B2B, the value the user last chose.
-    rig.poll(make_single_unit_box({"101001", "101001", "101001", "101001"},
+    rig.poll(make_single_unit_box({"000033", "101001", "101001", "101001"},
                                   {"02B2B2B", "0FFFFFF", "00A2989", "0C12E1F"}));
     auto settled = CfsTestAccess::get_override(*rig.backend, 0);
     REQUIRE(settled.has_value());
     CHECK(settled->color_rgb == 0x2B2B2Bu);
-    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "101001|02B2B2B");
+    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "000033|02B2B2B");
 
-    // With both echoes consumed, a genuine swap is detected normally.
+    // With the edit settled, a genuine swap is detected normally.
     rig.poll(make_single_unit_box({"102001", "101001", "101001", "101001"},
                                   {"000FF00", "0FFFFFF", "00A2989", "0C12E1F"}));
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
@@ -3396,9 +3435,11 @@ TEST_CASE("CFS flat-schema identity writeback echo does not self-wipe the overri
     edit.color_rgb = 0x1A1A1A;
     helix::test::edit_slot_as_user(*rig.backend, 0, edit);
 
+    // The record carries the material as the module stores it, uppercased.
     auto staged = CfsTestAccess::get_override(*rig.backend, 0);
     REQUIRE(staged.has_value());
-    REQUIRE(staged->material == "asa-cf");
+    REQUIRE(staged->material == "ASA-CF");
+    rig.record_lands();
 
     // Polls before the echo lands read the OLD identity: unchanged, no clear.
     rig.poll(box_before);
@@ -3411,7 +3452,8 @@ TEST_CASE("CFS flat-schema identity writeback echo does not self-wipe the overri
 
     auto after_echo = CfsTestAccess::get_override(*rig.backend, 0);
     REQUIRE(after_echo.has_value());
-    CHECK(after_echo->material == "asa-cf");
+    CHECK(after_echo->material == "ASA-CF");
+    CHECK(rig.backend->get_slot_info(0).material == "ASA-CF");
     CHECK(after_echo->color_rgb == 0x1A1A1Au);
     // The baseline advanced to the echoed fingerprint, so a later genuine swap
     // is still measured against firmware truth.
@@ -3422,75 +3464,27 @@ TEST_CASE("CFS flat-schema identity writeback echo does not self-wipe the overri
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
 }
 
-TEST_CASE("CFS flat-schema dispatch failure drops the echo expectation",
+TEST_CASE("CFS flat-schema an edit the box never received is refused and saves nothing",
           "[ams][cfs][flat][filament_slot_override]") {
     CfsOverrideRig<FlatFailDispatchCfs> rig("cfs_flat_dispatch_fails");
 
-    // Fork dialect baseline from the tag's own identity.
     json box_before = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
     rig.poll(box_before);
-    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
 
-    // User assigns a new identity; the _BOX_SLOT_SET push fails, so no echo is
-    // ever coming. The override still stages; the push is best-effort.
     SlotInfo edit;
     edit.material = "asa-cf";
     edit.brand = "Polymaker";
     edit.spool_name = "PolyLite ASA";
     edit.color_rgb = 0x1A1A1A;
-    helix::test::edit_slot_as_user(*rig.backend, 0, edit);
-    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    const auto err = rig.backend->commit_user_edit(0, rig.backend->get_slot_info(0), edit);
 
-    // A later frame reporting exactly the value we tried to push is not our
-    // echo (the command never landed): it must clear the override like any
-    // genuine change instead of being swallowed as OwnWriteEcho.
-    rig.poll(make_flat_box("ASA-CF", "Polymaker", "PolyLite ASA", "#1A1A1A"));
-    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
-    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "ASA-CF|1A1A1A");
-}
-
-TEST_CASE("CFS flat-schema a failed dispatch drops only its own echo expectations",
-          "[ams][cfs][flat][filament_slot_override]") {
-    CfsOverrideRig<ToggleFailDispatchCfs> rig("cfs_flat_forget_scoped");
-
-    // Fork dialect baseline from the tag's own identity.
-    json box_before = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
-    rig.poll(box_before);
-    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
-
-    // Write A lands.
-    SlotInfo edit_a;
-    edit_a.material = "asa-cf";
-    edit_a.brand = "Polymaker";
-    edit_a.spool_name = "PolyLite ASA";
-    edit_a.color_rgb = 0x1A1A1A;
-    helix::test::edit_slot_as_user(*rig.backend, 0, edit_a);
-
-    // Write B never reaches the box.
-    rig.backend->fail_dispatch = true;
-    SlotInfo edit_b;
-    edit_b.material = "petg";
-    edit_b.brand = "Bambu";
-    edit_b.spool_name = "Basic Green";
-    edit_b.color_rgb = 0x2B2B2B;
-    helix::test::edit_slot_as_user(*rig.backend, 0, edit_b);
-    rig.backend->fail_dispatch = false;
-
-    // B staged an override despite the failed push.
-    auto staged = CfsTestAccess::get_override(*rig.backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->material == "petg");
-
-    // Firmware never heard B, so it echoes A's identity back. A's
-    // expectation survived B's forget, so this reads as our own echo.
-    rig.poll(make_flat_box("ASA-CF", "Polymaker", "PolyLite ASA", "#1A1A1A"));
-    auto after_echo = CfsTestAccess::get_override(*rig.backend, 0);
-    REQUIRE(after_echo.has_value());
-    CHECK(after_echo->material == "petg");
-
-    // A different spool afterwards is still a genuine swap.
-    rig.poll(make_flat_box("ABS", "Prusa", "Prusa Orange", "#FF8800"));
-    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    CHECK_FALSE(err.success());
+    // The record, if the box's own reading was mirrored into one, still
+    // carries the box's identity.
+    const auto record = CfsTestAccess::get_override(*rig.backend, 0);
+    CHECK((!record.has_value() || record->material == "PLA"));
+    CHECK_FALSE(helix::ams::lane_sources(rig.backend->lane_id(0)).pending.has_value());
+    CHECK(rig.backend->get_slot_info(0).material == "PLA");
 }
 
 TEST_CASE("CFS flat-schema two edits in one poll window both survive their echoes",
@@ -3520,7 +3514,7 @@ TEST_CASE("CFS flat-schema two edits in one poll window both survive their echoe
 
     auto staged = CfsTestAccess::get_override(*rig.backend, 0);
     REQUIRE(staged.has_value());
-    CHECK(staged->material == "petg");
+    CHECK(staged->material == "PETG");
 
     // Firmware still reporting the pre-edit identity: Unchanged.
     rig.poll(box_before);
@@ -3529,15 +3523,16 @@ TEST_CASE("CFS flat-schema two edits in one poll window both survive their echoe
     // First write's echo (material uppercased by _BOX_SLOT_SET).
     rig.poll(make_flat_box("ASA-CF", "Polymaker", "PolyLite ASA", "#1A1A1A"));
     REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    rig.record_lands();
 
     // Second write's echo: the identity the user last chose.
     rig.poll(make_flat_box("PETG", "Bambu", "Basic Green", "#2B2B2B"));
     auto settled = CfsTestAccess::get_override(*rig.backend, 0);
     REQUIRE(settled.has_value());
-    CHECK(settled->material == "petg");
+    CHECK(settled->material == "PETG");
     CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PETG|2B2B2B");
 
-    // Both echoes consumed: a genuine swap clears normally.
+    // The edit settled: a genuine swap clears normally.
     rig.poll(make_flat_box("ABS", "Prusa", "Prusa Orange", "#FF8800"));
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
 }
@@ -6408,7 +6403,7 @@ TEST_CASE("CFS fork: commands name the firmware slot, not the bay position",
     }
 
     SECTION("slot identity write") {
-        backend.push_slot_identity_to_firmware(6, "PETG", "eSUN", "", 0x0A2989);
+        backend.push(6, "PETG", "eSUN", "", 0x0A2989);
         REQUIRE(backend.captured.size() == 1);
         CHECK(backend.captured[0].rfind("_BOX_SLOT_SET SLOT=6 ", 0) == 0);
     }
@@ -6885,7 +6880,7 @@ TEST_CASE("CFS: an absent box's bays refuse every operation", "[ams][cfs][1464]"
         CHECK(helix::test::apply_edit(backend, 5, edit).result == AmsResult::INVALID_SLOT);
         CHECK_FALSE(CfsTestAccess::get_override(backend, 5).has_value());
 
-        backend.push_slot_identity_to_firmware(5, "PETG", "eSUN", "", 0x0A2989);
+        backend.push(5, "PETG", "eSUN", "", 0x0A2989);
         CHECK(backend.captured.empty());
 
         const auto info = backend.get_system_info();
@@ -7632,15 +7627,22 @@ TEST_CASE("CFS flat fingerprint upgrade folds stored composites (#1710)", "[ams]
     CHECK_FALSE(CfsTestAccess::get_override(backend, 0).has_value());
 }
 
-TEST_CASE("CFS clear_slot_override clears the Box profile on Fork only", "[ams][cfs][fork]") {
+TEST_CASE("CFS clear_slot_override resets the box's own record of the bay", "[ams][cfs][fork]") {
     CfsRemapHelper backend;
     CfsTestAccess::handle_status(backend, make_cfs_notification(make_single_unit_box(
                                               {"101001", "101001", "101001", "101001"},
                                               {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"})));
     helix::AmsBackend& base = backend;
 
+    // Stock: the box's unset value for both fields, and the remaining length
+    // with a tag seated, so the pulled spool cannot read present on it.
     base.clear_slot_override(2);
-    REQUIRE(backend.captured.empty());
+    REQUIRE(backend.captured ==
+            std::vector<std::string>{"BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=material_type DATA=-1\n"
+                                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=color_value DATA=-1\n"
+                                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=remain_len DATA=-1",
+                                     "BOX_UPDATE_SAME_MATERIAL_LIST"});
+    backend.captured.clear();
 
     CfsTestAccess::handle_status(backend, make_cfs_notification(make_flat_fork_box()));
     base.clear_slot_override(2);

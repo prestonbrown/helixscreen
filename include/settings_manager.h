@@ -651,20 +651,6 @@ class SettingsManager {
         settings_.set(Key::AmsForceBypassControls, enabled);
     }
 
-    /**
-     * @brief Whether bypass was declared on a system with no firmware bypass
-     *        command (per-printer, backend-owned).
-     *
-     * Persists the user's bypass toggle for backends whose firmware cannot
-     * hold that state itself — today only the stock CFS dialect (its
-     * BOX_ENABLE_CFS_PRINT stand-down persists in the box, but HelixScreen's
-     * declaration is ours to remember across restarts). Not a user setting;
-     * no subject — read once at backend start, written on the toggle.
-     */
-    bool get_bypass_declared() const;
-    /** @brief Persist the bypass declaration (see get_bypass_declared) */
-    void set_bypass_declared(bool declared);
-
     /** @brief Force-bypass-controls subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_ams_force_bypass_controls() {
         return settings_.subject(Key::AmsForceBypassControls);

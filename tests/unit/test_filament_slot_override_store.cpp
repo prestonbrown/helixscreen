@@ -52,10 +52,11 @@ FilamentSlotOverride polymaker_pla() {
 std::unordered_map<int, helix::ams::LaneDataRecord> read_back(FilamentSlotOverrideStore& store) {
     std::unordered_map<int, helix::ams::LaneDataRecord> out;
     bool called = false;
-    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-        out = std::move(records);
-        called = true;
-    });
+    store.reload_async(
+        [&](std::unordered_map<int, helix::ams::LaneDataRecord> records, nlohmann::json /*keys*/) {
+            out = std::move(records);
+            called = true;
+        });
     REQUIRE(called);
     return out;
 }
@@ -291,8 +292,9 @@ TEST_CASE("a read the database refuses calls the failure path", "[filament_slot_
     printer.client.fail_next("server.database.get_item");
     int read = 0;
     int failed = 0;
-    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord>) { ++read; },
-                       [&]() { ++failed; });
+    store.reload_async(
+        [&](std::unordered_map<int, helix::ams::LaneDataRecord>, nlohmann::json) { ++read; },
+        [&]() { ++failed; });
     CHECK(read == 0);
     CHECK(failed == 1);
 }
@@ -553,81 +555,15 @@ TEST_CASE("SlotFingerprintTracker seeds baselines and confirms through a sink",
     using helix::ams::FingerprintEvent;
     CHECK(tracker.observe(1, "X") == FingerprintEvent::Baseline);
     CHECK(tracker.observe(1, "X") == FingerprintEvent::Unchanged);
-    tracker.expect_any_of(1, {"Y"});
-    CHECK(tracker.observe(1, "Y") == FingerprintEvent::OwnWriteEcho);
     CHECK(tracker.observe(1, "Z") == FingerprintEvent::Changed);
+    CHECK(tracker.baseline(1) == "Z");
     CHECK(tracker.observe(1, "") == FingerprintEvent::NoSignal);
 
-    // Confirmations only: Baseline, Unchanged, OwnWriteEcho. Changed and
-    // NoSignal stay silent.
-    REQUIRE(seen.size() == 3);
+    // Confirmations only: Baseline and Unchanged. Changed and NoSignal stay
+    // silent.
+    REQUIRE(seen.size() == 2);
     CHECK(seen[0] == std::make_pair(1, std::string("X")));
     CHECK(seen[1] == std::make_pair(1, std::string("X")));
-    CHECK(seen[2] == std::make_pair(1, std::string("Y")));
-}
-
-TEST_CASE("SlotFingerprintTracker expectations accumulate across writes",
-          "[filament_slot_override][ams]") {
-    helix::ams::SlotFingerprintTracker tracker;
-    tracker.observe(0, "B");
-
-    // Two writes dispatched before either echo lands: both echo values are
-    // ours, so arming the second must not drop the first's expectation.
-    tracker.expect_any_of(0, {"E1"});
-    tracker.expect_any_of(0, {"E2"});
-    REQUIRE(tracker.has_expected(0));
-
-    CHECK(tracker.observe(0, "E1") == helix::ams::FingerprintEvent::OwnWriteEcho);
-    CHECK(tracker.has_expected(0));
-    CHECK(tracker.observe(0, "E2") == helix::ams::FingerprintEvent::OwnWriteEcho);
-    CHECK_FALSE(tracker.has_expected(0));
-
-    // Both echoes consumed: the next change is a swap.
-    CHECK(tracker.observe(0, "S") == helix::ams::FingerprintEvent::Changed);
-
-    // Re-registering a value already pending adds nothing: an entry is
-    // single-shot per VALUE, so one echo still ends it.
-    tracker.expect_any_of(0, {"V"});
-    tracker.expect_any_of(0, {"V"});
-    CHECK(tracker.observe(0, "V") == helix::ams::FingerprintEvent::OwnWriteEcho);
-    CHECK_FALSE(tracker.has_expected(0));
-
-    // A change no write asked for consumes everything pending; the
-    // swap-while-in-flight guarantee.
-    helix::ams::SlotFingerprintTracker swap;
-    swap.observe(1, "B");
-    swap.expect_any_of(1, {"X", "Y"});
-    CHECK(swap.observe(1, "Z") == helix::ams::FingerprintEvent::Changed);
-    CHECK_FALSE(swap.has_expected(1));
-}
-
-TEST_CASE("SlotFingerprintTracker forget releases only one write's claims",
-          "[filament_slot_override][ams]") {
-    using helix::ams::FingerprintEvent;
-    helix::ams::SlotFingerprintTracker tracker;
-    tracker.observe(0, "B");
-
-    // Write A dispatches; write B fails to dispatch entirely. B's forget
-    // must leave A's in-flight echo expected, or A's echo reads as a swap
-    // and wipes the edit it was armed to protect.
-    tracker.expect_any_of(0, {"A1", "A2"});
-    const auto b_staged = tracker.expect_any_of(0, {"B1", "B2"});
-    tracker.forget_expected(0, b_staged);
-    REQUIRE(tracker.has_expected(0));
-    CHECK(tracker.observe(0, "A1") == FingerprintEvent::OwnWriteEcho);
-    CHECK(tracker.observe(0, "A2") == FingerprintEvent::OwnWriteEcho);
-    CHECK_FALSE(tracker.has_expected(0));
-
-    // A value two in-flight writes both expect survives one writer giving
-    // up: each staging holds a claim, and a forget releases only its own.
-    tracker.observe(0, "A2");
-    tracker.expect_any_of(0, {"V"});
-    const auto shared_staged = tracker.expect_any_of(0, {"V", "W"});
-    tracker.forget_expected(0, shared_staged);
-    CHECK(tracker.observe(0, "V") == FingerprintEvent::OwnWriteEcho);
-    // W's only claim left with the forget, so W now reads as external.
-    CHECK(tracker.observe(0, "W") == FingerprintEvent::Changed);
-    CHECK_FALSE(tracker.has_expected(0));
 }
 
 // ============================================================================
@@ -736,6 +672,32 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     store.clear_seated_slot_async([&](bool success, std::string) { ok = success; });
     CHECK(ok);
     CHECK_FALSE(store.load_seated_slot_blocking().has_value());
+}
+
+TEST_CASE("a namespace key beside the records comes back with every read",
+          "[filament_slot_override][seated]") {
+    MockPrinter mock_printer;
+    FilamentSlotOverrideStore store(&mock_printer.api, "cfs");
+    store.save_async(0, polymaker_pla(), nullptr);
+
+    bool saved = false;
+    store.save_key_async("helix_flag", true, [&](bool ok, std::string) { saved = ok; });
+    REQUIRE(saved);
+
+    nlohmann::json keys;
+    std::size_t records = 0;
+    store.reload_async(
+        [&](std::unordered_map<int, helix::ams::LaneDataRecord> read, nlohmann::json read_keys) {
+            records = read.size();
+            keys = std::move(read_keys);
+        });
+    CHECK(records == 1);
+    CHECK(keys == nlohmann::json{{"helix_flag", true}});
+
+    bool cleared = false;
+    store.clear_key_async("helix_flag", [&](bool ok, std::string) { cleared = ok; });
+    CHECK(cleared);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "helix_flag").is_null());
 }
 
 TEST_CASE("a store with no API reports failure for the seated slot and never blocks",

@@ -219,6 +219,9 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
   protected:
     void on_started() override;
     void on_lane_records_read_locked() override;
+    /// The Box holds a slot's material and colour as save_variables rows, so a
+    /// record's copies never fill a field the Box states as unset (row 0).
+    void drop_firmware_held_fields(helix::ams::Observation& record) const override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS QIDI Box]";
@@ -433,27 +436,14 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] helix::ams::SpoolEvidence
     fingerprint_evidence_locked(const std::string& fingerprint) const;
 
-    /// Cross-product the per-field token lists into the fingerprint set the slot
-    /// may report while our own SAVE_VARIABLEs echo back one field at a time,
-    /// and register it with rfid_tracker_ so each echo reads as OwnWriteEcho
-    /// instead of a spool swap. The vendor write needs no composite of its
-    /// own: the fingerprint does not count the vendor id. Returns the staged
-    /// values, for a forget_expected() release when none of the writes
-    /// dispatch. Caller must hold mutex_.
-    std::vector<std::string>
-    expect_own_write_echoes_locked(int slot_index, const std::string& base,
-                                   const std::vector<std::string>& fila_tokens,
-                                   const std::vector<std::string>& color_tokens);
-
     /// Blanks everything the slot showed, material and colour included, so it
     /// reads as no identity the moment the clear lands; the parse restates
     /// whatever the Box still reports.
     void clear_override_fields(SlotInfo& slot) const override;
 
-    // Per-slot last-observed tag fingerprint (the composite of the three
-    // save_variable table indices), plus the pending expected fingerprints for
-    // an identity push we issued. Shared with the other fingerprint backends
-    // (CFS, Snapmaker). All access under mutex_.
+    // Per-slot last-observed tag fingerprint (the composite of the filament
+    // and colour save_variable ids). Shared with the other fingerprint
+    // backends (CFS, Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
 };
 

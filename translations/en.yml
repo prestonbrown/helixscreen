@@ -4821,6 +4821,9 @@ translations:
   tall: tall
   target {}%: target {}%
   target {}°: target {}°
+  the ACE needs a material and its nozzle temperature: the ACE needs a material and its nozzle temperature
+  the QIDI Box filament list has not loaded: the QIDI Box filament list has not loaded
+  the QIDI Box has no {} in its filament list: the QIDI Box has no {} in its filament list
   the extruder: the extruder
   the left belt: the left belt
   the lower belt: the lower belt

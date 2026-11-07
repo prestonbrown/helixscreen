@@ -393,12 +393,18 @@ void FilamentSlotOverrideStore::reload_async(ReloadCallback cb, std::function<vo
                 }
                 return;
             }
-            cb(narrowed(parse_namespace_document(value, style, id)));
+            nlohmann::json keys = nlohmann::json::object();
+            for (auto it = value.begin(); it != value.end(); ++it) {
+                if (!it.value().is_object()) {
+                    keys[it.key()] = it.value();
+                }
+            }
+            cb(narrowed(parse_namespace_document(value, style, id)), std::move(keys));
         },
         [id, ns, cb, on_failure](const MoonrakerError& err) {
             // A namespace nothing has written yet is empty, not unreachable.
             if (err.is_not_found()) {
-                cb({});
+                cb({}, nlohmann::json::object());
                 return;
             }
             spdlog::debug("[FilamentSlotOverrideStore:{}] read of {} failed: {}", id, ns,
@@ -511,62 +517,77 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
 // Seated-lane persistence
 // =============================================================================
 
-void FilamentSlotOverrideStore::save_seated_slot_async(int slot_index, SaveCallback cb) {
+void FilamentSlotOverrideStore::save_key_async(const std::string& key, nlohmann::json value,
+                                               SaveCallback cb) {
     if (!api_) {
         if (cb)
             cb(false, "no API");
         return;
     }
-    // Reject negative indices symmetrically with save_async — a negative seated
-    // index is never a valid lane. "Nothing seated" goes through
-    // clear_seated_slot_async, not a sentinel index.
-    if (slot_index < 0) {
-        if (cb)
-            cb(false, "invalid slot_index");
-        return;
-    }
-
     // Lifetime safety mirrors save_async: Moonraker's request tracker can fire
     // the error callback ~60s after this returns, well after the store may have
     // been destroyed. Value-capture only; no `this`.
     const std::string backend_id_copy = backend_id_;
-
     api_->database_post_item(
-        namespace_, "seated", nlohmann::json(slot_index),
-        [cb]() {
+        namespace_, key, std::move(value),
+        [cb, on_written = on_written_]() {
+            if (on_written)
+                on_written();
             if (cb)
                 cb(true, "");
         },
-        [cb, backend_id_copy](const MoonrakerError& err) {
-            spdlog::warn("[FilamentSlotOverrideStore:{}] save seated failed: {}", backend_id_copy,
+        [cb, backend_id_copy, key](const MoonrakerError& err) {
+            spdlog::warn("[FilamentSlotOverrideStore:{}] save {} failed: {}", backend_id_copy, key,
                          err.message);
             if (cb)
                 cb(false, err.message);
         });
 }
 
-void FilamentSlotOverrideStore::clear_seated_slot_async(SaveCallback cb) {
+void FilamentSlotOverrideStore::clear_key_async(const std::string& key, SaveCallback cb) {
     if (!api_) {
         if (cb)
             cb(false, "no API");
         return;
     }
-
-    // Value-capture only; no `this` (see save_seated_slot_async).
+    // Value-capture only; no `this` (see save_key_async).
     const std::string backend_id_copy = backend_id_;
-
     api_->database_delete_item(
-        namespace_, "seated",
-        [cb]() {
+        namespace_, key,
+        [cb, on_written = on_written_]() {
+            if (on_written)
+                on_written();
             if (cb)
                 cb(true, "");
         },
-        [cb, backend_id_copy](const MoonrakerError& err) {
-            spdlog::warn("[FilamentSlotOverrideStore:{}] clear seated failed: {}", backend_id_copy,
+        [cb, backend_id_copy, key](const MoonrakerError& err) {
+            // A key already gone is the clear's goal.
+            if (err.is_not_found()) {
+                if (cb)
+                    cb(true, "");
+                return;
+            }
+            spdlog::warn("[FilamentSlotOverrideStore:{}] clear {} failed: {}", backend_id_copy, key,
                          err.message);
             if (cb)
                 cb(false, err.message);
         });
+}
+
+void FilamentSlotOverrideStore::save_seated_slot_async(int slot_index, SaveCallback cb) {
+    // Reject negative indices symmetrically with save_async — a negative seated
+    // index is never a valid lane. "Nothing seated" goes through
+    // clear_seated_slot_async, not a sentinel index.
+    if (api_ && slot_index < 0) {
+        if (cb)
+            cb(false, "invalid slot_index");
+        return;
+    }
+    save_key_async("seated", nlohmann::json(slot_index), std::move(cb));
+}
+
+void FilamentSlotOverrideStore::clear_seated_slot_async(SaveCallback cb) {
+    clear_key_async("seated", std::move(cb));
 }
 
 std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
@@ -720,10 +741,8 @@ FingerprintEvent SlotFingerprintTracker::observe(int slot_index, const std::stri
     if (observed.empty())
         return FingerprintEvent::NoSignal;
 
-    // Fires on Baseline/Unchanged/OwnWriteEcho only; see set_baseline_sink.
-    // Runs after the baseline maps are updated for this event where they are
-    // (Baseline stores it below before the call), inline and under the
-    // caller's lock.
+    // Fires on Baseline/Unchanged only; see set_baseline_sink. Runs inline,
+    // under the caller's lock.
     auto confirm_baseline = [this, slot_index, &observed]() {
         if (baseline_sink_)
             baseline_sink_(slot_index, observed);
@@ -742,79 +761,11 @@ FingerprintEvent SlotFingerprintTracker::observe(int slot_index, const std::stri
 
     if (previous)
         *previous = it->second;
-    // Advance the baseline BEFORE classifying, so a caller whose follow-up
+    // Advance the baseline BEFORE returning, so a caller whose follow-up
     // action fails (a rejected clear_async, say) doesn't re-fire the same event
     // on every subsequent poll.
     it->second = observed;
-
-    auto exp = expected_.find(slot_index);
-    if (exp == expected_.end())
-        return FingerprintEvent::Changed;
-
-    // Single-shot per value: an exact match consumes only its own entry
-    // (OwnWriteEcho), however many in-flight writes shared it - the baseline
-    // has advanced to this value, so the next poll of it reads Unchanged.
-    // Any other change means the slot moved somewhere we did
-    // not send it, so whatever echoes were outstanding are no longer
-    // meaningful — consume them all and return to normal swap detection
-    // immediately rather than staying suppressed.
-    for (auto eit = exp->second.begin(); eit != exp->second.end(); ++eit) {
-        if (eit->first == observed) {
-            exp->second.erase(eit);
-            if (exp->second.empty())
-                expected_.erase(exp);
-            confirm_baseline();
-            return FingerprintEvent::OwnWriteEcho;
-        }
-    }
-    expected_.erase(exp);
     return FingerprintEvent::Changed;
-}
-
-std::vector<std::string>
-SlotFingerprintTracker::expect_any_of(int slot_index, std::vector<std::string> expected_values) {
-    // Accumulate with whatever is still pending from earlier writes on this
-    // slot: a second edit dispatched before the first echo lands leaves both
-    // echoes expected, so neither is misread as a swap when it arrives. A
-    // value the earlier write already armed gains a second claim on its one
-    // entry rather than a second entry, so one write giving up never drops
-    // the other's echo.
-    std::vector<std::string> staged;
-    for (auto& v : expected_values) {
-        if (!v.empty())
-            staged.push_back(std::move(v));
-    }
-    if (staged.empty())
-        return {};
-    auto& pending = expected_[slot_index];
-    for (const auto& v : staged) {
-        const auto it =
-            std::find_if(pending.begin(), pending.end(),
-                         [&v](const std::pair<std::string, int>& e) { return e.first == v; });
-        if (it == pending.end())
-            pending.emplace_back(v, 1);
-        else
-            ++it->second;
-    }
-    return staged;
-}
-
-void SlotFingerprintTracker::forget_expected(int slot_index,
-                                             const std::vector<std::string>& staged_values) {
-    auto exp = expected_.find(slot_index);
-    if (exp == expected_.end())
-        return;
-    for (const auto& v : staged_values) {
-        for (auto it = exp->second.begin(); it != exp->second.end(); ++it) {
-            if (it->first == v) {
-                if (--it->second <= 0)
-                    exp->second.erase(it);
-                break;
-            }
-        }
-    }
-    if (exp->second.empty())
-        expected_.erase(exp);
 }
 
 std::optional<std::string> SlotFingerprintTracker::baseline(int slot_index) const {
@@ -824,13 +775,8 @@ std::optional<std::string> SlotFingerprintTracker::baseline(int slot_index) cons
     return it->second;
 }
 
-bool SlotFingerprintTracker::has_expected(int slot_index) const {
-    return expected_.find(slot_index) != expected_.end();
-}
-
 void SlotFingerprintTracker::clear() {
     baseline_.clear();
-    expected_.clear();
 }
 
 void bind_fingerprint_persistence(SlotFingerprintTracker& tracker, FilamentSlotOverrideStore* store,

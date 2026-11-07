@@ -246,11 +246,13 @@ void AmsSubscriptionBackend::refresh_lane_records() {
     refresh_in_flight_ = true;
     auto token = lifetime_.token();
     store->reload_async(
-        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-            token.defer("AmsSubscriptionBackend::adopt_lane_records",
-                        [this, store, records = std::move(records)]() mutable {
-                            adopt_lane_records(store, std::move(records));
-                        });
+        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records,
+                             nlohmann::json keys) {
+            token.defer(
+                "AmsSubscriptionBackend::adopt_lane_records",
+                [this, store, records = std::move(records), keys = std::move(keys)]() mutable {
+                    adopt_lane_records(store, std::move(records), keys);
+                });
         },
         [this, token]() {
             token.defer("AmsSubscriptionBackend::lane_records_unread", [this]() {
@@ -263,7 +265,7 @@ void AmsSubscriptionBackend::refresh_lane_records() {
 
 void AmsSubscriptionBackend::adopt_lane_records(
     helix::ams::FilamentSlotOverrideStore* store,
-    std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+    std::unordered_map<int, helix::ams::LaneDataRecord> records, const nlohmann::json& keys) {
     refresh_in_flight_ = false;
     bool changed = false;
     std::unordered_map<int, nlohmann::json> previous;
@@ -286,6 +288,7 @@ void AmsSubscriptionBackend::adopt_lane_records(
         changed = lane_records_unread_ || previous != lane_wire_seen_;
         lane_records_unread_ = false;
         on_lane_records_read_locked();
+        changed = on_lane_record_keys_locked(keys) || changed;
     }
 
     // Every read is filed whole, so a record another client rewrote shows on
@@ -295,7 +298,9 @@ void AmsSubscriptionBackend::adopt_lane_records(
         const helix::ams::LaneId lane = lane_id(slot);
         const bool had_pending = helix::ams::lane_sources(lane).pending.has_value();
         if (!entry.record.external_mirror) {
-            helix::ams::ingest(lane, helix::ams::record_observation(entry.record));
+            helix::ams::Observation record = helix::ams::record_observation(entry.record);
+            drop_firmware_held_fields(record);
+            helix::ams::ingest(lane, record);
         }
         changed = changed || had_pending != helix::ams::lane_sources(lane).pending.has_value();
     }

@@ -536,17 +536,6 @@ void SettingsManager::reset_jog_distances() {
     }
 }
 
-bool SettingsManager::get_bypass_declared() const {
-    Config* config = Config::get_instance();
-    return config->get<bool>(config->df() + "ams/bypass_declared", false);
-}
-
-void SettingsManager::set_bypass_declared(bool declared) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "ams/bypass_declared", declared);
-    config->save();
-}
-
 namespace {
 
 /// Config pointer holding one layer of a user filter list.

@@ -4670,6 +4670,9 @@ translations:
   tall: 高さ
   target {}%: '目標 {}%'
   target {}°: '目標 {}°'
+  the ACE needs a material and its nozzle temperature: "ACEには素材とそのノズル温度が必要です"
+  the QIDI Box filament list has not loaded: "QIDI Boxのフィラメントリストが読み込まれていません"
+  the QIDI Box has no {} in its filament list: "QIDI Boxのフィラメントリストに{}がありません"
   the extruder: エクストルーダー
   the left belt: "左ベルト"
   the lower belt: "下ベルト"

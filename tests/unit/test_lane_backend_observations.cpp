@@ -84,11 +84,28 @@ namespace {
 using Ad5xHarness = RegisteredBackend<AmsBackendAd5xIfs>;
 using AfcHarness = RegisteredBackend<AmsBackendAfc>;
 using HappyHareHarness = RegisteredBackend<AmsBackendHappyHare>;
-using CfsHarness = RegisteredBackend<AmsBackendCfs>;
+/// A CFS whose identity writes reach the box: an edit the box never receives
+/// is refused, and these cases edit lanes.
+class SentCfs : public AmsBackendCfs {
+  public:
+    using AmsBackendCfs::AmsBackendCfs;
+    helix::AmsError execute_gcode(const std::string& /*gcode*/) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+using CfsHarness = RegisteredBackend<SentCfs>;
 using AceHarness = RegisteredBackend<AmsBackendAce>;
 using SnapmakerHarness = RegisteredBackend<AmsBackendSnapmaker>;
 using ToolChangerHarness = RegisteredBackend<AmsBackendToolChanger>;
-using QidiHarness = RegisteredBackend<AmsBackendQidi>;
+/// A QIDI Box whose SAVE_VARIABLEs reach the printer, as SentCfs.
+class SentQidi : public AmsBackendQidi {
+  public:
+    using AmsBackendQidi::AmsBackendQidi;
+    helix::AmsError execute_gcode(const std::string& /*gcode*/) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+using QidiHarness = RegisteredBackend<SentQidi>;
 using MockHarness = RegisteredBackend<AmsBackendMock>;
 
 /// An AFC backend running the real apply_user_edit dispatch chain, whose
@@ -2709,7 +2726,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Qidi vendor change alone is not a spool swa
                                                            {"vendor_slot0", 8}});
 
     const auto info = harness->get_slot_info(0);
-    CHECK(info.material == "PETG Basic");
+    CHECK(info.material == "PETG");
     CHECK(info.brand == "Elegoo");
 }
 
@@ -2740,7 +2757,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Qidi rows that decode alike are one spool",
                                                            {"vendor_slot0", 3}});
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(harness->get_slot_info(0).material == "PETG");
     CHECK(toasts.messages.empty());
 }
 
@@ -2771,7 +2788,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Qidi insert the reader read nothing about a
     helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(toasts.messages.size() == 1);
-    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(harness->get_slot_info(0).material == "PETG");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a Qidi insert whose tag decodes the same asks nothing",
@@ -2803,7 +2820,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Qidi insert whose tag decodes the same asks
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(toasts.messages.empty());
-    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(harness->get_slot_info(0).material == "PETG");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a Qidi fingerprint stored with a vendor component folds to two",
@@ -2827,11 +2844,14 @@ TEST_CASE_METHOD(LVGLTestFixture,
     const nlohmann::json base{{"box_count", 1}, {"filament_slot0", 12}, {"color_slot0", 5}};
     QidiBoxTestAccess::parse_vars(*harness, base);
 
-    auto edit = harness->get_slot_info(0);
-    edit.material = "PETG Basic";
-    edit.color_rgb = 0xED2C2Cu;
-    edit.brand = "QIDI";
-    helix::test::edit_slot_as_user(*harness, 0, edit);
+    // An edit needs the tables to name its rows, so the record stands in for
+    // one written before the fetch failed.
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG Basic";
+    record.color_rgb = 0xED2C2Cu;
+    record.color_set = true;
+    record.brand = "QIDI";
+    QidiBoxTestAccess::seed_override(*harness, 0, record);
     REQUIRE(QidiBoxTestAccess::get_override(*harness, 0).has_value());
 
     // A different spool's ids arrive with the tables still missing. Both
@@ -2861,11 +2881,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "Qidi ids that match with no tables keep the o
                                                 {"vendor_slot0", 3},
                                             });
 
-    auto edit = harness->get_slot_info(0);
-    edit.material = "PETG Basic";
-    edit.color_rgb = 0xED2C2Cu;
-    edit.brand = "QIDI";
-    helix::test::edit_slot_as_user(*harness, 0, edit);
+    // An edit needs the tables to name its rows, so the record stands in for
+    // one written before the fetch failed.
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG Basic";
+    record.color_rgb = 0xED2C2Cu;
+    record.color_set = true;
+    record.brand = "QIDI";
+    QidiBoxTestAccess::seed_override(*harness, 0, record);
     REQUIRE(QidiBoxTestAccess::get_override(*harness, 0).has_value());
 
     // The fila and colour ids stand; only the vendor row moves. The
@@ -2879,7 +2902,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Qidi ids that match with no tables keep the o
 
     const auto override_after = QidiBoxTestAccess::get_override(*harness, 0);
     REQUIRE(override_after.has_value());
-    CHECK(harness->get_slot_info(0).material == "PETG Basic");
+    CHECK(override_after->material == "PETG Basic");
     CHECK(toasts.messages.empty());
 }
 

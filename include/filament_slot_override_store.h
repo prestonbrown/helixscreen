@@ -108,7 +108,10 @@ class FilamentSlotOverrideStore {
     /// records (narrowed by extras_only() on an extras namespace) on the
     /// requesting thread's callback; an absent namespace is an empty read. A
     /// failed read calls @p on_failure. Callbacks capture nothing of the store.
-    using ReloadCallback = std::function<void(std::unordered_map<int, LaneDataRecord>)>;
+    /// The callback's second argument holds the namespace's keys that are not
+    /// lane records (save_key_async()), each with its value.
+    using ReloadCallback =
+        std::function<void(std::unordered_map<int, LaneDataRecord>, nlohmann::json keys)>;
     void reload_async(ReloadCallback cb, std::function<void()> on_failure = nullptr);
 
     /// Called, on whatever thread the reply lands on, after each write or clear
@@ -134,6 +137,13 @@ class FilamentSlotOverrideStore {
 
     /// Delete slot @p slot_index's record, under the same writer rule.
     void clear_async(int slot_index, SaveCallback cb);
+
+    /// Write @p key, a namespace key beside the lane records holding one plain
+    /// value rather than a record. reload_async() hands it back with the
+    /// records, so every client reads it on the same poll.
+    void save_key_async(const std::string& key, nlohmann::json value, SaveCallback cb);
+    /// Delete @p key (see save_key_async()).
+    void clear_key_async(const std::string& key, SaveCallback cb);
 
     // The "seated" sibling key: the 0-based index of the lane loaded to the
     // toolhead (AD5X IFS). A plain integer, not a lane record.
@@ -289,73 +299,24 @@ enum class FingerprintEvent {
     Baseline,
     /// Identical to the baseline — the same physical spool re-observed.
     Unchanged,
-    /// Changed to exactly the value a prior expect() said to await, i.e. this
-    /// is the firmware echoing back a write HelixScreen itself made.
-    OwnWriteEcho,
-    /// Changed for some reason other than our own pending write — for the RFID
-    /// backends this means a physical spool swap.
+    /// Different from the baseline. Whether that is a physical spool swap or
+    /// the echo of a write of ours is the caller's call: a lane with an edit
+    /// of ours in flight (a Pending record) is hearing its own write.
     Changed,
 };
 
 /// Per-slot "what did firmware last report for this slot?" tracker, shared by
-/// the RFID-fingerprint backends (CFS, Snapmaker). It owns only the
+/// the RFID-fingerprint backends (CFS, QIDI, Snapmaker). It owns only the
 /// bookkeeping — deciding what a given event *means* (clear the override, sync
 /// lane_data, log) stays in each backend, so their policies can differ.
-///
-/// Beyond the plain baseline compare it carries an expectation set: a backend
-/// that writes a value back to firmware (CFS's BOX_MODIFY_TN_DATA identity
-/// push) registers the values it expects to see echoed, via expect_any_of().
-/// Because the write is asynchronous, firmware keeps reporting the OLD value
-/// for an unknown number of polls before the echo lands, so the expectation
-/// must SURVIVE those polls rather than overwrite the baseline immediately.
-/// Those intervening polls classify as Unchanged; the echo itself classifies
-/// as OwnWriteEcho.
-///
-/// Each expectation is single-shot per value: an exact match consumes only its
-/// own entry, and a change to a value no write asked for consumes them all, so
-/// a genuine physical swap that lands while a write is in flight is still
-/// reported as Changed and never permanently blinds swap detection for that
-/// slot.
-///
-/// A backend that writes TWO fields with one dispatch (CFS writes
-/// material_type then color_value in one script) can land a poll between the
-/// two echoes, observing an intermediate value neither write alone produces.
-/// `expect_any_of()` registers the full set of values the slot may transiently
-/// or finally report; each observed value consumes only its own entry, so the
-/// intermediate echo and the final echo both classify as OwnWriteEcho. A
-/// change to a value NOT in the set still consumes everything and reports
-/// Changed — the physical-swap guarantee above is unchanged.
 class SlotFingerprintTracker {
   public:
-    /// Feed one observation. When the result is OwnWriteEcho or Changed and
-    /// `previous` is non-null, it receives the superseded baseline value (for
-    /// logging). The baseline is advanced BEFORE returning a change event so a
-    /// caller whose follow-up action fails doesn't re-fire on every poll.
+    /// Feed one observation. When the result is Changed and `previous` is
+    /// non-null, it receives the superseded baseline value (for logging). The
+    /// baseline is advanced BEFORE returning a change event so a caller whose
+    /// follow-up action fails doesn't re-fire on every poll.
     FingerprintEvent observe(int slot_index, const std::string& observed,
                              std::string* previous = nullptr);
-
-    /// Register every value the slot may report between the first and last
-    /// echo of a multi-field write (the intermediate composites and the final
-    /// one). Values accumulate with any still pending from an earlier write on
-    /// the same slot: a second edit dispatched before the first echo lands
-    /// leaves both echoes expected, so neither is misread as a swap when it
-    /// arrives. Each value is consumed only by an exact match; any other
-    /// change clears them all. Empty strings are dropped;
-    /// forget_expected() is the explicit drop.
-    ///
-    /// Returns the values actually staged, for handing back to
-    /// forget_expected() when the write they were armed for fails to
-    /// dispatch. A value an earlier in-flight write also expects is staged
-    /// as a second claim on one entry, so that write's echo stays expected
-    /// after this one gives up.
-    std::vector<std::string> expect_any_of(int slot_index,
-                                           std::vector<std::string> expected_values);
-
-    /// Drop the claims one expect_any_of() call staged - that write failed
-    /// to dispatch, so its echo is never coming and the next change is
-    /// genuinely external. Values another in-flight write also expects
-    /// survive: each write holds its own claim.
-    void forget_expected(int slot_index, const std::vector<std::string>& staged_values);
 
     /// Current baseline for a slot, or nullopt when none observed yet.
     [[nodiscard]] std::optional<std::string> baseline(int slot_index) const;
@@ -371,9 +332,9 @@ class SlotFingerprintTracker {
     }
 
     /// Notified on every observation that establishes or confirms a baseline:
-    /// Baseline, Unchanged and OwnWriteEcho. Not NoSignal (nothing was
-    /// observed) and not Changed: the caller is about to erase the record the
-    /// fingerprint travels in, and a save racing that erase would resurrect it.
+    /// Baseline and Unchanged. Not NoSignal (nothing was observed) and not
+    /// Changed: the caller may be about to erase the record the fingerprint
+    /// travels in, and a save racing that erase would resurrect it.
     /// Unchanged firing is load-bearing: a record can come into existence
     /// after the Baseline event (the auto-mirror, a user edit), and the next
     /// confirming poll is what heals the fingerprint into it.
@@ -386,24 +347,15 @@ class SlotFingerprintTracker {
         baseline_sink_ = std::move(sink);
     }
 
-    /// Drop a slot's baseline, so its next observation is a first one. Pending
-    /// expectations are kept.
+    /// Drop a slot's baseline, so its next observation is a first one.
     void forget_baseline(int slot_index) {
         baseline_.erase(slot_index);
     }
-
-    /// Whether an unconsumed expectation is pending for a slot.
-    [[nodiscard]] bool has_expected(int slot_index) const;
 
     void clear();
 
   private:
     std::unordered_map<int, std::string> baseline_;
-    /// Pending expected values per slot, each paired with the number of
-    /// in-flight writes that expect it: the intermediate and final composites
-    /// expect_any_of() registered, claim-counted so one write's failed
-    /// dispatch drops only its own claim.
-    std::unordered_map<int, std::vector<std::pair<std::string, int>>> expected_;
     BaselineSink baseline_sink_;
 };
 
