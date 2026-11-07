@@ -24,6 +24,7 @@
 #include "probe_sensor_types.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
+#include "z_offset_calibration_approach.h"
 
 #include <spdlog/spdlog.h>
 
@@ -194,8 +195,9 @@ void ui_probe_overlay_register_callbacks() {
              auto& mgr = ProbeSensorManager::instance();
              for (const auto& s : mgr.get_sensors()) {
                  if (s.type == ProbeSensorType::EDDY_CURRENT) {
-                     std::string cmd = "PROBE_EDDY_CURRENT_CALIBRATE CHIP=" + s.sensor_name;
-                     send_probe_gcode(cmd.c_str(), "Eddy Current Calibrate");
+                     const auto cmd = helix::zoffset_cal::calibration_command(
+                         ZOffsetCalibrationStrategy::PROBE_CALIBRATE, s.type, s.sensor_name);
+                     send_probe_gcode(cmd.gcode.c_str(), "Eddy Current Calibrate");
                      return;
                  }
              }

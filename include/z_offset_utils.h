@@ -180,6 +180,22 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     helix::SharedCallback<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
 
+/// Save a calibration that ACCEPT has just staged in the printer config.
+///
+/// PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE and the scan-probe calibrations write
+/// their result into configfile on ACCEPT, so the save is SAVE_CONFIG alone.
+/// Z_OFFSET_APPLY_* is for baby-step saves: it writes the value Klipper loaded
+/// at start minus the live gcode Z offset, which here would replace the fresh
+/// result whenever an offset is set (#1994). FIRMWARE_MANAGED forwards to
+/// apply_and_save().
+///
+/// Parameters and callbacks are apply_and_save()'s.
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               helix::SharedCallback<void()> on_success,
+                               helix::SharedCallback<void(const std::string& error)> on_error,
+                               PrinterState* ps = nullptr);
+
 /// The facts the "is there an offset worth saving" decision is made from.
 struct SaveAvailability {
     /// The firmware does not persist the offset on its own, so a manual save is

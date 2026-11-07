@@ -124,16 +124,14 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
     return true;
 }
 
-void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
-                    ZOffsetCalibrationStrategy strategy, helix::SharedCallback<void()> on_success,
-                    helix::SharedCallback<void(const std::string& error)> on_error,
-                    PrinterState* ps) {
-    // Both success paths below (the FIRMWARE_MANAGED early return and the
-    // APPLY -> SAVE_CONFIG chain) funnel through this wrapper, so the pending
-    // Z-offset delta is cleared exactly once, wherever the save actually
-    // completed — including firmware-managed printers, where the offset is
-    // genuinely persisted even though HelixScreen sent nothing.
-    auto on_saved = [ps, on_success = std::move(on_success)]() {
+namespace {
+
+/// Wraps @p on_success so a completed save also clears @p ps's pending Z-offset
+/// delta, on every success path, firmware-managed printers included: there the
+/// offset is persisted even though HelixScreen sent nothing.
+helix::SharedCallback<void()> clearing_pending_delta(PrinterState* ps,
+                                                     helix::SharedCallback<void()> on_success) {
+    return [ps, on_success = std::move(on_success)]() {
         if (ps) {
             ps->motion_state().clear_pending_z_offset_delta();
         }
@@ -141,6 +139,37 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
             on_success();
         }
     };
+}
+
+/// SAVE_CONFIG through @p save_watch, from the WebSocket thread.
+///
+/// The watch owns the whole SAVE_CONFIG contract: it arms the expected-restart
+/// suppressions, sends the save, absorbs the rpc the restart drops, and reports
+/// success only once Klipper is back READY (prestonbrown/helixscreen#1359).
+/// begin() installs an observer, hence the _from_background form.
+void begin_save_config(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                       helix::SharedCallback<void()> on_saved,
+                       helix::SharedCallback<void(const std::string& error)> on_error) {
+    save_watch.begin_from_background(
+        api, "Saving config... Klipper will restart.", std::move(on_saved),
+        [on_error = std::move(on_error)](const std::string& err) {
+            // English in the log for developers, a translated copy for the user.
+            spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
+            if (on_error)
+                on_error(fmt::format(
+                    lv_tr("SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
+                          "Run SAVE_CONFIG manually or the offset will be lost on restart."),
+                    err));
+        });
+}
+
+} // namespace
+
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, helix::SharedCallback<void()> on_success,
+                    helix::SharedCallback<void(const std::string& error)> on_error,
+                    PrinterState* ps) {
+    auto on_saved = clearing_pending_delta(ps, std::move(on_success));
 
     if (!api) {
         spdlog::error("[ZOffsetUtils] apply_and_save called with null API");
@@ -174,31 +203,7 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
         apply_cmd,
         [api, apply_cmd, &save_watch, on_saved, on_error]() {
             spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
-
-            // The watch owns the whole SAVE_CONFIG contract: it arms the
-            // expected-restart suppressions, sends the save, absorbs the rpc the
-            // restart drops, and reports success only once Klipper is back READY.
-            // Sending it raw here reported every successful save as a failure and
-            // never ran on_saved(), so the pending Z-offset delta was left set
-            // (prestonbrown/helixscreen#1359).
-            //
-            // This callback lands on the WebSocket thread and begin() installs an
-            // observer, hence the _from_background form.
-            save_watch.begin_from_background(
-                api, "Saving config... Klipper will restart.", on_saved,
-                [on_error](const std::string& err) {
-                    // Log in English (developer-facing), hand the user a
-                    // translated copy. The message used to be one bare
-                    // fmt::format serving both, so the whole sentence was
-                    // untranslatable.
-                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
-                    if (on_error)
-                        on_error(fmt::format(
-                            lv_tr(
-                                "SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
-                                "Run SAVE_CONFIG manually or the offset will be lost on restart."),
-                            err));
-                });
+            begin_save_config(api, save_watch, on_saved, on_error);
         },
         [apply_cmd, on_error](const MoonrakerError& err) {
             spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
@@ -210,6 +215,23 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                                      err.localized_message()));
             });
         });
+}
+
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               helix::SharedCallback<void()> on_success,
+                               helix::SharedCallback<void(const std::string& error)> on_error,
+                               PrinterState* ps) {
+    if (!api || strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
+        apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
+        return;
+    }
+    // ACCEPT has already staged the calibrated value. Z_OFFSET_APPLY_* would
+    // overwrite it with the value Klipper loaded at start minus any live gcode
+    // Z offset, so the save only commits.
+    spdlog::info("[ZOffsetUtils] Saving the accepted calibration with SAVE_CONFIG");
+    begin_save_config(api, save_watch, clearing_pending_delta(ps, std::move(on_success)),
+                      std::move(on_error));
 }
 
 int persisted_step_index() {

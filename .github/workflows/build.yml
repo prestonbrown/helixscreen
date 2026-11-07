@@ -525,9 +525,10 @@ jobs:
     # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
     # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
     # the build, so it sits well clear of the build's own spread.
-    # The build is narrowed to the two 64-bit ABIs: armeabi-v7a is a third full
-    # native build, roughly half again on the job, and only the release workflow
-    # builds it.
+    # Two of the three release ABIs, one per pointer width: arm64-v8a, and
+    # armeabi-v7a for the 32-bit userland of Fire tablets and LineageOS Echo
+    # Shows. x86_64 is a third full native build, roughly half again on the job,
+    # and is 64-bit like arm64, so only the release workflow builds it.
     timeout-minutes: 50
 
     steps:
@@ -577,7 +578,7 @@ jobs:
 
     - name: Build Android APK (debug)
       working-directory: android
-      run: ./gradlew assembleDebug -PhelixAbis=arm64-v8a,x86_64 -PuseCcache -PhelixNoDebugInfo
+      run: ./gradlew assembleDebug -PhelixAbis=arm64-v8a,armeabi-v7a -PuseCcache -PhelixNoDebugInfo
 
     - name: Upload APK
       uses: actions/upload-artifact@v7
