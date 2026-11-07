@@ -66,6 +66,31 @@ inline AmsSlotLayout calculate_ams_slot_layout(int32_t available_width, int slot
 
 namespace helix::ui {
 
+/// Pixels trimmed off each side of a slot's tap area.
+struct AmsSlotHitBand {
+    int32_t left_inset = 0;
+    int32_t right_inset = 0;
+};
+
+/**
+ * @brief The part of an overlapping slot that a tap belongs to.
+ *
+ * Adjacent slots share @p layout.overlap pixels. Each shared strip is split at
+ * its middle, so every slot claims one pitch centered on its own spool and a tap
+ * never lands on a neighbour. The end slots keep their outer edges.
+ */
+inline AmsSlotHitBand ams_slot_hit_band(const AmsSlotLayout& layout, int slot_index,
+                                        int slot_count) {
+    AmsSlotHitBand band;
+    if (layout.overlap <= 0 || slot_index < 0 || slot_index >= slot_count)
+        return band;
+    if (slot_index > 0)
+        band.left_inset = layout.overlap - layout.overlap / 2;
+    if (slot_index < slot_count - 1)
+        band.right_inset = layout.overlap / 2;
+    return band;
+}
+
 /// The stagger row a slot's label stands in: @p rows rows, row 0 nearest the spools.
 struct AmsLabelRow {
     int rows = 1;

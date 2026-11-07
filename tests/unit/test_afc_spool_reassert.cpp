@@ -87,6 +87,20 @@ class AfcReassertHelper : public AmsBackendAfc {
         return get_slot_info(slot_index).spoolman_id;
     }
 
+    [[nodiscard]] std::string visible_material(int slot_index) const {
+        return get_slot_info(slot_index).material;
+    }
+
+    /// File what Spoolman says about a lane's spool, as SpoolmanManager does.
+    void ingest_spoolman(int slot_index, int spool_id, const std::string& material,
+                         const std::string& brand) {
+        helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+        spoolman.spoolman_id = spool_id;
+        spoolman.material = material;
+        spoolman.brand = brand;
+        helix::ams::ingest(lane_id(slot_index), spoolman);
+    }
+
     [[nodiscard]] bool has_override(int slot_index) const {
         std::lock_guard<std::mutex> lock(mutex_);
         return AfcTestAccess::overrides(*this).count(slot_index) > 0;
@@ -270,4 +284,120 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // under the same key.
     afc.feed_stepper("lane2", nlohmann::json{{"spool_id", 99}});
     CHECK_FALSE(afc.has_override(1));
+}
+
+// AFC publishes its own per-lane setting for what an eject does to a lane's
+// spool details, remember_spool. Where a lane reports it, AFC decides, and
+// HelixScreen's own "Keep Spool Info on Eject" setting does not apply.
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC lane with remember_spool off forgets a Spoolman link on eject even with "
+                 "Keep Spool Info on",
+                 "[ams][afc][remember_spool]") {
+    SettingsManager::instance().init_subjects();
+    SettingsManager::instance().set_ams_keep_spool_info_on_eject(true);
+
+    helix::test::RegisteredBackend<AfcReassertHelper> afc_reg;
+    AfcReassertHelper& afc = *afc_reg;
+
+    // A lane AFC itself linked (Mainsail or a macro): no HelixScreen record,
+    // only what Spoolman says about the spool firmware names.
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"},
+                                             {"remember_spool", false},
+                                             {"spool_id", 127},
+                                             {"material", "ASA"}});
+    afc.ingest_spoolman(0, 127, "ASA", "Overture");
+    afc.feed_stepper("lane1", nlohmann::json{{"weight", 430.0}}); // the next frame paints it
+    REQUIRE(afc.visible_spool_id(0) == 127);
+    REQUIRE(afc.visible_material(0) == "ASA");
+
+    // Eject: AFC clears the lane, and so does HelixScreen.
+    afc.feed_stepper("lane1",
+                     nlohmann::json{{"status", "None"}, {"spool_id", nullptr}, {"material", ""}});
+    CHECK(afc.visible_spool_id(0) == 0);
+    CHECK(afc.visible_material(0).empty());
+
+    // Reload: AFC fills its default material; HelixScreen shows what AFC
+    // says and pushes nothing back.
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}, {"material", "ABS"}});
+    CHECK(afc.visible_spool_id(0) == 0);
+    CHECK(afc.visible_material(0) == "ABS");
+    CHECK_FALSE(afc.has_gcode_starting_with("SET_SPOOL_ID"));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC lane with remember_spool off forgets HelixScreen's own record on eject",
+                 "[ams][afc][remember_spool]") {
+    SettingsManager::instance().init_subjects();
+    SettingsManager::instance().set_ams_keep_spool_info_on_eject(true);
+
+    helix::test::RegisteredBackend<AfcReassertHelper> afc_reg;
+    AfcReassertHelper& afc = *afc_reg;
+
+    // Lane 1 linked in HelixScreen's editor; lane 2 a manual entry with no spool.
+    afc.set_override(0, spool_override(42));
+    helix::ams::FilamentSlotOverride manual;
+    manual.material = "ASA";
+    manual.brand = "Generic";
+    afc.set_override(1, manual);
+    afc.feed_stepper(
+        "lane1", nlohmann::json{{"status", "Loaded"}, {"remember_spool", false}, {"spool_id", 42}});
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}, {"remember_spool", false}});
+    REQUIRE(afc.visible_spool_id(0) == 42);
+    REQUIRE(afc.visible_material(1) == "ASA");
+
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "None"}, {"spool_id", nullptr}});
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "None"}, {"material", ""}});
+    CHECK_FALSE(afc.has_override(0));
+    CHECK_FALSE(afc.has_override(1));
+    CHECK(afc.visible_spool_id(0) == 0);
+    CHECK(afc.visible_material(1).empty());
+
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}});
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}});
+    CHECK_FALSE(afc.has_gcode_starting_with("SET_SPOOL_ID"));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AFC lane with remember_spool on keeps its details through an eject",
+                 "[ams][afc][remember_spool]") {
+    // Keep Spool Info off: AFC's own setting still wins.
+    SettingsManager::instance().init_subjects();
+    SettingsManager::instance().set_ams_keep_spool_info_on_eject(false);
+
+    helix::test::RegisteredBackend<AfcReassertHelper> afc_reg;
+    AfcReassertHelper& afc = *afc_reg;
+    helix::ams::FilamentSlotOverride manual;
+    manual.material = "ASA";
+    afc.set_override(1, manual);
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}});
+    REQUIRE(afc.visible_material(1) == "ASA");
+
+    // AFC keeps the lane's values, so its eject frame names no clear.
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "None"}});
+    CHECK(afc.has_override(1));
+    CHECK(afc.visible_material(1) == "ASA");
+    SettingsManager::instance().set_ams_keep_spool_info_on_eject(true);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC spool retention is AFC's setting once every lane reports it",
+                 "[ams][afc][remember_spool]") {
+    helix::test::RegisteredBackend<AfcReassertHelper> afc_reg;
+    AfcReassertHelper& afc = *afc_reg;
+
+    // Older AFC reports nothing: HelixScreen's setting governs.
+    CHECK_FALSE(afc.firmware_owns_spool_retention());
+    afc.feed_stepper("lane1", nlohmann::json{{"remember_spool", false}});
+    CHECK_FALSE(afc.firmware_owns_spool_retention());
+    afc.feed_stepper("lane2", nlohmann::json{{"remember_spool", true}});
+    CHECK(afc.firmware_owns_spool_retention());
+
+    // The switch writes AFC's setting on every lane.
+    REQUIRE(afc.set_firmware_spool_retention(true).success());
+    CHECK(afc.has_gcode("AFC_SET_REMEMBER_SPOOL LANE=lane1 REMEMBER_SPOOL=1"));
+    CHECK(afc.has_gcode("AFC_SET_REMEMBER_SPOOL LANE=lane2 REMEMBER_SPOOL=1"));
+    afc.captured_gcodes.clear();
+    REQUIRE(afc.set_firmware_spool_retention(false).success());
+    CHECK(afc.has_gcode("AFC_SET_REMEMBER_SPOOL LANE=lane1 REMEMBER_SPOOL=0"));
+    CHECK(afc.has_gcode("AFC_SET_REMEMBER_SPOOL LANE=lane2 REMEMBER_SPOOL=0"));
 }

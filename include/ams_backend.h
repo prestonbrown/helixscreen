@@ -3059,16 +3059,27 @@ class AmsBackend : public AmsCapabilityHost {
         return traits().printer_reports_spool_ids;
     }
 
-    /// Whether the firmware is CURRENTLY retaining spool identity across
-    /// eject on its own (AFC's per-lane remember_spool = true everywhere).
-    /// Dynamic, unlike the capabilities above — it reflects a config
-    /// choice, not a firmware property. When true, "Keep Spool Info on
-    /// Eject" has no observable effect either way: firmware keeps reporting
-    /// the spool id, so neither the eject rule nor the #1289 re-assert push
-    /// ever fires. The AMS Management overlay shows the toggle disabled
-    /// with a note rather than letting it silently lie.
+    /// Whether the firmware is retaining spool identity across an eject on
+    /// every lane (AFC's per-lane remember_spool = true everywhere). Dynamic,
+    /// unlike the capabilities above: it reflects a config choice, not a
+    /// firmware property. Read alongside firmware_owns_spool_retention().
     [[nodiscard]] virtual bool printer_retains_spool_info() const {
         return false;
+    }
+
+    /// Whether the firmware has its own setting for what an eject does to a
+    /// lane's spool details, reported on every lane. When true that setting
+    /// decides, and HelixScreen's "Keep Spool Info on Eject" does not apply:
+    /// the switch shows printer_retains_spool_info() and writes through
+    /// set_firmware_spool_retention().
+    [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
+        return false;
+    }
+
+    /// Write the firmware's own spool-retention setting on every lane.
+    virtual AmsError set_firmware_spool_retention(bool keep) {
+        (void)keep;
+        return AmsErrorHelper::not_supported("Firmware spool retention");
     }
 
   protected:

@@ -102,6 +102,16 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                 (tool_changer || flat_));
     }
 
+    /// Give every lane a brand, as a Spoolman vendor would (the mock's lanes
+    /// carry none), and lay the tray out again around the name lines.
+    void name_every_lane(int lanes, const char* brand) {
+        for (int i = 0; i < lanes; ++i)
+            lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0, i), brand);
+        panel_->refresh_slots();
+        process_lvgl(20);
+        lv_obj_update_layout(test_screen());
+    }
+
     ~AmsTrayPanelFixture() override {
         if (panel_) {
             panel_->on_deactivate(DeactivateReason::NavigateAway);
@@ -576,9 +586,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK(lv_obj_get_style_x(badge, LV_PART_MAIN) == corner_x);
 }
 
-TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a spool name stacks directly over its material",
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a brand stacks directly over its material",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
+    name_every_lane(4, "eSUN");
     int named = 0;
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
@@ -603,6 +614,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a spool name stacks directly ov
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on the box front",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
+    name_every_lane(4, "eSUN");
     int named = 0;
     for (int i = 0; i < 4; ++i) {
         lv_obj_t* name = lv_obj_find_by_name(slot(i), "name_label");
@@ -833,6 +845,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
                 ++shown;
         return shown;
     };
+    name_every_lane(4, "eSUN");
     const std::vector<int32_t> all_named = spool_tops();
     REQUIRE(name_lines_shown() == 4);
 

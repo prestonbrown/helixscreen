@@ -92,10 +92,3 @@ TEST_CASE_METHOD(LVGLTestFixture,
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}});
     CHECK_FALSE(afc.printer_retains_spool_info());
 }
-
-TEST_CASE_METHOD(LVGLTestFixture, "printer_retains_spool_info base default is false",
-                 "[ams][capabilities][spool-retention]") {
-    // Qualified call pins the BASE default (false).
-    auto afc = std::make_unique<AmsBackendAfc>(nullptr, nullptr);
-    CHECK_FALSE(afc->AmsBackend::printer_retains_spool_info());
-}

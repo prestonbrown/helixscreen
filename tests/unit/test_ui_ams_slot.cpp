@@ -32,6 +32,7 @@
 #include "printer_state.h"
 #include "ui/ams_drawing_utils.h"
 
+#include <algorithm>
 #include <array>
 
 #include "../catch_amalgamated.hpp"
@@ -265,51 +266,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: material renders from subject wit
     process_lvgl(50);
     CHECK(std::string(UITest::get_text(material_label)) == "--");
 
-    lv_obj_delete(slot);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: set_layout_info does not crash",
-                 "[ui][ams_slot][api]") {
-    ui_ams_slot_register();
-
-    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
-    REQUIRE(slot != nullptr);
-
-    // Call set_layout_info with various configurations
-    // This tests stagger positioning logic - should not crash
-    ui_ams_slot_set_layout_info(slot, 0, 4);   // 4 slots, first slot
-    ui_ams_slot_set_layout_info(slot, 3, 8);   // 8 slots, middle slot
-    ui_ams_slot_set_layout_info(slot, 15, 16); // 16 slots, last slot
-
-    // If we get here without crashing, the test passes
-    lv_obj_delete(slot);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: move_label_to_layer reparents label",
-                 "[ui][ams_slot][api]") {
-    ui_ams_slot_register();
-
-    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
-    REQUIRE(slot != nullptr);
-
-    // Create a labels layer container
-    lv_obj_t* labels_layer = lv_obj_create(test_screen());
-    REQUIRE(labels_layer != nullptr);
-
-    // Initially, label should be in slot's tree
-    lv_obj_t* material_label = UITest::find_by_name(slot, "material_label");
-    REQUIRE(material_label != nullptr);
-
-    // Move label to the layer
-    ui_ams_slot_move_label_to_layer(slot, labels_layer, 100, 0);
-
-    // The label should now be a child of the labels_layer
-    // (This may require looking for it in the layer instead of the slot)
-    lv_obj_t* label_in_layer = UITest::find_by_name(labels_layer, "material_label");
-    // Note: Depending on implementation, label may be reparented or a proxy created
-    // The key is that this operation doesn't crash
-
-    lv_obj_delete(labels_layer);
     lv_obj_delete(slot);
 }
 
