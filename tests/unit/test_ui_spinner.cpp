@@ -12,6 +12,7 @@
 #include "ui_spinner.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "lvgl_assert_handler.h"
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -204,4 +205,56 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: a frozen spinner stays still un
     CHECK(lv_anim_get(spinner, nullptr) != nullptr);
 
     lv_obj_delete(spinner);
+}
+
+namespace {
+int g_lvgl_asserts = 0;
+
+void count_lvgl_assert(const char* /*file*/, int /*line*/, const char* /*func*/) {
+    ++g_lvgl_asserts;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_spinner: a parked spinner restarts on its draw without moving mid-render",
+                 "[ui_spinner]") {
+    // The restart runs inside the draw, where changing an angle invalidates the arc
+    // during rendering. The arc keeps the angles it parked on until the next tick.
+    struct AssertHook {
+        helix_assert_callback_t prev = g_helix_assert_cpp_callback;
+        AssertHook() {
+            g_lvgl_asserts = 0;
+            g_helix_assert_cpp_callback = count_lvgl_assert;
+        }
+        ~AssertHook() {
+            g_helix_assert_cpp_callback = prev;
+        }
+    } hook;
+
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_set_size(box, 200, 200);
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(box, "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    lv_refr_now(nullptr);
+    process_lvgl(600); // mid-cycle: both edges have left their first-frame angles
+    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    process_lvgl(50);
+    REQUIRE(lv_anim_get(spinner, nullptr) == nullptr);
+
+    const lv_value_precise_t parked_start = lv_arc_get_angle_start(spinner);
+    const lv_value_precise_t parked_end = lv_arc_get_angle_end(spinner);
+    // The first frame starts the trailing edge at 0 and the leading edge at 45.
+    REQUIRE(parked_start != 0);
+    REQUIRE(parked_end != 45);
+
+    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_refr_now(nullptr);
+    REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
+    CHECK(lv_arc_get_angle_start(spinner) == parked_start);
+    CHECK(lv_arc_get_angle_end(spinner) == parked_end);
+    CHECK(g_lvgl_asserts == 0);
+
+    lv_obj_delete(box);
 }
