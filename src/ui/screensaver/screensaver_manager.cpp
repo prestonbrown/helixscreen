@@ -99,6 +99,7 @@ helix::ui::ClockInput ScreensaverManager::clock_input() const {
     if (host_.print_status) {
         in.print = host_.print_status();
     }
+    in.show_print_progress = host_.show_print_progress ? host_.show_print_progress() : true;
     // A running print reads live; an ended one reads what the latch still holds.
     using helix::ui::ClockPrintPhase;
     const ClockPrintPhase p = in.print.phase;

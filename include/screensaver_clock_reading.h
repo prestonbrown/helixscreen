@@ -56,6 +56,9 @@ struct ClockInput {
     bool use_24h = false;
     ClockDate date;
     ClockPrint print;
+    /// The "Show Print Progress" setting: a running print's card on savers without their own
+    /// print display.
+    bool show_print_progress = true;
 };
 
 /// What the readout shows: the time, a running print's progress (PROGRESS before a remaining-time

@@ -3743,6 +3743,7 @@ translations:
   'Share this code in Discord or support:': 'Code in Discord oder Support teilen:'
   Sheet Label Print: Blatt-Etikettendruck
   Shelf A: Regal A
+  Show Print Progress: Druckfortschritt anzeigen
   Show Printer Switcher: Druckerumschalter anzeigen
   Show Sections: Abschnitte anzeigen
   Show Touch Points: Berührungspunkte anzeigen
@@ -3757,6 +3758,7 @@ translations:
     des Startbildschirms anzeigen
   Show this screen as a webcam in Mainsail and Fluidd: 'Diesen Bildschirm als Webcam in Mainsail und Fluidd anzeigen'
   Show this screen in a web browser: 'Diesen Bildschirm in einem Webbrowser anzeigen'
+  Show time left on screensavers during a print: Restzeit während eines Drucks auf Bildschirmschonern anzeigen
   Show up/down buttons on long lists: Hoch-/Runter-Schaltflächen bei langen Listen anzeigen
   Show whatever curves you last had visible on the full graph.: Zeigt die zuletzt
     im vollständigen Diagramm sichtbaren Kurven an.

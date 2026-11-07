@@ -3734,6 +3734,7 @@ translations:
     al supporto:'
   Sheet Label Print: Stampa etichette su foglio
   Shelf A: Scaffale A
+  Show Print Progress: Mostra avanzamento stampa
   Show Printer Switcher: Mostra selettore stampante
   Show Sections: Mostra sezioni
   Show Touch Points: Mostra punti di tocco
@@ -3748,6 +3749,7 @@ translations:
     widget con sole icone nella schermata home
   Show this screen as a webcam in Mainsail and Fluidd: 'Mostra questo schermo come webcam in Mainsail e Fluidd'
   Show this screen in a web browser: 'Mostra questo schermo in un browser web'
+  Show time left on screensavers during a print: Mostra il tempo rimanente sui salvaschermi durante una stampa
   Show up/down buttons on long lists: Mostra i pulsanti su/giù negli elenchi lunghi
   Show whatever curves you last had visible on the full graph.: Mostra le curve che
     erano visibili l'ultima volta sul grafico completo.

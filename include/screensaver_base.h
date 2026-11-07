@@ -10,6 +10,7 @@
 #include "screensaver_frame.h"
 #include "screensaver_frame_timer.h"
 #include "screensaver_overlay.h"
+#include "screensaver_print_card.h"
 #include "screensaver_sim_contract.h"
 
 #include <cstddef>
@@ -92,6 +93,19 @@ class SaverBase : public Screensaver, public ClockInputSink {
     /// Asks a running saver to run at `level`, clamped to the ladder. Ignored while stopped.
     void request_level(size_t level);
 
+    /// Whether the print progress card is on screen now.
+    bool print_card_shown() const {
+        return card_.shown;
+    }
+    /// What the card shows, or would show once visible.
+    const PrintCardFace& print_card_face() const {
+        return card_.face;
+    }
+    /// The card's canvas object, or nullptr for a saver with its own print display.
+    lv_obj_t* print_card_obj() const {
+        return card_.canvas.obj();
+    }
+
   protected:
     SaverBase() = default;
 
@@ -137,6 +151,25 @@ class SaverBase : public Screensaver, public ClockInputSink {
     friend class SaverTestAccess;
 
     void run_frame(uint32_t dt_ms);
+    /// Creates the progress card above the scene for a saver the registry marks CARD.
+    void start_print_card();
+    /// Steps the card's reading and drift, then shows, moves or repaints it as they changed.
+    void step_print_card(uint32_t dt_ms);
+    void stop_print_card();
+
+    /// The progress card, for savers with no print display of their own.
+    struct PrintCard {
+        bool enabled = false;
+        bool shown = false;
+        bool painted = false;
+        PrintCardLayout layout;
+        DirtyRect home;
+        ClockState clock;
+        ClockDrift drift;
+        PrintCardFace face;
+        PrintCardPainter painter;
+        SaverCanvas canvas;
+    };
 
     bool active_ = false;
     size_t level_ = 0;
@@ -150,6 +183,7 @@ class SaverBase : public Screensaver, public ClockInputSink {
     // Owned random sequence, seeded in start(); a fixed seed makes a run replay exactly.
     std::minstd_rand rng_;
     std::optional<uint32_t> fixed_seed_;
+    PrintCard card_;
 };
 
 } // namespace helix::ui

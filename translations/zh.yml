@@ -3540,6 +3540,7 @@ translations:
   'Share this code in Discord or support:': 请将此代码分享至 Discord 或支持渠道：
   Sheet Label Print: 标签纸打印
   Shelf A: 货架A
+  Show Print Progress: 显示打印进度
   Show Printer Switcher: 显示打印机切换器
   Show Sections: 显示区段
   Show Touch Points: 显示触摸点
@@ -3552,6 +3553,7 @@ translations:
   Show text labels on icon-only home screen widgets: 在仅图标的主屏小组件上显示文字标签
   Show this screen as a webcam in Mainsail and Fluidd: '在 Mainsail 和 Fluidd 中将此屏幕显示为网络摄像头'
   Show this screen in a web browser: '在网页浏览器中显示此屏幕'
+  Show time left on screensavers during a print: 打印时在屏幕保护程序上显示剩余时间
   Show up/down buttons on long lists: 在长列表中显示上/下按钮
   Show whatever curves you last had visible on the full graph.: 显示您上次在完整图表上可见的曲线。
   Showing the 50 newest files. See more in the printer's web UI.: '仅显示最新的 50 个文件。更多请在打印机网页界面查看。'

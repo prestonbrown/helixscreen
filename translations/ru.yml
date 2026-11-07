@@ -3783,6 +3783,7 @@ translations:
     поддержкой:'
   Sheet Label Print: Печать этикеток на листе
   Shelf A: Полка A
+  Show Print Progress: Показывать ход печати
   Show Printer Switcher: Показывать переключатель принтеров
   Show Sections: Показать разделы
   Show Touch Points: Показывать точки касания
@@ -3797,6 +3798,7 @@ translations:
     на виджетах главного экрана
   Show this screen as a webcam in Mainsail and Fluidd: 'Показывать этот экран как веб-камеру в Mainsail и Fluidd'
   Show this screen in a web browser: 'Показывать этот экран в веб-браузере'
+  Show time left on screensavers during a print: Показывать оставшееся время на заставках во время печати
   Show up/down buttons on long lists: Показывать кнопки вверх/вниз в длинных списках
   Show whatever curves you last had visible on the full graph.: Показывать те кривые,
     что были видны на полном графике в последний раз.

@@ -52,6 +52,9 @@ enum SaverDepth : uint8_t {
     SAVER_DEPTH_32 = 1u << 1,
 };
 
+/// Where a saver shows a print: in its own scene, or on the shared progress card.
+enum class PrintDisplay : uint8_t { SCENE, CARD };
+
 /// One registered screensaver.
 struct ScreensaverInfo {
     ScreensaverType type;
@@ -61,6 +64,7 @@ struct ScreensaverInfo {
     const char* label_key;
     /// SaverDepth bits the saver draws at.
     uint8_t depths;
+    PrintDisplay print_display;
 };
 
 /// Every screensaver, in type order starting at 1: row i has type i + 1. The settings
@@ -68,19 +72,29 @@ struct ScreensaverInfo {
 /// this order, which a test checks.
 inline constexpr ScreensaverInfo kScreensavers[] = {
     {ScreensaverType::FLYING_TOASTERS, "toasters", "Flying Toasters",
-     SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::STARFIELD, "starfield", "Starfield", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::PIPES_3D, "pipes", "3D Pipes", SAVER_DEPTH_16 | SAVER_DEPTH_32},
+     SAVER_DEPTH_16 | SAVER_DEPTH_32, PrintDisplay::CARD},
+    {ScreensaverType::STARFIELD, "starfield", "Starfield", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::PIPES_3D, "pipes", "3D Pipes", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
     {ScreensaverType::BOUNCING_PRINTER, "bounce", "Bouncing Printer",
-     SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::FIREWORKS, "fireworks", "Fireworks", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::BOUNCING_LOGO, "logo", "Bouncing Logo", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::MAZE_3D, "maze", "3D Maze", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::HYPERSPACE, "hyperspace", "Hyperspace", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::FLIP_CLOCK, "flipclock", "Flip Clock", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::FIREFLIES, "fireflies", "Fireflies", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::AQUA, "aqua", "Aqua Surface", SAVER_DEPTH_16 | SAVER_DEPTH_32},
-    {ScreensaverType::HIGHFLY, "highfly", "High Fly", SAVER_DEPTH_16 | SAVER_DEPTH_32},
+     SAVER_DEPTH_16 | SAVER_DEPTH_32, PrintDisplay::CARD},
+    {ScreensaverType::FIREWORKS, "fireworks", "Fireworks", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::BOUNCING_LOGO, "logo", "Bouncing Logo", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::MAZE_3D, "maze", "3D Maze", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::HYPERSPACE, "hyperspace", "Hyperspace", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::FLIP_CLOCK, "flipclock", "Flip Clock", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::SCENE},
+    {ScreensaverType::FIREFLIES, "fireflies", "Fireflies", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::CARD},
+    {ScreensaverType::AQUA, "aqua", "Aqua Surface", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::SCENE},
+    {ScreensaverType::HIGHFLY, "highfly", "High Fly", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::SCENE},
 };
 
 inline constexpr size_t kScreensaverCount = std::size(kScreensavers);

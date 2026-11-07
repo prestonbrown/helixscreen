@@ -2,11 +2,15 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/screensaver_sim_kit.h"
+#include "../test_helpers/screensaver_test_access.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_print_card.h"
 #include "screensaver_print_colors.h"
+#include "screensaver_registry.h"
+#include "screensaver_starfield.h"
 
 #include <vector>
 
@@ -185,6 +189,83 @@ TEST_CASE("the card face follows the reading", "[screensaver][screensaver_print_
     CHECK(helix::ui::print_card_face(r).countdown_s == 1380);
     CHECK(f.has_countdown);
     CHECK(f.progress_pct == 12);
+}
+
+TEST_CASE("the card shows for paused and ended prints whatever the setting, and for running "
+          "prints only with it",
+          "[screensaver][screensaver_print_card]") {
+    using helix::ui::print_card_visible;
+    using helix::ui::PrintDisplay;
+    for (const bool setting : {false, true}) {
+        CAPTURE(setting);
+        CHECK_FALSE(print_card_visible(PrintDisplay::CARD, setting, ClockMode::CLOCK));
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::PROGRESS) == setting);
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::COUNTDOWN) == setting);
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::PAUSED));
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::DONE));
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::FAILED));
+        CHECK(print_card_visible(PrintDisplay::CARD, setting, ClockMode::CANCELLED));
+        for (const ClockMode m :
+             {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::COUNTDOWN, ClockMode::PAUSED,
+              ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+            CHECK_FALSE(print_card_visible(PrintDisplay::SCENE, setting, m));
+        }
+    }
+}
+
+TEST_CASE("only savers without their own print display show the card",
+          "[screensaver][screensaver_print_card]") {
+    for (const helix::ui::ScreensaverInfo& info : helix::ui::kScreensavers) {
+        CAPTURE(info.name);
+        const bool own = info.type == ScreensaverType::FLIP_CLOCK ||
+                         info.type == ScreensaverType::AQUA ||
+                         info.type == ScreensaverType::HIGHFLY;
+        CHECK((info.print_display == helix::ui::PrintDisplay::SCENE) == own);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a saver without its own display shows the card over its scene",
+                 "[screensaver][screensaver_print_card]") {
+    StarfieldScreensaver ss;
+    ScreensaverStopOnExit<StarfieldScreensaver> stop_on_exit{ss};
+    helix::ui::ClockInput reported;
+    reported.print = {helix::ui::ClockPrintPhase::PRINTING, 3725, 34};
+    ss.set_input_source([&reported] { return reported; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    advance_saver(ss, 33);
+    REQUIRE(ss.print_card_shown());
+    CHECK(ss.print_card_face().mode == ClockMode::COUNTDOWN);
+    CHECK(print_card_text(ss.print_card_face()) == "1h02");
+
+    // The card sits on screen, above the scene.
+    lv_obj_t* card = ss.print_card_obj();
+    REQUIRE(card != nullptr);
+    lv_obj_update_layout(card);
+    lv_area_t a;
+    lv_obj_get_coords(card, &a);
+    const lv_display_t* disp = lv_display_get_default();
+    CHECK(a.x1 >= 0);
+    CHECK(a.y1 >= 0);
+    CHECK(a.x2 < lv_display_get_horizontal_resolution(disp));
+    CHECK(a.y2 < lv_display_get_vertical_resolution(disp));
+    CHECK(lv_obj_get_index(card) ==
+          static_cast<int32_t>(lv_obj_get_child_count(lv_obj_get_parent(card))) - 1);
+
+    // The setting hides a running print's card, never a paused or ended one.
+    reported.show_print_progress = false;
+    advance_saver(ss, 33);
+    CHECK_FALSE(ss.print_card_shown());
+    reported.print.phase = helix::ui::ClockPrintPhase::PAUSED;
+    advance_saver(ss, 33);
+    CHECK(ss.print_card_shown());
+    reported.print.phase = helix::ui::ClockPrintPhase::FAILED;
+    advance_saver(ss, 33);
+    CHECK(ss.print_card_shown());
+    CHECK(ss.print_card_face().mode == ClockMode::FAILED);
+    reported.print.phase = helix::ui::ClockPrintPhase::NONE;
+    advance_saver(ss, 33);
+    CHECK_FALSE(ss.print_card_shown());
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

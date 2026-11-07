@@ -90,6 +90,8 @@ struct SaverHost {
     std::function<uint64_t()> printer_epoch;
     /// Milliseconds since the last user input; unset reads as 0 (input just now).
     std::function<uint32_t()> inactive_ms;
+    /// The "Show Print Progress" setting; unset reads as on.
+    std::function<bool()> show_print_progress;
 };
 
 } // namespace helix::ui

@@ -4,6 +4,7 @@
 
 #include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
+#include "screensaver_registry.h"
 #include "screensaver_stroke_digits.h"
 
 #include <cstddef>
@@ -59,6 +60,19 @@ PrintCardFace print_card_face(const ClockReading& r);
 /// it, never under 1m; or 63% without an estimate and for an ended print. Unit letters, not a
 /// colon, so a time left never reads as a time of day.
 std::string print_card_text(const PrintCardFace& face);
+
+/// Whether a saver that shows a print through `display` shows the card for `mode`: paused and
+/// ended prints always, a running print only with the setting on, a saver with its own print
+/// display never.
+constexpr bool print_card_visible(PrintDisplay display, bool setting_on, ClockMode mode) {
+    if (display != PrintDisplay::CARD) {
+        return false;
+    }
+    if (mode == ClockMode::PAUSED || clock_mode_is_end(mode)) {
+        return true;
+    }
+    return setting_on && (mode == ClockMode::PROGRESS || mode == ClockMode::COUNTDOWN);
+}
 
 /// Draws card faces at one layout.
 class PrintCardPainter {

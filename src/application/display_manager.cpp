@@ -848,6 +848,9 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
         return id_hash ^ (generation * 0x9E3779B97F4A7C15ULL);
     };
     host.inactive_ms = [] { return lv_display_get_inactive_time(nullptr); };
+    host.show_print_progress = [] {
+        return helix::DisplaySettingsManager::instance().get_screensaver_print_progress();
+    };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())
                 : "unknown";

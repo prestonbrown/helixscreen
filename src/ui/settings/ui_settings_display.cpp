@@ -103,6 +103,10 @@ void DisplaySettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              DisplaySettingsManager::instance().set_sleep_while_printing(event_checked(e));
          }},
+        {"on_screensaver_print_progress_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_screensaver_print_progress(event_checked(e));
+         }},
 #if HELIX_ENABLE_SCREENSAVER
         {"on_screensaver_changed",
          [](lv_event_t* e) {

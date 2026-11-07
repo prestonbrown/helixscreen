@@ -3426,6 +3426,7 @@
   <translation tag="Share this code in Discord or support:" ja="このコードをDiscordまたはサポートで共有してください:"/>
   <translation tag="Sheet Label Print" ja="シートラベル印刷"/>
   <translation tag="Shelf A" ja="棚A"/>
+  <translation tag="Show Print Progress" ja="印刷の進捗を表示"/>
   <translation tag="Show Printer Switcher" ja="プリンター切替を表示"/>
   <translation tag="Show Sections" ja="セクションを表示"/>
   <translation tag="Show Touch Points" ja="タッチポイントを表示"/>
@@ -3438,6 +3439,7 @@
   <translation tag="Show text labels on icon-only home screen widgets" ja="アイコンのみのホーム画面ウィジェットにテキストラベルを表示"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ja="この画面をMainsailとFluiddでウェブカメラとして表示"/>
   <translation tag="Show this screen in a web browser" ja="この画面をウェブブラウザで表示"/>
+  <translation tag="Show time left on screensavers during a print" ja="印刷中にスクリーンセーバーに残り時間を表示"/>
   <translation tag="Show up/down buttons on long lists" ja="長いリストに上下ボタンを表示"/>
   <translation tag="Show whatever curves you last had visible on the full graph." ja="フルグラフで最後に表示していた曲線を表示します。"/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." ja="最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。"/>

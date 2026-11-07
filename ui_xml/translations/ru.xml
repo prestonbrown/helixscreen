@@ -3483,6 +3483,7 @@
   <translation tag="Share this code in Discord or support:" ru="Поделитесь этим кодом в Discord или с поддержкой:"/>
   <translation tag="Sheet Label Print" ru="Печать этикеток на листе"/>
   <translation tag="Shelf A" ru="Полка A"/>
+  <translation tag="Show Print Progress" ru="Показывать ход печати"/>
   <translation tag="Show Printer Switcher" ru="Показывать переключатель принтеров"/>
   <translation tag="Show Sections" ru="Показать разделы"/>
   <translation tag="Show Touch Points" ru="Показывать точки касания"/>
@@ -3495,6 +3496,7 @@
   <translation tag="Show text labels on icon-only home screen widgets" ru="Показывать текстовые подписи на виджетах главного экрана"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ru="Показывать этот экран как веб-камеру в Mainsail и Fluidd"/>
   <translation tag="Show this screen in a web browser" ru="Показывать этот экран в веб-браузере"/>
+  <translation tag="Show time left on screensavers during a print" ru="Показывать оставшееся время на заставках во время печати"/>
   <translation tag="Show up/down buttons on long lists" ru="Показывать кнопки вверх/вниз в длинных списках"/>
   <translation tag="Show whatever curves you last had visible on the full graph." ru="Показывать те кривые, что были видны на полном графике в последний раз."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." ru="Показаны 50 последних файлов. Остальные - в веб-интерфейсе принтера."/>

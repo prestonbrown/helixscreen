@@ -85,6 +85,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager default values after i
         REQUIRE(DisplaySettingsManager::instance().get_sleep_while_printing() == true);
     }
 
+    SECTION("screensaver_print_progress defaults to true and persists") {
+        auto& dsm = DisplaySettingsManager::instance();
+        REQUIRE(dsm.get_screensaver_print_progress() == true);
+        dsm.set_screensaver_print_progress(false);
+        CHECK(lv_subject_get_int(dsm.subject_screensaver_print_progress()) == 0);
+        CHECK(helix::Config::get_instance()->get<bool>("/display/screensaver_print_progress",
+                                                       true) == false);
+        dsm.set_screensaver_print_progress(true);
+    }
+
     SECTION("animations_enabled defaults to true") {
         REQUIRE(DisplaySettingsManager::instance().get_animations_enabled() == true);
     }
