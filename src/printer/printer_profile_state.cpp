@@ -14,11 +14,15 @@ namespace helix {
 
 ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool external_persistence, bool db_persists,
-                                           bool tool_change_resets, bool save_enabled) {
+                                           bool tool_change_resets, bool save_enabled,
+                                           bool per_head) {
     const ZOffsetTuneHint temporary =
         tool_change_resets ? ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE : ZOffsetTuneHint::TEMPORARY;
     if (strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         return save_enabled ? ZOffsetTuneHint::SAVE_ON_CONTROLS : temporary;
+    }
+    if (per_head) {
+        return ZOffsetTuneHint::AUTO_SAVED_PER_HEAD;
     }
     if (external_persistence || db_persists) {
         return ZOffsetTuneHint::AUTO_SAVED;
@@ -38,6 +42,8 @@ void PrinterProfileState::init_subjects(bool register_xml) {
     // Z-offset save visibility (1 = Save Z Offset offered, 0 = no Save step)
     INIT_SUBJECT_INT(z_offset_can_save, 1, subjects_, register_xml);
     INIT_SUBJECT_INT(z_offset_tune_hint, static_cast<int>(z_offset_tune_hint_value_), subjects_,
+                     register_xml);
+    INIT_SUBJECT_INT(z_offset_reapplied_per_head, z_offset_reapplied_per_head() ? 1 : 0, subjects_,
                      register_xml);
     subjects_initialized_ = true;
 }
@@ -78,9 +84,9 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
 
     const bool db_persists = PrinterDetector::z_offset_persists(type);
     const bool db_tool_change_resets = PrinterDetector::tool_change_resets_z_offset(type);
-    const ZOffsetTuneHint new_hint =
-        resolve_z_offset_tune_hint(new_strategy, external_persistence_, db_persists,
-                                   db_tool_change_resets, z_offset_save_enabled_);
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        new_strategy, external_persistence_, db_persists, db_tool_change_resets,
+        z_offset_save_enabled_, z_offset_per_head_);
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_ &&
         new_hint == z_offset_tune_hint_value_) {
@@ -108,6 +114,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
                            new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? 1 : 0);
         lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
+    publish_z_offset_reapplied_per_head();
     return true;
 }
 
@@ -116,9 +123,9 @@ bool PrinterProfileState::set_z_offset_save_enabled(bool enabled) {
         return false;
     }
     z_offset_save_enabled_ = enabled;
-    const ZOffsetTuneHint new_hint =
-        resolve_z_offset_tune_hint(z_offset_calibration_strategy_, external_persistence_,
-                                   db_z_offset_persists_, db_tool_change_resets_z_offset_, enabled);
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        z_offset_calibration_strategy_, external_persistence_, db_z_offset_persists_,
+        db_tool_change_resets_z_offset_, enabled, z_offset_per_head_);
     if (new_hint == z_offset_tune_hint_value_) {
         return false;
     }
@@ -135,6 +142,21 @@ bool PrinterProfileState::set_external_persistence(bool persisted) {
     }
     external_persistence_ = persisted;
     return true;
+}
+
+bool PrinterProfileState::set_z_offset_per_head(bool per_head) {
+    if (z_offset_per_head_ == per_head) {
+        return false;
+    }
+    z_offset_per_head_ = per_head;
+    publish_z_offset_reapplied_per_head();
+    return true;
+}
+
+void PrinterProfileState::publish_z_offset_reapplied_per_head() {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&z_offset_reapplied_per_head_, z_offset_reapplied_per_head() ? 1 : 0);
+    }
 }
 
 bool PrinterProfileState::merge_firmware_option_defaults(

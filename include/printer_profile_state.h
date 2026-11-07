@@ -39,6 +39,8 @@ enum class ZOffsetTuneHint {
     TEMPORARY = 2,             ///< No save path: it lasts until the print ends
     TEMPORARY_TOOL_CHANGE = 3, ///< As TEMPORARY, and a tool change re-applies the head's own
                                ///< stored offset over it
+    AUTO_SAVED_PER_HEAD = 4,   ///< The firmware saves it for the mounted head; the other heads
+                               ///< keep their own
 };
 
 /**
@@ -50,10 +52,13 @@ enum class ZOffsetTuneHint {
  * @param tool_change_resets the printer database's `tool_change_resets_z_offset`
  * @param save_enabled the user offers Z-offset saves on this printer
  *        (helix::zoffset::save_enabled()); off turns a Save step into no save path
+ * @param per_head the firmware keeps a Z offset per head
+ *        (helix::zoffset::firmware_applies_z_offset_per_head())
  */
 ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool external_persistence, bool db_persists,
-                                           bool tool_change_resets, bool save_enabled);
+                                           bool tool_change_resets, bool save_enabled,
+                                           bool per_head = false);
 
 /**
  * @brief The printer type and what it decides: the pre-print option set and the
@@ -109,6 +114,29 @@ class PrinterProfileState {
     bool set_external_persistence(bool persisted);
     bool external_persistence() const {
         return external_persistence_;
+    }
+
+    /**
+     * @brief Record whether the firmware keeps a Z offset per head
+     *
+     * Feeds the tune hint, which then says the adjustment is saved for the
+     * mounted head only. The caller re-resolves the type.
+     * @return true when the flag changed
+     */
+    bool set_z_offset_per_head(bool per_head);
+
+    /**
+     * @brief Whether the firmware applies each head's own Z offset at pickup
+     *
+     * True where discovery found per-head storage (set_z_offset_per_head()) or the
+     * database says a tool change re-applies the head's stored offset
+     * (`tool_change_resets_z_offset`). An absolute SET_GCODE_OFFSET Z= there lands
+     * on the mounted head's offset, so adjustments go relative and the manual
+     * Z-offset calibration, which ends in one, is not offered. Published as
+     * `z_offset_reapplied_per_head`.
+     */
+    bool z_offset_reapplied_per_head() const {
+        return z_offset_per_head_ || db_tool_change_resets_z_offset_;
     }
 
     /// Default for the synthesized timelapse option: the global
@@ -177,6 +205,10 @@ class PrinterProfileState {
     lv_subject_t* get_z_offset_tune_hint_subject() {
         return &z_offset_tune_hint_;
     }
+    /// 1 when z_offset_reapplied_per_head(), as an int for XML.
+    lv_subject_t* get_z_offset_reapplied_per_head_subject() {
+        return &z_offset_reapplied_per_head_;
+    }
 
   private:
     friend class PrinterProfileStateTestAccess;
@@ -189,6 +221,9 @@ class PrinterProfileState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     bool external_persistence_ = false;
+    bool z_offset_per_head_ = false;
+
+    void publish_z_offset_reapplied_per_head();
     ZOffsetTuneHint z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
     bool z_offset_save_enabled_ = true;
     bool db_z_offset_persists_ = true;
@@ -205,6 +240,7 @@ class PrinterProfileState {
     char printer_type_subject_buf_[128];
     lv_subject_t z_offset_can_save_{};
     lv_subject_t z_offset_tune_hint_{};
+    lv_subject_t z_offset_reapplied_per_head_{};
 };
 
 } // namespace helix

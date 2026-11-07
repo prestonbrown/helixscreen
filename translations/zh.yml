@@ -522,6 +522,7 @@ translations:
   CONFIGURATION: 配置
   CONNECTION TYPE: 连接类型
   CONTROLLABLE FANS: 可控风扇
+  Calibrate with this tool?: '用这个工具校准？'
   Could not turn the heaters off: '无法关闭加热'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1155,6 +1156,7 @@ translations:
   ETA {}: '预计 {}'
   EXTRAS: 其他
   Each fan can only be selected once: 每个风扇只能选择一次
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
   Edit: 编辑
   Edit Filament: 编辑耗材
   Edit Slot: 编辑槽位
@@ -2485,6 +2487,7 @@ translations:
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
   No timelapse videos found: 未找到延时视频
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？'
   No tool is mounted: '未安装工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
@@ -3332,6 +3335,7 @@ translations:
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
   Saved Z-Offset: 已保存 Z 偏移
+  Saved for the mounted head; other heads keep their own: '已为当前安装的工具头保存；其他工具头保留各自的值'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: '已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。'
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
   Saved to printer configuration.: 已保存到打印机配置。
@@ -4766,6 +4770,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}：标签指定的 Spoolman 料盘 #{} 不存在'
   '{}:{:02} elapsed': 已用时 {}:{:02}
   '{}% left': '剩余 {}%'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '已安装 {0}。共用一个探针时，请用 {1} 校准。继续使用 {0}？'
   'Basic': '标准'
   'Recycled': '再生'
   'Add to Spoolman + label': '添加到 Spoolman + 标签'

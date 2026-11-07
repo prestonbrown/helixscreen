@@ -60,6 +60,9 @@
 
         <ui_button name="btn_zoffset"
                    width="1" height="#button_height" flex_grow="1" variant="secondary" text="Z-Offset" icon="z_closer">
+          <!-- The same gate as the Advanced row and the Controls tile. -->
+          <bind_flag_if cond="z_offset_reapplied_per_head eq 1 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
+                        flag="hidden"/>
           <event_cb trigger="clicked" callback="on_zoffset_cal"/>
         </ui_button>
 

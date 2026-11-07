@@ -557,6 +557,7 @@ translations:
   CONFIGURATION: KONFIGURATION
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
+  Calibrate with this tool?: 'Mit diesem Werkzeug kalibrieren?'
   Could not turn the heaters off: Die Heizungen konnten nicht ausgeschaltet werden
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1232,6 +1233,7 @@ translations:
   ETA {}: 'Ende {}'
   EXTRAS: EXTRAS
   Each fan can only be selected once: Jeder Lüfter kann nur einmal ausgewählt werden
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Jeder Werkzeugkopf hat an diesem Drucker seinen eigenen Z-Offset. Verwende stattdessen die Werkzeug-Offset-Kalibrierung.'
   Edit: Bearbeiten
   Edit Filament: Filament bearbeiten
   Edit Slot: Slot bearbeiten
@@ -2634,6 +2636,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?'
   No tool is mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
@@ -3517,6 +3520,7 @@ translations:
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Saved Z-Offset: Gespeicherter Z-Offset
+  Saved for the mounted head; other heads keep their own: 'Für den aufgesetzten Werkzeugkopf gespeichert; die anderen Werkzeugköpfe behalten ihren eigenen'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR
     nicht verfügbar)
@@ -5042,6 +5046,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert'
   '{}:{:02} elapsed': '{}:{:02} vergangen'
   '{}% left': '{}% übrig'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} ist montiert. Mit einer gemeinsamen Sonde mit {1} kalibrieren. Mit {0} fortfahren?'
   'Basic': 'Standard'
   'Recycled': 'Recycelt'
   'Add to Spoolman + label': 'Zu Spoolman hinzufügen + Etikett'

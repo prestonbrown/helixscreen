@@ -540,6 +540,7 @@
   <translation tag="Calibrate now" fr="Calibrer maintenant"/>
   <translation tag="Calibrate part fan" fr="Calibrer le ventilateur de pièce"/>
   <translation tag="Calibrate tool offsets?" fr="Calibrer les offsets d&apos;outil ?"/>
+  <translation tag="Calibrate with this tool?" fr="Calibrer avec cet outil ?"/>
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
   <translation tag="Calibrated" fr="Calibré"/>
   <translation tag="Calibrating Probe..." fr="Calibration de la sonde..."/>
@@ -1110,6 +1111,7 @@
   <translation tag="ETA {}" fr="Fin {}"/>
   <translation tag="EXTRAS" fr="SUPPLÉMENTS"/>
   <translation tag="Each fan can only be selected once" fr="Chaque ventilateur ne peut être sélectionné qu&apos;une fois"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." fr="Chaque tête d&apos;outil a son propre Z-offset sur cette imprimante. Utilisez plutôt la calibration des offsets d&apos;outil."/>
   <translation tag="Edit" fr="Modifier"/>
   <translation tag="Edit Filament" fr="Modifier le filament"/>
   <translation tag="Edit Slot" fr="Modifier le slot"/>
@@ -2401,6 +2403,7 @@
   <translation tag="No target printer configured" fr="Aucune imprimante cible configurée"/>
   <translation tag="No temperature sensors detected" fr="Aucun capteur de température détecté"/>
   <translation tag="No timelapse videos found" fr="Aucune vidéo timelapse trouvée"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" fr="Aucun outil n&apos;est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?"/>
   <translation tag="No tool is mounted" fr="Aucun outil n&apos;est monté"/>
   <translation tag="No tool on the head" fr="Aucun outil sur la tête d&apos;outil"/>
   <translation tag="No tools to calibrate" fr="Aucun outil à calibrer"/>
@@ -3224,6 +3227,7 @@
   <translation tag="Save to Spool" fr="Enregistrer sur la bobine"/>
   <translation tag="Save to Spoolman" fr="Enregistrer dans Spoolman"/>
   <translation tag="Saved Z-Offset" fr="Z-Offset enregistré"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" fr="Enregistré pour la tête d&apos;outil montée ; les autres têtes d&apos;outil gardent le leur"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." fr="Enregistré dans Spoolman, mais le prix, l&apos;emplacement, le lot et les notes de la bobine n&apos;ont pas été enregistrés."/>
   <translation tag="Saved to crash_report.txt (QR not available)" fr="Enregistré dans crash_report.txt (QR non disponible)"/>
   <translation tag="Saved to printer configuration." fr="Enregistré dans la configuration de l&apos;imprimante."/>
@@ -4491,6 +4495,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." fr="wpa_supplicant ne fonctionne pas. Les fonctions WiFi sont indisponibles."/>
   <translation tag="you have" fr="vous avez"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." fr="{0} sont ouvertes. {1} s&apos;imprime mieux dans une enceinte chaude et fermée ; une porte ouverte refroidit la chambre et peut provoquer du gauchissement ou des couches qui se séparent. Fermez-les ou démarrez quand même."/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" fr="{0} est monté. Avec une sonde partagée, calibrez avec {1}. Continuer avec {0} ?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." fr="{0} est ouverte. {1} s&apos;imprime mieux dans une enceinte chaude et fermée ; une porte ouverte refroidit la chambre et peut provoquer du gauchissement ou des couches qui se séparent. Fermez-la ou démarrez quand même."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." fr="{0} résonne bien plus que {1} à {2:.0f} Hz. Cela indique une différence mécanique (vis sans tête de poulie, roulements des galets, alignement de la courroie), pas la tension."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" fr="{:.0f}-{:.0f} Hz · environ {} min"/>

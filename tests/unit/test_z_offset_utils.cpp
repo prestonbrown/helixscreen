@@ -94,6 +94,17 @@ TEST_CASE("displayed z-offset: no persisted value falls back to live", "[zoffset
     CHECK(displayed_z_offset_microns(-160, std::nullopt, /*print_active=*/true) == -160);
 }
 
+TEST_CASE("displayed z-offset: a per-head offset shows the mounted head's live value",
+          "[zoffset][display][per_head]") {
+    // A head changer whose firmware applies each head's own offset at pickup:
+    // the stored machine-wide value belongs to no head in particular, and the
+    // live +3.413 is the mounted head's real offset.
+    CHECK(displayed_z_offset_microns(3413, std::optional<int>(-150), /*print_active=*/false,
+                                     /*per_head=*/true) == 3413);
+    CHECK(displayed_z_offset_microns(3413, std::optional<int>(-150), /*print_active=*/true,
+                                     /*per_head=*/true) == 3413);
+}
+
 // ============================================================================
 // build_z_adjust_gcode
 //
@@ -133,6 +144,19 @@ TEST_CASE("z-adjust gcode: absolute handles a positive delta and a sign crossing
           "SET_GCODE_OFFSET Z=0.000 MOVE=1");
     CHECK(build_z_adjust_gcode(-10, 0, 60, /*all_homed=*/true) ==
           "SET_GCODE_OFFSET Z=0.050 MOVE=1");
+}
+
+TEST_CASE("z-adjust gcode: a per-head offset is only ever adjusted relatively",
+          "[zoffset][adjust][per_head]") {
+    // An absolute Z= sets whatever head is mounted to a number that belongs to
+    // no head (a -0.150 over a live +3.413 drops the nozzle 3.5mm), and the
+    // firmware saves only a Z_ADJUST against the mounted head.
+    CHECK(build_z_adjust_gcode(-150, 3413, -10, /*all_homed=*/true, /*per_head=*/true) ==
+          "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    CHECK(build_z_adjust_gcode(-150, 3413, 50, /*all_homed=*/false, /*per_head=*/true) ==
+          "SET_GCODE_OFFSET Z_ADJUST=0.050");
+    CHECK(build_z_adjust_gcode(3413, 3413, -10, /*all_homed=*/true, /*per_head=*/true) ==
+          "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
 }
 
 // ============================================================================

@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
 #include "ui_z_offset_indicator.h"
@@ -21,6 +22,8 @@
 #include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
 #include "static_panel_registry.h"
+#include "tool_offsets.h"
+#include "tool_state.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
 #include "z_offset_calibration_approach.h"
@@ -221,6 +224,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[ZOffsetCal] on_activate()");
+    close_tool_confirm();
 
     // If manual probe is already active (e.g., started from Mainsail before HelixScreen
     // launched), skip to ADJUSTING with the current Z position instead of resetting to IDLE
@@ -258,6 +262,10 @@ void ZOffsetCalibrationPanel::on_activate() {
 
 void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[ZOffsetCal] on_deactivating({})", deactivate_reason_name(reason));
+
+    // Answered after the panel left, the question would start a calibration
+    // nobody is watching.
+    close_tool_confirm();
 
     // A run in progress is abandoned only when the user walks away from it.
     // Shutdown and hot-reload take the UI out from under a calibration that
@@ -451,6 +459,13 @@ static zoffset_cal::ApproachInputs approach_inputs(IMoonrakerAPI& api, PrinterSt
     return in;
 }
 
+/// Why this flow refuses on a printer that applies each head's own Z offset at
+/// pickup: its result is an absolute offset, which would land on the mounted head.
+static std::string per_head_refusal() {
+    return lv_tr("Each head keeps its own Z offset on this printer. Use its tool offset "
+                 "calibration instead.");
+}
+
 void ZOffsetCalibrationPanel::start_calibration() {
     if (!api_) {
         spdlog::error("[ZOffsetCal] No IMoonrakerAPI");
@@ -458,6 +473,92 @@ void ZOffsetCalibrationPanel::start_calibration() {
         return;
     }
 
+    if (get_printer_state().profile_state().z_offset_reapplied_per_head()) {
+        spdlog::warn("[ZOffsetCal] Refusing to start: each head's own Z offset is applied at "
+                     "pickup");
+        on_calibration_result(false, per_head_refusal());
+        return;
+    }
+
+    if (tool_confirm_pending_) {
+        return; // the mounted-tool question is already on screen
+    }
+
+    // A tool changer's probe offset can belong to one tool. Asking rather than
+    // mounting it keeps a calibration entry from starting a tool change.
+    PrinterState& ps = get_printer_state();
+    const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
+    const int active = ToolState::instance().active_tool_index();
+    if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
+                                         reference,
+                                         active) == zoffset_cal::ToolGate::ConfirmFirst) {
+        confirm_tool_then_start(*reference, active);
+        return;
+    }
+    begin_calibration();
+}
+
+void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int active_tool) {
+    const std::string reference = "T" + std::to_string(reference_tool);
+    const std::string message =
+        active_tool >= 0
+            ? fmt::format(fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
+                                             "with {1}. Continue with {0}?")),
+                          "T" + std::to_string(active_tool), reference)
+            : fmt::format(fmt::runtime(lv_tr("No tool is known to be mounted. With one shared "
+                                             "probe, calibrate with {}. Continue anyway?")),
+                          reference);
+    spdlog::info("[ZOffsetCal] Tool {} mounted, probe reference is {}: asking first", active_tool,
+                 reference);
+
+    tool_confirm_pending_ = true;
+    helix::ui::ConfirmOptions opts;
+    auto declined = [this]() {
+        tool_confirm_pending_ = false;
+        tool_confirm_dialog_ = nullptr;
+    };
+    opts.on_cancel = declined;
+    opts.on_dismiss = declined;
+    opts.owner_token = lifetime_.token();
+    tool_confirm_dialog_ = helix::ui::modal_confirm(
+        lv_tr("Calibrate with this tool?"), message.c_str(), ModalSeverity::Warning,
+        lv_tr("Continue"),
+        [this]() {
+            tool_confirm_pending_ = false;
+            tool_confirm_dialog_ = nullptr;
+            if (!can_begin_now()) {
+                spdlog::info("[ZOffsetCal] Mounted-tool question answered too late, not starting");
+                return;
+            }
+            begin_calibration();
+        },
+        opts);
+    if (!tool_confirm_dialog_) {
+        // Nothing to answer: leave Start usable rather than latched shut.
+        tool_confirm_pending_ = false;
+        spdlog::warn("[ZOffsetCal] Mounted-tool question could not be shown");
+    }
+}
+
+bool ZOffsetCalibrationPanel::can_begin_now() const {
+    PrinterState& ps = get_printer_state();
+    lv_subject_t* klippy = ps.network_state().get_klippy_state_subject();
+    return api_ && is_visible() && state_ == State::IDLE &&
+           lv_subject_get_int(ps.print_state().get_print_active_subject()) == 0 && klippy &&
+           lv_subject_get_int(klippy) == static_cast<int>(KlippyState::READY) &&
+           !ps.profile_state().z_offset_reapplied_per_head();
+}
+
+void ZOffsetCalibrationPanel::close_tool_confirm() {
+    lv_obj_t* dialog = tool_confirm_dialog_;
+    tool_confirm_dialog_ = nullptr;
+    tool_confirm_pending_ = false;
+    if (dialog) {
+        Modal::hide(dialog);
+    }
+}
+
+void ZOffsetCalibrationPanel::begin_calibration() {
     // Check if warm bed is requested
     bool warm_bed = lv_subject_get_int(&s_zoffset_warm_bed) == 1;
     if (warm_bed) {
@@ -678,6 +779,15 @@ void ZOffsetCalibrationPanel::adjust_z(float delta) {
 void ZOffsetCalibrationPanel::send_accept() {
     if (!api_)
         return;
+
+    // Reachable without Start: a manual probe already running at connect opens
+    // this panel in ADJUSTING. Its result would land on the mounted head.
+    if (get_printer_state().profile_state().z_offset_reapplied_per_head()) {
+        spdlog::warn("[ZOffsetCal] Refusing to accept: each head's own Z offset is applied at "
+                     "pickup");
+        on_calibration_result(false, per_head_refusal());
+        return;
+    }
 
     auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
     final_offset_ = current_z_;

@@ -197,3 +197,35 @@ TEST_CASE("PrinterDiscovery: the probe XY offset comes from the probe's config s
         CHECK_FALSE(hw.probe_xy_offset().has_value());
     }
 }
+
+// --- reference tool gate --------------------------------------------------
+
+TEST_CASE("Z-offset tool gate: the reference tool mounted proceeds",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 0) ==
+          ToolGate::Proceed);
+}
+
+TEST_CASE("Z-offset tool gate: another tool mounted asks before starting",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 2) ==
+          ToolGate::ConfirmFirst);
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::ENDSTOP, 0, 1) == ToolGate::ConfirmFirst);
+}
+
+TEST_CASE("Z-offset tool gate: an unknown mounted tool asks before starting",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, -1) ==
+          ToolGate::ConfirmFirst);
+}
+
+TEST_CASE("Z-offset tool gate: no reference tool leaves calibration as it was",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, -1) ==
+          ToolGate::Proceed);
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, 3) ==
+          ToolGate::Proceed);
+    // A firmware-managed printer runs no calibrate command of ours.
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, 0, 2) ==
+          ToolGate::Proceed);
+}

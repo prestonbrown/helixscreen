@@ -523,6 +523,7 @@ translations:
   CONFIGURATION: 設定
   CONNECTION TYPE: 接続タイプ
   CONTROLLABLE FANS: 制御可能なファン
+  Calibrate with this tool?: 'このツールで校正しますか？'
   Could not turn the heaters off: 'ヒーターを切れませんでした'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1158,6 +1159,7 @@ translations:
   ETA {}: '終了予定 {}'
   EXTRAS: その他
   Each fan can only be selected once: 各ファンは一度のみ選択できます
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。'
   Edit: 編集
   Edit Filament: フィラメントを編集
   Edit Slot: スロットを編集
@@ -2492,6 +2494,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
@@ -3341,6 +3344,7 @@ translations:
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Saved Z-Offset: 保存されたZ-Offset
+  Saved for the mounted head; other heads keep their own: '装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
   Saved to printer configuration.: プリンター設定に保存しました。
@@ -4776,6 +4780,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？'
   'Basic': '標準'
   'Recycled': 'リサイクル'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'
