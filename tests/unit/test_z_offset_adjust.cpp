@@ -6,8 +6,10 @@
 #include "../../include/printer_state.h"
 #include "../../include/z_offset_utils.h"
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "save_config_restart.h"
+#include "tool_state.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -290,5 +292,60 @@ TEST_CASE_METHOD(ZOffsetFixture,
     CHECK(error.find("Z_OFFSET_APPLY_PROBE") != std::string::npos);
     CHECK_FALSE(saved);
     CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=0.050 MOVE=1");
+    CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
+}
+
+namespace {
+
+/// A klipper-toolchanger printer: SAVE_TOOL_PARAMETER only stages, and the
+/// machine-wide SAVE_CONFIG commits.
+class ToolchangerSaveFixture : public ZOffsetFixture {
+  public:
+    ToolchangerSaveFixture() {
+        PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
+                                                "toolchanger", "tool T0", "tool T1"}));
+        state.set_hardware(hw);
+        auto& ts = ToolState::instance();
+        ts.deinit_subjects();
+        ts.init_subjects(true);
+        ts.init_tools(state.get_discovery());
+    }
+    ~ToolchangerSaveFixture() override {
+        ToolState::instance().deinit_subjects();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ToolchangerSaveFixture,
+                 "a toolchanger without Z_OFFSET_APPLY_PROBE still commits its tool offsets",
+                 "[z_offset][adjust][mock][eddy][tool_offsets]") {
+    auto& ts = ToolState::instance();
+    ts.set_tool_offset_local(1, Axis::Z, 100);
+    REQUIRE(ts.tool_offset_dirty(1, Axis::Z));
+    set_homed("xyz");
+    helix::zoffset::adjust(api.get(), &state, 0.0, 0.0, 0.05);
+    mock_client.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::save_dirty_offsets(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, state.get_discovery(),
+        /*global_dirty=*/true, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+    CHECK(error.empty());
+    get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    REQUIRE(wait_until([&] { return !error.empty(); }, 3000));
+
+    // The tools are saved; the machine-wide offset is not, and says why.
+    CHECK(error.find("Z_OFFSET_APPLY_PROBE") != std::string::npos);
+    CHECK_FALSE(saved);
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
     CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
 }
