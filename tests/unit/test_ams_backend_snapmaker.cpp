@@ -2277,6 +2277,10 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker user's edit stands over a reader n
         edit.nozzle_temp_max = 220;
         edit.bed_temp = 60;
         helix::test::edit_slot_as_user(backend, 0, edit);
+        // The firmware takes the edit's type into print_task_config.
+        SnapmakerTestAccess::handle_status(
+            backend, json{{"print_task_config",
+                           {{"filament_type", json::array({"PLA", "NONE", "NONE", "NONE"})}}}});
         SnapmakerTestAccess::handle_status(backend, tag);
     }
     // The edit's record write lands, and the read it starts files the record.
@@ -5727,8 +5731,9 @@ TEST_CASE_METHOD(SnapmakerFixture,
                  "[ams][snapmaker][filament_record][official_repair]") {
     lv_init_safe();
     const std::string state = GENERATE(std::string("printing"), std::string("paused"));
-    FilamentRecordHarness h("official_repair_mid_print", state);
+    FilamentRecordHarness h("official_repair_mid_print");
     helix::test::edit_slot_as_user(h.backend, 3, inland_pla());
+    h.print(state);
     h.printer.client.clear_gcode_script_history();
 
     h.frame(make_written_entry(3, "PLA"));
@@ -5782,35 +5787,38 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an unchanged save on a forced head
     CHECK(writes[0].find("FORCE=1") != std::string::npos);
 }
 
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker holds a save made mid-print until the heads are free",
-                 "[ams][snapmaker][filament_record]") {
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker lane truth: a type or colour edit mid-print is refused, not held",
+                 "[ams][snapmaker][filament_record][lane_truth]") {
     lv_init_safe();
     FilamentRecordHarness h("record_mid_print", "printing");
-    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
+    h.frame(make_task_filament({"NONE", "PLA", "NONE", "NONE"}));
     h.printer.client.clear_gcode_script_history();
 
-    REQUIRE(helix::test::apply_edit(h.backend, 1, inland_pla()).success());
+    SlotInfo shown = h.backend.get_slot_info(1);
+    SlotInfo petg = shown;
+    petg.material = "PETG";
+    const AmsError refused = h.backend.commit_user_edit(1, shown, petg);
+    CHECK(refused.result == AmsResult::WRONG_STATE);
+    CHECK_FALSE(helix::ams::lane_sources(h.backend.lane_id(1)).pending.has_value());
+    CHECK(h.backend.get_slot_info(1).material == "PLA");
+
+    // Nothing waits to go out when the print ends: the firmware and the lane
+    // still agree on what the head holds.
+    h.print("complete");
     FilamentRecordHarness::drain();
     CHECK(h.config_writes().empty());
 
+    // A spool link changes nothing the firmware holds, so it is saved.
     h.print("printing");
+    SlotInfo linked = h.backend.get_slot_info(1);
+    linked.spoolman_id = 42;
+    REQUIRE(h.backend.commit_user_edit(1, h.backend.get_slot_info(1), linked).success());
+    FilamentRecordHarness::drain();
     CHECK(h.config_writes().empty());
-
-    // A pause the print raised (a runout, an M600) is no moment for it.
-    h.print("paused");
-    CHECK(h.config_writes().empty());
-
-    h.print("complete");
-    const auto writes = h.config_writes();
-    REQUIRE(writes.size() == 2);
-    CHECK(writes[0].rfind("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Generic "
-                          "FILAMENT_TYPE=PLA",
-                          0) == 0);
-
-    // Sent once.
-    h.printer.client.clear_gcode_script_history();
-    h.print("standby");
-    CHECK(h.config_writes().empty());
+    const json stored = h.printer.client.mock_db_get("lane_data", "T1");
+    REQUIRE(stored.is_object());
+    CHECK(stored["spool_id"] == 42);
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save made while paused goes straight out",
@@ -5823,25 +5831,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save made while paused goes stra
     REQUIRE(helix::test::apply_edit(h.backend, 1, inland_pla()).success());
     FilamentRecordHarness::drain();
     CHECK(h.config_writes().size() == 2);
-}
-
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker drops a held save with the head's override",
-                 "[ams][snapmaker][filament_record]") {
-    lv_init_safe();
-    FilamentRecordHarness h("record_held_dropped", "printing");
-    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
-    REQUIRE(helix::test::apply_edit(h.backend, 1, inland_pla()).success());
-    FilamentRecordHarness::drain();
-    h.printer.client.clear_gcode_script_history();
-
-    SECTION("a Clear Spool") {
-        h.backend.clear_slot_override(1);
-    }
-    SECTION("a restart") {
-        SnapmakerTestAccess::call_on_started(h.backend);
-    }
-    h.print("complete");
-    CHECK(h.config_writes().empty());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a product-line change alone rewrites the identity",
@@ -5868,24 +5857,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a product-line change alone rewrit
     REQUIRE(writes.size() == 1);
     CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
                        "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Matte");
-}
-
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker drops a held save when the spool is swapped",
-                 "[ams][snapmaker][filament_record]") {
-    lv_init_safe();
-    FilamentRecordHarness h("record_held_swap", "printing");
-    h.frame(make_written_entry(1, "PLA", json::array({1, 2, 3, 4})));
-    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
-    REQUIRE(helix::test::apply_edit(h.backend, 1, inland_pla()).success());
-    FilamentRecordHarness::drain();
-    REQUIRE(SnapmakerTestAccess::get_override(h.backend, 1).has_value());
-
-    // A different card with a different material: a new spool.
-    h.frame(make_written_entry(1, "PETG", json::array({9, 9, 9, 9})));
-    REQUIRE_FALSE(SnapmakerTestAccess::get_override(h.backend, 1).has_value());
-    h.printer.client.clear_gcode_script_history();
-    h.print("complete");
-    CHECK(h.config_writes().empty());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an edit never POSTs to filament_detect/set",
@@ -5996,6 +5967,37 @@ TEST_CASE_METHOD(SnapmakerFixture,
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker lane truth: an edit's type goes to print_task_config and the record "
+                 "copies it from the echo",
+                 "[ams][snapmaker][filament_record][lane_truth]") {
+    lv_init_safe();
+    FilamentRecordHarness h("lane_truth_u1_edit");
+    h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+    h.frame(make_head_record(0, "PLA", "FFFFFFFF"));
+    h.printer.client.clear_gcode_script_history();
+
+    helix::test::edit_slot_as_user(h.backend, 0, polymaker_asa());
+    FilamentRecordHarness::drain();
+    REQUIRE(h.config_writes().size() == 2);
+    // A frame from before the write landed: the slot shows the edit, the
+    // firmware does not hold it yet.
+    h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+    json stored = h.printer.client.mock_db_get("lane_data", "T0");
+    REQUIRE(stored.is_object());
+    CHECK(stored["vendor_name"] == "Polymaker");
+    CHECK(stored["material"] != "ASA");
+    CHECK(h.backend.get_slot_info(0).material == "ASA");
+
+    h.frame(make_head_record(0, "ASA", "FF9800FF"));
+    FilamentRecordHarness::drain();
+    stored = h.printer.client.mock_db_get("lane_data", "T0");
+    CHECK(stored["material"] == "ASA");
+    CHECK(stored["color"] == "#FF9800");
+    CHECK(stored["vendor_name"] == "Polymaker");
+    CHECK(h.backend.get_slot_info(0).material == "ASA");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker writes no dropped record back for a spool that may have changed",
                  "[ams][snapmaker][filament_record][record_drift]") {
     lv_init_safe();
@@ -6044,12 +6046,12 @@ TEST_CASE_METHOD(SnapmakerFixture,
         h.frame(json{{"machine_state_manager", {{"main_state", 0}}}});
         CHECK(h.config_writes().size() == 2);
     }
-    SECTION("a user edit waits too") {
-        helix::test::edit_slot_as_user(h.backend, 0, polymaker_asa());
+    SECTION("a user edit to the record is refused") {
+        SlotInfo pla = polymaker_asa();
+        pla.material = "PLA";
+        CHECK(helix::test::apply_edit(h.backend, 0, pla).result == AmsResult::WRONG_STATE);
         FilamentRecordHarness::drain();
         CHECK(h.config_writes().empty());
-        h.frame(json{{"machine_state_manager", {{"main_state", 0}}}});
-        CHECK_FALSE(h.config_writes().empty());
     }
 }
 
