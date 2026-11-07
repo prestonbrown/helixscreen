@@ -164,6 +164,7 @@ tests/shell/test_shard_batching.bats	mk/tests.mk
 tests/shell/test_shellcheck_gate.bats	config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/shellcheck.sh src/ui/controls/ui_panel_macros.cpp ui_xml/globals.xml
 tests/shell/test_shipped_spacing_tokens_gate.bats	mk/cross.mk scripts/check_shipped_spacing_tokens.py
 tests/shell/test_size_flags_gate.bats	Makefile mk/cross.mk
+tests/shell/test_spdlog_probe.bats	Makefile mk/cross.mk
 tests/shell/test_subagent_brief.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/resource-advisor.sh scripts/subagent-brief.sh
 tests/shell/test_suite_report_guard.bats	scripts/run_suite_report.sh
 tests/shell/test_symbol_ci.bats	mk/cross.mk

@@ -717,7 +717,16 @@ endif
 
 # spdlog (logging library) - Use system version if available, otherwise use submodule
 # Check for actual header file to avoid $(dir) path issues with directory paths
-SPDLOG_SYSTEM_HEADER_PATHS := /usr/include/spdlog/spdlog.h /usr/local/include/spdlog/spdlog.h /opt/homebrew/include/spdlog/spdlog.h
+SPDLOG_HOST_HEADER_PATHS := /usr/include/spdlog/spdlog.h /usr/local/include/spdlog/spdlog.h /opt/homebrew/include/spdlog/spdlog.h
+# The host's paths are probed only for a build that runs on this host (native)
+# or whose compiler resolves them in its own sysroot (yocto). A cross build
+# that found the build host's spdlog would compile against the host's headers,
+# so every other platform target uses the bundled copy (#1979).
+ifneq ($(filter native yocto,$(PLATFORM_TARGET)),)
+    SPDLOG_SYSTEM_HEADER_PATHS := $(SPDLOG_HOST_HEADER_PATHS)
+else
+    SPDLOG_SYSTEM_HEADER_PATHS :=
+endif
 SPDLOG_SYSTEM_HEADER := $(firstword $(wildcard $(SPDLOG_SYSTEM_HEADER_PATHS)))
 ifneq ($(SPDLOG_SYSTEM_HEADER),)
     # System spdlog found
