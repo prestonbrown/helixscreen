@@ -2111,25 +2111,19 @@ std::string PrinterDetector::canonical_type_name(const std::string& printer_name
 }
 
 namespace {
-/// The contender of an ambiguous @p detected that pictures the same machine as
-/// @p saved_type, or nullptr when the result separated, the saved type is not
-/// a database entry, or no tied machine is the saved one. Same image is the
-/// grouping detect() puts contenders in, one name per machine, so at most one
-/// contender can match.
+/// The contender of an ambiguous @p detected that is the saved type or one of
+/// its variant family (relate_types), or nullptr when the result separated or
+/// no tied candidate is the saved machine. A shared picture is not enough: one
+/// image can stand for a whole model line of different sizes.
 const std::string* contender_for_saved_machine(const std::string& saved_type,
                                                const PrinterDetectionResult& detected) {
-    if (!detected.ambiguous()) {
-        return nullptr;
-    }
-    const json* saved = find_printer_entry(saved_type);
-    const std::string saved_image =
-        saved != nullptr ? helix::json_util::safe_string(*saved, "image") : std::string();
-    if (saved_image.empty()) {
+    if (!detected.ambiguous() || saved_type.empty()) {
         return nullptr;
     }
     for (const auto& contender : detected.contenders) {
-        const json* entry = find_printer_entry(contender);
-        if (entry != nullptr && helix::json_util::safe_string(*entry, "image") == saved_image) {
+        if (contender == saved_type ||
+            PrinterDetector::relate_types(saved_type, contender).relation !=
+                PrinterDetector::TypeRelation::DifferentModel) {
             return &contender;
         }
     }

@@ -806,8 +806,9 @@ class PrinterDetector {
      * pictures the same machine as @p saved_type. Detection then failed to
      * choose between machines, but the user has already chosen one, and that
      * contender is the detected entry for it: a firmware variant of the saved
-     * model, or the saved type itself. Same machine means the same image,
-     * the test detect() groups candidates by.
+     * model, or the saved type itself. Same machine means the same variant
+     * family (relate_types), never a shared image: one picture can stand for
+     * several sizes of one model line.
      */
     static std::string mismatch_subject(const std::string& saved_type,
                                         const PrinterDetectionResult& detected);
