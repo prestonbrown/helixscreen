@@ -427,6 +427,9 @@ class OneManagerFixture : private helix::PrintSelectGlobalStateReset, public LVG
         StaticPanelRegistry::instance().destroy_all();
         client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        // No macro in Klipper's config object, so the PRINT_START analysis walks
+        // the config files, the step these cases hold and count.
+        api->set_configfile_macros(nlohmann::json::object());
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
         get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
