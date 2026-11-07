@@ -6023,7 +6023,7 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
                     : info.material;
             // A SET_COLOR or SET_MATERIAL Moonraker refused never reached
             // firmware, so its echo is not coming: the lane's pending edit is
-            // withdrawn and the user told. A TIMEOUT may still land, so it
+            // withdrawn and the lane shows what AFC holds. A TIMEOUT may still land, so it
             // waits for the echo or the pending timeout. Deferred off the
             // callback's thread: apply_user_edit holds mutex_ across the
             // dispatches.
@@ -6033,14 +6033,13 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
                     if (err.type == MoonrakerErrorType::TIMEOUT) {
                         return;
                     }
-                    tok.defer("AmsBackendAfc::apply_user_edit.refused",
-                              [this, slot_index, what, message = err.message]() {
-                                  ams::withdraw_pending(lane_id(slot_index));
-                                  repaint_slot_from_lane(slot_index);
-                                  emit_event(kEventSlotChanged, std::to_string(slot_index));
-                                  NOTIFY_ERROR(lv_tr("Couldn't write the {} of lane {}: {}"), what,
-                                               slot_index + 1, message);
-                              });
+                    spdlog::warn("[AMS AFC] lane {} {} write refused: {}", slot_index + 1, what,
+                                 err.message);
+                    tok.defer("AmsBackendAfc::apply_user_edit.refused", [this, slot_index]() {
+                        ams::withdraw_pending(lane_id(slot_index));
+                        repaint_slot_from_lane(slot_index);
+                        emit_event(kEventSlotChanged, std::to_string(slot_index));
+                    });
                 };
             };
 

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_cfs.h"
 #include "ams_error.h"
 #include "ams_types.h"
@@ -40,6 +42,8 @@ class CfsTestAccess {
     /// Runs only the startup store load: a null client skips the initial query.
     static void start_load(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// Takes a notify frame, the shape the subscription delivers.
@@ -231,6 +235,8 @@ class CfsTestAccess {
     /// Moonraker query itself is null-guarded in test constructions).
     static void call_on_started(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// The configfile query's answer, as configfile.settings.

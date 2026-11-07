@@ -2196,6 +2196,18 @@ class AmsBackend {
         return true;
     }
 
+    /**
+     * @brief Whether this backend's lane records have been read since its
+     *        record store opened
+     *
+     * An edit before the first read would be written over records nobody has
+     * seen, so lane editing waits for it. A backend with no record store is
+     * always ready. Main thread.
+     */
+    [[nodiscard]] virtual bool lane_records_ready() const {
+        return true;
+    }
+
     // ========================================================================
     // Resume Preparation
     // ========================================================================

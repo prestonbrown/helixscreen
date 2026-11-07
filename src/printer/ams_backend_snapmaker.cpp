@@ -2711,7 +2711,7 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     if (cache->color_rgb.has_value() && slot.color_rgb == *cache->color_rgb) {
         slot.color_rgb = task_color_[i].value_or(kAmsDefaultSlotColor);
     }
-    // No lane record carries temperatures or weight, so a user's own values
+    // No lane source carries temperatures or weight, so a user's own values
     // are told apart only by the lane holding an edit or a bound spool.
     const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
     const bool user_declared = sources.pending.has_value() || sources.spoolman.has_value();

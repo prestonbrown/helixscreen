@@ -570,6 +570,13 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
         SlotInfo info = backend.get_slot_info(slot);
         info.spoolman_id = spool_id;
         REQUIRE(backend.sync_external_identity(slot, info).success());
+        // The link a lane resolves comes from what Moonraker holds: file it
+        // as the lane's record, the way a stored link reads back.
+        helix::ams::Observation record(helix::ams::ObservationSource::Record);
+        if (spool_id > 0) {
+            record.spoolman_id = spool_id;
+        }
+        helix::ams::ingest(backend.lane_id(slot), record);
     }
 };
 
@@ -917,41 +924,6 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
 }
 
 TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a denied external spool keeps its freshest identity",
-                 "[spoolman][lane][1632]") {
-    SlotInfo ext;
-    ext.spoolman_id = 1;
-    ext.material = "PLA"; // the link-time stub
-    ext.remaining_weight_g = 400.0F;
-    ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
-    state_polymaker_pla(server_spool(1));
-
-    poll();
-
-    // The server edits the spool to PETG and the next poll carries that; the
-    // delete that follows must keep the PETG view, not revert to the stub.
-    server_spool(1).material = "PETG";
-    poll();
-    REQUIRE(helix::ams::lane_sources(helix::ams::kBypassLaneId).spoolman.has_value());
-
-    remove_server_spool(1);
-    poll();
-
-    auto sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
-    CHECK_FALSE(sources.spoolman.has_value());
-    // A delete is bookkeeping, not a spool change: what the resolved view
-    // carried goes back on the lane as remembered, the way a denied slot's
-    // does.
-    REQUIRE(sources.record.has_value());
-    CHECK(sources.record->material == "PETG");
-    auto shown = AmsState::instance().get_external_spool_info();
-    REQUIRE(shown.has_value());
-    CHECK(shown->material == "PETG");
-    CHECK(shown->brand == "Polymaker");
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "SpoolmanManager: a denial in flight does not touch a newer binding",
                  "[spoolman][lane][1632]") {
     SlotInfo ext;
@@ -1019,105 +991,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     const auto shown = helix::ams::resolve(helix::ams::lane_sources(backend.lane(0)));
     CHECK(shown.catalog_id == "polymaker-polyterra-pla-charcoal");
     CHECK(shown.product_name == "PolyTerra PLA Charcoal");
-    CHECK(shown.brand == "Polymaker");
-    CHECK(shown.material == "PLA");
-    CHECK(shown.color_rgb == 0x1A1A2EU);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a field the server stops stating stops outranking the lane's "
-                 "other sources",
-                 "[spoolman][lane][1653]") {
-    helix::test::RegisteredBackend<AmsBackendMock> backend(2);
-    link(*backend, 0, 1);
-    SpoolInfo& spool = server_spool(1);
-    state_polymaker_pla(spool);
-
-    helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
-    firmware.brand = "Firmware Brand";
-    firmware.spool_name = "Firmware Name";
-    helix::ams::ingest(backend.lane(0), firmware);
-
-    poll();
-    REQUIRE(helix::ams::resolve(helix::ams::lane_sources(backend.lane(0))).brand == "Polymaker");
-
-    // The vendor is removed on the server and the filament loses its name.
-    // An empty field is Spoolman saying nothing about it, not a blank brand.
-    spool.vendor.clear();
-    spool.vendor_id = 0;
-    spool.filament_name.clear();
-    poll();
-
-    const auto sources = helix::ams::lane_sources(backend.lane(0));
-    REQUIRE(sources.spoolman.has_value());
-    CHECK(sources.spoolman->material == "PLA");
-    CHECK_FALSE(sources.spoolman->brand.has_value());
-    CHECK_FALSE(sources.spoolman->spoolman_vendor_id.has_value());
-    CHECK_FALSE(sources.spoolman->spool_name.has_value());
-
-    const auto shown = helix::ams::resolve(sources);
-    CHECK(shown.brand == "Firmware Brand");
-    CHECK(shown.spool_name == "Firmware Name");
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a spool Spoolman denies is re-filed as remembered; an "
-                 "unreachable Spoolman leaves the record standing",
-                 "[spoolman][lane][1653][1672]") {
-    helix::test::RegisteredBackend<AmsBackendMock> backend(2);
-    link(*backend, 0, 1);
-    link(*backend, 1, 2);
-
-    // The record a backend's start filed from its stored override.
-    helix::ams::Observation cached(helix::ams::ObservationSource::Spoolman);
-    cached.spoolman_id = 1;
-    cached.brand = "Cached Brand";
-    helix::ams::ingest(backend.lane(0), cached);
-    REQUIRE(helix::ams::lane_sources(backend.lane(0)).spoolman.has_value());
-
-    SECTION("not found stops tracking the spool and keeps what the slot showed") {
-        // A caching backend's struct carries the identity its frames painted
-        // while the record stood; paint the mock's slot the same way.
-        SlotInfo painted = backend->get_slot_info(0);
-        painted.brand = "Cached Brand";
-        painted.material = "PLA";
-        REQUIRE(backend->sync_external_identity(0, painted).success());
-
-        remove_server_spool(1);
-        poll();
-
-        REQUIRE(SpoolmanManager::is_identity_unresolvable(1));
-        const helix::ams::LaneSources sources = helix::ams::lane_sources(backend.lane(0));
-        CHECK_FALSE(sources.spoolman.has_value());
-        // The lane shows what is loaded: the identity the record supplied is
-        // re-filed as remembered, the way an unlink that kept it files it.
-        REQUIRE(sources.record.has_value());
-        CHECK(sources.record->brand == "Cached Brand");
-        CHECK(helix::ams::resolve(sources).brand == "Cached Brand");
-    }
-
-    SECTION("not found for a slot re-bound meanwhile leaves it alone") {
-        remove_server_spool(1);
-        fetch();
-        link(*backend, 0, 3);
-        drain();
-
-        REQUIRE(SpoolmanManager::is_identity_unresolvable(1));
-        const auto record = helix::ams::lane_sources(backend.lane(0)).spoolman;
-        REQUIRE(record.has_value());
-        CHECK(record->brand == "Cached Brand");
-    }
-
-    SECTION("an unreachable Spoolman leaves it standing") {
-        client.set_mock_spoolman_enabled(false);
-        poll();
-
-        // Both linked slots' fetches failed, and each failure was counted.
-        REQUIRE(TA::consecutive_failures(SpoolmanManager::instance()) == 2);
-        const auto record = helix::ams::lane_sources(backend.lane(0)).spoolman;
-        REQUIRE(record.has_value());
-        CHECK(record->brand == "Cached Brand");
-    }
+    // The record outranks Spoolman, which fills only what nothing else states.
+    CHECK(shown.brand == "Stored Brand");
 }
 
 // ============================================================================
@@ -1142,64 +1017,6 @@ void restate_firmware_spool(AmsBackendAd5xIfs& ad5x) {
 }
 
 } // namespace
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: an AD5X slot shows a spool edited on the server as soon as its "
-                 "fetch lands",
-                 "[spoolman][lane][ad5x_ifs][1653]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> ad5x(nullptr, nullptr);
-    seat_firmware_spool(*ad5x);
-    link(*ad5x, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
-    restate_firmware_spool(*ad5x);
-    REQUIRE(ad5x->get_slot_info(0).color_rgb == 0x1A1A2EU);
-
-    drain();
-    lv_subject_t* shown = AmsState::instance().get_slot_color_subject(0);
-    REQUIRE(shown != nullptr);
-    lv_subject_set_int(shown, kUnsyncedColor);
-
-    // The weights stay put, so the answer changes nothing on the slot but what
-    // the lane now resolves, and no backend event resyncs the subject.
-    server_spool(1).color_hex = "FF5500";
-    poll();
-
-    CHECK(ad5x->get_slot_info(0).color_rgb == 0xFF5500U);
-    CHECK(lv_subject_get_int(shown) == 0xFF5500);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: an AD5X slot stops showing a spool Spoolman denies as soon as "
-                 "the answer lands",
-                 "[spoolman][lane][ad5x_ifs][1653]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> ad5x(nullptr, nullptr);
-    seat_firmware_spool(*ad5x);
-    link(*ad5x, 0, 1);
-
-    // The record a backend's start filed from its stored override, painted by
-    // the next frame.
-    helix::ams::Observation cached(helix::ams::ObservationSource::Spoolman);
-    cached.spoolman_id = 1;
-    cached.color_rgb = 0x1A1A2EU;
-    helix::ams::ingest(ad5x.lane(0), cached);
-    restate_firmware_spool(*ad5x);
-    REQUIRE(ad5x->get_slot_info(0).color_rgb == 0x1A1A2EU);
-
-    drain();
-    lv_subject_t* shown = AmsState::instance().get_slot_color_subject(0);
-    REQUIRE(shown != nullptr);
-    lv_subject_set_int(shown, kUnsyncedColor);
-
-    remove_server_spool(1);
-    poll();
-
-    REQUIRE_FALSE(helix::ams::lane_sources(ad5x.lane(0)).spoolman.has_value());
-    // Colour, because the firmware states it too. A cached slot keeps a field no
-    // remaining source states (#1672), so such a field cannot show a repaint.
-    CHECK(ad5x->get_slot_info(0).color_rgb == 0x898989U);
-    CHECK(lv_subject_get_int(shown) == 0x898989);
-}
 
 TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "SpoolmanManager: a fetch that changes nothing on the lane neither repaints nor "

@@ -7,6 +7,8 @@
 // the move changes nothing about how the friend resolves).
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_error.h"
 #include "ams_types.h"
@@ -493,6 +495,8 @@ class Ad5xIfsTestAccess {
     }
     static void on_started(AmsBackendAd5xIfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
     static std::chrono::steady_clock::time_point last_json_poll_kick(const AmsBackendAd5xIfs& b) {
         return b.last_json_poll_kick_;

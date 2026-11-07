@@ -163,8 +163,8 @@ class FilamentSlotOverrideStore {
 // =============================================================================
 
 /// Schedule @p store's save of @p record for @p slot_index. A failure is
-/// reported to the user (a toast naming @p noun) and withdraws @p lane's
-/// pending edit, so the lane falls back to what Moonraker holds.
+/// logged (naming @p noun) and withdraws @p lane's pending edit, so the lane
+/// falls back to what Moonraker holds.
 void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
                          const FilamentSlotOverride& record, const std::string& tag,
                          const char* noun, LaneId lane = kInvalidLaneId);

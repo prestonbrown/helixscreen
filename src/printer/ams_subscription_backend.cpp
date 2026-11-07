@@ -219,6 +219,7 @@ void AmsSubscriptionBackend::open_lane_record_store(std::string backend_id, std:
         });
         overrides_.clear();
         lane_wire_seen_.clear();
+        lane_records_unread_ = true;
     }
     refresh_lane_records();
 }
@@ -276,7 +277,8 @@ void AmsSubscriptionBackend::adopt_lane_records(
         for (const auto& [slot, entry] : records) {
             lane_wire_seen_[slot] = entry.wire;
         }
-        changed = previous != lane_wire_seen_;
+        changed = lane_records_unread_ || previous != lane_wire_seen_;
+        lane_records_unread_ = false;
         on_lane_records_read_locked();
     }
 

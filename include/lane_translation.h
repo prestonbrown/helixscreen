@@ -28,9 +28,9 @@ namespace helix::ams {
 ///   - on an edit that keeps a linked spool, material, brand, spool name and
 ///     Spoolman vendor id are the spool's statement, not the edit's.
 ///
-/// spoolman_id is engaged exactly when the binding changed. A cleared text
-/// field or a zeroed id is a move: it travels engaged-empty, and the lane
-/// shows the clear until the write echoes back.
+/// spoolman_id is engaged exactly when the binding changed, an unlink as 0. A
+/// cleared text field or a zeroed id travels engaged-empty, and filing it
+/// withdraws the field's earlier pending value.
 [[nodiscard]] Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited);
 
 /// A stored lane record as a Record observation, whole. Only the fields the

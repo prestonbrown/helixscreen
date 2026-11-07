@@ -854,6 +854,17 @@ class AmsState {
     }
 
     /**
+     * @brief 1 once every backend has read its lane records over the live
+     *        connection, else 0 ("ams_lane_records_ready")
+     *
+     * Lane editing is disabled while it is 0: an edit made before the read
+     * would overwrite records nobody has seen, and none is held to send later.
+     */
+    lv_subject_t* get_ams_lane_records_ready_subject() {
+        return &ams_lane_records_ready_;
+    }
+
+    /**
      * @brief Get action detail string subject
      * @return Subject holding current operation description
      */
@@ -2327,6 +2338,9 @@ class AmsState {
     /// Heat-blocked and can-cancel subjects, and the swap preheat latch on a
     /// shared-heater swap.
     void sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info);
+    /// Every backend's lane_records_ready() over a live connection. Main thread.
+    [[nodiscard]] bool lane_records_ready() const;
+    void sync_lane_records_ready();
     /// filament_loaded, the runout indicator's edge state, and the unload grace.
     void sync_filament_runout(const AmsSystemInfo& info);
     /// The bypass subjects, the bypass edge, and the external spool subjects.
@@ -2482,6 +2496,7 @@ class AmsState {
     lv_subject_t ams_is_tool_changer_{};
     lv_subject_t ams_nozzle_heat_blocked_{};
     lv_subject_t ams_can_cancel_{};
+    lv_subject_t ams_lane_records_ready_{};
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
     lv_subject_t ams_is_filament_system_{};
@@ -2621,6 +2636,9 @@ class AmsState {
     ObserverGuard connection_state_observer_;
     /// The connection state the observer last saw; -1 before its first fire.
     int last_connection_state_ = -1;
+    /// The connection dropped after being up and has not come back. A lane
+    /// edit then has no printer to write to, so commit_slot_edit() refuses it.
+    bool connection_lost_ = false;
     /// Wire (or rewire) connection_state_observer_. Idempotent.
     void install_connection_state_observer();
 

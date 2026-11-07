@@ -955,7 +955,9 @@ class AmsBackendMock : public AmsBackend {
      * it from kSampleFilaments and each rig mode rebuilds it, which is the same
      * signal a real backend gets from a parse. Presence is Sensed; identity is
      * Firmware, every field the simulated firmware holds, the way AFC's lane
-     * object states colour, material, brand, name, spool id and weight. A write
+     * object states colour, material, brand, name and spool id. Not a colour's
+     * name (firmware reports hex) and not a weight, which is the meter's and
+     * Spoolman's on this backend. A write
      * files the population again, so an edit echoes the way it does on such a
      * printer and its Pending record retires.
      *

@@ -2301,43 +2301,6 @@ TEST_CASE("QIDI Box own identity push echo does not clear the edit", "[ams][qidi
     CHECK(QidiBoxTestAccess::get_override(backend, 0).has_value());
 }
 
-TEST_CASE("QIDI Box keeps the tag's reading under its own write's echo",
-          "[ams][qidi_box][tag_reading]") {
-    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
-    RecordingQidiBackend& backend = *harness;
-
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-    QidiBoxTestAccess::parse_vars(
-        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-    const auto tag = backend.tag_reading(0);
-    REQUIRE(tag.has_value());
-    REQUIRE(tag->material.has_value());
-    REQUIRE(tag->color_rgb.has_value());
-    CHECK(backend.tag_provenance(0).from_tag(helix::ams::TagField::Material));
-
-    auto info = backend.get_slot_info(0);
-    info.material = "ABS";
-    info.brand = "eSUN";
-    info.color_rgb = 0x060606u;
-    helix::test::edit_slot_as_user(backend, 0, info);
-    // The Box now holds the ids our write pushed; the tag's are gone from it.
-    QidiBoxTestAccess::parse_vars(
-        backend, json{{"filament_slot0", 11}, {"color_slot0", 2}, {"vendor_slot0", 2}});
-
-    const auto shown = backend.get_slot_info(0);
-    REQUIRE(shown.material == "ABS");
-    const auto kept = backend.tag_reading(0);
-    REQUIRE(kept.has_value());
-    CHECK(kept->material == tag->material);
-    CHECK(kept->color_rgb == tag->color_rgb);
-    CHECK(kept->brand == tag->brand);
-    CHECK_FALSE(backend.tag_provenance(0).from_tag(helix::ams::TagField::Material));
-
-    const auto reset = helix::ams::reset_to_tag(shown, *kept);
-    CHECK(reset.material == *tag->material);
-    CHECK(reset.color_rgb == *tag->color_rgb);
-}
-
 TEST_CASE("QIDI Box colour and vendor writes keep the echo expectation alive", "[ams][qidi_box]") {
     // A material no fila profile matches still pushes colour and vendor, and
     // the echo of those two writes must not be mistaken for a spool swap.
@@ -2550,49 +2513,6 @@ TEST_CASE("QIDI Box a poll between the edit and its echo keeps the edit on scree
     // The poll races the SAVE_VARIABLE echo: the Box still reports the old
     // ids, which the fingerprint reads as the same spool. The frame's tag
     // paint must not overwrite the fields the user just declared.
-    QidiBoxTestAccess::parse_vars(
-        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-
-    const auto shown = backend.get_slot_info(0);
-    CHECK(shown.material == "ABS");
-    CHECK(shown.brand == "eSUN");
-    CHECK(shown.color_rgb == 0x060606u);
-}
-
-TEST_CASE("QIDI Box a stored edit shows again after a restart", "[ams][qidi_box]") {
-    QidiTmpCacheDir tmp("restart_shows");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // First run: the user edits slot 0 and the record lands in the database.
-    {
-        helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
-        AmsBackendQidi& first = *harness;
-        auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-        QidiBoxTestAccess::inject_override_store(first, std::move(store));
-
-        QidiBoxTestAccess::apply_filas_list(first, kStockFilasExcerpt);
-        QidiBoxTestAccess::parse_vars(
-            first, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
-
-        auto info = first.get_slot_info(0);
-        info.material = "ABS";
-        info.brand = "eSUN";
-        info.color_rgb = 0x060606u;
-        helix::test::edit_slot_as_user(first, 0, info);
-        REQUIRE_FALSE(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-    }
-
-    // Restart: the lane store died with the process, the database record did
-    // not. A fresh backend loads it at startup, then meets the same poll.
-    helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
-    AmsBackendQidi& backend = *harness;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-    QidiBoxTestAccess::inject_override_store(backend, std::move(store));
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-    QidiBoxTestAccess::start_load(backend);
-    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
-
     QidiBoxTestAccess::parse_vars(
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
 

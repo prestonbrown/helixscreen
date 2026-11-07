@@ -129,14 +129,19 @@ constexpr std::chrono::seconds kPendingWriteTimeout{30};
 ///
 /// A Firmware or Record reading is also the echo of our own writes: every
 /// Pending field it states with the same value is withdrawn, because the
-/// reading now carries it (pending_echoed()).
+/// reading now carries it. A cleared Pending field (an unlink, an emptied
+/// colour name) is echoed only by a Record that leaves the field unset;
+/// firmware silent on a field says nothing about it.
 ///
 /// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
 /// File an edit of ours as Pending while its write is in flight. Amends the
 /// lane's Pending record field by field, so a second edit before the first
-/// echoes keeps both, and restarts the kPendingWriteTimeout window.
+/// echoes keeps both, and restarts the kPendingWriteTimeout window. A field
+/// @p obs clears withdraws its earlier pending value, so the lane shows what
+/// Moonraker holds at once (prestonbrown/helixscreen#1661); an unlink and a
+/// colour name cleared beside a new colour stay pending until echoed.
 /// obs.source must be Pending.
 ///
 /// A lane that is not a lane is warned about and dropped.
@@ -151,9 +156,10 @@ void withdraw_pending(LaneId lane);
 std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now);
 
 /// Take off @p pending every field @p reading states with the same value.
-/// A cleared Pending field (empty text, zero id) is echoed by a reading that
-/// leaves the field unset: firmware and records both state "none" as no value.
-/// Weights compare within 0.1 g. Pure.
+/// A cleared Pending field (an unlink, an emptied colour name) is echoed by a
+/// Record reading that leaves the field unset, since a record states "none" as
+/// null. Firmware silent on a field is no echo: most firmware never holds the
+/// field at all. Weights compare within 0.1 g. Pure.
 void strip_echoed_fields(Observation& pending, const Observation& reading);
 
 /// Remove one source's record from a lane, leaving every other source alone.

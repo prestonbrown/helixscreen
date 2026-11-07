@@ -382,9 +382,9 @@ TEST_CASE("CFS external spool lane: stock publishes past the highest bay any cha
     auto rec = fx.client.mock_db_get("lane_data", lane_key);
     REQUIRE_FALSE(rec.is_null());
     CHECK(rec["helix_external"] == true);
-    CHECK(rec["helix_material"] == "ASA");
+    CHECK(rec["filament_type"] == "ASA");
     CHECK(rec["color"] == "#1A2B3C");
-    CHECK(rec["vendor"] == "Polymaker");
+    CHECK(rec["vendor_name"] == "Polymaker");
 
     SECTION("clear removes the lane") {
         fx.backend->publish_external_spool_lane(nullptr);
@@ -482,7 +482,7 @@ TEST_CASE("CFS external spool lane: an old unmarked mirror naming the saved spoo
         helix::ui::UpdateQueue::instance().drain();
         rec = fx.client.mock_db_get("lane_data", "lane5");
         REQUIRE_FALSE(rec.is_null());
-        CHECK(rec["helix_material"] == "PETG");
+        CHECK(rec["filament_type"] == "PETG");
     }
 
     SECTION("a different filament is not ours: untouched by publish and clear") {
@@ -542,7 +542,7 @@ TEST_CASE("CFS external spool lane: our marked mirror is updated, an unmarked re
         helix::ui::UpdateQueue::instance().drain();
         const auto rec = fx.client.mock_db_get("lane_data", "lane17");
         REQUIRE_FALSE(rec.is_null());
-        CHECK(rec["helix_material"] == "ASA");
+        CHECK(rec["filament_type"] == "ASA");
         CHECK(rec["helix_external"] == true);
     }
 
@@ -749,8 +749,8 @@ void seed_store_and_publish(helix::ams::LaneKeyStyle style, const char* expect_o
     auto rec = client.mock_db_get("lane_data", expect_outer);
     REQUIRE_FALSE(rec.is_null());
     CHECK(rec["lane"] == "4"); // inner field authoritative, 0-based string
-    CHECK(rec["helix_material"] == "ASA");
-    CHECK(rec.value("helix_spoolman_filament_id", 0) == 55);
+    CHECK(rec["filament_type"] == "ASA");
+    CHECK(rec.value("spoolman_filament_id", 0) == 55);
 }
 } // namespace
 
@@ -813,7 +813,7 @@ TEST_CASE("AFC external spool lane: publishes T{N} one past the last lane",
     auto rec = client.mock_db_get("lane_data", "T4");
     REQUIRE_FALSE(rec.is_null());
     CHECK(rec["lane"] == "4");
-    CHECK(rec["helix_material"] == "ASA");
+    CHECK(rec["filament_type"] == "ASA");
 
     SECTION("null spool clears the lane") {
         backend.publish_external_spool_lane(nullptr);

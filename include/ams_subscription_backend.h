@@ -66,6 +66,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// A user resync re-reads the lane records.
     void request_resync() override;
 
+    /// False from the store opening until its first read lands; a failed read
+    /// leaves it false and the poll retries. A backend that never opened a
+    /// store has nothing to wait for.
+    [[nodiscard]] bool lane_records_ready() const override {
+        return !lane_records_unread_;
+    }
+
     // --- Event system (final) ---
     void set_event_callback(EventCallback callback) final;
 
@@ -545,6 +552,10 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Each slot's record as last read, so an unchanged read announces nothing.
     /// Main thread.
     std::unordered_map<int, nlohmann::json> lane_wire_seen_;
+    /// The store's first read has not landed yet; it repaints every slot,
+    /// since sources filed before it (a Spoolman fetch) were never painted.
+    /// Main thread.
+    bool lane_records_unread_ = false;
     /// A read is out, and another was asked for while it was. Main thread.
     bool refresh_in_flight_ = false;
     bool refresh_again_ = false;

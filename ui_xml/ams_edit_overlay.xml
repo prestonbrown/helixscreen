@@ -107,6 +107,11 @@
     <px name="ams_edit_hdr_gap_medium" value="4"/>
     <px name="ams_edit_hdr_gap_large" value="4"/>
   </consts>
+  <subjects>
+    <!-- Save stays shut until the lane records are read: an edit before the
+         read would overwrite records nobody has seen. -->
+    <subject_expr name="ams_edit_save_blocked" expr="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0"/>
+  </subjects>
   <styles>
     <!-- The colour view's presets pane: content-wide beside the picker, the
          view's full width alone. Both are bound styles, since an inline width
@@ -116,7 +121,7 @@
   </styles>
   <view name="ams_edit_overlay"
         extends="overlay_panel" title="Edit Spool" hide_action_button="false" action_button_text="Save"
-        action_button_callback="ams_edit_save_cb" action_button_disabled_subject="ams_edit_save_disabled"
+        action_button_callback="ams_edit_save_cb" action_button_disabled_subject="ams_edit_save_blocked"
         action_button_hidden_subject="ams_edit_save_hidden" title_badge_icon="spoolman"
         title_badge_subject="ams_edit_is_managed" back_button_callback="ams_edit_back_cb">
     <!-- Header icon buttons, left of Save: Choose from Spoolman and Scan QR,
@@ -159,6 +164,11 @@
       <lv_obj name="editor_view"
               width="100%" height="content" flex_flow="column" style_pad_gap="#ams_edit_vgap" scrollable="false">
         <bind_flag_if_not_eq subject="ams_edit_view" flag="hidden" ref_value="0"/>
+
+        <text_small name="lane_records_loading"
+                    width="100%" long_mode="wrap" text="Loading lane details…" style_text_color="#text_muted">
+          <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
+        </text_small>
 
         <!-- Summary: colour dot + "eSUN Silk PETG, Blue" + from-tag badge +
              the weight pill. -->

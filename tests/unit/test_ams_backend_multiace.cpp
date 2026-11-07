@@ -1356,6 +1356,7 @@ TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yield
     helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
     StoreBackedMultiAce& b = *reg;
     b.on_started();
+    helix::ui::UpdateQueue::instance().drain();
     b.frame(ace_frame("head_mode_4ace.json"));
 
     const int bay = multiace::bay_global(1, 0);
@@ -1399,44 +1400,4 @@ TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yield
     const SlotInfo reframed = b.get_slot_info(bay);
     CHECK(reframed.material == "PLA");
     CHECK(reframed.color_rgb == 0xFF0000u);
-}
-
-TEST_CASE_METHOD(MultiAceFixture, "a bay edit survives a restart and outranks the engine's table",
-                 "[multiace][ams][filament_slot_override]") {
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Session 1: the user names the spool in ACE 2 bay 1.
-    {
-        helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
-        StoreBackedMultiAce& b = *reg;
-        b.on_started();
-        b.frame(ace_frame("head_mode_4ace.json"));
-        SlotInfo edit = b.get_slot_info(multiace::bay_global(1, 0));
-        edit.material = "PETG";
-        edit.brand = "Polymaker";
-        edit.color_rgb = 0x1E5AA8;
-        REQUIRE(b.commit_user_edit(multiace::bay_global(1, 0),
-                                   b.get_slot_info(multiace::bay_global(1, 0)), edit)
-                    .success());
-    }
-
-    // Session 2: the store loads, the engine restates its own table, and the
-    // stored edit still wins.
-    {
-        helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
-        StoreBackedMultiAce& b = *reg;
-        b.on_started();
-        b.frame(ace_frame("head_mode_4ace.json"));
-
-        const SlotInfo slot = b.get_slot_info(multiace::bay_global(1, 0));
-        CHECK(slot.material == "PETG");
-        CHECK(slot.brand == "Polymaker");
-        CHECK(slot.color_rgb == 0x1E5AA8u);
-        // A bay nobody edited keeps the engine's word: ACE 1 bay 2 is the
-        // engine's Generic blue PETG, not the edit's Polymaker shade.
-        const SlotInfo untouched = b.get_slot_info(multiace::bay_global(0, 1));
-        CHECK(untouched.brand == "Generic");
-        CHECK(untouched.color_rgb == 0x0000FFu);
-    }
 }

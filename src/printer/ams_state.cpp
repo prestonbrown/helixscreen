@@ -649,6 +649,7 @@ void AmsState::sync_from_backend() {
     sync_system_subjects(info);
     sync_tool_topology(backend, info);
     sync_shared_heater(backend, info);
+    sync_lane_records_ready();
     sync_filament_runout(info);
     sync_bypass(backend, info);
     sync_feeder(backend);
@@ -830,6 +831,22 @@ std::string AmsState::nozzle_heat_blocked_reason() const {
     assert_main_thread();
     const AmsBackend* backend = get_backend(0);
     return backend ? backend->nozzle_heat_blocked_reason() : std::string();
+}
+
+void AmsState::sync_lane_records_ready() {
+    lv_subject_set_int(&ams_lane_records_ready_, lane_records_ready() ? 1 : 0);
+}
+
+bool AmsState::lane_records_ready() const {
+    if (connection_lost_) {
+        return false;
+    }
+    for (int i = 0; i < backend_count(); ++i) {
+        if (const AmsBackend* backend = get_backend(i); backend && !backend->lane_records_ready()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void AmsState::sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info) {
@@ -2463,9 +2480,14 @@ AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
     }
     // A lane holds only what Moonraker holds, so an edit with no printer to
     // write it to is refused rather than kept here.
-    if (last_connection_state_ >= 0 &&
-        last_connection_state_ != static_cast<int>(ConnectionState::CONNECTED)) {
+    if (connection_lost_) {
         return AmsErrorHelper::not_connected();
+    }
+    // The editor is disabled until the lane records are read; this refuses an
+    // edit that reaches here another way.
+    if (!backend->lane_records_ready()) {
+        return AmsError(AmsResult::NOT_CONNECTED, "lane records not read yet",
+                        lv_tr("Loading lane details. Try again in a moment."));
     }
 
     // S1 — server-side active spool (fire-and-forget, warn on failure). The

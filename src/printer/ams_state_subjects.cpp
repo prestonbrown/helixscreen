@@ -92,6 +92,7 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_is_tool_changer, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_nozzle_heat_blocked, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_can_cancel, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_lane_records_ready, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_is_filament_system, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_action, static_cast<int>(AmsAction::IDLE), subjects_, register_xml);
     action_mirror_.store(AmsAction::IDLE, std::memory_order_relaxed);
@@ -686,15 +687,21 @@ void AmsState::install_connection_state_observer() {
     // on the operator, or on a frame): this edge reaches it either way.
     connection_state_observer_.reset();
     last_connection_state_ = -1;
+    connection_lost_ = false;
     connection_state_observer_ = helix::ui::observe<int>(
         get_printer_state().network_state().get_printer_connection_state_subject(), this,
         [](AmsState* self, int state) {
             constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
             const int prev = self->last_connection_state_;
             self->last_connection_state_ = state;
+            if (state == kConnected) {
+                self->connection_lost_ = false;
+            }
             if (prev != kConnected || state == kConnected) {
                 return;
             }
+            self->connection_lost_ = true;
+            self->sync_lane_records_ready();
             for (int i = 0; i < self->backend_count(); ++i) {
                 if (AmsBackend* backend = self->get_backend(i)) {
                     backend->on_connection_lost();
@@ -746,6 +753,8 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_nozzle_heat_blocked",
                                                   &ams_nozzle_heat_blocked_);
     helix::xml::register_subject_in_current_scope("ams_can_cancel", &ams_can_cancel_);
+    helix::xml::register_subject_in_current_scope("ams_lane_records_ready",
+                                                  &ams_lane_records_ready_);
     helix::xml::register_subject_in_current_scope("ams_is_filament_system",
                                                   &ams_is_filament_system_);
     helix::xml::register_subject_in_current_scope("ams_action", &ams_action_);

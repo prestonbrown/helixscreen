@@ -12,9 +12,12 @@
 #include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_state.h"
+#include "app_globals.h"
 #include "filament_slot_override_store.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
+#include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -48,8 +51,12 @@ nlohmann::json record(const std::string& material, const std::string& color) {
     return {{"lane", "1"}, {"material", material}, {"color", color}};
 }
 
+/// Drain until quiet: a write's success queues a read, and the read's answer
+/// queues its filing.
 void settle() {
-    helix::ui::UpdateQueue::instance().drain();
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
 }
 
 } // namespace
@@ -155,11 +162,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "an edit never overwrites a record another pro
 
 namespace {
 
-/// An AFC backend on a mock Moonraker, started.
+/// An AFC backend on a mock Moonraker.
 class StartedAfc : public helix::AmsBackendAfc {
   public:
     explicit StartedAfc(helix::IMoonrakerAPI* api) : helix::AmsBackendAfc(api, nullptr) {
         helix::AfcTestAccess::initialize_slots(*this, std::vector<std::string>{"lane1", "lane2"});
+    }
+    /// Start once registered, so the lane ids the read files onto exist.
+    void start_now() {
         on_started();
         settle();
     }
@@ -185,6 +195,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                                 {"material", "ABS"},
                                 {"color", "#00FF00"}});
     helix::test::RegisteredBackend<StartedAfc> reg(&printer.api);
+    reg->start_now();
     const auto lane = helix::ams::resolved_lane(reg.lane(0));
     CHECK(lane.brand == std::string("Polymaker"));
     CHECK(lane.spool_name == std::string("PolyTerra"));
@@ -192,4 +203,56 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(lane.spoolman_id.has_value());
     CHECK_FALSE(lane.material.has_value());
     CHECK_FALSE(lane.color_rgb.has_value());
+}
+
+namespace {
+
+/// AmsState's subjects for one case, torn down before the next.
+struct ScopedAmsSubjects {
+    ScopedAmsSubjects() {
+        auto& ams = helix::AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        get_printer_state().init_subjects(false);
+        ams.init_subjects(false);
+    }
+    ~ScopedAmsSubjects() {
+        helix::ui::UpdateQueue::instance().drain();
+        helix::AmsState::instance().deinit_subjects();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "lane editing waits for the first lane-record read",
+                 "[lane][refresh][toolchanger][ready]") {
+    ScopedAmsSubjects subjects;
+    auto& ams = helix::AmsState::instance();
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+
+    // The first read fails: nothing has been read, so nothing may be edited.
+    printer.client.fail_next("server.database.get_item");
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE_FALSE(helix::ams::lane_sources(reg.lane(1)).record.has_value());
+    CHECK_FALSE(reg->lane_records_ready());
+    ams.sync_from_backend();
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 0);
+    {
+        const helix::SlotInfo original = reg->get_slot_info(1);
+        helix::SlotInfo edited = original;
+        edited.material = "ABS";
+        CHECK_FALSE(ams.commit_slot_edit(1, original, edited).success());
+        CHECK(printer.client.mock_db_get("lane_data", "T1")["material"] == "PETG");
+    }
+
+    // The poll's retry lands, and editing opens.
+    helix::ToolChangerTestAccess::refresh_lane_records(*reg);
+    settle();
+    REQUIRE(helix::ams::lane_sources(reg.lane(1)).record.has_value());
+    CHECK(reg->lane_records_ready());
+    ams.sync_from_backend();
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
 }

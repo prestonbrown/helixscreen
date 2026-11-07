@@ -500,18 +500,11 @@ void AmsBackendMock::publish_lane_observations() {
         text(firmware.material, r.info.material);
         text(firmware.brand, r.info.brand);
         text(firmware.spool_name, r.info.spool_name);
-        text(firmware.color_name, r.info.color_name);
         if (helix::ams::is_declarable_color(r.info.color_rgb)) {
             firmware.color_rgb = r.info.color_rgb;
         }
         if (r.info.spoolman_id > 0) {
             firmware.spoolman_id = r.info.spoolman_id;
-        }
-        if (r.info.remaining_weight_g >= 0.0F) {
-            firmware.remaining_weight_g = r.info.remaining_weight_g;
-        }
-        if (r.info.total_weight_g >= 0.0F) {
-            firmware.total_weight_g = r.info.total_weight_g;
         }
         helix::ams::ingest(lane_id(r.slot_index), firmware);
     }

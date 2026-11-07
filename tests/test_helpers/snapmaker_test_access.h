@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_snapmaker.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -40,6 +42,8 @@ class SnapmakerTestAccess {
     /// all a backend ever has.
     static void call_on_started(AmsBackendSnapmaker& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
     /// Whether Resume is holding @p head for a load nothing has confirmed.
     static bool load_unconfirmed(AmsBackendSnapmaker& b, int head) {

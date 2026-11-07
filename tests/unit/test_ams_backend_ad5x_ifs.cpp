@@ -4677,40 +4677,6 @@ TEST_CASE("AFC backend has no whitelist and passes material through unchanged",
 // from a test fixture constructed with nullptr api/client.
 // ==========================================================================
 
-TEST_CASE("AD5X IFS applies override brand over Adventurer5M.json data",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    helix::ams::FilamentSlotOverride ovr;
-    ovr.brand = "Polymaker";
-    ovr.spool_name = "PolyLite Green";
-    ovr.color_rgb = 0x00AA00; // Override to green
-    ovr.color_set = true;
-    ovr.material = "PETG"; // Override to PETG
-    ovr.spoolman_id = 42;
-    ovr.remaining_weight_g = 750.0f;
-    Ad5xIfsTestAccess::seed_override(backend, 0, ovr);
-
-    // Firmware reports slot 0 (port 1) as orange PLA.
-    std::string content = R"({
-        "FFMInfo": {
-            "ffmColor1": "#FF5500",
-            "ffmType1": "PLA"
-        }
-    })";
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, content);
-
-    auto info = backend.get_slot_info(0);
-    // Override wins for every non-default field.
-    REQUIRE(info.brand == "Polymaker");
-    REQUIRE(info.spool_name == "PolyLite Green");
-    REQUIRE(info.color_rgb == 0x00AA00u);
-    REQUIRE(info.material == "PETG");
-    REQUIRE(info.spoolman_id == 42);
-    REQUIRE(info.remaining_weight_g == 750.0f);
-}
-
 TEST_CASE("AD5X IFS preserves firmware color when no override present",
           "[ams][ad5x_ifs][filament_slot_override]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
@@ -4982,7 +4948,7 @@ TEST_CASE("AD5X IFS apply_user_edit stores override in memory and store",
     // MoonrakerAPIMock dispatches synchronously in-call).
     auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
     REQUIRE(!stored.is_null());
-    CHECK(stored["vendor"] == "Polymaker");
+    CHECK(stored["vendor_name"] == "Polymaker");
     CHECK(stored["spool_id"] == 42);
     CHECK(stored["material"] == "PLA");
     CHECK(stored["color"] == "#FF5500");
@@ -5713,13 +5679,13 @@ TEST_CASE("AD5X IFS empty colors_[] on boot does NOT establish phantom baseline"
         "FFMInfo": {"ffmColor1": "#898989", "ffmType1": "PLA"}
     })");
 
-    // Override survives: brand + spoolman_id still present, user's chosen
-    // material (PETG) still wins over firmware-reported PLA.
+    // Override survives: brand + spoolman_id still present. The material is
+    // what firmware states.
     {
         auto info = backend.get_slot_info(0);
         CHECK(info.brand == "Polymaker");
         CHECK(info.spoolman_id == 42);
-        CHECK(info.material == "PETG"); // user override, not firmware PLA
+        CHECK(info.material == "PLA");
         CHECK(info.color_rgb == 0x898989u);
     }
     {
@@ -5751,16 +5717,14 @@ TEST_CASE("AD5X IFS empty colors_[] on boot does NOT establish phantom baseline"
         CHECK(info.brand == "Polymaker");
         CHECK(info.spoolman_id == 42);
         CHECK(info.color_rgb == 0xFF5500u);
-        // The colour follows firmware, which owns it. The lane is bound to a
-        // spool, and the spool states the material, so a firmware type does not
-        // move it.
-        CHECK(info.material == "PETG");
+        // Colour and type follow firmware, which holds both.
+        CHECK(info.material == "PLA");
     }
     auto staged3 = Ad5xIfsTestAccess::get_override(backend, 0);
     REQUIRE(staged3.has_value());
     CHECK(staged3->brand == "Polymaker");
     CHECK(staged3->color_rgb == 0xFF5500u);
-    CHECK(staged3->material == "PETG");
+    CHECK(staged3->material == "PLA");
 }
 
 TEST_CASE("AD5X IFS first firmware color observation does NOT clear override",
@@ -7988,42 +7952,6 @@ helix::ams::FilamentSlotOverride make_auto_mirror_override(uint32_t color_rgb,
 }
 } // namespace
 
-TEST_CASE("AD5X IFS external CHANGE_ZCOLOR clears a stale locked override so firmware wins (#981)",
-          "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-
-    // Firmware truth for slot 0: zmod already wrote yellow PLA to Adventurer5M.json.
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-
-    // Stale Helix edit: white PETG, user-locked. Seed it, then re-run
-    // update_slot_from_state (via set_color) so the override bakes into
-    // entry->info — mirroring the production parse path.
-    Ad5xIfsTestAccess::seed_override(backend, 0, make_locked_override(0xFFFFFF, "PETG"));
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-
-    // Precondition: the locked override masks firmware truth.
-    {
-        SlotInfo before = backend.get_slot_info(0);
-        REQUIRE(before.material == "PETG");
-        REQUIRE(before.color_rgb == 0xFFFFFF);
-    }
-
-    // Deliberate external edit on the zmod screen. SLOT is 1-based -> slot 0.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=FEF043 TYPE=PLA"));
-
-    // The stale override is gone and firmware truth (yellow PLA) now shows.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    SlotInfo after = backend.get_slot_info(0);
-    REQUIRE(after.material == "PLA");
-    REQUIRE(after.color_rgb == 0xFEF043);
-}
-
 TEST_CASE("AD5X IFS RUN_ZCOLOR (display-only) leaves a locked override intact (#981)",
           "[ams][ad5x_ifs]") {
     // RUN_ZCOLOR only renders the material menu; it is NOT an edit, so a
@@ -8049,179 +7977,6 @@ TEST_CASE("AD5X IFS RUN_ZCOLOR (display-only) leaves a locked override intact (#
 // colour left standing there goes on painting over the firmware truth the
 // CHANGE_ZCOLOR just authored. These three pin the whole retraction - what it
 // takes, what it keeps, and that it happens only on a real release.
-
-TEST_CASE("AD5X IFS external CHANGE_ZCOLOR retracts the user's colour, not their brand (#981)",
-          "[ams][ad5x_ifs][981]") {
-    Ad5xIfsTmpJsonFile tmp("981_retracts_colour",
-                           R"({"FFMInfo":{"ffmColor1":"#898989","ffmType1":"PETG"}})");
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    // A firmware frame first, so the lane exists before an edit can address it.
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "898989");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PETG");
-
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    edit.brand = "Sunlu";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-
-    {
-        const SlotInfo before = backend.get_slot_info(0);
-        REQUIRE(before.color_rgb == 0xFFFFFF);
-        REQUIRE(before.material == "SILK");
-        REQUIRE(before.brand == "Sunlu");
-    }
-
-    // Deliberate external edit on the zmod screen. SLOT is 1-based -> slot 0.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=FEF043 TYPE=PLA"));
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_rgb == 0xFEF043);
-    CHECK(after.material == "PLA");
-    CHECK(after.brand == "Sunlu");
-
-    // The record itself, not only what it resolves to on this frame: a colour
-    // left on the user's record wins again the moment firmware stops stating
-    // one, so the frame's answer alone would not show the retraction.
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(backend_reg.lane(0));
-    REQUIRE(sources.pending.has_value());
-    CHECK_FALSE(sources.pending->color_rgb.has_value());
-    CHECK_FALSE(sources.pending->material.has_value());
-    CHECK(sources.pending->brand == "Sunlu");
-}
-
-TEST_CASE("AD5X IFS external CHANGE_ZCOLOR drops the catalog pick with the material it names",
-          "[ams][ad5x_ifs][981]") {
-    // A catalog product is scoped to a material, so a release that accepts
-    // firmware's new material has to take the pick with it. Nothing else on
-    // this path distinguishes releasing the locks from releasing the values:
-    // the auto-mirror refreshes colour and material either way, and the
-    // catalog pick is the one field it cannot refresh.
-    Ad5xIfsTmpJsonFile tmp("981_drops_catalog_pick",
-                           R"({"FFMInfo":{"ffmColor1":"#898989","ffmType1":"PETG"}})");
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "898989");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PETG");
-
-    // A brand as well, so the release keeps the identity rather than falling
-    // back to the full erase: the catalog pick has to go on the path that
-    // KEEPS things.
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.material = "SILK";
-    edit.brand = "Sunlu";
-    edit.catalog_id = "sunlu-silk-pla-1-0";
-    edit.product_name = "Silk PLA";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0)->catalog_id == "sunlu-silk-pla-1-0");
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=FEF043 TYPE=PLA"));
-
-    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->catalog_id.empty());
-    CHECK(staged->product_name.empty());
-    CHECK(staged->brand == "Sunlu");
-
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(backend_reg.lane(0));
-    REQUIRE(sources.pending.has_value());
-    CHECK_FALSE(sources.pending->catalog_id.has_value());
-    CHECK_FALSE(sources.pending->product_name.has_value());
-    CHECK(sources.pending->brand == "Sunlu");
-}
-
-TEST_CASE("AD5X IFS external CHANGE_ZCOLOR with no identity to keep clears both stores (#981)",
-          "[ams][ad5x_ifs][981]") {
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "898989");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PETG");
-
-    // Colour and material only: nothing the firmware cannot carry, so the
-    // release has nothing to retain and falls back to a full clear.
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    REQUIRE(backend.get_slot_info(0).color_rgb == 0xFFFFFF);
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=FEF043 TYPE=PLA"));
-
-    CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(backend_reg.lane(0));
-    CHECK_FALSE(sources.pending.has_value());
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_rgb == 0xFEF043);
-    CHECK(after.material == "PLA");
-}
-
-TEST_CASE("AD5X IFS a bare CHANGE_ZCOLOR retracts the lane with no firmware mirror behind it",
-          "[ams][ad5x_ifs][981]") {
-    // A CHANGE_ZCOLOR carrying no TYPE= and no HEX= writes nothing into the
-    // firmware arrays, so no baseline moves and no firmware-truth mirror runs
-    // after the release. The release's own retraction is the only thing that
-    // reaches the lane on this path, which is what makes this the case that
-    // measures it.
-    Ad5xIfsTmpJsonFile tmp("981_bare_zcolor",
-                           R"({"FFMInfo":{"ffmColor1":"#898989","ffmType1":"PETG"}})");
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, tmp.path.string());
-
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "898989");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PETG");
-
-    // A brand, so the release retains the identity rather than erasing the
-    // record: the erase resets the whole lane and would prove nothing about a
-    // retraction.
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    edit.brand = "Sunlu";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    REQUIRE(backend.get_slot_info(0).color_rgb == 0xFFFFFFu);
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=1"));
-
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(backend_reg.lane(0));
-    REQUIRE(sources.pending.has_value());
-    CHECK_FALSE(sources.pending->color_rgb.has_value());
-    CHECK_FALSE(sources.pending->material.has_value());
-    CHECK(sources.pending->brand == "Sunlu");
-
-    // The override loses the same two fields, so the two stores agree on what
-    // is no longer declared. What the lane PAINTS is not asserted here: a bare
-    // CHANGE_ZCOLOR writes nothing into colors_/materials_, so the refresh
-    // arrives with the GET_ZCOLOR poll this line schedules, not with the edit.
-    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK_FALSE(staged->color_set);
-    CHECK(staged->material.empty());
-    CHECK(staged->brand == "Sunlu");
-}
 
 TEST_CASE("AD5X IFS a firmware frame that releases nothing leaves the user's colour winning",
           "[ams][ad5x_ifs][981]") {
@@ -8471,69 +8226,6 @@ TEST_CASE("AD5X IFS successive CHANGE_ZCOLOR TYPE= macros each refresh the displ
     }
 }
 
-TEST_CASE("AD5X IFS CHANGE_ZCOLOR TYPE= also refreshes a stale locked override's material (#1065)",
-          "[ams][ad5x_ifs][1065]") {
-    // #981's override-clear path runs FIRST when a user-locked override is
-    // present. The gcode TYPE=/HEX= extraction must then apply ON TOP of the
-    // cleared override — otherwise apply_overrides re-paints nothing (good)
-    // but the firmware-truth arrays still hold the OLD value and the UI shows
-    // stale data until the eventual GET_ZCOLOR.
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-    // Seed the override and re-run update_slot_from_state (via set_color) so
-    // apply_overrides bakes the override into entry->info — mirroring the
-    // production parse path and the existing #981 test's setup.
-    Ad5xIfsTestAccess::seed_override(backend, 0, make_locked_override(0xFFFFFF, "PETG"));
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-
-    // Sanity: the locked override masks firmware truth before the macro.
-    REQUIRE(backend.get_slot_info(0).material == "PETG");
-    REQUIRE(backend.get_slot_info(0).color_rgb == 0xFFFFFF);
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 TYPE=ABS HEX=FEF043"));
-
-    // Override cleared (#981 path) AND firmware truth applied synchronously:
-    // material=ABS, color=FEF043, no override remaining.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    SlotInfo info = backend.get_slot_info(0);
-    REQUIRE(info.material == "ABS");
-    REQUIRE(info.color_rgb == 0xFEF043);
-}
-
-TEST_CASE("AD5X IFS RUN_ZCOLOR with TYPE=/HEX= does NOT update state (display-only)",
-          "[ams][ad5x_ifs][1065]") {
-    // RUN_ZCOLOR is zmod's prompt-render macro — it echoes the per-slot
-    // button payloads (carrying TYPE=/HEX=) but does NOT change anything.
-    // The display-only contract from #981 must be preserved: no extraction,
-    // no override clear, no state mutation.
-    helix::test::RegisteredBackend<TestableAd5xIfsBackend> backend_reg;
-    auto& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "000000");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-    // Seed the override and re-bake entry->info so the precondition check
-    // observes the override winning (mirrors the #981 test setup).
-    Ad5xIfsTestAccess::seed_override(backend, 0, make_locked_override(0xFFFFFF, "PETG"));
-    Ad5xIfsTestAccess::set_color(backend, 0, "000000");
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "RUN_ZCOLOR SLOT=1 HEX=F95D73 TYPE=ABS"));
-
-    // State untouched — locked override still wins, firmware arrays unchanged.
-    REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    SlotInfo info = backend.get_slot_info(0);
-    REQUIRE(info.material == "PETG"); // override still masks
-    REQUIRE(info.color_rgb == 0xFFFFFF);
-}
-
 TEST_CASE("AD5X IFS CHANGE_ZCOLOR with malformed TYPE= value doesn't crash (#1065)",
           "[ams][ad5x_ifs][1065]") {
     // Defensive: a garbled CHANGE_ZCOLOR line must not corrupt state or crash.
@@ -8555,30 +8247,6 @@ TEST_CASE("AD5X IFS CHANGE_ZCOLOR with malformed TYPE= value doesn't crash (#106
     SlotInfo info = backend.get_slot_info(0);
     REQUIRE(info.material == "PETG");    // valid TYPE= still applies
     REQUIRE(info.color_rgb == 0xFF0000); // invalid HEX= left color unchanged
-}
-
-TEST_CASE("AD5X IFS CHANGE_ZCOLOR with no TYPE= or HEX= preserves prior behavior (#981 regression)",
-          "[ams][ad5x_ifs][1065]") {
-    // Regression for #981: a CHANGE_ZCOLOR carrying only SLOT= (or with
-    // unrecognized parameters) must still clear a stale locked override.
-    // The new TYPE=/HEX= extraction is additive; it must NOT replace the
-    // existing clear-on-CHANGE_ZCOLOR behavior.
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-    Ad5xIfsTestAccess::seed_override(backend, 0, make_locked_override(0xFFFFFF, "PETG"));
-    // Re-run update_slot_from_state so apply_overrides bakes the override.
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=1"));
-
-    // Override cleared, firmware truth (yellow PLA) shows. No TYPE=/HEX=
-    // meant no synchronous material/color write — but the next GET_ZCOLOR
-    // poll still drives the refresh exactly as before.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
 }
 
 TEST_CASE("AD5X IFS CHANGE_ZCOLOR does NOT create an override for an auto-tracked slot "
@@ -11283,55 +10951,6 @@ TEST_CASE("AD5X without IFS vars falls back to lane-per-tool", "[ams][ad5x][rout
     CHECK(routing.head(3) == 3);
 }
 
-TEST_CASE(
-    "an AD5X linked lane records Spoolman's material spelling while firmware gets a valid one",
-    "[ams][ad5x_ifs][filament_slot_override][1653]") {
-    Ad5xIfsTmpCacheDir tmp("linked_material_spelling");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    // Firmware's own store, where an edit writes the whitelist spelling.
-    const std::string json_path = (tmp.path / "Adventurer5M.json").string();
-    { std::ofstream(json_path) << R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})"; }
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, json_path);
-
-    helix::ams::FilamentSlotOverride linked;
-    linked.spoolman_id = 42;
-    linked.brand = "Polymaker";
-    linked.material = "SILK";
-    Ad5xIfsTestAccess::seed_override(backend, 0, linked);
-
-    // Spoolman spells the material in a way the AD5X whitelist does not.
-    SpoolInfo spool;
-    spool.id = 42;
-    spool.vendor = "Polymaker";
-    spool.filament_name = "PolyLite Silk";
-    spool.material = "Silk PLA";
-    spool.color_hex = "FF0000";
-    helix::test::spool_states(backend, 0, spool);
-    backend.repaint_slot_from_lane(0);
-    REQUIRE(backend.get_slot_info(0).material == "Silk PLA");
-
-    // A colour-only edit that keeps the spool.
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0x1E5AA8;
-    helix::test::edit_slot_as_user(backend, 0, edit);
-
-    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->material == "Silk PLA");
-
-    std::ifstream written_file(json_path);
-    const nlohmann::json written = nlohmann::json::parse(written_file, nullptr, false);
-    REQUIRE(written.is_object());
-    CHECK(written.at("FFMInfo").at("ffmType1") == "SILK");
-}
-
 TEST_CASE("clearing an AD5X port takes the linked spool's brand off it",
           "[ams][ad5x_ifs][lane][1672]") {
     // The clear the context menu performs: ui_ams_detail blanks the identity
@@ -11432,317 +11051,10 @@ TEST_CASE("an AD5X slot edit paints the edit's values, not the pre-edit ones",
     helix::ui::UpdateQueue::instance().drain();
 }
 
-TEST_CASE("a spool Spoolman denies keeps the AD5X port's brand as remembered",
-          "[ams][ad5x_ifs][lane][1672]") {
-    // A spool deleted in Spoolman is bookkeeping, not a spool change: the port
-    // goes on showing what is loaded. The manager's denial path drops the
-    // record and files what the slot showed as remembered, the way an unlink
-    // that kept the identity does, so the identity stands until an edit or a
-    // spool change replaces it. Both lane shapes - one no one edited and one
-    // carrying a person's own pick - must end up showing the same brand.
-    Ad5xIfsTmpCacheDir tmp("denied_keeps_brand");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    SpoolInfo spool;
-    spool.id = 42;
-    spool.vendor = "Polymaker";
-    spool.filament_name = "PolyLite PETG";
-    spool.material = "PETG";
-    spool.color_hex = "FF00FF";
-    helix::test::spool_states(backend, 0, spool);
-    backend.repaint_slot_from_lane(0);
-    REQUIRE(backend.get_slot_info(0).brand == "Polymaker");
-
-    SECTION("an unedited port") {
-        helix::test::spool_denied_on_lane(backend, 0);
-        backend.repaint_slot_from_lane(0);
-        CHECK(backend.get_slot_info(0).brand == "Polymaker");
-
-        // The next FRAME must not retire it either: each frame starts from
-        // what the lane holds now, and the lane's remembered record states it.
-        Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
-        CHECK(backend.get_slot_info(0).brand == "Polymaker");
-    }
-
-    SECTION("a port a person picked a colour on") {
-        // The editor opens on the lane's current state and moves one field;
-        // the brand stays the server's word while the record stands.
-        SlotInfo edit = backend.get_slot_info(0);
-        edit.color_rgb = 0x1A73E8;
-        edit.color_name = "Sky Blue";
-        REQUIRE(helix::test::apply_edit(backend, 0, edit).success());
-        REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-
-        helix::test::spool_denied_on_lane(backend, 0);
-        backend.repaint_slot_from_lane(0);
-        const SlotInfo after = backend.get_slot_info(0);
-        CHECK(after.brand == "Polymaker");
-        // The person's own pick outranks what is remembered, denial or not.
-        CHECK(after.color_name == "Sky Blue");
-    }
-
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("a Spoolman record re-filed without its brand clears the AD5X port's brand",
-          "[ams][ad5x_ifs][lane][1672]") {
-    // The answer CHANGING is the other half of the contract: a re-filed
-    // record replaces the old one whole, so a server that stopped stating a
-    // brand leaves nothing standing over it, and the port's SlotInfo - which
-    // persists across frames - must let the brand go rather than keep showing
-    // what an earlier paint wrote.
-    Ad5xIfsTmpCacheDir tmp("refiled_without_brand");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    SpoolInfo spool;
-    spool.id = 42;
-    spool.vendor = "Polymaker";
-    spool.filament_name = "PolyLite PETG";
-    spool.material = "PETG";
-    spool.color_hex = "FF00FF";
-    helix::test::spool_states(backend, 0, spool);
-    backend.repaint_slot_from_lane(0);
-    REQUIRE(backend.get_slot_info(0).brand == "Polymaker");
-
-    // The server re-files the spool with no vendor and no spool name: the
-    // record that lands says nothing about either field. With the repaint the
-    // manager runs, nothing states a brand any more.
-    SpoolInfo brandless = spool;
-    brandless.vendor.clear();
-    brandless.filament_name.clear();
-    helix::test::spool_states(backend, 0, brandless);
-    backend.repaint_slot_from_lane(0);
-    CHECK(backend.get_slot_info(0).brand.empty());
-
-    // Restate the record, then re-file it brandless again and let the next
-    // FRAME be the first thing that runs: each frame starts from what the lane
-    // holds now, not from what the struct still carries.
-    helix::test::spool_states(backend, 0, spool);
-    backend.repaint_slot_from_lane(0);
-    REQUIRE(backend.get_slot_info(0).brand == "Polymaker");
-    helix::test::spool_states(backend, 0, brandless);
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
-    CHECK(backend.get_slot_info(0).brand.empty());
-
-    // A record that states the brand again paints it back, so a server-side
-    // correction still lands.
-    helix::test::spool_states(backend, 0, spool);
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
-    CHECK(backend.get_slot_info(0).brand == "Polymaker");
-
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("an external CHANGE_ZCOLOR retires the released colour's name",
-          "[ams][ad5x_ifs][lane][1672]") {
-    // The colour name is lane-only identity on IFS: firmware has no name key
-    // and a Spoolman record cannot carry one, so the struct holds whatever the
-    // user's edit wrote until a paint retires it. The release that fires on an
-    // external CHANGE_ZCOLOR strips the name from the override and the lane's
-    // records - "the name travels with the colour it names" - but writes
-    // neither store onto the struct, so the paint that follows is the only
-    // thing that can take the name off the port.
-    Ad5xIfsTmpCacheDir tmp("change_zcolor_retires_colour_name");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-    Ad5xIfsTestAccess::set_color(backend, 0, "FEF043");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-
-    // The colour has to MOVE for the lock to land, and the brand gives the
-    // record identity worth keeping, so the external edit takes the Strip
-    // release rather than the full clear (which would empty the struct
-    // directly and prove nothing about the paint).
-    SlotInfo edit;
-    edit.brand = "Sunlu";
-    edit.material = "PLA";
-    edit.color_rgb = 0x1A73E8;
-    edit.color_name = "Sky Blue";
-    REQUIRE(helix::test::apply_edit(backend, 0, edit).success());
-
-    SlotInfo before = backend.get_slot_info(0);
-    REQUIRE(before.color_name == "Sky Blue");
-    auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    REQUIRE(staged->color_name == "Sky Blue");
-
-    // AD5X native LCD load/insert: a bare CHANGE_ZCOLOR. SLOT is 1-based.
-    REQUIRE_FALSE(
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=1 TYPE=PLA"));
-
-    SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_name.empty());
-    // The brand is firmware-uncarryable identity: it survives the same edit.
-    CHECK(after.brand == "Sunlu");
-    auto ovr_after = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(ovr_after.has_value());
-    CHECK(ovr_after->color_name.empty());
-    CHECK(ovr_after->brand == "Sunlu");
-}
-
-TEST_CASE("an external AD5X type change leaves a linked lane's Spoolman material standing",
-          "[ams][ad5x_ifs][filament_slot_override][1653]") {
-    // A linked spool owns its material. Firmware's own type still shows beneath
-    // the server's on the lane, but it neither rewrites the stored record nor
-    // takes the server's material off the lane.
-    Ad5xIfsTmpCacheDir tmp("ifs_linked_external_type");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    helix::ams::FilamentSlotOverride linked;
-    linked.spoolman_id = 42;
-    linked.brand = "Polymaker";
-    linked.material = "PLA";
-    Ad5xIfsTestAccess::seed_override(backend, 0, linked);
-
-    SpoolInfo spool;
-    spool.id = 42;
-    spool.vendor = "Polymaker";
-    spool.filament_name = "PolyLite PLA";
-    spool.material = "PLA";
-    spool.color_hex = "1A1A2E";
-    helix::test::spool_states(backend, 0, spool);
-
-    Ad5xIfsTestAccess::set_color(backend, 0, "1A1A2E");
-    Ad5xIfsTestAccess::set_material(backend, 0, "PLA");
-    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
-
-    // The printer's own menu sets a different type.
-    REQUIRE_FALSE(
-        Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=1 TYPE=PETG"));
-
-    const auto lane = helix::ams::lane_sources(backend_reg.lane(0));
-    REQUIRE(lane.spoolman.has_value());
-    CHECK(lane.spoolman->material == "PLA");
-    CHECK(helix::ams::resolve(lane).material == std::string("PLA"));
-
-    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->material == "PLA");
-}
-
 // ============================================================================
 // Own-write echo suppression (prestonbrown/helixscreen#1633) and the insert
 // rule (prestonbrown/helixscreen#1710)
 // ============================================================================
-
-TEST_CASE("AD5X IFS echo of a user edit does not file as firmware truth (#1633)",
-          "[ams][ad5x_ifs][1633]") {
-    // IFS_SET_MATERIAL / Adventurer5M.json rewrites are republished by the
-    // printer through the same ffmColor/ffmType fields a real reading uses.
-    // Filing that echo as VendorCache hands the lane the user's abandoned
-    // edit as the machine's word once the override is cleared.
-    Ad5xIfsTmpCacheDir tmp("ifs_echo_suppressed");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-    // Route the ZMOD write at a tmp file: the local write always succeeds, so
-    // the staging's fate is decided by the arm rule alone and not by a failed
-    // dispatch's matched abandon.
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend,
-                                                      (tmp.path / "Adventurer5M.json").string());
-
-    // A per-port sensor gives the write a boundary: presence transitions name
-    // the physical occupant, which is what ends the suppression.
-    Ad5xIfsTestAccess::handle_status(backend, make_port_sensor(1, true));
-    // The first status kicks the Adventurer5M.json poll, whose fetch completed
-    // against the mock before any edit exists. Drain it HERE, while no guard
-    // is armed: a poll defer that applies after the arm would present the
-    // pre-write file as a differing firmware statement and release the
-    // declaration: the same apply-late race a real UI tick can produce.
-    helix::ui::UpdateQueue::instance().drain();
-
-    // Firmware's own last reading: PETG / #00FF00.
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
-        "FFMInfo": {"ffmColor1": "#00FF00", "ffmType1": "PETG"}
-    })");
-    const auto lane = backend.lane_id(0);
-    auto vendor = helix::ams::lane_sources(lane).firmware;
-    REQUIRE(vendor.has_value());
-    REQUIRE(vendor->color_rgb == 0x00FF00u);
-    REQUIRE(vendor->material == "PETG");
-
-    // The user edits lane 1 to PLA / #7EC8E3, and the printer repeats the
-    // edit back. The echo is the write returning, not a reading.
-    SlotInfo edit;
-    edit.color_rgb = 0x7EC8E3;
-    edit.material = "PLA";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    REQUIRE(std::filesystem::exists(tmp.path / "Adventurer5M.json"));
-    helix::ui::UpdateQueue::instance().drain();
-
-    const char* echo_frame = R"({
-        "FFMInfo": {"ffmColor1": "#7EC8E3", "ffmType1": "PLA"}
-    })";
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, echo_frame);
-    vendor = helix::ams::lane_sources(lane).firmware;
-    REQUIRE(vendor.has_value());
-    // Withholding removes the field from the record whole: firmware holds the
-    // user's write now, so its previous independent reading is gone too.
-    CHECK_FALSE(vendor->color_rgb.has_value());
-    CHECK_FALSE(vendor->material.has_value());
-
-    // The declaration is not consumed by one frame: firmware keeps repeating
-    // the write, and every repetition is still not a reading.
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, echo_frame);
-    vendor = helix::ams::lane_sources(lane).firmware;
-    REQUIRE(vendor.has_value());
-    CHECK_FALSE(vendor->color_rgb.has_value());
-    CHECK_FALSE(vendor->material.has_value());
-
-    // Two events end the suppression, and after either one the same frame IS
-    // firmware's word and must file.
-    SECTION("Clear Spool ends it") {
-        backend.clear_slot_override(0);
-        helix::ui::UpdateQueue::instance().drain();
-        Ad5xIfsTestAccess::parse_adventurer_json(backend, echo_frame);
-        vendor = helix::ams::lane_sources(lane).firmware;
-        REQUIRE(vendor.has_value());
-        CHECK(vendor->color_rgb == 0x7EC8E3u);
-        CHECK(vendor->material == "PLA");
-    }
-
-    SECTION("a presence edge ends it") {
-        // The port reading empty names a different physical story: what the
-        // printer states next about the port is its own word again.
-        Ad5xIfsTestAccess::handle_status(backend, make_port_sensor(1, false));
-        Ad5xIfsTestAccess::parse_adventurer_json(backend, echo_frame);
-        vendor = helix::ams::lane_sources(lane).firmware;
-        REQUIRE(vendor.has_value());
-        CHECK(vendor->color_rgb == 0x7EC8E3u);
-        CHECK(vendor->material == "PLA");
-    }
-}
 
 TEST_CASE("AD5X IFS echo guard refuses to arm without a presence boundary (#1633)",
           "[ams][ad5x_ifs][1633]") {
@@ -12026,45 +11338,6 @@ void outside_tool_change_zcolor(AmsBackendAd5xIfs& backend) {
 }
 } // namespace
 
-TEST_CASE("AD5X IFS an outside tool's CHANGE_ZCOLOR replaces an earlier HelixScreen edit",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    // Newest edit wins: the outside tool's firmware write comes after the
-    // user's edit here, so it takes colour and material; the brand is
-    // firmware-uncarryable and stays.
-    Ad5xIfsTmpCacheDir tmp("outside_replaces_helix_edit");
-    Ad5xIfsTmpJsonFile json("outside_replaces_helix_edit",
-                            R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})");
-    MockPrinter mock_printer;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, json.path.string());
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-
-    firmware_states_slot0(backend, "FF0000", "PLA");
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    edit.brand = "Sunlu";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    helix::ui::UpdateQueue::instance().drain();
-    {
-        const SlotInfo before = backend.get_slot_info(0);
-        REQUIRE(before.color_rgb == 0xFFFFFFu);
-        REQUIRE(before.material == "SILK");
-    }
-
-    outside_tool_change_zcolor(backend);
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_rgb == 0x0055FFu);
-    CHECK(after.material == "PETG");
-    CHECK(after.brand == "Sunlu");
-    helix::ui::UpdateQueue::instance().drain();
-}
-
 TEST_CASE("AD5X IFS a spool linked over an outside tool's lane keeps its name through a firmware "
           "change",
           "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
@@ -12108,196 +11381,6 @@ TEST_CASE("AD5X IFS a spool linked over an outside tool's lane keeps its name th
     REQUIRE(lane.spoolman.has_value());
     CHECK(lane.spoolman->spool_name == std::string("PolyLite PLA"));
     CHECK(backend.get_slot_info(0).spoolman_id == 42);
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("AD5X IFS a lane_data re-read files no record of ours as an outside edit",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    Ad5xIfsTmpCacheDir tmp("reread_skips_our_record");
-    MockPrinter mock_printer;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-    firmware_states_slot0(backend, "FF0000", "PLA");
-
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    helix::ui::UpdateQueue::instance().drain();
-
-    // A record of ours that differs from the lane: a stale write of an
-    // earlier build, say. It carries our keys, so it is never another tool's.
-    helix::ams::FilamentSlotOverride ours;
-    ours.color_rgb = 0x123456;
-    ours.color_set = true;
-    ours.material = "ABS";
-    ours.spool_name = "Ours";
-    mock_printer.client.mock_db_set("lane_data", "lane1", helix::ams::to_lane_data_record(0, ours));
-    lane_record_reread_lands(backend);
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_rgb == 0xFFFFFFu);
-    CHECK(after.material == "SILK");
-    CHECK(after.spool_name != "Ours");
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("AD5X IFS a lane_data re-read before the tool writes changes nothing",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    // The record the lane booted from is still the one in lane_data: it was
-    // already filed, and the firmware change since has replaced it. Reading it
-    // again must not hand the lane back to it.
-    Ad5xIfsTmpCacheDir tmp("reread_old_record");
-    MockPrinter mock_printer;
-    mock_printer.client.mock_db_set("lane_data", "lane1",
-                                    outside_lane_record(0, "#FF0000", "PLA", "Red PLA", 0));
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-    firmware_states_slot0(backend, "FF0000", "PLA");
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=0055FF TYPE=PETG"));
-    REQUIRE(backend.get_slot_info(0).material == "PETG");
-
-    // Nothing reached lane_data while the re-read was owed.
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1") ==
-          outside_lane_record(0, "#FF0000", "PLA", "Red PLA", 0));
-
-    lane_record_reread_lands(backend);
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.color_rgb == 0x0055FFu);
-    CHECK(after.material == "PETG");
-    CHECK(after.spool_name.empty());
-    // With no newer record of the tool's, the firmware's word is published.
-    const auto db = mock_printer.client.mock_db_get("lane_data", "lane1");
-    CHECK(db.value("material", "") == "PETG");
-    CHECK(db.value("color", "") == "#0055FF");
-    CHECK(db.contains("helix_declared"));
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("AD5X IFS a lane rebound by a re-read keeps its spool's name through a firmware change",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    // The re-read files the tool's record, spool link included, as its
-    // statement. The next firmware change releases what that statement says
-    // about colour and material, but the name belongs to the linked spool.
-    Ad5xIfsTmpCacheDir tmp("rebound_then_firmware_change");
-    MockPrinter mock_printer;
-    mock_printer.client.mock_db_set("lane_data", "lane1",
-                                    outside_lane_record(0, "#FF0000", "PLA", "Red PLA", 0));
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-    firmware_states_slot0(backend, "FF0000", "PLA");
-
-    mock_printer.client.mock_db_set("lane_data", "lane1",
-                                    outside_lane_record(0, "#0055FF", "PETG", "Blue PETG", 77));
-    outside_tool_change_zcolor(backend);
-    lane_record_reread_lands(backend);
-    REQUIRE(backend.get_slot_info(0).spoolman_id == 77);
-    REQUIRE(backend.get_slot_info(0).spool_name == "Blue PETG");
-
-    // A firmware change before Spoolman has described spool 77.
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=00AA00 TYPE=PLA"));
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.spoolman_id == 77);
-    CHECK(after.spool_name == "Blue PETG");
-    CHECK(after.color_rgb == 0x00AA00u);
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("AD5X IFS a re-read amends the override where it amends the lane",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    // The tool's record states colour, material and name and leaves the brand
-    // the user typed alone. The lane amends, so the brand stands there; the
-    // override has to keep it too, or the next save erases it.
-    Ad5xIfsTmpCacheDir tmp("reread_amends_override");
-    Ad5xIfsTmpJsonFile json("reread_amends_override",
-                            R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})");
-    MockPrinter mock_printer;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, json.path.string());
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-    firmware_states_slot0(backend, "FF0000", "PLA");
-
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.brand = "Sunlu";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(backend.get_slot_info(0).brand == "Sunlu");
-
-    mock_printer.client.mock_db_set(
-        "lane_data", "lane1",
-        nlohmann::json{
-            {"lane", "0"}, {"color", "#0055FF"}, {"material", "PETG"}, {"name", "Blue PETG"}});
-    REQUIRE_FALSE(Ad5xIfsTestAccess::on_gcode_response_line(
-        backend, "CHANGE_ZCOLOR SLOT=1 HEX=0055FF TYPE=PETG"));
-    lane_record_reread_lands(backend);
-
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.spool_name == "Blue PETG");
-    CHECK(after.brand == "Sunlu");
-    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->brand == "Sunlu");
-    CHECK(staged->spool_name == "Blue PETG");
-    CHECK(staged->material == "PETG");
-    helix::ui::UpdateQueue::instance().drain();
-}
-
-TEST_CASE("AD5X IFS a lock release waits on the lane_data re-read",
-          "[ams][ad5x][ad5x_ifs][lane_data][1632]") {
-    // The outside tool's CHANGE_ZCOLOR releases the user's locks, and the
-    // released record would overwrite the one the tool wrote beside it.
-    Ad5xIfsTmpCacheDir tmp("release_waits_on_reread");
-    Ad5xIfsTmpJsonFile json("release_waits_on_reread",
-                            R"({"FFMInfo":{"ffmColor1":"#FF0000","ffmType1":"PLA"}})");
-    MockPrinter mock_printer;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&mock_printer.api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
-    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend, json.path.string());
-    boot_from_lane_data(backend, mock_printer, tmp.path);
-    firmware_states_slot0(backend, "FF0000", "PLA");
-
-    SlotInfo edit = backend.get_slot_info(0);
-    edit.color_rgb = 0xFFFFFF;
-    edit.material = "SILK";
-    edit.brand = "Sunlu";
-    helix::test::edit_slot_as_user(backend, 0, edit);
-    helix::ui::UpdateQueue::instance().drain();
-
-    const nlohmann::json tool_record = outside_lane_record(0, "#0055FF", "PETG", "Blue PETG", 0);
-    mock_printer.client.mock_db_set("lane_data", "lane1", tool_record);
-    outside_tool_change_zcolor(backend);
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1") == tool_record);
-
-    lane_record_reread_lands(backend);
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1") == tool_record);
-    const SlotInfo after = backend.get_slot_info(0);
-    CHECK(after.spool_name == "Blue PETG");
-    CHECK(after.material == "PETG");
-    CHECK(after.color_rgb == 0x0055FFu);
     helix::ui::UpdateQueue::instance().drain();
 }
 

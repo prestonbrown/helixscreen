@@ -65,6 +65,8 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     // parse lands on the UpdateQueue — drain after calling.
     void test_on_started() {
         on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // State accessors for verification

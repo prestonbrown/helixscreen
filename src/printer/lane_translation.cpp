@@ -171,9 +171,8 @@ Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edit
             } else if constexpr (Row::kind == FieldKind::Color) {
                 if (after != before && is_declarable_color(after))
                     obs.*(f.obs) = after;
-            } else {
-                if (after != before)
-                    obs.*(f.obs) = after;
+            } else if (after != before) {
+                obs.*(f.obs) = after;
             }
         }
     });

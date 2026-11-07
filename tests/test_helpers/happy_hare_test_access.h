@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_happy_hare.h"
 
 #include <string>
@@ -136,6 +138,8 @@ class HappyHareTestAccess {
     }
     template <class B> static void on_started(B& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
     template <class B, class... A> static decltype(auto) apply_heater_config(B& b, A&&... a) {
         return b.apply_heater_config(std::forward<A>(a)...);

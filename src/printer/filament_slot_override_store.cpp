@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "filament_slot_override_store.h"
 
-#include "ui_error_reporting.h"
-
 #include "ams_types.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
@@ -12,7 +10,6 @@
 #include "json_utils.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_error.h"
 #include "spoolman_types.h"
 #include "text_io.h"
@@ -1020,11 +1017,12 @@ void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
             if (success) {
                 return;
             }
+            // The lane falls back to what Moonraker holds; no toast, since the
+            // editor is where a failed save belongs.
             spdlog::warn("{} {} write failed for slot {}: {}", tag, noun, slot_index, err);
             if (is_lane_id(lane)) {
                 withdraw_pending(lane);
             }
-            NOTIFY_ERROR(lv_tr("Couldn't save slot {}: {}"), slot_index + 1, err);
         });
 }
 

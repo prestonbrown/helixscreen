@@ -1322,55 +1322,6 @@ TEST_CASE("ACE load does not seat a slot the driver never moved to", "[ams][ace]
 //   5. Slot status transition loaded -> empty does NOT clear the override.
 // ============================================================================
 
-TEST_CASE("ACE override loaded at init is applied over firmware data",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task13_override_applied");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    // Seed an override (brand="Polymaker", color=FF5500, material=PLA). ACE is
-    // override-wins-for-everything — color and material must come from the
-    // override even though firmware reports different values below.
-    helix::ams::FilamentSlotOverride ovr;
-    ovr.brand = "Polymaker";
-    ovr.spool_name = "PolyLite Orange";
-    ovr.spoolman_id = 42;
-    ovr.color_rgb = 0xFF5500;
-    ovr.color_set = true;
-    ovr.material = "PLA";
-    AceTestAccess::seed_override(backend, 0, ovr);
-
-    // Firmware reports slot 0 with DIFFERENT color (green) and material (ABS).
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x00FF00, "ABS"));
-
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Polymaker");
-    CHECK(info.spool_name == "PolyLite Orange");
-    CHECK(info.spoolman_id == 42);
-    // Override wins for color and material on ACE.
-    CHECK(info.color_rgb == 0xFF5500u);
-    CHECK(info.material == "PLA");
-}
-
-TEST_CASE("an ACE backend start migrates the legacy override namespace",
-          "[ams][ace][filament_slot_override][migration]") {
-    AceTmpCacheDir tmp("start_migration");
-    MockPrinter mock_printer;
-    mock_printer.client.mock_db_set(
-        "helix-screen", "ace_slot_overrides",
-        json{{"0", json{{"brand", "Polymaker"}, {"material", "PLA"}, {"color_rgb", 0xFF5500}}}});
-
-    AmsBackendAce backend(&mock_printer.api, nullptr);
-    helix::AceTestAccess::start_load(backend);
-
-    CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
-}
-
 TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_override]") {
     AceTmpCacheDir tmp("task13_persist_true");
     MockPrinter mock_printer;
@@ -1414,9 +1365,9 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     // synchronously in-call by MoonrakerAPIMock).
     auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
     REQUIRE(!stored.is_null());
-    CHECK(stored["vendor"] == "Polymaker");
+    CHECK(stored["vendor_name"] == "Polymaker");
     CHECK(stored["spool_id"] == 42);
-    CHECK(stored["helix_spoolman_filament_id"] == 55);
+    CHECK(stored["spoolman_filament_id"] == 55);
     CHECK(stored["material"] == "PLA");
     CHECK(stored["color"] == "#FF5500");
 

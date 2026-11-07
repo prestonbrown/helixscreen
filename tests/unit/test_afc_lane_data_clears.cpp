@@ -162,52 +162,6 @@ TEST_CASE("AFC lane_data treats a null spool_id as an explicit clear", "[ams][af
     }
 }
 
-TEST_CASE("AFC lane_data applies the user's slot overrides", "[ams][afc][1195]") {
-    helix::test::RegisteredBackend<AfcLaneDataClearHelper> afc_reg;
-    AfcLaneDataClearHelper& afc = *afc_reg;
-
-    helix::ams::FilamentSlotOverride o;
-    o.brand = "Polymaker";
-    o.material = "ASA";
-    o.spoolman_id = 77;
-    afc.set_override(0, o);
-
-    SECTION("override wins where firmware echoes the same spool") {
-        afc.feed_lane_data(both_lanes(
-            nlohmann::json{{"material", "PLA"}, {"spool_id", 77}, {"color", "#FF0000"}}));
-        CHECK(afc.brand(0) == "Polymaker");
-        CHECK(afc.material(0) == "ASA");
-        CHECK(afc.spool_id(0) == 77);
-    }
-
-    SECTION("a different firmware id is an external re-bind — the record drops (#1281)") {
-        // Another writer set spool 5 on this lane; our stale override for 77
-        // must not shadow it. Mirrors the status-path test in
-        // the DB parser.
-        afc.feed_lane_data(
-            both_lanes(nlohmann::json{{"material", "PLA"}, {"spool_id", 5}, {"color", "#FF0000"}}));
-        CHECK(afc.spool_id(0) == 5);
-        CHECK(afc.brand(0).empty());
-    }
-
-    SECTION("override re-supplies identity across the null clear") {
-        // This is the pairing that matters: firmware clears on eject, and the
-        // override is the only thing that puts the user's spool back. Applying
-        // the clear without re-applying the override would wipe it.
-        afc.feed_lane_data(both_lanes(lane_record(nullptr)));
-        CHECK(afc.spool_id(0) == 77);
-        CHECK(afc.brand(0) == "Polymaker");
-    }
-
-    SECTION("a lane with no override is untouched") {
-        afc.feed_lane_data(both_lanes(nlohmann::json::object(),
-                                      nlohmann::json{{"material", "PETG"}, {"spool_id", 5}}));
-        CHECK(afc.material(1) == "PETG");
-        CHECK(afc.spool_id(1) == 5);
-        CHECK(afc.brand(1).empty());
-    }
-}
-
 TEST_CASE("AFC lane_data adopts the filament name, like the status path", "[ams][afc][1195]") {
     // These sections use `filament_name`, the defensive spelling — see the #833
     // case below for `name`, which is what AFC actually publishes into

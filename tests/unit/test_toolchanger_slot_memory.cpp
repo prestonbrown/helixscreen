@@ -540,7 +540,7 @@ TEST_CASE("Tool-changer slot metadata round-trips through Moonraker",
     CHECK(stored["lane"] == "1"); // inner index stays 0-based
     CHECK(stored["material"] == "PETG");
     CHECK(stored["color"] == "#1E5AA8");
-    CHECK(stored["vendor"] == "Polymaker");
+    CHECK(stored["vendor_name"] == "Polymaker");
     CHECK(stored["spool_id"] == 42);
 
     // The laneN key must NOT also exist, or two records describe one tool and
@@ -654,6 +654,10 @@ constexpr uint32_t kSpoolmanOnlyColor = 0x2E7D32;
 
 /// Files a Spoolman record naming a colour, and nothing else, on @p lane.
 void file_spoolman_colour(helix::ams::LaneId lane) {
+    // The lane's record links the spool; Spoolman's details fill for it.
+    helix::ams::Observation record(helix::ams::ObservationSource::Record);
+    record.spoolman_id = 42;
+    helix::ams::ingest(lane, record);
     helix::ams::Observation filed(helix::ams::ObservationSource::Spoolman);
     filed.spoolman_id = 42;
     filed.color_rgb = kSpoolmanOnlyColor;

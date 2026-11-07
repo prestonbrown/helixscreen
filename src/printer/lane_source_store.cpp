@@ -72,14 +72,35 @@ template <typename T> bool same_value(const T& a, const T& b) {
     }
 }
 
+/// A cleared field in an edit hands the field back to what Moonraker holds at
+/// once (prestonbrown/helixscreen#1661), so it withdraws any earlier pending
+/// value instead of standing as an empty one. Two clears stay: an unlink, which
+/// must displace the link Moonraker still holds until the write lands, and a
+/// colour's name cleared beside a new colour, which must displace one naming
+/// the old colour.
+void withdraw_cleared_fields(Observation& pending, const Observation& edit) {
+    zip_fields(pending, edit, [](auto& mine, const auto& theirs) {
+        if (theirs.has_value() && is_cleared(*theirs)) {
+            mine.reset();
+        }
+    });
+    if (edit.spoolman_id.has_value() && *edit.spoolman_id == 0) {
+        pending.spoolman_id = 0;
+    }
+    if (edit.color_name.has_value() && edit.color_name->empty() && edit.color_rgb.has_value()) {
+        pending.color_name = std::string();
+    }
+}
+
 } // namespace
 
 void strip_echoed_fields(Observation& pending, const Observation& reading) {
-    zip_fields(pending, reading, [](auto& mine, const auto& theirs) {
+    const bool record = reading.source == ObservationSource::Record;
+    zip_fields(pending, reading, [record](auto& mine, const auto& theirs) {
         if (!mine.has_value()) {
             return;
         }
-        if (theirs.has_value() ? same_value(*mine, *theirs) : is_cleared(*mine)) {
+        if (theirs.has_value() ? same_value(*mine, *theirs) : record && is_cleared(*mine)) {
             mine.reset();
         }
     });
@@ -97,6 +118,14 @@ void LaneSourceStore::write(LaneId lane, const Observation& obs, bool amend) {
         const auto& existing = record_for(sources, obs.source);
         Observation merged = existing.has_value() ? *existing : Observation(obs.source);
         merge_observed_fields(merged, obs);
+        if (obs.source == ObservationSource::Pending) {
+            withdraw_cleared_fields(merged, obs);
+        }
+        if (!any_observed(merged)) {
+            sources.drop(obs.source);
+            pending_deadline_.erase(lane);
+            return;
+        }
         sources.apply(merged);
     } else {
         sources.apply(obs);

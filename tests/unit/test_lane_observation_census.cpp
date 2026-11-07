@@ -130,7 +130,7 @@ std::vector<std::string> filed_on(LaneId lane) {
     if (sources.pending)
         name_observed(*sources.pending, "local_user.", out);
     if (sources.firmware)
-        name_observed(*sources.firmware, "vendor_cache.", out);
+        name_observed(*sources.firmware, "firmware.", out);
     if (sources.metered)
         name_observed(*sources.metered, "metered.", out);
     return out;
@@ -336,27 +336,27 @@ const std::vector<BackendCensus>& expected_census() {
     static const std::vector<BackendCensus> table = {
         // The hub reports an occupancy status and its own memory of a bay's
         // colour and type. It reads no tag and weighs nothing.
-        {"ACE", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        {"ACE", {"sensed.present", "firmware.color_rgb", "firmware.material"}},
         // Adventurer5M.json remembers colour and type across an eject; the silk
         // sensors answer presence.
-        {"AD5X IFS", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        {"AD5X IFS", {"sensed.present", "firmware.color_rgb", "firmware.material"}},
         // The widest producer in the fleet, and the only one that meters: AFC's
         // own store keeps four identity fields and a Spoolman binding, and its
         // weight is a second source rather than more of the same record.
         {"AFC",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.spool_name", "vendor_cache.spoolman_id", "metered.remaining_weight_g",
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.spool_name", "firmware.spoolman_id", "metered.remaining_weight_g",
           "metered.total_weight_g"}},
         // The CFS reads a tag that names a PRODUCT, which is a different
         // question from what a spool is called.
         {"CFS",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.product_name", "vendor_cache.spoolman_id"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.product_name", "firmware.spoolman_id"}},
         // mmu_vars.cfg remembers a declaration somebody made once. Gate status
         // is the only thing Happy Hare senses.
         {"Happy Hare",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material",
-          "vendor_cache.spool_name", "vendor_cache.spoolman_id"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.spool_name",
+          "firmware.spoolman_id"}},
         // Bounded to what real firmware states: the simulated population carries
         // a brand, a spool name, a colour name, a Spoolman id and a weight, and
         // files none of them, because no machine in the fleet reports them.
@@ -368,18 +368,18 @@ const std::vector<BackendCensus>& expected_census() {
         // and its presence reading does not follow the simulated load. The
         // single call site is what holds that, and a lint gate in
         // tests/shell/test_code_lint.bats holds the single call site.
-        {"Mock", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        {"Mock",
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.spool_name",
+          "firmware.spoolman_id"}},
         // Saved ids resolved against the Box's own tables. A jam still reports
         // filament, so presence comes from the state word.
-        {"Qidi",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material",
-          "vendor_cache.brand"}},
+        {"Qidi", {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand"}},
         // The one firmware in the fleet whose tag states a weight, which makes
         // this the only total_weight_g filed as identity rather than as a meter
         // reading. AFC's total is the meter's.
         {"Snapmaker",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.product_name", "vendor_cache.total_weight_g"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.product_name", "firmware.total_weight_g"}},
         // klipper-toolchanger senses docking and states nothing else. A lane
         // here carries no identity record at all, and no filament-presence
         // reading either: the dock answer is a toolhead, not a spool, so it

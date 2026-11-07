@@ -10,6 +10,7 @@
 #include "lane_source_store.h"
 
 #include <chrono>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -106,13 +107,58 @@ TEST_CASE_METHOD(LaneFixture, "the echo withdraws exactly the fields it repeats"
     }
 }
 
-TEST_CASE_METHOD(LaneFixture, "a cleared field is echoed by a reading that states none",
+TEST_CASE_METHOD(LaneFixture, "an unlink is echoed by a record that names no spool",
                  "[lane][pending]") {
-    edit(pending_material(""));
+    Observation linked(ObservationSource::Record);
+    linked.spoolman_id = 42;
+    helix::ams::ingest(lane, linked);
+    Observation unlink(ObservationSource::Pending);
+    unlink.spoolman_id = 0;
+    edit(unlink);
+    REQUIRE(pending().has_value());
+    CHECK(helix::ams::linked_spool_id(helix::ams::lane_sources(lane)) == 0);
+
+    // Firmware silent on the spool says nothing about the unlink.
+    Observation firmware(ObservationSource::Firmware);
+    firmware.material = "PLA";
+    helix::ams::ingest(lane, firmware);
+    REQUIRE(pending().has_value());
+
+    // The rewritten record no longer naming a spool is the echo.
     Observation record(ObservationSource::Record);
     record.brand = "Polymaker";
     helix::ams::ingest(lane, record);
     CHECK_FALSE(pending().has_value());
+}
+
+TEST_CASE_METHOD(LaneFixture, "a cleared field withdraws the earlier edit of it",
+                 "[lane][pending]") {
+    Observation firmware(ObservationSource::Firmware);
+    firmware.material = "PLA";
+    helix::ams::ingest(lane, firmware);
+    edit(pending_material("PETG"));
+    Observation colour(ObservationSource::Pending);
+    colour.color_rgb = 0x00FF00;
+    edit(colour);
+
+    edit(pending_material(""));
+    REQUIRE(pending().has_value());
+    CHECK_FALSE(pending()->material.has_value());
+    CHECK(pending()->color_rgb == 0x00FF00u);
+    CHECK(helix::ams::resolved_lane(lane).material == "PLA");
+}
+
+TEST_CASE_METHOD(LaneFixture, "a colour name cleared beside a new colour stays pending",
+                 "[lane][pending]") {
+    Observation named(ObservationSource::Record);
+    named.color_rgb = 0xFF0000;
+    named.color_name = "Red";
+    helix::ams::ingest(lane, named);
+    Observation pick(ObservationSource::Pending);
+    pick.color_rgb = 0x00FF00;
+    pick.color_name = "";
+    edit(pick);
+    CHECK(helix::ams::resolved_lane(lane).color_name == std::string());
 }
 
 TEST_CASE_METHOD(LaneFixture, "a weight echo matches within the editor's resolution",

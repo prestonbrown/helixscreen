@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "filament_slot_override.h"
@@ -155,6 +157,8 @@ class ToolChangerTestAccess {
     /// with mutex_ held, and opening the store takes mutex_.
     static void call_on_started(AmsBackendToolChanger& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// Drive the REAL status path. handle_status_update() is protected, and it

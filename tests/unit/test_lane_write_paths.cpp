@@ -39,9 +39,13 @@ using helix::test::RegisteredBackend;
 
 namespace {
 
-/// A lane carrying a person's declaration and a server's, the two records a
-/// clear has to take with it.
+/// A lane carrying a record linking spool 42, a pending edit and the
+/// server's details, the records a clear has to take with it.
 void declare_identity(helix::ams::LaneId lane) {
+    Observation record(ObservationSource::Record);
+    record.spoolman_id = 42;
+    ingest(lane, record);
+
     Observation server(ObservationSource::Spoolman);
     server.spoolman_id = 42;
     server.brand = "Polymaker";
@@ -81,6 +85,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Clearing a slot stops its identity painting t
     harness->clear_slot_override(0);
 
     const auto after_sources = lane_sources(lane);
+    CHECK_FALSE(after_sources.record.has_value());
     CHECK_FALSE(after_sources.spoolman.has_value());
     CHECK_FALSE(after_sources.pending.has_value());
     CHECK_FALSE(after_sources.metered.has_value());
