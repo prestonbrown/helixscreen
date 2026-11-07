@@ -91,12 +91,20 @@ ScreensaverManager::~ScreensaverManager() = default;
 
 void ScreensaverManager::set_host(helix::ui::SaverHost host) {
     host_ = std::move(host);
+    print_latch_.reset();
 }
 
 helix::ui::ClockInput ScreensaverManager::clock_input() const {
     helix::ui::ClockInput in = helix::ui::saver_clock_now();
     if (host_.print_status) {
         in.print = host_.print_status();
+    }
+    // A running print reads live; an ended one reads what the latch still holds.
+    using helix::ui::ClockPrintPhase;
+    const ClockPrintPhase p = in.print.phase;
+    if (p != ClockPrintPhase::PREPARING && p != ClockPrintPhase::PRINTING &&
+        p != ClockPrintPhase::PAUSED) {
+        in.print.phase = print_latch_.latched();
     }
     return in;
 }
@@ -347,8 +355,16 @@ void ScreensaverManager::begin_gate(const StartPlan& plan) {
     comfort_.reset();
     const CpuSample now = cpu_clock_();
     session_.begin(now, baseline_.rate());
+    const uint64_t since_ns = sampled_ ? now.wall_ns - last_sample_ns_ : 0;
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
+
+    helix::ui::PrintLatchInput latch_in;
+    latch_in.host_phase =
+        host_.print_status ? host_.print_status().phase : helix::ui::ClockPrintPhase::NONE;
+    latch_in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
+    latch_in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
+    print_latch_.step(static_cast<uint32_t>(since_ns / 1000000), latch_in);
 }
 
 void ScreensaverManager::on_idle_check_tick() {
@@ -356,8 +372,16 @@ void ScreensaverManager::on_idle_check_tick() {
     if (sampled_ && now.wall_ns - last_sample_ns_ < kSampleIntervalNs) {
         return;
     }
+    const uint64_t since_ns = sampled_ ? now.wall_ns - last_sample_ns_ : 0;
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
+
+    helix::ui::PrintLatchInput latch_in;
+    latch_in.host_phase =
+        host_.print_status ? host_.print_status().phase : helix::ui::ClockPrintPhase::NONE;
+    latch_in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
+    latch_in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
+    print_latch_.step(static_cast<uint32_t>(since_ns / 1000000), latch_in);
 
     if (!active_ || !active_->is_active()) {
         if (black_screen_type_ == ScreensaverType::OFF) {

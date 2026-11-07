@@ -6,6 +6,7 @@
 
 #include "screensaver.h"
 #include "screensaver_canvas.h"
+#include "screensaver_clock.h"
 #include "screensaver_frame.h"
 #include "screensaver_frame_timer.h"
 #include "screensaver_overlay.h"
@@ -13,14 +14,41 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <lvgl.h>
 #include <optional>
 #include <random>
+#include <utility>
 #include <vector>
 
 namespace helix::ui {
 
 class SaverTestAccess;
+
+/**
+ * @brief Where a saver reads the time and the print each frame
+ *
+ * Unset reads saver_clock_now(), the time of day with no print. The manager reaches it through
+ * Screensaver::clock_input_sink() and points it at the app's print.
+ */
+class ClockInputSink {
+  public:
+    using InputSource = std::function<ClockInput()>;
+
+    virtual ~ClockInputSink() = default;
+
+    void set_input_source(InputSource source) {
+        source_ = std::move(source);
+    }
+
+  protected:
+    ClockInput read_input() const {
+        return source_ ? source_() : saver_clock_now();
+    }
+
+  private:
+    InputSource source_;
+};
 
 /**
  * @brief Sequences the parts every screensaver runs on
@@ -34,8 +62,12 @@ class SaverTestAccess;
  * refresh while ScreensaverManager holds it (RefreshPeriodHold::follow). A saver that runs a
  * simulation derives from SimSaver (screensaver_sim_saver.h), which implements the hooks.
  */
-class SaverBase : public Screensaver {
+class SaverBase : public Screensaver, public ClockInputSink {
   public:
+    /// Every saver reads the time and the print, whether or not its scene shows them.
+    ClockInputSink* clock_input_sink() override {
+        return this;
+    }
     void start() final;
     void stop() final;
     bool is_active() const final {

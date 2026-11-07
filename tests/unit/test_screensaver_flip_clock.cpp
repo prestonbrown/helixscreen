@@ -846,4 +846,42 @@ TEST_CASE_METHOD(LVGLTestFixture, "the manager feeds every clock saver the print
     mgr.set_host({});
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print that ends while no saver runs shows its end when a saver starts",
+                 "[screensaver][screensaver_flip_clock]") {
+    helix::ScopedGateEnv gate_env;
+    auto& mgr = ScreensaverManager::instance();
+    uint64_t wall_ns = 0;
+    helix::ScopedScriptedCpuClock clock(mgr,
+                                        [&wall_ns] { return helix::ui::CpuSample{0, wall_ns}; });
+    ClockPrintPhase phase = ClockPrintPhase::PRINTING;
+    uint32_t inactive_ms = 0;
+    helix::ui::SaverHost host;
+    host.print_status = [&phase] { return helix::ui::ClockPrint{phase, -1, 80}; };
+    host.inactive_ms = [&inactive_ms] { return inactive_ms; };
+    mgr.set_host(host);
+    const auto tick_minutes = [&](int minutes) {
+        for (int i = 0; i < minutes; i++) {
+            wall_ns += 60ULL * 1000 * 1000 * 1000;
+            inactive_ms += 60000;
+            mgr.on_idle_check_tick();
+        }
+    };
+
+    tick_minutes(2);
+    phase = ClockPrintPhase::COMPLETE;
+    tick_minutes(10);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) == ClockMode::DONE);
+
+    // A touch after the end acknowledges it: the next saver shows the clock.
+    mgr.stop(helix::SaverRunEnd::TOUCH);
+    inactive_ms = 0;
+    tick_minutes(1);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) == ClockMode::CLOCK);
+    mgr.stop();
+    mgr.set_host({});
+}
+
 #endif // HELIX_ENABLE_SCREENSAVER
