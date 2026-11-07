@@ -103,30 +103,63 @@ most 80 mm/s, from firmware 1.9.9) and a dynamic one to its `klippy/toolhead` mo
 who disable them for speed set `short_move_limit: False` and `short_extrude_move_limit:
 False` under `[printer]`, which turns off both.
 
-XY-only moves (no heat, heads docked) sent through Moonraker's `gcode/script` at 30k accel,
-the UI awake on the home screen:
+### XY-only moves
 
-| Load | No screen process | HelixScreen running |
+No heat, heads docked, moves sent through Moonraker's `gcode/script` at 30k accel, the UI
+awake on the home screen. "Connected" means HelixScreen held a live Moonraker connection;
+from the 240 mm/s row down, HelixScreen was on screen but disconnected (an oversized
+console-history reply had dropped its websocket), so those rows compare the screen's own
+CPU, not its load on Klipper.
+
+| Load | No screen process | HelixScreen |
 |---|---|---|
-| Limiters on, 0.5-3 mm segments, 400-600 mm/s, 5 min | not run | no TTC; klippy 20-39% of a core, HelixScreen 4.5-5.0% |
-| Limiters off, 0.1-0.3 mm at 600 mm/s | TTC at 45, 35, 14 s | TTC at 36, 11, 36 s |
-| Limiters off, 0.2 mm at 240 mm/s | TTC at 54 s | TTC at 57 s |
-| Limiters off, 0.2 mm at 200 mm/s, 3 min | 1 survived, 1 TTC at the same move block | 2 TTC at the same move block |
-| That move block replayed alone | 4 of 4 survived | 4 of 4 survived |
-| Limiters off, 0.2 mm at 170 mm/s, 3 min | survived | survived |
+| Limiters on, 0.5-3 mm segments, 400-600 mm/s, 5 min | not run | connected: no TTC; klippy 20-39% of a core, HelixScreen 4.5-5.0% |
+| Limiters off, 0.1-0.3 mm at 600 mm/s | TTC at 45, 35, 14 s | connected: TTC at 36, 11, 36 s |
+| Limiters off, 0.2 mm at 240 mm/s | TTC at 54 s | not connected: TTC at 57 s |
+| Limiters off, 0.2 mm at 200 mm/s, 3 min | 1 survived, 1 TTC at the same move block | not connected: 2 TTC at the same move block |
+| That move block replayed alone | 4 of 4 survived | not connected: 4 of 4 survived |
+| Limiters off, 0.2 mm at 170 mm/s, 3 min | survived | not connected: survived |
 
 With the limiters off, klippy's single Python thread reaches 100% of one core near 750-900
 moves per second, while the box still has a free core, and the MCU then shuts down with
-"Timer too close" whether or not any screen runs. The failure point follows the gcode, not
-the screen: the seeded runs died on the same move block in both modes. No case was found
-where HelixScreen tipped a passing load into a TTC. HelixScreen runs at nice +10 against
-klippy's -20 here. Neither the tool-change print that triggered the original reports
-(4-colour, no prime tower) nor another firmware's process priorities were tested.
+"Timer too close" with or without a screen. Where both modes were connected-or-absent (the
+600 mm/s row), the times to failure overlap. The seeded runs died on the same move block
+in every mode, so the failure point follows the gcode.
 
-The test, for repeating it: `mod_data/user.cfg` (Z-Mod's empty last include) carries the
-two-line `[printer]` override. A Klipper restart on this firmware runs
-`/usr/prog/bin/wakeup_level` synchronously, and it can block on the level board for
-minutes; killing it lets klippy finish the restart.
+### A 4-colour print with a tool change per quadrant
+
+The reports that started this were 4-colour prints with tool changes and no prime tower, at
+maximum speed. Test print: a 60 mm disc, 6 layers, each layer split into four quadrants
+printed by the four heads (24 tool changes), perimeters as 0.4 mm arc segments, no prime
+tower, Z-Mod's own `START_PRINT`/`END_PRINT`, FlashForge's PLA settings (0.42 mm lines,
+0.25 mm first layer at 50 mm/s), speed set by the flow cap. HelixScreen connected and on the
+print status panel unless stated. Percent of one core, 10 s windows while printing.
+
+| Run | Limiters | Flow, speed | HelixScreen | TTC | klippy median / max | HelixScreen median / max | Box (2 cores) median / max |
+|---|---|---|---|---|---:|---:|---:|
+| 1 | on | 18 mm³/s, 214 mm/s | stopped | none | 20.5 / 28.1 | 0 | 14 / 22 |
+| 2 | on | 18 mm³/s, 214 mm/s | connected | none | 22.4 / 32.0 | 10.3 / 51.2 | 27.5 / 51.0 |
+| 3 | **off** | 24 mm³/s, 286 mm/s | connected | **none** | 24.0 / 36.3 | 9.8 / 40.5 | 29.9 / 51.9 |
+
+Run 3 is the reported scenario with the limiters off, and it printed cleanly. HelixScreen
+costs about 10% of one core while printing, about twice its idle cost, and peaks at 40-51%
+for the first 10-30 s of printing while the print status panel loads the toolpath
+preview. HelixScreen runs at nice +10 against klippy's -20 here. Untested: OpenCreator,
+whose Klipper build and process priorities may differ.
+
+### Repeating these tests
+
+- The limiter override goes in `mod_data/user.cfg` (Z-Mod's empty last include) as a
+  two-line `[printer]` section; restore the empty file afterwards.
+- A Klipper restart on this firmware runs `/usr/prog/bin/wakeup_level` synchronously, and
+  it can block on the level board for minutes; killing it lets klippy finish the restart.
+- Long `gcode/script` bodies land verbatim in Moonraker's console history. Restart
+  Moonraker between XY runs, or the history outgrows the client's 5 MB message cap.
+- A print started through Moonraker waits at Z-Mod's "Select print materials" prompt; send
+  the prompt's own `PRINT_ZCOLOR` line to start it. `LEVELING=1` there also persists Z-Mod's
+  "mesh on every print" setting.
+- A generated test file must re-send the layer Z after every `T<n>`: Z-Mod's tool change
+  leaves the head wherever it docked.
 
 ## Memory, from telemetry
 
@@ -169,6 +202,8 @@ whether the screen was on or asleep, at about 0.25-0.4 ms per wake:
 - **About 3% of a core while asleep is real work, not wakes.** Status updates still flow
   through subjects into widgets nobody can see. Gating that work while the display sleeps
   is the next lever.
+- **About 10% of one core while printing on the C5, 40-51% for the first 10-30 s** as the
+  print status panel loads the toolpath preview. Twice the idle cost.
 - **fbdev self-heal repaints the whole screen every 10 s** (`kFbSelfhealIntervalMs`): about
   29% of the pixels flushed on an idle AD5X status panel.
 - **A K1C spent about 90% of a core for one 10 s window** as a mock print of a 24 MB file
