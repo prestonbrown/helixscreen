@@ -1822,6 +1822,9 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// The print start takes this print's tool map (print_start_params()). Set
     /// once by set_discovery() before start() and read-only afterwards.
     bool print_start_takes_tool_slots_ = false;
+    /// Z-Mod's built-in AFC is on, so a pick also updates its lane map with
+    /// SET_MAP (only that emulation defines the command). Set by set_discovery().
+    bool keeps_afc_lane_map_ = false;
     /// Last `active_channel` an `ifs` frame actually carried (1-based; 0 =
     /// none), re-supplied into Ports-only diff frames for the same reason
     /// zmod_last_chan_ exists. Guarded by mutex_.

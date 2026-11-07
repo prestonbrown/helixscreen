@@ -11,6 +11,8 @@
 // that knows which firmwares do that and how the parameter is spelled; filament
 // backends ask it, and the print-start path forwards whatever they return.
 
+#include "json_fwd.h"
+
 #include <map>
 #include <optional>
 #include <string>
@@ -28,12 +30,18 @@ using PrintStartParams = std::map<std::string, std::string>;
 namespace print_start {
 
 /// Whether this printer's print start takes a per-print tool -> slot map.
-/// Z-Mod's Moonraker gained `tools` together with its built-in AFC emulation,
-/// and publishes no version or field that says so on its own, so the built-in
-/// AFC (PrinterDiscovery::has_zmod_afc()) is the signal. A Z-Mod build with
-/// `AFC=0`, or one older than the emulation, keeps routing by its own prompt
-/// and tables, and is sent no map.
+/// Z-Mod's Moonraker says so in server.info
+/// (PrinterDiscovery::server_takes_print_start_tools(), from
+/// server_takes_tool_slots()), whatever its AFC setting. A Z-Mod build from
+/// before that flag reads `tools` only alongside its built-in AFC emulation
+/// (PrinterDiscovery::has_zmod_afc()), so the emulation still counts. Anything
+/// else keeps routing by its own prompt and tables, and is sent no map.
 [[nodiscard]] bool takes_tool_slots(const PrinterDiscovery& hw);
+
+/// Whether a server.info `result` advertises that printer.print.start takes
+/// `tools`: Z-Mod's Moonraker lists `print_start_tools` in `zmod.features`.
+/// False for any other shape, a missing key included.
+[[nodiscard]] bool server_takes_tool_slots(const nlohmann::json& server_info_result);
 
 /// The physical slot a lane name carries in its trailing digits: Z-Mod's lane
 /// `laneN` is slot N, IFS Jacker lanes past 4 included. nullopt when the name

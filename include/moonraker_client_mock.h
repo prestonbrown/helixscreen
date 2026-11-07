@@ -1027,6 +1027,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if Spoolman should be reported as available during discovery
      */
+    /// Test seam: extra top-level members server.info's result carries, the way
+    /// a firmware fork's Moonraker adds its own (Z-Mod's `zmod.features`).
+    void set_mock_server_info_extra(nlohmann::json extra) {
+        mock_server_info_extra_ = std::move(extra);
+    }
+
+    [[nodiscard]] const nlohmann::json& mock_server_info_extra() const {
+        return mock_server_info_extra_;
+    }
+
     /// Test seam: drive the Spoolman component in and out of server.info so the
     /// REAL discovery sequence's spoolman branch can be exercised both ways.
     void set_mock_spoolman_enabled(bool enabled) {
@@ -2468,6 +2478,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     static constexpr int kNotificationIntervalTicks = 4; // Dispatch every 4 ticks (~1s)
 
     // Mock service availability flags (initialized from env vars in constructor)
+    nlohmann::json mock_server_info_extra_ = nlohmann::json::object();
     bool mock_spoolman_enabled_{true};     ///< Controlled by HELIX_MOCK_SPOOLMAN env var
     std::vector<WebcamInfo> mock_webcams_; ///< Published at discovery; HELIX_MOCK_WEBCAMS
 
