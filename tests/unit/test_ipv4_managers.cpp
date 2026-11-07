@@ -4,15 +4,19 @@
 #include "ui_ipv4_revert_retry.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "connection_state.h"
 #include "core/http_executor.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "ethernet_manager.h"
 #include "ipv4_config_system.h"
 #include "misc/lv_timer_private.h" // timer_cb: each tick is fired by hand
+#include "printer_state.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -304,6 +308,28 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(told == Ipv4RevertEnd::GaveUp);
     CHECK_FALSE(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "a revert waits on a job only while the printer can end it",
+                 "[ipv4][ipv4_manager]") {
+    PrinterState& printer = get_printer_state();
+    helix::PrinterStateTestAccess::reset(printer);
+    printer.init_subjects(true);
+    lv_subject_t* connection = printer.network_state().get_printer_connection_state_subject();
+    lv_subject_set_int(printer.print_state().get_job_holds_machine_subject(), 1);
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::CONNECTED));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::RECONNECTING));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    process_lvgl(static_cast<int>(kIpv4StaleJobMs) - 1000);
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    process_lvgl(1000);
+    CHECK_FALSE(helix::settings::ipv4_job_holds_machine());
+
+    lv_subject_set_int(connection, static_cast<int>(helix::ConnectionState::CONNECTED));
+    CHECK(helix::settings::ipv4_job_holds_machine());
+    lv_subject_set_int(printer.print_state().get_job_holds_machine_subject(), 0);
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture,

@@ -452,6 +452,36 @@ class Ipv4RevertRetry {
     uint32_t last_ms_ = 0;
 };
 
+/// How long a lost printer connection keeps its last print state counting.
+constexpr uint32_t kIpv4StaleJobMs = 60000;
+
+/**
+ * @brief Whether a job holds the machine, as far as an IPv4 change goes
+ *
+ * The print state is only as fresh as the printer connection. Once that has
+ * been down for kIpv4StaleJobMs, counted from the first sample that finds it
+ * down, the last state stops counting: the status that would end the job
+ * cannot arrive until the network is back, which may take this very change.
+ */
+class Ipv4JobHold {
+  public:
+    void sample(bool connected, uint32_t now_ms) {
+        if (connected) {
+            down_ = false;
+        } else if (!down_) {
+            down_ = true;
+            down_since_ms_ = now_ms;
+        }
+    }
+    bool holds(bool job_holds_machine, uint32_t now_ms) const {
+        return job_holds_machine && (!down_ || now_ms - down_since_ms_ < kIpv4StaleJobMs);
+    }
+
+  private:
+    bool down_ = false;
+    uint32_t down_since_ms_ = 0;
+};
+
 /// Held around every prepare, apply and restore, so a revert never runs
 /// between a change's snapshot and its apply.
 std::mutex& ipv4_change_mutex();

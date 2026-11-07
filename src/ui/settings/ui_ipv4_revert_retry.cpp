@@ -7,6 +7,7 @@
 #include "ui_timer_guard.h"
 
 #include "app_globals.h"
+#include "connection_state.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "ipv4_config_system.h"
@@ -68,11 +69,6 @@ void announce(net::Ipv4Link link, Ipv4RevertEnd end) {
     }
 }
 
-bool job_holds_machine() {
-    return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
-           0;
-}
-
 void finish(const net::Ipv4RestoreOutcome& outcome) {
     RevertRetry& s = state();
     s.in_flight = false;
@@ -115,7 +111,7 @@ void tick() {
     if (s.in_flight) {
         return;
     }
-    switch (s.schedule.tick(lv_tick_get(), job_holds_machine())) {
+    switch (s.schedule.tick(lv_tick_get(), ipv4_job_holds_machine())) {
     case net::Ipv4RevertRetry::Step::Wait:
         return;
     case net::Ipv4RevertRetry::Step::Attempt:
@@ -132,6 +128,18 @@ void tick() {
 }
 
 } // namespace
+
+bool ipv4_job_holds_machine() {
+    static net::Ipv4JobHold hold;
+    PrinterState& printer = get_printer_state();
+    const uint32_t now = lv_tick_get();
+    hold.sample(
+        lv_subject_get_int(printer.network_state().get_printer_connection_state_subject()) ==
+            static_cast<int>(ConnectionState::CONNECTED),
+        now);
+    return hold.holds(
+        lv_subject_get_int(printer.print_state().get_job_holds_machine_subject()) != 0, now);
+}
 
 void retry_ipv4_revert(net::Ipv4Link link, bool include_own) {
     RevertRetry& s = state();
@@ -216,7 +224,7 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
 
 void startup_read_tick() {
     StartupRead& s = startup_read();
-    switch (s.schedule.tick(lv_tick_get(), job_holds_machine())) {
+    switch (s.schedule.tick(lv_tick_get(), ipv4_job_holds_machine())) {
     case net::Ipv4RevertRetry::Step::Wait:
         return;
     case net::Ipv4RevertRetry::Step::Attempt:

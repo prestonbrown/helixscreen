@@ -32,6 +32,11 @@ void retry_ipv4_revert(helix::net::Ipv4Link link, bool include_own);
 void give_up_ipv4_revert(std::optional<helix::net::Ipv4Link> link, const std::string& why,
                          helix::net::Ipv4GiveUp how);
 
+/// Whether a job holds the machine for an IPv4 change or its revert: the print
+/// state, until a lost printer connection makes it stale
+/// (helix::net::Ipv4JobHold). LVGL thread.
+bool ipv4_job_holds_machine();
+
 /// How a revert the retry owned ended: the previous config is back, the
 /// record is marked given up on disk and a new change may replace it, or the
 /// record could not be marked and still refuses a new change.
