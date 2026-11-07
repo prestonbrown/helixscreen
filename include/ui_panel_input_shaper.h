@@ -449,6 +449,8 @@ class InputShaperPanel : public OverlayBase {
 
     // Results data
     char current_axis_ = 'X';
+    /// MEASURING and not yet past the sweep: the live chart has data to stream.
+    bool sweeping_ = false;
     char last_calibrated_axis_ = 'X'; ///< Axis most recently calibrated (for apply)
     std::string recommended_type_;
     float recommended_freq_ = 0.0f;
