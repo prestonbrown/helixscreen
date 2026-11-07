@@ -160,6 +160,10 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 ///   FIRMWARE_MANAGED -> no-op (firmware/macros auto-persist)
 ///
+/// The apply command is sent only where printer.gcode.help lists it, or where
+/// the list cannot be read. A firmware that never registered it gets
+/// @p on_error and no SAVE_CONFIG, since a save then keeps nothing.
+///
 /// SAVE_CONFIG's rpc is dropped by the restart it triggers, so @p save_watch -
 /// not the rpc - decides the outcome: it absorbs the dropped reply and reports
 /// success once Klipper is back READY. Reporting the drop cost every successful
@@ -178,6 +182,22 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
+
+/// Save a calibration that ACCEPT has just staged in the printer config.
+///
+/// PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE and the scan-probe calibrations write
+/// their result into configfile on ACCEPT, so the save is SAVE_CONFIG alone.
+/// Z_OFFSET_APPLY_* is for baby-step saves: it writes the value Klipper loaded
+/// at start minus the live gcode Z offset, which here would replace the fresh
+/// result whenever an offset is set (#1994). FIRMWARE_MANAGED forwards to
+/// apply_and_save().
+///
+/// Parameters and callbacks are apply_and_save()'s.
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               std::function<void()> on_success,
+                               std::function<void(const std::string& error)> on_error,
+                               PrinterState* ps = nullptr);
 
 /// The facts the "is there an offset worth saving" decision is made from.
 struct SaveAvailability {

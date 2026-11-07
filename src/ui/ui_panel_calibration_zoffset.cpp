@@ -698,8 +698,9 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
         auto sensors = helix::sensors::ProbeSensorManager::instance().get_sensors();
         const auto probe_type =
             sensors.empty() ? helix::sensors::ProbeSensorType::STANDARD : sensors[0].type;
-        const auto command = zoffset_cal::calibration_command(strategy, probe_type);
-        const char* calibrate_cmd = command.gcode;
+        const auto command = zoffset_cal::calibration_command(
+            strategy, probe_type, sensors.empty() ? "" : sensors[0].sensor_name);
+        const std::string& calibrate_cmd = command.gcode;
 
         // Every calibrate command reads at the current XY, so the head goes
         // over the plate centre even when nothing needed homing.
@@ -883,7 +884,7 @@ void ZOffsetCalibrationPanel::send_accept() {
             "ACCEPT",
             [this, strategy, api = api_, accept_token]() {
                 spdlog::info("[ZOffsetCal] ACCEPT success, applying and saving");
-                helix::zoffset::apply_and_save(
+                helix::zoffset::save_accepted_calibration(
                     api, save_config_watch_, strategy,
                     [this, accept_token]() {
                         accept_token.defer(
@@ -906,7 +907,10 @@ void ZOffsetCalibrationPanel::send_accept() {
                                     false, fmt::format(fmt::runtime(lv_tr("ACCEPT failed: {}")),
                                                        err.localized_message()));
                             });
-            });
+            },
+            // A scan-probe ACCEPT replies only after its post-test sweep (an
+            // eddy coil sweep), which can outlast the default timeout.
+            IAdvancedAPI::kProbingTimeoutMs);
     }
 }
 
