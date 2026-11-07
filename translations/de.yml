@@ -3546,6 +3546,7 @@ translations:
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Saved Z-Offset: Gespeicherter Z-Offset
+  Saved for the mounted head; other heads keep their own: 'Für den aufgesetzten Werkzeugkopf gespeichert; die anderen Werkzeugköpfe behalten ihren eigenen'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR
     nicht verfügbar)

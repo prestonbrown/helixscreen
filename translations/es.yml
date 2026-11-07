@@ -3540,6 +3540,7 @@ translations:
   Save to Spool: Guardar en bobina
   Save to Spoolman: Guardar en Spoolman
   Saved Z-Offset: Z-Offset guardado
+  Saved for the mounted head; other heads keep their own: 'Guardado para el cabezal montado; los demás cabezales conservan el suyo'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron.'
   Saved to crash_report.txt (QR not available): Guardado en crash_report.txt (QR no
     disponible)

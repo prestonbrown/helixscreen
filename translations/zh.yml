@@ -3361,6 +3361,7 @@ translations:
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
   Saved Z-Offset: 已保存 Z 偏移
+  Saved for the mounted head; other heads keep their own: '已为当前安装的工具头保存；其他工具头保留各自的值'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: '已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。'
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
   Saved to printer configuration.: 已保存到打印机配置。

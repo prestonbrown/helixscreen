@@ -136,6 +136,45 @@ TEST_CASE("Z-offset tune hint is temporary when Z-offset saving is off",
           H::TEMPORARY_TOOL_CHANGE);
 }
 
+TEST_CASE("Z-offset tune hint says a per-head offset is saved for the mounted head",
+          "[printer_state][profile][zoffset][per_head]") {
+    using S = ZOffsetCalibrationStrategy;
+    using H = ZOffsetTuneHint;
+
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, true,
+                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, false,
+                                     /*per_head=*/true) == H::AUTO_SAVED_PER_HEAD);
+    // Without per-head storage the machine-wide wording stands.
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, true, false, true,
+                                     /*per_head=*/false) == H::AUTO_SAVED);
+}
+
+TEST_CASE("PrinterProfileState republishes the tune hint when per-head storage is found",
+          "[printer_state][profile][zoffset][per_head]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+    auto hint = [&] {
+        return static_cast<ZOffsetTuneHint>(
+            lv_subject_get_int(profile.get_z_offset_tune_hint_subject()));
+    };
+
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    REQUIRE(hint() == ZOffsetTuneHint::AUTO_SAVED);
+
+    CHECK(profile.set_z_offset_per_head(true));
+    CHECK_FALSE(profile.set_z_offset_per_head(true));
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+
+    CHECK(profile.set_z_offset_per_head(false));
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
+
+    profile.deinit_subjects();
+}
+
 TEST_CASE("PrinterProfileState republishes the tune hint when Z-offset saving changes",
           "[printer_state][profile][zoffset][save-toggle]") {
     LVGLTestFixture fixture;
@@ -262,6 +301,7 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_temporary", static_cast<int>(ZOffsetTuneHint::TEMPORARY)},
         {"z_offset_help_text_tool_change",
          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE)},
+        {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
     for (const char* path :

@@ -287,3 +287,29 @@ TEST_CASE_METHOD(ControlsCalibGridFixture,
     CHECK(tile_hidden("btn_tool_offsets"));
     set("hide_manual_z_calibration", 0);
 }
+
+TEST_CASE_METHOD(ControlsCalibGridFixture,
+                 "Controls Z Calibration steps aside where the firmware keeps a Z offset per head",
+                 "[controls][calib-grid][per_head]") {
+    build();
+    show(0, 0, 0, 0, 0);
+    lv_obj_t* tile = lv_obj_find_by_name(panel_obj, "btn_z_calibration");
+    REQUIRE(tile != nullptr);
+    auto tile_hidden = [&] {
+        for (lv_obj_t* obj = tile; obj && obj != grid(); obj = lv_obj_get_parent(obj)) {
+            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    set("printer_z_offset_per_head", 0);
+    settle();
+    CHECK_FALSE(tile_hidden());
+
+    set("printer_z_offset_per_head", 1);
+    settle();
+    CHECK(tile_hidden());
+    set("printer_z_offset_per_head", 0);
+}

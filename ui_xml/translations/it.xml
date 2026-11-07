@@ -3253,6 +3253,7 @@
   <translation tag="Save to Spool" it="Salva sulla bobina"/>
   <translation tag="Save to Spoolman" it="Salva su Spoolman"/>
   <translation tag="Saved Z-Offset" it="Z-Offset Salvato"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" it="Salvato per la testina montata; le altre testine mantengono il proprio"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." it="Salvato in Spoolman, ma prezzo, posizione, lotto e note della bobina non sono stati salvati."/>
   <translation tag="Saved to crash_report.txt (QR not available)" it="Salvato in crash_report.txt (QR non disponibile)"/>
   <translation tag="Saved to printer configuration." it="Salvato nella configurazione stampante."/>

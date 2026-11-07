@@ -3253,6 +3253,7 @@
   <translation tag="Save to Spool" pt="Salvar no carretel"/>
   <translation tag="Save to Spoolman" pt="Salvar no Spoolman"/>
   <translation tag="Saved Z-Offset" pt="Z-Offset Salvo"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" pt="Salvo para o cabeçote montado; os outros cabeçotes mantêm o seu"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." pt="Salvo no Spoolman, mas o preço, a localização, o lote e as notas do carretel não foram salvos."/>
   <translation tag="Saved to crash_report.txt (QR not available)" pt="Salvo em crash_report.txt (QR não disponível)"/>
   <translation tag="Saved to printer configuration." pt="Salvo na configuração da impressora."/>

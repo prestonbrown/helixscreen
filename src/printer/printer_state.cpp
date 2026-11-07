@@ -552,6 +552,12 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
+    // Per-head Z offset storage changes what the tune hint can promise.
+    if (profile_state_.set_z_offset_per_head(
+            helix::zoffset::firmware_applies_z_offset_per_head(discovery_)) &&
+        !profile_state_.printer_type().empty()) {
+        set_printer_type_internal(profile_state_.printer_type());
+    }
     chamber_air_state_.set_hardware(discovery_);
     versions_state_.set_firmware_name_internal(discovery_.firmware_name());
     print_domain_.set_layer_pause_state_object(helix::layer_pause::state_object(discovery_));

@@ -299,3 +299,27 @@ TEST_CASE("enclosure top: a report before the subjects exist is kept",
     CHECK(cap(caps, Capability::EnclosureTopFitted) == 1);
     caps.deinit_subjects();
 }
+
+TEST_CASE("set_hardware publishes whether the firmware keeps a Z offset per head",
+          "[printer_capabilities][per_head]") {
+    LVGLTestFixture fixture;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    PrinterDiscovery changer;
+    changer.parse_objects(json{"zmod_color", "gcode_button extruder_grab1", "save_variables",
+                               "gcode_macro SAVE_ZMOD_DATA"});
+    CapabilityOverrides changer_overrides;
+    changer_overrides.set_hardware(changer);
+    caps.set_hardware(changer, changer_overrides);
+    CHECK(cap(caps, Capability::ZOffsetPerHead) == 1);
+
+    PrinterDiscovery single;
+    single.parse_objects(json{"zmod_color", "save_variables", "gcode_macro SAVE_ZMOD_DATA"});
+    CapabilityOverrides single_overrides;
+    single_overrides.set_hardware(single);
+    caps.set_hardware(single, single_overrides);
+    CHECK(cap(caps, Capability::ZOffsetPerHead) == 0);
+
+    caps.deinit_subjects();
+}
