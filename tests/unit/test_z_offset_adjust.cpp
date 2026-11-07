@@ -232,6 +232,21 @@ TEST_CASE_METHOD(ZOffsetFixture,
     CHECK(lv_subject_get_int(state.motion_state().get_persisted_z_offset_subject()) == -150);
 }
 
+TEST_CASE_METHOD(ZOffsetFixture,
+                 "an idle step on a printer that re-applies head offsets is always relative",
+                 "[z_offset][adjust][mock][per_head]") {
+    // The U1 sets the mounted head's stored offset absolutely at every tool
+    // change; an absolute Z= from a stale base would overwrite it.
+    state.set_printer_type_sync("Snapmaker U1");
+    set_homed("xyz");
+    lv_subject_set_int(state.motion_state().get_gcode_z_offset_subject(), 120);
+
+    auto r = helix::zoffset::adjust(api.get(), &state, -0.05, -0.05, -0.01);
+
+    REQUIRE(r.sent);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+}
+
 TEST_CASE_METHOD(ZOffsetFixture, "discovering per-head storage republishes the tune hint",
                  "[z_offset][mock][per_head]") {
     state.set_printer_type_sync("FlashForge Creator 5 Pro");

@@ -51,7 +51,7 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
         ensure_subject("printer_has_tool_offset_cal", 0);
         ensure_subject("printer_has_probe", 1);
         ensure_subject("hide_manual_z_calibration", 0);
-        ensure_subject("printer_z_offset_per_head", 0);
+        ensure_subject("z_offset_reapplied_per_head", 0);
         beta_ = subject("show_beta_features");
         beta_before_ = lv_subject_get_int(beta_);
         lv_subject_set_int(beta_, 0);
@@ -193,7 +193,7 @@ TEST_CASE_METHOD(AdvancedBeltRowFixture,
 TEST_CASE_METHOD(AdvancedBeltRowFixture,
                  "Advanced Z-Offset row steps aside where the firmware keeps a Z offset per head",
                  "[tool_offsets][advanced][xml][per_head]") {
-    auto* per_head = subject("printer_z_offset_per_head");
+    auto* per_head = subject("z_offset_reapplied_per_head");
     lv_subject_set_int(subject("printer_has_probe"), 1);
     lv_subject_set_int(subject("printer_has_tool_offset_cal"), 0);
     lv_subject_set_int(subject("hide_manual_z_calibration"), 0);

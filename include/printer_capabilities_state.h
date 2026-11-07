@@ -54,7 +54,6 @@ enum class Capability : uint8_t {
     HasLayerPause,               ///< macros that pause a running print at a layer
     HasToolOffsetCal,            ///< automatic tool offset calibration
     HideManualZCalibration,      ///< tool offset calibration also sets the reference tool's Z
-    ZOffsetPerHead,              ///< firmware keeps a Z offset per head; manual Z cal steps aside
     HasPaCal,                    ///< firmware measures pressure advance
     HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
     HasWebcam,                   ///< an enabled webcam is configured

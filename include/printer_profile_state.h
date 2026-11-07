@@ -125,6 +125,20 @@ class PrinterProfileState {
      */
     bool set_z_offset_per_head(bool per_head);
 
+    /**
+     * @brief Whether the firmware applies each head's own Z offset at pickup
+     *
+     * True where discovery found per-head storage (set_z_offset_per_head()) or the
+     * database says a tool change re-applies the head's stored offset
+     * (`tool_change_resets_z_offset`). An absolute SET_GCODE_OFFSET Z= there lands
+     * on the mounted head's offset, so adjustments go relative and the manual
+     * Z-offset calibration, which ends in one, is not offered. Published as
+     * `z_offset_reapplied_per_head`.
+     */
+    bool z_offset_reapplied_per_head() const {
+        return z_offset_per_head_ || db_tool_change_resets_z_offset_;
+    }
+
     /// Default for the synthesized timelapse option: the global
     /// moonraker-timelapse `enabled` setting (#1094).
     void set_timelapse_default_enabled(bool enabled) {
@@ -191,6 +205,10 @@ class PrinterProfileState {
     lv_subject_t* get_z_offset_tune_hint_subject() {
         return &z_offset_tune_hint_;
     }
+    /// 1 when z_offset_reapplied_per_head(), as an int for XML.
+    lv_subject_t* get_z_offset_reapplied_per_head_subject() {
+        return &z_offset_reapplied_per_head_;
+    }
 
   private:
     friend class PrinterProfileStateTestAccess;
@@ -204,6 +222,8 @@ class PrinterProfileState {
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     bool external_persistence_ = false;
     bool z_offset_per_head_ = false;
+
+    void publish_z_offset_reapplied_per_head();
     ZOffsetTuneHint z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
     bool z_offset_save_enabled_ = true;
     bool db_z_offset_persists_ = true;
@@ -220,6 +240,7 @@ class PrinterProfileState {
     char printer_type_subject_buf_[128];
     lv_subject_t z_offset_can_save_{};
     lv_subject_t z_offset_tune_hint_{};
+    lv_subject_t z_offset_reapplied_per_head_{};
 };
 
 } // namespace helix
