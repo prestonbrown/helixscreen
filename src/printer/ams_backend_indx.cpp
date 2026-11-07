@@ -180,7 +180,7 @@ AmsError AmsBackendIndx::apply_user_edit(int slot_index, const SlotInfo& info) {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto it = state_.tool_spool_ids.find(slot_index);
         if (it != state_.tool_spool_ids.end()) {
-            macro_link = it->second > 0 ? it->second : 0;
+            macro_link = it->second;
         }
     }
     AmsError err = AmsBackendToolChanger::apply_user_edit(slot_index, info);
@@ -191,9 +191,15 @@ AmsError AmsBackendIndx::apply_user_edit(int slot_index, const SlotInfo& info) {
     if (!macro_link || *macro_link == link) {
         return err;
     }
-    AmsError sent =
-        execute_gcode(fmt::format("SET_GCODE_VARIABLE MACRO=T{} VARIABLE=spool_id VALUE={}",
-                                  slot_index, link)); // DISPLAY_NUMBERING_OK: gcode macro name
+    // The same two writes Mainsail's spool dialog makes for a tool, so either
+    // client reads the other's link: the macro variable, then its
+    // save_variables copy (t<n>__spool_id) that survives a restart. None is
+    // "no spool", the variable's own default.
+    const std::string value = link > 0 ? std::to_string(link) : std::string("None");
+    AmsError sent = execute_gcode(
+        fmt::format("SET_GCODE_VARIABLE MACRO=T{} VARIABLE=spool_id VALUE={}\n"
+                    "SAVE_VARIABLE VARIABLE=t{}__spool_id VALUE={}",
+                    slot_index, value, slot_index, value)); // DISPLAY_NUMBERING_OK: gcode names
     if (!sent.success()) {
         sent.partially_applied = true;
         return sent;

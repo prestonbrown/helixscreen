@@ -1042,7 +1042,8 @@ TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a link is written to the tool's 
     linked.spoolman_id = 42;
     test::edit_slot_as_user(b, 0, linked);
     REQUIRE_FALSE(b.sent().empty());
-    CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=42");
+    CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=42\n"
+                             "SAVE_VARIABLE VARIABLE=t0__spool_id VALUE=42");
     CHECK(b.get_slot_info(0).spoolman_id == 42);
 
     // The echo ends the edit; a macro or another client changing the
@@ -1052,11 +1053,35 @@ TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a link is written to the tool's 
     b.feed(json{{"gcode_macro T0", {{"spool_id", 9}}}});
     CHECK(b.get_slot_info(0).spoolman_id == 9);
 
-    SECTION("an unlink writes zero") {
+    SECTION("an unlink writes None, as Mainsail's spool dialog reads it") {
         SlotInfo unlinked = b.get_slot_info(0);
         unlinked.spoolman_id = 0;
         test::edit_slot_as_user(b, 0, unlinked);
-        CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=0");
+        CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=None\n"
+                                 "SAVE_VARIABLE VARIABLE=t0__spool_id VALUE=None");
+    }
+}
+
+TEST_CASE_METHOD(IndxFixture, "INDX lane truth: None, 0 and a negative spool_id all mean no spool",
+                 "[ams][indx][lane_truth]") {
+    test::RegisteredBackend<IndxHelper> harness;
+    IndxHelper& b = *harness;
+    b.set_discovery(discover(indx_objects()));
+    const json unlinked = GENERATE(json(nullptr), json(0), json(-1));
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 7}}}});
+    REQUIRE(b.get_slot_info(0).spoolman_id == 7);
+
+    b.feed(json{{"gcode_macro T0", {{"spool_id", unlinked}}}});
+    CHECK(b.get_slot_info(0).spoolman_id == 0);
+
+    // Already unlinked: an unlink edit writes nothing.
+    const size_t before = b.sent().size();
+    SlotInfo unlink = b.get_slot_info(0);
+    unlink.spoolman_id = 0;
+    unlink.material = "PETG";
+    test::edit_slot_as_user(b, 0, unlink);
+    for (size_t i = before; i < b.sent().size(); ++i) {
+        CHECK(b.sent()[i].find("SET_GCODE_VARIABLE") == std::string::npos);
     }
 }
 
