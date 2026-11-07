@@ -208,6 +208,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Open tool list names each tool's G-code nam
     CHECK(std::string(options) == "Tool 1 (T0)\nTool 2 (T1)");
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "Open tool list names a hub's tools by the lane each feeds",
+                 "[filament][ui][tool]") {
+    // One extruder behind a 4-slot hub: the tools are lanes, not toolheads.
+    ManageRowHarness h(*this, {"extruder"}, AmsType::CFS);
+    ToolTopology topo;
+    topo.tool_count = 4;
+    topo.tool_to_slot = {0, 1, 3, -1};
+    ToolState::instance().set_ams_topology(topo);
+    REQUIRE_FALSE(ToolState::instance().has_multiple_toolheads());
+    TA::populate_extruder_dropdown(*h.panel);
+
+    const char* options = lv_dropdown_get_options(TA::extruder_dropdown(*h.panel));
+    REQUIRE(options != nullptr);
+    // A remapped tool names the lane it feeds; an unmapped one keeps its tool number.
+    CHECK(std::string(options) == "Slot 1 (T0)\nSlot 2 (T1)\nSlot 4 (T2)\nTool 4 (T3)");
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Portrait small screen turns the graph card into a spacer with a strip button",
                  "[filament][ui][portrait]") {

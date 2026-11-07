@@ -50,7 +50,7 @@ std::string filament_system_text(const std::vector<FilamentSystemFact>& systems)
         out += sys.name;
         if (sys.slots > 0) {
             out += kSep;
-            out += std::to_string(sys.slots);
+            out += helix::ui::lane_count_label(sys.noun, sys.slots);
         }
     }
     return out;
@@ -132,7 +132,7 @@ std::string base_text(CapChip chip, const CapabilityChipFacts& f) {
             return f.mcus.front();
         }
         return f.mcus.empty() ? std::string()
-                              : fmt::format(fmt::runtime(lv_tr("{} MCUs")), f.mcus.size());
+                              : with_detail(TR_NOOP("MCUs"), std::to_string(f.mcus.size()));
     case CapChip::Power:
         return with_detail(TR_NOOP("Power"), count_detail(f.power_device_count, 1));
     case CapChip::Leds:

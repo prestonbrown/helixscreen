@@ -5,6 +5,7 @@
 /// what discovery found. Pure: no LVGL, no singletons, so every rule here is
 /// testable on its own and the overlay only gathers facts and publishes text.
 
+#include "display_numbering.h"
 #include "printer_detector.h"
 
 #include <cstdint>
@@ -67,6 +68,8 @@ struct FilamentSystemFact {
     std::string name;
     int slots = 0;
     bool is_tool_changer = false;
+    /// The backend's word for one position, so the count reads "4 slots", "8 gates".
+    helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;
 };
 
 /// Everything the chip texts read. Gathered on the main thread by the overlay.
