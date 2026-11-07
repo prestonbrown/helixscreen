@@ -224,7 +224,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[ZOffsetCal] on_activate()");
-    tool_confirm_pending_ = false;
+    close_tool_confirm();
 
     // If manual probe is already active (e.g., started from Mainsail before HelixScreen
     // launched), skip to ADJUSTING with the current Z position instead of resetting to IDLE
@@ -262,6 +262,10 @@ void ZOffsetCalibrationPanel::on_activate() {
 
 void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[ZOffsetCal] on_deactivating({})", deactivate_reason_name(reason));
+
+    // Answered after the panel left, the question would start a calibration
+    // nobody is watching.
+    close_tool_confirm();
 
     // A run in progress is abandoned only when the user walks away from it.
     // Shutdown and hot-reload take the UI out from under a calibration that
@@ -509,22 +513,48 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
 
     tool_confirm_pending_ = true;
     helix::ui::ConfirmOptions opts;
-    auto declined = [this]() { tool_confirm_pending_ = false; };
+    auto declined = [this]() {
+        tool_confirm_pending_ = false;
+        tool_confirm_dialog_ = nullptr;
+    };
     opts.on_cancel = declined;
     opts.on_dismiss = declined;
     opts.owner_token = lifetime_.token();
-    lv_obj_t* dialog = helix::ui::modal_confirm(
+    tool_confirm_dialog_ = helix::ui::modal_confirm(
         lv_tr("Calibrate with this tool?"), message.c_str(), ModalSeverity::Warning,
         lv_tr("Continue"),
         [this]() {
             tool_confirm_pending_ = false;
+            tool_confirm_dialog_ = nullptr;
+            if (!can_begin_now()) {
+                spdlog::info("[ZOffsetCal] Mounted-tool question answered too late, not starting");
+                return;
+            }
             begin_calibration();
         },
         opts);
-    if (!dialog) {
+    if (!tool_confirm_dialog_) {
         // Nothing to answer: leave Start usable rather than latched shut.
         tool_confirm_pending_ = false;
         spdlog::warn("[ZOffsetCal] Mounted-tool question could not be shown");
+    }
+}
+
+bool ZOffsetCalibrationPanel::can_begin_now() const {
+    PrinterState& ps = get_printer_state();
+    lv_subject_t* klippy = ps.network_state().get_klippy_state_subject();
+    return api_ && is_visible() && state_ == State::IDLE &&
+           lv_subject_get_int(ps.print_state().get_print_active_subject()) == 0 && klippy &&
+           lv_subject_get_int(klippy) == static_cast<int>(KlippyState::READY) &&
+           !ps.profile_state().z_offset_reapplied_per_head();
+}
+
+void ZOffsetCalibrationPanel::close_tool_confirm() {
+    lv_obj_t* dialog = tool_confirm_dialog_;
+    tool_confirm_dialog_ = nullptr;
+    tool_confirm_pending_ = false;
+    if (dialog) {
+        Modal::hide(dialog);
     }
 }
 
