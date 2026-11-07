@@ -6,6 +6,7 @@
 #include "label_printer.h"
 #include "sheet_label_layout.h"
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -57,6 +58,7 @@ class IppPrinter : public ILabelPrinter {
 
     /// Set the target printer (host, port, resource path from mDNS TXT "rp").
     /// The path is normalized; an empty one targets ipp::kDefaultResourcePath.
+    /// A new host or port forgets that the previous one needed IPPS.
     void set_target(const std::string& host, uint16_t port, const std::string& resource_path);
 
     /// The normalized resource path print() posts to
@@ -83,6 +85,11 @@ class IppPrinter : public ILabelPrinter {
     int sheet_template_index_ = 0;
     int label_count_ = 1;
     int start_position_ = 0;
+    /// Set once this target answered 426 and then took the job over IPPS, so later jobs
+    /// go straight to IPPS; cleared when an IPPS job cannot connect. Shared with the
+    /// job's worker thread, and replaced (not reset) on a new target so a job still
+    /// running for the old one cannot mark the new one.
+    std::shared_ptr<std::atomic<bool>> needs_tls_ = std::make_shared<std::atomic<bool>>(false);
 };
 
 } // namespace helix

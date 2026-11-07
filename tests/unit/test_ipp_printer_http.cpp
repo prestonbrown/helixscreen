@@ -369,6 +369,10 @@ class IppJobFixture : public LVGLTestFixture {
     Result print_to(uint16_t port, int template_index = 0) {
         IppPrinter printer;
         printer.set_target("127.0.0.1", port, "ipp/print");
+        return print_with(printer, template_index);
+    }
+
+    Result print_with(IppPrinter& printer, int template_index = 0) {
         printer.set_sheet_template(template_index);
         const auto& templates = label::get_sheet_templates();
         Result result;
@@ -435,13 +439,17 @@ TEST_CASE_METHOD(IppJobFixture, "Only a 426 is resent over TLS, and only once",
     ServerCtx tls;
     const std::string bad_request =
         "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-    // A resend nobody scripted is refused, so it reports "Connection failed", not the status.
-    const auto [connections,
-                status] = GENERATE_REF(table<std::vector<ScriptedConnection>, std::string>({
-        {{{false, {upgrade_required_response()}}, {true, {upgrade_required_response()}}}, "426"},
-        {{{false, {bad_request}}}, "400"},
-    }));
-    CAPTURE(status);
+    // A resend nobody scripted is refused, so it reports a failed connection, not the
+    // status. Every failure after a 426 says the printer needs an encrypted connection.
+    const auto [connections, status, encrypted] =
+        GENERATE_REF(table<std::vector<ScriptedConnection>, std::string, bool>({
+            {{{false, {upgrade_required_response()}}, {true, {upgrade_required_response()}}},
+             "426",
+             true},
+            {{{false, {upgrade_required_response()}}}, "", true},
+            {{{false, {bad_request}}}, "400", false},
+        }));
+    CAPTURE(status, encrypted);
     ScriptedServer server(connections, tls.ctx);
 
     const auto result = print_to(server.port());
@@ -449,4 +457,39 @@ TEST_CASE_METHOD(IppJobFixture, "Only a 426 is resent over TLS, and only once",
     CHECK(server.requests().size() == connections.size());
     CHECK_FALSE(result.ok);
     CHECK(result.message.find(status) != std::string::npos);
+    CHECK((result.message.find("encrypted connection") != std::string::npos) == encrypted);
+}
+
+TEST_CASE_METHOD(IppJobFixture, "A printer that accepts plain IPP is not resent over TLS",
+                 "[label][ipp_http][2034]") {
+    ScriptedServer server({final_ok_response()});
+
+    CHECK(print_to(server.port()).ok);
+
+    const auto requests = server.requests();
+    REQUIRE(requests.size() == 1);
+    CHECK(requests[0].body.find(printer_uri("ipp", server.port())) != std::string::npos);
+}
+
+TEST_CASE_METHOD(IppJobFixture, "IPPS is remembered for one printer target",
+                 "[label][ipp_http][2034]") {
+    ServerCtx tls;
+    ScriptedServer needs_tls({{false, {upgrade_required_response()}},
+                              {true, {final_ok_response()}},
+                              {true, {final_ok_response()}}},
+                             tls.ctx);
+    ScriptedServer plain({final_ok_response()});
+    IppPrinter printer;
+    printer.set_target("127.0.0.1", needs_tls.port(), "ipp/print");
+    REQUIRE(print_with(printer).ok);
+    CHECK(print_with(printer).ok);
+    printer.set_target("127.0.0.1", plain.port(), "ipp/print");
+    CHECK(print_with(printer).ok);
+
+    const auto tls_requests = needs_tls.requests();
+    REQUIRE(tls_requests.size() == 3);
+    CHECK(tls_requests[2].body.find(printer_uri("ipps", needs_tls.port())) != std::string::npos);
+    const auto plain_requests = plain.requests();
+    REQUIRE(plain_requests.size() == 1);
+    CHECK(plain_requests[0].body.find(printer_uri("ipp", plain.port())) != std::string::npos);
 }

@@ -4280,6 +4280,8 @@ translations:
     a rejeté la configuration du filament. L'impression n'a pas été démarrée.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'L''imprimante signale les vitesses mesurées des ventilateurs. HelixScreen les affiche sur l''écran Ventilateurs.'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'L''imprimante n''indique aucun enregistrement de voie, donc seul le vidage de l''extrudeur peut décharger.'
+  'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'L''imprimante exige une connexion chiffrée, mais elle a refusé la tâche chiffrée : HTTP {} {}'
+  The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'L''imprimante exige une connexion chiffrée, mais la connexion chiffrée à {}:{} a échoué'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'L''imprimante change entre plusieurs têtes d''outil. Gérez les outils sur l''écran du système de filament.'
   The printer's firmware chooses where to switch on runout: Le firmware de l'imprimante choisit lui-même vers où basculer en fin de filament
   The requested position is outside the printer's bounds: 'La position demandée est en dehors des limites de l''imprimante'

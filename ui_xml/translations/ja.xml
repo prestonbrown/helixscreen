@@ -3880,6 +3880,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." ja="プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。"/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." ja="プリンターはファンの実測回転数を報告します。HelixScreenはファン画面に表示します。"/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ja="プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。"/>
+  <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" ja="プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}"/>
+  <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ja="プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ja="プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ja="フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ja="指定された位置はプリンターの可動範囲外です"/>

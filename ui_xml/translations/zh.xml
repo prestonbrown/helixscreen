@@ -3880,6 +3880,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." zh="打印机会报告测得的风扇转速。HelixScreen 在风扇界面显示。"/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." zh="打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。"/>
+  <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" zh="打印机要求加密连接，但拒绝了加密的任务：HTTP {} {}"/>
+  <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" zh="打印机要求加密连接，但与 {}:{} 的加密连接失败"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." zh="打印机在多个工具头之间切换。在耗材系统界面管理工具。"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" zh="耗材用尽时切换到哪里由打印机固件自行选择"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
