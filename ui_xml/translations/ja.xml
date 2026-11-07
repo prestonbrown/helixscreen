@@ -1121,6 +1121,7 @@
   <translation tag="ETA {}" ja="終了予定 {}"/>
   <translation tag="EXTRAS" ja="その他"/>
   <translation tag="Each fan can only be selected once" ja="各ファンは一度のみ選択できます"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ja="このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。"/>
   <translation tag="Edit" ja="編集"/>
   <translation tag="Edit Filament" ja="フィラメントを編集"/>
   <translation tag="Edit Slot" ja="スロットを編集"/>

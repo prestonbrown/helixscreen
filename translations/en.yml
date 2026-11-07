@@ -1202,6 +1202,7 @@ translations:
   ETA {}: ETA {}
   EXTRAS: EXTRAS
   Each fan can only be selected once: Each fan can only be selected once
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.'
   Edit: Edit
   Edit Filament: Edit Filament
   Edit Slot: Edit Slot

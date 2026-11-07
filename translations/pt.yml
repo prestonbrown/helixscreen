@@ -1238,6 +1238,7 @@ translations:
   ETA {}: 'Término {}'
   EXTRAS: EXTRAS
   Each fan can only be selected once: Cada ventoinha só pode ser selecionada uma vez
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Cada cabeçote tem seu próprio Z-offset nesta impressora. Use a calibração de offset de ferramenta.'
   Edit: Editar
   Edit Filament: Editar Filamento
   Edit Slot: Editar Slot

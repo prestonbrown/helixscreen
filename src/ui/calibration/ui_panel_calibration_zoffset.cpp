@@ -453,10 +453,24 @@ static zoffset_cal::ApproachInputs approach_inputs(IMoonrakerAPI& api, PrinterSt
     return in;
 }
 
+/// Why this flow refuses on a printer that applies each head's own Z offset at
+/// pickup: its result is an absolute offset, which would land on the mounted head.
+static std::string per_head_refusal() {
+    return lv_tr("Each head keeps its own Z offset on this printer. Use its tool offset "
+                 "calibration instead.");
+}
+
 void ZOffsetCalibrationPanel::start_calibration() {
     if (!api_) {
         spdlog::error("[ZOffsetCal] No IMoonrakerAPI");
         on_calibration_result(false, lv_tr("No printer connection"));
+        return;
+    }
+
+    if (get_printer_state().profile_state().z_offset_reapplied_per_head()) {
+        spdlog::warn("[ZOffsetCal] Refusing to start: each head's own Z offset is applied at "
+                     "pickup");
+        on_calibration_result(false, per_head_refusal());
         return;
     }
 
@@ -705,6 +719,15 @@ void ZOffsetCalibrationPanel::adjust_z(float delta) {
 void ZOffsetCalibrationPanel::send_accept() {
     if (!api_)
         return;
+
+    // Reachable without Start: a manual probe already running at connect opens
+    // this panel in ADJUSTING. Its result would land on the mounted head.
+    if (get_printer_state().profile_state().z_offset_reapplied_per_head()) {
+        spdlog::warn("[ZOffsetCal] Refusing to accept: each head's own Z offset is applied at "
+                     "pickup");
+        on_calibration_result(false, per_head_refusal());
+        return;
+    }
 
     auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
     final_offset_ = current_z_;

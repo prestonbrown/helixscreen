@@ -18,6 +18,7 @@
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/printer_capture.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/zoffset_calibration_test_access.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
@@ -416,4 +417,36 @@ TEST_CASE_METHOD(StepFixture, "the plugin probe publishes the plugin's features 
         run_probe();
     }
     CHECK(plugin.features().empty());
+}
+
+TEST_CASE_METHOD(
+    StepFixture,
+    "a manual probe at connect does not open Z calibration where heads keep their own offset",
+    "[discovery_steps][per_head]") {
+    auto& ps = get_printer_state();
+    auto& panel = get_global_zoffset_cal_panel();
+    panel.set_api(nullptr);
+    lv_subject_set_int(ps.calibration_state().get_manual_probe_active_subject(), 1);
+    ps.profile_state().set_z_offset_per_head(true);
+    struct Restore {
+        ~Restore() {
+            get_printer_state().profile_state().set_z_offset_per_head(false);
+            lv_subject_set_int(
+                get_printer_state().calibration_state().get_manual_probe_active_subject(), 0);
+        }
+    } restore;
+
+    auto ctx = context(/*hw_changed=*/true);
+    bool found = false;
+    for (const DiscoveryStep& step : helix::discovery_tail_steps()) {
+        if (std::string(step.name) == "manual_probe_autoopen") {
+            found = true;
+            step.run(ctx);
+        }
+    }
+    REQUIRE(found);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Opening it hands the panel the discovery's API first.
+    CHECK(ZOffsetCalibrationTestAccess::api(panel) == nullptr);
 }

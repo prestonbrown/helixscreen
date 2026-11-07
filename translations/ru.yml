@@ -1286,6 +1286,7 @@ translations:
   EXTRAS: ДОПОЛНИТЕЛЬНО
   Each fan can only be selected once: Каждый вентилятор можно выбрать только один
     раз
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов.'
   Edit: Редактировать
   Edit Filament: Редактировать филамент
   Edit Slot: Редактировать слот

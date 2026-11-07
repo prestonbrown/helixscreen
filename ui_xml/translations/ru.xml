@@ -1166,6 +1166,7 @@
   <translation tag="ETA {}" ru="Окончание {}"/>
   <translation tag="EXTRAS" ru="ДОПОЛНИТЕЛЬНО"/>
   <translation tag="Each fan can only be selected once" ru="Каждый вентилятор можно выбрать только один раз"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ru="У каждой печатающей головки на этом принтере своё Z-смещение. Используйте калибровку смещений инструментов."/>
   <translation tag="Edit" ru="Редактировать"/>
   <translation tag="Edit Filament" ru="Редактировать филамент"/>
   <translation tag="Edit Slot" ru="Редактировать слот"/>

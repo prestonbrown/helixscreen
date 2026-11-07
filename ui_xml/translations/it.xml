@@ -1121,6 +1121,7 @@
   <translation tag="ETA {}" it="Fine {}"/>
   <translation tag="EXTRAS" it="EXTRA"/>
   <translation tag="Each fan can only be selected once" it="Ogni ventola può essere selezionata solo una volta"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." it="Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell&apos;offset utensile."/>
   <translation tag="Edit" it="Modifica"/>
   <translation tag="Edit Filament" it="Modifica filamento"/>
   <translation tag="Edit Slot" it="Modifica Slot"/>
