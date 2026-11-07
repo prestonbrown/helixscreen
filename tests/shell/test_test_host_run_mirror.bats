@@ -28,7 +28,7 @@ setup() {
     export HELIX_TEST_ARC_SYS_FREE="$BATS_TEST_TMPDIR/no-zfs/zfs_arc_sys_free"
     export HELIX_TEST_ARC_MARK="$BATS_TEST_TMPDIR/arc-mark"
     export HELIX_TEST_TREES=/work/trees
-    export HELIX_TEST_ORPHAN_POLL_SECS=0
+    export HELIX_TEST_ORPHAN_POLL_SECS=0 HELIX_TEST_WATCHDOG_POLL_SECS=0.2
     mkdir -p "$HELIX_TEST_LOCK_DIR"
     REAL_RSYNC=$(command -v rsync)
     export REAL_RSYNC
@@ -49,6 +49,13 @@ case "$1" in
     inspect) exit 0 ;;
     exec)
         case "$*" in
+            *helix-job-kill*)
+                # Stopping a job: run the container half here, against the
+                # local /proc, so it stops what the job left running.
+                echo "$*" >> "${MOCK_KILL_LOG:-/dev/null}"
+                while [ "$1" != sh ]; do shift; done
+                s=$3; shift 3
+                exec sh -c "$s" "$@" ;;
             *pgrep*)
                 # MOCK_LIVE_MAKE_DIR: a make (an orphan) runs in that tree.
                 if [ -n "${MOCK_LIVE_MAKE_DIR:-}" ]; then
@@ -86,6 +93,8 @@ case "$1" in
                # MOCK_EXEC_LOG instead of run; its last argument is the bash -c script.
                if [ -n "${MOCK_EXEC_DIR:-}" ]; then
                    for a in "$@"; do last=$a; done
+                   # The job tag reaches the job, as docker exec -e passes it.
+                   for a in "$@"; do case "$a" in HELIX_TEST_JOB=*) export "$a" ;; esac; done
                    cd "$MOCK_EXEC_DIR" || exit 1
                    exec bash -c "make() { echo \"make \$*\" >> \"\$MOCK_EXEC_LOG\"; }; $last"
                fi
@@ -1114,7 +1123,7 @@ EOF2
 }
 
 no_job_left() {
-    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-*/ 2>/dev/null
 }
 
 @test "a connection that drops during a silent job reconnects and still reports its output and exit status" {
@@ -1165,6 +1174,53 @@ no_job_left() {
     for _ in $(seq 1 100); do kill -0 "$(cat "$pidf")" 2>/dev/null || break; sleep 0.05; done
     ! kill -0 "$(cat "$pidf")" 2>/dev/null
     no_job_left
+}
+
+# A process the job started in a session of its own: no kill of the wrapper's
+# process group reaches it, as none reaches a process in the container. Its pid
+# is left in ORPHAN once it is running; the job itself then waits in sleep 60.
+orphan_job() { # <runner output file>
+    export ORPHANF="$BATS_TEST_TMPDIR/orphan.pid"
+    "$TEST_HOST_RUN" exec -- bash -c 'setsid sleep 300 < /dev/null > /dev/null 2>&1 & echo $! > "$ORPHANF"; exec sleep 60' \
+        > "$1" 2>&1 &
+    RUNNER=$!
+    for _ in $(seq 1 200); do [ -s "$ORPHANF" ] && break; sleep 0.05; done
+    [ -s "$ORPHANF" ] || { cat "$1" >&3; return 1; }
+    ORPHAN=$(cat "$ORPHANF")
+    kill -0 "$ORPHAN"
+}
+
+gone_within() { # <pid> <seconds>
+    local _
+    for _ in $(seq 1 $(( $2 * 20 ))); do kill -0 "$1" 2>/dev/null || return 0; sleep 0.05; done
+    kill -9 "$1" 2>/dev/null
+    return 1
+}
+
+@test "a signal here stops the job's processes in the container, not just the wrapper's group" {
+    job_runner
+    local rc=0
+    orphan_job "$BATS_TEST_TMPDIR/run.out"
+    kill -TERM "$RUNNER"
+    wait "$RUNNER" || rc=$?
+    [ "$rc" -eq 143 ]
+    # Gone before the run returned, not some time later.
+    ! kill -0 "$ORPHAN" 2>/dev/null || { kill -9 "$ORPHAN"; false; }
+    grep -qE "stopped [0-9]+ process\(es\)" "$BATS_TEST_TMPDIR/run.out"
+    no_job_left
+}
+
+@test "a run killed outright leaves its job to the watchdog, which stops it" {
+    job_runner
+    export HELIX_TEST_CLIENT_GONE_SECS=1
+    orphan_job "$BATS_TEST_TMPDIR/run.out"
+    # SIGKILL: no trap runs here, so nothing on this side can stop the job.
+    kill -KILL "$RUNNER"
+    wait "$RUNNER" 2>/dev/null || true
+    gone_within "$ORPHAN" 20
+    for _ in $(seq 1 40); do no_job_left && break; sleep 0.05; done
+    no_job_left
+    grep -qF "the run that started it went away" "$HELIX_TEST_LOCK_DIR"/*.job-*.log
 }
 
 @test "a job whose wrapper dies without a status fails with its own exit code" {

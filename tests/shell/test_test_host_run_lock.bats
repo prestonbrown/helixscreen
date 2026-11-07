@@ -29,6 +29,7 @@ setup() {
     export TMPDIR="$BATS_TEST_TMPDIR"
     export HELIX_TEST_WORKDIR="$BATS_TEST_TMPDIR/work/helixscreen"
     export MOCK_DOCKER_LOG="$BATS_TEST_TMPDIR/docker.log"
+    export HELIX_TEST_WATCHDOG_POLL_SECS=0.2
     # No jobpool on the test host unless a test installs the fake below.
     export HELIX_TEST_JOBPOOL="$BATS_TEST_TMPDIR/no-jobpool"
     # No ZFS on the test host unless a test installs the fake below.
@@ -72,6 +73,13 @@ case "$1" in
     inspect) [ -n "${MOCK_MOUNTS:-}" ] && echo "$MOCK_MOUNTS" ;;
     exec)
         case "$*" in
+            *helix-job-kill*)
+                # Stopping a job: run the container half here, against the
+                # local /proc, so it stops what the job left running.
+                echo "$*" >> "${MOCK_KILL_LOG:-/dev/null}"
+                while [ "$1" != sh ]; do shift; done
+                s=$3; shift 3
+                exec sh -c "$s" "$@" ;;
             *pgrep*)
                 [ -n "${MOCK_PGREP_LOG:-}" ] && echo "$*" >> "$MOCK_PGREP_LOG"
                 if [ -n "${MOCK_PGREP_HITS:-}" ]; then
@@ -183,6 +191,35 @@ wait_for_line() { # <substring> <file>
     [ "$status" -ne 0 ]
     contains "still over its ceiling of 72" "$output"
     [ ! -s "$MOCK_DOCKER_LOG" ]
+}
+
+@test "with no ceiling set, a run waits under four fifths of the host's CPUs" {
+    unset HELIX_TEST_MAX_LOAD
+    export HELIX_TEST_LOAD_WAIT_SECS=0
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    mock_command_script nproc 'echo 72'
+    echo "57.10 50.00 40.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "still over its ceiling of 57" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
+    echo "56.90 50.00 40.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    lacks "waiting" "$output"
+}
+
+@test "the default ceiling is never below 1, and the wait names its override" {
+    unset HELIX_TEST_MAX_LOAD
+    export HELIX_TEST_LOAD_WAIT_SECS=1 HELIX_TEST_LOAD_POLL_SECS=1
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    mock_command_script nproc 'echo 1'
+    mock_command_script sleep ':'
+    echo "1.00 1.00 1.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "ceiling 1; waiting for its one-minute load to fall under 1" "$output"
+    contains "HELIX_TEST_MAX_LOAD=N sets the ceiling, 0 never waits" "$output"
 }
 
 @test "a ceiling of zero never waits, and an unreadable load does not block" {
@@ -442,8 +479,14 @@ exit 0'
     contains "not a clean TSAN result" "$output"
 }
 
+# The jobpool execs the job made, without the watchdog's consumer (sh).
+job_pool_execs() {
+    grep -vx "jobpool exec sh" "$MOCK_JOBPOOL_LOG"
+}
+
 # A jobpool on the test host whose state dir is $BATS_TEST_TMPDIR/mnt/.jobpool. It
-# records exec, and container-env prints a marker naming the dir it was given.
+# records exec and the command it runs, and container-env prints a marker naming
+# the dir it was given.
 fake_jobpool() {
     export HELIX_TEST_JOBPOOL="$BATS_TEST_TMPDIR/fake-jobpool"
     export MOCK_JOBPOOL_LOG="$BATS_TEST_TMPDIR/jobpool.log"
@@ -453,7 +496,7 @@ case "$1" in
     ensure) echo "$BATS_TEST_TMPDIR/mnt/.jobpool/fifo" ;;
     container-env) echo "POOLENV:$2" ;;
     status) echo '{"running":true,"target":30,"available":30}' ;;
-    exec) echo "jobpool exec" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
+    exec) echo "jobpool exec $3" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
     *) exit 2 ;;
 esac
 FAKE
@@ -479,7 +522,7 @@ FAKE
     export MOCK_MOUNTS="$BATS_TEST_TMPDIR/mnt /work"
     run "$SCRIPT" --commit test "it's"
     [ "$status" -eq 0 ]
-    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
     grep -qF "helix-tests it\\'s" "$MOCK_DOCKER_LOG"
 }
 
@@ -496,7 +539,7 @@ case "$1" in
     ensure) echo "$BATS_TEST_TMPDIR/mnt/.jobpool/fifo" ;;
     container-env) echo "exec 3<>$POOL_FIFO 4<>$POOL_FIFO && export MAKEFLAGS=POOLED:$2" ;;
     status) echo '{"running":true,"target":30,"available":30}' ;;
-    exec) echo "jobpool exec" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
+    exec) echo "jobpool exec $3" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
     *) exit 2 ;;
 esac
 FAKE
@@ -530,7 +573,19 @@ exit 0'
     [ "$status" -eq 0 ]
     contains "joining jobpool: target 30" "$output"
     contains "MAKE: unit-sweep NPROCS=96 MAKEFLAGS=POOLED:/work/.jobpool" "$output"
-    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
+}
+
+@test "a pooled job keeps a jobpool consumer for as long as its watchdog lives" {
+    # The daemon refills a pool that has no live consumer; an orphaned make in
+    # the container, which it cannot see, would take every refill.
+    fake_jobpool
+    run_container_job
+    mock_command_script make 'echo "MAKE: $* MAKEFLAGS=${MAKEFLAGS:-}"; sleep 1'
+    run "$SCRIPT" --commit sweep
+    [ "$status" -eq 0 ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
+    grep -qx "jobpool exec sh" "$MOCK_JOBPOOL_LOG"
 }
 
 @test "a container uid that cannot open the FIFO runs with its own -j" {
@@ -710,7 +765,7 @@ exit 0'
     run "$SCRIPT" --commit sweep
     [ "$status" -eq 0 ]
     lacks "background job" "$output"
-    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
     refute_grep "chrt" "$MOCK_DOCKER_LOG"
 }
 
@@ -796,4 +851,46 @@ SYS_FREE=$((64 * 1024 * 1024 * 1024))
     grep -q "mutate abc1234" "$out"
     kill "$holder"; wait "$holder" 2>/dev/null || true
     wait "$runner"
+}
+
+# --- the watchdog, alone ----------------------------------------------------
+
+# A job directory as hold() leaves it, its wrapper a sleep in a group of its own,
+# and the watchdog's functions from the script, run with docker stubbed out.
+watchdog_fixture() { # <heartbeat age in seconds>
+    JOB="$BATS_TEST_TMPDIR/job"
+    mkdir -p "$JOB"
+    setsid sleep 300 < /dev/null > /dev/null 2>&1 &
+    WRAPPER=$!
+    echo "$WRAPPER" > "$JOB/pid"
+    touch -d "-$1 seconds" "$JOB/heartbeat"
+    FUNCS="$BATS_TEST_TMPDIR/watchdog.sh"
+    awk '/^(job_kill|watchdog)_snippet\(\) \{$/ { f = 1; next }
+         f && /^SNIPPET$/ { f = 0 }
+         f && !/^    cat <<.SNIPPET.$/' "$SCRIPT" > "$FUNCS"
+    bash -n "$FUNCS"
+    grep -q "^helix_job_watchdog()" "$FUNCS"
+}
+
+@test "the watchdog stops a job no run has pinged for the client grace" {
+    watchdog_fixture 100
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x /work/none 1 50 30 0.1' _ "$FUNCS" "$JOB"
+    [ "$status" -eq 0 ]
+    ! kill -0 "$WRAPPER" 2>/dev/null || { kill -9 "$WRAPPER"; false; }
+    [ ! -e "$JOB" ]
+    grep -qF "no run has followed it for" "$JOB.log"
+}
+
+@test "the watchdog leaves a job alone while it is pinged, and exits with it" {
+    watchdog_fixture 0
+    bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x /work/none 1 50 30 0.1' _ "$FUNCS" "$JOB" &
+    local wd=$!
+    sleep 1
+    kill -0 "$WRAPPER"
+    kill -0 "$wd"
+    [ ! -e "$JOB/rc" ]
+    echo 0 > "$JOB/rc"
+    for _ in $(seq 1 60); do kill -0 "$wd" 2>/dev/null || break; sleep 0.05; done
+    ! kill -0 "$wd" 2>/dev/null
+    kill "$WRAPPER"
 }

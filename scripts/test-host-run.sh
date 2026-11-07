@@ -26,8 +26,26 @@
 # here (printf %q) and arrives in the container as one argument, so a space,
 # a quote or a semicolon in it is data, never shell.
 #
-# An INT, TERM or HUP to this script stops its job on the test host. A shell
-# without job control (any `zsh -c` or `bash -c`, a script, an agent's tool
+# An INT, TERM or HUP to this script stops its job on the test host, and the
+# script exits only once nothing of the job is left running in the container:
+# every process of a job carries HELIX_TEST_JOB=<its id> in its environment,
+# and the stop sends each one TERM, then KILL after HELIX_TEST_KILL_GRACE_SECS
+# (15). docker exec never stops what it started when its own client dies, so
+# killing the ssh, the docker client or the host-side wrapper alone leaves the
+# build running in the container. A pooled build that outlives its wrapper is
+# also invisible to jobpool, whose leak repair then refills the pool every few
+# seconds while the orphan keeps taking tokens, so it runs many times the
+# pool's size at once.
+#
+# A run killed outright (SIGKILL) cannot stop its job, so a watchdog on the test
+# host does: the run pings its job's log follow every few seconds, and when the
+# pings stop the watchdog stops the job, HELIX_TEST_CLIENT_GONE_SECS (30) after
+# the run's end of the connection closes, or HELIX_TEST_CLIENT_GRACE_SECS
+# (RECONNECT_SECS + 60) after the last ping when the link went silent instead.
+# The watchdog is the job's jobpool consumer as well, so the pool counts the
+# job as holding tokens for as long as any process of it lives.
+#
+# A shell without job control (any `zsh -c` or `bash -c`, a script, an agent's tool
 # call; bash and zsh alike) starts a `&` job with SIGINT ignored, and bash
 # cannot trap a signal it was started ignoring, so INT does nothing to such a
 # run; send TERM. In an interactive shell a background job is outside the
@@ -89,10 +107,12 @@
 # (<parent of HELIX_TEST_TREES>/mutate/<tree>), so two trees mutate at once.
 # Its first run copies the most recently used checkout, build/ included.
 #
-# Every run waits for the host's one-minute load to fall under its thread count
-# before it starts, and refuses after an hour over it. HELIX_TEST_MAX_LOAD names
-# another ceiling, or 0 for no wait. A host whose load cannot be read does not
-# hold a run back.
+# Every run waits for the host's one-minute load to fall under its ceiling
+# before it starts, and refuses after an hour over it. The ceiling is four
+# fifths of the host's logical CPUs (57 on a 72-thread host), which leaves the
+# rest for whoever else uses it; at the full count a run starts on a host that
+# is already saturated. HELIX_TEST_MAX_LOAD names another ceiling, or 0 for no
+# wait. A host whose load cannot be read does not hold a run back.
 #
 # The patched submodules are mirrored as they are on disk, patches applied,
 # not pristine: `make reapply-patches` resets them with git, which a mirror
@@ -153,13 +173,19 @@ SHARD_ARTIFACTS=build/shard-artifacts                    # failing shard logs, m
 # it throws away the run's verdict. ConnectTimeout bounds one that never answers;
 # a slow link raises it with the same setting that lets the host probe wait longer.
 SSH_OPTS=(-o "ConnectTimeout=${HELIX_HOST_PROBE_SECS:-3}" -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
-MAX_LOAD="${HELIX_TEST_MAX_LOAD:-}"                      # empty: the host's thread count; 0: never wait
+MAX_LOAD="${HELIX_TEST_MAX_LOAD:-}"                      # empty: 4/5 of the host's CPUs; 0: never wait
 LOAD_POLL_SECS="${HELIX_TEST_LOAD_POLL_SECS:-60}"        # between load checks on a busy host
 LOAD_WAIT_SECS="${HELIX_TEST_LOAD_WAIT_SECS:-3600}"      # how long a run waits before it refuses
 LOADAVG_FILE="${HELIX_TEST_LOADAVG_FILE:-/proc/loadavg}" # on the test host
 ORPHAN_POLL_SECS="${HELIX_TEST_ORPHAN_POLL_SECS:-30}"    # how often to re-check an orphaned build
 RECONNECT_SECS="${HELIX_TEST_RECONNECT_SECS:-900}"       # how long a dropped job follow keeps reconnecting
 RECONNECT_PAUSE_SECS="${HELIX_TEST_RECONNECT_PAUSE_SECS:-5}"  # between reconnect attempts
+KILL_GRACE_SECS="${HELIX_TEST_KILL_GRACE_SECS:-15}"      # TERM to KILL, stopping a job's processes
+CLIENT_GRACE_SECS="${HELIX_TEST_CLIENT_GRACE_SECS:-$((RECONNECT_SECS + 60))}"  # no ping this long: stop the job
+CLIENT_GONE_SECS="${HELIX_TEST_CLIENT_GONE_SECS:-30}"    # the run's connection closed this long ago: stop the job
+WATCHDOG_POLL_SECS="${HELIX_TEST_WATCHDOG_POLL_SECS:-5}" # how often the watchdog looks
+PING_SECS=2                                              # between the run's pings to its follow
+MAIN_PID=$$
 
 # --probe: offloading pays when the test host is on the LAN, or when the bytes
 # this run would send cross the link in under PROBE_MAX_SYNC_SECS.
@@ -605,6 +631,97 @@ clone_mutate_checkout() {
         { echo "✗ could not clone $RUNDIR on $HOST" >&2; return 1; }
 }
 
+# The remote snippet defining helix_job_kill, the one way anything stops a
+# job's processes in the container: cancel_job, the job's own exit, and the
+# watchdog. A process belongs to the job when its environment carries
+# HELIX_TEST_JOB=<tag> (every docker exec of the job passes it, and every child
+# inherits it), or when its cwd is in the job's directory or in a mutate worker
+# copy beside it (<parent>/.<name>.mutate-w<i>). Each gets TERM once, so make
+# deletes the target it was writing and mutate_diff.py restores its tree; what
+# is left after <grace> seconds gets KILL. It returns once none is left, or
+# fails after <grace> + 10 seconds naming the survivors. A zombie has no
+# environment and no cwd, so it never counts. No single quote: the container
+# half is itself single-quoted.
+job_kill_snippet() {
+    cat <<'SNIPPET'
+helix_job_kill() { # <container> <tag> <dir> <grace>
+    sudo -n docker exec -w / "$1" sh -c '
+tag=$1 dir=$2 grace=$3 w="${2%/*}/.${2##*/}.mutate-w"
+pids() {
+    { grep -lzx "HELIX_TEST_JOB=$tag" /proc/[0-9]*/environ 2>/dev/null | cut -d/ -f3
+      find /proc/[0-9]*/cwd -maxdepth 0 \( -lname "$dir" -o -lname "$dir/*" -o -lname "$w*" \) 2>/dev/null | cut -d/ -f3
+    } | sort -un
+}
+sent=" " t=0 n=0
+while p=$(pids) && [ -n "$p" ]; do
+    for i in $p; do
+        if [ "$t" -ge "$grace" ]; then kill -KILL "$i" 2>/dev/null
+        else case "$sent" in *" $i "*) ;; *) kill -TERM "$i" 2>/dev/null; sent="$sent$i "; n=$((n + 1)) ;; esac
+        fi
+    done
+    if [ "$t" -ge $((grace + 10)) ]; then echo "✗ still running in the container after ${t}s:" $p >&2; exit 1; fi
+    sleep 1; t=$((t + 1))
+done
+[ "$n" -eq 0 ] || echo "→ stopped $n process(es) of $tag in the container"
+' helix-job-kill "$2" "$3" "$4"
+}
+SNIPPET
+}
+
+# The remote snippet defining helix_job_watchdog, which runs on the test host
+# beside every job, outside the job's process group, until the job is over:
+#   - the job wrapper writes its status, or the job directory is collected or
+#     cancelled: it makes sure nothing of the job is left, and exits;
+#   - the wrapper dies without a status (killed): it stops what the wrapper
+#     left in the container;
+#   - no run follows the job any more: it stops the job and removes its
+#     directory, keeping the log beside it as <job dir>.log. That run has
+#     given up reconnecting by then, so nobody else would collect it.
+# Once the job writes <job>/pooled (the host's jobpool, when it joined the
+# pool), the watchdog keeps a jobpool consumer registered for as long as it
+# lives itself, which is until no process of the job is left: the daemon's
+# leak repair refills the pool whenever it sees no live consumer, and an
+# orphaned make in the container, which it cannot see, would take every refill.
+# A following run pings its connection every PING_SECS; the follow touches
+# <job>/heartbeat for each ping and writes the time to <job>/client-gone when
+# the connection's input closes, which is the run going away. A link that goes
+# silent closes nothing, so that case waits <client grace>, long enough for the
+# run's own reconnects to come back.
+watchdog_snippet() {
+    cat <<'SNIPPET'
+helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client grace> <gone grace> <poll>
+    local job=$1 ctr=$2 tag=$3 dir=$4 kg=$5 cg=$6 gg=$7 poll=$8 pid now hb gone why anchor=""
+    while sleep "$poll"; do
+        if [ -z "$anchor" ] && [ -s "$job/pooled" ]; then
+            "$(cat "$job/pooled")" exec -- sh -c 'while kill -0 "$0" 2>/dev/null; do sleep 1; done' "$$" \
+                < /dev/null > /dev/null 2>&1 &
+            anchor=$!
+        fi
+        [ -d "$job" ] && [ ! -e "$job/rc" ] || break
+        pid=$(cat "$job/pid" 2>/dev/null) || continue
+        kill -0 "$pid" 2>/dev/null || break
+        now=$(date +%s)
+        hb=$(stat -c %Y "$job/heartbeat" 2>/dev/null) || hb=$now
+        gone=$(cat "$job/client-gone" 2>/dev/null) || gone=0
+        why=""
+        if [ $((now - hb)) -ge "$cg" ]; then
+            why="no run has followed it for $((now - hb))s"
+        elif [ "$gone" -ge "$hb" ] && [ $((now - gone)) -ge "$gg" ]; then
+            why="the run that started it went away $((now - gone))s ago"
+        fi
+        [ -n "$why" ] || continue
+        echo "✗ test-host watchdog ($(date '+%F %T')): $why; stopping the job" >> "$job/log"
+        helix_job_kill "$ctr" "$tag" "$dir" "$kg" >> "$job/log" 2>&1
+        kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null
+        mv -f "$job/log" "$job.log" 2>/dev/null
+        rm -rf "$job"
+        return 0
+    done
+    helix_job_kill "$ctr" "$tag" "$dir" "$kg" > /dev/null 2>&1
+}
+SNIPPET
+}
+
 # Takes the lock named <name> on the test host and holds it until this script exits:
 # the holder is a remote shell that waits for its stdin to close, which happens
 # when this process ends, however it ends. The lock has to cover the sync and
@@ -650,11 +767,14 @@ printf 'held by pid %s: %s since %s\n' "\$\$" "$3" "\$(date '+%F %T')" >&9
 ( while [ "\$(cat "\$ATTEMPT" 2>/dev/null)" = $attempt ]; do kill -0 \$\$ 2>/dev/null || exit 0; sleep 1; done; kill \$\$ ) 9>&- </dev/null >/dev/null 2>&1 &
 _watch=\$!
 echo LOCKED
+$(job_kill_snippet)
+$(watchdog_snippet)
 hold() {
     if read -r _kw _b64 && [ "\$_kw" = JOB ]; then
         kill \$_watch 2>/dev/null || true
         printf '%s' "\$_b64" | base64 -d > "$JOB_DIR/script"
         _s=""; ! command -v setsid >/dev/null 2>&1 || _s=setsid
+        touch "$JOB_DIR/heartbeat"
         # The wrapper keeps fd 9 until the job's status is written; the job's
         # own processes get none of it, so nothing they leave behind (a
         # daemon) can hold the tree.
@@ -663,6 +783,13 @@ hold() {
         (
             nohup \$_s bash -c 'bash "\$0/script" 9>&- > "\$0/log" 2>&1; echo \$? > "\$0/rc.new"; mv "\$0/rc.new" "\$0/rc"' "$JOB_DIR" < /dev/null > /dev/null 2>&1 &
             echo \$! > "$JOB_DIR/pid"
+        )
+        # The watchdog runs in a session of its own, so nothing that kills the
+        # job's group kills it.
+        (
+            nohup \$_s bash -c "\$(declare -f helix_job_kill helix_job_watchdog)"'; helix_job_watchdog "\$@"' _ \
+                "$JOB_DIR" "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS $CLIENT_GRACE_SECS $CLIENT_GONE_SECS $WATCHDOG_POLL_SECS \
+                9>&- < /dev/null > /dev/null 2>&1 &
         )
         echo STARTED
     fi
@@ -706,6 +833,16 @@ LOCK
 # An INT, TERM or HUP here stops the job there (cancel_job); a dropped link
 # does not.
 JOB_LOST_RC=254
+
+# A line every PING_SECS while this script lives; run_detached's follow reads
+# them. It exits once this script is gone, however it went.
+client_pings() {
+    while kill -0 "$MAIN_PID" 2>/dev/null; do
+        echo || return 0
+        sleep "$PING_SECS"
+    done
+}
+
 run_detached() {
     local copy="${TMPDIR:-/tmp}/test-host-follow.$$" got rc status down_since="" phase=follow line
     printf 'JOB %s\n' "$(base64 | tr -d '\n')" >&"${LOCKER[1]}"
@@ -732,8 +869,10 @@ run_detached() {
             # link prints nothing to fail on while the job is silent, so it
             # exits once the job's directory is collected. It runs in the
             # background so that a signal here is handled at once.
-            # shellcheck disable=SC2087
-            (ssh "${SSH_OPTS[@]}" "$HOST" bash -s <<FOLLOW | tee -a "$copy" "$LOG") &
+            # Its input is the script, then a ping every PING_SECS for as
+            # long as this process lives (client_pings): bash reads a script
+            # from a pipe a byte at a time, so the loop's read gets the pings.
+            follow=$(cat <<FOLLOW
 cd "$JOB_DIR" || exit 3
 off=$got
 while :; do
@@ -745,9 +884,22 @@ while :; do
     if [ "\$size" -gt "\$off" ]; then tail -c +\$((off + 1)) log | head -c \$((size - off)); off=\$size; fi
     [ "\$fin" = 0 ] || exit 0
     if [ "\$alive" = 0 ]; then sleep 1; [ -e rc ] || exit 4; fi
-    sleep 1
+    # A ping is the run still following (the watchdog reads heartbeat); the
+    # input closing is the run gone (client-gone), so nobody reads this.
+    if IFS= read -r -t 1 _ping; then
+        touch heartbeat
+    elif [ \$? -le 128 ]; then
+        date +%s > client-gone
+        exit 5
+    fi
 done
 FOLLOW
+)
+            (
+                set +e
+                ssh "${SSH_OPTS[@]}" "$HOST" bash -s < <({ printf '%s\n' "$follow"; client_pings; } 2>/dev/null) | tee -a "$copy" "$LOG"
+                exit "${PIPESTATUS[0]}"
+            ) &
             wait $! || rc=$?
             [ "$rc" -ne 0 ] || { phase=status; continue; }
         else
@@ -786,20 +938,22 @@ STATUS
 }
 
 # Stops the job run_detached started, as a signal here asks: whatever runs in
-# the container with its cwd in the run's directory, then the wrapper's
-# process group on the host, then its directory. Best effort: an unreachable
-# host leaves the job running, and says so.
+# the container (helix_job_kill), then the wrapper's process group on the
+# host, then its directory. An unreachable host leaves the job to its
+# watchdog there, and says so.
 cancel_job() { # <signal number> <follow copy>
     trap - INT TERM HUP
     echo "→ interrupted: stopping the job on $HOST" >&2
+    # The container goes first, and the wrapper's group (which holds the job's
+    # jobpool consumer) only once nothing is left there.
     # shellcheck disable=SC2016  # the snippet runs on the host
-    ssh "${SSH_OPTS[@]}" "$HOST" bash -s -- "$JOB_DIR" "$CONTAINER" "$RUNDIR" <<'CANCEL' ||
-job=$1 ctr=$2 dir=$3
-sudo -n docker exec -w / "$ctr" sh -c 'for d in /proc/[0-9]*; do case "$(readlink "$d/cwd")" in "$0"|"$0"/*) kill -TERM "${d#/proc/}" 2>/dev/null ;; esac; done' "$dir" 2>/dev/null || true
+    { job_kill_snippet; cat <<'CANCEL'; } | ssh "${SSH_OPTS[@]}" "$HOST" bash -s -- "$JOB_DIR" "$CONTAINER" "$RUNDIR" "$JOB_TAG" "$KILL_GRACE_SECS" ||
+job=$1 ctr=$2 dir=$3 tag=$4 grace=$5
+helix_job_kill "$ctr" "$tag" "$dir" "$grace" || true
 p=$(cat "$job/pid" 2>/dev/null) && { kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; }
 rm -rf "$job"
 CANCEL
-        echo "✗ could not reach $HOST to stop the job; it keeps running there: $JOB_DIR" >&2
+        echo "✗ could not reach $HOST to stop the job; its watchdog there stops it within ${CLIENT_GRACE_SECS}s: $JOB_DIR" >&2
     rm -f "$2"
     exit $((128 + $1))
 }
@@ -815,6 +969,13 @@ now_ns() {
     esac
 }
 
+# The default load ceiling for a host with <cpus> logical CPUs: four fifths of
+# them, at least 1.
+default_load_ceiling() { # <cpus>
+    local c=$(( $1 * 4 / 5 ))
+    echo $(( c > 0 ? c : 1 ))
+}
+
 # Prints "<one-minute load, whole part> <ceiling>" for the test host, or nothing
 # when either cannot be read.
 host_load() {
@@ -827,7 +988,12 @@ REMOTE
     ) || return 0
     load=$(printf "%s\\n" "$out" | sed -n 1p)
     load=${load%%.*}
-    ceiling=${MAX_LOAD:-$(printf "%s\\n" "$out" | sed -n 2p)}
+    ceiling=$MAX_LOAD
+    if [ -z "$ceiling" ]; then
+        ceiling=$(printf "%s\\n" "$out" | sed -n 2p)
+        case "$ceiling" in "" | *[!0-9]*) return 0 ;; esac
+        ceiling=$(default_load_ceiling "$ceiling")
+    fi
     case "$load$ceiling" in "" | *[!0-9]*) return 0 ;; esac
     if [ -n "$load" ] && [ -n "$ceiling" ]; then echo "$load $ceiling"; fi
 }
@@ -847,7 +1013,8 @@ wait_for_load() {
             echo "✗ $HOST load $load is still over its ceiling of $ceiling after ${waited}s; not starting" >&2
             exit 1
         fi
-        [ $((polls % 10)) -eq 0 ] && echo "→ $HOST load $load, ceiling $ceiling; waiting" >&2
+        [ $((polls % 10)) -eq 0 ] &&
+            echo "→ $HOST load $load, ceiling $ceiling; waiting for its one-minute load to fall under $ceiling (up to $((LOAD_WAIT_SECS / 60))m; HELIX_TEST_MAX_LOAD=N sets the ceiling, 0 never waits)" >&2
         sleep "$LOAD_POLL_SECS"
         waited=$((waited + LOAD_POLL_SECS))
         polls=$((polls + 1))
@@ -1065,6 +1232,7 @@ esac
 
 LOG="${TMPDIR:-/tmp}/test-host-$WHAT-$LABEL.log"
 JOB_DIR="$LOCK_DIR/$LOCK_PREFIX.job-$LABEL.$$"           # on the test host: the detached job's script, log and status
+JOB_TAG=${JOB_DIR##*/}                                   # HELIX_TEST_JOB in every process of the job
 
 # The remote shell reads CMD inside single quotes; each ' in it (from a %q-quoted
 # argument) closes and reopens them around an escaped quote.
@@ -1136,6 +1304,13 @@ fi
 # that has to stay server-side ($1 in D) is escaped.
 run_detached <<REMOTE
 set -euo pipefail
+$(job_kill_snippet)
+# However this script ends, nothing of the job stays running in the container.
+# A signal is turned into an exit so the EXIT trap runs for it too.
+trap 'helix_job_kill "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS || true' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 echo "→ $PROVENANCE"
 # What a later tree's first run reads to pick the nearest mirror to seed from.
 [ "$MODE" != mirror ] || printf '%s\n' "$SHA" | sudo -n tee "$TREES_HOST/$TREE/$HEAD_FILE" >/dev/null
@@ -1168,6 +1343,8 @@ if [ "$YIELD" = 1 ] && [ -n "\$POOL_ENV" ]; then
 else
     YIELD_UNPOOLED=0
 fi
+# Tells the watchdog to hold a pool consumer for the job's whole life.
+[ -z "\$POOL_ENV" ] || echo "\$JP" > "$JOB_DIR/pooled"
 
 # Without a pool, -j comes from MemAvailable at start, which only holds while
 # this is the only run allocating: runs of different trees take turns then.
@@ -1228,7 +1405,7 @@ else
     echo "→ \$(( _avail_kb / 1048576 ))GB available to $CONTAINER, using -j\$HELIX_J"
 fi
 
-D() { sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG="\$HELIX_JFLAG" "$CONTAINER" bash -lc "\$1"; }
+D() { sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e HELIX_TEST_JOB="$JOB_TAG" -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG="\$HELIX_JFLAG" "$CONTAINER" bash -lc "\$1"; }
 
 $(ccache_shared "$RUNDIR")
 
@@ -1272,7 +1449,7 @@ if [ -n "\$POOL_ENV" ]; then
     # build; inside, the container opens the FIFO and exports MAKEFLAGS. The
     # FIFO is mode 600, so a container uid that is not root (or is a remapped
     # root) cannot open it; that run takes its own -j instead.
-    "\$JP" exec -- sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG= "$CONTAINER" bash -lc \
+    "\$JP" exec -- sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e HELIX_TEST_JOB="$JOB_TAG" -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG= "$CONTAINER" bash -lc \
         "if { \$POOL_ENV; } 2>/dev/null; then :; else "'echo "→ uid \$(id -u) cannot open the jobpool FIFO; using -j\$HELIX_J"; HELIX_JFLAG=-j\$HELIX_J; fi; $CMD_SQ 2>&1'
 else
     D '$CMD_SQ 2>&1'
