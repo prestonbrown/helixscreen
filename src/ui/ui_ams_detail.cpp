@@ -1180,6 +1180,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     case MenuAction::CLEAR_SPOOL:
     case MenuAction::MOUNT:
     case MenuAction::PARK:
+    case MenuAction::CLEAR_FAULT:
         break;
     default:
         return false; // caller's own switch owns it
@@ -1223,6 +1224,14 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         AmsError error = backend->recover_lane_position(slot);
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Recovery failed"));
+        }
+        break;
+    }
+
+    case MenuAction::CLEAR_FAULT: {
+        AmsError error = backend->clear_fault(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Clear failed"));
         }
         break;
     }

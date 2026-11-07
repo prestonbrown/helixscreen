@@ -724,6 +724,7 @@
   <translation tag="Clear All" ja="すべてクリア"/>
   <translation tag="Clear All Events" ja="すべてのイベントをクリア"/>
   <translation tag="Clear Console?" ja="コンソールをクリアしますか？"/>
+  <translation tag="Clear Error" ja="エラーをクリア"/>
   <translation tag="Clear Spool" ja="スプールを解除"/>
   <translation tag="Clear every Endless Spool backup" ja="エンドレススプールの予備をすべて消去"/>
   <translation tag="Clear extruder only" ja="エクストルーダーだけを空にする"/>

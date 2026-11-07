@@ -724,6 +724,7 @@
   <translation tag="Clear All" fr="Tout effacer"/>
   <translation tag="Clear All Events" fr="Effacer tous les événements"/>
   <translation tag="Clear Console?" fr="Effacer la console ?"/>
+  <translation tag="Clear Error" fr="Effacer l&apos;erreur"/>
   <translation tag="Clear Spool" fr="Retirer la bobine"/>
   <translation tag="Clear every Endless Spool backup" fr="Effacer toutes les réserves de la bobine infinie"/>
   <translation tag="Clear extruder only" fr="Vider l&apos;extrudeur seulement"/>

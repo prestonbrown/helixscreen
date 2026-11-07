@@ -762,6 +762,18 @@ actually two unrelated operations that happened to share one name:
   the live `AFC_hub.<hub>.state` field — **not** `AFC_stepper.<lane>.loaded_to_hub`,
   which is latched once at prep time and never updated afterward, so it cannot be
   used as a hub-occupancy signal.
+- **A successful lane reset ends with a fault clear.** `AFC_LANE_RESET` leaves
+  `error_state`, `current_state: Error` and the lane's `status: Error` in place, so with
+  the error dialog already closed nothing would clear them (prestonbrown/helixscreen#2049).
+  Success and failure both return the script normally; the verdict is the console line
+  `<lane> reset to hub, take necessary action` (failures quote the lane:
+  `'<lane>' failed to reset to hub`). `recover_lane_position()` watches
+  `notify_gcode_response` while the reset runs, and on that line, if AFC still reports
+  `error_state` with `current_lane` naming the reset lane, calls `clear_fault()`.
+- **Clear Error on the lane menu.** `has_clearable_fault(slot_index)` is true while
+  `error_state` is set and the lane is the one `current_lane` names or carries its own
+  `status: Error`, and no lane reset is in flight. The lane context menu then offers
+  Clear Error, which calls `clear_fault()`.
 
 Separately, **Reset** (`reset()`) and **Recover** (`recover()`) both send `AFC_RESET`
 today — `reset()` after the usual busy-state preconditions, `recover()` skipping them

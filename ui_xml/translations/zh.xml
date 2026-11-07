@@ -724,6 +724,7 @@
   <translation tag="Clear All" zh="全部清除"/>
   <translation tag="Clear All Events" zh="清除所有事件"/>
   <translation tag="Clear Console?" zh="清空控制台？"/>
+  <translation tag="Clear Error" zh="清除错误"/>
   <translation tag="Clear Spool" zh="移除料盘"/>
   <translation tag="Clear every Endless Spool backup" zh="清除所有无限料盘备用设置"/>
   <translation tag="Clear extruder only" zh="只清空挤出机"/>
