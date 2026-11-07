@@ -127,6 +127,8 @@ class ActivePrintMediaManager {
     void publish_thumbnail(const std::string& for_file, const std::string& path);
 
     void process_filename(const char* raw_filename);
+    /// Show a print whose file has no name yet: no display name, the placeholder.
+    void publish_unknown_identity();
     void load_thumbnail_for_file(const std::string& filename);
     void clear_print_info();
 

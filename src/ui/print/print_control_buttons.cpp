@@ -80,7 +80,10 @@ void PrintControlButtons::init_subjects() {
     // would re-evaluate for the entire window.
     print_lifecycle_observer_ = observe<int>(
         get_printer_state().print_state().get_print_lifecycle_subject(), this,
-        [](PrintControlButtons* self, int) { self->recompute(); },
+        [](PrintControlButtons* self, int) {
+            self->settle_printer_start_cancel();
+            self->recompute();
+        },
         get_printer_state().get_subjects_lifetime());
 
     // A Requested cancel goes out when the start answers, or is dropped when
@@ -314,6 +317,7 @@ void PrintControlButtons::request_sent_start_cancel() {
     const bool printer_started = !ps.has_preparing_job() && ps.printer_side_pre_start();
     if (start == helix::PreparingStart::Accepted || start == helix::PreparingStart::Unanswered ||
         printer_started) {
+        cancel_for_printer_start_ = printer_started;
         send_cancel();
         return;
     }
@@ -350,6 +354,15 @@ void PrintControlButtons::send_cancel() {
                 }
                 spdlog::info("[PrintControl] Printer answered the cancel");
                 self.cancel_state_ = CancelState::Answered;
+                // RAW_PRINT_STATE_OK: before a printer-announced start's file
+                // opens, the terminal state print_stats holds is the previous
+                // job's, not an answer about this one.
+                if (self.cancel_for_printer_start_ &&
+                    !helix::printer_has_job(
+                        get_printer_state().print_state().get_print_job_state())) {
+                    self.settle_printer_start_cancel();
+                    return;
+                }
                 // The start answered before this cancel went out, so the
                 // cancel ran on our job. A state already terminal will not
                 // transition again to tell us.
@@ -471,6 +484,19 @@ void PrintControlButtons::settle_cancel_from_job_state(helix::PrintJobState job_
     }
 }
 
+void PrintControlButtons::settle_printer_start_cancel() {
+    if (cancel_state_ != CancelState::Answered || !cancel_for_printer_start_) {
+        return;
+    }
+    auto& ps = get_printer_state().print_state();
+    // RAW_PRINT_STATE_OK: a job on the printer is settled by its own state.
+    if (ps.printer_side_pre_start() || helix::printer_has_job(ps.get_print_job_state())) {
+        return;
+    }
+    spdlog::info("[PrintControl] The printer-announced start ended before its file opened");
+    clear_cancel();
+}
+
 void PrintControlButtons::settle_ended_by_printer() {
     auto& ps = get_printer_state().print_state();
     // Its terminal state reaches the completion observer, which reports it
@@ -522,6 +548,7 @@ void PrintControlButtons::reset_cancel() {
     cancel_state_ = CancelState::Idle;
     cancel_epoch_ = 0;
     cancel_lost_ = false;
+    cancel_for_printer_start_ = false;
 }
 
 void PrintControlButtons::cancel_confirm_timer() {

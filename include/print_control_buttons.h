@@ -145,6 +145,10 @@ class PrintControlButtons {
     void settle_cancel_from_job_state(helix::PrintJobState job_state);
     /// The printer ended our job: retire it if it is still ours, then reset.
     void settle_ended_by_printer();
+    /// An answered cancel of a printer-announced start ends with that start:
+    /// the printer took the job (settle_cancel_from_job_state()), or the run
+    /// stopped while the printer held none.
+    void settle_printer_start_cancel();
     void on_cancel_confirm_timeout();
     /// Start the kCancelConfirmMs judgement of a printer still holding the job.
     void arm_cancel_confirm();
@@ -182,6 +186,8 @@ class PrintControlButtons {
     /// The cancel's answer was lost: the printer holding the job is then
     /// judged like an answered cancel.
     bool cancel_lost_ = false;
+    /// The cancel went to a start the printer announced, with no job of ours.
+    bool cancel_for_printer_start_ = false;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};

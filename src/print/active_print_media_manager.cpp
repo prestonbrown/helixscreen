@@ -149,6 +149,13 @@ ActivePrintMediaManager::ActivePrintMediaManager(PrinterState& printer_state)
                 return;
             }
             self->identity_unknown_ = unknown;
+            if (unknown) {
+                // Not through process_filename(): after a Klipper restart the
+                // reported filename is empty, which it answers by keeping the
+                // last job on screen.
+                self->publish_unknown_identity();
+                return;
+            }
             self->process_filename(lv_subject_get_string(ps.get_print_filename_subject()));
         },
         printer_state_.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
@@ -354,6 +361,17 @@ void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
 #endif
 }
 
+void ActivePrintMediaManager::publish_unknown_identity() {
+    // A print with no name yet: nothing of the previous job's may show, and
+    // whatever file it turns out to be loads afresh.
+    last_effective_filename_.clear();
+    last_loaded_thumbnail_filename_.clear();
+    PrinterState* state = &printer_state_;
+    helix::ui::queue_update("ActivePrintMediaManager::publish_unknown_identity",
+                            [state]() { state->print_state().set_print_display_filename(""); });
+    publish_thumbnail("", no_thumbnail_placeholder());
+}
+
 void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     // Empty filename means print ended or idle - DON'T clear immediately
     // The thumbnail/metadata should persist so the user can see what was printing
@@ -398,10 +416,7 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
         [state](std::string* name) { state->print_state().set_print_display_filename(*name); });
 
     if (effective_filename.empty()) {
-        // A print with no name yet: nothing of the previous job's may show,
-        // and whatever file it turns out to be loads afresh.
-        publish_thumbnail(effective_filename, no_thumbnail_placeholder());
-        last_loaded_thumbnail_filename_.clear();
+        publish_unknown_identity();
         return;
     }
 
