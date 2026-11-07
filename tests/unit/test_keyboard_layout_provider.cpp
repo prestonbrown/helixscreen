@@ -325,7 +325,6 @@ TEST_CASE("Keyboard Layout: Numbers and symbols - structure", "[ui][layout][numb
     }
 
     SECTION("Contains punctuation") {
-        REQUIRE(button_exists(map, "."));
         REQUIRE(button_exists(map, ","));
         REQUIRE(button_exists(map, "?"));
         REQUIRE(button_exists(map, "!"));
@@ -339,6 +338,25 @@ TEST_CASE("Keyboard Layout: Numbers and symbols - structure", "[ui][layout][numb
 
     SECTION("Contains backspace") {
         REQUIRE(button_exists(map, ICON_BACKSPACE));
+    }
+
+    SECTION("One period and one underscore, the underscore beside the spacebar") {
+        size_t periods = 0;
+        size_t underscores = 0;
+        for (size_t i = 0; map[i][0] != '\0'; i++) {
+            periods += strcmp(map[i], ".") == 0 ? 1 : 0;
+            underscores += strcmp(map[i], "_") == 0 ? 1 : 0;
+        }
+        CHECK(periods == 1);
+        CHECK(underscores == 1);
+
+        int space = find_button_index(map, keyboard_layout_get_spacebar_text());
+        int underscore = find_button_index(map, "_");
+        REQUIRE(space >= 0);
+        CHECK(underscore == space + 1);
+        REQUIRE(underscore >= 0);
+        CHECK(has_flag(ctrl_map[underscore], LV_BUTTONMATRIX_CTRL_POPOVER));
+        CHECK(has_flag(ctrl_map[underscore], LV_BUTTONMATRIX_CTRL_NO_REPEAT));
     }
 }
 

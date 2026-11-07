@@ -241,8 +241,8 @@ static const char* const kb_map_numbers_symbols[] = {
     "-", "/", ":", ";", "(", ")", "$", "&", "@", "*", "\n",
     // Row 3: #+= + punctuation + Backspace (matches alpha row 3 structure)
     "#+=", ".", ",", "?", "!", "\"", ICON_BACKSPACE, "\n",
-    // Row 4: XYZ + CLOSE + COMMA + SPACEBAR + PERIOD + ENTER
-    "XYZ", ICON_KEYBOARD_CLOSE, ",", SPACEBAR_TEXT, ".", ICON_KEYBOARD_RETURN, ""};
+    // Row 4: XYZ + CLOSE + COMMA + SPACEBAR + UNDERSCORE + ENTER (row 3 holds the period)
+    "XYZ", ICON_KEYBOARD_CLOSE, ",", SPACEBAR_TEXT, "_", ICON_KEYBOARD_RETURN, ""};
 
 static const lv_buttonmatrix_ctrl_t kb_ctrl_numbers_symbols[] = {
     // Row 1: Numbers 1-0 (10 keys, equal width 4)
@@ -302,7 +302,7 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_numbers_symbols[] = {
                                         LV_BUTTONMATRIX_CTRL_NO_REPEAT | 4), // "
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
                                         LV_BUTTONMATRIX_CTRL_CUSTOM_1 | 6), // Backspace
-    // Row 4: XYZ + CLOSE + COMMA + SPACEBAR + PERIOD + ENTER
+    // Row 4: XYZ + CLOSE + COMMA + SPACEBAR + UNDERSCORE + ENTER
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
                                         LV_BUTTONMATRIX_CTRL_CUSTOM_1 | 2), // XYZ
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
@@ -312,7 +312,7 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_numbers_symbols[] = {
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
                                         12), // SPACEBAR - NO CUSTOM_1
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER |
-                                        LV_BUTTONMATRIX_CTRL_NO_REPEAT | 2), // Period
+                                        LV_BUTTONMATRIX_CTRL_NO_REPEAT | 2), // Underscore
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
                                         LV_BUTTONMATRIX_CTRL_CUSTOM_1 | 3) // Enter
 };
