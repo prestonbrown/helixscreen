@@ -500,16 +500,20 @@ DATA_CONSUMERS_MAP = 'scripts/mutate_data_consumers.tsv'
 
 
 def parse_data_consumers(text):
-    """[(glob, source, evidence)] from the consumer map's text; ValueError on a
-    row without all three tab-separated fields."""
+    """[(glob, source, evidence, names)] from the consumer map's text; ValueError
+    on a row without glob, source and evidence. `names` is the optional fourth
+    field split on commas, () when absent."""
     out = []
     for n, line in enumerate(text.splitlines(), 1):
         if not line.strip() or line.lstrip().startswith('#'):
             continue
         fields = [f.strip() for f in line.split('\t')]
-        if len(fields) != 3 or not all(fields):
-            raise ValueError(f'{DATA_CONSUMERS_MAP}:{n}: expected glob<TAB>source<TAB>evidence')
-        out.append(tuple(fields))
+        if len(fields) not in (3, 4) or not all(fields):
+            raise ValueError(f'{DATA_CONSUMERS_MAP}:{n}: expected '
+                             'glob<TAB>source<TAB>evidence[<TAB>names]')
+        names = tuple(x.strip() for x in fields[3].split(',') if x.strip()) \
+            if len(fields) == 4 else ()
+        out.append((fields[0], fields[1], fields[2], names))
     return out
 
 
@@ -520,11 +524,22 @@ def load_data_consumers(root):
 
 
 def data_consumers(path, rows):
-    """The sources the map says read `path`, in map order."""
+    """The sources whose reach_names judge `path`: those of its rows that name no
+    reach of their own, in map order."""
     out = []
-    for glob, source, _evidence in rows:
-        if fnmatch(path, glob) and source not in out:
+    for glob, source, _evidence, names in rows:
+        if fnmatch(path, glob) and not names and source not in out:
             out.append(source)
+    return out
+
+
+def data_names(path, rows):
+    """The words `path`'s rows name in place of their source's reach_names: a
+    loader narrower than the file that holds it."""
+    out = []
+    for glob, _source, _evidence, names in rows:
+        if fnmatch(path, glob):
+            out += [n for n in names if n not in out]
     return out
 
 
@@ -591,14 +606,16 @@ def reach_names(path, source_text=''):
 
 
 def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text='',
-                      consumers=()):
+                      consumers=(), extra_names=()):
     """`[#test_a]~[.]~[slow],...` for the test files naming any of `path`'s
-    reach_names, or those of a `consumers` (source, text) pair that reads it, or ''.
+    reach_names, those of a `consumers` (source, text) pair that reads it, or one
+    of `extra_names`, or ''.
 
     Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. Names under four characters
     say nothing and are skipped. A stem more than `max_files` files name is a
-    common word, and the answer is ''. The header and class a source implements
+    common word: the answer is '', unless consumers or extra_names give a reach,
+    which then stands alone. The header and class a source implements
     may bring the total up to AUTO_TESTS_MAX_REACHED (or `max_files`, if larger);
     past that the answer is '' too: a filter missing some of the file's tests
     reports their kills as survivors, so the whole --tests judges it instead.
@@ -606,6 +623,7 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
     names = reach_names(path, source_text)
     for source, text in consumers:
         names += [n for n in reach_names(source, text) if n not in names]
+    names += [n for n in extra_names if n not in names]
     hits = set()
     for i, name in enumerate(names):
         if len(name) < 4:
@@ -613,7 +631,10 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
         word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
         hits.update(t for t, text in test_sources.items() if word.search(text))
         if i == 0 and len(hits) > max_files:
-            return ''
+            if not (consumers or extra_names):
+                return ''
+            # The map's declared reach is the evidence a common stem is not.
+            hits = set()
     if not hits or len(hits) > max(max_files, AUTO_TESTS_MAX_REACHED):
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
@@ -676,14 +697,15 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
 
 
 def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES,
-               source_text='', consumers=()):
+               source_text='', consumers=(), extra_names=()):
     """(filter, why) for one changed file, whose text is `source_text`, read by
     the `consumers` (source, text) pairs."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources, max_files, source_text, consumers)
+        filt = auto_tests_filter(path, test_sources, max_files, source_text, consumers,
+                                 extra_names)
         if filt:
             return filt, AUTO_TESTS_WHY
     return default, '--tests'
@@ -3854,7 +3876,8 @@ def main():
             consumers = [(c, read_or_empty(root / c))
                          for c in data_consumers(path, consumer_rows)]
             filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
-                                            args.auto_tests_max, text, consumers)
+                                            args.auto_tests_max, text, consumers,
+                                            data_names(path, consumer_rows))
             # No script suite in the key: a C++ file sharing a group with a
             # script nothing names would pay the whole bats suite's baseline.
             key_of[path] = (filt, '', '')

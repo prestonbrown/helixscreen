@@ -1223,6 +1223,32 @@ def test_data_consumers_follow_the_map_globs():
     assert md.data_consumers("assets/config/other.json", rows) == []
 
 
+def test_a_row_naming_its_reach_replaces_the_sources_own():
+    rows = md.parse_data_consumers(
+        "assets/config/presets/*.json\tsrc/system/config.cpp\t\"presets/\"\t"
+        "apply_preset_file, config/presets\n"
+        "assets/config/presets/*.json\tsrc/other.cpp\tpresets\n")
+    path = "assets/config/presets/k1.json"
+    assert md.data_consumers(path, rows) == ["src/other.cpp"]
+    assert md.data_names(path, rows) == ["apply_preset_file", "config/presets"]
+    sources = {"test_apply": "cfg.apply_preset_file(\"k1\");\n",
+               "test_links": 'const char* d = "assets/config/presets";\n',
+               "test_config": "Config c; c.load();\n"}
+    assert md.auto_tests_filter(path, sources, extra_names=md.data_names(path, rows)) \
+        == "[#test_apply]~[.]~[slow],[#test_links]~[.]~[slow]"
+
+
+def test_a_declared_reach_stands_in_for_a_data_stem_too_many_tests_name():
+    # A preset named for a printer (ad5x) shares its stem with that printer's
+    # every test; the loader the map declares is the evidence instead.
+    sources = {f"test_{i}": "ad5x persona\n" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    sources["test_apply"] = "cfg.apply_preset_file(name);\n"
+    path = "assets/config/presets/ad5x.json"
+    assert md.auto_tests_filter(path, sources) == ""
+    assert md.auto_tests_filter(path, sources, extra_names=["apply_preset_file"]) \
+        == "[#test_apply]~[.]~[slow]"
+
+
 def test_parse_data_consumers_refuses_a_row_without_three_fields():
     with pytest.raises(ValueError):
         md.parse_data_consumers("assets/config/x.json\tsrc/x.cpp\n")
@@ -1234,11 +1260,14 @@ def test_every_declared_data_consumer_still_reads_its_data():
     assert rows
     tracked = subprocess.run(["git", "ls-files", "assets"], cwd=REPO_ROOT, text=True,
                              stdout=subprocess.PIPE).stdout.split()
-    for glob, source, evidence in rows:
+    for glob, source, evidence, names in rows:
         assert any(md.fnmatch(t, glob) for t in tracked), f"{glob} matches no tracked file"
         text = (REPO_ROOT / source).read_text()
         assert evidence in text, f"{source} no longer contains {evidence!r} for {glob}"
         assert md.classify(source, False) == ("mutate", "cxx"), source
+        # A named reach is the source's own loader, or the data's own directory.
+        for name in names:
+            assert name in text or name in glob, f"{source} no longer has {name!r}"
 
 
 def test_the_printer_database_reaches_the_tests_reading_it_through_code():
@@ -1249,6 +1278,24 @@ def test_the_printer_database_reaches_the_tests_reading_it_through_code():
     # The whole --tests ('') also runs them; a narrow filter must name both.
     assert filt == "" or ("[#test_probe_preparation]" in filt
                           and "[#test_probe_sensor_manager]" in filt), filt
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("assets/config/presets/k1.json",
+     ("test_config_preset", "test_preset_database_links")),
+    ("assets/config/presets/ad5x.json",
+     ("test_config_preset", "test_preset_database_links")),
+    ("assets/config/default_layout.json",
+     ("test_default_layout", "test_default_layout_resolver", "test_panel_widget_live_default")),
+])
+def test_presets_and_the_default_layout_get_their_loaders_tests_not_the_suite(path, expected):
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers,
+                                extra_names=md.data_names(path, rows))
+    assert filt, "fell back to the whole suite"
+    for name in expected:
+        assert f"[#{name}]" in filt, filt
 
 
 PARSER_CPP = (
