@@ -226,12 +226,13 @@ void MacrosPanel::on_activate() {
     });
 }
 
-void MacrosPanel::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void MacrosPanel::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
     // Leaving the panel (back button / nav-away) discards any unsaved edit-mode
-    // changes: only the header Save persists pending_hidden_.
-    if (edit_mode_) {
+    // changes: only the header Save persists pending_hidden_. A screensaver
+    // suspend is not leaving, so the edit survives it.
+    if (edit_mode_ && reason != DeactivateReason::Suspended) {
         exit_edit_mode(false);
     }
 
