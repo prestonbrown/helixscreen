@@ -65,34 +65,34 @@ lv_obj_t* icon_label_of(lv_obj_t* pill) {
 TEST_CASE_METHOD(XMLTestFixture,
                  "edit-mode chrome pills: icons clear WCAG AA, and only a tap presses one",
                  "[grid_edit][edit-chrome][halfcell]") {
-    // A whole cell carries its pills on its corners, clear of the delete-page
-    // button in the page's top-right corner; a half cell, too small to share,
-    // carries them just outside it: mid-grid, beside the delete-page button,
-    // beside a diagonal neighbour whose select tap a pill must not take, or in
-    // a packed 480x272 grid under the delete-page button, on its own corner
-    // and no more than a sliver onto any neighbour.
+    // A whole cell carries its pills on its corners, in the page's top-right
+    // corner too; a half cell, too small to share, carries them just outside
+    // it: mid-grid, near the top-right corner, beside a diagonal neighbour
+    // whose select tap a pill must not take, or in a packed 480x272 grid's
+    // top-right corner, on its own corner and no more than a sliver onto any
+    // neighbour.
     enum class Scene {
         Whole,
-        WholeUnderDeletePage,
+        WholeTopRight,
         HalfMidGrid,
-        HalfBesideDeletePage,
+        HalfNearTopRight,
         HalfBesideNeighbour,
         HalfPackedMicro
     };
     const Scene scene =
-        GENERATE(Scene::Whole, Scene::WholeUnderDeletePage, Scene::HalfMidGrid,
-                 Scene::HalfBesideDeletePage, Scene::HalfBesideNeighbour, Scene::HalfPackedMicro);
+        GENERATE(Scene::Whole, Scene::WholeTopRight, Scene::HalfMidGrid, Scene::HalfNearTopRight,
+                 Scene::HalfBesideNeighbour, Scene::HalfPackedMicro);
     CAPTURE(static_cast<int>(scene));
-    const bool whole = scene == Scene::Whole || scene == Scene::WholeUnderDeletePage;
+    const bool whole = scene == Scene::Whole || scene == Scene::WholeTopRight;
     const bool micro = scene == Scene::HalfPackedMicro;
-    const int col = scene == Scene::Whole                  ? 0
-                    : scene == Scene::WholeUnderDeletePage ? 10
-                    : scene == Scene::HalfBesideDeletePage ? 10
-                    : micro                                ? 11
-                                                           : 8;
-    const int row = scene == Scene::Whole || scene == Scene::WholeUnderDeletePage || micro ? 0
-                    : scene == Scene::HalfBesideDeletePage                                 ? 1
-                                                                                           : 4;
+    const int col = scene == Scene::Whole              ? 0
+                    : scene == Scene::WholeTopRight    ? 10
+                    : scene == Scene::HalfNearTopRight ? 10
+                    : micro                            ? 11
+                                                       : 8;
+    const int row = scene == Scene::Whole || scene == Scene::WholeTopRight || micro ? 0
+                    : scene == Scene::HalfNearTopRight                              ? 1
+                                                                                    : 4;
     const int span = whole ? GridLayout::TRACKS_PER_CELL : 1;
     const int gutter = helix::GridLayout::gutter_px();
     REQUIRE(gutter > 0);
@@ -154,7 +154,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // A second page holds the widget (see test_grid_edit_drag_path.cpp for why
     // page 0 cannot keep an exact widget list), and entering on that page is
-    // what makes the delete-page pill appear.
+    // what makes the page deletable.
     const std::string panel_id = "test_grid_edit_chrome_contrast";
     auto* cfg = Config::get_instance();
     cfg->set<nlohmann::json>(
@@ -179,8 +179,6 @@ TEST_CASE_METHOD(XMLTestFixture,
     constexpr int kPageIndex = 1;
 
     GridEditMode em;
-    int delete_page_calls = 0;
-    em.set_delete_page_callback([&]() { ++delete_page_calls; });
     em.enter(container, &config, kPageIndex);
     em.select_widget(widget);
     REQUIRE(em.selected_widget() == widget);
@@ -205,18 +203,6 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* configure = GridEditModeTestAccess::configure_button(em);
     check_pill(configure, "configure");
 
-    // The delete-page pill: danger fill at 80% over the screen background.
-    // The theme layer's own contrast bar is 4:1, so that is the assertion.
-    lv_obj_t* del = GridEditModeTestAccess::delete_page_button(em);
-    REQUIRE(del != nullptr);
-    const lv_color_t del_composited =
-        lv_color_mix(ThemeManager::instance().current_palette().danger,
-                     ThemeManager::instance().current_palette().screen_bg, LV_OPA_80);
-    const lv_color_t del_icon = lv_obj_get_style_text_color(icon_label_of(del), LV_PART_MAIN);
-    CAPTURE(lv_color_to_u32(del_icon) & 0xFFFFFF, lv_color_to_u32(del_composited) & 0xFFFFFF,
-            wcag::contrast(del_icon, del_composited));
-    CHECK(wcag::contrast(del_icon, del_composited) >= 4.0);
-
     lv_obj_update_layout(container);
     lv_area_t tile;
     lv_area_t box;
@@ -225,8 +211,6 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_get_coords(container, &box);
     lv_obj_get_coords(trash, &pill);
     const int quarter = lv_area_get_width(&pill) / 4;
-    lv_area_t del_area;
-    lv_obj_get_coords(del, &del_area);
     helix_test::ScopedPointerIndev pointer;
     // A tap selects a widget and draws its trash under the finger, so a pill
     // ignores taps for a moment after it appears: a double tap's second tap.
@@ -249,20 +233,6 @@ TEST_CASE_METHOD(XMLTestFixture,
         lv_area_t a;
         lv_obj_get_coords(p, &a);
         CAPTURE(a.x1, a.y1, a.x2, a.y2);
-        const bool on_del =
-            !(a.x2 < del_area.x1 || a.x1 > del_area.x2 || a.y2 < del_area.y1 || a.y1 > del_area.y2);
-        // Only a packed corner leaves a pill nowhere but over the delete-page
-        // button, and a tap on that part acts on neither.
-        CHECK((!on_del || micro));
-        if (on_del) {
-            const int32_t x = (std::max(a.x1, del_area.x1) + std::min(a.x2, del_area.x2)) / 2;
-            const int32_t y = (std::max(a.y1, del_area.y1) + std::min(a.y2, del_area.y2)) / 2;
-            pointer.press(x, y);
-            pointer.release(x, y);
-            REQUIRE(config.page_entries(kPageIndex).size() == 1);
-            CHECK(pw.configure_calls == 0);
-            CHECK(delete_page_calls == 0);
-        }
         CHECK_FALSE(covers_centre_of(a, widget));
         if (!whole && !micro) {
             CHECK((a.x1 >= box.x1 && a.y1 >= box.y1 && a.x2 <= box.x2 && a.y2 <= box.y2));
@@ -285,14 +255,6 @@ TEST_CASE_METHOD(XMLTestFixture,
             CHECK((ow <= 0 || oh <= 0 || std::min(ow, oh) <= 6));
         }
     }
-    // Every pixel of the delete-page button is the delete-page button.
-    for (int32_t x = del_area.x1; x <= del_area.x2 && !micro; ++x) {
-        for (int32_t y = del_area.y1; y <= del_area.y2; ++y) {
-            lv_point_t p{x, y};
-            CAPTURE(x, y);
-            REQUIRE(lv_indev_search_obj(lv_screen_active(), &p) == del);
-        }
-    }
     if (scene == Scene::Whole) {
         CHECK(pill.x2 == tile.x2 + quarter);
         CHECK(pill.y1 == tile.y1 - quarter);
@@ -305,9 +267,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(under != trash);
     CHECK(under != configure);
 
-    // A press that starts on a pill or the delete-page button is that
-    // button's, even over the outward resize band: sliding off neither resizes
-    // the widget nor taps the button.
+    // A press that starts on a pill is that pill's, even over the outward
+    // resize band: sliding off neither resizes the widget nor taps the pill.
     auto centre_of = [](lv_obj_t* obj) {
         lv_area_t a;
         lv_obj_get_coords(obj, &a);
@@ -320,7 +281,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         pointer.release(c.x, c.y);
     };
     const lv_point_t centre = centre_of(trash);
-    for (lv_obj_t* button : {trash, configure, del}) {
+    for (lv_obj_t* button : {trash, configure}) {
         const lv_point_t c = centre_of(button);
         const int dx = c.x > 300 ? -40 : 40; // toward the grid's middle
         pointer.press(c.x, c.y);
@@ -330,12 +291,11 @@ TEST_CASE_METHOD(XMLTestFixture,
         REQUIRE(config.page_entries(kPageIndex).size() == 1);
         CHECK(config.page_entries(kPageIndex)[0].colspan == span);
         CHECK(pw.configure_calls == 0);
-        CHECK(delete_page_calls == 0);
     }
 
     // A hold is not a tap: LVGL still sends CLICKED on the release that ends
     // a long press, and an outside pill sits over cells a hold may aim at.
-    for (lv_obj_t* button : {trash, configure, del}) {
+    for (lv_obj_t* button : {trash, configure}) {
         const lv_point_t c = centre_of(button);
         pointer.press(c.x, c.y);
         pointer.hold(pointer.long_press_hold_ms());
@@ -343,19 +303,48 @@ TEST_CASE_METHOD(XMLTestFixture,
         CHECK(em.selected_widget() == widget);
         REQUIRE(config.page_entries(kPageIndex).size() == 1);
         CHECK(pw.configure_calls == 0);
-        CHECK(delete_page_calls == 0);
     }
 
     // A tap that lifts on the button still acts; the trash last, as it
     // removes the widget.
     tap(centre_of(configure));
     CHECK(pw.configure_calls == 1);
-    tap(centre_of(del));
-    CHECK(delete_page_calls == 1);
     tap(centre);
     CHECK(em.selected_widget() == nullptr);
 
     em.exit();
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "the navbar's delete-page request acts only on a deletable page",
+                 "[grid_edit][edit-chrome][2023]") {
+    GridEditScene scene(test_screen(), "test_delete_page_request");
+    GridEditMode em;
+    int delete_page_calls = 0;
+    em.set_delete_page_callback([&]() { ++delete_page_calls; });
+
+    // Outside a session nothing is offered and a request does nothing.
+    em.request_delete_page();
+    CHECK(delete_page_calls == 0);
+
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    em.request_delete_page();
+    CHECK(delete_page_calls == 1);
+
+    em.exit();
+    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    em.request_delete_page();
+    CHECK(delete_page_calls == 1);
+
+    // The main page is never deletable.
+    REQUIRE(scene.config->main_page_index() == 0);
+    em.enter(scene.container, scene.config, 0);
+    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    em.request_delete_page();
+    CHECK(delete_page_calls == 1);
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
 }
 
 TEST_CASE_METHOD(XMLTestFixture,

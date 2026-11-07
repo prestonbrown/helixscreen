@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "app_globals.h"
 #include "grid_edit_mode.h"
 
 namespace helix {
@@ -199,9 +200,10 @@ struct GridEditModeTestAccess {
         return drop.outcome == helix::DropOutcome::CreatePage;
     }
 
-    /// The delete-page button on the shield, or nullptr when none is drawn.
-    static lv_obj_t* delete_page_button(const GridEditMode& em) {
-        return em.delete_page_btn_;
+    /// Whether the session publishes its page as deletable, which shows the
+    /// navbar's delete-page button.
+    static bool delete_page_offered() {
+        return lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 1;
     }
 
     /// Release the selection chrome, the snap preview, and redraw the lattice,

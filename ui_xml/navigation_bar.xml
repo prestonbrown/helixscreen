@@ -101,6 +101,16 @@
       <icon src="plus" size="#icon_size" variant="primary" clickable="false" event_bubble="true"/>
       <event_cb trigger="clicked" callback="on_edit_add_widget_clicked"/>
     </ui_button>
+    <!-- Delete Page button: on a page edit mode may delete -->
+    <ui_button name="nav_btn_edit_delete_page"
+               height="100%" variant="ghost" flex_flow="column" style_flex_main_place="center"
+               style_flex_cross_place="center" style_border_width="0" hidden="true">
+      <bind_style_if_eq name="nav_btn_edit_add_portrait" subject="ui_is_portrait" ref_value="1"/>
+      <bind_style_if_not_eq name="nav_btn_edit_add_landscape" subject="ui_is_portrait" ref_value="1"/>
+      <bind_flag_if cond="home_edit_mode eq 1 and home_edit_page_deletable eq 1" flag="hidden" invert="true"/>
+      <icon src="delete" size="#icon_size" variant="danger" clickable="false" event_bubble="true"/>
+      <event_cb trigger="clicked" callback="on_edit_delete_page_clicked"/>
+    </ui_button>
     <!-- Done button (exits edit mode) — filled primary style -->
     <ui_button name="nav_btn_edit_done" height="90%" variant="primary" text="Done" hidden="true">
       <bind_style_if_eq name="nav_btn_edit_done_portrait" subject="ui_is_portrait" ref_value="1"/>
@@ -119,8 +129,9 @@
     <ui_button name="nav_btn_home"
                width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
+      <!-- Disabled and hidden during grid edit mode, leaving the bar to the edit buttons -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="1"/>
       <!-- Active icon (accent color) - full opacity/scale when active_panel == 0 -->
       <icon name="nav_icon_home_active" src="home" size="#icon_size" variant="primary" floating="true" align="center">
         <style name="nav_icon_fade"/>
@@ -142,8 +153,9 @@
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0" style_pad_all="0">
       <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Disabled during grid edit mode -->
+      <!-- Disabled and hidden during grid edit mode, leaving the bar to the edit buttons -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
       <lv_obj name="nav_controls_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
@@ -174,8 +186,9 @@
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0" style_pad_all="0">
       <!-- Disabled clickability when not enabled (disconnected OR klippy not ready) -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Disabled during grid edit mode -->
+      <!-- Disabled and hidden during grid edit mode, leaving the bar to the edit buttons -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="1"/>
       <!-- Normal icons container - visible only when enabled -->
       <lv_obj name="nav_filament_icons" width="100%" height="100%" clickable="false" style_pad_all="0">
         <bind_flag_if_eq subject="nav_buttons_enabled" flag="hidden" ref_value="0"/>
@@ -203,8 +216,9 @@
     <ui_button name="nav_btn_settings"
                width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
+      <!-- Disabled and hidden during grid edit mode, leaving the bar to the edit buttons -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="1"/>
       <icon name="nav_icon_settings_active"
             src="settings" size="#icon_size" variant="primary" floating="true" align="center">
         <style name="nav_icon_fade"/>
@@ -222,8 +236,9 @@
     <ui_button name="nav_btn_advanced"
                width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0">
-      <!-- Disabled during grid edit mode -->
+      <!-- Disabled and hidden during grid edit mode, leaving the bar to the edit buttons -->
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
+      <bind_flag_if_eq subject="home_edit_mode" flag="hidden" ref_value="1"/>
       <icon name="nav_icon_advanced_active"
             src="dots_vertical" size="#icon_size" variant="primary" floating="true" align="center">
         <style name="nav_icon_fade"/>
@@ -241,8 +256,8 @@
     <ui_button name="nav_printer_badge"
                width="100%" height="100%" flex_grow="1" variant="ghost" flex_flow="column"
                style_flex_main_place="center" style_flex_cross_place="center" style_border_width="0" hidden="true">
-      <bind_flag_if_eq subject="show_printer_switcher" flag="hidden" ref_value="0"/>
-      <!-- Disabled during grid edit mode -->
+      <!-- Shown when the setting is on, and hidden during grid edit mode with the nav buttons -->
+      <bind_flag_if cond="show_printer_switcher eq 1 and home_edit_mode eq 0" flag="hidden" invert="true"/>
       <bind_state_if_eq subject="home_edit_mode" state="disabled" ref_value="1"/>
       <lv_obj name="nav_printer_icon_wrap"
               clickable="false" event_bubble="true" style_pad_all="0" style_border_width="0" style_bg_opa="0">

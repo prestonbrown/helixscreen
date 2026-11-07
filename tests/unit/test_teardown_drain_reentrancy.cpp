@@ -103,7 +103,7 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome teardown runs no queued callb
     lv_obj_set_user_data(widget, &pw);
     lv_obj_update_layout(container);
 
-    // A second page, so the lattice carries the delete-page button.
+    // A second page holds the widget, as on a secondary home page.
     const std::string panel_id = "test_teardown_drain_reentrancy";
     auto* cfg = Config::get_instance();
     cfg->set<nlohmann::json>(
@@ -130,7 +130,6 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome teardown runs no queued callb
     em->enter(container, &config, 1);
     em->select_widget(widget);
     REQUIRE(GridEditModeTestAccess::remove_button(*em) != nullptr);
-    REQUIRE(GridEditModeTestAccess::delete_page_button(*em) != nullptr);
     bool ran = false;
 
     SECTION("selection chrome") {
@@ -148,17 +147,6 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome teardown runs no queued callb
         GridEditModeTestAccess::destroy_snap_preview(*em);
         REQUIRE_FALSE(ran);
         CHECK(GridEditModeTestAccess::snap_preview(*em) == nullptr);
-    }
-
-    SECTION("lattice delete-page button") {
-        lv_obj_t* old_btn = GridEditModeTestAccess::delete_page_button(*em);
-        // A new content size is a new lattice, which replaces the button.
-        lv_obj_set_size(container, content_w - 40, content_h - 40);
-        lv_obj_update_layout(container);
-        queue_canary(ran, [&em]() { em.reset(); });
-        GridEditModeTestAccess::rebuild_lattice(*em);
-        REQUIRE_FALSE(ran);
-        CHECK(GridEditModeTestAccess::delete_page_button(*em) != old_btn);
     }
 
     helix::ui::UpdateQueue::instance().drain();
