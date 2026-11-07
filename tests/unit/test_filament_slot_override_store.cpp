@@ -1,9 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "../test_helpers/config_test_access.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_types.h"
+#include "config.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "filament_variants.h"
@@ -4591,17 +4591,12 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
 
 namespace {
 
-/// Config's active printer for a scope, as a printer switch leaves it.
-struct ActivePrinter {
-    helix::Config* cfg = helix::Config::get_instance();
-    std::string saved = helix::ConfigTestAccess::active_printer_id(*cfg);
-    explicit ActivePrinter(const std::string& id) {
-        helix::ConfigTestAccess::active_printer_id(*cfg) = id;
-    }
-    ~ActivePrinter() {
-        helix::ConfigTestAccess::active_printer_id(*cfg) = saved;
-    }
-};
+/// Makes @p id the configured active printer, as a printer switch does.
+void switch_to_printer(const std::string& id) {
+    helix::Config* config = helix::Config::get_instance();
+    config->add_printer(id, json::object());
+    REQUIRE(config->set_active_printer(id));
+}
 
 /// A run whose read of lane_data never lands makes @p edit, then the app stops.
 void hold_until_restart(MockPrinter& printer, const TmpCacheDir& tmp,
@@ -4642,17 +4637,15 @@ TEST_CASE("a held edit made on one printer is not sent to another",
     TmpCacheDir tmp("held_other_printer");
     MockPrinter printer;
     const FilamentSlotOverride cached = polymaker_record();
-    {
-        ActivePrinter a("printer-a");
-        seed_slots(printer, tmp, cached, {1, 2});
-        hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
-            store.save_async(1, green_edit_of(cached), nullptr);
-            store.clear_async(2, nullptr);
-        });
-    }
+    switch_to_printer("printer-a");
+    seed_slots(printer, tmp, cached, {1, 2});
+    hold_until_restart(printer, tmp, [&](FilamentSlotOverrideStore& store) {
+        store.save_async(1, green_edit_of(cached), nullptr);
+        store.clear_async(2, nullptr);
+    });
     REQUIRE(cache_file(tmp)["ifs"].contains("held"));
 
-    ActivePrinter b("printer-b");
+    switch_to_printer("printer-b");
     const int posts = printer.client.call_count("server.database.post_item");
     const auto after = store_over(printer, tmp, "ifs");
     (void)after->load_blocking();
