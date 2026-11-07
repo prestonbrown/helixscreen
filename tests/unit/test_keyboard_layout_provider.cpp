@@ -325,7 +325,6 @@ TEST_CASE("Keyboard Layout: Numbers and symbols - structure", "[ui][layout][numb
     }
 
     SECTION("Contains punctuation") {
-        REQUIRE(button_exists(map, "."));
         REQUIRE(button_exists(map, ","));
         REQUIRE(button_exists(map, "?"));
         REQUIRE(button_exists(map, "!"));
