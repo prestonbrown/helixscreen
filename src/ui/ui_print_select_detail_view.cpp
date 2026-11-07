@@ -1003,8 +1003,9 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     }
 
     // The owning panel's close bookkeeping runs for every dismissal path —
-    // this hook is the only one ESC/go_back() and a navbar switch reach.
-    if (on_dismissed_cb_) {
+    // this hook is the only one ESC/go_back() and a navbar switch reach. The
+    // screensaver dismisses nothing: the view wakes with its pending start.
+    if (on_dismissed_cb_ && reason != DeactivateReason::Suspended) {
         on_dismissed_cb_();
     }
 

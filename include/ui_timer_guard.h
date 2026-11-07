@@ -125,7 +125,7 @@ class ElapsedLabelTimer {
     /**
      * @brief Arm the timer and write the first (0s) label immediately
      *
-     * Idempotent: while armed, a second begin() keeps the original start stamp
+     * Idempotent: until cancel(), a second begin() keeps the original start stamp
      * and just refreshes the label (repeat heartbeat reports from the phase
      * must not restart the elapsed count).
      *
@@ -135,10 +135,13 @@ class ElapsedLabelTimer {
     void begin(lv_subject_t* subject, Formatter formatter) {
         subject_ = subject;
         formatter_ = std::move(formatter);
-        if (!timer_) {
+        if (!running_) {
             // First report fixes the timestamp the label counts from.
             start_tick_ = lv_tick_get();
-            timer_ = lv_timer_create(&ElapsedLabelTimer::on_tick, 1000, this);
+            running_ = true;
+        }
+        if (!paused_) {
+            arm();
         }
         format();
     }
@@ -147,15 +150,31 @@ class ElapsedLabelTimer {
      * @brief Stop the timer; the label keeps its last text
      */
     void cancel() {
-        if (!timer_) {
-            return;
+        running_ = false;
+        paused_ = false;
+        disarm();
+    }
+
+    /**
+     * @brief Stop ticking but keep counting from the same start
+     *
+     * For a view behind the screensaver: nothing should redraw, but the phase
+     * goes on. A begin() while paused keeps the timer off; resume() re-arms it.
+     */
+    void pause() {
+        paused_ = true;
+        disarm();
+    }
+
+    /**
+     * @brief Undo pause(): re-arm a running count and refresh the label
+     */
+    void resume() {
+        paused_ = false;
+        if (running_) {
+            arm();
+            format();
         }
-        // Neuter rather than delete: this can run from contexts (queued
-        // callbacks, destructors) where unlinking from the timer list
-        // mid-batch corrupts it. lv_timer_handler collects the neutered timer
-        // on its next pass.
-        lv_timer_cancel_safe(timer_);
-        timer_ = nullptr;
     }
 
     /// Seconds elapsed since begin() armed the timer (virtual LVGL clock)
@@ -169,6 +188,24 @@ class ElapsedLabelTimer {
     }
 
   private:
+    void arm() {
+        if (!timer_) {
+            timer_ = lv_timer_create(&ElapsedLabelTimer::on_tick, 1000, this);
+        }
+    }
+
+    void disarm() {
+        if (!timer_) {
+            return;
+        }
+        // Neuter rather than delete: this can run from contexts (queued
+        // callbacks, destructors) where unlinking from the timer list
+        // mid-batch corrupts it. lv_timer_handler collects the neutered timer
+        // on its next pass.
+        lv_timer_cancel_safe(timer_);
+        timer_ = nullptr;
+    }
+
     void format() {
         if (subject_ && formatter_) {
             const std::string text = formatter_(elapsed_seconds());
@@ -188,6 +225,8 @@ class ElapsedLabelTimer {
     Formatter formatter_;
     lv_timer_t* timer_ = nullptr;
     uint32_t start_tick_ = 0;
+    bool running_ = false; ///< begun and not cancelled
+    bool paused_ = false;
 };
 
 } // namespace helix::ui
