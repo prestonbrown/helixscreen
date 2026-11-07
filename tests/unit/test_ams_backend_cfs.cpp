@@ -58,6 +58,7 @@
 #include <string>
 #include <type_traits>
 #include <unistd.h>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -282,6 +283,19 @@ class CfsCalibHelper : public CfsLifecycleHelper {
 void drain_calib_queue() {
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
+
+/// Fills the process-wide MacroParamCache with exactly @p names for one scope,
+/// and empties it again on the way out.
+struct MacroCacheScope {
+    explicit MacroCacheScope(const std::unordered_set<std::string>& names) {
+        helix::MacroParamCache::instance().populate_from_configfile(json::object(), names);
+    }
+    ~MacroCacheScope() {
+        helix::MacroParamCache::instance().clear();
+    }
+    MacroCacheScope(const MacroCacheScope&) = delete;
+    MacroCacheScope& operator=(const MacroCacheScope&) = delete;
+};
 } // namespace
 
 // =============================================================================
@@ -558,7 +572,7 @@ TEST_CASE("CFS actions name their guided flows", "[ams][cfs][calib]") {
     CHECK(rfid->guided_flow.empty());
 }
 
-TEST_CASE("CFS calibration section and actions are K1-stock only (#1282)", "[ams][cfs][calib]") {
+TEST_CASE("CFS K1 calibration section carries the cutter and chute (#1282)", "[ams][cfs][calib]") {
     SECTION("K1 dialect exposes both calibration actions in one section") {
         CfsK1RemapHelper backend;
         const auto sections = backend.get_device_sections();
@@ -578,24 +592,163 @@ TEST_CASE("CFS calibration section and actions are K1-stock only (#1282)", "[ams
         CHECK(chute->enabled);
     }
 
-    SECTION("K2 dialect has no calibration surface (MOTOR_CHECK_CUT_POS world)") {
+    SECTION("K2 and Fork dialects without the K2 macros have no calibration surface") {
+        MacroCacheScope macros({});
+        for (auto set_variant :
+             {&CfsTestAccess::set_macro_variant_k2, &CfsTestAccess::set_macro_variant_fork}) {
+            CfsRemapHelper backend;
+            set_variant(backend);
+            for (const auto& s : backend.get_device_sections()) {
+                CHECK(s.id != "calibration");
+            }
+            CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
+            CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
+            CHECK_FALSE(find_action(backend, "tension_belts").has_value());
+        }
+    }
+}
+
+// The K2 macros: stock firmware defines both BELT_TENSION and CALIBRATE_CUT_POS
+// as gcode_macro; the Kalico port defines BELT_TENSION. Each button exists only
+// when its macro does (#2059).
+TEST_CASE("CFS K2 calibration actions follow the printer's macros (#2059)",
+          "[ams][cfs][calib][k2cal]") {
+    SECTION("BELT_TENSION alone offers belt tensioning in the calibration section") {
+        MacroCacheScope macros({"BELT_TENSION"});
+        for (auto set_variant :
+             {&CfsTestAccess::set_macro_variant_k2, &CfsTestAccess::set_macro_variant_fork}) {
+            CfsRemapHelper backend;
+            set_variant(backend);
+            const auto sections = backend.get_device_sections();
+            CHECK(std::any_of(sections.begin(), sections.end(),
+                              [](const auto& s) { return s.id == "calibration"; }));
+            const auto belts = find_action(backend, "tension_belts");
+            REQUIRE(belts.has_value());
+            CHECK(belts->section == "calibration");
+            CHECK(belts->moves_machine);
+            CHECK(belts->guided_flow == "cfs_belt_tension");
+            CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
+            CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
+        }
+    }
+
+    SECTION("CALIBRATE_CUT_POS alone offers the cutter through the shared cutter flow") {
+        MacroCacheScope macros({"CALIBRATE_CUT_POS"});
         CfsRemapHelper backend;
         CfsTestAccess::set_macro_variant_k2(backend);
-        for (const auto& s : backend.get_device_sections()) {
-            CHECK(s.id != "calibration");
-        }
-        CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
+        const auto cutter = find_action(backend, "calibrate_cutter");
+        REQUIRE(cutter.has_value());
+        CHECK(cutter->section == "calibration");
+        CHECK(cutter->moves_machine);
+        CHECK(cutter->guided_flow == "cfs_cutter");
+        CHECK_FALSE(find_action(backend, "tension_belts").has_value());
         CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
     }
 
-    SECTION("Kalico Fork has no calibration surface") {
-        CfsRemapHelper backend;
+    SECTION("A K1 never offers belt tensioning, whatever its macros are called") {
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+        CfsK1RemapHelper backend;
+        CHECK_FALSE(find_action(backend, "tension_belts").has_value());
+        REQUIRE(find_action(backend, "calibrate_cutter").has_value());
+    }
+}
+
+TEST_CASE("CFS K2 calibration sends the printer's macros (#2059)", "[ams][cfs][calib][k2cal]") {
+    SECTION("belt tensioning sends BELT_TENSION bare, which tensions both axes") {
+        CfsCalibHelper backend;
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        bool done = false;
+        REQUIRE(backend.tension_belts([&](bool ok, const std::string&) { done = ok; }).success());
+        CHECK(backend.captured == std::vector<std::string>{"BELT_TENSION"});
+        drain_calib_queue();
+        CHECK(done);
+    }
+
+    SECTION("the cutter button runs CALIBRATE_CUT_POS on a K2") {
+        CfsCalibHelper backend;
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        REQUIRE(backend.calibrate_cutter(nullptr).success());
+        CHECK(backend.captured == std::vector<std::string>{"CALIBRATE_CUT_POS"});
+        drain_calib_queue();
+    }
+
+    SECTION("the device action routes to the same command") {
+        CfsCalibHelper backend;
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
         CfsTestAccess::set_macro_variant_fork(backend);
-        for (const auto& s : backend.get_device_sections()) {
-            CHECK(s.id != "calibration");
+        REQUIRE(backend.execute_device_action("tension_belts", {}).success());
+        CHECK(backend.captured == std::vector<std::string>{"BELT_TENSION"});
+        drain_calib_queue();
+    }
+}
+
+TEST_CASE("CFS K2 calibration refuses without its macro or during a print (#2059)",
+          "[ams][cfs][calib][k2cal]") {
+    SECTION("no macro, nothing sent") {
+        CfsCalibHelper backend;
+        // After the helper: its mock client fills the cache with its own macros.
+        MacroCacheScope macros({});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        CHECK(backend.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
+        CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::NOT_SUPPORTED);
+        CHECK(backend.captured.empty());
+    }
+
+    SECTION("a printing or paused machine is refused") {
+        CfsCalibHelper backend;
+        // After the helper: its mock client fills the cache with its own macros.
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        for (auto state : {helix::PrintJobState::PRINTING, helix::PrintJobState::PAUSED}) {
+            helix::test::set_wire_state(backend.state, state);
+            helix::ui::UpdateQueue::instance().drain();
+            CHECK(backend.tension_belts(nullptr).user_msg == "Printer is busy with a print");
+            CHECK(backend.calibrate_cutter(nullptr).user_msg == "Printer is busy with a print");
+            CHECK(backend.captured.empty());
         }
-        CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
-        CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
+    }
+
+    SECTION("one calibration at a time: belts running greys the cutter and refuses a second run") {
+        CfsCalibHelper backend;
+        // After the helper: its mock client fills the cache with its own macros.
+        MacroCacheScope macros({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        backend.hold = {"BELT_TENSION"};
+        REQUIRE(backend.tension_belts(nullptr).success());
+        for (const char* id : {"tension_belts", "calibrate_cutter"}) {
+            INFO(id);
+            const auto a = find_action(backend, id);
+            REQUIRE(a.has_value());
+            CHECK_FALSE(a->enabled);
+            CHECK(a->disable_reason == "Calibration in progress");
+        }
+        CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::BUSY);
+        CHECK(backend.captured == std::vector<std::string>{"BELT_TENSION"});
+        backend.release_held();
+        drain_calib_queue();
+        CHECK(find_action(backend, "tension_belts")->enabled);
+    }
+
+    SECTION("a failed run reports the failure and frees the lock") {
+        CfsCalibHelper backend;
+        // After the helper: its mock client fills the cache with its own macros.
+        MacroCacheScope macros({"BELT_TENSION"});
+        CfsTestAccess::set_macro_variant_k2(backend);
+        backend.fail = {"BELT_TENSION"};
+        bool called = false;
+        bool ok = true;
+        REQUIRE(backend
+                    .tension_belts([&](bool r, const std::string&) {
+                        called = true;
+                        ok = r;
+                    })
+                    .success());
+        drain_calib_queue();
+        CHECK(called);
+        CHECK_FALSE(ok);
+        CHECK(find_action(backend, "tension_belts")->enabled);
     }
 }
 

@@ -32,6 +32,7 @@
 
 #include <lvgl/lvgl.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -62,12 +63,17 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
   public:
     using AmsBackendMock::AmsBackendMock;
     int cutter_calibrations = 0;
+    int belt_tensionings = 0;
     void* capability(helix::TypeTag tag) override {
         return tag == helix::type_tag<ICfsCalibration>() ? static_cast<ICfsCalibration*>(this)
                                                          : AmsBackendMock::capability(tag);
     }
     AmsError calibrate_cutter(std::function<void(bool, const std::string&)>) override {
         ++cutter_calibrations;
+        return AmsErrorHelper::success();
+    }
+    AmsError tension_belts(std::function<void(bool, const std::string&)>) override {
+        ++belt_tensionings;
         return AmsErrorHelper::success();
     }
     AmsError start_chute_calibration(std::function<void()>, std::function<void(const std::string&)>,
@@ -112,7 +118,7 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     ~GuidedFlowFixture() override {
-        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute"}) {
+        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"}) {
             helix::ui::unregister_guided_device_flow(id);
         }
         NavigationManager::instance().go_back();
@@ -227,6 +233,48 @@ TEST_CASE_METHOD(GuidedFlowFixture, "an unregistered guided flow never executes 
     }
 #endif
 }
+
+#if HELIX_HAS_CFS
+TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt tensioning asks before it moves the printer (#2059)",
+                 "[ams][guided-flow][k2cal]") {
+    helix::ui::register_cfs_device_flows();
+    lv_obj_t* btn =
+        open_section_and_find({button("tension_belts", "cfs_belt_tension")}, "tension_belts");
+    click(btn);
+    CHECK_FALSE(ModalStack::instance().empty());
+    CHECK(backend->belt_tensionings == 0);
+    CHECK(last_executed().empty());
+
+    lv_obj_t* confirm = lv_obj_find_by_name(lv_screen_active(), "btn_primary");
+    REQUIRE(confirm != nullptr);
+    click(confirm);
+    CHECK(backend->belt_tensionings == 1);
+    CHECK(backend->cutter_calibrations == 0);
+}
+
+TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt and cutter flows share one status line (#2059)",
+                 "[ams][guided-flow][k2cal]") {
+    helix::ui::register_cfs_device_flows();
+    open_section_and_find(
+        {button("tension_belts", "cfs_belt_tension"), button("calibrate_cutter", "cfs_cutter")},
+        "tension_belts");
+    lv_obj_t* root = get_ams_device_section_detail_overlay().get_root();
+    lv_obj_t* line = lv_obj_find_by_name(root, "cfs_cutter_status_line");
+    REQUIRE(line != nullptr);
+    int lines = 0;
+    std::function<void(lv_obj_t*)> count = [&](lv_obj_t* obj) {
+        const char* name = lv_obj_get_name(obj);
+        if (name && std::string(name) == "cfs_cutter_status_line") {
+            ++lines;
+        }
+        for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+            count(lv_obj_get_child(obj, static_cast<int32_t>(i)));
+        }
+    };
+    count(root);
+    CHECK(lines == 1);
+}
+#endif
 
 TEST_CASE_METHOD(GuidedFlowFixture, "a flow's status attach runs once per section build",
                  "[ams][guided-flow]") {
@@ -733,7 +781,7 @@ TEST_CASE("the built-in registrar registers every vendor's flows", "[ams][guided
     std::vector<std::string> expected = {helix::indx::kSeatByHandFlowId, "indx_cycle_all",
                                          "indx_heater_calibration", "indx_fan_calibration"};
 #if HELIX_HAS_CFS
-    expected.insert(expected.end(), {"cfs_purge_chute", "cfs_cutter"});
+    expected.insert(expected.end(), {"cfs_purge_chute", "cfs_cutter", "cfs_belt_tension"});
 #endif
 #if HELIX_HAS_SNAPMAKER
     expected.push_back(helix::snapmaker::nozzle_offset::kGuidedFlowId);

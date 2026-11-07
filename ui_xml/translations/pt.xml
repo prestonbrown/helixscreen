@@ -436,6 +436,9 @@
   <translation tag="Belt Tension" pt="Tensão da correia"/>
   <translation tag="Belt Tension Check" pt="Verificação de tensão da correia"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." pt="A tensão da correia precisa de uma impressora CoreXY. Esta é {}."/>
+  <translation tag="Belt tension and cutter calibration" pt="Tensão das correias e calibração do cortador"/>
+  <translation tag="Belt tensioning completed" pt="Tensionamento das correias concluído"/>
+  <translation tag="Belt tensioning failed: {}" pt="Falha no tensionamento das correias: {}"/>
   <translation tag="Belts already match" pt="As correias já coincidem"/>
   <translation tag="Beta" pt="Beta"/>
   <translation tag="Beta features: OFF" pt="Recursos Beta: OFF"/>
@@ -3409,6 +3412,7 @@
   <translation tag="Set local timezone for time display" pt="Definir fuso horário local para exibição"/>
   <translation tag="Set logging verbosity for troubleshooting" pt="Definir nível de detalhe do log para solução de problemas"/>
   <translation tag="Set temperature between {}°C and {}°C" pt="Defina uma temperatura entre {}°C e {}°C"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" pt="Ajustar as correias X e Y com os tensores motorizados"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" pt="Defina manualmente o tipo e a cor do filamento deste slot. Se a etiqueta deveria ser legível, reencaixe o carretel com o rótulo voltado para o leitor quando a caixa estiver ociosa"/>
   <translation tag="Set up" pt="Configurar"/>
   <translation tag="Set up your label printer in Settings" pt="Configure sua impressora de etiquetas em Configurações"/>
@@ -3729,7 +3733,9 @@
   <translation tag="Temporary adjustment for this print" pt="Ajuste temporário para esta impressão"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" pt="Ajuste temporário para esta impressão, a menos que salvo no painel de Controles"/>
   <translation tag="Temporary for this print; a tool change resets it" pt="Temporário para esta impressão; uma troca de ferramenta o redefine"/>
+  <translation tag="Tension Belts" pt="Tensionar correias"/>
   <translation tag="Tensioner: {}" pt="Tensor: {}"/>
+  <translation tag="Tensioning belts..." pt="Tensionando correias..."/>
   <translation tag="Tertiary" pt="Terciário"/>
   <translation tag="Test All Lanes" pt="Testar todas as lanes"/>
   <translation tag="Test Both" pt="Ambos"/>
@@ -3881,6 +3887,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." pt="A impressora perdeu energia durante uma impressão. A camada retomada pode não se alinhar exatamente."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" pt="A impressora perdeu energia ao imprimir {}. Retomar de onde parou?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." pt="A impressora perdeu energia ao imprimir {}. A camada retomada pode não se alinhar exatamente."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." pt="A impressora pode fazer home e mover o cabeçote; depois os tensores motorizados ajustam as correias X e Y. Mantenha a mesa e o pórtico livres."/>
   <translation tag="The printer moves the toolhead and measures its motors." pt="A impressora move o cabeçote e mede seus motores."/>
   <translation tag="The printer no longer has a print to resume." pt="A impressora não tem mais uma impressão para retomar."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." pt="A impressora lê o arquivo até a última posição salva. Um arquivo grande pode levar um minuto."/>

@@ -467,6 +467,9 @@ translations:
   Belt Tension: Tensión de correa
   Belt Tension Check: Verificación de tensión de correa
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tensión de correa necesita una impresora CoreXY. Esta es {}.'
+  Belt tension and cutter calibration: "Tensión de correas y calibración del cortador"
+  Belt tensioning completed: "Tensado de correas completado"
+  'Belt tensioning failed: {}': "Falló el tensado de correas: {}"
   Belts already match: "Las correas ya coinciden"
   Beta: Beta
   'Beta features: OFF': 'Funciones Beta: OFF'
@@ -3715,6 +3718,7 @@ translations:
   Set logging verbosity for troubleshooting: Establecer el nivel de detalle del registro
     para solución de problemas
   Set temperature between {}°C and {}°C: 'Establezca una temperatura entre {}°C y {}°C'
+  Set the X and Y belts with the motorized tensioners: "Ajustar las correas X e Y con los tensores motorizados"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva
   Set up: Configurar
@@ -4069,7 +4073,9 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Ajuste temporal
     para esta impresión, a menos que se guarde en el panel de Controles
   Temporary for this print; a tool change resets it: "Temporal para esta impresión; un cambio de herramienta lo restablece"
+  Tension Belts: "Tensar correas"
   'Tensioner: {}': "Tensor: {}"
+  Tensioning belts...: "Tensando correas..."
   Tertiary: Terciario
   Test All Lanes: 'Probar todos los carriles'
   Test Connection: Probar Conexión
@@ -4252,6 +4258,8 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: La impresora
     perdió corriente mientras imprimía {}. ¿Reanudar donde se quedó?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud.
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : "La impresora puede hacer home y mover el cabezal; luego los tensores motorizados ajustan las correas X e Y. Mantén despejados la cama y el pórtico."
   The printer moves the toolhead and measures its motors.: 'La impresora mueve el cabezal y mide sus motores.'
   The printer no longer has a print to resume.: La impresora ya no tiene una impresión para reanudar.
   The printer reads the file up to the last saved position. A large file can take a minute.: La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto.

@@ -443,6 +443,9 @@ translations:
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt Tension needs a CoreXY printer. This one is {}.: 'ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。'
+  Belt tension and cutter calibration: "ベルトテンションとカッターのキャリブレーション"
+  Belt tensioning completed: "ベルトの張り調整が完了しました"
+  'Belt tensioning failed: {}': "ベルトの張り調整に失敗しました: {}"
   Belts already match: "ベルトはすでに一致しています"
   Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
@@ -3531,6 +3534,7 @@ translations:
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
   Set temperature between {}°C and {}°C: '温度は {}〜{}°C にしてください'
+  Set the X and Y belts with the motorized tensioners: "電動テンショナーでXとYのベルトを調整します"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
   Set up: セットアップ
@@ -3863,7 +3867,9 @@ translations:
   Temporary adjustment for this print: "この印刷のみの一時的な調整です"
   Temporary adjustment for this print, unless saved on Controls panel: コントロールパネルで保存しない限り、この印刷のみの一時的な調整です
   Temporary for this print; a tool change resets it: "この印刷のみの一時的な調整です。ツール交換でリセットされます"
+  Tension Belts: "ベルトを張る"
   'Tensioner: {}': "テンショナー: {}"
+  Tensioning belts...: "ベルトを調整中..."
   Tertiary: ターシャリ
   Test All Lanes: '全レーンをテスト'
   Test Connection: 接続テスト
@@ -4039,6 +4045,8 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: 印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。
   The printer lost power while printing {}. Resume where it left off?: '{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？'
   The printer lost power while printing {}. The resumed layer may not line up exactly.: '{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。'
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : "プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"
   The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer no longer has a print to resume.: プリンターに再開できる印刷がありません。
   The printer reads the file up to the last saved position. A large file can take a minute.: プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。

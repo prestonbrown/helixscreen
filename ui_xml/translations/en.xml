@@ -436,6 +436,9 @@
   <translation tag="Belt Tension" en="Belt Tension"/>
   <translation tag="Belt Tension Check" en="Belt Tension Check"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." en="Belt Tension needs a CoreXY printer. This one is {}."/>
+  <translation tag="Belt tension and cutter calibration" en="Belt tension and cutter calibration"/>
+  <translation tag="Belt tensioning completed" en="Belt tensioning completed"/>
+  <translation tag="Belt tensioning failed: {}" en="Belt tensioning failed: {}"/>
   <translation tag="Belts already match" en="Belts already match"/>
   <translation tag="Beta" en="Beta"/>
   <translation tag="Beta features: OFF" en="Beta features: OFF"/>
@@ -3409,6 +3412,7 @@
   <translation tag="Set local timezone for time display" en="Set local timezone for time display"/>
   <translation tag="Set logging verbosity for troubleshooting" en="Set logging verbosity for troubleshooting"/>
   <translation tag="Set temperature between {}°C and {}°C" en="Set temperature between {}°C and {}°C"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" en="Set the X and Y belts with the motorized tensioners"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" en="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
   <translation tag="Set up" en="Set up"/>
   <translation tag="Set up your label printer in Settings" en="Set up your label printer in Settings"/>
@@ -3729,7 +3733,9 @@
   <translation tag="Temporary adjustment for this print" en="Temporary adjustment for this print"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" en="Temporary adjustment for this print, unless saved on Controls panel"/>
   <translation tag="Temporary for this print; a tool change resets it" en="Temporary for this print; a tool change resets it"/>
+  <translation tag="Tension Belts" en="Tension Belts"/>
   <translation tag="Tensioner: {}" en="Tensioner: {}"/>
+  <translation tag="Tensioning belts..." en="Tensioning belts..."/>
   <translation tag="Tertiary" en="Tertiary"/>
   <translation tag="Test All Lanes" en="Test All Lanes"/>
   <translation tag="Test Both" en="Test Both"/>
@@ -3881,6 +3887,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." en="The printer lost power during a print. The resumed layer may not line up exactly."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." en="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear."/>
   <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>

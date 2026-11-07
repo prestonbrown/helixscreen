@@ -420,21 +420,31 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
 
-    // --- Cutter / purge-chute calibration (K1 stock dialect only) ---
+    // --- Cutter / purge-chute calibration and K2 belt tensioning ---
     //
-    // Choreography verified against a K1 Max klippy.log, fw 2.3.5.33
-    // (prestonbrown/helixscreen#1282). The K2 box firmware has none of these
-    // commands (its cutter check is MOTOR_CHECK_CUT_POS) and the Kalico fork
-    // was never observed to expose them, which is why every entry point here
-    // gates on macro_variant_ == CfsMacroVariant::K1.
+    // K1 choreography verified against a K1 Max klippy.log, fw 2.3.5.33
+    // (prestonbrown/helixscreen#1282); the chute flow is K1-only. A K2 has
+    // none of the BOX_* calibration commands. Its stock firmware defines the
+    // gcode_macros CALIBRATE_CUT_POS (wrapping MOTOR_CHECK_CUT_POS) and
+    // BELT_TENSION (BELT_MDL_SET per axis); the Kalico port defines
+    // BELT_TENSION too (#2059). The K2 buttons exist only when the printer
+    // defines the macro.
 
-    /// BOX_FIND_CUT_POS: the firmware homes X/Y, sweeps the cutter and
-    /// rewrites cut_pos_y in box.cfg (~60s). Result lines arrive on the gcode
-    /// response stream; on_result fires once, on the main thread, with the
-    /// sweep's outcome: ok with the final "Found cut position" line (empty
-    /// when none was captured), or the failure that ended it early.
+    /// Cutter calibration, one result through @p on_result (main thread). On a
+    /// K1, BOX_FIND_CUT_POS: the firmware homes X/Y, sweeps the cutter and
+    /// rewrites cut_pos_y in box.cfg (~60s); ok carries the final "Found cut
+    /// position" line (empty when none was captured). On a K2, the printer's
+    /// CALIBRATE_CUT_POS macro, which reports no line HelixScreen parses. The
+    /// failure that ended either early arrives with ok false.
     AmsError calibrate_cutter(
         std::function<void(bool ok, const std::string& line)> on_result = nullptr) override;
+
+    /// K2 motorized belt tensioning: the printer's BELT_TENSION macro with no
+    /// AXES, which tensions X and Y on both the stock and the Kalico macro.
+    /// Refused during a print, while another calibration runs, and on a printer
+    /// without the macro. @p on_result fires once on the main thread.
+    AmsError tension_belts(
+        std::function<void(bool ok, const std::string& detail)> on_result = nullptr) override;
 
     /// Chute steps 1+2: XYZ_ZERO (~55s full home) then
     /// COORDINATES_ADJUST_PREPARE (parks Y at the box's safe position).
@@ -844,10 +854,25 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// Y_SAFE, unless a print holds the machine: every chute re-park goes here.
     AmsError repark_chute();
 
-    /// Both calibration flows home the machine; only one may own it at a
+    /// Every calibration flow moves the machine; only one may own it at a
     /// time. Set once a flow's first gcode is on the wire, cleared in every
     /// terminal callback (ready, saved, result, failed, cancelled).
     bool calibration_in_flight_ = false;
+
+    /// The command the cutter button sends: BOX_FIND_CUT_POS on a K1, the
+    /// CALIBRATE_CUT_POS macro on a K2 that defines it, empty otherwise.
+    [[nodiscard]] std::string cutter_calibration_gcode() const;
+
+    /// A K2 (stock or the Kalico port) that defines the BELT_TENSION macro.
+    [[nodiscard]] bool can_tension_belts() const;
+
+    /// Sends one long-running calibration command under calibration_in_flight_:
+    /// refused during a print or while another calibration runs. @p on_done
+    /// fires once on the main thread, (true, "") on completion or (false,
+    /// Klipper's message) on failure, after the lock is released.
+    AmsError
+    run_calibration_command(const std::string& gcode,
+                            std::function<void(bool ok, const std::string& detail)> on_done);
 
     /// Monotonic count of box.map parses — firmware-sourced by construction,
     /// since the optimistic path writes system_info_ via assign_tool_slot()

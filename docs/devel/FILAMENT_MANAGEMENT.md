@@ -3331,7 +3331,7 @@ The section overlay (`src/ui/filament/ui_ams_device_section_detail_overlay.cpp`)
 registry. It never names a vendor, and a flow id with no registration is refused with a
 warning rather than executed, because the flow is what asks before moving the machine.
 
-The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
+The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`, `cfs_belt_tension`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
 and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
 `register_builtin_guided_device_flows()` (`src/ui/filament/ui_guided_device_flow.cpp`). Startup calls
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32

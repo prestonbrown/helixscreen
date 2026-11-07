@@ -26,6 +26,14 @@ class ICfsCalibration {
     virtual AmsError
     calibrate_cutter(std::function<void(bool ok, const std::string& line)> on_result = nullptr) = 0;
 
+    /// Run the printer's motorized belt tensioning. @p on_result fires once with the
+    /// outcome. Not every CFS printer has motorized tensioners.
+    virtual AmsError
+    tension_belts(std::function<void(bool ok, const std::string& detail)> on_result = nullptr) {
+        (void)on_result;
+        return AmsErrorHelper::not_supported("Belt tensioning");
+    }
+
     /// Home and park for chute calibration; @p on_ready fires when jogging may start.
     virtual AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,

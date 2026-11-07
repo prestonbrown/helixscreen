@@ -436,6 +436,9 @@
   <translation tag="Belt Tension" it="Tensione cinghia"/>
   <translation tag="Belt Tension Check" it="Controllo tensione cinghia"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." it="La tensione cinghia richiede una stampante CoreXY. Questa è {}."/>
+  <translation tag="Belt tension and cutter calibration" it="Tensione cinghie e calibrazione taglierina"/>
+  <translation tag="Belt tensioning completed" it="Tensionamento cinghie completato"/>
+  <translation tag="Belt tensioning failed: {}" it="Tensionamento cinghie non riuscito: {}"/>
   <translation tag="Belts already match" it="Le cinghie sono già allineate"/>
   <translation tag="Beta" it="Beta"/>
   <translation tag="Beta features: OFF" it="Funzioni Beta: OFF"/>
@@ -3409,6 +3412,7 @@
   <translation tag="Set local timezone for time display" it="Imposta fuso orario locale per l&apos;ora"/>
   <translation tag="Set logging verbosity for troubleshooting" it="Imposta il livello di dettaglio del log per la risoluzione dei problemi"/>
   <translation tag="Set temperature between {}°C and {}°C" it="Imposta una temperatura tra {}°C e {}°C"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" it="Regola le cinghie X e Y con i tenditori motorizzati"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" it="Impostare a mano tipo e colore del filamento per questo slot. Se il tag dovrebbe essere leggibile, reinserire la bobina con l&apos;etichetta rivolta verso il lettore quando la box è inattiva"/>
   <translation tag="Set up" it="Configura"/>
   <translation tag="Set up your label printer in Settings" it="Configura la stampante etichette nelle Impostazioni"/>
@@ -3729,7 +3733,9 @@
   <translation tag="Temporary adjustment for this print" it="Regolazione temporanea per questa stampa"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" it="Regolazione temporanea per questa stampa, salvo salvataggio nel pannello Controlli"/>
   <translation tag="Temporary for this print; a tool change resets it" it="Temporanea per questa stampa; un cambio utensile la azzera"/>
+  <translation tag="Tension Belts" it="Tendi cinghie"/>
   <translation tag="Tensioner: {}" it="Tenditore: {}"/>
+  <translation tag="Tensioning belts..." it="Tensionamento cinghie..."/>
   <translation tag="Tertiary" it="Terziario"/>
   <translation tag="Test All Lanes" it="Prova tutte le corsie"/>
   <translation tag="Test Both" it="Entrambi"/>
@@ -3881,6 +3887,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." it="La stampante ha perso l&apos;alimentazione durante una stampa. Il layer ripreso potrebbe non allinearsi perfettamente."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" it="La stampante ha perso l&apos;alimentazione durante la stampa di {}. Riprendere da dove si è interrotta?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." it="La stampante ha perso l&apos;alimentazione durante la stampa di {}. Il layer ripreso potrebbe non allinearsi perfettamente."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." it="La stampante può eseguire l&apos;homing e muovere la testina, poi i tenditori motorizzati regolano le cinghie X e Y. Tieni liberi il piano e il portale."/>
   <translation tag="The printer moves the toolhead and measures its motors." it="La stampante muove la testina e misura i suoi motori."/>
   <translation tag="The printer no longer has a print to resume." it="La stampante non ha più una stampa da riprendere."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." it="La stampante legge il file fino all&apos;ultima posizione salvata. Un file grande può richiedere un minuto."/>

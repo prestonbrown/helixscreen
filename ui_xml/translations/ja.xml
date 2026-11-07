@@ -436,6 +436,9 @@
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ja="ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。"/>
+  <translation tag="Belt tension and cutter calibration" ja="ベルトテンションとカッターのキャリブレーション"/>
+  <translation tag="Belt tensioning completed" ja="ベルトの張り調整が完了しました"/>
+  <translation tag="Belt tensioning failed: {}" ja="ベルトの張り調整に失敗しました: {}"/>
   <translation tag="Belts already match" ja="ベルトはすでに一致しています"/>
   <translation tag="Beta" ja="ベータ"/>
   <translation tag="Beta features: OFF" ja="ベータ機能: OFF"/>
@@ -3409,6 +3412,7 @@
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
   <translation tag="Set temperature between {}°C and {}°C" ja="温度は {}〜{}°C にしてください"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
   <translation tag="Set up" ja="セットアップ"/>
   <translation tag="Set up your label printer in Settings" ja="設定でラベルプリンターをセットアップしてください"/>
@@ -3729,7 +3733,9 @@
   <translation tag="Temporary adjustment for this print" ja="この印刷のみの一時的な調整です"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ja="コントロールパネルで保存しない限り、この印刷のみの一時的な調整です"/>
   <translation tag="Temporary for this print; a tool change resets it" ja="この印刷のみの一時的な調整です。ツール交換でリセットされます"/>
+  <translation tag="Tension Belts" ja="ベルトを張る"/>
   <translation tag="Tensioner: {}" ja="テンショナー: {}"/>
+  <translation tag="Tensioning belts..." ja="ベルトを調整中..."/>
   <translation tag="Tertiary" ja="ターシャリ"/>
   <translation tag="Test All Lanes" ja="全レーンをテスト"/>
   <translation tag="Test Both" ja="両方テスト"/>
@@ -3881,6 +3887,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." ja="プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"/>
   <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ja="プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。"/>
