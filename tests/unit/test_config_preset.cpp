@@ -3,6 +3,8 @@
 
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
+#include "hardware_role_registry.h"
+#include "printer_discovery.h"
 
 #include <filesystem>
 #include <fstream>
@@ -260,6 +262,36 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(printer_data()["fans"]["chamber"] == "fan_generic user_pick");
     // Seeding still reaches keys nobody holds.
     REQUIRE(printer_data()["fans"]["exhaust"] == "fan_generic external_fan");
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file post-wizard keeps a declined role declined",
+                 "[config][preset][hwrole]") {
+    SetUp();
+
+    // A Z-Mod AD5M Pro is typed as the stock 5M Pro, so every boot migrates from
+    // ad5m_pro, whose exhaust and aux fans Z-Mod does not have. Answering the Fans
+    // wizard stored both as "" (prestonbrown/helixscreen#2040).
+    printer_data()["wizard_completed"] = true;
+    printer_data()["fans"] = {{"hotend", "heater_fan heat_fan"},
+                              {"part", "fan_generic fanM106"},
+                              {"chamber", "fan_generic chamber_fan"},
+                              {"exhaust", ""},
+                              {"aux", ""}};
+    copy_shipped_preset("ad5m_pro");
+
+    config.apply_preset_file("ad5m_pro");
+
+    CHECK(printer_data()["fans"]["exhaust"] == "");
+    CHECK(printer_data()["fans"]["aux"] == "");
+
+    // The next boot's discovery must not route a Fans wizard again.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"heater_bed", "extruder", "heater_fan heat_fan",
+                                  "fan_generic fanM106", "fan_generic chamber_fan"}));
+    REQUIRE(unresolved_guided_steps(&config, hw).empty());
 
     TearDown();
 }
