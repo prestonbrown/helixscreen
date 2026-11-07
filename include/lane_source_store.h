@@ -153,6 +153,11 @@ void file_pending(LaneId lane, const Observation& obs);
 /// @p reason is handed to await_pending() waiters.
 void withdraw_pending(LaneId lane, const std::string& reason = {});
 
+/// End a lane's Pending record as written: the writer accepted it but its
+/// echo will not state every field (a component answering a write directly).
+/// Waiters hear Echoed; the lane shows what Moonraker holds from the next read.
+void acknowledge_pending(LaneId lane);
+
 /// How a lane's Pending record ended.
 enum class PendingOutcome {
     Echoed,   ///< Moonraker holds every pending value (or nothing was pending)
@@ -239,7 +244,8 @@ class LaneSourceStore {
     [[nodiscard]] std::vector<LaneId> lanes() const;
 
     void clear();
-    void drop_source(LaneId lane, ObservationSource source, const std::string& reason = {});
+    void drop_source(LaneId lane, ObservationSource source, const std::string& reason = {},
+                     PendingOutcome outcome = PendingOutcome::Failed);
     std::vector<LaneId> expire(std::chrono::steady_clock::time_point now);
     void await(LaneId lane, std::optional<std::uint64_t> since, PendingSettled settled);
     [[nodiscard]] std::uint64_t filings(LaneId lane) const;

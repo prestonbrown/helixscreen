@@ -691,6 +691,7 @@ translations:
   Change heater control?: Change heater control?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
+  Change the name or the linked spool in Spoolman.: Change the name or the linked spool in Spoolman.
   Change tool: Change tool
   Changes apply immediately. Adjust during print for tuning.: Changes apply immediately.
     Adjust during print for tuning.
@@ -2718,6 +2719,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: Open the .3mf in Print Files to print this plate again.
   Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here
   Opened: Opened
   Operation already in progress: Operation already in progress
   Operation timed out: Operation timed out

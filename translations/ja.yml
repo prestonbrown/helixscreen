@@ -664,6 +664,7 @@ translations:
   Change heater control?: ヒーターの制御を変更しますか？
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。'
+  Change the name or the linked spool in Spoolman.: "名前やリンクされたスプールは Spoolman で変更してください。"
   Change tool: ツールを交換
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
@@ -2647,6 +2648,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。'
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS はこのスプールを Spoolman で管理しており、ここでは素材、色、ブランド、重量のみ変更できます"
   Opened: 開
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました

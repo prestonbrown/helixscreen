@@ -245,14 +245,14 @@ void LaneSourceStore::clear() {
     run(settled);
 }
 
-void LaneSourceStore::drop_source(LaneId lane, ObservationSource source,
-                                  const std::string& reason) {
+void LaneSourceStore::drop_source(LaneId lane, ObservationSource source, const std::string& reason,
+                                  PendingOutcome outcome) {
     Settlements settled;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (source == ObservationSource::Pending) {
             pending_deadline_.erase(lane);
-            settle_locked(lane, PendingOutcome::Failed, reason, settled);
+            settle_locked(lane, outcome, reason, settled);
         }
         auto it = lanes_.find(lane);
         if (it != lanes_.end()) {
@@ -350,6 +350,14 @@ void withdraw_pending(LaneId lane, const std::string& reason) {
         return;
     }
     LaneSourceStore::instance().drop_source(lane, ObservationSource::Pending, reason);
+}
+
+void acknowledge_pending(LaneId lane) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().drop_source(lane, ObservationSource::Pending, {},
+                                            PendingOutcome::Echoed);
 }
 
 std::uint64_t pending_filings(LaneId lane) {

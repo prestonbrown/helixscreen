@@ -32,9 +32,11 @@
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unistd.h>
@@ -1231,6 +1233,96 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(stored["writer"] == "helixscreen");
         CHECK(stored["filament_type"] == "PETG");
     }
+}
+
+namespace {
+
+/// An OpenAMS with [openams_spoolman] loaded, started on the shared layout.
+struct ComponentRig {
+    MockPrinter printer;
+    helix::test::RegisteredBackend<OpenAmsHarness> reg;
+    ComponentRig() : reg(&printer.api, &printer.client) {
+        printer.client.set_openams_spoolman(true);
+        reg->feed(shared_manager(0));
+        helix::OpenAmsTestAccess::start(*reg);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+    helix::AmsError edit(int slot, const std::function<void(SlotInfo&)>& change) {
+        const SlotInfo original = reg->get_slot_info(slot);
+        SlotInfo edited = original;
+        change(edited);
+        return reg->commit_user_edit(slot, original, edited);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "with openams_spoolman an OpenAMS edit goes through its endpoint, not lane_data",
+                 "[ams][openams][openams_spoolman]") {
+    ComponentRig rig;
+    const std::uint64_t before = helix::ams::pending_filings(rig.reg.lane(2));
+    REQUIRE(rig.edit(2,
+                     [](SlotInfo& s) {
+                         s.material = "PETG";
+                         s.color_rgb = 0x1E5AA8;
+                         s.remaining_weight_g = 640.0f;
+                     })
+                .success());
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    const auto& edits = rig.printer.client.openams_spoolman_edits();
+    REQUIRE(edits.size() == 1);
+    CHECK(edits[0]["unit"] == "ams2");
+    CHECK(edits[0]["bay"] == 1);
+    CHECK(edits[0]["material"] == "PETG");
+    CHECK(edits[0]["color_hex"] == "1e5aa8");
+    CHECK(edits[0]["remaining_weight"] == 640.0);
+    CHECK_FALSE(edits[0].contains("vendor"));
+    // lane_data is the component's: nothing written there.
+    CHECK(rig.printer.client.mock_db_get("lane_data", "lane3").is_null());
+    // The component's answer is the acknowledgement.
+    std::optional<helix::ams::PendingOutcome> heard;
+    helix::ams::await_pending(rig.reg.lane(2), before,
+                              [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
+    CHECK(heard == helix::ams::PendingOutcome::Echoed);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "openams_spoolman's refusal reaches the edit's waiter",
+                 "[ams][openams][openams_spoolman]") {
+    ComponentRig rig;
+    MoonrakerError offline;
+    offline.code = 503;
+    offline.message = "Spoolman is offline";
+    rig.printer.client.fail_next("server.openams_spoolman.edit", offline);
+    const std::uint64_t before = helix::ams::pending_filings(rig.reg.lane(2));
+    (void)rig.edit(2, [](SlotInfo& s) { s.material = "PETG"; });
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    std::optional<helix::ams::PendingOutcome> heard;
+    std::string why;
+    helix::ams::await_pending(rig.reg.lane(2), before,
+                              [&](helix::ams::PendingOutcome o, const std::string& r) {
+                                  heard = o;
+                                  why = r;
+                              });
+    CHECK(heard == helix::ams::PendingOutcome::Failed);
+    CHECK(why == "Spoolman is offline");
+    CHECK_FALSE(helix::ams::lane_sources(rig.reg.lane(2)).pending.has_value());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "with openams_spoolman a field it cannot hold is refused before anything is sent",
+                 "[ams][openams][openams_spoolman]") {
+    ComponentRig rig;
+    const int which = GENERATE(0, 1);
+    const helix::AmsError err = which == 0
+                                    ? rig.edit(2, [](SlotInfo& s) { s.spool_name = "PolyTerra"; })
+                                    : rig.edit(2, [](SlotInfo& s) { s.spoolman_id = 9; });
+    CHECK_FALSE(err.success());
+    CHECK_FALSE(err.partially_applied);
+    CHECK(rig.printer.client.openams_spoolman_edits().empty());
+    CHECK_FALSE(helix::ams::lane_sources(rig.reg.lane(2)).pending.has_value());
 }
 
 // ============================================================================

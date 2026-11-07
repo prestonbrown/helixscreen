@@ -706,6 +706,7 @@ translations:
   Change heater control?: Cambiare il controllo del riscaldatore?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Modifica le impostazioni della stampante tramite Moonraker, incluso caricare, riscrivere ed eliminare file nella cartella di configurazione della stampante.'
+  Change the name or the linked spool in Spoolman.: "Modifica il nome o la bobina collegata in Spoolman."
   Change tool: Cambia utensile
   Changes apply immediately. Adjust during print for tuning.: Le modifiche si applicano
     immediatamente. Regolare durante la stampa per la messa a punto.
@@ -2781,6 +2782,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Apri il .3mf in File di stampa per stampare di nuovo questo piatto.'
   Open the CFS unit and remove the broken filament from the slot: Aprire l'unità CFS e rimuovere il filamento spezzato dallo slot
   Open the slot editor when you load a new spool: 'Apri l''editor dello slot quando carichi una nuova bobina'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS conserva questa bobina in Spoolman, che qui accetta solo materiale, colore, marca e peso"
   Opened: Aperta
   Operation already in progress: Operazione già in corso
   Operation timed out: Timeout dell'operazione
