@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 
 namespace helix::printer {
 
@@ -140,6 +141,27 @@ std::optional<MotorControlDelta> parse_motor_control(const nlohmann::json& param
         d.motor_ready = ams::read_field<bool>(*it, "motor_ready");
     }
     return d;
+}
+
+std::optional<ChuteWiperLine> parse_chute_wiper(const nlohmann::json& configfile_settings) {
+    const nlohmann::json* box = json_util::find_member(configfile_settings, "box");
+    if (!box) {
+        return std::nullopt;
+    }
+    auto read = [box](const char* key) {
+        const nlohmann::json* v = json_util::find_member(*box, key);
+        return v ? json_util::as_double(*v, std::nan("")) : std::nan("");
+    };
+    const double left_x = read("clean_left_pos_x");
+    const double right_x = read("clean_right_pos_x");
+    const double left_y = read("clean_left_pos_y");
+    const double right_y = read("clean_right_pos_y");
+    if (!std::isfinite(left_x) || !std::isfinite(right_x) || !std::isfinite(left_y) ||
+        !std::isfinite(right_y)) {
+        return std::nullopt;
+    }
+    return ChuteWiperLine{std::min(left_x, right_x), std::max(left_x, right_x),
+                          std::min(left_y, right_y)};
 }
 
 bool has_registered_unit(const nlohmann::json& configfile_settings) {

@@ -8221,3 +8221,32 @@ TEST_CASE("CFS drops the LOADED stamp when no unit names an active lane", "[ams]
         CHECK_FALSE(cfs.slot_is_actively_loaded(i));
     }
 }
+
+TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
+          "[ams][cfs][chute][2007]") {
+    helix::test::StartedBackend<UnansweredClientCfs> cfs;
+    auto& client = cfs.wire().fake_client();
+    auto answer_configfile = [&client](const json& settings) {
+        const auto it =
+            std::find_if(client.rpc_calls.rbegin(), client.rpc_calls.rend(), [](const auto& c) {
+                return c.params.contains("objects") && c.params["objects"].contains("configfile");
+            });
+        REQUIRE(it != client.rpc_calls.rend());
+        auto cb = it->success_cb;
+        cb(json{{"result", {{"status", {{"configfile", {{"settings", settings}}}}}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
+    CHECK_FALSE(cfs.chute_wiper());
+
+    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5,
+        "clean_left_pos_y": 225.3, "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3}})"));
+    const auto wiper = cfs.chute_wiper();
+    REQUIRE(wiper);
+    CHECK(wiper->x_min == Catch::Approx(153.5));
+    CHECK(wiper->x_max == Catch::Approx(178.0));
+    CHECK(wiper->y == Catch::Approx(225.3));
+
+    cfs.on_klipper_restarted();
+    answer_configfile(no_unit_settings());
+    CHECK_FALSE(cfs.chute_wiper());
+}
