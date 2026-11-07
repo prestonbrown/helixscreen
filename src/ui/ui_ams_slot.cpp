@@ -97,7 +97,7 @@ struct AmsSlotData {
 
     lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
 
-    // The lane spool graphic (spool, placeholder, error dot) renders itself
+    // The lane spool graphic (spool, placeholder, error glow) renders itself
     // from the per-slot subjects; ams_slot only points it at a slot index.
     lv_obj_t* lane_spool = nullptr;
 
@@ -844,9 +844,9 @@ static void setup_slot_observers(AmsSlotData* data) {
                                    ? lv_subject_get_string(remaining_subject)
                                    : "");
 
-    // Update tool badge from the slot's own backend. Material and the error dot are NOT read
+    // Update tool badge from the slot's own backend. Material and the error glow are NOT read
     // here - material flows from the per-slot material subject via the observer
-    // above, and the error dot is the embedded ams_lane_spool's, driven by the
+    // above, and the error glow is the embedded ams_lane_spool's, driven by the
     // has_error/severity subjects.
     AmsBackend* backend = state.get_backend(backend_idx);
     if (backend) {
@@ -1097,7 +1097,7 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     }
 
     // Only update non-observer properties here. Color, fill, status, lane
-    // state, current-slot highlight, material and the error dot are all driven
+    // state, current-slot highlight, material and the error glow are all driven
     // by observers (this widget's or the embedded ams_lane_spool's).
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend) {

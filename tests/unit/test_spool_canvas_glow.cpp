@@ -114,7 +114,7 @@ lv_obj_t* make_canvas(lv_obj_t* parent) {
 lv_obj_t* make_glow(lv_obj_t* c, bool simple, int32_t* m) {
     lv_obj_t* g = helix::ui::spool_glow_create(lv_obj_get_parent(c));
     REQUIRE(g != nullptr);
-    helix::ui::spool_glow_paint(g, c, SPOOL, simple);
+    helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
     const Pixels px = snapshot(g);
     REQUIRE(px.w == px.h);
     REQUIRE(px.w >= SPOOL);
@@ -189,19 +189,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: glow follows the shape, not t
 
         // A new color is the same silhouette: same glow.
         ui_spool_canvas_set_color(c, lv_color_hex(0x2BD3D1));
-        helix::ui::spool_glow_paint(g, c, SPOOL, simple);
+        helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
         CHECK(same(full, snapshot(g)));
 
         // A thinner wind is a different silhouette. The 2px outline closes
         // the notch between the flanges either way, so only the halo shows it.
         ui_spool_canvas_set_fill_level(c, 0.1f);
-        helix::ui::spool_glow_paint(g, c, SPOOL, simple);
+        helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
         if (!simple)
             CHECK_FALSE(same(full, snapshot(g)));
 
         // Back to full: the cached glow, identical.
         ui_spool_canvas_set_fill_level(c, 0.8f);
-        helix::ui::spool_glow_paint(g, c, SPOOL, simple);
+        helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), simple);
         CHECK(same(full, snapshot(g)));
 
         lv_obj_delete(g);
@@ -235,7 +235,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: no glow before the spool has 
     ui_spool_canvas_invalidate_cache();
 
     lv_obj_t* g = helix::ui::spool_glow_create(test_screen());
-    helix::ui::spool_glow_paint(g, c, SPOOL, /*simple=*/false);
+    helix::ui::spool_glow_paint(g, c, SPOOL, helix::ui::tube_accent(), /*simple=*/false);
     CHECK(lv_image_get_src(g) == nullptr);
 
     // The first render paints the bound glow.
