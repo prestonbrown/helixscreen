@@ -365,9 +365,20 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 
     // Override execute_gcode_notify to capture commands (avoids real API call)
     AmsError execute_gcode_notify(const std::string& gcode, const std::string& /*success_msg*/,
-                                  const std::string& /*error_prefix*/) override {
+                                  const std::string& /*error_prefix*/,
+                                  helix::SharedCallback<void()> on_success = nullptr) override {
         captured_gcodes.push_back(gcode);
+        pending_notify_success = std::move(on_success);
         return AmsErrorHelper::success();
+    }
+
+    // The last execute_gcode_notify() success continuation; a test fires it to
+    // stand for the firmware accepting the command.
+    helix::SharedCallback<void()> pending_notify_success;
+    void accept_notify_gcode() {
+        REQUIRE(pending_notify_success);
+        pending_notify_success();
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // ------------------------------------------------------------------
@@ -4039,12 +4050,45 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
     REQUIRE(h.get_slot_info(2).error.has_value());
 
     REQUIRE(h.clear_fault(2).success());
+    REQUIRE(h.has_gcode("RESET_FAILURE"));
+
+    SECTION("a refused RESET_FAILURE keeps the marking") {
+        REQUIRE(h.get_slot_info(2).error.has_value());
+        REQUIRE(h.has_clearable_fault(2));
+        return;
+    }
+
     // AFC answers RESET_FAILURE with error_state false and no lane status delta.
+    h.accept_notify_gcode();
     h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
     h.feed_afc_stepper("lane3", {{"prep", true}});
 
     REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
     REQUIRE_FALSE(h.has_clearable_fault(2));
+
+    SECTION("the lane failing again outside a print brings it back") {
+        // handle_lane_failure(pause=False): status stays Error (no delta) and
+        // error_state never rises. Only the new message says so.
+        h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
+        h.feed_afc_state(
+            {{"message",
+              {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+               {"type", "error"}}}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+        REQUIRE(h.has_clearable_fault(2));
+    }
+    SECTION("a new error naming no lane brings every acknowledged lane back") {
+        h.feed_afc_state(
+            {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+    SECTION("a new error naming another lane leaves this one cleared") {
+        h.feed_afc_state(
+            {{"message",
+              {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+               {"type", "error"}}}});
+        REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+    }
 
     SECTION("a new AFC error brings the marking back") {
         h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
