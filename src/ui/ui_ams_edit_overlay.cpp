@@ -432,15 +432,18 @@ void AmsEditOverlay::on_activate() {
     }
 }
 
-void AmsEditOverlay::on_deactivating(DeactivateReason) {
+void AmsEditOverlay::on_deactivating(DeactivateReason reason) {
     // Fires when POPPED **and** when COVERED (e.g. QR scanner pushed on top).
     // Must NOT fire completion or reset the view subject — session state
     // resets happen in show_for_slot(). A pending debounced search belongs to
     // the session being left.
     picker_search_debounce_.cancel();
-    // lifetime_ is invalidated right after this hook: its fetches die here.
-    linked_fetch_pending_ = false;
-    recents_pending_ = false;
+    // Leaving for real, lifetime_ is invalidated right after this hook and its
+    // fetches die here. Behind the screensaver they still land.
+    if (reason != DeactivateReason::Suspended) {
+        linked_fetch_pending_ = false;
+        recents_pending_ = false;
+    }
     spdlog::debug("[AmsEditOverlay] on_deactivating()");
 }
 

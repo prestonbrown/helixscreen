@@ -563,11 +563,13 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: the screensaver does not abort a
     settle();
     REQUIRE(wizard_step() == PlrWizardStep::Preparing);
 
-    get_plr_wizard_overlay().on_deactivating(DeactivateReason::Suspended);
+    NavigationManager::instance().suspend_active();
     settle();
     CHECK(wizard_step() == PlrWizardStep::Preparing);
-    // The prepare reply still lands in this opening.
+    // The prepare reply lands behind the screensaver, and the wake shows its step.
     REQUIRE(run_past(PlrWizardStep::Preparing));
+    NavigationManager::instance().resume_active();
+    settle();
     CHECK(wizard_step() == PlrWizardStep::ZStep);
     CHECK(client.count(helix::kPlrAbortRpc) == 0);
 }

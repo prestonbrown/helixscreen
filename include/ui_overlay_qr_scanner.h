@@ -99,6 +99,8 @@ class QrScannerOverlay : public OverlayBase {
                                CancelCallback on_cancel = nullptr);
 
   private:
+    friend struct QrScannerOverlayTestAccess;
+
     void handle_close();
     void start_scanning();
     /// Lowers a moving bed for camera clearance and starts the camera or snapshot decode.

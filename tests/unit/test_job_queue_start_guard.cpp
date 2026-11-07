@@ -506,6 +506,28 @@ TEST_CASE_METHOD(QueuedStartFixture,
     CHECK_FALSE(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
 }
 
+TEST_CASE_METHOD(QueuedStartFixture,
+                 "the screensaver over the queued file's detail view keeps the pending start",
+                 "[job_queue][queue_start][suspend]") {
+    PlantedGcode file("queue_start_suspend.gcode");
+    seed_store("0001", file.name(), {{"bed_mesh", false}});
+
+    panel_->start_queued_job(entry("0001", file.name()));
+    drain();
+    REQUIRE(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
+    REQUIRE(pending_job_id() != nullptr);
+
+    NavigationManager::instance().suspend_active();
+    drain();
+    NavigationManager::instance().resume_active();
+    drain();
+
+    const std::string* pending = pending_job_id();
+    REQUIRE(pending != nullptr);
+    CHECK(*pending == "0001");
+    CHECK(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
+}
+
 // ============================================================================
 // The home tile's starter shares the after-start bookkeeping
 // ============================================================================

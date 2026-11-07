@@ -1069,21 +1069,24 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             return;
         }
 
-        // Progress: phase 1 — ambient settling
-        if (line.find("Waiting for heater to settle") != std::string::npos) {
+        // Kalico's control_mpc.py narrates four phases. Phase 1 has two spellings:
+        // with an ambient sensor it only waits for the heater to cool below a
+        // threshold, without one it waits for the temperature to settle.
+        if (line.find("Waiting for heater to settle") != std::string::npos ||
+            line.find("Waiting for heater to drop below") != std::string::npos) {
             report_progress(1, line);
             return;
         }
-
-        // Progress: phase 2 — heatup test
         if (line.find("Performing heatup test") != std::string::npos) {
             report_progress(2, line);
             return;
         }
-
-        // Progress: phase 3 — fan breakpoint measurements
-        if (line.find("measuring power usage with") != std::string::npos) {
+        if (line.find("Performing ambient transfer tests") != std::string::npos) {
             report_progress(3, line);
+            return;
+        }
+        if (line.find("measuring power usage with") != std::string::npos) {
+            report_progress(4, line);
             return;
         }
 
@@ -1102,9 +1105,11 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         }
     }
 
-    void report_progress(int phase, const std::string& description) {
-        // Total phases: 1=settle, 2=heatup, 3=fan measurements
-        static constexpr int kTotalPhases = 3;
+    void report_progress(int phase, const std::string& line) {
+        // 1=settle, 2=heatup, 3=ambient transfer, 4=fan measurements
+        static constexpr int kTotalPhases = 4;
+        // Klipper's respond_info marks every line "// "; the user reads the sentence.
+        const std::string description = line.rfind("// ", 0) == 0 ? line.substr(3) : line;
         spdlog::debug("[MPCCalibrateCollector] Progress: phase={} desc={}", phase, description);
         if (on_progress_)
             on_progress_(phase, kTotalPhases, description);

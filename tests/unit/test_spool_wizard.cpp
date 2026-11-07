@@ -3,6 +3,7 @@
 
 #include "ui_spool_wizard.h"
 
+#include "../lvgl_test_fixture.h"
 #include "filament_database.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -589,4 +590,30 @@ TEST_CASE("vendor_create_payload keeps the website Spoolman has no field for",
                                  [&](const nlohmann::json& v) { return v["id"] == vendor_id; });
     REQUIRE(it != served.end());
     CHECK((*it)["comment"] == "https://acme.example");
+}
+
+// ============================================================================
+// Screensaver
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "a screensaver wake keeps the wizard's step and entries",
+                 "[spool_wizard][suspend]") {
+    SpoolWizardOverlay wizard;
+    wizard.on_activate();
+    wizard.set_new_vendor("Polymaker", "https://polymaker.com");
+    wizard.set_can_proceed(true);
+    wizard.navigate_next();
+    REQUIRE(wizard.current_step() == SpoolWizardOverlay::Step::FILAMENT);
+
+    wizard.on_deactivate(DeactivateReason::Suspended);
+    wizard.on_activate();
+
+    CHECK(wizard.current_step() == SpoolWizardOverlay::Step::FILAMENT);
+    CHECK(wizard.new_vendor_name() == "Polymaker");
+
+    // Opening the wizard again after leaving it starts fresh.
+    wizard.on_deactivate(DeactivateReason::NavigateAway);
+    wizard.on_activate();
+    CHECK(wizard.current_step() == SpoolWizardOverlay::Step::VENDOR);
+    CHECK(wizard.new_vendor_name().empty());
 }
