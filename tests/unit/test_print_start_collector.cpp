@@ -9388,3 +9388,96 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     drain_async_updates();
     CHECK(collector().is_active());
 }
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: an error line ends a printer-announced start with no job",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+
+    send_gcode_response("!! Tool T0 did not pick up");
+    drain_async_updates();
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+    CHECK(get_current_phase() == PrintStartPhase::IDLE);
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: an error line once the printer holds the job keeps the run",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    drain_async_updates();
+
+    // A macro's recoverable error inside the job is the job's to handle.
+    send_gcode_response("!! Move out of range: 300.000 0.000 1.000");
+    drain_async_updates();
+    drain_async_updates();
+    CHECK(collector().is_active());
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a queued retirement spares a run whose file just opened",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+
+    clock_.advance(std::chrono::minutes(11));
+    collector().check_printer_start_retirement(); // queues the stop
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    drain_async_updates();
+    drain_async_updates();
+    CHECK(collector().is_active());
+}
+
+TEST_CASE_METHOD(
+    CreatorFivePrintStartReplayFixture,
+    "PrintStartCollector: a detached collector does not arm from a queued announcement",
+    "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    json msg = {{"method", "notify_gcode_response"}, {"params", {kCreatorFiveStartTable}}};
+    client().dispatch_method_callback("notify_gcode_response", msg); // queues the arm
+    collector().detach();
+    drain_async_updates();
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+    CHECK_FALSE(state().print_state().printer_side_pre_start());
+    // Nor does it listen again: a later announcement finds no handler.
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a profile set mid-run applies when the run ends",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    collector().set_profile(PrintStartProfile::load_default());
+    collector().start();
+    drain_async_updates();
+    // The printer type settles during a run that began on the default profile.
+    collector().set_profile(PrintStartProfile::load("creator5"));
+    collector().stop();
+    drain_async_updates();
+
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    CHECK(collector().is_active());
+}

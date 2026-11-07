@@ -136,7 +136,7 @@ void PrintStartCollector::register_console_handler() {
     // Stays registered until detach(): on_gcode_response() returns early when
     // !active_, apart from a start announcement. Registering it only at start()
     // would lose the first responses from START_PRINT.
-    if (!handler_name_.empty()) {
+    if (!handler_name_.empty() || detached_.load()) {
         return;
     }
     static std::atomic<uint64_t> s_collector_id{0};
@@ -168,6 +168,10 @@ PrintStartCollector::~PrintStartCollector() {
 void PrintStartCollector::start() {
     if (active_.load()) {
         spdlog::debug("[PrintStartCollector] Already active, ignoring start()");
+        return;
+    }
+    if (detached_.load()) {
+        spdlog::debug("[PrintStartCollector] Detached, ignoring start()");
         return;
     }
 
@@ -350,6 +354,14 @@ void PrintStartCollector::stop() {
     if (armed_by_printer_.exchange(false)) {
         state_.print_state().set_printer_side_pre_start(false);
     }
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (has_pending_profile_) {
+            profile_ = std::move(pending_profile_);
+            pending_profile_.reset();
+            has_pending_profile_ = false;
+        }
+    }
 
     // Keep gcode response handler registered permanently — it checks active_ and
     // returns early when not collecting. This avoids the race where early responses
@@ -385,6 +397,7 @@ void PrintStartCollector::stop() {
 }
 
 void PrintStartCollector::detach() {
+    detached_.store(true);
     stop();
     if (!handler_name_.empty()) {
         client_.unregister_method_callback("notify_gcode_response", handler_name_);
@@ -1229,7 +1242,7 @@ void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
 }
 
 void PrintStartCollector::arm_from_printer_start(const json& msg) {
-    if (active_.load()) {
+    if (active_.load() || detached_.load()) {
         return;
     }
     auto& print_state = state_.print_state();
@@ -1267,14 +1280,22 @@ void PrintStartCollector::check_printer_start_retirement() {
     if (helix::sim::SimulatedClock::now() - last < kPrinterStartQuietLimit) {
         return;
     }
-    spdlog::info("[PrintStartCollector] A printer-announced start went quiet with no job; "
-                 "retiring it");
     // Deferred: the ETA tick runs this, and stop() deletes that tick's timer.
+    queue_printer_start_retirement("went quiet");
+}
+
+void PrintStartCollector::queue_printer_start_retirement(const char* why) {
     auto self = shared_from_this();
-    helix::ui::queue_update("PrintStartCollector::retire_printer_start", [self]() {
-        if (self->armed_by_printer_.load()) {
-            self->stop();
+    helix::ui::queue_update("PrintStartCollector::retire_printer_start", [self, why]() {
+        // RAW_PRINT_STATE_OK: the file may have opened since this was queued;
+        // a run that now holds its job is a print starting, not an abandoned one.
+        if (!self->active_.load() || !self->armed_by_printer_.load() ||
+            helix::printer_has_job(self->state_.print_state().get_print_job_state())) {
+            return;
         }
+        spdlog::info("[PrintStartCollector] Retiring a printer-announced start with no job: {}",
+                     why);
+        self->stop();
     });
 }
 
@@ -1303,8 +1324,15 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
 
     if (armed_by_printer_.load()) {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        printer_start_last_line_ = helix::sim::SimulatedClock::now();
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            printer_start_last_line_ = helix::sim::SimulatedClock::now();
+        }
+        // An error before the file opens aborts the start: Z-Mod's macros raise
+        // one and leave print_stats where it was.
+        if (line.rfind("!! ", 0) == 0) {
+            queue_printer_start_retirement("the printer reported an error");
+        }
     }
 
     // Klipper echoes dispatched gcode back through the console. A line that
@@ -2766,7 +2794,10 @@ bool PrintStartCollector::mesh_probing_locked() const {
 
 void PrintStartCollector::set_profile(std::shared_ptr<PrintStartProfile> profile) {
     if (active_.load()) {
-        spdlog::warn("[PrintStartCollector] set_profile() called while active, ignoring");
+        spdlog::debug("[PrintStartCollector] set_profile() during a run: applied when it stops");
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        pending_profile_ = std::move(profile);
+        has_pending_profile_ = true;
         return;
     }
     {

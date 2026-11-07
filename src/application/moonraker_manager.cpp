@@ -760,12 +760,12 @@ void MoonrakerManager::init_print_start_collector() {
 
     // The profile follows the printer type, which discovery can settle after the
     // collector exists. An idle collector needs it to recognise a start the
-    // printer announces (#2054); a running one keeps the profile it started with.
+    // printer announces (#2054); a running one takes it when the run ends.
     m_print_start_profile_observer = ObserverGuard(
         get_printer_state().profile_state().get_printer_type_subject(),
         [](lv_observer_t*, lv_subject_t*) {
             auto collector = s_collector.lock();
-            if (!collector || collector->is_active()) {
+            if (!collector) {
                 return;
             }
             const std::string printer_type = get_printer_state().profile_state().printer_type();
@@ -777,6 +777,7 @@ void MoonrakerManager::init_print_start_collector() {
                 spdlog::debug(
                     "[MoonrakerManager] No print start profile for printer '{}', using default",
                     printer_type);
+                collector->set_profile(nullptr);
                 return;
             }
             collector->set_profile(PrintStartProfile::load(profile_name));
@@ -963,7 +964,7 @@ void MoonrakerManager::init_print_start_collector() {
             if (!collector || !collector->is_active())
                 return;
             auto klippy = static_cast<KlippyState>(lv_subject_get_int(subject));
-            if (should_stop_collector_on_klippy_state(klippy)) {
+            if (should_stop_collector_on_klippy_state(klippy, collector->armed_by_printer())) {
                 collector->stop();
                 spdlog::info("[MoonrakerManager] PRINT_START collector stopped (klippy state={})",
                              static_cast<int>(klippy));

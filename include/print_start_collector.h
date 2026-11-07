@@ -365,7 +365,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /**
      * @brief Set the print start profile for pattern/signal matching
      *
-     * Must be called before start(). Ignored if the collector is active.
+     * During a run the profile is held and applied when the run stops.
      *
      * @param profile Profile to use, or nullptr to disable profile-based matching
      */
@@ -432,6 +432,10 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// Main thread: arm from the announcing line @p msg unless a run, a job or
     /// a preparing job of ours already covers it, then apply the line.
     void arm_from_printer_start(const nlohmann::json& msg);
+
+    /// Queue a stop of a printer-announced run that, when the queue drains,
+    /// is still live and still holds no job. Any thread.
+    void queue_printer_start_retirement(const char* why);
 
     /**
      * @brief Whether a console line is the echo of the dispatched pre-start block
@@ -742,6 +746,13 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     std::string handler_name_;
     std::atomic<bool> active_{false};
     std::atomic<bool> armed_by_printer_{false}; ///< See armed_by_printer()
+    /// Set by detach(): the collector is being replaced, and a queued arm or a
+    /// start() must not bring it back on the client.
+    std::atomic<bool> detached_{false};
+    /// A profile set during a run, applied when it stops. Guarded by
+    /// state_mutex_; has_pending_profile_ tells "none pending" from "clear it".
+    std::shared_ptr<PrintStartProfile> pending_profile_;
+    bool has_pending_profile_ = false;
     /// When a printer-announced run last heard a console line, any line: the
     /// printer still talking is the printer still starting. Guarded by
     /// state_mutex_.
