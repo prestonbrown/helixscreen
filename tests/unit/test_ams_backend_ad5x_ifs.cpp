@@ -11616,6 +11616,8 @@ TEST_CASE("AD5X IFS lane truth: an edit's colour and type go to the firmware, th
     edit.material = "PETG";
     edit.color_rgb = 0x00FF00;
     edit.remaining_weight_g = 500.0f;
+    edit.nozzle_temp_min = 240;
+    edit.bed_temp = 70;
     helix::test::edit_slot_as_user(h.backend, 0, edit);
 
     const nlohmann::json written = h.file();
@@ -11629,6 +11631,8 @@ TEST_CASE("AD5X IFS lane truth: an edit's colour and type go to the firmware, th
     CHECK(rec["vendor_name"] == "Polymaker");
     CHECK(rec["color"].is_null());
     CHECK(rec["material"].is_null());
+    CHECK(rec["nozzle_temp"] == 240);
+    CHECK(rec["bed_temp"] == 70);
 
     // Until the firmware echoes it, the lane shows the edit.
     CHECK(h.pending());
