@@ -488,13 +488,29 @@ Positive switch evidence is required to claim empty, because the errors are not 
 
 > **The switch pair is a proxy for a sensor we do not read.** The firmware's actual gate is `get_extruder_sensor()` (zmod_ifs.py:1149), an ADC read of `temperature_sensor filamentValue` (`result = value >= 0.72` when `value > 0.3`, `True` otherwise — a missing reading counts as loaded, zmod_ifs.py:353-361). HelixScreen subscribes to it nowhere. Subscribing is the proper fix; it needs a session on the fleet's AD5X rig (commissioned 2026-08-23) to confirm the object is published — no `ad5x` mock profile exists.
 
+#### Lane identity: what the firmware holds and what `lane_data` holds
+
+Colour and type are the firmware's: `IFS_SET_MATERIAL` on the module, otherwise
+`Adventurer5M.json` (`write_adventurer_json`) plus the plugin's `_IFS_VARS colors=`/`types=`
+on a lessWaste/bambufy rig. HelixScreen is the `lane_data` writer here (`lane<n>`, writer
+`helixscreen`): an edit puts brand, spool name and id, weights, colour name and
+temperatures in the record, and never the edit's colour or type. The record copies colour
+and type from the firmware when a firmware reading changes on a present lane
+(`check_external_color_change` / `check_external_type_change` →
+`sync_override_to_firmware_locked`), for OrcaSlicer and other `lane_data` readers; that
+copy also triggers the `_IFS_VARS` push that keeps the plugin in step with an LCD edit.
+Nothing is copied before the first record read lands. The lane shows the edit (a pending
+write) until the firmware echoes it; a type the firmware spells its own way (`Silk PLA`
+→ `SILK`) waits for that spelling. An LCD, Mainsail or `CHANGE_ZCOLOR` edit is simply
+the firmware's new reading and wins. A weight persist writes only the record.
+
 #### External-change triggers (the gcode-response listener)
 
 `register_zcolor_listener()` subscribes to `notify_gcode_response`; `on_gcode_response_line()` schedules a `GET_ZCOLOR` re-read when it sees an externally-driven change (commit `cafcff3ad` added the bare-`Extruder:` trigger). The watched signals:
 
 | Token in stream | Why it fires | Notes |
 |-----------------|--------------|-------|
-| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | `CHANGE_ZCOLOR SLOT=N` carrying a real locked override also clears that stale override so the new firmware color wins (#981). |
+| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | The firmware holds colour and type, so the edit is the lane's truth (#981): its `TYPE=`/`HEX=` land in the firmware caches at once and the `lane_data` record copies them. |
 | bare `Extruder: <N>` | zmod's `_SET_EXTRUDER_SLOT` (zmod_color.py `cmd_SET_EXTRUDER_SLOT`) emits `Extruder: {zslot}` via `respond_raw` at the channel-commit step near the **end** of an operation. This is the marker that catches **external unloads/loads done via zmod's own color macro**, where the stream carries no `RUN_ZCOLOR`/`CHANGE_ZCOLOR`. | Matched by a **strict** regex (`^\s*(?://\s*)?Extruder:\s*\d+\s*$`). |
 
 **Why `IN_ZCOLOR` is NOT watched.** An external unload via zmod's color macro emits `IN_ZCOLOR SLOT=N NAPR=0/1` (load/unload) — but the literal `IN_ZCOLOR` token only appears in the **dialog button *definition* echo** (`action:prompt_button Unload|IN_ZCOLOR SLOT=N NAPR=1…`) at *prompt-render* time, **not** when the unload actually runs. Watching it would false-fire on dialog-open and still miss the real unload. The bare `Extruder: <N>` channel-commit marker is the reliable terminal signal instead.

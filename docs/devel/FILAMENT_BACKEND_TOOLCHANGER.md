@@ -122,7 +122,7 @@ non-settled states are easy to get wrong:
 | Tool Mapping | Yes | With klipper-toolchanger: `RemapStrategy::Native` - `set_tool_mapping()` emits `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`, so a G-code T-number can point at any physical tool. `parse_toolchanger_state()` resolves `tool_number` back through the forward map. Without it (`tool_commands_.present`, the machine swaps with its own `T<n>` commands): `RemapStrategy::GcodeRewrite` - the job file is rewritten before printing, which needs the HelixPrint plugin. See [the remapper](FILAMENT_MANAGEMENT.md#gcode-tool-remapper) for what that rewrite does and does not move |
 | Bypass Mode | No | Not applicable - each tool is its own path. [The force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) shows the external spool for tracking only |
 | Spoolman | Fields only | `spoolman_id`/`spoolman_vendor_id` persist in slot overrides; no toolchanger-specific Spoolman wiring exists in the backend |
-| Slot metadata | Yes | Persisted via `FilamentSlotOverrideStore` (`lane_data`, `T<n>` keys). The firmware supplies none of it, so the store is the sole source - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out) |
+| Slot metadata | Yes | The `lane_data` record `T<n>` (writer `helixscreen`) is the tool's identity: material, colour, brand, spool id, weights and nozzle/bed temps. The firmware supplies none of it (Z-Mod's `zmod_color` aside, below), so the record is the sole source, read at connect, after each write and on the 10 s poll. A Mainsail `T<n>` record with no `writer` is read and replaced on the next edit. `initialize_tools()` and every status frame paint the slots through the lane resolver (`apply_resolved_lane`) - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out). MedusaHC and INDX inherit this |
 | Auto-Heat on Load | No | -- |
 | Dryer | No | -- |
 | Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder`, and one with a nozzle-clean command `clean_nozzle` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
@@ -269,16 +269,17 @@ printer and exports them through `zmod_color.get_status()`. `read_materials()`
 (`src/printer/toolchanger_addon.cpp#read_materials`, parsing in
 `include/zmod_color_status.h`) turns a frame into per-slot material/hex readings plus
 `valid_types` and `palette`; `apply_material_reading_locked()` files each as an
-`ObservationSource::VendorCache` observation through `helix::ams::ingest()`. A Spoolman
-link still outranks it.
+`ObservationSource::Firmware` observation through `helix::ams::ingest()`, which outranks
+the lane record and Spoolman's details.
 
-Once a frame has carried both `slots` and `palette`, the firmware is the only store for
-colour and material (`src/printer/ams_backend_toolchanger.cpp#firmware_stores_color_and_material`).
-A user edit sends the writer's gcode and files **no** colour or material declaration;
-brand, spool name, Spoolman link and weights are declared as usual. The screen updates
-from the firmware's echo one status frame later, so a rejected write never shows. Before
-the first such frame (a Z-Mod build without ghzserg/z_c5pro#1) the hook answers "none" and
-edits stay local, as on any tool changer.
+Once a frame has carried both `slots` and `palette`, a user edit that moves colour or
+material also sends the writer's gcode
+(`src/printer/ams_backend_toolchanger.cpp#apply_user_edit`). The lane shows the edit as
+pending until an echo matches it or 30 s pass; the firmware's reading then wins. The
+`T<n>` record still carries the whole edit, colour and material included: this backend
+copies no firmware reading into its record, and the record is what OrcaSlicer reads.
+Before the first such frame (a Z-Mod build without ghzserg/z_c5pro#1) the edit goes to
+the record alone, as on any tool changer.
 
 - **Types:** `zmod_color.valid_types` becomes `get_supported_materials()`, so the edit
   dropdown offers only those. `AmsBackend::normalize_material()` maps anything else by
