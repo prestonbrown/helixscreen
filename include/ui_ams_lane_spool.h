@@ -15,7 +15,7 @@ extern "C" {
  *
  * The spool rendering counterpart of ams_lane_bar: a round spool graphic
  * (pseudo-3D canvas or flat concentric rings, per /ams/spool_style) plus the
- * empty-lane placeholder and the error dot. All of it is driven by AmsState's
+ * empty-lane placeholder and the error glow or dot. All of it is driven by AmsState's
  * per-slot subjects:
  *
  * - ams_slot_N_lane_state  -> Present (full strength) / Ghosted (kGhostOpa,
@@ -23,7 +23,9 @@ extern "C" {
  * - ams_slot_N_color       -> filament color
  * - ams_slot_N_fill        -> fill level (display_fill_pct encoding, -1 = no
  *   data, current render untouched)
- * - ams_slot_N_has_error / _error_severity -> error dot visibility and color
+ * - ams_slot_N_has_error / _error_severity -> a glow around the spool in the
+ *   severity color, pulsing while animations are on; an Empty lane, with no
+ *   spool to glow around, shows a dot instead
  *
  * XML usage:
  * @code{.xml}
@@ -94,7 +96,8 @@ enum class SpoolHighlight { None, Steady, Pulse };
 
 /**
  * @brief Set the lane's glow. Survives a size or style rebuild; hidden while
- *        the lane is Empty. The glow overhangs the widget, which passes the
+ *        the lane is Empty. A lane in error glows in its severity colour
+ *        whatever its highlight. The glow overhangs the widget, which passes the
  *        overhang up as ext draw size (pass_child_overhang).
  */
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight);
