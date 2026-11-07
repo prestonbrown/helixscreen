@@ -46,7 +46,6 @@ using helix::ui::FlipLayout;
 using helix::ui::FlipShape;
 using helix::ui::FrameTarget;
 using helix::ui::kClockCountdownResyncS;
-using helix::ui::kClockDoneHoldMs;
 using helix::ui::kClockDriftStepMs;
 using helix::ui::kClockMaxCountdownS;
 using helix::ui::kFlipClockLevelCount;
@@ -179,7 +178,7 @@ TEST_CASE("the countdown face shows H:MM:SS under an hour, past ten hours and at
 // FlipClockState
 // ============================================================================
 
-TEST_CASE("the clock shows the time unless a print has a remaining-time estimate",
+TEST_CASE("the cards show the time unless a print has a remaining-time estimate",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in;
@@ -194,7 +193,8 @@ TEST_CASE("the clock shows the time unless a print has a remaining-time estimate
     SECTION("preparing without an estimate") {
         in.print.phase = ClockPrintPhase::PREPARING;
         state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
+        CHECK(state.mode() == ClockMode::PROGRESS);
+        CHECK(cards_text(state.face()) == "21:05");
     }
     SECTION("preparing once an estimate exists") {
         in.print.phase = ClockPrintPhase::PREPARING;
@@ -207,13 +207,8 @@ TEST_CASE("the clock shows the time unless a print has a remaining-time estimate
         in.print.phase = ClockPrintPhase::PRINTING;
         in.print.remaining_s = -1;
         state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
-    }
-    SECTION("a finished print the clock never saw running") {
-        in.print.phase = ClockPrintPhase::COMPLETE;
-        in.print.remaining_s = 0;
-        state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
+        CHECK(state.mode() == ClockMode::PROGRESS);
+        CHECK(cards_text(state.face()) == "21:05");
     }
 }
 
@@ -299,7 +294,7 @@ TEST_CASE("a paused print freezes the countdown under PAUSED until it resumes",
     CHECK(state.countdown_s() == hms(0, 29, 54));
 }
 
-TEST_CASE("a finished print holds 0:00:00 and DONE for a minute, then shows the clock",
+TEST_CASE("a finished print holds 0:00:00 and DONE until the print goes idle",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in = printing(30, 99);
@@ -314,29 +309,32 @@ TEST_CASE("a finished print holds 0:00:00 and DONE for a minute, then shows the 
     CHECK(cards_text(state.face()) == "0:00:00");
     CHECK(state.face().caption == FlipCaption::DONE);
 
-    state.step(kClockDoneHoldMs - 100, in);
+    state.step(3600 * 1000, in);
     CHECK(state.mode() == ClockMode::DONE);
-    state.step(100, in);
+
+    in.print.phase = ClockPrintPhase::NONE;
+    state.step(16, in);
     CHECK(state.mode() == ClockMode::CLOCK);
     CHECK(cards_text(state.face()) == "14:00");
-
-    // Still complete a while later: the hold does not come back.
-    state.step(kClockDoneHoldMs, in);
-    CHECK(state.mode() == ClockMode::CLOCK);
 }
 
-TEST_CASE("a cancelled print goes straight back to the clock",
+TEST_CASE("a failed or cancelled print holds its end until the print goes idle",
           "[screensaver][screensaver_flip_clock]") {
+    const ClockPrintPhase end = GENERATE(ClockPrintPhase::FAILED, ClockPrintPhase::CANCELLED);
     FlipClockState state;
     ClockInput in = printing(300);
     state.step(16, in);
+    in.print.phase = end;
+    state.step(16, in);
+    CHECK(state.mode() ==
+          (end == ClockPrintPhase::FAILED ? ClockMode::FAILED : ClockMode::CANCELLED));
     in.print.phase = ClockPrintPhase::NONE;
     in.print.remaining_s = -1;
     state.step(16, in);
     CHECK(state.mode() == ClockMode::CLOCK);
 }
 
-TEST_CASE("the flip clock reads the print lifecycle, with ended prints as no print",
+TEST_CASE("the flip clock reads every print lifecycle state",
           "[screensaver][screensaver_flip_clock]") {
     using helix::ui::clock_print_phase;
     CHECK(clock_print_phase(PrintState::Idle) == ClockPrintPhase::NONE);
@@ -344,8 +342,8 @@ TEST_CASE("the flip clock reads the print lifecycle, with ended prints as no pri
     CHECK(clock_print_phase(PrintState::Printing) == ClockPrintPhase::PRINTING);
     CHECK(clock_print_phase(PrintState::Paused) == ClockPrintPhase::PAUSED);
     CHECK(clock_print_phase(PrintState::Complete) == ClockPrintPhase::COMPLETE);
-    CHECK(clock_print_phase(PrintState::Cancelled) == ClockPrintPhase::NONE);
-    CHECK(clock_print_phase(PrintState::Error) == ClockPrintPhase::NONE);
+    CHECK(clock_print_phase(PrintState::Cancelled) == ClockPrintPhase::CANCELLED);
+    CHECK(clock_print_phase(PrintState::Error) == ClockPrintPhase::FAILED);
 }
 
 // ============================================================================
@@ -796,9 +794,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(!ss.sim().layout().caption.empty());
     advance_saver(ss, 33);
     reported.print.phase = ClockPrintPhase::COMPLETE;
-    for (uint32_t ms = 0; ms <= kClockDoneHoldMs + 1000; ms += 500) {
-        advance_saver(ss, 500);
-    }
+    advance_saver(ss, 500);
+    REQUIRE(ss.clock().mode() == ClockMode::DONE);
+    reported.print.phase = ClockPrintPhase::NONE;
+    advance_saver(ss, 500);
     REQUIRE(ss.clock().mode() == ClockMode::CLOCK);
 
     // Every card pixel off the split line and clear of the rounded corners is card or digit,

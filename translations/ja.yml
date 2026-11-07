@@ -515,6 +515,7 @@ translations:
   Bypass toggle failed: バイパス切替に失敗しました
   C: C
   CALIBRATION: キャリブレーション
+  CANCELED: キャンセル済み
   CAPABILITIES: 機能
   CARTOGRAPHER: CARTOGRAPHER
   CFS is busy: CFS がビジー状態です

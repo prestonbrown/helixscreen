@@ -456,8 +456,11 @@ AquaRings aqua_rings(const ClockReading& reading) {
     case ClockMode::CLOCK:
         rings.top = seconds / 60.0f;
         break;
+    case ClockMode::PROGRESS:
     case ClockMode::COUNTDOWN:
     case ClockMode::PAUSED:
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED:
         rings.top = static_cast<float>(std::clamp(reading.progress_pct, 0, 100)) / 100.0f;
         break;
     case ClockMode::DONE:
