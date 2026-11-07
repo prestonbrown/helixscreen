@@ -3533,6 +3533,8 @@ translations:
   Save to Spoolman: Enregistrer dans Spoolman
   Saved Z-Offset: Z-Offset enregistré
   Saved for the mounted head; other heads keep their own: 'Enregistré pour la tête d''outil montée ; les autres têtes d''outil gardent le leur'
+  "Saved {} mm": "Enregistré {} mm"
+  "Saved {} mm, {} mm after Save": "Enregistré {} mm, {} mm après enregistrement"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Enregistré dans Spoolman, mais le prix, l''emplacement, le lot et les notes de la bobine n''ont pas été enregistrés.'
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR
     non disponible)

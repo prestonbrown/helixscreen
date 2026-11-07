@@ -245,3 +245,55 @@ TEST_CASE("saves_global: the machine-wide offset is written only while saving is
     f.global_dirty = false;
     CHECK_FALSE(saves_global(f));
 }
+
+// ============================================================================
+// saved_offset_line (#1998)
+// ============================================================================
+
+namespace {
+helix::zoffset::SaveAvailability manual_saves() {
+    helix::zoffset::SaveAvailability facts;
+    facts.manual_save_supported = true;
+    facts.save_enabled = true;
+    return facts;
+}
+} // namespace
+
+TEST_CASE("saved_offset_line: a save writes the saved value minus the session offset",
+          "[zoffset][1998]") {
+    using helix::zoffset::saved_offset_line;
+    auto line = saved_offset_line(manual_saves(), false, 1250, 20);
+    REQUIRE(line);
+    CHECK(line->saved_microns == 1250);
+    CHECK(line->after_save_microns == 1230);
+
+    line = saved_offset_line(manual_saves(), false, 1250, -30);
+    REQUIRE(line);
+    CHECK(line->after_save_microns == 1280);
+
+    line = saved_offset_line(manual_saves(), false, 1250, 0);
+    REQUIRE(line);
+    CHECK(line->after_save_microns == 1250);
+}
+
+TEST_CASE("saved_offset_line: no line where it would mislead", "[zoffset][1998]") {
+    using helix::zoffset::saved_offset_line;
+    auto firmware = manual_saves();
+    firmware.manual_save_supported = false;
+    CHECK_FALSE(saved_offset_line(firmware, false, 1250, 20));
+
+    auto withheld = manual_saves();
+    withheld.save_enabled = false;
+    CHECK_FALSE(saved_offset_line(withheld, false, 1250, 20));
+
+    CHECK_FALSE(saved_offset_line(manual_saves(), true, 1250, 20));
+    CHECK_FALSE(saved_offset_line(manual_saves(), false, std::nullopt, 20));
+}
+
+TEST_CASE("format_saved_offset_line names the projection only while it differs",
+          "[zoffset][1998]") {
+    using helix::zoffset::format_saved_offset_line;
+    CHECK(format_saved_offset_line({1250, 1250}) == "Saved 1.250 mm");
+    CHECK(format_saved_offset_line({1250, 1230}) == "Saved 1.250 mm, 1.230 mm after Save");
+    CHECK(format_saved_offset_line({-50, 10}) == "Saved -0.050 mm, 0.010 mm after Save");
+}

@@ -3561,6 +3561,8 @@ translations:
   Save to Spoolman: Сохранить в Spoolman
   Saved Z-Offset: Сохранённый Z-Offset
   Saved for the mounted head; other heads keep their own: 'Сохранено для установленной печатающей головки; остальные головки сохраняют своё'
+  "Saved {} mm": "Сохранено {} мм"
+  "Saved {} mm, {} mm after Save": "Сохранено {} мм, {} мм после сохранения"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились.'
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
   Saved to printer configuration.: Сохранено в конфигурацию принтера.

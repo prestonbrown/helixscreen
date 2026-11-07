@@ -23,6 +23,7 @@
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "ethernet_backend_mock.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -104,4 +105,34 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     CHECK_FALSE(ran);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
+}
+
+TEST_CASE_METHOD(TransportRefreshFixture,
+                 "NetworkSettingsOverlay follows an Ethernet cable change while open",
+                 "[network_settings][1976][observers]") {
+    auto wm = make_manager();
+    auto overlay = std::make_unique<NetworkSettingsOverlay>();
+    overlay->init_subjects();
+    overlay->register_callbacks();
+    Access::wifi_manager(*overlay) = wm;
+    auto eth = std::make_shared<EthernetBackendMock>();
+    Access::ethernet_manager(*overlay) = std::make_unique<EthernetManager>(eth);
+    REQUIRE(overlay->create(test_screen()) != nullptr);
+    overlay->on_activate();
+
+    // Settle every probe create() and on_activate() started: one still in
+    // flight would read the pulled cable without the link watch.
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 1 &&
+               Access::eth_refresh_idle(*overlay);
+    }));
+
+    // The cable comes out; only the manager's link watch sees it.
+    eth->set_connected_state(false);
+    Access::ethernet_manager(*overlay)->check_link();
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(&Access::eth_connected(*overlay)) == 0;
+    }));
 }

@@ -3234,6 +3234,8 @@
   <translation tag="Saved to printer configuration." ja="プリンター設定に保存しました。"/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." ja="{}に保存しました。このフィラメントが使用中になるたびに適用されます。"/>
   <translation tag="Saved values, and whether to ask before running" ja="保存した値と、実行前に確認するかどうか"/>
+  <translation tag="Saved {} mm" ja="保存値 {} mm"/>
+  <translation tag="Saved {} mm, {} mm after Save" ja="保存値 {} mm、保存後 {} mm"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." ja="保存しました。Spoolmanがオフラインのため、価格、場所、ロット、メモは未保存のままここに残ります。"/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ja="レイヤー2の後と各印刷の終了時にカメラの写真を保存し、印刷履歴に表示します。"/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." ja="停電後に印刷を再開できるよう、約1秒ごとに印刷位置を保存します。SDカードでは摩耗が多くなります。"/>

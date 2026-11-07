@@ -8,6 +8,7 @@
 #include "text_io.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string_view>
 
 namespace helix::sensors {
@@ -350,7 +351,7 @@ void ProbeSensorManager::refresh_subjects() {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
         if (const auto* reading = z_probe_reading_locked()) {
-            z_offset = static_cast<int>(reading->z_offset * 1000.0f);
+            z_offset = static_cast<int>(std::lround(reading->z_offset * 1000.0f));
         }
     }
     lv_subject_set_int(&z_offset_, z_offset);

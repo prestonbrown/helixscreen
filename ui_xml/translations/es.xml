@@ -3234,6 +3234,8 @@
   <translation tag="Saved to printer configuration." es="Guardado en la configuración de la impresora."/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." es="Guardado en {}. Se aplica cada vez que este filamento se activa."/>
   <translation tag="Saved values, and whether to ask before running" es="Valores guardados y si se debe preguntar antes de ejecutar"/>
+  <translation tag="Saved {} mm" es="Guardado {} mm"/>
+  <translation tag="Saved {} mm, {} mm after Save" es="Guardado {} mm, {} mm tras guardar"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." es="Guardado. Spoolman está desconectado, así que el precio, la ubicación, el lote y las notas quedan aquí sin guardar."/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." es="Guarda una foto de la cámara tras la capa 2 y al terminar cada impresión, visible en el historial de impresión."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." es="Guarda la posición de impresión aproximadamente una vez por segundo para que una impresión pueda reanudarse tras un corte de energía. En una tarjeta SD esto añade desgaste."/>

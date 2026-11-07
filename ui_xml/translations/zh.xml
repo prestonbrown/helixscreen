@@ -3234,6 +3234,8 @@
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." zh="已保存到{}。每当该耗材启用时都会应用。"/>
   <translation tag="Saved values, and whether to ask before running" zh="保存的值,以及运行前是否询问"/>
+  <translation tag="Saved {} mm" zh="已保存 {} mm"/>
+  <translation tag="Saved {} mm, {} mm after Save" zh="已保存 {} mm，保存后 {} mm"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." zh="已保存。Spoolman 离线，因此价格、位置、批次和备注暂留在此处，尚未保存。"/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." zh="在第 2 层之后和每次打印结束时保存一张摄像头照片，显示在打印历史中。"/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." zh="大约每秒保存一次打印位置，以便断电后可以恢复打印。在 SD 卡上这会增加磨损。"/>
