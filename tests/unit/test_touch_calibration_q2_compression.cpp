@@ -905,3 +905,33 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     CHECK(sink_.live.source == helix::TouchRangeSource::Declared);
     CHECK(sink_.affine_enabled);
 }
+
+// ============================================================================
+// Screensaver: a suspend keeps the capture session
+// ============================================================================
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Touch calibration: a screensaver wake resumes the capture session",
+                 "[touch][calibration][suspend]") {
+    sink_.stored = identity_cal();
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    activate_at_idle();
+    panel_->start();
+    const helix::Point first = panel_->get_target_position(0);
+    for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        panel_->on_press(first);
+    }
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    REQUIRE_FALSE(sink_.affine_enabled);
+
+    overlay_->on_deactivate(DeactivateReason::Suspended);
+    overlay_->on_activate();
+
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    CHECK_FALSE(sink_.affine_enabled);
+
+    // Dismissing the overlay still ends the session and re-arms touch.
+    overlay_->on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::IDLE);
+    CHECK(sink_.affine_enabled);
+}

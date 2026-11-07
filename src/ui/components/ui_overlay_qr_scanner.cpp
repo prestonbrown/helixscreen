@@ -187,11 +187,12 @@ void QrScannerOverlay::on_activate() {
     spdlog::debug("[{}] Activated", get_name());
 }
 
-void QrScannerOverlay::on_deactivating(DeactivateReason) {
-    // The reason is deliberately ignored: this tears down unconditionally, a
-    // suspended screen included. A camera left streaming behind the screensaver
-    // is both a power cost and a privacy one, and the viewfinder buffers must
-    // not outlive the frames LVGL points at. Do not add a Suspended guard here.
+void QrScannerOverlay::on_deactivating(DeactivateReason reason) {
+    // The camera and scanning tear down for every reason, a suspended screen
+    // included: a camera left streaming behind the screensaver is both a power
+    // cost and a privacy one, and the viewfinder buffers must not outlive the
+    // frames LVGL points at. on_activate() restarts them on the wake. Only the
+    // caller's callbacks, at the bottom, survive a suspend.
 
     // Expire all outstanding lifetime tokens FIRST, before any cleanup.
     // Camera BG thread may be mid-frame with a valid token; invalidating
@@ -218,9 +219,12 @@ void QrScannerOverlay::on_deactivating(DeactivateReason) {
         timeout_timer_ = nullptr;
     }
 
-    // Clear callbacks to prevent stale references on reuse
-    result_callback_ = nullptr;
-    cancel_callback_ = nullptr;
+    // The caller's callbacks stay for the scan after a wake; any other exit
+    // drops them so a reuse cannot reach a stale caller.
+    if (reason != DeactivateReason::Suspended) {
+        result_callback_ = nullptr;
+        cancel_callback_ = nullptr;
+    }
     spdlog::debug("[{}] Deactivated", get_name());
 }
 

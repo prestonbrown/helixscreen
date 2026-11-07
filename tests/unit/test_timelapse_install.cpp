@@ -3,6 +3,8 @@
 
 #include "ui_overlay_timelapse_install.h"
 
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/timelapse_install_overlay_test_access.h"
 #include "moonraker_config_manager.h"
 
 #include <string>
@@ -195,4 +197,27 @@ TEST_CASE("Timelapse config can coexist with spoolman config", "[timelapse][conf
     REQUIRE(helix::MoonrakerConfigManager::has_section(without_spoolman, "timelapse") == true);
     REQUIRE(helix::MoonrakerConfigManager::has_section(without_spoolman,
                                                        "update_manager timelapse") == true);
+}
+
+// ============================================================================
+// Screensaver
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "a screensaver wake resumes the install wizard where it was",
+                 "[timelapse][suspend]") {
+    TimelapseInstallOverlay overlay(nullptr);
+    overlay.on_activate();
+    TimelapseInstallOverlayTestAccess::park_at_restart(overlay);
+
+    overlay.on_deactivate(DeactivateReason::Suspended);
+    overlay.on_activate();
+
+    CHECK(TimelapseInstallOverlayTestAccess::at_restart(overlay));
+    CHECK(TimelapseInstallOverlayTestAccess::wizard_active(overlay));
+
+    // Leaving the overlay stops the wizard; opening it again starts over.
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    CHECK_FALSE(TimelapseInstallOverlayTestAccess::wizard_active(overlay));
+    overlay.on_activate();
+    CHECK_FALSE(TimelapseInstallOverlayTestAccess::at_restart(overlay));
 }
