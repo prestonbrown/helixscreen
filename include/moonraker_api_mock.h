@@ -330,6 +330,15 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     /// Every config path the mock currently holds (for list_files mirroring)
     std::map<std::string, std::string> get_config_files() const;
 
+    /// Make download_file(root == "config", @p path) fail with @p error, as
+    /// Moonraker refuses a file under a reserved path with HTTP 403.
+    void set_config_file_error(const std::string& path, MoonrakerError error);
+
+    /// Every config-root path download_file() was asked for, in call order.
+    [[nodiscard]] const std::vector<std::string>& config_downloads() const {
+        return config_downloads_;
+    }
+
     // ========================================================================
     // Overridden HTTP File Transfer Methods (use local files instead of HTTP)
     // ========================================================================
@@ -509,6 +518,9 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
 
     /// Injected config root: full relative path -> content. Empty = use disk.
     std::map<std::string, std::string> config_files_;
+    /// Config paths whose download fails, and how.
+    std::map<std::string, MoonrakerError> config_file_errors_;
+    std::vector<std::string> config_downloads_;
 
     /// Recorded upload_file_from_path() calls (test spy)
     std::vector<PathUploadRecord> path_uploads_;
@@ -847,6 +859,15 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     /// uploaded since seeding. std::nullopt when the path is unknown.
     std::optional<std::string> get_uploaded_config(const std::string& path) const;
 
+    /// The gcode_macro sections query_configfile() answers with, replacing the
+    /// client mock's own. Without this, an injected config root (set_config_files())
+    /// answers with no gcode_macro sections: those files are the printer's config.
+    void set_configfile_macros(json macros);
+
+    /// The client mock's configfile.config, with the gcode_macro sections
+    /// set_configfile_macros() or set_config_files() decide.
+    void query_configfile(JsonCallback on_success, ErrorCallback on_error) override;
+
     /**
      * @brief Get the Timelapse mock sub-API for mock-specific helpers
      *
@@ -868,6 +889,8 @@ class MoonrakerAPIMock : public MoonrakerAPI {
   private:
     // Shared mock state for coordination with MoonrakerClientMock
     std::shared_ptr<MockPrinterState> mock_state_;
+    std::optional<json> configfile_macros_;
+    bool config_files_injected_ = false;
 
     // Mock power device states (for toggle testing)
     std::map<std::string, bool> mock_power_states_;
