@@ -1296,9 +1296,31 @@ class HelixPrint:
         temp_file_path = web_request.get_str("temp_file_path")
         modifications = web_request.get_list("modifications", [])
         copy_metadata = web_request.get_boolean("copy_metadata", True)
+        tools = self.tools_param(web_request)
         return await self.start_linked_print(
-            original_filename, temp_file_path, modifications, copy_metadata, "print_modified"
+            original_filename, temp_file_path, modifications, copy_metadata, "print_modified",
+            tools=tools,
         )
+
+    def tools_param(self, web_request: Any) -> str:
+        """The request's per-print tool map, `tools`: comma-separated 1-based
+        slots indexed by G-code tool, an empty entry leaving that tool to the
+        firmware ("2,,1"). Empty when the request carries none."""
+        tools = web_request.get_str("tools", "")
+        if len(tools) > 512 or any(c not in "0123456789," for c in tools):
+            raise self.server.error(f"Invalid tools map: {tools[:64]}", 400)
+        return tools
+
+    def start_print_takes_tools(self) -> bool:
+        """Whether this Moonraker's klippy_apis.start_print takes a per-print
+        `tools` map. Z-Mod's Moonraker does, and advertises it in server.info
+        as `print_start_tools`; asking the method itself also catches a fork
+        that renames the flag, and stock Moonraker has no such parameter."""
+        try:
+            params = inspect.signature(self.klippy_apis.start_print).parameters
+        except (TypeError, ValueError):
+            return False
+        return "tools" in params
 
     def resolve_original(self, original_filename: str) -> Path:
         """The original file of a linked print, resolved: a file inside the
@@ -1344,11 +1366,14 @@ class HelixPrint:
         modifications: List[Any],
         copy_metadata: bool,
         kind: str,
+        tools: str = "",
     ) -> Dict[str, Any]:
         """Start the copy at `temp_file_path` through a link named after
         `original_filename`, so print_stats and history name the original.
-        `kind` is the HELIX_JOB_KINDS entry the job is marked with. A start
-        that fails removes the copy."""
+        `kind` is the HELIX_JOB_KINDS entry the job is marked with. `tools`
+        (tools_param()) goes to a Moonraker whose start_print takes it, so the
+        firmware routes this print by it instead of asking again; elsewhere
+        the print starts without it. A start that fails removes the copy."""
         self._validate_filename(original_filename)
         self._validate_filename(temp_file_path)
         original_resolved = self.resolve_original(original_filename)
@@ -1430,12 +1455,25 @@ class HelixPrint:
         self.mark_helix_initiated(
             symlink_filename, kind, self._history_name(original_filename)
         )
-        safe_symlink = self._escape_gcode_string(symlink_filename)
         try:
-            await self.klippy_apis.run_gcode(
-                f'SDCARD_PRINT_FILE FILENAME="{safe_symlink}"'
-            )
-            logging.info(f"HelixPrint: Started print with {symlink_filename}")
+            if tools and self.start_print_takes_tools():
+                # start_print quotes the name itself and runs the firmware's own
+                # start, which is what reads the map.
+                await self.klippy_apis.start_print(symlink_filename, tools=tools)
+                logging.info(
+                    f"HelixPrint: Started print with {symlink_filename} (tools={tools})"
+                )
+            else:
+                if tools:
+                    logging.info(
+                        "HelixPrint: Moonraker's start_print takes no tools map; "
+                        f"starting {symlink_filename} without tools={tools}"
+                    )
+                safe_symlink = self._escape_gcode_string(symlink_filename)
+                await self.klippy_apis.run_gcode(
+                    f'SDCARD_PRINT_FILE FILENAME="{safe_symlink}"'
+                )
+                logging.info(f"HelixPrint: Started print with {symlink_filename}")
         except Exception as e:
             # Clean up on print start failure
             self.unmark_helix_initiated(symlink_filename)

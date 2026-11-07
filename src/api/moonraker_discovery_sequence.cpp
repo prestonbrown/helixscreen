@@ -38,6 +38,7 @@
 #include "plr_backend.h"
 #include "power_device_state.h"
 #include "pre_print_preferences.h"
+#include "print_start_params.h"
 #include "print_start_profile.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -512,6 +513,15 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
             }
 
             spdlog::debug("[Moonraker Client] Klippy state gate check: {}", klippy_state);
+
+            // Read here, ahead of the object list, because the filament backends
+            // that ask it are created from that list.
+            if (const json* result =
+                    helix::json_util::find_member(server_info_response, "result")) {
+                const bool takes_tools = helix::print_start::server_takes_tool_slots(*result);
+                std::lock_guard<std::mutex> lock(hardware_mutex_);
+                hardware_.set_server_takes_print_start_tools(takes_tools);
+            }
 
             // Allow "ready" and "shutdown" — both have valid Klipper objects.
             // Abort on "startup", "error", or unknown states.

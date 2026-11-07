@@ -58,6 +58,40 @@ TEST_CASE("only Z-Mod with its built-in AFC takes the tools map", "[print_start_
     CHECK_FALSE(takes_tool_slots(afc));
 }
 
+TEST_CASE("server.info's print_start_tools flag is read from zmod.features",
+          "[print_start_params][2033]") {
+    using nlohmann::json;
+    CHECK(server_takes_tool_slots(
+        json{{"zmod", {{"features", json::array({"print_start_tools"})}}}}));
+    CHECK(server_takes_tool_slots(
+        json{{"zmod", {{"features", json::array({"other", "print_start_tools"})}}}}));
+
+    CHECK_FALSE(server_takes_tool_slots(json::object()));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", json::object()}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", json::array()}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", "print_start_tools"}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", json::array({1, 2})}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", "print_start_tools"}}));
+    CHECK_FALSE(server_takes_tool_slots(json::array()));
+    // Only Z-Mod's own member counts.
+    CHECK_FALSE(server_takes_tool_slots(json{{"features", json::array({"print_start_tools"})}}));
+}
+
+TEST_CASE("a Moonraker advertising print_start_tools takes the map with AFC off",
+          "[print_start_params][2033]") {
+    helix::PrinterDiscovery ifs;
+    ifs.set_server_takes_print_start_tools(true);
+    // Discovery reads server.info before the object list; parsing keeps the flag.
+    ifs.parse_objects(nlohmann::json::array({"zmod_color", "zmod_ifs"}));
+    REQUIRE_FALSE(ifs.has_zmod_afc());
+    CHECK(takes_tool_slots(ifs));
+
+    helix::PrinterDiscovery quiet;
+    quiet.parse_objects(nlohmann::json::array({"zmod_color", "zmod_ifs"}));
+    CHECK_FALSE(quiet.server_takes_print_start_tools());
+    CHECK_FALSE(takes_tool_slots(quiet));
+}
+
 namespace {
 const helix::test::FakeMoonrakerClient::RpcCall*
 find_start(const helix::test::FakeMoonrakerClient& client) {

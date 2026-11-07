@@ -919,6 +919,17 @@ class PrinterDiscovery {
         return software_version_;
     }
 
+    /// Moonraker's server.info says printer.print.start takes a per-print
+    /// `tools` map (print_start::server_takes_tool_slots()). Read before the
+    /// object list is parsed, so parse_objects() keeps it.
+    void set_server_takes_print_start_tools(bool takes) {
+        server_takes_print_start_tools_ = takes;
+    }
+
+    [[nodiscard]] bool server_takes_print_start_tools() const {
+        return server_takes_print_start_tools_;
+    }
+
     /**
      * @brief Set Moonraker version from server.info
      */
@@ -1181,6 +1192,7 @@ class PrinterDiscovery {
     std::string hostname_;
     std::string software_version_;
     std::string moonraker_version_;
+    bool server_takes_print_start_tools_ = false;
     std::string os_version_;
     std::string cpu_arch_;
     std::string kinematics_;

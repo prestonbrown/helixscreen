@@ -12931,3 +12931,23 @@ TEST_CASE("AD5X IFS writes the plugin's table before Z-Mod's AFC lane map",
     CHECK(backend.captured_gcodes[1] == "SET_MAP LANE=lane3 MAP=T0");
     helix::ui::UpdateQueue::instance().drain();
 }
+
+TEST_CASE("AD5X IFS with AFC off takes the print's map but sends no SET_MAP",
+          "[ams][ad5x_ifs][tool_mapping][2033]") {
+    MockPrinter mock_printer;
+    GcodeCapturingBackend backend(&mock_printer.api, nullptr);
+    helix::PrinterDiscovery hw;
+    // Z-Mod's Moonraker says its print start reads `tools`; AFC=0 publishes no
+    // AFC objects and defines no SET_MAP.
+    hw.set_server_takes_print_start_tools(true);
+    hw.parse_objects(nlohmann::json::array({"zmod", "zmod_color", "zmod_ifs"}));
+    REQUIRE_FALSE(hw.has_zmod_afc());
+    backend.set_discovery(hw);
+
+    CHECK(backend.remap_ready());
+    CHECK(backend.print_start_params({{0, 2}, {1, 0}}) ==
+          helix::PrintStartParams{{"tools", "3,1"}});
+
+    REQUIRE(backend.set_tool_mapping(0, 2).success());
+    CHECK(backend.captured_gcodes.empty());
+}

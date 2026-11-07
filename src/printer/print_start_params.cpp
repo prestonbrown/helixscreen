@@ -2,12 +2,29 @@
 #include "print_start_params.h"
 
 #include "filament_mapper.h"
+#include "json_utils.h"
 #include "printer_discovery.h"
+
+#include "hv/json.hpp"
 
 namespace helix::print_start {
 
 bool takes_tool_slots(const PrinterDiscovery& hw) {
-    return hw.has_zmod_afc();
+    return hw.server_takes_print_start_tools() || hw.has_zmod_afc();
+}
+
+bool server_takes_tool_slots(const nlohmann::json& server_info_result) {
+    const nlohmann::json* zmod = json_util::find_member(server_info_result, "zmod");
+    const nlohmann::json* features = zmod ? json_util::find_member(*zmod, "features") : nullptr;
+    if (!features || !features->is_array()) {
+        return false;
+    }
+    for (const auto& feature : *features) {
+        if (feature.is_string() && feature.get_ref<const std::string&>() == "print_start_tools") {
+            return true;
+        }
+    }
+    return false;
 }
 
 PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers) {
