@@ -273,6 +273,14 @@ void feed_filament_detect(AmsBackendSnapmaker& backend, const nlohmann::json& fd
 /// One print_task_config object, through the same envelope. This is Snapmaker's
 /// second identity writer and the one that files no observation, so a case
 /// needs to drive it separately from filament_detect.
+/// The backend's own print_stats reads standby: no print holds the heads.
+void snapmaker_idle(AmsBackendSnapmaker& backend) {
+    nlohmann::json notification;
+    notification["params"] =
+        nlohmann::json::array({nlohmann::json{{"print_stats", {{"state", "standby"}}}}, 0.0});
+    SnapmakerTestAccess::handle_status(backend, notification);
+}
+
 void feed_print_task_config(AmsBackendSnapmaker& backend, const nlohmann::json& ptc) {
     nlohmann::json params;
     params["print_task_config"] = ptc;
@@ -2229,6 +2237,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker files no colour for a tag that carr
 TEST_CASE_METHOD(LVGLTestFixture, "an override never reaches Snapmaker's vendor-cache record",
                  "[lane][ingest][snapmaker]") {
     SnapmakerHarness harness(nullptr, nullptr);
+    snapmaker_idle(*harness); // an edit writes print_task_config only once a state is read
 
     const auto tag = nlohmann::json{
         {"state", nlohmann::json::array({1})},
@@ -3323,6 +3332,7 @@ const CachedSlotBackend kCachedSlotBackends[] = {
     {"Snapmaker",
      [] {
          SnapmakerHarness harness(nullptr, nullptr);
+         snapmaker_idle(*harness); // an edit writes print_task_config only once a state is read
          feed_filament_detect(
              *harness, nlohmann::json{
                            {"state", nlohmann::json::array({1, 0, 0, 0})},
@@ -3437,6 +3447,7 @@ using helix::ams::TagField;
 TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker card's reading outlives a user's colour",
                  "[lane][snapmaker][tag_reading]") {
     SnapmakerHarness harness(nullptr, nullptr);
+    snapmaker_idle(*harness); // an edit writes print_task_config only once a state is read
     const nlohmann::json card{
         {"state", nlohmann::json::array({1})},
         {"info", nlohmann::json::array({nlohmann::json{

@@ -135,6 +135,12 @@ class FilamentSlotOverrideStore {
     /// error, when the record last read for the slot names another writer.
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
 
+    /// Whether the record last read for @p slot_index names another writer, so
+    /// a save would be refused (RFC 0001 S2).
+    [[nodiscard]] bool written_by_another(int slot_index) const {
+        return !writer_refusal(slot_index).empty();
+    }
+
     /// Delete slot @p slot_index's record, under the same writer rule.
     void clear_async(int slot_index, SaveCallback cb);
 

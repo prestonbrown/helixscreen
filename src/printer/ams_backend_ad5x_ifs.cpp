@@ -1558,6 +1558,11 @@ bool AmsBackendAd5xIfs::sync_override_to_firmware_locked(int slot_index, uint32_
     // lane_data readers; the lane itself shows the firmware reading filed
     // beside it, so an LCD or CHANGE_ZCOLOR edit wins whatever the record says.
     if (!mirror_firmware_identity_locked(slot_index, firmware_color, firmware_material)) {
+        // The baseline already moved, so no later reading repeats this change:
+        // the first record read copies it instead.
+        if (!lane_records_ready()) {
+            record_copy_owed_.insert(slot_index);
+        }
         return false;
     }
 
@@ -1567,6 +1572,19 @@ bool AmsBackendAd5xIfs::sync_override_to_firmware_locked(int slot_index, uint32_
     // for why that's required (the plugins don't self-sync).
     ++external_sync_count_;
     return true;
+}
+
+void AmsBackendAd5xIfs::on_lane_records_read_locked() {
+    for (const int slot_index : std::exchange(record_copy_owed_, {})) {
+        const auto color = last_firmware_color_.find(slot_index);
+        const auto material = last_firmware_material_.find(slot_index);
+        if (color == last_firmware_color_.end() || material == last_firmware_material_.end()) {
+            continue;
+        }
+        if (sync_override_to_firmware_locked(slot_index, color->second, material->second)) {
+            ifs_vars_push_owed_ = true;
+        }
+    }
 }
 
 void AmsBackendAd5xIfs::clear_slot_override(int slot_index) {
@@ -6014,7 +6032,8 @@ void AmsBackendAd5xIfs::parse_adventurer_json(const std::string& content) {
         // lookup, smart-purge skip decision, and color-assign dialog all run
         // against stale data and silently print the wrong color or skip the
         // wrong purge.
-        needs_ifs_vars_push = needs_ifs_vars_push || (external_sync_count_ > pre_sync_count);
+        needs_ifs_vars_push = needs_ifs_vars_push || (external_sync_count_ > pre_sync_count) ||
+                              std::exchange(ifs_vars_push_owed_, false);
         if (needs_ifs_vars_push && has_ifs_vars_) {
             ifs_colors_payload = build_color_list_value();
             ifs_types_payload = build_type_list_value();

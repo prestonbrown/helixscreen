@@ -536,9 +536,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Copy the firmware's colour and material for @p slot_index into its
     /// record and save it, for the lane_data readers (OrcaSlicer, another
     /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
-    /// is copied before the first record read lands: a save then would replace
-    /// the stored record with a bare one. True when the record changed. Caller
-    /// holds mutex_.
+    /// is copied before the first record read lands (a save then would replace
+    /// the stored record with a bare one), nor into a record another writer
+    /// owns. True when the record changed. Caller holds mutex_.
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                          const std::string& material);
 

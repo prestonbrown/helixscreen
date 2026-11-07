@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -968,6 +969,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // push. Caller must hold mutex_. True when the record changed.
     bool sync_override_to_firmware_locked(int slot_index, uint32_t firmware_color,
                                           const std::string& firmware_material);
+    // Copy the firmware changes owed since before the first record read.
+    void on_lane_records_read_locked() override;
     void parse_adventurer_json(const std::string& content);
     void read_adventurer_json();
     void register_zcolor_listener();
@@ -1767,6 +1770,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // is fine — the comparison is `>`, not equality. Always accessed under
     // mutex_.
     size_t external_sync_count_ = 0;
+
+    // Slots whose firmware change was seen before the first lane record read,
+    // when the record could not take it; on_lane_records_read_locked() copies
+    // the current reading then. Under mutex_.
+    std::set<int> record_copy_owed_;
+    // A copy made at the record read changed the record, so the next
+    // Adventurer5M.json parse pushes _IFS_VARS. Under mutex_.
+    bool ifs_vars_push_owed_ = false;
 
     // Note: uses inherited lifetime_ from AmsSubscriptionBackend (not shadowed).
 };

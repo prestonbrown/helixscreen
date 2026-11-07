@@ -1517,7 +1517,7 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         // edit that would change it is refused, not held: a held write would
         // leave the lane showing a type the firmware never took.
         record_write = plan_record_write_locked(slot_index, info, slot->material != info.material);
-        if (record_write && record_writes_held_locked()) {
+        if (record_write && record_writes_held_locked(slot_index)) {
             spdlog::info("{} head {} filament record edit refused while the heads are busy",
                          backend_log_tag(), slot_index);
             return AmsErrorHelper::busy_with_print();
@@ -3246,24 +3246,41 @@ std::optional<bool> AmsBackendSnapmaker::record_write_needs_force_locked(int hea
     return true;
 }
 
-bool AmsBackendSnapmaker::record_writes_held_locked() const {
-    // Every record write runs FLOW_RESET_K on its head, which must not land
-    // under a running print or between the offset calibration's steps.
+bool AmsBackendSnapmaker::record_writes_held_locked(int head) const {
+    // Every record write runs FLOW_RESET_K on its head, resetting its pressure
+    // advance, and the firmware never refuses one mid-print; nor may one land
+    // between the offset calibration's steps.
     if (calibration_holds_heads_locked()) {
         return true;
     }
+    bool printing = false;
+    bool paused = false;
     if (print_state_) {
-        return *print_state_ == "printing";
+        printing = *print_state_ == "printing";
+        paused = *print_state_ == "paused";
+    } else if (get_printer_state().are_subjects_initialized()) {
+        // Before this backend's own frames have named a state, the app's
+        // print state answers.
+        // RAW_PRINT_STATE_OK: the write is gated on what the job is doing to
+        // the heads, not on the lifecycle the UI shows.
+        const PrintJobState job = get_printer_state().print_state().get_print_job_state();
+        printing = job == PrintJobState::PRINTING;
+        paused = job == PrintJobState::PAUSED;
+    } else {
+        // A state nobody has read may be a print: busy until one is read.
+        return true;
     }
-    // Before this backend's own frames have named a state, the app's print
-    // state answers for a user's save; a state nobody has read refuses
-    // nothing, since the edit cannot wait for one.
-    // RAW_PRINT_STATE_OK: the write is gated on what the job is doing to the
-    // heads, not on the lifecycle the UI shows.
-    if (!get_printer_state().are_subjects_initialized()) {
-        return false;
+    if (printing) {
+        return true;
     }
-    return get_printer_state().print_state().get_print_job_state() == PrintJobState::PRINTING;
+    if (paused) {
+        // The runout reload: the firmware forgot the head's type when the
+        // filament left, and the resume has to write one before RESUME runs,
+        // so naming the new spool costs no reset the resume would not make.
+        const auto idx = static_cast<size_t>(head);
+        return !(task_type_[idx] && is_unset_task_field(*task_type_[idx]));
+    }
+    return false;
 }
 
 std::optional<AmsBackendSnapmaker::RecordWrite>

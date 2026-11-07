@@ -11720,13 +11720,28 @@ TEST_CASE("AD5X IFS lane truth: a firmware change before the first record read k
         {"lane", "0"}, {"vendor_name", "Polymaker"}, {"material", "PLA"}, {"color", "#FF0000"}};
     IfsLaneTruth h("lane_truth_unread", stored, /*settle=*/false);
 
+    Ad5xIfsTestAccess::set_has_ifs_vars(h.backend, true);
+
     // The read is still out: a firmware change must not save a bare record.
     h.firmware("#0000FF", "PLA");
     CHECK(h.record()["vendor_name"] == "Polymaker");
 
+    // Once the read lands, the record takes the change it missed, and the
+    // plugin's save_variables follow at the next file parse.
     IfsLaneTruth::drain();
+    nlohmann::json rec = h.record();
+    CHECK(rec["vendor_name"] == "Polymaker");
+    CHECK(rec["color"] == "#0000FF");
+    h.printer.client.clear_gcode_script_history();
+    h.firmware("#0000FF", "PLA");
+    bool pushed = false;
+    for (const auto& g : h.printer.client.gcode_script_history()) {
+        pushed = pushed || g.rfind("_IFS_VARS colors=", 0) == 0;
+    }
+    CHECK(pushed);
+
     h.firmware("#00FF00", "PLA");
-    const nlohmann::json rec = h.record();
+    rec = h.record();
     CHECK(rec["vendor_name"] == "Polymaker");
     CHECK(rec["color"] == "#00FF00");
     IfsLaneTruth::drain();

@@ -1121,11 +1121,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Send @p plan for @p head. Main thread, mutex_ not held.
     void write_task_filament_record(int head, const SlotInfo& info, const RecordWrite& plan);
 
-    /// Whether a user edit's record write is refused: the offset calibration
-    /// holds the heads, this backend's own print_stats.state reads printing,
-    /// or, before its frames have named one, the app's print job state reads
-    /// PRINTING. Caller holds mutex_.
-    [[nodiscard]] bool record_writes_held_locked() const;
+    /// Whether a user edit's write of @p head's record is refused: the offset
+    /// calibration holds the heads; the print state (this backend's own
+    /// print_stats.state, else the app's print job state) reads printing, or
+    /// paused while the firmware still holds a type for the head (a paused
+    /// head it reset is the runout reload, which the resume writes anyway); or
+    /// no print state has been read. Caller holds mutex_.
+    [[nodiscard]] bool record_writes_held_locked(int head) const;
 
     /// FORCE=1 rewrites for heads whose record is flagged official while the
     /// tag entry is filled with no card behind it, the channel has shown no

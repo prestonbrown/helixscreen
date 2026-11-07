@@ -261,3 +261,42 @@ TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Ejec
     }
     settings.set_ams_keep_spool_info_on_eject(previous);
 }
+
+TEST_CASE("Z-Mod lane truth: a record another writer owns is never copied into",
+          "[toolchanger][zmod][lane_truth][writer_rule]") {
+    MockPrinter printer;
+    const json owned = {{"lane", "1"},        {"writer", "afclite"}, {"material", "PLA"},
+                        {"color", "#E364CD"}, {"spool_id", 21},      {"vendor_name", "Sunlu"}};
+    printer.client.mock_db_set("lane_data", "T1", owned);
+    test::RegisteredBackend<StoreBackedChanger> reg(&printer.api, /*creator5=*/true);
+    ams::reset_lane_sources();
+    ToolChangerTestAccess::call_on_started(*reg);
+    Rig::settle();
+    auto feed = [&](const json& status) {
+        ToolChangerTestAccess::handle_status(
+            *reg, json{{"method", "notify_status_update"}, {"params", json::array({status, 0.0})}});
+        Rig::settle();
+    };
+    feed(zmod_color_frame("8C8C89"));
+    // The firmware's colour differs from the record's, read after read: no
+    // copy is attempted, so nothing is refused and retried at every poll.
+    feed(zmod_color_frame("D584DE"));
+    reg->refresh_lane_records();
+    Rig::settle();
+    int refused = 0;
+    reg->set_event_callback([&refused](const std::string& event, const std::string& data) {
+        // A refused save repaints its slot and announces it.
+        if (event == AmsBackend::kEventSlotChanged && data == "1") {
+            ++refused;
+        }
+    });
+    reg->refresh_lane_records();
+    Rig::settle();
+    reg->refresh_lane_records();
+    Rig::settle();
+    CHECK(refused == 0);
+    CHECK(printer.client.mock_db_get("lane_data", "T1") == owned);
+    // The lane shows the firmware's colour and the other writer's spool.
+    CHECK(reg->get_slot_info(1).color_rgb == 0xD584DEu);
+    CHECK(reg->get_slot_info(1).spoolman_id == 21);
+}

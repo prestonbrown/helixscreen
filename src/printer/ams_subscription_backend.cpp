@@ -493,7 +493,10 @@ void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
 
 bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                                              const std::string& material) {
-    if (lane_records_unread_) {
+    // Another writer's record is not ours to copy into: the save would be
+    // refused, and refused again at every frame or poll.
+    if (lane_records_unread_ ||
+        (override_store_ && override_store_->written_by_another(slot_index))) {
         return false;
     }
     return helix::ams::mirror_firmware_to_lane_data(
