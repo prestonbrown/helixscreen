@@ -193,6 +193,7 @@ callback:on_wizard_telemetry_changed
 callback:on_wizard_telemetry_info
 callback:on_wizard_touch_cal_retry_clicked
 callback:on_wizard_vendor_back_clicked
+callback:on_wizard_wifi_add_hidden
 callback:on_wizard_wifi_network_clicked
 callback:on_wizard_wifi_password_cancel
 callback:on_wizard_wifi_password_connect
