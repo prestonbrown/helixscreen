@@ -81,6 +81,7 @@ static SubjectManager g_subjects;
 static lv_subject_t g_notification_subject;
 static lv_subject_t g_show_beta_features_subject;
 static lv_subject_t g_home_edit_mode_subject;
+static lv_subject_t g_home_edit_page_deletable_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_camera_supported_subject;
@@ -192,6 +193,11 @@ lv_subject_t& get_home_edit_mode_subject() {
 }
 
 // NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
+lv_subject_t& get_home_edit_page_deletable_subject() {
+    return g_home_edit_page_deletable_subject;
+}
+
+// NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
 SubjectLifetime get_app_globals_subjects_lifetime() {
     return g_subjects.get_subjects_lifetime();
 }
@@ -224,6 +230,8 @@ void app_globals_init_subjects() {
     // Initialize home edit mode subject (controls navbar done button visibility)
     lv_subject_init_int(&g_home_edit_mode_subject, 0);
     g_subjects.publish("home_edit_mode", &g_home_edit_mode_subject);
+    lv_subject_init_int(&g_home_edit_page_deletable_subject, 0);
+    g_subjects.publish("home_edit_page_deletable", &g_home_edit_page_deletable_subject);
 
     // Platform-availability gate for excluded v1 (ESP32 / K-Touch) hardware
     // features whose affordances are XML-declarative and cannot be hidden from a

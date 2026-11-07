@@ -1334,6 +1334,10 @@ void HomePanel::open_widget_catalog() {
     }
 }
 
+void HomePanel::request_delete_edit_page() {
+    grid_edit_mode_.request_delete_page();
+}
+
 // ============================================================================
 // Global instance
 // ============================================================================

@@ -156,6 +156,7 @@ TEST_CASE_METHOD(NavigationTestFixture, "lv_indev_reset(NULL, NULL) clears in-fl
 // connection state and klippy state. They require full XML registration.
 
 #include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
 #include "printer_state.h"
 
 /// Puts an int subject back the way it was found, on every exit path. Catch2
@@ -414,7 +415,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
     REQUIRE(portrait != nullptr);
     ScopedSubjectInt restore_portrait(portrait);
 
-    // nav_btn_controls is the next visible child after nav_btn_home: the two
+    // nav_btn_controls is the next visible child after nav_btn_home: the three
     // edit-mode buttons ahead of them and the printer badge behind them are
     // hidden until their subjects say otherwise.
     lv_obj_t* home = lv_obj_find_by_name(navbar_, "nav_btn_home");
@@ -486,26 +487,74 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to
 
     // Hidden objects take no part in flex layout; edit mode is what shows them.
     lv_obj_t* add = lv_obj_find_by_name(navbar_, "nav_btn_edit_add");
+    lv_obj_t* del = lv_obj_find_by_name(navbar_, "nav_btn_edit_delete_page");
     lv_obj_t* done = lv_obj_find_by_name(navbar_, "nav_btn_edit_done");
     REQUIRE(add != nullptr);
+    REQUIRE(del != nullptr);
     REQUIRE(done != nullptr);
     lv_obj_remove_flag(add, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(del, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(done, LV_OBJ_FLAG_HIDDEN);
     lv_obj_update_layout(navbar_);
 
     const int32_t bar_h = lv_obj_get_height(navbar_);
     INFO("bar " << bar_h << ", button_height " << button_height << ", add "
-                << lv_obj_get_height(add) << ", done " << lv_obj_get_height(done));
+                << lv_obj_get_height(add) << ", delete page " << lv_obj_get_height(del) << ", done "
+                << lv_obj_get_height(done));
 
     // min_height is the touch-target floor and wins where button_height sits below it.
-    const int32_t add_floor = lv_obj_get_style_min_height(add, LV_PART_MAIN);
-    const int32_t done_floor = lv_obj_get_style_min_height(done, LV_PART_MAIN);
-    REQUIRE(add_floor > 0);
-    REQUIRE(done_floor > 0);
-    CHECK(lv_obj_get_height(add) <= std::max(button_height, add_floor));
-    CHECK(lv_obj_get_height(done) <= std::max(button_height, done_floor));
-    CHECK(lv_obj_get_height(add) < bar_h);
-    CHECK(lv_obj_get_height(done) < bar_h);
+    for (lv_obj_t* btn : {add, del, done}) {
+        const int32_t floor = lv_obj_get_style_min_height(btn, LV_PART_MAIN);
+        REQUIRE(floor > 0);
+        CHECK(lv_obj_get_height(btn) <= std::max(button_height, floor));
+        CHECK(lv_obj_get_height(btn) < bar_h);
+    }
+}
+
+// The delete-page button lives in the navbar, off the grid, so it never covers
+// a tile (prestonbrown/helixscreen#2023).
+TEST_CASE_METHOD(NavbarIconTestFixture,
+                 "Navbar: the delete-page button shows in edit mode on a deletable page",
+                 "[navbar][ui_integration][grid_edit]") {
+    REQUIRE(navbar_ != nullptr);
+    ScopedSubjectInt restore_edit(&get_home_edit_mode_subject());
+    ScopedSubjectInt restore_deletable(&get_home_edit_page_deletable_subject());
+
+    struct Row {
+        int edit_mode, deletable;
+        bool shown;
+    };
+    for (const Row& r : {Row{0, 0, false}, Row{0, 1, false}, Row{1, 0, false}, Row{1, 1, true}}) {
+        CAPTURE(r.edit_mode, r.deletable);
+        lv_subject_set_int(&get_home_edit_mode_subject(), r.edit_mode);
+        lv_subject_set_int(&get_home_edit_page_deletable_subject(), r.deletable);
+        CHECK(is_visible("nav_btn_edit_delete_page") == r.shown);
+    }
+}
+
+// The edit buttons need the bar's room at 480x272, so the nav buttons, which
+// edit mode disables anyway, leave it while edit mode lasts.
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: edit mode hides the nav buttons",
+                 "[navbar][ui_integration][grid_edit][2023]") {
+    REQUIRE(navbar_ != nullptr);
+    ScopedSubjectInt restore_edit(&get_home_edit_mode_subject());
+
+    const char* nav[] = {"nav_btn_home", "nav_btn_controls", "nav_btn_filament", "nav_btn_settings",
+                         "nav_btn_advanced"};
+    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    for (const char* name : nav) {
+        CAPTURE(name);
+        CHECK(is_visible(name));
+    }
+    CHECK(is_hidden("nav_btn_edit_done"));
+
+    lv_subject_set_int(&get_home_edit_mode_subject(), 1);
+    for (const char* name : nav) {
+        CAPTURE(name);
+        CHECK(is_hidden(name));
+    }
+    CHECK(is_visible("nav_btn_edit_add"));
+    CHECK(is_visible("nav_btn_edit_done"));
 }
 
 /**

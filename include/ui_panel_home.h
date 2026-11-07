@@ -94,6 +94,10 @@ class HomePanel : public PanelBase {
     /// Open widget catalog overlay (called by navbar + button)
     void open_widget_catalog();
 
+    /// Ask to delete the edit session's page (called by the navbar delete-page
+    /// button)
+    void request_delete_edit_page();
+
     /// Track counts page @p page is laid out with; {0, 0} for a page with no
     /// grid container.
     helix::GridDimensions page_grid(int page) const;
