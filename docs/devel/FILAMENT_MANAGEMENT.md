@@ -579,15 +579,18 @@ Two footguns this area has repeatedly hit (fixed in #1065; keep them fixed):
     Happy Hare the eject signal itself is user-configurable ("Keep Spool Info
     on Eject", AMS Management overlay; default on).
 
-    **Precedence: firmware retention beats the toggle.** With AFC's per-lane
-    `remember_spool = true` on every lane, AFC itself repopulates lanes on
-    eject and keeps reporting the spool id — so neither the merge's eject rule
-    nor the re-assert push ever fires and the toggle has no observable effect
-    in either position. Rather than let it silently lie, the overlay disables
-    it with a note: `AmsBackend::printer_retains_spool_info()` (ALL-lane
-    semantics; a mixed config leaves the toggle governing the `false` lanes)
-    drives the `ams_device_ops_printer_retains_spool_info` subject, which the row's
-    `disabled` prop and the note bind to (#1281 follow-up).
+    **Firmware that has its own retention setting owns it.** AFC reports a
+    per-lane `remember_spool`. Where a lane reports it, AFC's value decides: a
+    lane at `false` that empties drops every HelixScreen record of its spool
+    (`AmsBackendAfc::forget_lane_spool_locked()`), so the screen shows what AFC
+    and Mainsail show. Once every lane reports it,
+    `AmsBackend::firmware_owns_spool_retention()` is true and the overlay swaps
+    the HelixScreen switch for one bound to
+    `ams_device_ops_printer_retains_spool_info` (`printer_retains_spool_info()`,
+    true when every lane remembers) that writes through
+    `set_firmware_spool_retention()` (`AFC_SET_REMEMBER_SPOOL` per lane). The
+    HelixScreen setting, and the #1289 re-assert, apply only where firmware
+    reports no such setting.
 
 ### OrcaSlicer compatibility — by backend
 
