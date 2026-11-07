@@ -23,6 +23,7 @@
 #include <fstream>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -4229,14 +4230,21 @@ struct ActivePrinter {
     }
 };
 
+/// A store for @p printer whose cache file lives in @p tmp.
+std::unique_ptr<FilamentSlotOverrideStore> store_over(MockPrinter& printer, const TmpCacheDir& tmp,
+                                                      const std::string& backend) {
+    auto store = std::make_unique<FilamentSlotOverrideStore>(&printer.api, backend);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    return store;
+}
+
 /// A run whose read of lane_data never lands makes @p edit, then the app stops.
 void hold_until_restart(MockPrinter& printer, const TmpCacheDir& tmp,
                         const std::function<void(FilamentSlotOverrideStore&)>& edit) {
-    FilamentSlotOverrideStore before(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(before, tmp.path);
-    load_without_an_answer(printer, before);
-    REQUIRE(before.namespace_unread());
-    edit(before);
+    const auto before = store_over(printer, tmp, "ifs");
+    load_without_an_answer(printer, *before);
+    REQUIRE(before->namespace_unread());
+    edit(*before);
     printer.client.fire_deferred("server.database.get_item");
 }
 
@@ -4244,10 +4252,9 @@ void hold_until_restart(MockPrinter& printer, const TmpCacheDir& tmp,
 /// both the printer's records and the cache holding it.
 void seed_slots(MockPrinter& printer, const TmpCacheDir& tmp, const FilamentSlotOverride& record,
                 std::initializer_list<int> slots) {
-    FilamentSlotOverrideStore seed(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
+    const auto seed = store_over(printer, tmp, "ifs");
     for (const int slot : slots) {
-        seed.save_async(slot, record, nullptr);
+        seed->save_async(slot, record, nullptr);
     }
 }
 
@@ -4282,9 +4289,8 @@ TEST_CASE("a held edit made on one printer is not sent to another",
 
     ActivePrinter b("printer-b");
     const int posts = printer.client.call_count("server.database.post_item");
-    FilamentSlotOverrideStore after(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
-    (void)after.load_blocking();
+    const auto after = store_over(printer, tmp, "ifs");
+    (void)after->load_blocking();
 
     CHECK(printer.client.call_count("server.database.post_item") == posts);
     const auto lane2 =
@@ -4317,9 +4323,8 @@ TEST_CASE("a held edit gives way to a record the printer changed since",
     loaded.color_rgb = 0xFFFFFF;
     printer.client.mock_db_set("lane_data", "lane3", helix::ams::to_lane_data_record(2, loaded));
 
-    FilamentSlotOverrideStore after(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
-    const auto shown = after.load_blocking();
+    const auto after = store_over(printer, tmp, "ifs");
+    const auto shown = after->load_blocking();
 
     const auto lane2 =
         helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
@@ -4346,17 +4351,15 @@ TEST_CASE("a held edit stays in the cache until the printer takes it",
     });
 
     {
-        FilamentSlotOverrideStore failed(&printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(failed, tmp.path);
+        const auto failed = store_over(printer, tmp, "ifs");
         printer.client.fail_next("server.database.post_item");
-        (void)failed.load_blocking();
-        REQUIRE_FALSE(failed.namespace_unread());
+        (void)failed->load_blocking();
+        REQUIRE_FALSE(failed->namespace_unread());
     }
     REQUIRE(cache_file(tmp)["ifs"]["held"].contains("1"));
 
-    FilamentSlotOverrideStore next(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(next, tmp.path);
-    (void)next.load_blocking();
+    const auto next = store_over(printer, tmp, "ifs");
+    (void)next->load_blocking();
     const auto lane2 =
         helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
     REQUIRE(lane2);
@@ -4378,9 +4381,8 @@ TEST_CASE("a held edit older than a day is dropped unsent", "[filament_slot_over
     std::ofstream(tmp.path / "filament_slot_overrides.json") << doc.dump();
 
     const int posts = printer.client.call_count("server.database.post_item");
-    FilamentSlotOverrideStore after(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
-    (void)after.load_blocking();
+    const auto after = store_over(printer, tmp, "ifs");
+    (void)after->load_blocking();
     CHECK(printer.client.call_count("server.database.post_item") == posts);
     CHECK_FALSE(cache_file(tmp)["ifs"].contains("held"));
 }
@@ -4389,21 +4391,19 @@ TEST_CASE("held writes and slot writes from two backends both reach the cache fi
           "[filament_slot_override][2021]") {
     TmpCacheDir tmp("held_two_backends");
     MockPrinter printer;
-    FilamentSlotOverrideStore held(&printer.api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(held, tmp.path);
-    load_without_an_answer(printer, held);
-    REQUIRE(held.namespace_unread());
-    FilamentSlotOverrideStore sent(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(sent, tmp.path);
+    const auto held = store_over(printer, tmp, "ace");
+    load_without_an_answer(printer, *held);
+    REQUIRE(held->namespace_unread());
+    const auto sent = store_over(printer, tmp, "ifs");
 
     constexpr int kSlots = 60;
     std::thread holder([&] {
         for (int slot = 0; slot < kSlots; ++slot) {
-            held.save_async(slot, polymaker_record(), nullptr);
+            held->save_async(slot, polymaker_record(), nullptr);
         }
     });
     for (int slot = 0; slot < kSlots; ++slot) {
-        sent.save_async(slot, polymaker_record(), nullptr);
+        sent->save_async(slot, polymaker_record(), nullptr);
     }
     holder.join();
     printer.client.fire_deferred("server.database.get_item");
