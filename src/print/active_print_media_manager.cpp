@@ -133,6 +133,33 @@ ActivePrintMediaManager::ActivePrintMediaManager(PrinterState& printer_state)
         },
         printer_state_.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
 
+    // A start another app sent has no identity until its file opens
+    // (PrinterPrintState::set_printer_side_pre_start()), and gets one when the
+    // printer takes the job, even under the name print_stats already held, or
+    // gives the previous job its name back when abandoned. Those changes arrive
+    // with neither a filename nor a preparing epoch, so only entering and
+    // leaving that unknown identity is acted on here.
+    print_identity_observer_ = helix::ui::observe<int>(
+        printer_state_.print_state().get_print_identity_epoch_subject(), this,
+        [](ActivePrintMediaManager* self, int /*epoch*/) {
+            auto& ps = self->printer_state_.print_state();
+            const bool unknown =
+                ps.printer_side_pre_start() && ps.get_effective_print_filename().empty();
+            if (unknown == self->identity_unknown_) {
+                return;
+            }
+            self->identity_unknown_ = unknown;
+            if (unknown) {
+                // Not through process_filename(): after a Klipper restart the
+                // reported filename is empty, which it answers by keeping the
+                // last job on screen.
+                self->publish_unknown_identity();
+                return;
+            }
+            self->process_filename(lv_subject_get_string(ps.get_print_filename_subject()));
+        },
+        printer_state_.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+
     spdlog::debug("[ActivePrintMediaManager] Observer attached to print_filename subject");
 }
 
@@ -334,6 +361,17 @@ void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
 #endif
 }
 
+void ActivePrintMediaManager::publish_unknown_identity() {
+    // A print with no name yet: nothing of the previous job's may show, and
+    // whatever file it turns out to be loads afresh.
+    last_effective_filename_.clear();
+    last_loaded_thumbnail_filename_.clear();
+    PrinterState* state = &printer_state_;
+    helix::ui::queue_update("ActivePrintMediaManager::publish_unknown_identity",
+                            [state]() { state->print_state().set_print_display_filename(""); });
+    publish_thumbnail("", no_thumbnail_placeholder());
+}
+
 void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     // Empty filename means print ended or idle - DON'T clear immediately
     // The thumbnail/metadata should persist so the user can see what was printing
@@ -377,8 +415,13 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
         std::make_unique<std::string>(display_name),
         [state](std::string* name) { state->print_state().set_print_display_filename(*name); });
 
+    if (effective_filename.empty()) {
+        publish_unknown_identity();
+        return;
+    }
+
     // Load thumbnail if filename changed
-    if (!effective_filename.empty() && effective_filename != last_loaded_thumbnail_filename_) {
+    if (effective_filename != last_loaded_thumbnail_filename_) {
         // Whether the published path survives is decided by the path's own
         // identity, not by this manager's history. A path published FOR this
         // file (USB / PrintStartController pre-set) is kept; anything else is

@@ -206,6 +206,13 @@ bool PrintStartProfile::try_match_tag(const std::string& line, MatchResult& resu
     return match_pattern_list(tag_patterns_, line, result);
 }
 
+bool PrintStartProfile::announces_print_start(const std::string& line) const {
+    return std::any_of(tag_patterns_.begin(), tag_patterns_.end(), [&](const ResponsePattern& rp) {
+        helix::RegexMatch match;
+        return rp.announces_start && helix::regex_search(line, match, rp.pattern);
+    });
+}
+
 int PrintStartProfile::percent_from_report(double value) {
     if (!std::isfinite(value) || value < 0.0) {
         return -1;
@@ -615,6 +622,16 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
             } else {
                 spdlog::warn("[PrintStartProfile] Ignoring non-boolean narrates for {} '{}' in {}",
                              kind, pattern_str, source_path);
+            }
+        }
+
+        if (rp_json.contains("announces_start")) {
+            if (rp_json["announces_start"].is_boolean()) {
+                rp.announces_start = rp_json["announces_start"].get<bool>();
+            } else {
+                spdlog::warn(
+                    "[PrintStartProfile] Ignoring non-boolean announces_start for {} '{}' in {}",
+                    kind, pattern_str, source_path);
             }
         }
 

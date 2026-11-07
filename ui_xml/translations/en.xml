@@ -545,6 +545,7 @@
   <translation tag="Calibrate now" en="Calibrate now"/>
   <translation tag="Calibrate part fan" en="Calibrate part fan"/>
   <translation tag="Calibrate tool offsets?" en="Calibrate tool offsets?"/>
+  <translation tag="Calibrate with this tool?" en="Calibrate with this tool?"/>
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
   <translation tag="Calibrated" en="Calibrated"/>
   <translation tag="Calibrating Probe..." en="Calibrating Probe..."/>
@@ -1121,6 +1122,7 @@
   <translation tag="ETA {}" en="ETA {}"/>
   <translation tag="EXTRAS" en="EXTRAS"/>
   <translation tag="Each fan can only be selected once" en="Each fan can only be selected once"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." en="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead."/>
   <translation tag="Edit" en="Edit"/>
   <translation tag="Edit Filament" en="Edit Filament"/>
   <translation tag="Edit Slot" en="Edit Slot"/>
@@ -2426,6 +2428,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
@@ -3253,6 +3256,7 @@
   <translation tag="Save to Spool" en="Save to Spool"/>
   <translation tag="Save to Spoolman" en="Save to Spoolman"/>
   <translation tag="Saved Z-Offset" en="Saved Z-Offset"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" en="Saved for the mounted head; other heads keep their own"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." en="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save."/>
   <translation tag="Saved to crash_report.txt (QR not available)" en="Saved to crash_report.txt (QR not available)"/>
   <translation tag="Saved to printer configuration." en="Saved to printer configuration."/>
@@ -4283,6 +4287,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." en="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for another box to finish." en="Waiting for another box to finish."/>
+  <translation tag="Waiting for bed temperature..." en="Waiting for bed temperature..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for chamber {} / {}°C" en="Waiting for chamber {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" en="Waiting for chamber {}°C"/>
@@ -4543,6 +4548,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." en="wpa_supplicant is not running. WiFi features unavailable."/>
   <translation tag="you have" en="you have"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." en="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway."/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" en="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." en="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." en="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>

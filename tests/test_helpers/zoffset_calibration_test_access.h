@@ -41,6 +41,16 @@ class ZOffsetCalibrationTestAccess {
         panel.send_accept();
     }
 
+    /// The API the panel sends through; null until something opens it.
+    static helix::IMoonrakerAPI* api(ZOffsetCalibrationPanel& panel) {
+        return panel.api_;
+    }
+
+    /// The Start button's path: the reference-tool check, then warm-up or probing.
+    static void start_calibration(ZOffsetCalibrationPanel& panel) {
+        panel.start_calibration();
+    }
+
     /// Sends the strategy's start sequence (approach move plus calibrate
     /// command), skipping the warm-bed wait.
     static void begin_probe_sequence(ZOffsetCalibrationPanel& panel) {

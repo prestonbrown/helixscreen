@@ -545,6 +545,7 @@
   <translation tag="Calibrate now" ja="今すぐキャリブレーション"/>
   <translation tag="Calibrate part fan" ja="パーツファンを校正"/>
   <translation tag="Calibrate tool offsets?" ja="ツールオフセットをキャリブレートしますか？"/>
+  <translation tag="Calibrate with this tool?" ja="このツールで校正しますか？"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
   <translation tag="Calibrated" ja="キャリブレーション済み"/>
   <translation tag="Calibrating Probe..." ja="プローブをキャリブレーション中..."/>
@@ -1121,6 +1122,7 @@
   <translation tag="ETA {}" ja="終了予定 {}"/>
   <translation tag="EXTRAS" ja="その他"/>
   <translation tag="Each fan can only be selected once" ja="各ファンは一度のみ選択できます"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." ja="このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。"/>
   <translation tag="Edit" ja="編集"/>
   <translation tag="Edit Filament" ja="フィラメントを編集"/>
   <translation tag="Edit Slot" ja="スロットを編集"/>
@@ -2426,6 +2428,7 @@
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ja="装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？"/>
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
@@ -3253,6 +3256,7 @@
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" ja="装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ja="Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" ja="crash_report.txt に保存しました（QR 利用不可）"/>
   <translation tag="Saved to printer configuration." ja="プリンター設定に保存しました。"/>
@@ -4283,6 +4287,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." ja="%s の完了を待っています。ヒーターは一度に1つだけです。"/>
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for another box to finish." ja="別のボックスの完了を待っています。"/>
+  <translation tag="Waiting for bed temperature..." ja="ベッド温度を待機中..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for chamber {} / {}°C" ja="チャンバー待機中 {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" ja="チャンバー待機中 {}°C"/>
@@ -4543,6 +4548,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ja="wpa_supplicant が動作していません。WiFi 機能は利用できません。"/>
   <translation tag="you have" ja="現在は"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." ja="{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。"/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" ja="{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ja="{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ja="{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>

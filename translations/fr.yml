@@ -561,6 +561,7 @@ translations:
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: TYPE DE CONNEXION
   CONTROLLABLE FANS: VENTILATEURS CONTRÔLABLES
+  Calibrate with this tool?: 'Calibrer avec cet outil ?'
   Could not turn the heaters off: Impossible de couper les chauffes
   CPU: CPU
   'CPU: ': 'CPU : '
@@ -1246,6 +1247,7 @@ translations:
   EXTRAS: SUPPLÉMENTS
   Each fan can only be selected once: Chaque ventilateur ne peut être sélectionné
     qu'une fois
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Chaque tête d''outil a son propre Z-offset sur cette imprimante. Utilisez plutôt la calibration des offsets d''outil.'
   Edit: Modifier
   Edit Filament: Modifier le filament
   Edit Slot: Modifier le slot
@@ -2666,6 +2668,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Aucun outil n''est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?'
   No tool is mounted: 'Aucun outil n''est monté'
   No tool on the head: "Aucun outil sur la tête d'outil"
   No tools to calibrate: Aucun outil à calibrer
@@ -3557,6 +3560,7 @@ translations:
   Save to Spool: Enregistrer sur la bobine
   Save to Spoolman: Enregistrer dans Spoolman
   Saved Z-Offset: Z-Offset enregistré
+  Saved for the mounted head; other heads keep their own: 'Enregistré pour la tête d''outil montée ; les autres têtes d''outil gardent le leur'
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Enregistré dans Spoolman, mais le prix, l''emplacement, le lot et les notes de la bobine n''ont pas été enregistrés.'
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR
     non disponible)
@@ -4737,6 +4741,7 @@ translations:
   Waiting for Moonraker...: En attente de Moonraker...
   Waiting for %s to finish. One heater at a time.: En attente de la fin de %s. Un seul chauffage à la fois.
   Waiting for another box to finish.: En attente de la fin d'une autre boîte.
+  Waiting for bed temperature...: Attente de la température du plateau...
   Waiting for bed to reach temperature for accurate calibration.: En attente que le
     plateau atteigne la température pour une calibration précise.
   Waiting for chamber {} / {}°C: 'Attente de la chambre {} / {}°C'
@@ -5120,6 +5125,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{} : l''étiquette indique la bobine Spoolman #{}, qui n''existe pas'
   '{}:{:02} elapsed': '{}:{:02} écoulé'
   '{}% left': '{} % restant'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} est monté. Avec une sonde partagée, calibrez avec {1}. Continuer avec {0} ?'
   'Basic': 'Basique'
   'Recycled': 'Recyclé'
   'Add to Spoolman + label': 'Ajouter à Spoolman + étiquette'

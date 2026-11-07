@@ -509,3 +509,51 @@ TEST_CASE_METHOD(SentStartFixture, "The start hand-over belongs to one preparing
     ps().begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
     CHECK(ps().preparing_start() == PreparingStart::None);
 }
+
+TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced cancels at once",
+                 "[print_control][preparing_cancel][2054]") {
+    // Another app started it: no preparing job of ours, and print_stats still
+    // reports the previous job. The printer has the start already.
+    report("cancelled", "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    REQUIRE(ps().get_print_lifecycle() == PrintState::Preparing);
+    REQUIRE(stop_enabled() == 1);
+    // The home card opens this print's status, and nothing starts over it.
+    CHECK_FALSE(ps().can_start_new_print());
+
+    stop();
+    CHECK(cancels == 1);
+    CHECK(stop_enabled() == 0);
+
+    // The cancel can answer before the file opens, while print_stats still holds
+    // the previous job's CANCELLED: that is not this start ending.
+    REQUIRE(cancel_ok);
+    cancel_ok(json::object());
+    drain();
+    CHECK(stop_enabled() == 0);
+
+    SECTION("the start ends when the printer takes the job and cancels it") {
+        report("printing", "next.gcode");
+        CHECK(stop_enabled() == 0); // the cancel still covers the job
+        report("cancelled", "next.gcode");
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
+    }
+    SECTION("the start ends when it is abandoned before the file opens") {
+        ps().set_printer_side_pre_start(false);
+        ps().reset_print_start_state();
+        drain();
+        CHECK(stop_enabled() == 0); // no print left to stop
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
+    }
+    ps().set_printer_side_pre_start(false);
+}

@@ -545,6 +545,7 @@
   <translation tag="Calibrate now" it="Calibra ora"/>
   <translation tag="Calibrate part fan" it="Calibra ventola pezzo"/>
   <translation tag="Calibrate tool offsets?" it="Calibrare gli offset degli strumenti?"/>
+  <translation tag="Calibrate with this tool?" it="Calibrare con questo utensile?"/>
   <translation tag="Calibrate your touchscreen for accurate input" it="Calibra il touchscreen per un input preciso"/>
   <translation tag="Calibrated" it="Calibrato"/>
   <translation tag="Calibrating Probe..." it="Calibrazione sonda..."/>
@@ -1121,6 +1122,7 @@
   <translation tag="ETA {}" it="Fine {}"/>
   <translation tag="EXTRAS" it="EXTRA"/>
   <translation tag="Each fan can only be selected once" it="Ogni ventola può essere selezionata solo una volta"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." it="Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell&apos;offset utensile."/>
   <translation tag="Edit" it="Modifica"/>
   <translation tag="Edit Filament" it="Modifica filamento"/>
   <translation tag="Edit Slot" it="Modifica Slot"/>
@@ -2426,6 +2428,7 @@
   <translation tag="No target printer configured" it="Nessuna stampante di destinazione configurata"/>
   <translation tag="No temperature sensors detected" it="Nessun sensore di temperatura rilevato"/>
   <translation tag="No timelapse videos found" it="Nessun video timelapse trovato"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" it="Non si sa quale utensile sia montato. Con una sonda condivisa, calibra con {}. Continuare comunque?"/>
   <translation tag="No tool is mounted" it="Nessun utensile montato"/>
   <translation tag="No tool on the head" it="Nessuno strumento sulla testina"/>
   <translation tag="No tools to calibrate" it="Nessuno strumento da calibrare"/>
@@ -3253,6 +3256,7 @@
   <translation tag="Save to Spool" it="Salva sulla bobina"/>
   <translation tag="Save to Spoolman" it="Salva su Spoolman"/>
   <translation tag="Saved Z-Offset" it="Z-Offset Salvato"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" it="Salvato per la testina montata; le altre testine mantengono il proprio"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." it="Salvato in Spoolman, ma prezzo, posizione, lotto e note della bobina non sono stati salvati."/>
   <translation tag="Saved to crash_report.txt (QR not available)" it="Salvato in crash_report.txt (QR non disponibile)"/>
   <translation tag="Saved to printer configuration." it="Salvato nella configurazione stampante."/>
@@ -4283,6 +4287,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." it="In attesa che %s finisca. Un riscaldatore alla volta."/>
   <translation tag="Waiting for Moonraker..." it="In attesa di Moonraker..."/>
   <translation tag="Waiting for another box to finish." it="In attesa che un&apos;altra scatola finisca."/>
+  <translation tag="Waiting for bed temperature..." it="In attesa della temperatura del piatto..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." it="In attesa che il piano raggiunga la temperatura per una calibrazione precisa."/>
   <translation tag="Waiting for chamber {} / {}°C" it="In attesa della camera {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" it="In attesa della camera {}°C"/>
@@ -4543,6 +4548,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." it="wpa_supplicant non è in esecuzione. Le funzioni WiFi non sono disponibili."/>
   <translation tag="you have" it="hai"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." it="{0} sono aperte. {1} si stampa meglio in un&apos;enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudile o avvia comunque."/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" it="{0} è montato. Con una sonda condivisa, calibra con {1}. Continuare con {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." it="{0} è aperta. {1} si stampa meglio in un&apos;enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudila o avvia comunque."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." it="{0} risuona molto più di {1} a {2:.0f} Hz. Indica una differenza meccanica (grani della puleggia, cuscinetti dei rinvii, scorrimento della cinghia), non la tensione."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" it="{:.0f}-{:.0f} Hz · circa {} min"/>

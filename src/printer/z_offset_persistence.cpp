@@ -5,6 +5,7 @@
 #include "config.h"
 #include "printer_discovery.h"
 #include "spdlog/spdlog.h"
+#include "toolchanger_addon.h"
 
 #include <cmath>
 #include <string>
@@ -36,6 +37,10 @@ struct Provider {
     /// therefore cannot be wrong. Must answer false for "no news": a frame
     /// that simply does not carry the store is not evidence of absence.
     bool (*refuted_by)(const nlohmann::json& status);
+    /// Whether this firmware, on this machine, sets the mounted head's offset
+    /// absolutely at every tool pickup and saves a Z_ADJUST against that head
+    /// alone. nullptr where the firmware keeps one machine-wide offset.
+    bool (*offset_per_head)(const PrinterDiscovery& hw);
 };
 
 /// Fetch status.<object>.<member> as an object, or nullptr.
@@ -232,7 +237,13 @@ const std::vector<Provider>& providers() {
          &read_zmod,
          &read_enabled_zmod,
          // SAVE_ZMOD_DATA belongs to one firmware and means one thing.
-         nullptr},
+         nullptr,
+         // On the Creator 5 head changer Z-Mod's _T_IN sets the picked head's
+         // offset absolutely from that head's own stored value, and its
+         // SET_GCODE_OFFSET override saves a Z_ADJUST for the mounted head.
+         // An absolute Z= is applied and never saved, and the gcode_offsets
+         // save-variable is not read back on this machine at all.
+         &toolchanger_addon::zmod_c5_present},
         {"Forge-X",
          "SET_MOD",
          {"mod_params"},
@@ -241,6 +252,7 @@ const std::vector<Provider>& providers() {
          &read_forge_x,
          &read_enabled_forge_x,
          // Likewise SET_MOD: the mod's own plugin registers it, nothing else.
+         nullptr,
          nullptr},
         // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
         // printer object ONLY when a [gcode_macro] shadows it (and shadowing a
@@ -264,7 +276,8 @@ const std::vector<Provider>& providers() {
          // The module's boot delayed_gcode re-applies the stored offset
          // unconditionally; there is no setting to enable and none to read.
          nullptr,
-         &refuted_helper_script},
+         &refuted_helper_script,
+         nullptr},
     };
     return table;
 }
@@ -341,6 +354,12 @@ std::optional<bool> persistence_already_enabled(const PrinterDiscovery& hw,
 
 std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
+    // Where the offset is kept per head the same variable feeds every pickup's
+    // absolute offset and the per-head save base, so zeroing it moves the next
+    // head instead of clearing a leftover.
+    if (p && p->offset_per_head && p->offset_per_head(hw)) {
+        return {};
+    }
     if (p && p->stale_delta_clear_gcode) {
         return p->stale_delta_clear_gcode;
     }
@@ -349,6 +368,11 @@ std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw) {
 
 bool firmware_persists_z_offset(const PrinterDiscovery& hw) {
     return match(hw) != nullptr;
+}
+
+bool firmware_applies_z_offset_per_head(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    return p && p->offset_per_head && p->offset_per_head(hw);
 }
 
 bool status_refutes_persistence(const PrinterDiscovery& hw, const nlohmann::json& status) {

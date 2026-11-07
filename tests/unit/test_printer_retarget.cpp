@@ -173,7 +173,9 @@ TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start 
     CHECK(manager_.print_start_collector() != nullptr);
     CHECK(manager_.print_start_collector() != first);
     CHECK_FALSE(first->is_active());
-    CHECK(collector_taps() == 0);
+    // The new collector listens from connect on, for console lines that announce a
+    // printer-side start; the old one's tap is gone, or there would be two.
+    CHECK(collector_taps() == 1);
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Connect: every connection tracks why its prints stop",

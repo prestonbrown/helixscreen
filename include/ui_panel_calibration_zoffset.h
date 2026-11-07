@@ -168,6 +168,15 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // Strategy-aware gcode command helpers
     void start_calibration();
+    /// Warm-up or probing: the start once every check has passed.
+    void begin_calibration();
+    /// Ask before calibrating with a tool other than the probe's reference tool.
+    void confirm_tool_then_start(int reference_tool, int active_tool);
+    /// Whether a calibration may still begin now: the answer to a question can
+    /// arrive after the panel left the screen, a print started or Klipper went away.
+    bool can_begin_now() const;
+    /// Close the mounted-tool question, if it is open, without starting anything.
+    void close_tool_confirm();
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();
@@ -202,10 +211,12 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     float cumulative_z_delta_ = 0.0f; ///< Tracks total Z adjustment in gcode_offset mode
 
     // Warm bed for calibration
-    bool bed_was_warmed_ = false;       ///< True if we sent M140 to warm bed this session
-    int warm_bed_target_deci_ = 0;      ///< Target temp in decidegrees during WARMING
-    SubjectLifetime bed_temp_lifetime_; ///< Lifetime token for bed temp subject (#734)
-    ObserverGuard bed_temp_observer_;   ///< Watches bed temp during WARMING phase
+    bool tool_confirm_pending_ = false;       ///< The mounted-tool question is on screen
+    lv_obj_t* tool_confirm_dialog_ = nullptr; ///< That question's dialog, while open
+    bool bed_was_warmed_ = false;             ///< True if we sent M140 to warm bed this session
+    int warm_bed_target_deci_ = 0;            ///< Target temp in decidegrees during WARMING
+    SubjectLifetime bed_temp_lifetime_;       ///< Lifetime token for bed temp subject (#734)
+    ObserverGuard bed_temp_observer_;         ///< Watches bed temp during WARMING phase
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

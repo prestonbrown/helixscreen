@@ -81,6 +81,9 @@ class PrintStartProfile {
         /// Phases the step this text begins emits signals for on its own,
         /// such as a nozzle clean that parks at the purge position
         std::vector<helix::PrintStartPhase> owns;
+        /// The firmware prints this text only once it has committed to a print
+        /// (see announces_print_start())
+        bool announces_start = false;
     };
 
     /**
@@ -250,6 +253,16 @@ class PrintStartProfile {
      * @return true if matched
      */
     bool try_match_tag(const std::string& line, MatchResult& result) const;
+
+    /**
+     * @brief Whether a console line is the printer announcing a print start
+     *
+     * True when a tag pattern marked `announces_start` matches: a line the
+     * firmware prints only once it has committed to a print, before print_stats
+     * reports one. The collector arms on it when nothing else has, so a print
+     * started from another app shows Preparing from its first step.
+     */
+    bool announces_print_start(const std::string& line) const;
 
     /// A reported progress value as 0-100: a value at or below 1.5 is a 0-1
     /// fraction, anything larger is already a percent; clamped to 0-100.

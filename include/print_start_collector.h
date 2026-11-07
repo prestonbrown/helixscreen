@@ -222,6 +222,28 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     void complete_from_external_signal(const char* source);
 
     /**
+     * @brief Whether this run was armed by the printer announcing a start
+     *
+     * A line the profile marks `announces_start`, arriving while nothing had
+     * armed the collector and the printer held no job: a print started from
+     * another app (#2054). Cleared by stop().
+     */
+    [[nodiscard]] bool armed_by_printer() const {
+        return armed_by_printer_.load();
+    }
+
+    /**
+     * @brief Retire a printer-announced start that never became a print
+     *
+     * Such a run has no preparing job to time it out. Once print_stats still
+     * reports no job and kPrinterStartQuietLimit has passed without a console
+     * line or inferred activity, the start was abandoned (an aborted macro, a
+     * cancel before the file opened) and the run stops. Main thread; run from
+     * the ETA tick.
+     */
+    void check_printer_start_retirement();
+
+    /**
      * @brief Record an observed current_layer value for this print
      *
      * Arms the layer-1 completion edge: the first time current_layer is seen at
@@ -343,7 +365,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /**
      * @brief Set the print start profile for pattern/signal matching
      *
-     * Must be called before start(). Ignored if the collector is active.
+     * During a run the profile is held and applied when the run stops.
      *
      * @param profile Profile to use, or nullptr to disable profile-based matching
      */
@@ -399,6 +421,21 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * @brief Handle incoming G-code response
      */
     void on_gcode_response(const nlohmann::json& msg);
+
+    /// Register on_gcode_response() with the client once; detach() removes it.
+    void register_console_handler();
+
+    /// Console line while inactive: arm if the profile says it announces a
+    /// print start. Any thread; the arming itself runs on the main thread.
+    void arm_if_printer_announces_start(const nlohmann::json& msg);
+
+    /// Main thread: arm from the announcing line @p msg unless a run, a job or
+    /// a preparing job of ours already covers it, then apply the line.
+    void arm_from_printer_start(const nlohmann::json& msg);
+
+    /// Queue a stop of a printer-announced run that, when the queue drains,
+    /// is still live and still holds no job. Any thread.
+    void queue_printer_start_retirement(const char* why);
 
     /**
      * @brief Whether a console line is the echo of the dispatched pre-start block
@@ -708,6 +745,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // Registration state
     std::string handler_name_;
     std::atomic<bool> active_{false};
+    std::atomic<bool> armed_by_printer_{false}; ///< See armed_by_printer()
+    /// Set by detach(): the collector is being replaced, and a queued arm or a
+    /// start() must not bring it back on the client.
+    std::atomic<bool> detached_{false};
+    /// A profile set during a run, applied when it stops. Guarded by
+    /// state_mutex_; has_pending_profile_ tells "none pending" from "clear it".
+    std::shared_ptr<PrintStartProfile> pending_profile_;
+    bool has_pending_profile_ = false;
+    /// When a printer-announced run last heard a console line, any line: the
+    /// printer still talking is the printer still starting. Guarded by
+    /// state_mutex_.
+    helix::sim::SimulatedClock::time_point printer_start_last_line_{};
     std::atomic<bool> registered_{false};
 
     // Thread safety: protects all non-atomic members below
@@ -784,6 +833,12 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// (the K2 spends ~5s per point, ~3s on a manual sweep) with margin for a
     /// heat-soak step that emits nothing at all.
     static constexpr auto kPreprintQuietTimeout = std::chrono::seconds(90);
+    /// How long a printer-announced start may go without a console line or
+    /// inferred activity before print_stats reports a job. Above the silent
+    /// heater waits a start makes before the file opens (a cold bed's climb
+    /// prints nothing on Z-Mod), far above the 34s the longest step gap took
+    /// in the Creator 5 captures.
+    static constexpr auto kPrinterStartQuietLimit = std::chrono::minutes(10);
     static constexpr float kAdaptiveTimeoutMargin =
         1.5f; ///< Multiply predicted total for adaptive timeout
     static constexpr float kAbsoluteTimeoutMargin =

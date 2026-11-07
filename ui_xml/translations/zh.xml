@@ -545,6 +545,7 @@
   <translation tag="Calibrate now" zh="立即校准"/>
   <translation tag="Calibrate part fan" zh="校准模型风扇"/>
   <translation tag="Calibrate tool offsets?" zh="校准工具偏移？"/>
+  <translation tag="Calibrate with this tool?" zh="用这个工具校准？"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..." zh="正在校准探针..."/>
@@ -1121,6 +1122,7 @@
   <translation tag="ETA {}" zh="预计 {}"/>
   <translation tag="EXTRAS" zh="其他"/>
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." zh="此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
   <translation tag="Edit Slot" zh="编辑槽位"/>
@@ -2426,6 +2428,7 @@
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" zh="不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？"/>
   <translation tag="No tool is mounted" zh="未安装工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
@@ -3253,6 +3256,7 @@
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
+  <translation tag="Saved for the mounted head; other heads keep their own" zh="已为当前安装的工具头保存；其他工具头保留各自的值"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
@@ -4283,6 +4287,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." zh="正在等待 %s 完成。一次只能使用一个加热器。"/>
   <translation tag="Waiting for Moonraker..." zh="正在等待 Moonraker..."/>
   <translation tag="Waiting for another box to finish." zh="正在等待另一个料盒完成。"/>
+  <translation tag="Waiting for bed temperature..." zh="正在等待热床温度..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." zh="等待热床达到温度以进行精确校准。"/>
   <translation tag="Waiting for chamber {} / {}°C" zh="等待腔体 {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" zh="等待腔体 {}°C"/>
@@ -4543,6 +4548,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
   <translation tag="you have" zh="您有"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" zh="已安装 {0}。共用一个探针时，请用 {1} 校准。继续使用 {0}？"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>

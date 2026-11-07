@@ -2768,9 +2768,9 @@ TEST_CASE("PrinterDetector: preset_default survives database array order, not ju
 
 TEST_CASE("PrinterDetector: hide_manual_z_calibration defaults to false",
           "[printer_detector][tool_offset_cal]") {
-    // No bundled printer opts in: a stock klipper-toolchanger's example macro
-    // writes nothing for T0, so the paper test must stay unless a database
-    // entry says the routine covers the reference tool.
+    // A stock klipper-toolchanger's example macro writes nothing for T0, so the
+    // paper test stays unless a database entry says the routine covers the
+    // reference tool.
     REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Snapmaker U1"));
     REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Some Random Printer"));
 }
