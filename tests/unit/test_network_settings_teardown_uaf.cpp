@@ -60,11 +60,9 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
     auto overlay = make_overlay();
 
     lv_obj_t* password = watched_modal();
-    lv_obj_t* hidden = watched_modal();
     lv_obj_t* test_modal = watched_modal();
     lv_obj_t* step = watched_modal();
     Access::password_modal(*overlay) = password;
-    Access::hidden_network_modal(*overlay) = hidden;
     Access::test_modal(*overlay) = test_modal;
     Access::step_widget(*overlay) = step;
 
@@ -72,18 +70,15 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
     // its absence after destruction would prove nothing. Each hook carries the
     // address of its handle, which lives inside the overlay.
     const void* dead_password = &Access::password_modal(*overlay);
-    const void* dead_hidden = &Access::hidden_network_modal(*overlay);
     const void* dead_test = &Access::test_modal(*overlay);
     const void* dead_step = &Access::step_widget(*overlay);
     REQUIRE(event_hook_installed(password, dead_password));
-    REQUIRE(event_hook_installed(hidden, dead_hidden));
     REQUIRE(event_hook_installed(test_modal, dead_test));
     REQUIRE(event_hook_installed(step, dead_step));
 
     overlay.reset();
 
     CHECK_FALSE(event_hook_installed(password, dead_password));
-    CHECK_FALSE(event_hook_installed(hidden, dead_hidden));
     CHECK_FALSE(event_hook_installed(test_modal, dead_test));
     CHECK_FALSE(event_hook_installed(step, dead_step));
 
@@ -91,7 +86,6 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
     // completes after destroy_all(). A hook still installed would write into
     // the freed overlay here.
     lv_obj_delete(password);
-    lv_obj_delete(hidden);
     lv_obj_delete(test_modal);
     lv_obj_delete(step);
     process_lvgl(50);
@@ -106,17 +100,17 @@ TEST_CASE_METHOD(NetworkOverlayTeardownFixture,
     lv_obj_t* early = watched_modal();
     lv_obj_t* survivor = watched_modal();
     Access::password_modal(*overlay) = early;
-    Access::hidden_network_modal(*overlay) = survivor;
+    Access::test_modal(*overlay) = survivor;
 
     // The #1341 ordering: the modal system kills one modal while the overlay
     // is still alive, and the hook clears that slot.
     lv_obj_delete(early);
     REQUIRE(Access::password_modal(*overlay) == nullptr);
-    REQUIRE(Access::hidden_network_modal(*overlay) == survivor);
+    REQUIRE(Access::test_modal(*overlay) == survivor);
 
     // The destructor has to walk past the nulled handle rather than into it,
     // and still disarm the one that is left.
-    const void* dead = &Access::hidden_network_modal(*overlay);
+    const void* dead = &Access::test_modal(*overlay);
     REQUIRE(event_hook_installed(survivor, dead));
     overlay.reset();
 

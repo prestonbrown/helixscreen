@@ -687,6 +687,39 @@ void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
     }
 }
 
+void WizardWifiStep::handle_add_hidden_clicked() {
+    if (!wifi_manager_ || !wifi_manager_->has_hardware()) {
+        spdlog::debug("[{}] Ignoring Add Hidden Network - no WiFi hardware", get_name());
+        return;
+    }
+    auto token = lifetime_.token();
+    helix::ui::show_hidden_network_modal(
+        wifi_manager_, [this, token](helix::ui::HiddenJoin event, const std::string& ssid) {
+            token.defer([this, event, ssid]() { on_hidden_join_event(event, ssid); });
+        });
+}
+
+void WizardWifiStep::on_hidden_join_event(helix::ui::HiddenJoin event, const std::string& ssid) {
+    switch (event) {
+    case helix::ui::HiddenJoin::Started: {
+        strncpy(current_ssid_, ssid.c_str(), sizeof(current_ssid_) - 1);
+        current_ssid_[sizeof(current_ssid_) - 1] = '\0';
+        ++status_generation_;
+        const std::string status = std::string(get_status_text("connecting")) + ssid;
+        update_wifi_status(status.c_str());
+        break;
+    }
+    case helix::ui::HiddenJoin::Joined:
+        announce_connected();
+        refresh_network_list();
+        break;
+    case helix::ui::HiddenJoin::Failed:
+        // The modal names the reason; the status line goes back to the radio's state.
+        update_wifi_status(get_status_text("enabled"));
+        break;
+    }
+}
+
 void WizardWifiStep::handle_modal_cancel_clicked() {
     spdlog::debug("[{}] Password modal cancel clicked", get_name());
     ++status_generation_;
@@ -857,6 +890,12 @@ void WizardWifiStep::register_callbacks() {
          [](lv_event_t*) {
              if (auto* self = get_wizard_wifi_step()) {
                  self->handle_modal_connect_clicked();
+             }
+         }},
+        {"on_wizard_wifi_add_hidden",
+         [](lv_event_t*) {
+             if (auto* self = get_wizard_wifi_step()) {
+                 self->handle_add_hidden_clicked();
              }
          }},
     });

@@ -366,7 +366,7 @@ Connect to your wireless network or configure Ethernet. You can:
 - Select from detected WiFi networks
 - Skip if using Ethernet or already connected
 
-> **Note:** Hidden networks are not listed. Skip this step and join later from **Settings > Connection > Network Settings**, which can add a network by name.
+> **Note:** Hidden networks are not listed. Tap **Add Hidden Network** below the list to join one by name.
 
 ### Step 4: Moonraker Connection
 Enter your Moonraker host. For most setups:

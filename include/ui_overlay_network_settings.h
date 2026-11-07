@@ -52,6 +52,7 @@
 
 #pragma once
 
+#include "ui_hidden_network_modal.h"
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
@@ -226,9 +227,6 @@ class NetworkSettingsOverlay : public OverlayBase {
     lv_subject_t wifi_connecting_{};          // 0=idle, 1=connecting (toggles modal form)
     lv_subject_t wifi_password_modal_ssid_{}; // SSID displayed in password modal
 
-    // Hidden-network modal subject
-    lv_subject_t hidden_connecting_{}; // 0=idle, 1=connecting (toggles modal form)
-
     // String buffers (subjects need stable char* pointers)
     char ssid_buffer_[64];
     char ip_buffer_[32];
@@ -250,9 +248,6 @@ class NetworkSettingsOverlay : public OverlayBase {
     helix::ui::WidgetRef test_modal_;
     helix::ui::WidgetRef step_widget_;
     lv_subject_t test_complete_{}; // Controls close button enabled state
-
-    // Hidden network modal (visibility controlled by Modal system)
-    helix::ui::WidgetRef hidden_network_modal_;
 
     // Password modal for secured networks
     helix::ui::WidgetRef password_modal_;
@@ -372,9 +367,8 @@ class NetworkSettingsOverlay : public OverlayBase {
 
     void handle_network_test_close();
 
-    // Hidden network modal callbacks
-    void handle_hidden_cancel_clicked();
-    void handle_hidden_connect_clicked();
+    // What a hidden-network join means for this overlay's status and list.
+    void on_hidden_join_event(helix::ui::HiddenJoin event);
 
     // Password modal methods
     void show_password_modal(const char* ssid);
