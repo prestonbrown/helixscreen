@@ -93,6 +93,30 @@ struct InterfaceState {
  */
 EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces);
 
+/**
+ * @brief A non-blocking feed of "an interface's link or address changed"
+ *
+ * Says only that something changed, never what: the owner re-probes the
+ * backend for the new state. poll() never blocks, so the UI thread may ask.
+ */
+class LinkEvents {
+  public:
+    virtual ~LinkEvents() = default;
+
+    /// Drain whatever arrived since the last call; true when anything did.
+    virtual bool poll() = 0;
+};
+
+/**
+ * @brief The kernel's link and IPv4 address notifications (rtnetlink)
+ *
+ * Fires for a cable plugged or pulled and for an address gained or lost,
+ * whichever process manages the interface.
+ *
+ * @return nullptr off Linux, or when the socket cannot be opened
+ */
+std::unique_ptr<LinkEvents> open_kernel_link_events();
+
 } // namespace helix::ethernet
 
 /**
@@ -138,6 +162,16 @@ class EthernetBackend : public helix::net::Ipv4Configurable {
      * @return EthernetInfo struct with current state
      */
     virtual EthernetInfo get_info() = 0;
+
+    /**
+     * @brief Where this backend's link changes are announced
+     *
+     * @return nullptr when they are not; EthernetManager then re-probes
+     *         get_info() on a timer while anything observes the link
+     */
+    virtual std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() {
+        return nullptr;
+    }
 
     // ========================================================================
     // Factory Methods

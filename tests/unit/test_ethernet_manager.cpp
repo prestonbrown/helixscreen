@@ -1,7 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "ethernet_backend.h"
+#include "ethernet_backend_mock.h"
 #include "ethernet_manager.h"
 
 #include <atomic>
@@ -322,4 +325,47 @@ TEST_CASE("Ethernet selection reports the interface that carries traffic",
         CHECK_FALSE(info.connected);
         CHECK(info.status == "No connection");
     }
+}
+
+// ============================================================================
+// Link observers (#1976)
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "EthernetManager tells link observers about a cable change",
+                 "[network][ethernet_link][1976]") {
+    auto eth = std::make_shared<EthernetBackendMock>();
+    EthernetManager mgr(eth);
+    helix::AsyncLifetimeGuard owner;
+
+    int calls = 0;
+    mgr.add_link_observer(owner.token(), [&calls]() { ++calls; });
+    REQUIRE(mgr.watching_link());
+    auto check = [&]() {
+        mgr.check_link();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    // No change, no call.
+    check();
+    CHECK(calls == 0);
+
+    eth->set_connected_state(false);
+    check();
+    CHECK(calls == 1);
+
+    // Setting the same state again is not a change.
+    eth->set_connected_state(false);
+    check();
+    CHECK(calls == 1);
+
+    eth->set_connected_state(true);
+    check();
+    CHECK(calls == 2);
+
+    // Once the observer expires it is not called, and the watch stops.
+    owner.invalidate();
+    eth->set_connected_state(false);
+    check();
+    CHECK(calls == 2);
+    CHECK_FALSE(mgr.watching_link());
 }

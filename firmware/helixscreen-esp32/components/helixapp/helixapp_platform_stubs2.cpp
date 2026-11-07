@@ -741,6 +741,7 @@ int dup2(int, int) {
 EthernetManager::EthernetManager() {}
 EthernetManager::~EthernetManager() = default;
 void EthernetManager::get_info_async(std::function<void(const EthernetInfo&)>) {}
+void EthernetManager::add_link_observer(helix::LifetimeToken, helix::SharedCallback<void()>) {}
 
 // --- Static IPv4 (src/network/ipv4_manager_ops.cpp, ui_overlay_ipv4_settings.cpp).
 // No ESP32 backend can keep a static address, so Network Settings hides both

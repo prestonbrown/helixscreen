@@ -3263,6 +3263,8 @@
   <translation tag="Saved to printer configuration." en="Saved to printer configuration."/>
   <translation tag="Saved to {}. It applies whenever this filament becomes active." en="Saved to {}. It applies whenever this filament becomes active."/>
   <translation tag="Saved values, and whether to ask before running" en="Saved values, and whether to ask before running"/>
+  <translation tag="Saved {} mm" en="Saved {} mm"/>
+  <translation tag="Saved {} mm, {} mm after Save" en="Saved {} mm, {} mm after Save"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." en="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved."/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." en="Saves a camera photo after layer 2 and when each print ends, shown in print history."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." en="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear."/>
