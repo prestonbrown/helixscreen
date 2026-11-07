@@ -3292,6 +3292,26 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
         helix::ui::UpdateQueue::instance().drain();
         CHECK_FALSE(rig.backend->is_bypass_active());
     }
+
+    SECTION("a read older than our own write does not flip the toggle back") {
+        REQUIRE(rig.backend->enable_bypass().success());
+        CHECK_FALSE(CfsTestAccess::adopt_lane_keys(*rig.backend, json::object()));
+        CHECK(rig.backend->is_bypass_active());
+
+        // The read that returns the write confirms it; after that a read
+        // without the key is another client's withdrawal.
+        CfsTestAccess::adopt_lane_keys(*rig.backend, json{{"helix_bypass_declared", true}});
+        CfsTestAccess::adopt_lane_keys(*rig.backend, json::object());
+        CHECK_FALSE(rig.backend->is_bypass_active());
+    }
+
+    SECTION("a write that fails leaves the next read in charge") {
+        rig.client.fail_next("server.database.post_item");
+        REQUIRE(rig.backend->enable_bypass().success());
+        helix::ui::UpdateQueue::instance().drain();
+        CfsTestAccess::adopt_lane_keys(*rig.backend, json::object());
+        CHECK_FALSE(rig.backend->is_bypass_active());
+    }
 }
 
 TEST_CASE("CFS two color edits in one poll window both survive their echoes",
@@ -3341,6 +3361,38 @@ TEST_CASE("CFS two color edits in one poll window both survive their echoes",
     CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "000033|02B2B2B");
 
     // With the edit settled, a genuine swap is detected normally.
+    rig.poll(make_single_unit_box({"102001", "101001", "101001", "101001"},
+                                  {"000FF00", "0FFFFFF", "00A2989", "0C12E1F"}));
+    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+}
+
+TEST_CASE("CFS a first edit's echo after the second edit's record is no swap",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    CfsOverrideRig rig("cfs_quick_edits");
+    json box_before = make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                           {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"});
+    rig.poll(box_before);
+
+    SlotInfo edit1 = rig.backend->get_slot_info(0);
+    edit1.color_rgb = 0x1A1A1A;
+    helix::test::edit_slot_as_user(*rig.backend, 0, edit1);
+    SlotInfo edit2 = rig.backend->get_slot_info(0);
+    edit2.color_rgb = 0x2B2B2B;
+    helix::test::edit_slot_as_user(*rig.backend, 0, edit2);
+
+    // The second edit's record lands first and ends its Pending; then the box
+    // restates the first edit, then the second.
+    rig.record_lands();
+    REQUIRE_FALSE(helix::ams::lane_sources(rig.backend->lane_id(0)).pending.has_value());
+    rig.poll(make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                  {"01A1A1A", "0FFFFFF", "00A2989", "0C12E1F"}));
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    rig.poll(make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                  {"02B2B2B", "0FFFFFF", "00A2989", "0C12E1F"}));
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    CHECK(rig.backend->get_slot_info(0).color_rgb == 0x2B2B2Bu);
+
+    // The box restated the last write, so a change from here is a swap.
     rig.poll(make_single_unit_box({"102001", "101001", "101001", "101001"},
                                   {"000FF00", "0FFFFFF", "00A2989", "0C12E1F"}));
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());

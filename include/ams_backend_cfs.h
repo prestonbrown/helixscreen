@@ -931,6 +931,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Write or withdraw the declaration in Moonraker. Caller holds mutex_.
     void persist_bypass_declared_locked(bool declared);
 
+    /// The declaration this client last wrote, until a lane-record read
+    /// returns it or the write fails; reads disagreeing with it meanwhile are
+    /// older than the write. Under mutex_.
+    std::optional<bool> bypass_declared_unconfirmed_;
+
     /// Adopt the declaration a lane-record read found (this client's or
     /// another's). Caller holds mutex_.
     bool on_lane_record_keys_locked(const nlohmann::json& keys) override;
@@ -1043,8 +1048,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Our own edits write color_value and material_type, so the box echoes
     /// an edit back as a fingerprint change. A change on a lane with an edit
     /// of ours in flight (@p edit_in_flight, read before the frame's readings
-    /// were filed, since a reading that echoes the edit withdraws it) is that
-    /// echo and clears nothing.
+    /// were filed, since a reading that echoes the edit withdraws it), or
+    /// while the bay's last write is unconfirmed (unconfirmed_writes_), is
+    /// that echo and clears nothing.
     ///
     /// Returns true iff the override was cleared, so the caller can skip the
     /// lane_data mirror for this parse (a DELETE and a POST against the same
@@ -1278,6 +1284,21 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// reads EMPTY-with-retained-identity again until the label is rewritten.
     /// All access under mutex_.
     std::unordered_map<int, std::string> pushed_material_codes_;
+
+    /// A bay's last identity write the box has not restated yet: the
+    /// fingerprint it will report once it has, and when the expectation lapses
+    /// (kPendingWriteTimeout after the write). check_hardware_event_clear()
+    /// reads a fingerprint change while one stands as our own write coming
+    /// back. All access under mutex_.
+    struct UnconfirmedWrite {
+        std::string uid;
+        std::chrono::steady_clock::time_point deadline;
+    };
+    std::unordered_map<int, UnconfirmedWrite> unconfirmed_writes_;
+
+    /// Record @p uid as @p slot_index's unconfirmed write, replacing an earlier
+    /// one. Caller holds mutex_.
+    void expect_box_to_restate_locked(int slot_index, std::string uid);
 
     /// Per-bay occupancy from the previous poll, keyed by global slot index.
     /// `vender` is the CFS's live occupancy signal (see parse_box_status), so a

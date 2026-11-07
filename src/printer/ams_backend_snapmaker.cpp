@@ -2932,9 +2932,7 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
 void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                      const helix::ams::SpoolEvidence& observed) {
     // The bookkeeping lives in the shared tracker (CFS runs the same one);
-    // the verdict on a change is the insert rule's. Snapmaker registers no
-    // expect() value, so OwnWriteEcho cannot occur here - nothing on this
-    // backend writes a CARD_UID back to firmware.
+    // the verdict on a change is the insert rule's.
     //
     //   NoSignal  = the frame answered no RFID info for the channel. Baseline
     //               untouched, no clear.

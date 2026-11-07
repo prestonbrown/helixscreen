@@ -1849,9 +1849,14 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         if (fila_id > 0) {
             fila_write = fila_id;
             // The Box shows a row as its type: a product name ("PETG Basic")
-            // picks the row, and the type is what the Box then holds.
-            if (const std::string& type = fila_profiles_.at(fila_id).type; !type.empty()) {
+            // picks the row, the type is what the Box then holds, and the
+            // name the user picked becomes the spool's name in the record.
+            if (const std::string& type = fila_profiles_.at(fila_id).type;
+                !type.empty() && type != info.material) {
                 recorded.material = type;
+                if (recorded.spool_name.empty()) {
+                    recorded.spool_name = info.material;
+                }
             }
         } else if (old_fila != "0") {
             fila_write = 0;
@@ -1890,17 +1895,11 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         return AmsErrorHelper::not_connected("QIDI Box SAVE_VARIABLE");
     }
 
-    // The lane shows the colour and material the Box holds, never the exact
-    // pick beside them.
+    // The lane shows what the Box and the record will hold, never the exact
+    // pick beside it.
     if (recorded.color_rgb != info.color_rgb || recorded.material != info.material) {
-        helix::ams::Observation held(helix::ams::ObservationSource::Pending);
-        if (recorded.color_rgb != info.color_rgb) {
-            held.color_rgb = recorded.color_rgb;
-        }
-        if (recorded.material != info.material) {
-            held.material = recorded.material;
-        }
-        helix::ams::file_pending(lane_id(slot_index), held);
+        helix::ams::file_pending(lane_id(slot_index),
+                                 helix::ams::user_edit_observation(info, recorded));
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);

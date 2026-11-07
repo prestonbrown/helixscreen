@@ -105,7 +105,9 @@ brand as `SAVE_VARIABLE`s, and the lane shows what the Box holds:
 - The material must name a `[fila<N>]` row. One with no row is refused through the
   editor's inline error ("Not saved: the QIDI Box has no <material> in its filament
   list"), and nothing is written; so is any material before the list has loaded. An
-  emptied material writes `filament_slot<N> = 0`.
+  emptied material writes `filament_slot<N> = 0`. A product name ("ABS Rapido") picks its
+  row; the material line then shows the row's type, what the Box holds, and the name becomes
+  the spool's name in the lane record unless the edit named one.
 - The colour is snapped to the nearest `[colordict]` row before it is saved, and that row's
   colour is what the lane shows from the moment of the save (it is filed as the edit's
   Pending colour) and what the lane record carries. No exact hex sits beside the palette

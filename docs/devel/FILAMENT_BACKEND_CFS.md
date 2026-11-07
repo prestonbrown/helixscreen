@@ -253,10 +253,13 @@ fingerprint to `rfid_tracker_` (a `helix::ams::SlotFingerprintTracker`). A `Chan
 event on a bay with an override runs `clear_override_locked()`
 (`src/printer/ams_subscription_backend.cpp#clear_override_locked`): the override, the
 lane's records and the per-spool fields (brand, Spoolman link, weights) go, so they do not
-follow the old spool. Our own edits write both fingerprint fields, so a change on a bay
-whose lane had an edit of ours in flight (a Pending record, read before the frame's readings
-are filed, since a reading that echoes the edit withdraws it) is that edit coming back and
-clears nothing. The fingerprint is `material_type|color_value`, so two blind spots
+follow the old spool. Our own edits write both fingerprint fields, so a change is that edit coming back, and
+clears nothing, while the bay's lane has an edit of ours in flight (a Pending record, read
+before the frame's readings are filed, since a reading that echoes the edit withdraws it) or
+while the bay's last write is unconfirmed (`unconfirmed_writes_`: the fingerprint the write
+will produce, until the box reports exactly it or `kPendingWriteTimeout` passes). The second
+covers two edits a second apart, where the second edit's record can end its Pending before
+the box restates the first. The fingerprint is `material_type|color_value`, so two blind spots
 follow from it: a different spool with the same Creality code and colour reads
 `Unchanged` and keeps the previous link and fields, and an untagged bay (sentinel code)
 yields an empty fingerprint, `NoSignal`, which never clears. In both cases the user must
@@ -388,7 +391,9 @@ while the external spool was still feeding, so `enable` is not read as the decla
 `enable_bypass`/`disable_bypass` write and delete the key, a lane load that re-arms the box
 deletes it, and so does the drift guard below (a bay named active). It is read with the lane
 records on every refresh and poll (`AmsBackendCfs::on_lane_record_keys_locked`), so a restart
-and every other HelixScreen on the printer see the same declaration.
+and every other HelixScreen on the printer see the same declaration. A value this client wrote holds
+until a read returns it or the write fails (`bypass_declared_unconfirmed_`), so a read that
+left before the write landed cannot flip the toggle back.
 
 ### No CFS on the bus
 

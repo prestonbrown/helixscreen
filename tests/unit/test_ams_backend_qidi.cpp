@@ -1770,6 +1770,29 @@ TEST_CASE("QIDI Box shows and records the palette colour the Box holds, not the 
     CHECK(backend.get_slot_info(0).color_rgb == 0x060606u);
 }
 
+TEST_CASE("QIDI Box a product name picks the row and becomes the spool's name",
+          "[ams][qidi_box][write_path]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+
+    SlotInfo info = backend.get_slot_info(0);
+    info.material = "ABS Rapido";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), info).success());
+    CHECK(std::find(backend.sent.begin(), backend.sent.end(),
+                    "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=11") != backend.sent.end());
+
+    // The material line is what the Box holds; the pick is the spool's name.
+    CHECK(backend.get_slot_info(0).material == "ABS");
+    CHECK(backend.get_slot_info(0).spool_name == "ABS Rapido");
+    const auto record = QidiBoxTestAccess::get_override(backend, 0);
+    REQUIRE(record.has_value());
+    CHECK(record->material == "ABS");
+    CHECK(record->spool_name == "ABS Rapido");
+}
+
 TEST_CASE("QIDI Box a record's colour and material never fill what the Box states as unset",
           "[ams][qidi_box]") {
     helix::test::RegisteredBackend<RecordingQidiBackend> harness;

@@ -2949,9 +2949,8 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info) {
         return err;
     }
     if (written.material != info.material) {
-        helix::ams::Observation spelled(helix::ams::ObservationSource::Pending);
-        spelled.material = written.material;
-        helix::ams::file_pending(lane_id(slot_index), spelled);
+        helix::ams::file_pending(lane_id(slot_index),
+                                 helix::ams::user_edit_observation(info, written));
     }
 
     // What the box holds no field for (brand, spool, weights, temperatures, a
@@ -3046,6 +3045,11 @@ std::string AmsBackendCfs::material_code_locked(const std::string& material,
     return {};
 }
 
+void AmsBackendCfs::expect_box_to_restate_locked(int slot_index, std::string uid) {
+    unconfirmed_writes_[slot_index] = UnconfirmedWrite{
+        std::move(uid), std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
+}
+
 AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const SlotInfo& info) {
     // Validate slot index BEFORE formatting the gcode — invalid args trigger
     // an unhandled TypeError in box_wrapper that Klipper escalates to
@@ -3078,7 +3082,18 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
             return AmsErrorHelper::invalid_slot(lane_noun(), global_index,
                                                 system_info_.total_slots - 1);
         }
-        return execute_gcode(gcode);
+        if (auto err = execute_gcode(gcode); !err.success()) {
+            return err;
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        expect_box_to_restate_locked(
+            global_index,
+            info.material.empty()
+                ? std::string{}
+                : compose_cfs_flat_uid(helix::text_io::to_upper(info.material),
+                                       helix::ams::is_declarable_color(info.color_rgb),
+                                       info.color_rgb));
+        return AmsErrorHelper::success();
     }
 
     // A flat box we could not identify has no verified write command.
@@ -3096,6 +3111,7 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
     // the lane record holds it, and the parse lets the record's material stand
     // over the code the box still carries.
     std::string material_data;
+    std::string base_material;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         material_data = info.material.empty()
@@ -3106,7 +3122,7 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
         // real code is tagged, and its relabel must not unsuppress the
         // untagged remain_len fallback.
         const auto base = rfid_tracker_.baseline(global_index);
-        const std::string base_material = base ? base->substr(0, base->find('|')) : std::string{};
+        base_material = base ? base->substr(0, base->find('|')) : std::string{};
         if (material_data.empty() || material_data == "-1") {
             pushed_material_codes_.erase(global_index);
         } else if (is_material_code_sentinel(base_material) ||
@@ -3137,6 +3153,18 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
         std::lock_guard<std::mutex> lock(mutex_);
         pushed_material_codes_.erase(global_index);
         return err;
+    }
+    {
+        // The fingerprint the box will report, spelled as build_cfs_slot_uid
+        // spells it: "-1" reads as no half, and an unwritten material keeps
+        // the half the box reported last.
+        const std::string material_half =
+            material_data.empty() ? base_material : (material_data == "-1" ? "" : material_data);
+        const std::string color_half = color_data[0] == '-' ? "" : color_data;
+        std::lock_guard<std::mutex> lock(mutex_);
+        expect_box_to_restate_locked(global_index, material_half.empty() && color_half.empty()
+                                                       ? std::string{}
+                                                       : material_half + "|" + color_half);
     }
 
     // Refresh the box's auto-refill equivalence groups. same_material
@@ -3298,21 +3326,38 @@ void AmsBackendCfs::persist_bypass_declared_locked(bool declared) {
     if (!override_store_) {
         return;
     }
-    const auto logged = [tag = backend_log_tag(), declared](bool ok, const std::string& err) {
-        if (!ok) {
-            spdlog::warn("{} bypass declaration {} not saved: {}", tag,
-                         declared ? "made" : "withdrawn", err);
+    // The value written holds until a read returns it or the write fails, so
+    // a read that left before the write landed cannot flip the toggle back.
+    bypass_declared_unconfirmed_ = declared;
+    const auto settled = [this, token = lifetime_.token(), tag = backend_log_tag(),
+                          declared](bool ok, const std::string& err) {
+        if (ok) {
+            return;
         }
+        spdlog::warn("{} bypass declaration {} not saved: {}", tag, declared ? "made" : "withdrawn",
+                     err);
+        token.defer("AmsBackendCfs::bypass_declaration_failed", [this, declared]() {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (bypass_declared_unconfirmed_ == declared) {
+                bypass_declared_unconfirmed_.reset();
+            }
+        });
     };
     if (declared) {
-        override_store_->save_key_async(kBypassDeclaredKey, true, logged);
+        override_store_->save_key_async(kBypassDeclaredKey, true, settled);
     } else {
-        override_store_->clear_key_async(kBypassDeclaredKey, logged);
+        override_store_->clear_key_async(kBypassDeclaredKey, settled);
     }
 }
 
 bool AmsBackendCfs::on_lane_record_keys_locked(const nlohmann::json& keys) {
     const bool declared = helix::json_util::safe_bool(keys, kBypassDeclaredKey, false);
+    if (bypass_declared_unconfirmed_) {
+        if (*bypass_declared_unconfirmed_ != declared) {
+            return false;
+        }
+        bypass_declared_unconfirmed_.reset();
+    }
     if (declared == bypass_declared_ || schema_ == CfsSchema::Flat) {
         return false;
     }
@@ -5141,6 +5186,21 @@ bool AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,
     std::string old_uid;
     const auto event = rfid_tracker_.observe(slot_index, observed_uid, &old_uid);
 
+    // A write of ours the box has not yet restated. The box confirms it by
+    // reporting exactly what was written, which is that write's own echo;
+    // until then, or until
+    // kPendingWriteTimeout passes, a change is that write (or an earlier one)
+    // coming back. A later edit replaces the expectation, so the echo of an
+    // edit made a second before it still lands inside the window.
+    bool write_unconfirmed = false;
+    if (const auto it = unconfirmed_writes_.find(slot_index); it != unconfirmed_writes_.end()) {
+        const bool confirmed = observed_uid == it->second.uid;
+        write_unconfirmed = confirmed || std::chrono::steady_clock::now() < it->second.deadline;
+        if (confirmed || !write_unconfirmed) {
+            unconfirmed_writes_.erase(it);
+        }
+    }
+
     switch (event) {
     case helix::ams::FingerprintEvent::NoSignal:
         // No RFID tag / sentinel material_type / sentinel color_value, or the
@@ -5159,46 +5219,17 @@ bool AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,
         break;
     }
 
-    if (edit_in_flight) {
-        // The box handing back what our own edit wrote, a field at a time.
+    if (edit_in_flight || write_unconfirmed) {
+        // The box handing back what our own edits wrote, a field at a time.
         // The spool never moved; the baseline has advanced, so the next
         // genuine swap is judged against the values we wrote.
-        spdlog::debug("{} Slot {} RFID fingerprint {} -> {} with an edit in flight - "
+        spdlog::debug("{} Slot {} RFID fingerprint {} -> {} with an edit unconfirmed - "
                       "override retained",
                       backend_log_tag(), slot_index, old_uid, observed_uid);
         return false;
     }
 
     auto ovr_it = overrides_.find(slot_index);
-    // An edit's record can land before the box restates the edit, ending the
-    // edit's Pending first. A change in which every field that moved now reads
-    // what the record says is that edit too. Both schemas spell a fingerprint
-    // "material|colour".
-    if (ovr_it != overrides_.end()) {
-        const auto split = [](const std::string& uid) {
-            const auto bar = uid.find('|');
-            return bar == std::string::npos
-                       ? std::make_pair(uid, std::string{})
-                       : std::make_pair(uid.substr(0, bar), uid.substr(bar + 1));
-        };
-        const auto [old_material, old_color] = split(old_uid);
-        const auto [new_material, new_color] = split(observed_uid);
-        const helix::ams::FilamentSlotOverride& record = ovr_it->second;
-        const bool material_restated =
-            old_material == new_material ||
-            (!record.material.empty() &&
-             helix::text_io::equals_ignore_case(slot.material, record.material));
-        const bool color_restated =
-            old_color == new_color ||
-            (record.color_set && stated_color(slot.color_rgb) == record.color_rgb);
-        if (material_restated && color_restated) {
-            spdlog::debug("{} Slot {} RFID fingerprint {} -> {} restates its record - "
-                          "override retained",
-                          backend_log_tag(), slot_index, old_uid, observed_uid);
-            return false;
-        }
-    }
-
     if (ovr_it == overrides_.end()) {
         spdlog::debug("{} Slot {} RFID fingerprint changed {} -> {} (no override to clear)",
                       backend_log_tag(), slot_index, old_uid, observed_uid);
@@ -5524,6 +5555,7 @@ void AmsBackendCfs::clear_slot_override(int slot_index) {
         clear_override_locked(slot_index, slot);
         firmware_slot = firmware_slot_locked(slot_index);
         pushed_material_codes_.erase(slot_index);
+        unconfirmed_writes_.erase(slot_index);
         const auto occupied = bay_occupied_.find(slot_index);
         tag_seated = occupied != bay_occupied_.end() && occupied->second;
     }
