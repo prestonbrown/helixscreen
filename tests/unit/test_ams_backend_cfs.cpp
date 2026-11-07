@@ -3818,6 +3818,9 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         REQUIRE(stored.contains("helix_fingerprint"));
         CHECK(stored.at("helix_fingerprint") == "PETG|00FF00");
     }
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 
 TEST_CASE("CFS fingerprint shape names its schema only when unambiguous",
@@ -3995,6 +3998,9 @@ TEST_CASE("CFS persisted fingerprint from the other schema is no baseline after 
         *session, make_cfs_notification(make_flat_box("PETG", "Bambu", "Basic Green", "#00FF00")));
     CHECK_FALSE(CfsTestAccess::get_override(*session, 0).has_value());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 // =============================================================================
 // Presence: `remain_len` LATCHES after a tagged spool is pulled, so it cannot
@@ -7832,6 +7838,9 @@ TEST_CASE("CFS flat fingerprint upgrade folds stored composites (#1710)", "[ams]
     swapped["slots"][0]["color"] = "#0A2989";
     CfsTestAccess::handle_status(backend, make_cfs_notification(swapped));
     CHECK_FALSE(CfsTestAccess::get_override(backend, 0).has_value());
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 
 TEST_CASE("CFS clear_slot_override writes nothing to the box", "[ams][cfs][fork]") {
