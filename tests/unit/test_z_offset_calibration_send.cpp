@@ -490,6 +490,7 @@ class ToolGateFixture : public LVGLUITestFixture {
 
 TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks, then continues",
                  "[zoffset][calibration][reference_tool]") {
+    panel.on_activate();
     mount(1);
     start();
     lv_obj_t* dialog = Modal::get_top();
@@ -509,6 +510,7 @@ TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks,
 
 TEST_CASE_METHOD(ToolGateFixture, "Calibration start: declining the tool question starts nothing",
                  "[zoffset][calibration][reference_tool]") {
+    panel.on_activate();
     mount(-1);
     start();
     REQUIRE(Modal::get_top() != nullptr);
@@ -523,11 +525,60 @@ TEST_CASE_METHOD(ToolGateFixture, "Calibration start: declining the tool questio
 
 TEST_CASE_METHOD(ToolGateFixture, "Calibration start: the reference tool mounted asks nothing",
                  "[zoffset][calibration][reference_tool]") {
+    panel.on_activate();
     mount(0);
     start();
     CHECK(Modal::get_top() == nullptr);
     CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
     CHECK_FALSE(client.last_send_script().empty());
+}
+
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration start: Continue on a panel no longer on screen starts nothing",
+                 "[zoffset][calibration][reference_tool]") {
+    // Never activated reads exactly as deactivated: not visible.
+    mount(1);
+    start();
+    REQUIRE(Modal::get_top() != nullptr);
+    press("btn_primary");
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    CHECK(client.last_send_script().empty());
+}
+
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration start: Continue once a print has started starts nothing",
+                 "[zoffset][calibration][reference_tool]") {
+    panel.on_activate();
+    mount(1);
+    start();
+    REQUIRE(Modal::get_top() != nullptr);
+    get_printer_state().update_from_status(json{{"print_stats", json{{"state", "printing"}}}});
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0);
+
+    press("btn_primary");
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    CHECK(client.last_send_script().empty());
+
+    get_printer_state().update_from_status(json{{"print_stats", json{{"state", "standby"}}}});
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+}
+
+TEST_CASE_METHOD(ToolGateFixture, "Calibration start: leaving the panel closes the tool question",
+                 "[zoffset][calibration][reference_tool]") {
+    panel.on_activate();
+    mount(1);
+    start();
+    REQUIRE(Modal::get_top() != nullptr);
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    process_lvgl(400);
+    CHECK(Modal::get_top() == nullptr);
+
+    // Back on screen, Start asks again rather than staying latched shut.
+    panel.on_activate();
+    start();
+    CHECK(Modal::get_top() != nullptr);
 }
 
 // --- per-head offsets -------------------------------------------------------
