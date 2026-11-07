@@ -327,19 +327,19 @@ TEST_CASE_METHOD(XMLTestFixture, "the navbar's delete-page request acts only on 
     CHECK(delete_page_calls == 0);
 
     em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
-    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    REQUIRE(helix::delete_page_offered());
     em.request_delete_page();
     CHECK(delete_page_calls == 1);
 
     em.exit();
-    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    CHECK_FALSE(helix::delete_page_offered());
     em.request_delete_page();
     CHECK(delete_page_calls == 1);
 
     // The main page is never deletable.
     REQUIRE(scene.config->main_page_index() == 0);
     em.enter(scene.container, scene.config, 0);
-    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    CHECK_FALSE(helix::delete_page_offered());
     em.request_delete_page();
     CHECK(delete_page_calls == 1);
     em.exit();

@@ -3774,25 +3774,25 @@ TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page butt
     lv_obj_t* fan = widget_on(1, "fan");
     enter_edit_mode(0);
     // The main page offers none.
-    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    CHECK_FALSE(helix::delete_page_offered());
     show_page(1);
     // A config page other than the main page offers it.
-    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    REQUIRE(helix::delete_page_offered());
 
     const SlotDrag drag = drag_onto_slot(fan);
-    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    CHECK_FALSE(helix::delete_page_offered());
 
     // Ended uncommitted, the drag goes back to page 1, which offers it again.
     lv_indev_reset(nullptr, nullptr);
     indev.release(drag.pointer.x, drag.pointer.y);
     settle();
     REQUIRE(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::delete_page_offered());
+    CHECK(helix::delete_page_offered());
 
     // Leaving edit mode withdraws it.
     panel().exit_grid_edit_mode();
     settle();
-    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    CHECK_FALSE(helix::delete_page_offered());
 }
 
 TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the grid",
@@ -3800,7 +3800,7 @@ TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the
     build_home();
     widget_on(1, "fan");
     enter_edit_mode(1);
-    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    REQUIRE(helix::delete_page_offered());
 
     // The shield only draws the lattice; every tile under it stays uncovered.
     lv_obj_t* shield = GridEditModeTestAccess::shield(grid());
@@ -4385,7 +4385,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     settle();
     show_page(1);
 
-    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    REQUIRE(helix::delete_page_offered());
     panel().request_delete_edit_page();
     process_lvgl(static_cast<int>(kReadPeriodMs));
 

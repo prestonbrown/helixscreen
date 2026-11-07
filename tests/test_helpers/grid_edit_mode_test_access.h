@@ -200,12 +200,6 @@ struct GridEditModeTestAccess {
         return drop.outcome == helix::DropOutcome::CreatePage;
     }
 
-    /// Whether the session publishes its page as deletable, which shows the
-    /// navbar's delete-page button.
-    static bool delete_page_offered() {
-        return lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 1;
-    }
-
     /// Release the selection chrome, the snap preview, and redraw the lattice,
     /// each as edit mode's own paths do.
     static void destroy_selection_chrome(GridEditMode& em) {
@@ -224,5 +218,11 @@ struct GridEditModeTestAccess {
         return em.snap_anim_outline_[0] != nullptr;
     }
 };
+
+/// Whether the edit session publishes its page as deletable, which shows the
+/// navbar's delete-page button.
+inline bool delete_page_offered() {
+    return lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 1;
+}
 
 } // namespace helix
