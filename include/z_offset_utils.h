@@ -75,7 +75,8 @@ int displayed_z_offset_microns(helix::PrinterState& state);
 /// @param delta_microns signed baby-step
 /// A firmware that applies each head's own Z offset at pickup (@p per_head)
 /// always gets the relative form: an absolute Z= would put a value that
-/// belongs to no head on the mounted one, and Z-Mod saves only a Z_ADJUST.
+/// belongs to no head on the mounted one, and a firmware that saves per head
+/// saves only a relative adjustment.
 ///
 /// @param all_homed     x, y and z are all homed (MOVE=1 errors otherwise)
 /// @param per_head      PrinterProfileState::z_offset_reapplied_per_head()

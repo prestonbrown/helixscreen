@@ -1227,6 +1227,7 @@ translations:
   EXTRAS: EXTRAS
   Each fan can only be selected once: Cada ventilador solo se puede seleccionar una
     vez
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Cada cabezal tiene su propio Z-offset en esta impresora. Usa la calibración de offset de herramienta.'
   Edit: Editar
   Edit Filament: Editar filamento
   Edit Slot: Editar Ranura

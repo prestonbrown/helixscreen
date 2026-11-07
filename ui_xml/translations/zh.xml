@@ -1109,6 +1109,7 @@
   <translation tag="ETA {}" zh="预计 {}"/>
   <translation tag="EXTRAS" zh="其他"/>
   <translation tag="Each fan can only be selected once" zh="每个风扇只能选择一次"/>
+  <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." zh="此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。"/>
   <translation tag="Edit" zh="编辑"/>
   <translation tag="Edit Filament" zh="编辑耗材"/>
   <translation tag="Edit Slot" zh="编辑槽位"/>

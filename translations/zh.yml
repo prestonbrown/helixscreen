@@ -1154,6 +1154,7 @@ translations:
   ETA {}: '预计 {}'
   EXTRAS: 其他
   Each fan can only be selected once: 每个风扇只能选择一次
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
   Edit: 编辑
   Edit Filament: 编辑耗材
   Edit Slot: 编辑槽位

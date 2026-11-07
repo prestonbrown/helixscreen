@@ -455,3 +455,48 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::ERROR);
 }
+
+// --- per-head offsets -------------------------------------------------------
+
+namespace {
+/// Per-head storage on for one case, whatever the case does.
+struct PerHeadScope {
+    PerHeadScope() {
+        get_printer_state().profile_state().set_z_offset_per_head(true);
+    }
+    ~PerHeadScope() {
+        get_printer_state().profile_state().set_z_offset_per_head(false);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration start: a printer that applies head offsets at pickup refuses",
+                 "[zoffset][calibration][per_head]") {
+    PerHeadScope per_head;
+    REQUIRE(state().profile_state().z_offset_reapplied_per_head());
+    // A strategy that would otherwise start and send, so the refusal is what stops it.
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+
+    ZOffsetCalibrationTestAccess::start_calibration(panel);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
+    CHECK(client.last_send_script().empty());
+}
+
+TEST_CASE_METHOD(
+    CalibrationSendFixture,
+    "Calibration accept: a printer that applies head offsets at pickup sends no offset",
+    "[zoffset][calibration][per_head]") {
+    PerHeadScope per_head;
+    // The flow opened by a manual probe that was already running at connect,
+    // with a jog total that would put -0.150 on a head running at +3.4.
+    const std::string sent = accept_sends();
+    CHECK(sent.find("SET_GCODE_OFFSET") == std::string::npos);
+}

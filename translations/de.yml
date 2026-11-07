@@ -1231,6 +1231,7 @@ translations:
   ETA {}: 'Ende {}'
   EXTRAS: EXTRAS
   Each fan can only be selected once: Jeder Lüfter kann nur einmal ausgewählt werden
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Jeder Werkzeugkopf hat an diesem Drucker seinen eigenen Z-Offset. Verwende stattdessen die Werkzeug-Offset-Kalibrierung.'
   Edit: Bearbeiten
   Edit Filament: Filament bearbeiten
   Edit Slot: Slot bearbeiten

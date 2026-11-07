@@ -1224,6 +1224,7 @@ translations:
   EXTRAS: EXTRA
   Each fan can only be selected once: Ogni ventola può essere selezionata solo una
     volta
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Ogni testina ha il proprio Z-offset su questa stampante. Usa invece la calibrazione dell''offset utensile.'
   Edit: Modifica
   Edit Filament: Modifica filamento
   Edit Slot: Modifica Slot
