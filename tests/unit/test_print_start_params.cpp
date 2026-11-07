@@ -124,3 +124,10 @@ TEST_CASE("the map belongs to the backend of its first mapped row", "[print_star
     CHECK(mapped_backend({mapping(0, -1, 1, true), mapping(1, 2, 1)}) == 1);
     CHECK(mapped_backend({mapping(0, 2, -1)}) == 0);
 }
+
+TEST_CASE("plateindex names the plate a printer-started .3mf prints",
+          "[print_start_params][native_3mf]") {
+    CHECK(plate_params(5) == PrintStartParams{{"plateindex", "5"}});
+    CHECK(plate_params(0).empty());
+    CHECK(plate_params(-1).empty());
+}

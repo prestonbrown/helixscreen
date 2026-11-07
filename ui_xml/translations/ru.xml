@@ -3887,6 +3887,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ru="Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
   <translation tag="The printer no longer has a print to resume." ru="У принтера больше нет печати для продолжения."/>
+  <translation tag="The printer picks this .3mf&apos;s plate itself, so the pre-print steps you turned off cannot be applied. Turn them back on to print it." ru="Принтер сам выбирает пластину этого .3mf, поэтому отключённые шаги подготовки применить нельзя. Включите их снова, чтобы напечатать."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ru="По записи принтера в печатающей головке канал {}, а не этот"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ru="Принтер отклонил этот порт: проверьте порт (Moonraker обычно использует 7125)."/>
@@ -3897,6 +3898,7 @@
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ru="Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>

@@ -213,6 +213,16 @@ Make the mock report metadata for `.3mf` files, as a printer that reads `.3mf` a
 | **Default** | unset (`.3mf` metadata 404s) |
 | **File** | `src/api/moonraker_client_mock_files.cpp` |
 
+### `HELIX_MOCK_3MF_PLATES`
+
+Make the mock a Moonraker that starts the plate a print start names: a `.3mf`'s metadata reports it (as `HELIX_MOCK_3MF_METADATA` does) and lists the archive's sliced plates (`sliced_plates`, read from its central directory) and the plate it describes (`plate_index`, the first). Print select then shows the plate stepper and starts the shown plate as the archive with `plateindex`, which `printer.print.start` logs beside `tools`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, `true`, `yes` or `on` enables |
+| **Default** | unset |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
 ### `HELIX_MOCK_3MF_CONVERSIONS`
 
 Serve a JSON file as the result of `server.helix.3mf_conversions`, the printer-side `.3mf` converter's provenance (`{"conversions":[{"source", "source_mtime", "source_size", "plate", "output", "state", ...}]}`). Unset, the method is not found, as on a printer without the converter.

@@ -1276,6 +1276,20 @@ bool PrintSelectPanel::refetch_after_connection_loss(size_t i, const std::string
 void PrintSelectPanel::process_metadata_result(size_t i, const std::string& filename,
                                                const FileMetadata& metadata) {
     // Main thread: every caller runs this inside a tok.defer() body (fetch_metadata_range).
+    if (i < file_list_.size() && file_list_[i].filename == filename &&
+        helix::gcode::is_3mf(filename) && !file_list_[i].archive_extract) {
+        // A printer that starts a .3mf's plates itself: its archive names the
+        // plates to pick from, and the plate its metadata describes shows first.
+        PrintFileData& f = file_list_[i];
+        f.archive_native = print_3mf::printer_reads(&metadata) == print_3mf::PrinterReads::Plates;
+        f.archive_native_plate = f.archive_native ? metadata.plate_index : 0;
+        if (f.archive_native && f.archive_plate == 0) {
+            f.archive_plate = metadata.plate_index;
+        }
+        if (f.archive_native && !f.archive_requested) {
+            load_archive(i, filename, false);
+        }
+    }
     int print_time_minutes = static_cast<int>(metadata.estimated_time / 60.0);
     float filament_grams = static_cast<float>(metadata.filament_weight_total);
     std::string filament_name_raw = metadata.filament_name;
@@ -2192,8 +2206,8 @@ void PrintSelectPanel::apply_plate_stats_to_detail() {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
-    if (it == file_list_.end() || !it->archive || !it->archive_extract ||
-        it->archive->plates.size() < 2) {
+    if (it == file_list_.end() || !it->archive ||
+        !print_3mf::user_picks_plate(it->printer_reads()) || it->archive->plates.size() < 2) {
         return;
     }
     const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
@@ -3081,32 +3095,22 @@ bool PrintSelectPanel::prepare_archive_start() {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
-    if (it == file_list_.end() || !it->archive_extract || !selected_local_path_.empty()) {
+    // A stick file uploads first and starts as the copy it becomes.
+    if (it == file_list_.end() || !helix::gcode::is_3mf(it->filename) ||
+        !selected_local_path_.empty()) {
         if (prep) {
             prep->set_archive_plate(path, 0);
         }
         return true;
     }
-    const auto* plate =
-        it->archive ? three_mf::find_plate(*it->archive, it->archive_plate) : nullptr;
-    if (!plate) {
-        NOTIFY_WARNING(lv_tr("This .3mf has no sliced plate to print."));
-        return false;
-    }
-    // The printer already converted this plate: its G-code prints as it is.
-    if (const auto out = it->archive_outputs.find(plate->index); out != it->archive_outputs.end()) {
-        if (prep) {
-            prep->set_archive_plate(path, plate->index, out->second);
-        }
-        return true;
-    }
-    if (!helix::ui::PrintPreparationManager::keeps_local_copies(api_)) {
-        NOTIFY_WARNING(lv_tr("This .3mf has to be converted to G-code on the printer before it "
-                             "can print."));
+    const print_3mf::RouteInputs inputs = archive_route_inputs(*it, print_3mf::Purpose::Print);
+    const print_3mf::Route route = print_3mf::classify(inputs);
+    if (route.kind == print_3mf::RouteKind::Refuse) {
+        NOTIFY_WARNING(lv_tr(print_3mf::refusal_message(route.refusal)));
         return false;
     }
     if (prep) {
-        prep->set_archive_plate(path, plate->index);
+        prep->set_archive_route(path, inputs);
     }
     return true;
 }
@@ -3336,22 +3340,24 @@ std::optional<std::string> PrintSelectPanel::queueable_path() {
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
-    if (it == file_list_.end() || !it->archive_extract) {
+    if (it == file_list_.end() || !helix::gcode::is_3mf(it->filename)) {
         return tapped;
     }
-    // The queue starts a job on the printer's side, with no extraction step:
-    // only the printer's own conversion of the plate can wait there.
-    const auto* plate =
-        it->archive ? three_mf::find_plate(*it->archive, it->archive_plate) : nullptr;
-    if (plate) {
-        if (const auto out = it->archive_outputs.find(plate->index);
-            out != it->archive_outputs.end()) {
-            return out->second;
-        }
+    // The queue starts a job on the printer's side, naming the file alone.
+    const print_3mf::Route route =
+        print_3mf::classify(archive_route_inputs(*it, print_3mf::Purpose::Queue));
+    switch (route.kind) {
+    case print_3mf::RouteKind::Refuse:
+        NOTIFY_WARNING(lv_tr(print_3mf::refusal_message(route.refusal)));
+        return std::nullopt;
+    case print_3mf::RouteKind::ConvertedOutput:
+        return route.print_path;
+    case print_3mf::RouteKind::AsFile:
+    case print_3mf::RouteKind::NativePlate:
+    case print_3mf::RouteKind::ExtractPlate:
+        break;
     }
-    NOTIFY_WARNING(lv_tr("This .3mf has to be converted to G-code before it can be queued. "
-                         "Print it from here instead."));
-    return std::nullopt;
+    return tapped;
 }
 
 void PrintSelectPanel::queue_file(const std::string& filename, const std::string& tapped) {

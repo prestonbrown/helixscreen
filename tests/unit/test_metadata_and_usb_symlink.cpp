@@ -681,3 +681,26 @@ TEST_CASE_METHOD(MetadataAPITestFixture,
     // Cleanup
     mock_set_usb_symlink_active(false);
 }
+
+TEST_CASE_METHOD(MetadataAPITestFixture, "Metadata carries a .3mf's sliced plates where listed",
+                 "[metadata][api][native_3mf]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {
+        {"filename", "Set.gcode.3mf"}, {"sliced_plates", {2, "5", 0, "x"}}, {"plate_index", 2}};
+    FileMetadata m = probe.parse_file_metadata(response);
+    REQUIRE(m.sliced_plates);
+    CHECK(*m.sliced_plates == std::vector<int>{2, 5});
+    CHECK(m.plate_index == 2);
+
+    // An empty list is still a list; no list at all is none.
+    response["result"]["sliced_plates"] = json::array();
+    m = probe.parse_file_metadata(response);
+    REQUIRE(m.sliced_plates);
+    CHECK(m.sliced_plates->empty());
+    response["result"].erase("sliced_plates");
+    response["result"].erase("plate_index");
+    m = probe.parse_file_metadata(response);
+    CHECK_FALSE(m.sliced_plates);
+    CHECK(m.plate_index == 0);
+}

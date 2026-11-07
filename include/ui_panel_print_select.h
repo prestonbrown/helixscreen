@@ -424,6 +424,12 @@ class PrintSelectPanel : public PanelBase {
     /// Publishes the selected file's plate stepper: its plate count and label.
     void update_plate_stepper();
 
+    /// What decides @p file's route (print_3mf::classify()) for @p purpose:
+    /// what the printer reads of it, the plate shown, that plate's converted
+    /// output, and whether this transport can extract.
+    helix::print_3mf::RouteInputs archive_route_inputs(const PrintFileData& file,
+                                                       helix::print_3mf::Purpose purpose) const;
+
     /// Tells the preparation manager what prints for the selected .3mf (its
     /// shown plate, or the printer's conversion of it), for the pre-print scan.
     void sync_archive_scan_source();

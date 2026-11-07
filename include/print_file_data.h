@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "print_3mf.h"
+
 #include <atomic>
 #include <cstdint>
 #include <ctime>
@@ -92,6 +94,10 @@ struct PrintFileData {
     std::shared_ptr<const helix::three_mf::ArchiveSummary> archive;
     /// The printer has no metadata for this .3mf: it prints as an extracted plate.
     bool archive_extract = false;
+    /// The printer starts the plate a start names (print_3mf::PrinterReads::Plates).
+    bool archive_native = false;
+    /// The plate the printer's metadata describes, which a start naming no plate prints.
+    int archive_native_plate = 0;
     /// Its archive read has been started; it is not started again for this entry.
     bool archive_requested = false;
     /// The plate the card and the detail view show and Print prints (0 = the first).
@@ -99,6 +105,13 @@ struct PrintFileData {
     /// Plates the printer-side converter has already turned into a current,
     /// listed G-code, with that output: those print from it, not by extraction.
     std::map<int, std::string> archive_outputs;
+
+    /// What the printer reads of this .3mf (Archive for any other file).
+    [[nodiscard]] helix::print_3mf::PrinterReads printer_reads() const {
+        return archive_extract  ? helix::print_3mf::PrinterReads::Nothing
+               : archive_native ? helix::print_3mf::PrinterReads::Plates
+                                : helix::print_3mf::PrinterReads::Archive;
+    }
 
     // Print history status (from PrintHistoryManager)
     FileHistoryStatus history_status = FileHistoryStatus::NEVER_PRINTED;

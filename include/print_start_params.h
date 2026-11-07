@@ -46,6 +46,11 @@ namespace print_start {
 /// Empty when no tool has a valid slot.
 [[nodiscard]] PrintStartParams tool_slot_params(const std::map<int, int>& slot_numbers);
 
+/// The parameters naming plate @p plate of the .3mf a print start sends, for a
+/// printer that starts a .3mf's plates itself (print_3mf::PrinterReads::Plates).
+/// Z-Mod's Moonraker takes it as `plateindex`. Empty for a plate below 1.
+[[nodiscard]] PrintStartParams plate_params(int plate);
+
 /// The backend a print's map belongs to: the first non-Auto row's (-1 on a
 /// row is the primary, 0), else 0.
 [[nodiscard]] int mapped_backend(const std::vector<ToolMapping>& mappings);
