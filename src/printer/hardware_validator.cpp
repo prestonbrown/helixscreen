@@ -219,7 +219,7 @@ HardwareValidationResult HardwareValidator::validate(Config* config,
     log_ignored_hardware(config);
 
     // Step 1: Check critical hardware exists
-    validate_critical_hardware(hardware, result);
+    validate_critical_hardware(config, hardware, result);
 
     // Step 2: Check configured hardware exists
     validate_configured_hardware(config, hardware, result);
@@ -510,8 +510,15 @@ static HardwareType hardware_type_for(helix::HardwareCategory cat) {
 // Private Validation Methods
 // =============================================================================
 
-void HardwareValidator::validate_critical_hardware(const helix::PrinterDiscovery& hardware,
+void HardwareValidator::validate_critical_hardware(Config* config,
+                                                   const helix::PrinterDiscovery& hardware,
                                                    HardwareValidationResult& result) {
+    // A Klipper machine with no motion system is not a printer: it needs no extruder.
+    if (hardware.kinematics() == "none") {
+        spdlog::debug("[HardwareValidator] kinematics: none, skipping printer hardware checks");
+        return;
+    }
+
     const auto& heaters = hardware.heaters();
 
     // Check for extruder
@@ -522,7 +529,7 @@ void HardwareValidator::validate_critical_hardware(const helix::PrinterDiscovery
             break;
         }
     }
-    if (!has_extruder) {
+    if (!has_extruder && !is_hardware_optional(config, "extruder")) {
         result.critical_missing.push_back(HardwareIssue::critical(
             "extruder", HardwareType::HEATER,
             TR_NOOP("No extruder heater found. Check [extruder] in printer.cfg")));
