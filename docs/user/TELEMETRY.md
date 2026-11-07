@@ -54,7 +54,7 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 |-------|-------------|---------|
 | `outcome` | Print result | `"success"`, `"failure"`, `"cancelled"` |
 | `duration_sec` | Total print duration in seconds | `3600` |
-| `phases_completed` | Print start phases completed (0-10) | `10` |
+| `phases_completed` | The furthest print start phase reached, as its number in that build (13 = complete) | `13` |
 | `filament_used_mm` | Filament consumed in millimeters | `1500.0` |
 | `filament_type` | Filament material | `"PLA"`, `"PETG"`, `"ABS"` |
 | `nozzle_temp` | Target nozzle temperature in degrees C | `215` |

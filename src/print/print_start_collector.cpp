@@ -2563,8 +2563,7 @@ void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved, bool h
         // since. Relabeling then would regress a newer, correct phase.
         const bool heating = current_phase_ == PrintStartPhase::HEATING_BED ||
                              current_phase_ == PrintStartPhase::HEATING_NOZZLE;
-        const bool wait_label = heating || current_phase_ == PrintStartPhase::HEATING_CHAMBER ||
-                                current_phase_ == PrintStartPhase::SOAKING;
+        const bool wait_label = heating || current_phase_ == PrintStartPhase::HEATING_CHAMBER;
         bool takeover = false;
         bool allowed;
         if (heater_wait) {
@@ -2622,8 +2621,7 @@ void PrintStartCollector::end_heater_wait() {
         // Restore only over the wait's own label: anything else got there later.
         if (current_phase_ != PrintStartPhase::HEATING_BED &&
             current_phase_ != PrintStartPhase::HEATING_NOZZLE &&
-            current_phase_ != PrintStartPhase::HEATING_CHAMBER &&
-            current_phase_ != PrintStartPhase::SOAKING) {
+            current_phase_ != PrintStartPhase::HEATING_CHAMBER) {
             return;
         }
         // A finished mesh gives way for good to a nozzle target raised after
