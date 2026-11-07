@@ -117,10 +117,6 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
 
     // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
     if (lv_is_initialized()) {
-        if (hidden_network_modal_) {
-            helix::ui::modal_hide(hidden_network_modal_);
-            hidden_network_modal_ = nullptr;
-        }
         if (test_modal_) {
             helix::ui::modal_hide(test_modal_);
             test_modal_ = nullptr;
@@ -195,9 +191,6 @@ void NetworkSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
 
-    // Hidden-network modal subject
-    UI_MANAGED_SUBJECT_INT(hidden_connecting_, 0, "hidden_connecting", subjects_);
-
     subjects_initialized_ = true;
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
 }
@@ -226,11 +219,6 @@ void NetworkSettingsOverlay::register_callbacks() {
         // Network test modal
         {"on_network_test_close",
          [](lv_event_t*) { get_network_settings_overlay().handle_network_test_close(); }},
-        // Hidden network modal
-        {"on_hidden_cancel_clicked",
-         [](lv_event_t*) { get_network_settings_overlay().handle_hidden_cancel_clicked(); }},
-        {"on_hidden_connect_clicked",
-         [](lv_event_t*) { get_network_settings_overlay().handle_hidden_connect_clicked(); }},
         // Password modal
         {"on_network_settings_password_cancel",
          [](lv_event_t*) { get_network_settings_overlay().handle_password_cancel_clicked(); }},
@@ -1265,33 +1253,32 @@ void NetworkSettingsOverlay::handle_add_other_clicked() {
         return;
     }
 
-    // Create modal if not already created
-    if (!hidden_network_modal_) {
-        lv_subject_set_int(&hidden_connecting_, 0);
-        hidden_network_modal_ = helix::ui::modal_show("hidden_network_modal");
-        if (!hidden_network_modal_) {
-            spdlog::error("[NetworkSettingsOverlay] Failed to show hidden network modal");
-            return;
-        }
+    auto token = lifetime_.token();
+    helix::ui::show_hidden_network_modal(
+        wifi_manager_, [this, token](helix::ui::HiddenJoin event, const std::string&) {
+            token.defer([this, event]() { on_hidden_join_event(event); });
+        });
+}
 
-        // Register soft keyboard for text inputs
-        lv_obj_t* ssid_input = lv_obj_find_by_name(hidden_network_modal_, "ssid_input");
-        if (ssid_input) {
-            helix::ui::modal_register_keyboard(hidden_network_modal_, ssid_input);
-            // Focus SSID input so user can start typing immediately
-            lv_group_t* group = lv_group_get_default();
-            if (group) {
-                lv_group_focus_obj(ssid_input);
-            }
+void NetworkSettingsOverlay::on_hidden_join_event(helix::ui::HiddenJoin event) {
+    switch (event) {
+    case helix::ui::HiddenJoin::Started:
+        ++status_generation_;
+        break;
+    case helix::ui::HiddenJoin::Joined:
+        refresh_transport_status();
+        if (wifi_manager_) {
+            auto scan_token = lifetime_.token();
+            wifi_manager_->start_scan([this, scan_token](const std::vector<WiFiNetwork>& networks) {
+                scan_token.defer([this, networks]() { populate_network_list(networks); });
+            });
         }
-
-        lv_obj_t* password_input = lv_obj_find_by_name(hidden_network_modal_, "password_input");
-        if (password_input) {
-            helix::ui::modal_register_keyboard(hidden_network_modal_, password_input);
-        }
+        break;
+    case helix::ui::HiddenJoin::Failed:
+        // The join's start dropped any status answer in flight.
+        update_wifi_status();
+        break;
     }
-
-    spdlog::debug("[NetworkSettingsOverlay] Hidden network modal shown");
 }
 
 void NetworkSettingsOverlay::handle_network_test_close() {
@@ -1312,130 +1299,6 @@ void NetworkSettingsOverlay::handle_network_test_close() {
 
     // Reset test complete flag
     lv_subject_set_int(&test_complete_, 0);
-}
-
-void NetworkSettingsOverlay::handle_hidden_cancel_clicked() {
-    spdlog::debug("[NetworkSettingsOverlay] Hidden network cancel clicked");
-
-    if (hidden_network_modal_) {
-        helix::ui::modal_hide(hidden_network_modal_);
-        hidden_network_modal_ = nullptr;
-    }
-    lv_subject_set_int(&hidden_connecting_, 0);
-}
-
-void NetworkSettingsOverlay::handle_hidden_connect_clicked() {
-    spdlog::debug("[NetworkSettingsOverlay] Hidden network connect clicked");
-
-    if (!hidden_network_modal_) {
-        spdlog::error("[NetworkSettingsOverlay] No hidden network modal");
-        return;
-    }
-
-    // Get SSID from input
-    lv_obj_t* ssid_input = lv_obj_find_by_name(hidden_network_modal_, "ssid_input");
-    if (!ssid_input) {
-        spdlog::error("[NetworkSettingsOverlay] SSID input not found");
-        return;
-    }
-
-    const char* ssid = lv_textarea_get_text(ssid_input);
-    if (!ssid || strlen(ssid) == 0) {
-        spdlog::warn("[NetworkSettingsOverlay] SSID is empty");
-        lv_obj_t* error_label = lv_obj_find_by_name(hidden_network_modal_, "error_label");
-        if (error_label) {
-            lv_label_set_text(error_label, lv_tr("Network name cannot be empty"));
-            lv_obj_remove_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    // Get security type from dropdown
-    lv_obj_t* security_dropdown = lv_obj_find_by_name(hidden_network_modal_, "security_dropdown");
-    uint32_t security_idx = 0;
-    if (security_dropdown) {
-        security_idx = lv_dropdown_get_selected(security_dropdown);
-    }
-
-    // Get password if security is not "None" (index 0)
-    std::string password;
-    if (security_idx > 0) {
-        lv_obj_t* password_input = lv_obj_find_by_name(hidden_network_modal_, "password_input");
-        if (password_input) {
-            const char* pwd = lv_textarea_get_text(password_input);
-            if (pwd && strlen(pwd) > 0) {
-                password = pwd;
-            }
-        }
-    }
-
-    if (security_idx > 0 && password.empty()) {
-        lv_obj_t* error_label = lv_obj_find_by_name(hidden_network_modal_, "error_label");
-        if (error_label) {
-            lv_label_set_text(error_label, lv_tr("Password is required for secured networks"));
-            lv_obj_remove_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    if (!wifi_manager_) {
-        spdlog::error("[NetworkSettingsOverlay] WiFiManager not initialized");
-        return;
-    }
-
-    spdlog::info("[NetworkSettingsOverlay] Connecting to hidden network: {} (security: {})",
-                 helix::redact::ssid(ssid), security_idx);
-
-    lv_subject_set_int(&hidden_connecting_, 1);
-
-    std::string ssid_str(ssid);
-    ++status_generation_;
-    auto token = lifetime_.token();
-
-    wifi_manager_->connect(
-        ssid_str, password,
-        [this, token, ssid_str](bool success, const std::string& error, WiFiResult result) {
-            token.defer([this, success, ssid_str, error, result]() {
-                lv_subject_set_int(&hidden_connecting_, 0);
-
-                if (success) {
-                    spdlog::info("[NetworkSettingsOverlay] Connected to hidden network: {}",
-                                 helix::redact::ssid(ssid_str));
-                    handle_hidden_cancel_clicked();
-                    refresh_transport_status();
-
-                    if (wifi_manager_) {
-                        auto scan_token = lifetime_.token();
-                        wifi_manager_->start_scan(
-                            [this, scan_token](const std::vector<WiFiNetwork>& networks) {
-                                scan_token.defer(
-                                    [this, networks]() { populate_network_list(networks); });
-                            });
-                    }
-                } else {
-                    spdlog::error("[NetworkSettingsOverlay] Hidden network connection failed: {}",
-                                  error);
-
-                    if (hidden_network_modal_) {
-                        lv_obj_t* error_label =
-                            lv_obj_find_by_name(hidden_network_modal_, "error_label");
-                        if (error_label) {
-                            lv_label_set_text(
-                                error_label,
-                                helix::connect_failure_message(
-                                    result, error, lv_tr("Connection failed. Check credentials."))
-                                    .c_str());
-                            lv_obj_remove_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-                        }
-                    }
-                    // The join's start dropped any status answer in flight.
-                    update_wifi_status();
-                }
-            });
-        },
-        // The SSID was typed, not picked from the scan list: the backend must
-        // not match it against a scan cache.
-        /*is_hidden=*/true);
 }
 
 void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {

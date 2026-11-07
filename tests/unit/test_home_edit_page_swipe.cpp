@@ -44,6 +44,7 @@
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_pointer_indev.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/scoped_widget_factory.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -61,6 +62,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "runtime_config.h"
 #include "scope_exit.h"
 #include "setting_group.h"
 #include "theme_manager.h"
@@ -1148,14 +1150,18 @@ class EditHomeFixture : public LVGLTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(EditHomeFixture, "edit mode keeps the carousel swipeable with nothing selected",
-                 "[1638][edit-swipe][home][grid_edit]") {
+TEST_CASE_METHOD(EditHomeFixture,
+                 "edit mode keeps the carousel swipeable; outside it the paging arrows replace it",
+                 "[1638][1978][edit-swipe][home][grid_edit]") {
+    // Test mode builds the panel's paging arrows.
+    const bool arrows = GENERATE(false, true);
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = arrows;
     build_home();
 
-    // Precondition: two real pages resolve the swipe policy to swiping, so the
-    // flag this case checks is one edit mode could take away.
+    // Two real pages page by swipe, unless the arrows are there to page them.
     REQUIRE(carousel_state()->real_page_count == 2);
-    REQUIRE(scroll_live());
+    CHECK(scroll_live() == !arrows);
 
     enter_edit_mode();
 
@@ -1163,11 +1169,17 @@ TEST_CASE_METHOD(EditHomeFixture, "edit mode keeps the carousel swipeable with n
     // empty-area drag can flip pages.
     CHECK(scroll_live());
     CHECK(swipe_policy() == CarouselSwipe::Auto);
+
+    panel().exit_grid_edit_mode();
+    CHECK(scroll_live() == !arrows);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
                  "a single-page home swipes to the next-page slot's +, in edit mode or out of it",
-                 "[1638][edit-swipe][home][grid_edit]") {
+                 "[1638][1978][edit-swipe][home][grid_edit]") {
+    // Test mode builds the paging arrows, which a single page hides.
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = GENERATE(false, true);
     build_home(1, 1);
 
     // The only page has the slot's + tile past it, so the strip swipes.

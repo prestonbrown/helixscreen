@@ -1376,10 +1376,9 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // OpenAMS): each backend owns which objects it reads and which fields of them,
     // and answers only for its own printer. Subscribing a field-less object costs
     // Klipper serialization on every tick, so the backends narrow where they can.
-    const json filament_objects = AmsBackend::required_status_objects(hw);
-    for (auto it = filament_objects.begin(); it != filament_objects.end(); ++it) {
-        subscription_objects[it.key()] = it.value();
-    }
+    // Merged, because a backend may add fields to a core object (a U1's extruders).
+    subscription_objects =
+        merge_subscription_objects(subscription_objects, AmsBackend::required_status_objects(hw));
 
     // Firmware that keeps the authoritative z-offset outside gcode_move needs
     // whatever object stores it; without this the Z-offset row reads 0.000

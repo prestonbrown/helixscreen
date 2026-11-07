@@ -7,8 +7,9 @@
  *        failed.
  *
  * Every one of the overlay's three join paths has a different surface - the
- * password modal's status label, the hidden-network modal's error label, and
- * a toast for an open network, which opens no modal at all. All three must
+ * password modal's status label, the hidden-network modal's error label
+ * (test_network_settings_hidden_connect.cpp), and a toast for an open network,
+ * which opens no modal at all. All three must
  * carry the reason the join failed. A canned "check your password" is correct
  * for exactly one WiFiResult; substituting it for a daemon that is down, a
  * network out of range or a transport that took the link tells a user whose
@@ -119,39 +120,6 @@ TEST_CASE_METHOD(ConnectFailureFixture,
     REQUIRE(shown.find(kUnknownSsid) != std::string::npos);
 
     Access::password_modal(*overlay) = nullptr;
-}
-
-TEST_CASE_METHOD(ConnectFailureFixture,
-                 "Hidden-network modal shows the backend's reason, not a credential prompt",
-                 "[network_settings][1542][wifi]") {
-    auto wm = make_manager();
-    auto overlay = std::make_unique<NetworkSettingsOverlay>();
-    overlay->init_subjects();
-    overlay->register_callbacks();
-    Access::wifi_manager(*overlay) = wm;
-    REQUIRE(overlay->create(test_screen()) != nullptr);
-
-    // The hidden-network form: an SSID field, and security left at "None" so
-    // no password is required of it.
-    lv_obj_t* modal = lv_obj_create(lv_screen_active());
-    REQUIRE(modal != nullptr);
-    lv_obj_t* ssid_input = lv_textarea_create(modal);
-    lv_obj_set_name(ssid_input, "ssid_input");
-    lv_textarea_set_text(ssid_input, kUnknownSsid);
-    lv_obj_t* error_label = lv_label_create(modal);
-    lv_obj_set_name(error_label, "error_label");
-    lv_label_set_text(error_label, "");
-    Access::hidden_network_modal(*overlay) = modal;
-
-    Access::hidden_connect_clicked(*overlay);
-    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
-
-    const std::string shown = label_text(modal, "error_label");
-    REQUIRE_FALSE(shown.empty());
-    REQUIRE(shown != lv_tr("Connection failed. Check credentials."));
-    REQUIRE(shown.find(kUnknownSsid) != std::string::npos);
-
-    Access::hidden_network_modal(*overlay) = nullptr;
 }
 
 TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to join tells the user",

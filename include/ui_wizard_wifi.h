@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_hidden_network_modal.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
@@ -208,6 +209,9 @@ class WizardWifiStep : public helix::wizard::Step {
     void handle_network_item_clicked(lv_event_t* e);
     void handle_modal_cancel_clicked();
     void handle_modal_connect_clicked();
+    void handle_add_hidden_clicked();
+    // What a hidden-network join means for the status line and the list.
+    void on_hidden_join_event(helix::ui::HiddenJoin event, const std::string& ssid);
 
     // Helper functions
     void update_wifi_status(const char* status);

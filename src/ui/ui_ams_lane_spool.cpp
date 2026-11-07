@@ -38,8 +38,8 @@ using namespace helix;
 // Spool visual construction (file-local)
 //
 // The layered spool graphic the widget renders: a spool canvas seen from the
-// side or face-on per /ams/spool_style, plus the dashed empty-lane
-// placeholder and the error dot. Lives here rather than ams_draw because the
+// side or face-on per /ams/spool_style, plus the glow behind it, the dashed
+// empty-lane placeholder and the error dot. Lives here rather than ams_draw because the
 // ams_lane_spool widget is its only consumer; kGhostOpa and the error/lane
 // badges it composes with stay shared in ams_drawing_utils.
 // ============================================================================
@@ -49,10 +49,10 @@ struct SpoolVisual {
     lv_obj_t* container = nullptr;
     bool use_3d = true;
     int32_t spool_size = 0;
-    lv_obj_t* glow = nullptr;              ///< current-lane glow layer, behind the spool (hidden)
+    lv_obj_t* glow = nullptr;              ///< current-lane / error glow, behind the spool (hidden)
     lv_obj_t* canvas = nullptr;            ///< spool canvas: side view (3D) or face-on (flat)
     lv_obj_t* empty_placeholder = nullptr; ///< dashed-circle "empty" placeholder (hidden)
-    lv_obj_t* error_indicator = nullptr;   ///< error dot, top-right (hidden)
+    lv_obj_t* error_indicator = nullptr;   ///< empty lane's error dot, top-right (hidden)
 };
 
 // Draw a dashed circle using segmented arcs (LVGL 9.5 has no dashed border API)
@@ -231,8 +231,8 @@ struct LaneSpoolData {
     int slot_index = -1;
     int backend_index = 0;
     float fill_level = 1.0f; ///< Last applied fill (0.0-1.0), from slot_fill.
-    bool has_error = false;  ///< From slot_has_error - error dot visibility.
-    SlotError::Severity severity = SlotError::Severity::INFO; ///< Error dot color.
+    bool has_error = false;  ///< From slot_has_error - error glow or dot.
+    SlotError::Severity severity = SlotError::Severity::INFO; ///< Error glow/dot color.
 
     /// Last-applied presentation, so a size rebuild can repaint fresh layers.
     helix::ui::LaneState lane_state = helix::ui::LaneState::Empty;
@@ -322,8 +322,10 @@ static void glow_opa_anim_cb(void* obj, int32_t value) {
     lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value), LV_PART_MAIN);
 }
 
-/// Current-lane glow: bound to the spool's silhouette (cached, shared), shown
-/// while the lane is highlighted and holds a spool. Pulse animates only the
+/// The spool glow: bound to the spool's silhouette (cached, shared), shown
+/// while the lane holds a spool and is either in error or highlighted. An error
+/// wins: it glows in the severity colour and pulses while animations are on;
+/// otherwise the current lane glows in the accent. Pulse animates only the
 /// layer's opacity, so no frame repaints or re-blurs anything; a running pulse
 /// is left alone, so repeated applies never restart it.
 static void apply_highlight(LaneSpoolData* d) {
@@ -331,9 +333,11 @@ static void apply_highlight(LaneSpoolData* d) {
     if (!glow)
         return;
     using helix::ui::SpoolHighlight;
-    const bool on =
-        d->highlight != SpoolHighlight::None && d->lane_state != helix::ui::LaneState::Empty;
-    const bool pulse = on && d->highlight == SpoolHighlight::Pulse;
+    const bool has_spool = d->lane_state != helix::ui::LaneState::Empty;
+    const bool error = has_spool && d->has_error;
+    const bool on = error || (has_spool && d->highlight != SpoolHighlight::None);
+    const bool pulse = error ? DisplaySettingsManager::instance().get_animations_enabled()
+                             : on && d->highlight == SpoolHighlight::Pulse;
     const bool pulsing = lv_anim_get(glow, glow_opa_anim_cb) != nullptr;
     if (pulsing && !pulse) {
         lv_anim_delete(glow, glow_opa_anim_cb);
@@ -345,7 +349,9 @@ static void apply_highlight(LaneSpoolData* d) {
         helix::ui::refresh_overhang_chain(glow);
         return;
     }
-    helix::ui::spool_glow_paint(glow, d->sv.canvas, d->sv.spool_size);
+    const lv_color_t color =
+        error ? ams_draw::severity_color(d->severity) : helix::ui::tube_accent();
+    helix::ui::spool_glow_paint(glow, d->sv.canvas, d->sv.spool_size, color);
     lv_obj_remove_flag(glow, LV_OBJ_FLAG_HIDDEN);
     helix::ui::refresh_overhang_chain(glow);
     if (pulse && !pulsing) {
@@ -364,6 +370,19 @@ static void apply_highlight(LaneSpoolData* d) {
     }
 }
 
+/// An error shows as the spool's glow; only an empty lane, with no silhouette
+/// to glow around, shows the dot. Keys on the has_error/error_severity subjects
+/// AmsState derives from `status == BLOCKED || slot.error`, so it is reactive
+/// with no panel refresh.
+static void apply_error_decoration(LaneSpoolData* d) {
+    if (!d)
+        return;
+    const bool dot = d->has_error && d->lane_state == helix::ui::LaneState::Empty;
+    const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
+    ams_draw::update_error_badge(d->sv.error_indicator, dot, d->severity, animate);
+    apply_highlight(d);
+}
+
 /**
  * @brief THE lane presentation rule, in spool form.
  *
@@ -374,9 +393,9 @@ static void apply_highlight(LaneSpoolData* d) {
  *   that says "assigned, not present" (#1071/#1065).
  * - Present: full strength.
  *
- * The placeholder and the error dot sit OUTSIDE the dimming on purpose: an
- * empty lane has nothing to dim, and an error must stay readable even when
- * the lane carrying it is otherwise ghosted.
+ * The placeholder, the glow and the error dot sit OUTSIDE the dimming on
+ * purpose: an empty lane has nothing to dim, and an error must stay readable
+ * even when the lane carrying it is otherwise ghosted.
  */
 static void apply_lane_state(LaneSpoolData* d, helix::ui::LaneState state) {
     if (!d)
@@ -404,7 +423,7 @@ static void apply_lane_state(LaneSpoolData* d, helix::ui::LaneState state) {
     set_visible(d->sv.canvas, show_spool);
     set_opa(d->sv.canvas, spool_opa);
     set_visible(d->sv.empty_placeholder, !show_spool);
-    apply_highlight(d);
+    apply_error_decoration(d);
 }
 
 static void apply_color(LaneSpoolData* d, int color_int) {
@@ -443,17 +462,6 @@ static void apply_fill_pct(LaneSpoolData* d, int pct) {
     pct = std::clamp(pct, 0, 100);
     d->fill_level = static_cast<float>(pct) / 100.0f;
     spool_visual_set_fill(d->sv, d->fill_level);
-}
-
-/// Error dot: severity color + visibility (+ pulse when animations allow).
-/// Keys on the has_error/error_severity subjects AmsState derives from
-/// `status == BLOCKED || slot.error`, so the dot is reactive with no panel
-/// refresh.
-static void apply_error_decoration(LaneSpoolData* d) {
-    if (!d)
-        return;
-    const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
-    ams_draw::update_error_badge(d->sv.error_indicator, d->has_error, d->severity, animate);
 }
 
 // ============================================================================
@@ -648,9 +656,8 @@ static void* ams_lane_spool_xml_create(lv_xml_parser_state_t* state, const char*
             theme, root,
             [](lv_obj_t* o, int /*generation*/) {
                 auto* d = get_lane_spool_data(o);
-                if (d && d->highlight != helix::ui::SpoolHighlight::None && d->sv.glow &&
-                    !lv_obj_has_flag(d->sv.glow, LV_OBJ_FLAG_HIDDEN))
-                    helix::ui::spool_glow_paint(d->sv.glow, d->sv.canvas, d->sv.spool_size);
+                if (d && d->sv.glow && !lv_obj_has_flag(d->sv.glow, LV_OBJ_FLAG_HIDDEN))
+                    apply_highlight(d);
             },
             subject_never_freed());
     }
@@ -739,9 +746,8 @@ void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {
 
     // Repaint the fresh layers with the cached presentation.
     spool_visual_set_fill(data->sv, data->fill_level);
-    apply_lane_state(data, data->lane_state);
+    apply_lane_state(data, data->lane_state); // also the glow and error dot
     apply_color(data, static_cast<int>(data->color_int));
-    apply_error_decoration(data);
 }
 
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight) {

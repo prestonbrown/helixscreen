@@ -1000,7 +1000,7 @@ Select the mock AMS visual scenario.
 | `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
 | `bypass` | Bypass mode active |
 | `unaccounted` | Filament at the toolhead that no lane accounts for (drives the print-start gate warning) |
-| `blocked` | Lane 2 reports BLOCKED (jammed) with no error object, the QIDI Box shape: error-red on the lane bar, spool dot and unit card badge |
+| `blocked` | Lane 2 reports BLOCKED (jammed) with no error object, the QIDI Box shape: error-red on the lane bar, spool glow and unit card badge |
 | `feeder` | Lane 3's filament waits at its feeder: its entry sensor reads it, its toolhead has not taken it (`PREP`). Shows the PARALLEL entry band with `HELIX_MOCK_AMS=snapmaker` |
 | `disconnected` | The last unit reports itself offline: its overview card ghosts with a "Disconnected" chip, and the detail header carries the chip. With one unit, the AMS panel header does |
 | `finishes` | One lane per swatch finish (silk, marble, sparkle, matte) plus a three-colour silk and a two-colour lane, repeating across the lanes, named for their colours and unlinked from Spoolman: every surface that paints a spool shows each (`docs/devel/COLOR_SWATCHES.md`) |

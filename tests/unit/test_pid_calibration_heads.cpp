@@ -140,6 +140,50 @@ TEST_CASE_METHOD(PidHeadsFixture, "The part fan runs only for the head holding t
     }
 }
 
+TEST_CASE_METHOD(PidHeadsFixture, "MPC migration names the fan that cools the picked head",
+                 "[pid][pid_heads][mpc_migration]") {
+    auto cooling_fan = [&]() -> std::string {
+        for (const auto& e : Access::mpc_migration_edits(panel)) {
+            if (e.key == "cooling_fan" && e.type == helix::system::ConfigEdit::Type::ADD_IF_ABSENT)
+                return e.value;
+        }
+        return "";
+    };
+
+    SECTION("single extruder: Klipper's [fan]") {
+        load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        api.hardware().parse_objects(nlohmann::json::array({"extruder", "heater_bed", "fan"}));
+        Access::activate(panel);
+        CHECK(cooling_fan() == "fan");
+    }
+    SECTION("single extruder with no [fan]: no cooling_fan to name") {
+        load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        api.hardware().parse_objects(
+            nlohmann::json::array({"extruder", "heater_bed", "fan_generic part"}));
+        Access::activate(panel);
+        CHECK(cooling_fan().empty());
+    }
+    SECTION("tool changer: the active head's own fan") {
+        api.hardware().parse_objects(
+            nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1",
+                                   "heater_bed", "fan_generic T1_partfan"}));
+        toolchanger(1);
+        helix::ToolState::instance().update_from_status(
+            {{"tool T1", {{"fan", "fan_generic T1_partfan"}}}});
+        Access::activate(panel);
+        CHECK(cooling_fan() == "fan_generic T1_partfan");
+
+        Access::head_clicked(panel, 0); // parked: no part fan reaches it
+        CHECK(cooling_fan().empty());
+    }
+    SECTION("the bed has no cooling fan") {
+        load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        Access::activate(panel);
+        Access::bed_clicked(panel);
+        CHECK(cooling_fan().empty());
+    }
+}
+
 TEST_CASE_METHOD(PidHeadsFixture, "The tool chips mark the active tool's head",
                  "[pid][pid_heads]") {
     toolchanger(1);
