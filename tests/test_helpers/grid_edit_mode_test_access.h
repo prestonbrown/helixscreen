@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "app_globals.h"
 #include "grid_edit_mode.h"
 
 namespace helix {
@@ -95,9 +96,6 @@ struct GridEditModeTestAccess {
     }
 
     /// The pure rules for where a selection pill goes.
-    static lv_area_t delete_page_button_area(const lv_area_t& content) {
-        return GridEditMode::delete_page_button_area(content);
-    }
     static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px) {
         return GridEditMode::pills_go_outside(widget_w, widget_h, pill_inside_px, min_drag_px);
     }
@@ -233,9 +231,10 @@ struct GridEditModeTestAccess {
         return drop.outcome == helix::DropOutcome::CreatePage;
     }
 
-    /// The delete-page button on the shield, or nullptr when none is drawn.
-    static lv_obj_t* delete_page_button(const GridEditMode& em) {
-        return em.delete_page_btn_;
+    /// Whether the session publishes its page as deletable, which shows the
+    /// navbar's delete-page button.
+    static bool delete_page_offered() {
+        return lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 1;
     }
 
     /// Release the selection chrome, the snap preview, and redraw the lattice,

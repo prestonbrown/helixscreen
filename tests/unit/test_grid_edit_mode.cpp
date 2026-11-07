@@ -1593,8 +1593,8 @@ TEST_CASE("outside_pill_area: pills sit off their corner, then beside, below las
         REQUIRE(a.has_value());
         return *a;
     };
-    const lv_area_t del = GridEditModeTestAccess::delete_page_button_area(bounds);
-    REQUIRE(same_area(del, {752, 8, 791, 47}));
+    // A pill already placed in the grid's top-right corner.
+    const lv_area_t placed{752, 8, 791, 47};
 
     // Each row places the trash pill, then the configure pill clear of it.
     struct Row {
@@ -1653,9 +1653,9 @@ TEST_CASE("outside_pill_area: pills sit off their corner, then beside, below las
          {},
          {145, 380, 180, 415},
          {145, 421, 180, 456}},
-        {"a secondary page's delete-page button: trash beside instead of over it",
+        {"a pill already placed: trash beside instead of over it",
          {677, 60, 736, 118},
-         {del},
+         {placed},
          {},
          {742, 60, 777, 95},
          {636, 19, 671, 54}},
@@ -1764,13 +1764,13 @@ TEST_CASE("selection pills in a packed 480x272 grid go on their own tile's corne
     }
 }
 
-TEST_CASE("corner_pill_area: a pill on the tile's corner clears the delete-page button",
+TEST_CASE("corner_pill_area: a pill on the tile's corner clears a pill already placed",
           "[grid_edit][edit-chrome]") {
     constexpr int kPill = 36;
     constexpr int kOverhang = 9;
     constexpr int kGap = 5;
-    const lv_area_t del = GridEditModeTestAccess::delete_page_button_area({80, 0, 799, 479});
-    REQUIRE(same_area(del, {752, 8, 791, 47}));
+    // A pill already placed in the grid's top-right corner.
+    const lv_area_t placed{752, 8, 791, 47};
 
     struct Row {
         const char* what;
@@ -1783,22 +1783,22 @@ TEST_CASE("corner_pill_area: a pill on the tile's corner clears the delete-page 
         {"a whole cell mid-grid: the corner, overhanging it",
          {400, 200, 517, 317},
          true,
-         {del},
+         {placed},
          {491, 191, 526, 226}},
         {"the configure corner mirrors it",
          {400, 200, 517, 317},
          false,
-         {del},
+         {placed},
          {391, 191, 426, 226}},
-        {"the top-right whole cell: trash slides down below the delete-page button",
+        {"the top-right whole cell: trash slides down below the placed pill",
          {682, 0, 799, 117},
          true,
-         {del},
+         {placed},
          {773, 53, 808, 88}},
-        {"something below the button: slides left along the top edge instead",
+        {"something below the placed pill: slides left along the top edge instead",
          {682, 0, 799, 117},
          true,
-         {del, {760, 48, 810, 100}},
+         {placed, {760, 48, 810, 100}},
          {711, -9, 746, 26}},
         {"a tile too small for its corner: the pill sits out past its centre",
          {400, 200, 430, 228},
@@ -2207,8 +2207,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     // parsed (parse_widget_array's append_registry_defaults, gated on
     // pages_.empty() in src/system/panel_widget_config.cpp), so the test's
     // two widgets live on a second page, the same trick test_grid_edit_drag_path
-    // uses. main_page_index points AT that second page so the lattice does not
-    // also get a delete_page_btn_.
+    // uses. main_page_index points AT that second page, the page edit mode
+    // enters.
     const std::string panel_id = "test_grid_edit_mode_dots";
     constexpr int kPageIndex = 1;
     auto* cfg = Config::get_instance();
