@@ -3956,3 +3956,110 @@ TEST_CASE("ACE without driver tool numbers judges tool n on slot n",
     REQUIRE(seed.size() == 1);
     CHECK(seed[0].mapped_slot == 0);
 }
+
+// ============================================================================
+// Where an edit is written: the ACEPRO inventory, else the lane record
+// ============================================================================
+
+namespace {
+json slot_reading(const std::string& material, const std::string& color) {
+    return json::array({json{{"status", "ready"}, {"material", material}, {"color", color}},
+                        json{{"status", "ready"}}, json{{"status", "ready"}},
+                        json{{"status", "ready"}}});
+}
+} // namespace
+
+TEST_CASE("ACE on the ACEPRO driver writes an edit and a clear to the hub's inventory",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    edit.nozzle_temp_min = 240;
+    edit.nozzle_temp_max = 250;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    CHECK(b.captured_gcodes ==
+          std::vector<std::string>{"ACE_SET_SLOT INSTANCE=0 INDEX=0 COLOR=0,255,128 "
+                                   "MATERIAL=\"PETG\" TEMP=245"});
+
+    // The hub restates what it was told: the edit is no longer waiting.
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PETG", "#00FF80")}}));
+    CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
+    CHECK(b.get_slot_info(0).material == "PETG");
+
+    b.captured_gcodes.clear();
+    b.clear_slot_override(0);
+    CHECK(b.captured_gcodes == std::vector<std::string>{"ACE_SET_SLOT INSTANCE=0 INDEX=0 EMPTY=1"});
+}
+
+TEST_CASE("ACE on the ACEPRO driver shows the hub's colour over a record from another client",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG";
+    record.color_rgb = 0x00FF80;
+    record.color_set = true;
+    AceTestAccess::seed_override(b, 0, record);
+
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PLA");
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("ACE on the ACEPRO driver refuses an edit the inventory cannot hold",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    // ACE_SET_SLOT requires a material beside a colour.
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material.clear();
+    edit.color_rgb = 0x00FF80;
+    const auto err = b.commit_user_edit(0, b.get_slot_info(0), edit);
+
+    CHECK_FALSE(err.success());
+    CHECK(err.user_msg.find("material") != std::string::npos);
+    CHECK(b.captured_gcodes.empty());
+    CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+    CHECK(b.get_slot_info(0).material == "PLA");
+}
+
+TEST_CASE("ACE on a driver that stores no edit shows the record over the hub's memory",
+          "[ams][ace][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    CHECK(b.captured_gcodes.empty());
+
+    // The record is what Moonraker holds about the edit; the hub keeps
+    // restating its own memory.
+    const auto record = AceTestAccess::get_override(b, 0);
+    REQUIRE(record.has_value());
+    helix::test::file_override_as_lane_records(b, 0, *record);
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PETG");
+    CHECK(b.get_slot_info(0).color_rgb == 0x00FF80u);
+
+    // Cleared, the hub's reading shows again.
+    b.clear_slot_override(0);
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PLA");
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}

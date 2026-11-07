@@ -189,10 +189,13 @@ with the same material and colour keeps the edit.
 
 `AmsBackendMultiAce::apply_user_edit` / `sync_external_identity` /
 `clear_slot_override` route by unit: a bay index resolves through
-`multiace::bay_of()` into its own unit's `SlotInfo` and the shared override
-machinery the other backends use; nothing is written to the engine, whose own
-slot-overrides table never sees HelixScreen's edit (engine-side reconciliation
-is a later phase). A head index keeps the base's path, which also writes the
+`multiace::bay_of()` into its own unit's `SlotInfo` and the shared lane record
+(`persist_user_record_locked`); nothing is written to the engine. Its stable
+command vocabulary (ENGINE_API.md § 3) has no command that sets a bay's label,
+and its slot-overrides file is internal state, not a documented file API. The
+engine's table is therefore filed with the colour, material and brand the lane
+record states taken off (`helix::ace::yield_to_record`), so the record, the
+only place the edit lives, stands over it until a different spool clears it. A head index keeps the base's path, which also writes the
 head's firmware record. Temps an engine frame never carries are restated from
 the stored record, the only place they live.
 
@@ -217,8 +220,8 @@ parser and backend. Full knob table: `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` 
   unload runs: if its start has not reached a status frame by the frame that shows the head
   empty, the deferred load is still sent, and Klipper queues it behind the start. This screen
   has no signal for a start it did not make until the printer reports it.
-- The engine's own spool table does not see a bay edit made here: reconciliation through
-  multiACE's slot-overrides file (the Moonraker file API) is a later phase.
+- The engine's own spool table does not see a bay edit made here: multiACE documents no
+  command or file API that sets a bay's label.
 - The `multiace_event` console watcher (`multiace::parse_event_line` exists), the spool
   table and bindings, device actions (quad replenish, head rewiring) and `ACE_PRELOAD`
   batch loads.
