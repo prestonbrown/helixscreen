@@ -112,87 +112,83 @@ void HardwareHealthOverlay::populate_hardware_issues() {
                 lv_label_set_translation_tag(message_label, issue.message.c_str());
             }
 
-            // Configure action buttons for non-critical issues
-            if (issue.severity != HardwareIssueSeverity::CRITICAL) {
-                lv_obj_t* action_buttons =
-                    helix::ui::find_required(row, "action_buttons", get_name());
-                lv_obj_t* ignore_btn = helix::ui::find_required(row, "ignore_btn", get_name());
-                lv_obj_t* save_btn = helix::ui::find_required(row, "save_btn", get_name());
+            // Every issue can be ignored; only newly discovered hardware can be saved.
+            lv_obj_t* action_buttons = helix::ui::find_required(row, "action_buttons", get_name());
+            lv_obj_t* ignore_btn = helix::ui::find_required(row, "ignore_btn", get_name());
+            lv_obj_t* save_btn = helix::ui::find_required(row, "save_btn", get_name());
 
-                if (action_buttons && ignore_btn) {
-                    // Show button container
-                    lv_obj_clear_flag(action_buttons, LV_OBJ_FLAG_HIDDEN);
+            if (action_buttons && ignore_btn) {
+                // Show button container
+                lv_obj_clear_flag(action_buttons, LV_OBJ_FLAG_HIDDEN);
 
-                    // Show Save button only for INFO severity (newly discovered)
-                    if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
-                        lv_obj_clear_flag(save_btn, LV_OBJ_FLAG_HIDDEN);
-                    }
+                // Show Save button only for INFO severity (newly discovered)
+                if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
+                    lv_obj_clear_flag(save_btn, LV_OBJ_FLAG_HIDDEN);
+                }
 
-                    // Store hardware name for callbacks (freed on row delete).
-                    // NOTE: We do NOT use lv_obj_set_user_data() here because
-                    // severity_card (our parent XML component) owns that slot
-                    // to store its severity string. Using event cb user_data instead.
-                    char* name_copy = strdup(issue.hardware_name.c_str());
-                    if (!name_copy) {
-                        spdlog::error("[{}] Failed to allocate memory for hardware name",
-                                      get_name());
-                        continue;
-                    }
+                // Store hardware name for callbacks (freed on row delete).
+                // NOTE: We do NOT use lv_obj_set_user_data() here because
+                // severity_card (our parent XML component) owns that slot
+                // to store its severity string. Using event cb user_data instead.
+                char* name_copy = strdup(issue.hardware_name.c_str());
+                if (!name_copy) {
+                    spdlog::error("[{}] Failed to allocate memory for hardware name", get_name());
+                    continue;
+                }
 
-                    // Add delete handler to free the strdup'd name
-                    // (acceptable exception to declarative UI rule for cleanup)
-                    lv_obj_add_event_cb(
-                        row,
-                        [](lv_event_t* e) {
-                            void* data = lv_event_get_user_data(e);
-                            if (data) {
-                                free(data);
-                            }
-                        },
-                        LV_EVENT_DELETE, name_copy);
+                // Add delete handler to free the strdup'd name
+                // (acceptable exception to declarative UI rule for cleanup)
+                lv_obj_add_event_cb(
+                    row,
+                    [](lv_event_t* e) {
+                        void* data = lv_event_get_user_data(e);
+                        if (data) {
+                            free(data);
+                        }
+                    },
+                    LV_EVENT_DELETE, name_copy);
 
-                    // Helper lambda for button click handlers
-                    // (acceptable exception to declarative UI rule for dynamic rows)
-                    auto add_button_handler = [&](lv_obj_t* btn, bool is_ignore) {
-                        // Pack hardware name pointer and is_ignore flag into a single
-                        // user_data value. name_copy is owned by the row's DELETE handler.
-                        struct ActionCtx {
-                            const char* hw_name;
-                            bool is_ignore;
-                        };
-                        auto* ctx = new ActionCtx{name_copy, is_ignore};
-
-                        lv_obj_add_event_cb(
-                            btn,
-                            [](lv_event_t* e) {
-                                LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealthOverlay] action_clicked");
-                                auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
-
-                                if (ctx && ctx->hw_name) {
-                                    get_hardware_health_overlay().handle_hardware_action(
-                                        ctx->hw_name, ctx->is_ignore);
-                                }
-                                LVGL_SAFE_EVENT_CB_END();
-                            },
-                            LV_EVENT_CLICKED, ctx);
-
-                        // Clean up the ActionCtx when the button is destroyed
-                        lv_obj_add_event_cb(
-                            btn,
-                            [](lv_event_t* e) {
-                                auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
-                                delete ctx;
-                            },
-                            LV_EVENT_DELETE, ctx);
+                // Helper lambda for button click handlers
+                // (acceptable exception to declarative UI rule for dynamic rows)
+                auto add_button_handler = [&](lv_obj_t* btn, bool is_ignore) {
+                    // Pack hardware name pointer and is_ignore flag into a single
+                    // user_data value. name_copy is owned by the row's DELETE handler.
+                    struct ActionCtx {
+                        const char* hw_name;
+                        bool is_ignore;
                     };
+                    auto* ctx = new ActionCtx{name_copy, is_ignore};
 
-                    // Wire up Ignore button (always visible for non-critical)
-                    add_button_handler(ignore_btn, true);
+                    lv_obj_add_event_cb(
+                        btn,
+                        [](lv_event_t* e) {
+                            LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealthOverlay] action_clicked");
+                            auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
 
-                    // Wire up Save button (only for INFO severity)
-                    if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
-                        add_button_handler(save_btn, false);
-                    }
+                            if (ctx && ctx->hw_name) {
+                                get_hardware_health_overlay().handle_hardware_action(
+                                    ctx->hw_name, ctx->is_ignore);
+                            }
+                            LVGL_SAFE_EVENT_CB_END();
+                        },
+                        LV_EVENT_CLICKED, ctx);
+
+                    // Clean up the ActionCtx when the button is destroyed
+                    lv_obj_add_event_cb(
+                        btn,
+                        [](lv_event_t* e) {
+                            auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
+                            delete ctx;
+                        },
+                        LV_EVENT_DELETE, ctx);
+                };
+
+                // Wire up Ignore button (always visible)
+                add_button_handler(ignore_btn, true);
+
+                // Wire up Save button (only for INFO severity)
+                if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
+                    add_button_handler(save_btn, false);
                 }
             }
         }
