@@ -124,3 +124,25 @@ TEST_CASE_METHOD(TransportRefreshFixture,
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
 }
+
+TEST_CASE_METHOD(TransportRefreshFixture,
+                 "NetworkSettingsOverlay keeps one state observer across screensaver wakes",
+                 "[network_settings][observers][suspend]") {
+    auto wm = make_manager();
+    auto overlay = std::make_unique<NetworkSettingsOverlay>();
+    overlay->init_subjects();
+    overlay->register_callbacks();
+    Access::wifi_manager(*overlay) = wm;
+    REQUIRE(overlay->create(test_screen()) != nullptr);
+    overlay->on_activate();
+    const size_t registered = helix::WiFiManagerTestAccess::state_observer_count(*wm);
+    REQUIRE(registered > 0);
+
+    // A wake keeps the observers the opening registered; adding more would run
+    // every refresh once per screensaver cycle.
+    for (int i = 0; i < 2; ++i) {
+        overlay->on_deactivate(DeactivateReason::Suspended);
+        overlay->on_activate();
+    }
+    CHECK(helix::WiFiManagerTestAccess::state_observer_count(*wm) == registered);
+}

@@ -34,6 +34,10 @@ class WiFiManagerTestAccess {
     /// already true when a state observer's refresh runs
     /// (prestonbrown/helixscreen#1059). When the manager's backend is not
     /// the mock, this is the raw handler call.
+    static size_t state_observer_count(WiFiManager& wm) {
+        std::lock_guard<std::mutex> lock(wm.state_observers_mutex_);
+        return wm.state_observers_.size();
+    }
     static void fire_connected(WiFiManager& wm, const std::string& data = "") {
         if (auto* mock = dynamic_cast<WifiBackendMock*>(wm.backend_.get())) {
             mock->set_connected_state(true, "TestSSID", "192.168.1.100", 75);

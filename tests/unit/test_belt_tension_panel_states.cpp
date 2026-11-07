@@ -2064,7 +2064,7 @@ TEST_CASE("waking the screen mid-tuning keeps the session", "[belt][panel][tune]
     }
 }
 
-TEST_CASE("a wake re-asks what the suspension cancelled", "[belt][panel]") {
+TEST_CASE("a wake keeps what the suspension left pending", "[belt][panel]") {
     BeltPanelFixture fx;
     helix::ui::modal_init_subjects();
     REQUIRE(fx.register_component("modal_dialog"));
@@ -2073,10 +2073,10 @@ TEST_CASE("a wake re-asks what the suspension cancelled", "[belt][panel]") {
         fx.panel().on_deactivate(DeactivateReason::NavigateAway);
         fx.panel().on_activate();
         REQUIRE(fx.panel_detection_pending());
-        // The screen sleeps before detection answers; its callbacks expire.
+        // The screen sleeps before detection answers; the answer still lands.
         fx.panel().on_deactivate(DeactivateReason::Suspended);
         fx.pump_ms(2000);
-        REQUIRE(fx.panel_detection_pending());
+        CHECK_FALSE(fx.panel_detection_pending());
         fx.panel().on_activate();
         fx.pump_ms(2000);
         CHECK_FALSE(fx.panel_detection_pending());
@@ -3214,16 +3214,18 @@ TEST_CASE("the sweep fact line counts the laps, even when the toolhead reports l
     CHECK(fx.text("bt_hw_sweep") == "5-135 Hz · about " + std::to_string(minutes) + " min");
 }
 
-TEST_CASE("a wake re-asks the probe point the suspension expired", "[belt][panel][settle]") {
+TEST_CASE("a probe point answered behind the screensaver still starts the run",
+          "[belt][panel][settle]") {
     BeltPanelFixture fx;
     REQUIRE(fx.wait_gate_open());
     fx.mock().clear_gcode_script_history();
 
     fx.panel().handle_start_clicked();
-    // The screen sleeps before the query answers; its callback expires.
+    // The screen sleeps before the query answers; the answer still lands and
+    // the run starts behind the screensaver.
     fx.panel().on_deactivate(DeactivateReason::Suspended);
     fx.pump_ms(500);
-    REQUIRE(run_steps(fx).empty());
+    REQUIRE_FALSE(run_steps(fx).empty());
     fx.panel().on_activate();
     REQUIRE(fx.pump_until_state(kResults));
     CHECK(run_steps(fx) == std::vector<std::string>{"settle", "full", "full"});

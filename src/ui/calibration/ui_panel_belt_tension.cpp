@@ -466,23 +466,16 @@ void BeltTensionPanel::on_activate() {
 
     spdlog::debug("[BeltTension] on_activate()");
 
-    if (suspended_) {
+    if (take_wake()) {
         // A wake from the screensaver: the user was at the tensioner, or a
         // sweep was running. Keep the view, the run and the tuning session.
-        // The suspension expired every pending async answer, so re-ask what
-        // can be re-asked; never mid-sweep, where re-detecting hardware would
-        // overwrite the calibrator's MEASURING state.
-        suspended_ = false;
+        // A pending detection or probe-point answer still lands, so it is not
+        // asked again. Facts are refreshed, never mid-sweep, where
+        // re-detecting hardware would overwrite the calibrator's MEASURING state.
         ensure_gate_observers();
-        if (settle_query_pending_) {
-            start_settle();
-        }
         if (!measuring()) {
             probe_klippy_socket();
             query_hw_facts();
-            if (detection_pending_) {
-                start_hardware_detection();
-            }
         }
         refresh_gate();
         refresh_notes();
@@ -560,7 +553,7 @@ void BeltTensionPanel::on_deactivating(DeactivateReason reason) {
     // The menu hangs off the screen, not the panel: left up, a tap on it would
     // start a sweep with no belt UI on screen.
     hide_retest_menu();
-    // The dialog's answer is owned by lifetime_, which every deactivation
+    // The dialog's answer is owned by lifetime_, which leaving the panel
     // expires: left up, Continue would close it and start nothing.
     hide_low_ram_dialog();
     // Left up, Identify would buzz a motor with no belt UI on screen.
@@ -570,10 +563,8 @@ void BeltTensionPanel::on_deactivating(DeactivateReason reason) {
     // screen, so the screensaver lands mid-measurement; the run has to survive
     // it.
     if (reason == DeactivateReason::Suspended) {
-        suspended_ = true;
         return;
     }
-    suspended_ = false;
     theme_observer_.reset();
     ultrawide_observer_.reset();
     belt_layout_observer_.reset();
