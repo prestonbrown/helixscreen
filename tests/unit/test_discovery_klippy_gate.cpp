@@ -540,3 +540,31 @@ TEST_CASE("A login fixed on the Moonraker side clears the refusal on the next id
     CHECK_FALSE(helix::moonraker_auth::unauthorized());
     helix::moonraker_auth::set_credential({});
 }
+
+TEST_CASE("Discovery reads server.info's print_start_tools before the backends are created",
+          "[discovery][klippy_gate][2033]") {
+    LVGLTestFixture fixture;
+
+    for (const bool advertised : {true, false}) {
+        CAPTURE(advertised);
+        TestDiscoveryClient client;
+        client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+        if (advertised) {
+            client.set_mock_server_info_extra(
+                {{"zmod", {{"features", nlohmann::json::array({"print_start_tools"})}}}});
+        }
+
+        bool seen_at_hardware_discovered = !advertised;
+        client.set_on_hardware_discovered([&](const helix::PrinterDiscovery& hw) {
+            seen_at_hardware_discovered = hw.server_takes_print_start_tools();
+        });
+
+        bool completed = false;
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string&) {});
+
+        REQUIRE(completed);
+        CHECK(seen_at_hardware_discovered == advertised);
+        CHECK(client.hardware().server_takes_print_start_tools() == advertised);
+    }
+}

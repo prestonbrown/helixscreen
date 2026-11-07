@@ -281,6 +281,7 @@ std::string AmsBackendAd5xIfs::runout_purge_gcode(const BinPurgeMacros& macros) 
 void AmsBackendAd5xIfs::set_discovery(const helix::PrinterDiscovery& discovery) {
     bin_purge_macros_ = bin_purge_macros(discovery);
     print_start_takes_tool_slots_ = helix::print_start::takes_tool_slots(discovery);
+    keeps_afc_lane_map_ = discovery.has_zmod_afc();
     spdlog::debug("{} Purge bin route: _G28={} _GOTO_TRASH={} PURGE_FILAMENT={}", backend_log_tag(),
                   bin_purge_macros_.home_if_needed, bin_purge_macros_.goto_bin,
                   bin_purge_macros_.stock_purge);
@@ -3550,8 +3551,9 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
     // Z-Mod's built-in AFC keeps its own lane map for the Fluidd/Mainsail AFC
     // panels, lane N being port N. It does not route the print, which takes
     // the map at the start (print_start_params()), so it only follows the pick,
-    // and a refused SET_MAP never costs the table above its write.
-    if (print_start_takes_tool_slots_ && port != kUnmappedPort) {
+    // and a refused SET_MAP never costs the table above its write. With AFC
+    // off there is no SET_MAP, though the print start may still take the map.
+    if (keeps_afc_lane_map_ && port != kUnmappedPort) {
         AmsError lane_map =
             execute_gcode(fmt::format("SET_MAP LANE=lane{} MAP=T{}", port, tool_number));
         if (result.success() && !lane_map.success()) {

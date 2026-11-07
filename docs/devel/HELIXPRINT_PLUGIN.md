@@ -170,6 +170,17 @@ A plugin path that starts a job itself marks it, so start-of-job features can le
   `print_modified`, `print_edited`. A start through a link passes the original name as
   `history_name`, since the finished history entry is renamed to it; both names answer.
 - `unmark_helix_initiated(filename)` when that command fails.
+
+**The per-print tool map.** `print_modified` and `print_edited` take an optional `tools`:
+comma-separated 1-based slots indexed by G-code tool, an empty entry leaving that tool to the
+firmware (`"2,,1"`), the value the app sends as `printer.print.start`'s own `tools` (#2033).
+Anything but digits and commas, or over 512 characters, is a 400 before anything starts. When
+Moonraker's `klippy_apis.start_print` takes a `tools` parameter (Z-Mod's fork, which advertises
+it in `server.info` as `zmod.features: ["print_start_tools"]`), `start_linked_print` starts the
+link through `start_print(filename, tools=tools)`, so the firmware routes the print by the map
+the user confirmed instead of asking again (#2038). Elsewhere, and with no map, it runs
+`SDCARD_PRINT_FILE` as before. The test is the method's own signature
+(`HelixPrint#start_print_takes_tools`), so stock Moonraker never sees the argument.
 - When history adds the job (`history:history_changed`, action `added`), the marker binds to
   the job id and persists in namespace `helix_jobs` (key = job id, value
   `{"kind", "filenames", "start_time", "bound_at"}`, kept 30 days). An unclaimed marker expires
@@ -682,7 +693,7 @@ and starts the result through the same linked-print path as `print_modified`. Tr
 | `tests/fixtures/gcode_edits/` | Golden cases both suites apply |
 
 **Endpoint.** `server.helix.print_edited {original_filename, temp_file_path?, edits[],
-modifications[]}`. The reply is `print_modified`'s plus `lines_changed`. Errors: 400 for a
+modifications[], tools?}`. The reply is `print_modified`'s plus `lines_changed`. Errors: 400 for a
 malformed or out-of-bounds list (lines 1..2147483647, `end_line` at least `line_number`, at
 most `MAX_EDITS` = 10000 edits), a path outside gcodes, or a copy path that is not directly in
 `temp_dir` / `.helix_temp` / `helix_staging` or is the original (`resolve_temp`, shared with
