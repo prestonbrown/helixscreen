@@ -2038,6 +2038,8 @@
   <translation tag="Loading filament..." ja="フィラメントを装填中..."/>
   <translation tag="Loading filaments..." ja="フィラメントを読み込み中..."/>
   <translation tag="Loading history..." ja="履歴を読み込み中..."/>
+  <translation tag="Loading lane details. Try again in a moment." ja="レーンの詳細を読み込み中です。しばらくしてから再試行してください。"/>
+  <translation tag="Loading lane details…" ja="レーンの詳細を読み込み中…"/>
   <translation tag="Loading photo" ja="写真を読み込み中"/>
   <translation tag="Loading spools..." ja="スプールを読み込み中..."/>
   <translation tag="Loading vendors..." ja="ベンダーを読み込み中..."/>
@@ -2447,6 +2449,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." ja="ウィジェットを元に戻すスペースが足りません。削除されたままです。"/>
   <translation tag="Not in your spools? Set it up" ja="スプールにない？登録する"/>
   <translation tag="Not now" ja="後で"/>
+  <translation tag="Not saved: {}. Try again." ja="保存されていません: {}。もう一度お試しください。"/>
   <translation tag="Not set" ja="未設定"/>
   <translation tag="Not turned" ja="未回転"/>
   <translation tag="Not yet available on this display" ja="このディスプレイではまだ利用できません"/>
@@ -4481,9 +4484,14 @@
   <translation tag="tall" ja="高さ"/>
   <translation tag="target {}%" ja="目標 {}%"/>
   <translation tag="target {}°" ja="目標 {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" ja="ACEには素材とそのノズル温度が必要です"/>
+  <translation tag="the QIDI Box filament list has not loaded" ja="QIDI Boxのフィラメントリストが読み込まれていません"/>
+  <translation tag="the QIDI Box has no {} in its filament list" ja="QIDI Boxのフィラメントリストに{}がありません"/>
   <translation tag="the extruder" ja="エクストルーダー"/>
   <translation tag="the left belt" ja="左ベルト"/>
   <translation tag="the lower belt" ja="下ベルト"/>
+  <translation tag="the printer did not confirm it" ja="プリンターが確認しませんでした"/>
+  <translation tag="the printer refused it" ja="プリンターが拒否しました"/>
   <translation tag="the right belt" ja="右ベルト"/>
   <translation tag="the upper belt" ja="上ベルト"/>
   <translation tag="this week" ja="今週"/>

@@ -2038,6 +2038,8 @@
   <translation tag="Loading filament..." es="Cargando filamento..."/>
   <translation tag="Loading filaments..." es="Cargando filamentos..."/>
   <translation tag="Loading history..." es="Cargando historial..."/>
+  <translation tag="Loading lane details. Try again in a moment." es="Cargando detalles del carril. Inténtalo de nuevo en un momento."/>
+  <translation tag="Loading lane details…" es="Cargando detalles del carril…"/>
   <translation tag="Loading photo" es="Cargando foto"/>
   <translation tag="Loading spools..." es="Cargando bobinas..."/>
   <translation tag="Loading vendors..." es="Cargando proveedores..."/>
@@ -2447,6 +2449,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." es="No hay espacio suficiente para restaurar el widget. Sigue eliminado."/>
   <translation tag="Not in your spools? Set it up" es="¿No está en tus bobinas? Configúralo"/>
   <translation tag="Not now" es="Ahora no"/>
+  <translation tag="Not saved: {}. Try again." es="No guardado: {}. Inténtalo de nuevo."/>
   <translation tag="Not set" es="Sin definir"/>
   <translation tag="Not turned" es="Sin girar"/>
   <translation tag="Not yet available on this display" es="Aún no disponible en esta pantalla"/>
@@ -4481,9 +4484,14 @@
   <translation tag="tall" es="de alto"/>
   <translation tag="target {}%" es="objetivo {}%"/>
   <translation tag="target {}°" es="objetivo {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" es="el ACE necesita un material y su temperatura de boquilla"/>
+  <translation tag="the QIDI Box filament list has not loaded" es="la lista de filamentos de la QIDI Box no se ha cargado"/>
+  <translation tag="the QIDI Box has no {} in its filament list" es="la QIDI Box no tiene {} en su lista de filamentos"/>
   <translation tag="the extruder" es="el extrusor"/>
   <translation tag="the left belt" es="la correa izquierda"/>
   <translation tag="the lower belt" es="la correa inferior"/>
+  <translation tag="the printer did not confirm it" es="la impresora no lo confirmó"/>
+  <translation tag="the printer refused it" es="la impresora lo rechazó"/>
   <translation tag="the right belt" es="la correa derecha"/>
   <translation tag="the upper belt" es="la correa superior"/>
   <translation tag="this week" es="esta semana"/>

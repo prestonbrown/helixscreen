@@ -2083,6 +2083,8 @@
   <translation tag="Loading filament..." ru="Загрузка филамента..."/>
   <translation tag="Loading filaments..." ru="Загрузка филаментов..."/>
   <translation tag="Loading history..." ru="Загрузка истории..."/>
+  <translation tag="Loading lane details. Try again in a moment." ru="Загрузка сведений о канале. Повторите попытку через минуту."/>
+  <translation tag="Loading lane details…" ru="Загрузка сведений о канале…"/>
   <translation tag="Loading photo" ru="Загрузка фото"/>
   <translation tag="Loading spools..." ru="Загрузка катушек..."/>
   <translation tag="Loading vendors..." ru="Загрузка производителей..."/>
@@ -2492,6 +2494,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
+  <translation tag="Not saved: {}. Try again." ru="Не сохранено: {}. Попробуйте ещё раз."/>
   <translation tag="Not set" ru="Не задана"/>
   <translation tag="Not turned" ru="Не повёрнут"/>
   <translation tag="Not yet available on this display" ru="Пока недоступно на этом дисплее"/>
@@ -4544,9 +4547,14 @@
   <translation tag="tall" ru="высотой"/>
   <translation tag="target {}%" ru="цель {}%"/>
   <translation tag="target {}°" ru="цель {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" ru="ACE нужен материал и его температура сопла"/>
+  <translation tag="the QIDI Box filament list has not loaded" ru="список филаментов QIDI Box не загружен"/>
+  <translation tag="the QIDI Box has no {} in its filament list" ru="в списке филаментов QIDI Box нет {}"/>
   <translation tag="the extruder" ru="экструдер"/>
   <translation tag="the left belt" ru="левый ремень"/>
   <translation tag="the lower belt" ru="нижний ремень"/>
+  <translation tag="the printer did not confirm it" ru="принтер не подтвердил"/>
+  <translation tag="the printer refused it" ru="принтер отклонил"/>
   <translation tag="the right belt" ru="правый ремень"/>
   <translation tag="the upper belt" ru="верхний ремень"/>
   <translation tag="this week" ru="за неделю"/>

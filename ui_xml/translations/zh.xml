@@ -2038,6 +2038,8 @@
   <translation tag="Loading filament..." zh="正在加载耗材..."/>
   <translation tag="Loading filaments..." zh="正在加载耗材..."/>
   <translation tag="Loading history..." zh="正在加载历史..."/>
+  <translation tag="Loading lane details. Try again in a moment." zh="正在加载耗材通道详情，请稍后重试。"/>
+  <translation tag="Loading lane details…" zh="正在加载耗材通道详情…"/>
   <translation tag="Loading photo" zh="正在加载照片"/>
   <translation tag="Loading spools..." zh="正在加载料盘..."/>
   <translation tag="Loading vendors..." zh="正在加载供应商…"/>
@@ -2447,6 +2449,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." zh="没有足够的空间恢复此小组件。它仍处于移除状态。"/>
   <translation tag="Not in your spools? Set it up" zh="不在您的料盘中？立即设置"/>
   <translation tag="Not now" zh="暂不"/>
+  <translation tag="Not saved: {}. Try again." zh="未保存：{}。请重试。"/>
   <translation tag="Not set" zh="未设置"/>
   <translation tag="Not turned" zh="未转动"/>
   <translation tag="Not yet available on this display" zh="此屏幕暂不支持"/>
@@ -4481,9 +4484,14 @@
   <translation tag="tall" zh="高"/>
   <translation tag="target {}%" zh="目标 {}%"/>
   <translation tag="target {}°" zh="目标 {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" zh="ACE 需要材料及其喷嘴温度"/>
+  <translation tag="the QIDI Box filament list has not loaded" zh="QIDI Box 的耗材列表尚未加载"/>
+  <translation tag="the QIDI Box has no {} in its filament list" zh="QIDI Box 的耗材列表中没有 {}"/>
   <translation tag="the extruder" zh="挤出机"/>
   <translation tag="the left belt" zh="左皮带"/>
   <translation tag="the lower belt" zh="下皮带"/>
+  <translation tag="the printer did not confirm it" zh="打印机未确认"/>
+  <translation tag="the printer refused it" zh="打印机拒绝了"/>
   <translation tag="the right belt" zh="右皮带"/>
   <translation tag="the upper belt" zh="上皮带"/>
   <translation tag="this week" zh="本周"/>
