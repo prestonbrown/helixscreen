@@ -450,6 +450,10 @@ class IppJobFixture : public LVGLTestFixture {
     Result print_to(uint16_t port) {
         IppPrinter printer;
         printer.set_target("127.0.0.1", port, "ipp/print");
+        return print_with(printer);
+    }
+
+    Result print_with(IppPrinter& printer) {
         printer.set_sheet_template(0);
         const auto& templates = label::get_sheet_templates();
         Result result;
@@ -495,7 +499,69 @@ TEST_CASE_METHOD(IppJobFixture, "A printer still answering 426 over TLS fails th
 
     CHECK(server.request_count() == 2);
     CHECK_FALSE(result.ok);
+    CHECK(result.message.find("encrypted connection") != std::string::npos);
     CHECK(result.message.find("426") != std::string::npos);
+}
+
+TEST_CASE_METHOD(IppJobFixture,
+                 "An IPPS resend that cannot connect says the printer needs "
+                 "encryption",
+                 "[label][ipp_http][2034]") {
+    // The server stops listening after the 426, so the TLS connect is refused.
+    ScriptedServer server({upgrade_required_response()});
+
+    const auto result = print_to(server.port());
+
+    CHECK(server.request_count() == 1);
+    CHECK_FALSE(result.ok);
+    CHECK(result.message.find("encrypted connection") != std::string::npos);
+}
+
+TEST_CASE_METHOD(IppJobFixture, "A printer that accepts plain IPP is not resent over TLS",
+                 "[label][ipp_http][2034]") {
+    ScriptedServer server({final_ok_response()});
+
+    const auto result = print_to(server.port());
+
+    CHECK(result.ok);
+    REQUIRE(server.request_count() == 1);
+    CHECK(server.body(0).find(printer_uri("ipp", server.port())) != std::string::npos);
+}
+
+TEST_CASE_METHOD(IppJobFixture, "A printer that needed IPPS gets its next job straight over IPPS",
+                 "[label][ipp_http][2034]") {
+    ServerCtx tls;
+    ScriptedServer server({{false, {upgrade_required_response()}},
+                           {true, {final_ok_response()}},
+                           {true, {final_ok_response()}}},
+                          tls.ctx);
+    IppPrinter printer;
+    printer.set_target("127.0.0.1", server.port(), "ipp/print");
+
+    REQUIRE(print_with(printer).ok);
+    const auto second = print_with(printer);
+
+    CHECK(second.ok);
+    REQUIRE(server.request_count() == 3);
+    CHECK(server.body(2).find(printer_uri("ipps", server.port())) != std::string::npos);
+}
+
+TEST_CASE_METHOD(IppJobFixture, "A new printer target starts over plain IPP",
+                 "[label][ipp_http][2034]") {
+    ServerCtx tls;
+    ScriptedServer first({{false, {upgrade_required_response()}}, {true, {final_ok_response()}}},
+                         tls.ctx);
+    ScriptedServer second({final_ok_response()});
+    IppPrinter printer;
+    printer.set_target("127.0.0.1", first.port(), "ipp/print");
+    REQUIRE(print_with(printer).ok);
+
+    printer.set_target("127.0.0.1", second.port(), "ipp/print");
+    const auto result = print_with(printer);
+
+    CHECK(result.ok);
+    REQUIRE(second.request_count() == 1);
+    CHECK(second.body(0).find(printer_uri("ipp", second.port())) != std::string::npos);
 }
 
 TEST_CASE_METHOD(IppJobFixture, "An IPP job rejected with another HTTP error is not resent",

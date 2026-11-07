@@ -3833,6 +3833,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." en="The printer rejected the filament configuration. The print was not started."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." en="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." en="The printer reports no lane record, so only clearing the extruder can unload it."/>
+  <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" en="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}"/>
+  <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" en="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." en="The printer swaps between several toolheads. Manage the tools on the filament system screen."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" en="The printer&apos;s firmware chooses where to switch on runout"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>

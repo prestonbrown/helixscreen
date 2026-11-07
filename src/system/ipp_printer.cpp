@@ -70,6 +70,9 @@ std::string IppPrinter::name() const {
 
 void IppPrinter::set_target(const std::string& host, uint16_t port,
                             const std::string& resource_path) {
+    if (host != host_ || port != port_) {
+        needs_tls_ = std::make_shared<std::atomic<bool>>(false);
+    }
     host_ = host;
     port_ = port;
     resource_path_ = ipp::normalize_resource_path(resource_path);
@@ -109,6 +112,7 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
     auto template_index = sheet_template_index_;
     auto label_count = label_count_;
     auto start_position = start_position_;
+    auto needs_tls = needs_tls_;
 
     if (host.empty()) {
         spdlog::error("IPP Printer: no target host configured");
@@ -124,7 +128,7 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
     // Route through HttpExecutor::fast() bounded pool — raw std::thread spawn
     // crashes with std::terminate on AD5M under thread exhaustion (#724, #837).
     helix::http::HttpExecutor::fast().submit([host, port, resource_path, template_index,
-                                              label_count, start_position, bitmap, size,
+                                              label_count, start_position, needs_tls, bitmap, size,
                                               callback]() {
         // The callback is UI-facing, so it and its message's translation run on the main thread.
         auto fail = [callback](const char* fmt_tag, auto... args) {
@@ -186,23 +190,42 @@ void IppPrinter::print(const LabelBitmap& bitmap, const LabelSize& size, PrintCa
                 return ipp::post_request(host, port, resource_path, ipp_body, 30, transport);
             };
 
-            auto resp = send_job(ipp::Transport::Plain);
+            auto transport = needs_tls->load() ? ipp::Transport::Tls : ipp::Transport::Plain;
+            auto resp = send_job(transport);
 
             // 426 is a printer that accepts jobs only encrypted: IPPS on the same port.
-            if (resp != nullptr && resp->status_code == HTTP_STATUS_UPGRADE_REQUIRED) {
+            if (transport == ipp::Transport::Plain && resp != nullptr &&
+                resp->status_code == HTTP_STATUS_UPGRADE_REQUIRED) {
                 spdlog::info("IPP Printer: {}:{} requires encryption, resending over IPPS", host,
                              port);
-                resp = send_job(ipp::Transport::Tls);
+                transport = ipp::Transport::Tls;
+                resp = send_job(transport);
+            }
+            const bool encrypted = transport == ipp::Transport::Tls;
+            if (encrypted) {
+                needs_tls->store(resp != nullptr);
             }
 
             if (resp == nullptr) {
-                fail(TR_NOOP("Connection failed to {}:{}"), host, port);
+                if (encrypted) {
+                    fail(TR_NOOP("The printer requires an encrypted connection, but the "
+                                 "encrypted connection to {}:{} failed"),
+                         host, port);
+                } else {
+                    fail(TR_NOOP("Connection failed to {}:{}"), host, port);
+                }
                 return;
             }
 
             if (resp->status_code != 200) {
-                fail(TR_NOOP("HTTP error: {} {}"), static_cast<int>(resp->status_code),
-                     std::string(resp->status_message()));
+                if (encrypted) {
+                    fail(TR_NOOP("The printer requires an encrypted connection, but it "
+                                 "rejected the encrypted job: HTTP {} {}"),
+                         static_cast<int>(resp->status_code), std::string(resp->status_message()));
+                } else {
+                    fail(TR_NOOP("HTTP error: {} {}"), static_cast<int>(resp->status_code),
+                         std::string(resp->status_message()));
+                }
                 return;
             }
 

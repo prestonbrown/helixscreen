@@ -4211,6 +4211,8 @@ translations:
     rejeitou a configuração do filamento. A impressão não foi iniciada.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'A impressora informa as velocidades medidas das ventoinhas. O HelixScreen as mostra na tela Ventoinhas.'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'A impressora não informa nenhum registro de lane, então só esvaziar o extrusor pode descarregar.'
+  'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'A impressora exige uma conexão criptografada, mas rejeitou o trabalho criptografado: HTTP {} {}'
+  The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'A impressora exige uma conexão criptografada, mas a conexão criptografada com {}:{} falhou'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'A impressora alterna entre vários cabeçotes. Gerencie as ferramentas na tela do sistema de filamento.'
   The printer's firmware chooses where to switch on runout: O firmware da impressora escolhe para onde trocar ao acabar
   The requested position is outside the printer's bounds: 'A posição solicitada está fora dos limites da impressora'

@@ -3893,6 +3893,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." ru="Принтер отклонил конфигурацию филамента. Печать не была запущена."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." ru="Принтер сообщает измеренные скорости вентиляторов. HelixScreen показывает их на экране «Вентиляторы»."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ru="Принтер не сообщает запись канала, поэтому выгрузить можно только очисткой экструдера."/>
+  <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" ru="Принтер требует зашифрованного соединения, но отклонил зашифрованное задание: HTTP {} {}"/>
+  <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ru="Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
