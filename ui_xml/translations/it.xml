@@ -1672,6 +1672,7 @@
   <translation tag="Heating bed" it="Riscaldamento piano"/>
   <translation tag="Heating bed to $1°C..." it="Riscaldamento piano a $1°C..."/>
   <translation tag="Heating bed..." it="Riscaldamento piano..."/>
+  <translation tag="Heating chamber" it="Riscaldamento camera"/>
   <translation tag="Heating chamber..." it="Riscaldamento camera..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." it="Il riscaldamento è quasi tutta l&apos;attesa. Se lasci la schermata ora, l&apos;esecuzione si ferma."/>
   <translation tag="Heating nozzle" it="Riscaldamento ugello"/>

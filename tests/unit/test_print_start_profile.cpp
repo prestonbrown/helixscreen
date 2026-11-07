@@ -250,6 +250,23 @@ TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
     }
 }
 
+TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a soak",
+          "[profile][print][chamber]") {
+    const struct {
+        const char* profile;
+        const char* line;
+    } rows[] = {{"qidi", "M191 S45"}, {"artillery_m1", "[AM1P] State: HEAT_CHAMBER"}};
+    for (const auto& row : rows) {
+        CAPTURE(row.profile, row.line);
+        auto profile = PrintStartProfile::load(row.profile);
+        REQUIRE(profile != nullptr);
+        PrintStartProfile::MatchResult result;
+        REQUIRE((profile->try_match_signal(row.line, result) ||
+                 profile->try_match_pattern(row.line, result)));
+        CHECK(result.phase == PrintStartPhase::HEATING_CHAMBER);
+    }
+}
+
 // ============================================================================
 // Adaptive bed-mesh flag
 // ============================================================================
@@ -1130,8 +1147,8 @@ TEST_CASE("PrintStartProfile: default patterns match macro narration, not just c
         {"Cleaning nozzle...", PrintStartPhase::CLEANING},
         {"Bed mesh", PrintStartPhase::BED_MESH},
         {"Bed Mesh", PrintStartPhase::BED_MESH},
-        {"Heating chamber: 45c", PrintStartPhase::SOAKING},
-        {"Waiting for chamber temp", PrintStartPhase::SOAKING},
+        {"Heating chamber: 45c", PrintStartPhase::HEATING_CHAMBER},
+        {"Waiting for chamber temp", PrintStartPhase::HEATING_CHAMBER},
         {"Bed soak - 2 minutes remaining", PrintStartPhase::SOAKING},
         {"Bed soak finished", PrintStartPhase::SOAKING},
         {"Heat soak", PrintStartPhase::SOAKING},

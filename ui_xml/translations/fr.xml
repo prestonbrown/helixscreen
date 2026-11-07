@@ -1672,6 +1672,7 @@
   <translation tag="Heating bed" fr="Chauffe du plateau"/>
   <translation tag="Heating bed to $1°C..." fr="Chauffe du plateau à $1°C..."/>
   <translation tag="Heating bed..." fr="Chauffe du plateau..."/>
+  <translation tag="Heating chamber" fr="Chauffe de la chambre"/>
   <translation tag="Heating chamber..." fr="Chauffe de la chambre..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." fr="Le chauffage est presque toute l&apos;attente. Quitter l&apos;écran maintenant arrête l&apos;exécution."/>
   <translation tag="Heating nozzle" fr="Chauffe de la buse"/>

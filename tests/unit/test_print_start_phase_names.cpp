@@ -51,15 +51,19 @@ TEST_CASE("PrintStartPhase: every declared phase has a unique, round-tripping na
     }
 }
 
-TEST_CASE("PrintStartPhase: SOAKING sits between bed heat and nozzle heat",
+TEST_CASE("PrintStartPhase: soak and chamber heat sit between bed heat and nozzle heat",
           "[print][phase][names]") {
     // The numeric order gates silent progression (a phase never moves backward),
-    // so the soak dwell has to be declared where it happens: after the bed is
-    // commanded, before the nozzle comes up to temperature.
+    // so each is declared where it happens: the bed is commanded, the soak
+    // dwell holds it, the chamber wait follows (COSMOS and the K2 Kalico
+    // START_PRINT both soak first), then the nozzle comes up to temperature.
     CHECK(static_cast<int>(PrintStartPhase::HEATING_BED) <
           static_cast<int>(PrintStartPhase::SOAKING));
     CHECK(static_cast<int>(PrintStartPhase::SOAKING) <
+          static_cast<int>(PrintStartPhase::HEATING_CHAMBER));
+    CHECK(static_cast<int>(PrintStartPhase::HEATING_CHAMBER) <
           static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+    CHECK(print_start_phase_name(PrintStartPhase::HEATING_CHAMBER) == "HEATING_CHAMBER");
     CHECK(print_start_phase_name(PrintStartPhase::SOAKING) == "SOAKING");
 }
 
@@ -90,6 +94,8 @@ TEST_CASE("PrintStartPhase: the HELIX:PHASE aliases resolve", "[print][phase][na
         {"PRIMING", PrintStartPhase::PURGING},
         {"HEAT_SOAK", PrintStartPhase::SOAKING},
         {"SOAK", PrintStartPhase::SOAKING},
+        {"CHAMBER_HEATING", PrintStartPhase::HEATING_CHAMBER},
+        {"HEAT_CHAMBER", PrintStartPhase::HEATING_CHAMBER},
         {"SYNC_MOTORS", PrintStartPhase::MOTOR_SYNC},
     };
 
@@ -119,6 +125,8 @@ TEST_CASE("PrintStartPhase: the prediction history stores dwell phases only",
     CHECK(print_start_phase_stores_duration(PrintStartPhase::HOMING));
     CHECK(print_start_phase_stores_duration(PrintStartPhase::MOTOR_SYNC));
     CHECK(print_start_phase_stores_duration(PrintStartPhase::SOAKING));
+    // No thermal model covers the chamber, so its wait is predicted from history.
+    CHECK(print_start_phase_stores_duration(PrintStartPhase::HEATING_CHAMBER));
     CHECK(print_start_phase_stores_duration(PrintStartPhase::QGL));
     CHECK(print_start_phase_stores_duration(PrintStartPhase::Z_TILT));
     CHECK(print_start_phase_stores_duration(PrintStartPhase::BED_MESH));

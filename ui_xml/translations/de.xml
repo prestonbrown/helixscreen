@@ -1672,6 +1672,7 @@
   <translation tag="Heating bed" de="Bett aufheizen"/>
   <translation tag="Heating bed to $1°C..." de="Bett heizt auf $1°C auf..."/>
   <translation tag="Heating bed..." de="Bett aufheizen..."/>
+  <translation tag="Heating chamber" de="Kammer aufheizen"/>
   <translation tag="Heating chamber..." de="Kammer aufheizen..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." de="Das Aufheizen dauert am längsten. Wenn du den Bildschirm jetzt verlässt, stoppt der Durchlauf."/>
   <translation tag="Heating nozzle" de="Düse heizt auf"/>

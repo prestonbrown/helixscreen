@@ -1672,6 +1672,7 @@
   <translation tag="Heating bed" ja="ベッド加熱"/>
   <translation tag="Heating bed to $1°C..." ja="ベッドを$1°Cに加熱中..."/>
   <translation tag="Heating bed..." ja="ベッド加熱中..."/>
+  <translation tag="Heating chamber" ja="チャンバー加熱中"/>
   <translation tag="Heating chamber..." ja="チャンバー加熱中..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ja="待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。"/>
   <translation tag="Heating nozzle" ja="ノズル加熱中"/>

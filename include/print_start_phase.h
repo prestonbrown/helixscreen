@@ -30,19 +30,20 @@ namespace helix {
  *       therefore costs nothing outside this file.
  */
 enum class PrintStartPhase {
-    IDLE = 0,           ///< Not in PRINT_START (normal operation)
-    INITIALIZING = 1,   ///< PRINT_START detected, waiting for phases
-    HOMING = 2,         ///< G28 / Home All Axes detected
-    MOTOR_SYNC = 3,     ///< motors-sync SYNC_MOTORS (AWD belt motor sync), needs homed axes
-    HEATING_BED = 4,    ///< M140/M190 / Heating bed detected
-    SOAKING = 5,        ///< Holding at temperature: heat-soak dwell or chamber wait
-    HEATING_NOZZLE = 6, ///< M104/M109 / Heating nozzle detected
-    QGL = 7,            ///< QUAD_GANTRY_LEVEL detected
-    Z_TILT = 8,         ///< Z_TILT_ADJUST detected
-    BED_MESH = 9,       ///< BED_MESH_CALIBRATE or BED_MESH_PROFILE LOAD detected
-    CLEANING = 10,      ///< CLEAN_NOZZLE / nozzle wipe detected
-    PURGING = 11,       ///< VORON_PURGE / LINE_PURGE detected
-    COMPLETE = 12       ///< Transitioning to PRINTING state
+    IDLE = 0,            ///< Not in PRINT_START (normal operation)
+    INITIALIZING = 1,    ///< PRINT_START detected, waiting for phases
+    HOMING = 2,          ///< G28 / Home All Axes detected
+    MOTOR_SYNC = 3,      ///< motors-sync SYNC_MOTORS (AWD belt motor sync), needs homed axes
+    HEATING_BED = 4,     ///< M140/M190 / Heating bed detected
+    SOAKING = 5,         ///< Holding at temperature: the heat-soak dwell
+    HEATING_CHAMBER = 6, ///< Waiting for the chamber to reach temperature (M191, chamber wait)
+    HEATING_NOZZLE = 7,  ///< M104/M109 / Heating nozzle detected
+    QGL = 8,             ///< QUAD_GANTRY_LEVEL detected
+    Z_TILT = 9,          ///< Z_TILT_ADJUST detected
+    BED_MESH = 10,       ///< BED_MESH_CALIBRATE or BED_MESH_PROFILE LOAD detected
+    CLEANING = 11,       ///< CLEAN_NOZZLE / nozzle wipe detected
+    PURGING = 12,        ///< VORON_PURGE / LINE_PURGE detected
+    COMPLETE = 13        ///< Transitioning to PRINTING state
 };
 
 /// Number of declared phases; every int in [0, count) is a PrintStartPhase.
@@ -71,6 +72,8 @@ inline constexpr std::string_view print_start_phase_name(PrintStartPhase phase) 
         return "HEATING_BED";
     case PrintStartPhase::SOAKING:
         return "SOAKING";
+    case PrintStartPhase::HEATING_CHAMBER:
+        return "HEATING_CHAMBER";
     case PrintStartPhase::HEATING_NOZZLE:
         return "HEATING_NOZZLE";
     case PrintStartPhase::QGL:
@@ -109,6 +112,8 @@ inline constexpr PrintStartPhaseAlias kPrintStartPhaseAliases[] = {
     {"BED_HEATING", PrintStartPhase::HEATING_BED},
     {"HEAT_SOAK", PrintStartPhase::SOAKING},
     {"SOAK", PrintStartPhase::SOAKING},
+    {"CHAMBER_HEATING", PrintStartPhase::HEATING_CHAMBER},
+    {"HEAT_CHAMBER", PrintStartPhase::HEATING_CHAMBER},
     {"NOZZLE_HEATING", PrintStartPhase::HEATING_NOZZLE},
     {"HEATING_HOTEND", PrintStartPhase::HEATING_NOZZLE},
     {"QUAD_GANTRY_LEVEL", PrintStartPhase::QGL},
@@ -156,6 +161,7 @@ inline constexpr bool print_start_phase_stores_duration(PrintStartPhase phase) {
     switch (phase) {
     case PrintStartPhase::HOMING:
     case PrintStartPhase::MOTOR_SYNC:
+    case PrintStartPhase::HEATING_CHAMBER:
     case PrintStartPhase::SOAKING:
     case PrintStartPhase::QGL:
     case PrintStartPhase::Z_TILT:
