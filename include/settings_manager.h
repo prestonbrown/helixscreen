@@ -591,11 +591,9 @@ class SettingsManager {
     /**
      * @brief Keep Spoolman spool info on a slot the firmware reports as ejected.
      *
-     * classify_binding() arms its eject verdict only on backends whose
-     * firmware reports spool ids (AFC, Happy Hare): there, firmware id 0/null
-     * means the spool was ejected. This setting decides whether the lane keeps
-     * its declared identity anyway. Default true: retention is the designed
-     * behavior, and disabling it starts an ejected lane fresh.
+     * Decides whether a lane keeps its identity when its spool is ejected.
+     * Default true: retention is the designed behavior, and disabling it
+     * starts an ejected lane fresh.
      * Per-printer setting.
      */
     bool get_ams_keep_spool_info_on_eject() const {

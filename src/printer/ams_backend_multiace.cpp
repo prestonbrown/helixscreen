@@ -292,7 +292,7 @@ void AmsBackendMultiAce::rebuild_units_locked() {
                 // after a restart, its stored record - declares what the bay
                 // holds. Temps no engine frame carries come from the stored
                 // record alone.
-                helix::ams::Observation engine(helix::ams::ObservationSource::VendorCache);
+                helix::ams::Observation engine(helix::ams::ObservationSource::Firmware);
                 if (bay != u.bays.end()) {
                     if (!bay->material.empty()) {
                         engine.material = bay->material;
@@ -349,10 +349,9 @@ bool AmsBackendMultiAce::preload_finish_ends_unload_locked(int head) const {
 // Slot identity
 // ============================================================================
 
-AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& info,
-                                             const helix::ams::Observation& declared) {
+AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& info) {
     if (!multiace::bay_of(slot_index)) {
-        return AmsBackendSnapmaker::apply_user_edit(slot_index, info, declared);
+        return AmsBackendSnapmaker::apply_user_edit(slot_index, info);
     }
     if (auto err = validate_slot_index(slot_index); err.result != AmsResult::SUCCESS) {
         return err;
@@ -369,12 +368,11 @@ AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& inf
         // The staged record survives the restart; the lane's declaration, filed
         // by commit_user_edit() once this returns, is what rebuild_units_locked
         // lays back over every engine frame.
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        helix::ams::stage_user_override(overrides_, slot_index, info);
     }
 
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
 
     emit_event(kEventSlotChanged, std::to_string(slot_index));

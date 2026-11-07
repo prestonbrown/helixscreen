@@ -306,16 +306,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(stored.is_object());
     CHECK(stored.value("helix_unlinked_spool_id", 0) == 127);
 
-    // AFC rewrites its own lane_data record without our key, and a fresh
-    // config dir has no local cache to fall back on.
+    // AFC rewrites its own lane_data record without our key.
     printer.client.mock_db_set("lane_data", "lane1",
                                {{"lane", "0"}, {"spool_id", 127}, {"td", ""}});
-    const std::string previous_cache = helix::ams::detail::slot_override_cache_dir_ref();
-    const auto empty_cache =
-        std::filesystem::temp_directory_path() / ("afc_unlink_cache_" + std::to_string(::getpid()));
-    std::filesystem::remove_all(empty_cache);
-    std::filesystem::create_directories(empty_cache);
-    helix::ams::detail::slot_override_cache_dir_ref() = empty_cache.string();
     {
         helix::test::RegisteredBackend<AfcUnlinkHelper> reg(&printer.api);
         AfcUnlinkHelper& afc = *reg;
@@ -323,6 +316,4 @@ TEST_CASE_METHOD(LVGLTestFixture,
         afc.feed_stepper(loaded(127));
         CHECK(afc.spool_id() == 0);
     }
-    helix::ams::detail::slot_override_cache_dir_ref() = previous_cache;
-    std::filesystem::remove_all(empty_cache);
 }

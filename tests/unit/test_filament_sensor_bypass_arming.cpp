@@ -310,7 +310,6 @@ class CfsPublishFixture : public HelixTestFixture {
         running_backend->mark_running();
         backend = std::move(running_backend);
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api.get(), "cfs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         CfsTestAccess::inject_override_store(*backend, std::move(store));
     }
 
@@ -737,7 +736,6 @@ void seed_store_and_publish(helix::ams::LaneKeyStyle style, const char* expect_o
 
     CfsTmpCacheDir tmp{"style"};
     helix::ams::FilamentSlotOverrideStore store(&api, "t", style);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
 
     SlotInfo spool;
     spool.material = "ASA";
@@ -775,7 +773,6 @@ TEST_CASE("external lane publish carries the spool's Orca filament id",
 
     CfsTmpCacheDir tmp{"orca"};
     helix::ams::FilamentSlotOverrideStore store(&api, "t", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
 
     SlotInfo spool;
     spool.material = "ABS";
@@ -835,7 +832,6 @@ TEST_CASE("IFS external spool lane: no bypass fitted, so nothing publishes",
     auto backend = std::make_unique<AmsBackendAd5xIfs>(&api, &client);
     CfsTmpCacheDir tmp{"ifs"};
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     Ad5xIfsTestAccess::inject_override_store(*backend, std::move(store));
     // The AD5X has no bypass: every path into the hub runs through an IFS
     // lane, and there is no external direct-feed spool entry.

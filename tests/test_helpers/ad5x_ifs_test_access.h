@@ -347,8 +347,8 @@ class Ad5xIfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.clear_seated_if_ejected_locked(slot_index);
     }
-    // Seed the in-memory overrides map directly (bypasses load_blocking, which
-    // requires a live Moonraker connection). on_started() is the only
+    // Seed the in-memory overrides map directly (bypasses the store's read,
+    // which requires a live Moonraker connection). on_started() is the only
     // production path that writes this field; tests must use this shim because
     // the fixtures instantiate the backend with nullptr api/client.
     static void seed_override(AmsBackendAd5xIfs& b, int slot_index,
@@ -361,38 +361,17 @@ class Ad5xIfsTestAccess {
         // wrote only this map would leave the lane reading empty.
         helix::test::file_override_as_lane_records(b, slot_index, ovr);
     }
-    // on_started()'s install of the store it loaded, for a fixture that
-    // loaded one against a mock namespace.
-    static void adopt_loaded_override_store(AmsBackendAd5xIfs& b,
-                                            helix::ams::LoadedOverrideStore loaded) {
-        b.adopt_loaded_override_store(std::move(loaded));
+    // A read of the lane records, as the poll and every write start one.
+    static void refresh_lane_records(AmsBackendAd5xIfs& b) {
+        b.refresh_lane_records();
     }
-    // The lane_data re-read the debounce fires, run now, as the debounce
-    // runs it: its gate open again first.
-    static void fire_lane_record_reread(AmsBackendAd5xIfs& b) {
-        b.lane_reread_pending_.store(false);
-        b.reread_lane_records();
-    }
-    static void read_unread_lane_records(AmsBackendAd5xIfs& b) {
-        b.read_unread_lane_records();
-    }
-    // A status frame through the path that also retries an unread store.
+    // A status frame through the subscription's own entry point.
     static void status_frame(AmsBackendAd5xIfs& b) {
         b.handle_status_update(
             nlohmann::json{{"params", nlohmann::json::array({nlohmann::json::object()})}});
     }
-    // Makes the last read of an unread store old enough to retry.
-    static void age_unread_read(AmsBackendAd5xIfs& b) {
-        b.unread_read_started_ -= std::chrono::minutes(1);
-    }
     static helix::ams::FilamentSlotOverrideStore* override_store(AmsBackendAd5xIfs& b) {
         return b.override_store_.get();
-    }
-    static bool lane_reread_pending(const AmsBackendAd5xIfs& b) {
-        return b.lane_reread_pending_.load();
-    }
-    static bool lane_reread_owed(const AmsBackendAd5xIfs& b) {
-        return b.lane_reread_owed_.load();
     }
     // Read the override currently staged for a slot (empty optional if none).
     // Lets tests assert what set_slot_info(persist=true) wrote into the
@@ -476,9 +455,6 @@ class Ad5xIfsTestAccess {
     }
     static void schedule_json_reread(AmsBackendAd5xIfs& b) {
         b.schedule_json_reread();
-    }
-    static void schedule_lane_record_reread(AmsBackendAd5xIfs& b) {
-        b.schedule_lane_record_reread();
     }
     static void schedule_zcolor_query(AmsBackendAd5xIfs& b) {
         b.schedule_zcolor_query("test");

@@ -147,13 +147,12 @@ class ToolChangerTestAccess {
     }
 
     /// Run the REAL on_started(), which is where the backend builds its
-    /// FilamentSlotOverrideStore and does the blocking load. start() is final on
+    /// FilamentSlotOverrideStore and starts its read. start() is final on
     /// AmsSubscriptionBackend and drags in subscription setup a store
     /// round-trip has no use for, so this reaches the one hook that matters.
     ///
     /// on_started() and NOT additional_start_checks(): start() calls the latter
-    /// with mutex_ held, and load_blocking() needs mutex_ to publish - doing it
-    /// there self-deadlocks.
+    /// with mutex_ held, and opening the store takes mutex_.
     static void call_on_started(AmsBackendToolChanger& b) {
         b.on_started();
     }
@@ -179,16 +178,9 @@ class ToolChangerTestAccess {
         helix::test::file_override_as_lane_records(b, slot_index, ovr);
     }
 
-    /// Run the lane_data re-read a firmware change scheduled, now rather than
-    /// after its debounce.
-    static void fire_lane_record_reread(AmsBackendToolChanger& b) {
-        b.lane_reread_pending_.store(false);
-        b.reread_lane_records();
-    }
-
-    /// Whether a lane_data re-read is scheduled and has not run yet.
-    static bool lane_reread_pending(const AmsBackendToolChanger& b) {
-        return b.lane_reread_pending_.load();
+    /// A read of the lane records, as the poll and every write start one.
+    static void refresh_lane_records(AmsBackendToolChanger& b) {
+        b.refresh_lane_records();
     }
 
     /// The override standing for @p slot_index, or nullopt when it has none.
@@ -212,7 +204,7 @@ class ToolChangerTestAccess {
     /// can assert it is the SHARED "lane_data" and not a private one. Empty
     /// when no store was built (null API).
     static std::string store_namespace(const AmsBackendToolChanger& b) {
-        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
+        return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
 };
 } // namespace helix

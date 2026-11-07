@@ -9,7 +9,6 @@
 #include "ams_fault_event.h"
 #include "i_moonraker_api.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -175,18 +174,9 @@ void AmsBackendOpenAms::on_started() {
     if (!api_) {
         return;
     }
-    // Blocks on the Moonraker DB, so no lock is held; the result is published
-    // under the lock in one move.
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "openams", get_type(), backend_log_tag());
-    if (loaded.store) {
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
+    open_lane_record_store("openams");
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
         parse_snapshot_locked();
     }
     emit_event(EVENT_STATE_CHANGED);
@@ -207,55 +197,6 @@ void AmsBackendOpenAms::on_stopping() {
     if (client_) {
         client_->unregister_method_callback(kSpoolmanStatusMethod, kSpoolmanStatusHandler);
     }
-}
-
-void AmsBackendOpenAms::refresh_lane_records() {
-    helix::ams::FilamentSlotOverrideStore* store = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        store = override_store_.get();
-    }
-    if (!store) {
-        return;
-    }
-    const int block = backend_index();
-    store->reload_async([this, block, token = lifetime_.token()](
-                            std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-        token.defer(
-            "AmsBackendOpenAms::apply_lane_records",
-            [this, block, records = std::move(records)]() { apply_lane_records(block, records); });
-    });
-}
-
-void AmsBackendOpenAms::apply_lane_records(
-    int backend_block, const std::unordered_map<int, helix::ams::LaneDataRecord>& records) {
-    for (const auto& [slot_index, entry] : records) {
-        const helix::ams::LaneId lane = helix::ams::lane_id_for(backend_block, slot_index);
-        helix::ams::LaneSources sources = helix::ams::sources_from_record(
-            entry.record, entry.wire, helix::ams::LegacyLockKeys::LaneData);
-        // A re-read never re-files a LocalUser statement out of our own record:
-        // that would forge an edit. A spool link openams_spoolman wrote after
-        // the last edit made here is the newer statement, and takes the user's
-        // rung over it.
-        sources.local_user.reset();
-        bool write_in_flight = false;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            write_in_flight = own_write_echoes_.standing(slot_index);
-        }
-        helix::ams::file_lane_sources(lane, sources);
-        helix::ams::file_outside_edit_if_newer(
-            lane, entry, helix::ams::declared_from_record(entry.record), write_in_flight);
-    }
-    int total = 0;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        total = system_info_.total_slots;
-    }
-    for (int slot = 0; slot < total; ++slot) {
-        repaint_slot_from_lane(slot);
-    }
-    emit_event(EVENT_STATE_CHANGED);
 }
 
 void AmsBackendOpenAms::handle_status(const json& status) {
@@ -1344,8 +1285,7 @@ AmsError AmsBackendOpenAms::stop_drying(int unit) {
     return execute_gcode(gcode);
 }
 
-AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info,
-                                            const helix::ams::Observation& declared) {
+AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         SlotInfo* slot = system_info_.get_slot_global(slot_index);
@@ -1354,11 +1294,10 @@ AmsError AmsBackendOpenAms::apply_user_edit(int slot_index, const SlotInfo& info
                                                 system_info_.total_slots - 1);
         }
         write_filament_fields(*slot, info);
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        helix::ams::stage_user_override(overrides_, slot_index, info);
     }
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
@@ -1376,22 +1315,6 @@ AmsError AmsBackendOpenAms::sync_external_identity(int slot_index, const SlotInf
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
-}
-
-void AmsBackendOpenAms::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                            float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
-}
-
-void AmsBackendOpenAms::persist_external_identity_impl(int slot_index,
-                                                       const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
 }
 
 void AmsBackendOpenAms::clear_slot_override(int slot_index) {

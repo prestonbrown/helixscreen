@@ -465,9 +465,7 @@ AmsError AmsBackendMock::start() {
 void AmsBackendMock::publish_lane_observations() {
     struct Reading {
         int slot_index;
-        SlotStatus status;
-        uint32_t color_rgb;
-        std::string material;
+        SlotInfo info;
     };
 
     std::vector<Reading> readings;
@@ -476,32 +474,46 @@ void AmsBackendMock::publish_lane_observations() {
         const int count = slots_.slot_count();
         readings.reserve(static_cast<size_t>(std::max(0, count)));
         for (int i = 0; i < count; ++i) {
-            const auto* entry = slots_.get(i);
-            if (!entry) {
-                continue;
+            if (const auto* entry = slots_.get(i)) {
+                readings.push_back({i, entry->info});
             }
-            readings.push_back(
-                {i, entry->info.status, entry->info.color_rgb, entry->info.material});
         }
     }
 
-    // Outside the lock, like every other event this backend publishes.
+    // Outside the lock, like every other event this backend publishes. The
+    // simulated firmware holds every identity field a write gives it, so its
+    // reading is also the echo of an edit.
     for (const auto& r : readings) {
         // A record with present unset is the machine declining to state, which
         // retracts whatever an earlier frame established; the other backends
         // file UNKNOWN the same way.
         helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
-        sensed.present = slot_status_reports_filament(r.status);
+        sensed.present = slot_status_reports_filament(r.info.status);
         helix::ams::ingest(lane_id(r.slot_index), sensed);
 
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-        if (!r.material.empty()) {
-            cache.material = r.material;
+        helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
+        const auto text = [](std::optional<std::string>& field, const std::string& value) {
+            if (!value.empty()) {
+                field = value;
+            }
+        };
+        text(firmware.material, r.info.material);
+        text(firmware.brand, r.info.brand);
+        text(firmware.spool_name, r.info.spool_name);
+        text(firmware.color_name, r.info.color_name);
+        if (helix::ams::is_declarable_color(r.info.color_rgb)) {
+            firmware.color_rgb = r.info.color_rgb;
         }
-        if (helix::ams::is_declarable_color(r.color_rgb)) {
-            cache.color_rgb = r.color_rgb;
+        if (r.info.spoolman_id > 0) {
+            firmware.spoolman_id = r.info.spoolman_id;
         }
-        helix::ams::ingest(lane_id(r.slot_index), cache);
+        if (r.info.remaining_weight_g >= 0.0F) {
+            firmware.remaining_weight_g = r.info.remaining_weight_g;
+        }
+        if (r.info.total_weight_g >= 0.0F) {
+            firmware.total_weight_g = r.info.total_weight_g;
+        }
+        helix::ams::ingest(lane_id(r.slot_index), firmware);
     }
 }
 
@@ -1276,14 +1288,13 @@ AmsError AmsBackendMock::check_all_gates() {
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMock::apply_user_edit(int slot_index, const SlotInfo& info,
-                                         const helix::ams::Observation& /*declared*/) {
+AmsError AmsBackendMock::apply_user_edit(int slot_index, const SlotInfo& info) {
     return write_slot(slot_index, info);
 }
 
 void AmsBackendMock::clear_slot_override(int slot_index) {
     // The slot table was wiped by the edit this clear rides behind; what can
-    // still outlive it is the lane's user rung, so the clear resets the lane
+    // still outlive it is the lane's pending edit, so the clear resets the lane
     // to machine readings and lets the resync announce the slot.
     helix::ams::reset_lane_to_machine_readings(lane_id(slot_index));
     emit_event(kEventSlotChanged, std::to_string(slot_index));
@@ -1341,6 +1352,7 @@ AmsError AmsBackendMock::write_slot(int slot_index, const SlotInfo& info) {
         spdlog::trace("[AmsBackendMock] Updated slot {} info", slot_index);
     }
 
+    publish_lane_observations();
     // Emit event OUTSIDE the lock to avoid deadlock
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();

@@ -185,12 +185,10 @@ src/printer/buffer_reading.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/batch_feed_reconcile.cpp
 src/printer/cfs_status_parse.cpp
-src/printer/lane_echo.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_apply.cpp
 src/printer/lane_source_store.cpp
 src/printer/lane_translation.cpp
-src/printer/lane_legacy_migration.cpp
 src/printer/lane_binding.cpp
 src/printer/bed_dimensions.cpp
 src/printer/capability_chip_text.cpp

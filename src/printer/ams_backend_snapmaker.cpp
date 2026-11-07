@@ -22,7 +22,6 @@
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -167,8 +166,7 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
 /// holds the last tag reading with our own write-back already withheld, so this
 /// is the machine's word on the spool and never an echo of an edit.
 [[nodiscard]] std::string tag_product_line(helix::ams::LaneId lane) {
-    const std::optional<helix::ams::Observation> cache =
-        helix::ams::lane_sources(lane).vendor_cache;
+    const std::optional<helix::ams::Observation> cache = helix::ams::lane_sources(lane).firmware;
     return cache.has_value() ? tag_spool_name(*cache) : std::string{};
 }
 
@@ -349,17 +347,10 @@ void AmsBackendSnapmaker::on_started() {
         });
     }
 
-    // Load persisted per-slot overrides (brand, spool name, spoolman IDs, etc.)
-    // from the Moonraker DB lane_data namespace BEFORE any status parse runs.
-    // AmsSubscriptionBackend::start() registers the WebSocket subscription
-    // before on_started(); a status notification could in principle fire on
-    // the libhv thread while we're still inside load_blocking(). Holding
-    // mutex_ only during the swap keeps the parse path's read of overrides_
-    // coherent without blocking it during the 5s DB round-trip.
     {
         // A start forgets what each channel's firmware said: a frame arriving
-        // while the load below runs must not be judged against a silence from
-        // the previous session.
+        // before the records are read must not be judged against a silence
+        // from the previous session.
         std::lock_guard<std::mutex> lock(mutex_);
         tag_names_identity_.fill(std::nullopt);
         task_vendor_.fill(std::nullopt);
@@ -375,8 +366,7 @@ void AmsBackendSnapmaker::on_started() {
         // per-print marks survive (apply_print_state_locked).
         print_state_.reset();
         main_state_.reset();
-        // The overrides reload below; a held save belongs to the session that
-        // made it.
+        // A held save belongs to the session that made it.
         pending_record_writes_.fill(std::nullopt);
         record_restore_sent_.fill(false);
         insert_since_declaration_.fill(false);
@@ -384,57 +374,19 @@ void AmsBackendSnapmaker::on_started() {
     if (!api_)
         return;
 
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "snapmaker", get_type(), backend_log_tag());
-    if (loaded.store) {
-        // A product line the record only remembers, stored beside another
-        // vendor's brand, is a label the slot kept from a Snapmaker spool that
-        // has since left it. Dropped before the records are classified, so the
-        // lane never shows it, and saved back so lane_data stops stating it.
-        // Whether the record declares the name is the record translation's
-        // answer, legacy records included; a declared name is the user's.
-        std::vector<int> repaired;
-        loaded.store->amend_loaded_records([&repaired](int slot_index,
-                                                       helix::ams::FilamentSlotOverride& record,
-                                                       const nlohmann::json& wire) {
-            if (!names_foreign_product_line(record.spool_name, record.brand)) {
-                return;
-            }
-            const helix::ams::LaneSources filed =
-                helix::ams::sources_from_record(record, wire, helix::ams::LegacyLockKeys::LaneData);
-            if (!filed.remembered.has_value() ||
-                filed.remembered->spool_name != record.spool_name) {
-                return;
-            }
-            record.spool_name.clear();
-            repaired.push_back(slot_index);
-        });
-        for (const int slot_index : repaired) {
-            auto it = loaded.overrides.find(slot_index);
-            if (it == loaded.overrides.end() ||
-                !names_foreign_product_line(it->second.spool_name, it->second.brand)) {
-                continue;
-            }
-            spdlog::info("{} Slot {} dropped product line '{}' stored beside brand '{}'",
-                         backend_log_tag(), slot_index, it->second.spool_name, it->second.brand);
-            it->second.spool_name.clear();
-            helix::ams::save_override_async(loaded.store.get(), slot_index, it->second,
-                                            backend_log_tag(), "Product-line repair");
-        }
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-        helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
         // A reconnect re-baselines the feed ports: an insert pending from
         // before it is judged against nothing this session has seen.
         pending_insert_passes_.fill(0);
         insert_verdict_.fill(InsertIdentity::NotRead);
         feed_presence_seen_.fill(false);
     }
+    open_lane_record_store("snapmaker");
+}
+
+void AmsBackendSnapmaker::on_lane_records_read_locked() {
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
 }
 
 // ============================================================================
@@ -1541,18 +1493,19 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
 // Configuration
 // ============================================================================
 
-AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& info,
-                                              const helix::ams::Observation& declared) {
+AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& info) {
     auto err = validate_slot_index(slot_index);
     if (err.result != AmsResult::SUCCESS)
         return err;
 
+    bool material_moved = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.units[0].get_slot(slot_index);
         if (!slot)
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumTools - 1);
 
+        material_moved = slot->material != info.material;
         slot->assign_filament_fields(info);
         insert_since_declaration_[static_cast<size_t>(slot_index)] = false;
 
@@ -1573,12 +1526,11 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         // baseline exactly as intended. No expected-echo value needed here.
         // (CFS shares the tracker and DOES register one — it writes
         // color_value back to the box, which is half of its fingerprint.)
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        helix::ams::stage_user_override(overrides_, slot_index, info);
     }
 
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
 
     // print_task_config is the head's firmware record: RESUME refuses a used
@@ -1589,7 +1541,7 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
     // firmware then refuses plain writes to it. The filament_detect entry that
     // endpoint also writes is read elsewhere only for a slicer's bed
     // temperature.
-    write_task_filament_record(slot_index, info, declared.material.has_value());
+    write_task_filament_record(slot_index, info, material_moved);
 
     // Pass slot_index as event data so AmsState can do a targeted slot sync.
     // Without it, AmsState::on_event silently skips the refresh and the AMS
@@ -1618,22 +1570,6 @@ AmsError AmsBackendSnapmaker::sync_external_identity(int slot_index, const SlotI
     // Pass slot_index as event data so AmsState can do a targeted slot sync.
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
-}
-
-void AmsBackendSnapmaker::persist_external_identity_impl(int slot_index,
-                                                         const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendSnapmaker::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                              float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
 }
 
 AmsError AmsBackendSnapmaker::can_set_tool_mapping(int /*tool_number*/, int /*slot_index*/) const {
@@ -1951,7 +1887,7 @@ void AmsBackendSnapmaker::apply_rfid_entry_locked(int i, const SnapmakerRfidInfo
         // reading the struct back would file a user's edit as
         // something the tag says.
         //
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         if (!rfid.main_type.empty())
             cache.material = rfid.main_type;
         // Both spellings of "the tag named no vendor" retract
@@ -2499,7 +2435,7 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
     // FILAMENT_COLOR_RGBA as gcode parameters and persists them, so whoever sent
     // that command set these values: the machine's own screen, a slicer, a
     // console, or this backend's own write-back. Filing any of it as
-    // VendorCache would return a user's own edit as firmware truth.
+    // Firmware would return a user's own edit as firmware truth.
     //
     // The firmware carries the provenance bit itself, and it shows the channel is
     // redundant rather than merely unsafe: filament_official marks a head whose
@@ -2682,16 +2618,10 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         // written, and the user's override is persisted to lane_data
         // separately. See mirror_firmware_to_lane_data docs and AD5X IFS for
         // the same pattern.
-        //
-        // The stored override defers to what a declaring lane source holds,
-        // so the store reads the lane here. A Spoolman record or a user's
-        // value never reaches firmware, and firmware's reading must not
-        // overwrite it in the override or in the lane_data record it
-        // persists.
         helix::ams::mirror_firmware_to_lane_data(
             override_store_.get(), overrides_, i, slot->color_rgb, slot->material,
             slot->status == SlotStatus::AVAILABLE, helix::ams::MirrorPolicy::OverwriteAlways,
-            backend_log_tag(), helix::ams::declared_on_lane(lane_id(i)));
+            backend_log_tag());
 
         // Lane presence: the port/buffer sensor OR the loaded-at-toolhead
         // latch. The port sensor is the spool-side reading; the latch
@@ -2710,7 +2640,6 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
             helix::ams::ingest(lane_id(i), sensed);
         }
 
-        retract_unbacked_identity_locked(i, *slot);
         apply_resolved_lane(*slot, i);
     }
 }
@@ -2738,9 +2667,9 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
     }
 
     // No lane record carries a multi-colour, so the tag's is laid onto the slot
-    // here, and only while nobody declares the lane's colour: a declared colour
-    // replaced the tag's and must survive this frame.
-    if (helix::ams::declared_on_lane(lane_id(slot_index)).color) {
+    // here, except while an edit's colour is on its way to the head.
+    if (const auto pending = helix::ams::lane_sources(lane_id(slot_index)).pending;
+        pending.has_value() && pending->color_rgb.has_value()) {
         return;
     }
     const std::string& now = kept ? kept->multi_color_hexes : std::string{};
@@ -2761,12 +2690,11 @@ std::optional<helix::ams::TagReading> AmsBackendSnapmaker::tag_reading(int slot_
 
 bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& slot) {
     const helix::ams::LaneId lane = lane_id(slot_index);
-    const std::optional<helix::ams::Observation> cache =
-        helix::ams::lane_sources(lane).vendor_cache;
+    const std::optional<helix::ams::Observation> cache = helix::ams::lane_sources(lane).firmware;
     if (!cache.has_value()) {
         return false;
     }
-    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::VendorCache);
+    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Firmware);
 
     // A SlotInfo field still holding the dropped record's value got it from
     // the tag; print_task_config is the firmware's other word on the head, so
@@ -2784,9 +2712,9 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
         slot.color_rgb = task_color_[i].value_or(kAmsDefaultSlotColor);
     }
     // No lane record carries temperatures or weight, so a user's own values
-    // are told apart only by the lane holding a declaration or a bound spool.
+    // are told apart only by the lane holding an edit or a bound spool.
     const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
-    const bool user_declared = sources.local_user.has_value() || sources.spoolman.has_value();
+    const bool user_declared = sources.pending.has_value() || sources.spoolman.has_value();
     if (const std::optional<TagSlotValues> tag = tag_slot_values_[i]; tag && !user_declared) {
         const SlotInfo blank;
         if (slot.nozzle_temp_min == tag->nozzle_temp_min) {
@@ -2819,108 +2747,6 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     spdlog::debug("{} Slot {} tag reader names no tag, dropped the cached tag reading",
                   backend_log_tag(), slot_index);
     return true;
-}
-
-void AmsBackendSnapmaker::retract_unbacked_identity_locked(int slot_index, SlotInfo& slot) {
-    // The channel has to be silent in both places firmware keeps identity:
-    // the tag names nothing, and print_task_config names no vendor and no
-    // official spool. Either one speaking is the firmware standing behind a
-    // spool, and a source not heard from yet is no verdict.
-    const auto i = static_cast<size_t>(slot_index);
-    const bool tag_silent = tag_names_identity_[i].has_value() && !*tag_names_identity_[i];
-    const bool task_silent = task_vendor_[i].has_value() && is_unset_task_field(*task_vendor_[i]) &&
-                             !task_official_[i].value_or(false);
-    if (!tag_silent || !task_silent) {
-        return;
-    }
-
-    // Only identity in the firmware's own vocabulary that nobody declared
-    // retracts: a remembered Snapmaker product line, and the Snapmaker brand
-    // beside it, which a stored record copied from what firmware once said.
-    // The same rule the vendor-cache brand follows when a tag stops naming a
-    // vendor. Anything else remembered (a name kept across a Spoolman
-    // unlink, one typed by hand) never came from firmware and stays, as do
-    // declared fields and a brand beside the user's catalog pick, which names
-    // it. A slot whose record still names a Spoolman spool is the spool's.
-    auto ovr = overrides_.find(slot_index);
-    if (ovr != overrides_.end() && ovr->second.spoolman_id > 0) {
-        return;
-    }
-    const helix::ams::LaneId lane = lane_id(slot_index);
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
-    if (!sources.remembered.has_value()) {
-        return;
-    }
-    helix::ams::Observation kept = *sources.remembered;
-    // A product-line literal is Snapmaker's word only beside Snapmaker or no
-    // brand at all; beside another vendor ("eSUN Silk") it names that
-    // vendor's product.
-    const bool line_vendor =
-        !kept.brand.has_value() || kept.brand->empty() || is_product_line_vendor(*kept.brand);
-    const auto is_line = [line_vendor](const std::optional<std::string>& v) {
-        return line_vendor && v.has_value() && is_known_subtype(*v);
-    };
-    const bool drop_name = is_line(kept.spool_name);
-    const bool drop_product = is_line(kept.product_name);
-    const bool picked =
-        sources.local_user.has_value() && sources.local_user->catalog_id.has_value();
-    const bool drop_brand = (drop_name || drop_product) && kept.brand.has_value() &&
-                            is_product_line_vendor(*kept.brand) && !picked;
-    if (!drop_name && !drop_product && !drop_brand) {
-        return;
-    }
-    const helix::ams::Observation dropped = kept;
-    if (drop_name) {
-        kept.spool_name.reset();
-        if (slot.spool_name == *dropped.spool_name) {
-            slot.spool_name.clear();
-        }
-    }
-    if (drop_product) {
-        kept.product_name.reset();
-    }
-    if (drop_brand) {
-        kept.brand.reset();
-        if (slot.brand == *dropped.brand) {
-            slot.brand.clear();
-        }
-    }
-    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Remembered);
-    const bool kept_any =
-        std::apply([](const auto&... f) { return (f.has_value() || ...); }, kept.fields());
-    if (kept_any) {
-        helix::ams::ingest(lane, kept);
-    }
-
-    if (ovr == overrides_.end()) {
-        return;
-    }
-    // The stored record loses a field only where it still holds the value
-    // being retracted; anything it says beyond that is not this rule's to drop.
-    helix::ams::FilamentSlotOverride& record = ovr->second;
-    bool changed = false;
-    if (drop_name && record.spool_name == *dropped.spool_name) {
-        record.spool_name.clear();
-        changed = true;
-    }
-    if (drop_product && record.product_name == *dropped.product_name) {
-        record.product_name.clear();
-        changed = true;
-    }
-    if (drop_brand && record.brand == *dropped.brand) {
-        record.brand.clear();
-        changed = true;
-    }
-    if (!changed) {
-        return;
-    }
-    spdlog::info("{} Slot {} firmware states no spool; retracted remembered '{}' '{}'",
-                 backend_log_tag(), slot_index, dropped.brand.value_or(""),
-                 dropped.spool_name.value_or(dropped.product_name.value_or("")));
-    if (override_store_) {
-        helix::ams::save_override_async(override_store_.get(), slot_index, record,
-                                        backend_log_tag(), "Retraction");
-    }
 }
 
 void AmsBackendSnapmaker::track_active_port_present_locked(FrameEffects& fx) {
@@ -3615,8 +3441,7 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
             continue;
         }
         const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() ||
-            !helix::ams::declared_on_lane(lane_id(head), &ovr->second).material) {
+        if (ovr == overrides_.end() || ovr->second.material.empty()) {
             continue;
         }
         std::string gcode = unset_record_restore_locked(head);

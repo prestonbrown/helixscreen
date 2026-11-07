@@ -2077,7 +2077,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     helix::ams::FilamentSlotOverride ovr;
@@ -2183,7 +2182,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
                                          {"CARD_UID", json::array({0, 0, 0, 0})}},
                                     json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}}})}}}};
     SnapmakerTestAccess::handle_status(backend, untagged);
-    CHECK_FALSE(helix::ams::lane_sources(backend_reg.lane(1)).vendor_cache.has_value());
+    CHECK_FALSE(helix::ams::lane_sources(backend_reg.lane(1)).firmware.has_value());
 
     backend.clear_slot_override(1);
     auto info = backend.get_slot_info(1);
@@ -2424,7 +2423,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     SlotInfo edit = backend.get_slot_info(0);
@@ -2482,7 +2480,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker sync_external_identity does NOT wr
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     SlotInfo edit;
@@ -2515,7 +2512,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     // Seed an override AND the corresponding DB entry so we can verify
@@ -2574,7 +2570,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker first RFID UID observation does NO
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set("lane_data", "T0",
@@ -2703,7 +2698,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set("lane_data", "T0",
@@ -2758,7 +2752,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set("lane_data", "T0",
@@ -2857,7 +2850,6 @@ TEST_CASE_METHOD(
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set("lane_data", "T0",
@@ -2897,7 +2889,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set("lane_data", "T0",
@@ -2952,7 +2943,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     AmsBackendSnapmaker& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     // Pre-seed lane_data AND the in-memory override map with a stale color
@@ -3009,7 +2999,6 @@ struct SnapmakerLaneRig {
         state.init_subjects(false);
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
             &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         SnapmakerTestAccess::inject_override_store(*backend_reg, std::move(store));
     }
 
@@ -3102,7 +3091,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE(backend.get_slot_info(0).status == SlotStatus::AVAILABLE);
 
     CHECK(rig.client.call_count("server.database.post_item") == posts_before);
-    CHECK_FALSE(sources.local_user.has_value());
+    CHECK_FALSE(sources.pending.has_value());
     REQUIRE(sources.spoolman.has_value());
     CHECK(sources.spoolman->color_rgb == 0xFF5500u);
     CHECK(sources.spoolman->material == "PLA");
@@ -3157,7 +3146,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     {
         const auto loaded = helix::ams::lane_sources(rig.backend_reg.lane(0));
         REQUIRE_FALSE(loaded.spoolman.has_value());
-        REQUIRE_FALSE(loaded.local_user.has_value());
+        REQUIRE_FALSE(loaded.pending.has_value());
     }
 
     SnapmakerTestAccess::handle_status(backend, seated_tag_frame(0xFF112233u, "PETG"));
@@ -3168,44 +3157,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(stored->color_rgb == 0x112233u);
     CHECK(stored->material == "PETG");
     CHECK(backend.get_slot_info(0).color_rgb == 0x112233u);
-}
-
-TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker firmware restating a colour the user's record holds leaves the stored "
-                 "record on it",
-                 "[ams][snapmaker][lane][1654]") {
-    // The stored record carries the colour undeclared, while the user's
-    // record on the lane declares it. Both are filed directly: the override
-    // through the load path, the declaration through the user's own funnel.
-    SnapmakerLaneRig rig("mirror_keeps_user_value");
-    AmsBackendSnapmaker& backend = *rig.backend_reg;
-
-    helix::ams::FilamentSlotOverride unlocked;
-    unlocked.color_rgb = 0xFFFFFF;
-    unlocked.color_set = true;
-    unlocked.material = "PLA";
-    SnapmakerTestAccess::seed_override(backend, 0, unlocked);
-
-    helix::ams::Observation pick(helix::ams::ObservationSource::LocalUser);
-    pick.color_rgb = 0xFFFFFF;
-    helix::ams::commit_slot_edit(rig.backend_reg.lane(0), pick);
-    {
-        const auto seeded = SnapmakerTestAccess::get_override(backend, 0);
-        REQUIRE(seeded.has_value());
-        REQUIRE_FALSE(helix::ams::declares_color(*seeded));
-        const auto before = helix::ams::lane_sources(rig.backend_reg.lane(0));
-        REQUIRE(before.local_user.has_value());
-        REQUIRE(before.local_user->color_rgb == 0xFFFFFFu);
-        REQUIRE_FALSE(before.spoolman.has_value());
-    }
-
-    SnapmakerTestAccess::handle_status(backend, seated_tag_frame(0xFF112233u, "PLA"));
-    REQUIRE(backend.get_slot_info(0).status == SlotStatus::AVAILABLE);
-
-    const auto stored = SnapmakerTestAccess::get_override(backend, 0);
-    REQUIRE(stored.has_value());
-    CHECK(stored->color_rgb == 0xFFFFFFu);
-    CHECK(backend.get_slot_info(0).color_rgb == 0xFFFFFFu);
 }
 
 // ============================================================================
@@ -4199,7 +4150,6 @@ struct SnapmakerInsertFixture : public LVGLUITestFixture {
 
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
             &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
         helix::ams::FilamentSlotOverride ovr;
@@ -4493,7 +4443,6 @@ struct SnapmakerGoldenFixture : public LVGLUITestFixture {
 
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
             &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
         helix::ams::FilamentSlotOverride ovr;
@@ -5479,7 +5428,6 @@ struct FilamentRecordHarness {
         printer.state.update_from_status(json{{"webhooks", {{"state", "ready"}}}});
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
             &printer.api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         SnapmakerTestAccess::inject_override_store(backend, std::move(store));
         if (!print_state.empty()) {
             print(print_state);
@@ -6457,11 +6405,11 @@ TEST_CASE_METHOD(SnapmakerFixture,
     lv_init_safe();
     FilamentRecordHarness h("written_entry_not_a_reading");
     h.frame(make_written_entry(2, "PETG", json::array({144, 32, 196, 2})));
-    REQUIRE(helix::ams::lane_sources(h.backend.lane_id(2)).vendor_cache.has_value());
+    REQUIRE(helix::ams::lane_sources(h.backend.lane_id(2)).firmware.has_value());
 
     // The same spool's entry rewritten over the API: CARD_UID 0.
     h.frame(make_written_entry(2, "ABS"));
-    CHECK_FALSE(helix::ams::lane_sources(h.backend.lane_id(2)).vendor_cache.has_value());
+    CHECK_FALSE(helix::ams::lane_sources(h.backend.lane_id(2)).firmware.has_value());
     CHECK(h.backend.get_slot_info(2).material != "ABS");
 }
 

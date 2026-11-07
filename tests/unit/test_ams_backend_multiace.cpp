@@ -154,27 +154,6 @@ class StoreBackedMultiAce : public CapturingMultiAce {
     using AmsBackendMultiAce::on_started;
 };
 
-/// Per-test read-cache sandbox, so a neighbouring test's stored records are
-/// not reachable from this one (the cache file serves every backend in the
-/// process). Same idiom as test_ams_override_store_lifecycle.cpp.
-struct MultiAceOverrideCacheDir {
-    std::filesystem::path path;
-    std::filesystem::path previous;
-    explicit MultiAceOverrideCacheDir(const std::string& suffix) {
-        previous = helix::ams::detail::slot_override_cache_dir_ref();
-        path = std::filesystem::temp_directory_path() /
-               ("multiace_override_" + suffix + "_" + std::to_string(::getpid()));
-        std::filesystem::remove_all(path);
-        std::filesystem::create_directories(path);
-        helix::ams::detail::slot_override_cache_dir_ref() = path;
-    }
-    ~MultiAceOverrideCacheDir() {
-        helix::ams::detail::slot_override_cache_dir_ref() = previous;
-        std::error_code ec;
-        std::filesystem::remove_all(path, ec);
-    }
-};
-
 /// A live print state for the gates that read it.
 struct MultiAcePrintFixture : public LVGLTestFixture {
     MultiAcePrintFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -1371,7 +1350,6 @@ TEST_CASE_METHOD(MultiAceFixture, "bay edits refuse slots the backend does not s
 
 TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yields to the engine",
                  "[multiace][ams]") {
-    MultiAceOverrideCacheDir cache("clear");
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 
@@ -1425,7 +1403,6 @@ TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yield
 
 TEST_CASE_METHOD(MultiAceFixture, "a bay edit survives a restart and outranks the engine's table",
                  "[multiace][ams][filament_slot_override]") {
-    MultiAceOverrideCacheDir cache("restart");
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 

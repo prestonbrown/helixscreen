@@ -2180,7 +2180,6 @@ TEST_CASE("QIDI Box tag fingerprint change clears a prior user edit", "[ams][qid
     helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
     AmsBackendQidi& backend = *harness;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     QidiBoxTestAccess::inject_override_store(backend, std::move(store));
 
     QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
@@ -2207,8 +2206,8 @@ TEST_CASE("QIDI Box tag fingerprint change clears a prior user edit", "[ams][qid
     CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
     const auto lane = helix::ams::lane_sources(harness.lane(0));
-    CHECK_FALSE(lane.local_user.has_value());
-    CHECK_FALSE(lane.remembered.has_value());
+    CHECK_FALSE(lane.pending.has_value());
+    CHECK_FALSE(lane.record.has_value());
 
     // The new tag's identity is what the slot shows now.
     const auto info = backend.get_slot_info(0);
@@ -2456,7 +2455,6 @@ TEST_CASE("QIDI Box a user edit persists its override to the lane_data record", 
     helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
     AmsBackendQidi& backend = *harness;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     QidiBoxTestAccess::inject_override_store(backend, std::move(store));
 
     QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
@@ -2507,7 +2505,6 @@ TEST_CASE("QIDI Box clear_slot_override erases the edit, its lane record and the
     helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
     AmsBackendQidi& backend = *harness;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     QidiBoxTestAccess::inject_override_store(backend, std::move(store));
 
     QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
@@ -2526,8 +2523,8 @@ TEST_CASE("QIDI Box clear_slot_override erases the edit, its lane record and the
     CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
     const auto lane = helix::ams::lane_sources(harness.lane(0));
-    CHECK_FALSE(lane.local_user.has_value());
-    CHECK_FALSE(lane.remembered.has_value());
+    CHECK_FALSE(lane.pending.has_value());
+    CHECK_FALSE(lane.record.has_value());
     // The clear resets what the slot showed from the tag too; the next parse
     // re-states it.
     CHECK(backend.get_slot_info(0).brand.empty());
@@ -2572,7 +2569,6 @@ TEST_CASE("QIDI Box a stored edit shows again after a restart", "[ams][qidi_box]
         helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
         AmsBackendQidi& first = *harness;
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         QidiBoxTestAccess::inject_override_store(first, std::move(store));
 
         QidiBoxTestAccess::apply_filas_list(first, kStockFilasExcerpt);
@@ -2592,7 +2588,6 @@ TEST_CASE("QIDI Box a stored edit shows again after a restart", "[ams][qidi_box]
     helix::test::RegisteredBackend<AmsBackendQidi> harness(&api, nullptr);
     AmsBackendQidi& backend = *harness;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "qidi");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     QidiBoxTestAccess::inject_override_store(backend, std::move(store));
     QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
     QidiBoxTestAccess::start_load(backend);

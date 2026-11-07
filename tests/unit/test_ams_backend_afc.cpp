@@ -1530,13 +1530,13 @@ namespace {
 /// An AFC lane carrying a user's edit that declared its colour, material and
 /// brand, with a store behind it so a persist can be read back
 /// from the record a restart would load.
-struct AfcLockedLaneFixture : HelixTestFixture {
+struct AfcEditedLaneFixture : HelixTestFixture {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
     std::optional<MoonrakerAPIMock> api;
     AmsBackendAfcTestHelper helper;
 
-    AfcLockedLaneFixture() {
+    AfcEditedLaneFixture() {
         state.init_subjects(false);
         api.emplace(client, state);
         helper.initialize_test_lanes_with_slots(4);
@@ -1549,9 +1549,6 @@ struct AfcLockedLaneFixture : HelixTestFixture {
         edit.color_rgb = 0x1E5AA8;
         REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
 
-        const auto locked = record();
-        REQUIRE(helix::ams::declared_field_names(locked.declared) ==
-                nlohmann::json::array({"color_rgb", "material", "brand"}));
         helper.clear_captured_gcodes();
     }
 
@@ -1566,35 +1563,7 @@ struct AfcLockedLaneFixture : HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight persist writes the weight and no identity",
-                 "[ams][afc][persistence][filament_slot_override][1652]") {
-    // What the consumption meter's pause and completion flushes do.
-    helper.update_slot_weight(0, 730.0f, 1000.0f, /*persist=*/true);
-
-    // Both of AFC's durable homes for a weight: the lane's own, and the record
-    // a restart reads back.
-    CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=730"));
-    const nlohmann::json stored = client.mock_db_get("lane_data", "lane1");
-    REQUIRE_FALSE(stored.is_null());
-    CHECK(stored["remaining_weight_g"] == 730.0f);
-
-    // A meter has no identity to state. Restating the edit's would overwrite
-    // whatever has changed the lane's colour, material or spool since.
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_MATERIAL"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_SPOOL_ID"));
-
-    const auto after = record();
-    CHECK(after.remaining_weight_g == Catch::Approx(730.0f));
-    CHECK(after.total_weight_g == Catch::Approx(1000.0f));
-    CHECK(helix::ams::declared_field_names(after.declared) ==
-          nlohmann::json::array({"color_rgb", "material", "brand"}));
-    CHECK(stored["helix_locked_color"] == true);
-    CHECK(stored["helix_locked_material"] == true);
-    CHECK(stored["helix_declared"] == nlohmann::json::array({"color_rgb", "material", "brand"}));
-}
-
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight update without persist writes nothing durable",
+TEST_CASE_METHOD(AfcEditedLaneFixture, "AFC weight update without persist writes nothing durable",
                  "[ams][afc][persistence][filament_slot_override][1652]") {
     const nlohmann::json stored_before = client.mock_db_get("lane_data", "lane1");
     REQUIRE_FALSE(stored_before.is_null());
@@ -9341,24 +9310,6 @@ TEST_CASE("AFC names its positions lanes", "[ams][afc][numbering]") {
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
 // the record tells one from a firmware reading (#965, #1649).
-TEST_CASE("AFC marks a persisted edit as the user's own", "[ams][afc][filament_slot_override]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PETG";
-    info.color_rgb = 0x1188FF;
-    info.color_name = "Blue";
-    helix::test::apply_edit(helper, 0, info);
-
-    auto& overrides = AfcTestAccess::overrides(helper);
-    REQUIRE(overrides.count(0) == 1);
-    REQUIRE(overrides.at(0).material == "PETG");
-    REQUIRE(overrides.at(0).color_rgb == 0x1188FFu);
-    CHECK(helix::ams::declares_color(overrides.at(0)));
-    CHECK(helix::ams::declares_material(overrides.at(0)));
-}
-
 TEST_CASE("AFC configfile topology parses to a small result", "[ams][afc][configfile]") {
     using Topo = AmsBackendAfc::ConfigfileTopology;
 

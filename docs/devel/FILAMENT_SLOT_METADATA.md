@@ -340,8 +340,8 @@ Implementation-side a stored record is not merged into a `SlotInfo` at all. It
 is translated into per-source lane records, and the resolver ranks those
 against what firmware states on the current frame.
 
-`ingest_legacy_records()`
-(`src/printer/lane_legacy_migration.cpp#ingest_legacy_records`) runs once per backend
+`AmsSubscriptionBackend::refresh_lane_records()`
+(`src/printer/ams_subscription_backend.cpp#refresh_lane_records`) runs once per backend
 from its init path, immediately after `load_blocking()`. It hands each parsed
 record to `sources_from_record()`
 (`src/printer/lane_translation.cpp#sources_from_record`), which splits one
@@ -759,7 +759,7 @@ re-editing every slot:
 - **Source anchors**:
   - Struct: `include/filament_slot_override.h` (`FilamentSlotOverride`)
   - Store: `include/filament_slot_override_store.h` + `src/printer/filament_slot_override_store.cpp` — `load_blocking` (line 565), `save_async` (line 663), `clear_async` (line 717), `cache_path` (line 345), `try_migrate_legacy` (line 385), `read_cache` (line 243), `write_cache_slot` (line 150)
-  - Record to lane sources: `src/printer/lane_translation.cpp` (`sources_from_record`), `src/printer/lane_legacy_migration.cpp` (`ingest_legacy_records`)
+  - Record to lane sources: `src/printer/lane_translation.cpp` (`record_observation`), `src/printer/ams_subscription_backend.cpp` (`adopt_lane_records`)
   - Lane sources to `SlotInfo`: `src/printer/lane_resolver.cpp` (`resolve`), `src/printer/lane_apply.cpp` (`apply_resolved`), `src/printer/ams_backend.cpp` (`AmsBackend::apply_resolved_lane`)
   - Binding rules: `src/printer/lane_binding.cpp` (`classify_binding`, `reconcile_binding`)
   - Tag-declared Spoolman links: `src/printer/tag_spool_link.cpp` (`TagSpoolLinkTracker`), driven by `src/printer/ams_state.cpp#sync_tag_spool_link`

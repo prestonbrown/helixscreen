@@ -28,7 +28,6 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -192,29 +191,7 @@ void AmsBackendAce::on_started() {
         own_load_ = false;
     }
 
-    // Load persisted per-slot overrides from the shared FilamentSlotOverrideStore
-    // BEFORE issuing the initial status query — otherwise the first status
-    // callback (libhv background thread) could fire and parse slots before
-    // overrides_ is populated, so the first EVENT_STATE_CHANGED frame would
-    // miss override data. load_blocking runs on this (main) thread; the
-    // Moonraker DB callback fires on the libhv event loop, so the two threads
-    // don't interfere. Migration from helix-screen:ace_slot_overrides to
-    // lane_data happens automatically inside load_blocking the first time
-    // lane_data is empty (Task 8).
-    if (api_) {
-        auto loaded =
-            helix::ams::make_loaded_override_store(api_, "ace", get_type(), backend_log_tag(),
-                                                   "lane_data", /*migrates_legacy_namespace=*/true);
-        if (loaded.store) {
-            helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                              backend_index());
-        }
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            override_store_ = std::move(loaded.store);
-            overrides_ = std::move(loaded.overrides);
-        }
-    }
+    open_lane_record_store("ace");
 
     // start() refuses to run without a client, but a directly-constructed
     // backend (tests) reaches here with none and the query below would
@@ -829,8 +806,7 @@ std::optional<helix::ams::TagReading> AmsBackendAce::tag_reading(int slot_index)
     return tag_readings_[static_cast<size_t>(slot_index)];
 }
 
-AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
-                                        const helix::ams::Observation& declared) {
+AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -852,14 +828,13 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
         // Stage the override into overrides_ so the edit survives a restart;
         // the lane's own declaration, filed when the edit is committed, is what
         // apply_resolved_lane paints on every subsequent parse.
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        helix::ams::stage_user_override(overrides_, slot_index, info);
     }
 
     spdlog::info("[ACE] Updated slot {} info: {} {}", slot_index, info.material, info.color_name);
 
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
 
     emit_event(kEventSlotChanged, std::to_string(slot_index));
@@ -882,22 +857,6 @@ AmsError AmsBackendAce::sync_external_identity(int slot_index, const SlotInfo& i
     spdlog::info("[ACE] Synced slot {} info: {} {}", slot_index, info.material, info.color_name);
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
-}
-
-void AmsBackendAce::persist_external_identity_impl(int slot_index,
-                                                   const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendAce::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                        float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
 }
 
 AmsError AmsBackendAce::can_set_tool_mapping(int /*tool_number*/, int /*slot_index*/) const {
@@ -1665,7 +1624,7 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
                 // partial identity for a whole-record write to narrow. It also
                 // makes an absent sensed record provably a guard rather than a
                 // translation that did not run.
-                helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+                helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
                 cache.color_rgb = observed_color;
                 cache.material = observed_material;
                 helix::ams::ingest(lane_id(idx), cache);
@@ -2406,7 +2365,7 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
             helix::ams::ingest(lane_id(idx), sensed);
         }
 
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         cache.color_rgb = observed_color;
         cache.material = material;
         helix::ams::ingest(lane_id(idx), cache);

@@ -24,7 +24,7 @@
 #include "app_globals.h"
 #include "filament_slot_override.h"
 #include "i_moonraker_api.h"
-#include "lane_legacy_migration.h"
+#include "lane_resolver.h"
 #include "lane_source_store.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
@@ -252,34 +252,11 @@ void SpoolmanManager::fetch_linked_external_spool(int ext_spoolman_id) {
                         // not this denial's to touch.
                         return;
                     }
-                    // Same contract as a denied slot: the record described
-                    // a spool Spoolman no longer knows, so it stops being
-                    // a source the resolved read can rank. The resolved
-                    // view is captured first, while the record still
-                    // stands, and what it carried goes back on the lane
-                    // as remembered - a delete is bookkeeping, not a
-                    // spool change, and the display keeps the freshest
-                    // identity it had. The kept record names no spool
-                    // (both binding ids zeroed) or the record
-                    // translation would stand the Spoolman record just
-                    // dropped right back up.
-                    const bool had_record =
-                        helix::ams::lane_sources(helix::ams::kBypassLaneId).spoolman.has_value();
-                    const std::optional<SlotInfo> kept_view = state.get_external_spool_info();
+                    // Same contract as a denied slot: the details describe
+                    // a spool Spoolman no longer knows, so they stop filling
+                    // the lane.
                     helix::ams::drop_lane_source(helix::ams::kBypassLaneId,
                                                  helix::ams::ObservationSource::Spoolman);
-                    if (had_record && kept_view.has_value()) {
-                        SlotInfo kept = *kept_view;
-                        kept.spoolman_id = 0;
-                        kept.spoolman_filament_id = 0;
-                        kept.spoolman_orca_filament_id.clear();
-                        const helix::ams::Observation nothing_declared(
-                            helix::ams::ObservationSource::Remembered);
-                        helix::ams::file_kept_identity(
-                            helix::ams::kBypassLaneId, helix::ams::kBypassSlotIndex,
-                            helix::ams::user_override_from_slot_info(nothing_declared, kept,
-                                                                     kept.material, nullptr));
-                    }
                     state.bump_slots_version();
                 });
                 return;
@@ -366,31 +343,9 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                         const bool had_record = helix::ams::lane_sources(lane).spoolman.has_value();
                         helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
                         if (had_record) {
-                            // A delete is bookkeeping, not a spool change: the slot
-                            // goes on showing what is loaded. What the slot carried
-                            // goes back on the lane as remembered, the way an unlink
-                            // that kept the identity files it, so it stands until an
-                            // edit or a spool change replaces it. The kept record
-                            // names no spool - both binding ids zeroed, as an
-                            // unlink's record does - or the record translation would
-                            // stand the Spoolman record just dropped right back up.
-                            // The slot struct keeps its own spoolman_id: the manager
-                            // has no identity write path to a backend, and polling
-                            // for this spool already stopped above.
-                            SlotInfo kept = bound->get_slot_info(slot_index);
-                            kept.spoolman_id = 0;
-                            kept.spoolman_filament_id = 0;
-                            kept.spoolman_orca_filament_id.clear();
-                            const helix::ams::Observation nothing_declared(
-                                helix::ams::ObservationSource::Remembered);
-                            helix::ams::file_kept_identity(
-                                lane, slot_index,
-                                helix::ams::user_override_from_slot_info(nothing_declared, kept,
-                                                                         kept.material, nullptr));
-                            // A backend serving its slots from a cache
-                            // painted this one while the record stood,
-                            // and the drop raises no backend event to
-                            // resync the slot's subjects.
+                            // The details stop filling the lane; what the
+                            // firmware and record state stays. The polling for
+                            // this spool already stopped above.
                             bound->repaint_slot_from_lane(slot_index);
                             AmsState::instance().update_slot_for_backend(backend_index, slot_index);
                         }
@@ -680,7 +635,18 @@ void SpoolmanManager::refresh_spoolman_weights() {
 
 bool SpoolmanManager::apply_fetched_spool(helix::AmsBackend& owner, int backend_index,
                                           int slot_index, const SpoolInfo& spool) {
-    const bool lane_changed = file_spool_on_lane(owner.lane_id(slot_index), spool);
+    // Spoolman's details are a lookup keyed by the spool the lane links, so
+    // they are filed only for that spool, and a lane that links another (or
+    // none) loses the details it held.
+    const helix::ams::LaneId lane = owner.lane_id(slot_index);
+    const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
+    bool lane_changed = false;
+    if (helix::ams::linked_spool_id(sources) == spool.id) {
+        lane_changed = file_spool_on_lane(lane, spool);
+    } else if (sources.spoolman.has_value()) {
+        helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
+        lane_changed = true;
+    }
     // Every poll refiles every linked lane, so only a changed record is worth
     // the work below.
     if (!lane_changed) {

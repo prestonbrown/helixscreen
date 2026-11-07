@@ -127,10 +127,10 @@ std::vector<std::string> filed_on(LaneId lane) {
         name_observed(*sources.sensed, "sensed.", out);
     if (sources.spoolman)
         name_observed(*sources.spoolman, "spoolman.", out);
-    if (sources.local_user)
-        name_observed(*sources.local_user, "local_user.", out);
-    if (sources.vendor_cache)
-        name_observed(*sources.vendor_cache, "vendor_cache.", out);
+    if (sources.pending)
+        name_observed(*sources.pending, "local_user.", out);
+    if (sources.firmware)
+        name_observed(*sources.firmware, "vendor_cache.", out);
     if (sources.metered)
         name_observed(*sources.metered, "metered.", out);
     return out;
@@ -454,9 +454,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "a firmware name reaches the field its own ven
                                         {"gate_name", nlohmann::json::array({"Galaxy Black"})}}));
 
         const auto lane = lane_sources(harness.lane(0));
-        REQUIRE(lane.vendor_cache.has_value());
-        CHECK(lane.vendor_cache->spool_name == "Galaxy Black");
-        CHECK_FALSE(lane.vendor_cache->product_name.has_value());
+        REQUIRE(lane.firmware.has_value());
+        CHECK(lane.firmware->spool_name == "Galaxy Black");
+        CHECK_FALSE(lane.firmware->product_name.has_value());
     }
 
     {
@@ -473,9 +473,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "a firmware name reaches the field its own ven
                                                              {"loaded", false}}})}}));
 
         const auto lane = lane_sources(harness.lane(0));
-        REQUIRE(lane.vendor_cache.has_value());
-        CHECK(lane.vendor_cache->product_name == "Hyper PLA");
-        CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+        REQUIRE(lane.firmware.has_value());
+        CHECK(lane.firmware->product_name == "Hyper PLA");
+        CHECK_FALSE(lane.firmware->spool_name.has_value());
     }
 }
 
@@ -501,9 +501,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's observation and its SlotInfo part
     // the UI has always read. Reading one and expecting the other is the
     // mistake this case exists to catch.
     const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->product_name == "Silk");
-    CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+    REQUIRE(lane.firmware.has_value());
+    CHECK(lane.firmware->product_name == "Silk");
+    CHECK_FALSE(lane.firmware->spool_name.has_value());
     CHECK(harness->get_slot_info(0).spool_name == "Silk");
 }
 
@@ -563,7 +563,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a tool changer's presence reading is a dock, 
 
     // A consumer treating tool_docked as an identity statement has nothing
     // here: no identity record exists on any of the three lanes.
-    CHECK_FALSE(docked.vendor_cache.has_value());
-    CHECK_FALSE(carriage.vendor_cache.has_value());
-    CHECK_FALSE(removed.vendor_cache.has_value());
+    CHECK_FALSE(docked.firmware.has_value());
+    CHECK_FALSE(carriage.firmware.has_value());
+    CHECK_FALSE(removed.firmware.has_value());
 }

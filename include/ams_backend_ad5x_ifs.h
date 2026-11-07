@@ -9,7 +9,6 @@
 #include "error_event.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
-#include "lane_echo.h"
 #include "slot_registry.h"
 #include "vendor_state_push.h"
 
@@ -596,11 +595,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // from screen-activation hooks.
     void request_resync() override;
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     // Weight-only persist: updates remaining/total weight in the override store
     // and NEVER rewrites Adventurer5M.json / _IFS_VARS or re-locks material —
     // the firmware-facing writers in apply_user_edit() are what reverted the
@@ -901,7 +897,7 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// edit and a sync share, and return the firmware-valid material spelling
     /// written. Colors and materials stay untouched here: they are
     /// firmware-truth caches only a printer frame (a parse) moves, and a write
-    /// through them would repaint the VendorCache record with the caller's own
+    /// through them would repaint the Firmware record with the caller's own
     /// values before any gcode has left the process. Caller holds mutex_.
     std::string write_port_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
 
@@ -968,8 +964,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // color detector: called BEFORE apply_resolved_lane, first observation is a
     // baseline, empty material is the "no reading" signal (ignored), and on a
     // real delta it fires sync_override_to_firmware_locked() which refreshes
-    // the override's material via the OverwriteAlways mirror; declared
-    // materials (#965) are still skipped there. Returns true if a sync fired.
+    // the override's material via the OverwriteAlways mirror. Returns true if
+    // a sync fired.
     bool check_external_type_change(int slot_index, const std::string& observed_material,
                                     std::optional<uint32_t> observed_color, bool slot_has_filament);
     // Sync helper used by check_external_color_change. Caller must hold mutex_.
@@ -979,70 +975,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // changed (i.e. save_async was issued); false on the in-sync short-circuit.
     bool sync_override_to_firmware_locked(int slot_index, uint32_t firmware_color,
                                           const std::string& firmware_material);
-    // External-CHANGE_ZCOLOR counterpart to clear_override_locked. Caller must
-    // hold mutex_. An external CHANGE_ZCOLOR is a deliberate firmware edit of
-    // color/material — firmware truth must win for THOSE fields — but brand /
-    // spool_name / spoolman_id / spoolman_vendor_id / weights / color_name are
-    // HelixScreen-only metadata the firmware CANNOT carry. A routine AD5X LCD
-    // load emits a bare `CHANGE_ZCOLOR SLOT=N TYPE=<material>` (no brand), so a
-    // full clear_override_locked() would silently drop the user's saved vendor
-    // on every physical load (Bug B / #981 regression). This helper instead
-    // withdraws the color/material declarations and strips the firmware-carryable
-    // override fields (color_set/color_rgb/color_name/material) so the lane
-    // stops declaring them and firmware truth resolves, while RETAINING the identity
-    // metadata — mirroring the #1071 insert/eject retention. If nothing but
-    // firmware fields were in the override (no identity to keep), it falls back
-    // to a full clear_override_locked() erase so a declared-but-no-brand override
-    // still sees a clean wipe.
-    //
-    // The lane's own LocalUser record is trimmed to match, because that record
-    // is what resolve() paints from and it outranks the vendor cache: a release
-    // that reached only overrides_ would go on showing the colour and material
-    // the user has stopped declaring (#1646).
-    /// Which of the firmware-owned fields a lane has stopped declaring.
-    struct RetractedFields {
-        bool color = false; ///< color_rgb, and the colour name that travels with it.
-        bool material = false;
-        bool catalog = false; ///< The catalog pick, which is scoped to a material.
-        bool spool_name = false;
-    };
-    // Retract a lane's stored declaration of the fields named in @p fields,
-    // leaving every other field of those records standing. A change reaching
-    // overrides_ alone leaves resolve() painting what the record no longer
-    // says, because a declaring record outranks the vendor cache this frame
-    // filed (#1646, #1654). helix::ams::retract_lane_declarations performs the
-    // retraction itself; what this decides is which fields travel together.
-    // Caller holds mutex_.
-    void retract_lane_declaration_locked(int slot_index, RetractedFields fields);
-
-    /// What a colour and material release does with the firmware-carryable values themselves.
-    enum class ReleasedValues {
-        Strip, ///< Clear them, so firmware truth shows through on this frame.
-        Keep,  ///< Leave them for the OverwriteAlways auto-mirror to refresh.
-    };
-    // Withdraw the user's colour and material declarations on one slot, in BOTH stores
-    // that hold the lane. overrides_ decides what a reload carries; the lane's
-    // LocalUser record is what resolve() paints from and it outranks the vendor
-    // cache, so a release reaching only one of them goes on showing the colour
-    // and material the user has stopped declaring (#1646). The rest of that
-    // declaration - brand, spool name, ids, weights - is left standing, which
-    // is what makes this a retraction rather than a clear. Caller holds mutex_.
-    void release_color_material_locks_locked(int slot_index, helix::ams::FilamentSlotOverride& ovr,
-                                             ReleasedValues disposition);
-    void release_locked_override_keep_identity_locked(int slot_index, SlotInfo& slot);
-    // Called on the empty->present (physical insert) edge for a lane. Withdraws the
-    // color/material declarations on an AUTO-TRACKED override (one with no
-    // real Spoolman binding) so firmware truth for the freshly inserted spool
-    // refreshes through the OverwriteAlways auto-mirror. A physical insert emits
-    // no CHANGE_ZCOLOR, so the #981 external-edit clear never fires here — the
-    // insert itself is the "this lane's contents changed" signal. A lane with a
-    // deliberate Spoolman binding (spoolman_id > 0) is left untouched: #1071
-    // retains it across an eject/insert cycle. brand/spool_name/spoolman_id/
-    // weights are never modified: the override keeps its colour and material
-    // values for the mirror to refresh, and only the declarations and the lane's
-    // matching LocalUser declaration go. Caller holds mutex_.
-    // See docs/devel/FILAMENT_MANAGEMENT.md § "AD5X IFS material/color reconcile".
-    void unlock_auto_tracked_override_on_insert_locked(int slot_index);
     void parse_adventurer_json(const std::string& content);
     void read_adventurer_json();
     void register_zcolor_listener();
@@ -1072,20 +1004,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     void recheck_ifs_vars_macro();
     void unregister_moonraker_listeners();
     void schedule_json_reread();
-    // Install the store on_started() loaded: file its records onto the lanes,
-    // remember each slot's document as read, then take the store and map.
-    void adopt_loaded_override_store(helix::ams::LoadedOverrideStore loaded);
-    // A scheduled lane_data re-read owes: saves hold until it has run.
-    void on_lane_reread_scheduled() override;
-    // The re-read ran (or failed): release what it held.
-    void on_lane_reread_finished(const std::unordered_set<int>& taken) override;
-    // Save @p slot_index's override to lane_data, or hold it until the owed
-    // lane_data re-read has run. Caller holds mutex_.
+    // Save @p slot_index's override to lane_data. Caller holds mutex_.
     void publish_override_locked(int slot_index, const char* reason);
-    // Publish the saves the owed re-read held, except for a slot in @p taken,
-    // which took the tool's record. Runs when the read lands and when it
-    // fails. Main thread; takes mutex_.
-    void release_held_lane_saves(const std::unordered_set<int>& taken);
     // True when `content` differs from the last observed Adventurer5M.json
     // body. Updates last_json_content_ on change. Single source of truth for
     // the "did the JSON change?" decision used by both the initial read and
@@ -1443,23 +1363,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // Guarded by mutex_.
     std::array<bool, kNumPorts> presence_observed_{};
 
-    // Whether a parse just moved this port's colour/material latch, i.e. the
-    // values are a fresh statement from firmware rather than a cached re-file.
-    // settle_port_locked and the slot-info readers re-run
-    // update_slot_from_state() with the OLD latch; feeding those to the echo
-    // guard's differ-check would release the declaration on pre-edit values.
-    // Set at every latch write, consumed (once) by update_slot_from_state().
-    // Guarded by mutex_.
-    std::array<bool, kNumPorts> identity_statement_fresh_{};
-
-    // The base's own_write_echoes_, on this backend:
-    // What the user declared in an edit of each port, staged against the
-    // write's boundary so this backend does not file its own write-back echo
-    // (IFS_SET_MATERIAL / Adventurer5M.json / _IFS_VARS all re-publish through
-    // the ffmColor/ffmType fields a real reading uses). The boundary is
-    // presence itself: a transition names a different physical occupant, which
-    // is the only token this hardware offers. All access under mutex_.
-
     // Presence-edge bookkeeping shared by every presence source (per-port
     // sensors, IFS_STATUS Ports, GET_ZCOLOR slot lines, the pre-SILENT JSON
     // inference): ends the port's echo suppression on any transition and
@@ -1659,12 +1562,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     bool ifs_vars_repair_staged_ = false;
 
     std::atomic<bool> reread_pending_{false};
-    // A re-read is scheduled and has not yet run, so lane_data may hold a
-    // newer record than anything we would publish over it.
-    std::atomic<bool> lane_reread_owed_{false};
-    // Slots whose save waits on that re-read, with the reason each save was
-    // made for the log when it publishes. Under mutex_.
-    std::unordered_map<int, std::string> lane_saves_held_;
 
     // Main-thread-only: counts CHANGE_ZCOLOR trigger lines seen in the gcode
     // stream since the last coalesced re-read fired. zmod re-emits CHANGE_ZCOLOR

@@ -4,106 +4,92 @@
 
 namespace helix::ams {
 
+namespace {
+
+const Observation* held(const std::optional<Observation>& obs) {
+    return obs.has_value() ? &*obs : nullptr;
+}
+
+/// Lay every identity field @p obs observed onto @p out.
+void lay_identity(const Observation& obs, ResolvedLane& out) {
+    if (obs.color_rgb.has_value())
+        out.color_rgb = *obs.color_rgb;
+    if (obs.color_name.has_value())
+        out.color_name = *obs.color_name;
+    if (obs.material.has_value())
+        out.material = *obs.material;
+    if (obs.brand.has_value())
+        out.brand = *obs.brand;
+    if (obs.spool_name.has_value())
+        out.spool_name = *obs.spool_name;
+    if (obs.catalog_id.has_value())
+        out.catalog_id = *obs.catalog_id;
+    if (obs.product_name.has_value())
+        out.product_name = *obs.product_name;
+    if (obs.spoolman_id.has_value())
+        out.spoolman_id = *obs.spoolman_id;
+    if (obs.spoolman_filament_id.has_value())
+        out.spoolman_filament_id = *obs.spoolman_filament_id;
+    if (obs.spoolman_vendor_id.has_value())
+        out.spoolman_vendor_id = *obs.spoolman_vendor_id;
+    if (obs.spoolman_orca_filament_id.has_value())
+        out.spoolman_orca_filament_id = *obs.spoolman_orca_filament_id;
+}
+
+void lay_weights(const Observation& obs, ResolvedLane& out) {
+    if (obs.remaining_weight_g.has_value())
+        out.remaining_weight_g = *obs.remaining_weight_g;
+    if (obs.total_weight_g.has_value())
+        out.total_weight_g = *obs.total_weight_g;
+}
+
+} // namespace
+
+int linked_spool_id(const LaneSources& sources) {
+    for (const Observation* obs :
+         {held(sources.pending), held(sources.firmware), held(sources.record)}) {
+        if (obs != nullptr && obs->spoolman_id.has_value()) {
+            return *obs->spoolman_id > 0 ? *obs->spoolman_id : 0;
+        }
+    }
+    return 0;
+}
+
 ResolvedLane resolve(const LaneSources& sources) {
     ResolvedLane out;
 
-    // Presence is sensed. Nothing in the fleet reports identity from hardware,
-    // so identity metadata is never evidence that a spool is present: a vendor
-    // cache that still remembers the last spool would otherwise resurrect an
-    // emptied lane on every poll.
+    // Presence and docking are sensed. Identity is never evidence that a spool
+    // is present: a firmware field that still names the last spool would
+    // otherwise resurrect an emptied lane on every poll.
     if (sources.sensed.has_value() && sources.sensed->present.has_value()) {
         out.present = *sources.sensed->present;
     }
-
-    // Docking is sensed too, and by hardware that cannot see filament: a
-    // physical tool changer answers this question and never the one above, so
-    // a consumer asking about filament reads no answer rather than one about
-    // toolheads.
     if (sources.sensed.has_value() && sources.sensed->tool_docked.has_value()) {
         out.tool_docked = *sources.sensed->tool_docked;
     }
 
-    // Identity, highest priority last so each pass overwrites the weaker one.
-    // A source that did not observe a field leaves the weaker source's value
-    // standing, which is why every field is an optional rather than a sentinel.
-    //
-    // Remembered sits at the bottom. It is our own disk copy from before this
-    // session, so a machine that states a brand on this frame outranks it; a
-    // machine that states nothing about brand leaves it standing, because a
-    // VendorCache record only carries what its own frame said.
-    const Observation* identity_ladder[] = {
-        sources.remembered.has_value() ? &*sources.remembered : nullptr,
-        sources.vendor_cache.has_value() ? &*sources.vendor_cache : nullptr,
-        sources.local_user.has_value() ? &*sources.local_user : nullptr,
-        sources.spoolman.has_value() ? &*sources.spoolman : nullptr,
-    };
+    // Spoolman's details describe one spool, so they count only while that
+    // spool is the one the lane links.
+    const int link = linked_spool_id(sources);
+    const Observation* spoolman = held(sources.spoolman);
+    if (spoolman != nullptr && (link <= 0 || spoolman->spoolman_id.value_or(0) != link)) {
+        spoolman = nullptr;
+    }
 
-    for (const Observation* obs : identity_ladder) {
-        if (obs == nullptr) {
-            continue;
+    // Weakest first, so each pass overwrites what a weaker source said. A
+    // source silent on a field leaves the weaker value standing.
+    for (const Observation* obs :
+         {spoolman, held(sources.record), held(sources.firmware), held(sources.pending)}) {
+        if (obs != nullptr) {
+            lay_identity(*obs, out);
         }
-        if (obs->color_rgb.has_value())
-            out.color_rgb = *obs->color_rgb;
-        if (obs->color_name.has_value())
-            out.color_name = *obs->color_name;
-        if (obs->material.has_value())
-            out.material = *obs->material;
-        if (obs->brand.has_value())
-            out.brand = *obs->brand;
-        if (obs->spool_name.has_value())
-            out.spool_name = *obs->spool_name;
-        if (obs->catalog_id.has_value())
-            out.catalog_id = *obs->catalog_id;
-        if (obs->product_name.has_value())
-            out.product_name = *obs->product_name;
-        if (obs->spoolman_id.has_value())
-            out.spoolman_id = *obs->spoolman_id;
-        if (obs->spoolman_filament_id.has_value())
-            out.spoolman_filament_id = *obs->spoolman_filament_id;
-        if (obs->spoolman_vendor_id.has_value())
-            out.spoolman_vendor_id = *obs->spoolman_vendor_id;
-        if (obs->spoolman_orca_filament_id.has_value())
-            out.spoolman_orca_filament_id = *obs->spoolman_orca_filament_id;
     }
-
-    // A colour the user picked for this lane outranks the linked spool's own.
-    // The two are different statements: the spool record says what the vendor
-    // sells, the user's pick says what is loaded right now. The name travels
-    // with the colour, because a swatch labelled with a different colour's name
-    // contradicts itself, and first_non_blank ranks an explicit name above one
-    // derived from the value. Nothing else in the identity block is overridden
-    // this way: brand, spool name and catalog identity belong to the spool.
-    //
-    // The name is set even when the pick carried none, and engaged-empty rather
-    // than left unobserved: a pick with no name is a statement that the old name
-    // no longer describes the swatch, so it has to reach the lane and clear it.
-    // Leaving it unobserved would let the spool's name stand beside a colour it
-    // contradicts.
-    if (sources.local_user.has_value() && sources.local_user->color_rgb.has_value()) {
-        out.color_rgb = *sources.local_user->color_rgb;
-        out.color_name = sources.local_user->color_name.value_or(std::string{});
-    }
-
-    // Weight. Spoolman owns consumption for a spool the user assigned from it,
-    // and Moonraker decrements it directly, so our meter stands down there and
-    // we read the server's number back. An unlinked lane has no external owner,
-    // so the meter's estimate is the only number available.
-    const Observation* weight_ladder[] = {
-        sources.local_user.has_value() ? &*sources.local_user : nullptr,
-        sources.metered.has_value() ? &*sources.metered : nullptr,
-        sources.spoolman.has_value() ? &*sources.spoolman : nullptr,
-    };
-
-    for (const Observation* obs : weight_ladder) {
-        if (obs == nullptr) {
-            continue;
+    for (const Observation* obs : {held(sources.metered), held(sources.record),
+                                   held(sources.firmware), spoolman, held(sources.pending)}) {
+        if (obs != nullptr) {
+            lay_weights(*obs, out);
         }
-        if (obs->remaining_weight_g.has_value())
-            out.remaining_weight_g = *obs->remaining_weight_g;
-        if (obs->total_weight_g.has_value())
-            out.total_weight_g = *obs->total_weight_g;
     }
-
     return out;
 }
 

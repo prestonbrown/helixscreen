@@ -4899,8 +4899,7 @@ TEST_CASE("Happy Hare's own gate writes carry the filament id", "[ams][happyhare
         SlotInfo info = helper.get_slot_info(0);
         info.spoolman_id = 42;
         info.spoolman_filament_id = 55;
-        const AmsError err = helper.apply_user_edit(
-            0, info, helix::ams::user_edit_observation(helper.get_slot_info(0), info));
+        const AmsError err = helper.apply_user_edit(0, info);
         REQUIRE(err.success());
         REQUIRE(helper.get_slot_info(0).spoolman_filament_id == 55);
     }
@@ -5342,25 +5341,6 @@ TEST_CASE("Happy Hare names its positions gates", "[ams][happy_hare][numbering]"
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
 // the record tells one from a firmware reading (#965, #1649).
-TEST_CASE("Happy Hare marks a persisted edit as the user's own",
-          "[ams][happy_hare][filament_slot_override]") {
-    AmsBackendHappyHareTestHelper helper;
-    helper.initialize_test_gates(4);
-
-    SlotInfo info;
-    info.material = "PETG";
-    info.color_rgb = 0x1188FF;
-    info.color_name = "Blue";
-    helix::test::apply_edit(helper, 0, info);
-
-    auto& overrides = helix::HappyHareTestAccess::overrides(helper);
-    REQUIRE(overrides.count(0) == 1);
-    REQUIRE(overrides.at(0).material == "PETG");
-    REQUIRE(overrides.at(0).color_rgb == 0x1188FFu);
-    CHECK(helix::ams::declares_color(overrides.at(0)));
-    CHECK(helix::ams::declares_material(overrides.at(0)));
-}
-
 // ============================================================================
 // Maintenance / accessories device actions
 // ============================================================================

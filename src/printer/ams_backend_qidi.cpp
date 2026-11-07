@@ -13,7 +13,6 @@
 #include "display_numbering.h"
 #include "filament_macro_profiles.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "macro_param_cache.h"
@@ -364,42 +363,30 @@ std::optional<helix::ams::TagReading> AmsBackendQidi::tag_reading(int slot_index
     return it->second;
 }
 
+void AmsBackendQidi::on_lane_records_read_locked() {
+    // A persisted fingerprint from a build whose composite counted the vendor
+    // id seeds a baseline the current composite never matches, which would
+    // read as a swap at the first poll and clear every record: fold each onto
+    // the current shape first. A swap made while HelixScreen was down still
+    // clears the stale record, against the persisted fingerprint.
+    for (auto& entry : overrides_) {
+        entry.second.fingerprint = normalize_legacy_fingerprint(entry.second.fingerprint);
+    }
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
+}
+
 void AmsBackendQidi::on_started() {
-    // Load persisted per-slot overrides before any parse can run, so the
-    // fingerprint baseline and a staged clear agree about what the user had.
-    // Call with NO lock held: the DB round-trip blocks, and the parse path
-    // takes this mutex.
     {
         // A start is a new session: the tag readings described the last one.
         std::lock_guard<std::mutex> lock(mutex_);
         tag_readings_.clear();
     }
-    if (api_) {
-        auto loaded =
-            helix::ams::make_loaded_override_store(api_, "qidi", get_type(), backend_log_tag());
-        if (loaded.store) {
-            helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                              backend_index());
-        }
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            override_store_ = std::move(loaded.store);
-            overrides_ = std::move(loaded.overrides);
-            // A persisted fingerprint from a build whose composite counted the
-            // vendor id seeds a baseline the current composite never matches,
-            // which would read as a swap at the first poll and clear every
-            // override on upgrade: fold each onto the current shape first.
-            for (auto& entry : overrides_) {
-                entry.second.fingerprint = normalize_legacy_fingerprint(entry.second.fingerprint);
-            }
-            // A swap the user made while HelixScreen was down still has to
-            // clear the stale override: the record's persisted fingerprint is
-            // the baseline the first post-restart poll compares against.
-            helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(),
-                                                     overrides_);
-        }
-    }
+    open_lane_record_store("qidi");
 
+    if (!client_) {
+        return;
+    }
+    detect_firmware_capabilities();
     if (!client_) {
         return;
     }
@@ -1118,7 +1105,7 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         // blank it: without them the paint from the last frame before the zero
         // lands would linger forever, the > 0 gates below having nothing to
         // overwrite.
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         std::optional<int> profile_nozzle_min;
         std::optional<int> profile_nozzle_max;
         // A string product id names no table row: the firmware resolves it
@@ -1209,19 +1196,10 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
             // reports as untagged shows no brand, matching the clear.
             slot->brand.clear();
         }
-        // The echo guard: ids repeating the user's own SAVE_VARIABLE push are
-        // not a reading, and ingest files the record whole, so a withheld
-        // field goes absent rather than back to its pre-edit value. The cache
-        // is rebuilt from the saved ids every frame, so a frame that carries
-        // no id keys restates the write the same way and is judged the same
-        // way. A key carried with 0 never reaches here armed: it moves the
-        // fingerprint first, and the clear that follows drops the guard.
-        const helix::ams::Observation stated = cache;
-        own_write_echoes_.withhold(i, std::string{}, cache);
         helix::ams::ingest(lane_id(i), cache);
         // The temperatures are the filament profile's for the same id.
-        helix::ams::fold_tag_frame_into(tag_readings_, i, stated, cache, profile_nozzle_min,
-                                        profile_nozzle_max);
+        helix::ams::keep_tag_reading(tag_readings_, i, cache, profile_nozzle_min,
+                                     profile_nozzle_max);
 
         // An insert the ids did not vouch for: the table rows are the Box's
         // memory of the last spool, so a spool that goes in without moving
@@ -1820,8 +1798,7 @@ int AmsBackendQidi::resolve_vendor_id(const std::map<int, std::string>& vendors,
     return 0;
 }
 
-AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
-                                         const helix::ams::Observation& declared) {
+AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
     spdlog::info("{} apply_user_edit(slot={}, material='{}', brand='{}')", backend_log_tag(),
                  slot_index, info.material, info.brand);
 
@@ -1841,7 +1818,7 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
         }
         // Stage the override so a later spool swap has something to clear and
         // a restart reloads what the user chose.
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        helix::ams::stage_user_override(overrides_, slot_index, info);
         // SlotInfo has no dedicated "QIDI product label" field; callers may put
         // a product name ("ABS Rapido") OR a bare material ("ABS") in .material.
         // Pass it as BOTH the material and the name hint so the resolver tries
@@ -1905,53 +1882,6 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
             staged_echoes =
                 expect_own_write_echoes_locked(slot_index, *base, fila_vals, color_vals);
         }
-
-        // Stage before the first dispatch, so an echo racing the writes is
-        // judged against this edit. The ids name table rows rather than
-        // spelling the values, so each carried field is relocated to what
-        // its row will state; a field whose write does not go out (no fila
-        // match, empty palette) is pruned, because the Box then keeps stating
-        // whatever it had. A zero write states no row, so its field is
-        // pruned too: the Box's restatement of id 0 is its own reading.
-        // No SAVE_VARIABLE carries a name.
-        own_write_echoes_.stage(slot_index, declared);
-        if (auto* staged_echo = own_write_echoes_.staged(slot_index)) {
-            if (fila_write > 0) {
-                const auto row = fila_profiles_.find(fila_write);
-                if (row != fila_profiles_.end() && !row->second.type.empty()) {
-                    staged_echo->material = row->second.type;
-                } else {
-                    staged_echo->material.reset();
-                }
-            } else {
-                staged_echo->material.reset();
-            }
-            if (color_write > 0) {
-                staged_echo->color_rgb = color_palette_.at(color_write);
-                if (!helix::ams::is_declarable_color(*staged_echo->color_rgb)) {
-                    staged_echo->color_rgb.reset();
-                }
-            } else {
-                staged_echo->color_rgb.reset();
-            }
-            if (vendor_id > 0) {
-                const auto row = vendor_names_.find(vendor_id);
-                if (row != vendor_names_.end() && !row->second.empty()) {
-                    staged_echo->brand = row->second;
-                } else {
-                    staged_echo->brand.reset();
-                }
-            } else {
-                staged_echo->brand.reset();
-            }
-            staged_echo->spool_name.reset();
-            staged_echo->color_name.reset();
-            staged_echo->product_name.reset();
-        }
-        // The fingerprint tracker above is what separates an echo from a
-        // swap; this lane has no boundary token of its own, so the guard
-        // stands until a value differs or the swap clear drops it.
-        own_write_echoes_.arm(slot_index, std::string{});
     }
 
     const std::string suffix = std::to_string(slot_index);
@@ -2000,8 +1930,7 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info,
     }
 
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
 
     return AmsErrorHelper::success();

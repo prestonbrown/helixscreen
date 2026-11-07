@@ -17,7 +17,6 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "print_lifecycle_state.h" // job_holds_machine
@@ -215,22 +214,9 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
-    // Load the user's attached slot identity before any of the queries below,
-    // so the first gate-map frame they provoke already has something to layer.
-    // Outside mutex_, because the DB round-trip blocks and the status
-    // subscription is already live. Publish under it so the parse path reads a
-    // whole map.
-    auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
-                                                         backend_log_tag(), kOverrideNamespace);
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-    }
-    if (override_store_) {
-        helix::ams::ingest_legacy_records(*override_store_, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
+    // Private namespace: Happy Hare's own plugin writes lane_data, so
+    // HelixScreen keeps only what the gate map cannot hold in its own.
+    open_lane_record_store("happyhare", kOverrideNamespace);
 
     // Tip method (cutter vs tip-forming), selector type (topology), filament heater
     // and the speed/distance defaults all come from one configfile query.
@@ -510,8 +496,8 @@ void AmsBackendHappyHare::apply_mmu_status_locked(const happy_hare::MmuStatusDel
     apply_mmu_path_locked(delta.core);
     apply_mmu_topology_locked(delta.topology);
     apply_gate_status_locked(delta.identity);
-    apply_gate_appearance_locked(delta.identity, frame);
-    apply_gate_binding_locked(delta, frame);
+    apply_gate_appearance_locked(delta.identity);
+    apply_gate_binding_locked(delta);
     apply_mmu_telemetry_locked(delta.telemetry);
     apply_mmu_sensors_locked(delta);
     converge_mmu_locked(frame);
@@ -523,8 +509,7 @@ ams::Observation& AmsBackendHappyHare::gate_reading_locked(int gate) {
     // files it once, because one ingest replaces that source's record whole.
     auto it = gate_readings_.find(gate);
     if (it == gate_readings_.end()) {
-        it = gate_readings_.emplace(gate, ams::Observation(ams::ObservationSource::VendorCache))
-                 .first;
+        it = gate_readings_.emplace(gate, ams::Observation(ams::ObservationSource::Firmware)).first;
     }
     return it->second;
 }
@@ -688,7 +673,7 @@ void AmsBackendHappyHare::apply_gate_status_locked(const happy_hare::GateIdentit
 }
 
 void AmsBackendHappyHare::apply_gate_appearance_locked(
-    const happy_hare::GateIdentityDelta& identity, MmuFrame& frame) {
+    const happy_hare::GateIdentityDelta& identity) {
     // gate_color_rgb wins over the gate_color hex fallback whenever it painted
     // a gate.
     bool colors_parsed = false;
@@ -702,7 +687,6 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             const uint32_t rgb = *colors[i];
             entry->info.color_rgb = rgb;
             gate_reading_locked(static_cast<int>(i)).color_rgb = rgb;
-            frame.stated_for(static_cast<int>(i)).color_rgb = rgb;
             colors_parsed = true;
         }
     }
@@ -724,11 +708,9 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             if (color.kind == ams::ColorReadingKind::Observed) {
                 entry->info.color_rgb = color.rgb;
                 gate_reading_locked(gate).color_rgb = color.rgb;
-                frame.stated_for(gate).color_rgb = color.rgb;
             } else if (color.kind == ams::ColorReadingKind::Cleared) {
                 entry->info.color_rgb = kAmsDefaultSlotColor;
                 gate_reading_locked(gate).color_rgb.reset();
-                frame.cleared_for(gate).color_rgb = 0u;
             }
         }
     }
@@ -747,10 +729,8 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             auto& reading = gate_reading_locked(gate);
             if (material.empty()) {
                 reading.material.reset();
-                frame.cleared_for(gate).material = std::string{};
             } else {
                 reading.material = material;
-                frame.stated_for(gate).material = material;
             }
         }
     }
@@ -768,17 +748,14 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             auto& reading = gate_reading_locked(gate);
             if (vendor.empty()) {
                 reading.brand.reset();
-                frame.cleared_for(gate).brand = std::string{};
             } else {
                 reading.brand = vendor;
-                frame.stated_for(gate).brand = vendor;
             }
         }
     }
 }
 
-void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta,
-                                                    MmuFrame& frame) {
+void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta) {
     const auto& identity = delta.identity;
 
     // gate_spool_id (v4): per-gate Spoolman spool IDs, which enable weight
@@ -793,40 +770,18 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
             const int id = *spool_ids[i];
             entry->info.spoolman_id = (id > 0) ? id : 0;
             auto& reading = gate_reading_locked(static_cast<int>(i));
+            // A gate moved to another spool keeps nothing the previous one's
+            // details stated.
+            const int previous = reading.spoolman_id.value_or(0);
+            if (previous > 0 && previous != std::max(id, 0)) {
+                retire_departed_identity_locked(static_cast<int>(i));
+            }
             // Happy Hare writes 0 for a gate with no spool, which unlinks the
             // gate rather than naming a spool numbered zero.
             if (id > 0) {
                 reading.spoolman_id = id;
             } else {
                 reading.spoolman_id.reset();
-            }
-        }
-        // The gate map is the one thing Happy Hare states about a gate's
-        // binding, so this is where a binding that has stopped holding is
-        // found. The id compared is the gate's own accumulated reading rather
-        // than entry->info, which carries the resolved record's id back.
-        //
-        // Runs BEFORE the lane is painted at the tail: a binding this drops must
-        // be gone from the model before anything reads it, or the gate paints
-        // the spool that just stopped describing it for one more frame.
-        for (size_t i = 0; i < spool_ids.size(); ++i) {
-            const int gate = static_cast<int>(i);
-            if (!slots_.get(gate)) {
-                continue;
-            }
-            // find(), not gate_reading_locked(): looking a gate up must not
-            // create a cache record for one that has none.
-            auto it = gate_readings_.find(gate);
-            const int firmware_id =
-                it != gate_readings_.end() ? it->second.spoolman_id.value_or(0) : 0;
-            if (reconcile_lane_binding(gate, firmware_id) != ams::BindingVerdict::Holds) {
-                helix::ams::clear_persisted_override(override_store_.get(), overrides_, gate,
-                                                     backend_log_tag());
-                retire_departed_identity_locked(gate);
-                // Another writer moved the gate to a different spool, which is
-                // this backend's auto-clear signal: what the gate map states
-                // from here on is that spool's own reading, not our echo.
-                own_write_echoes_.abandon(gate);
             }
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_spool_id for {} gates", spool_ids.size());
@@ -1346,38 +1301,7 @@ void AmsBackendHappyHare::file_gate_readings_locked(MmuFrame& frame) {
         }
     }
     for (const auto& [gate, reading] : gate_readings_) {
-        // The echo guard: a value repeating the user's own MMU_GATE_MAP write
-        // is not a reading, and ingest files the record whole, so a withheld
-        // field goes absent rather than back to its pre-edit value. The copy
-        // is what gets filed because strip_standing also removes fields the
-        // frame was silent about but the accumulator still carries - for an
-        // echoed field that standing value is our own write, and filing it
-        // would put the abandoned edit back as the machine's word one frame
-        // after the echo was withheld. No boundary token: no tag names the
-        // spool a gate-map write was made against, so a differing value, a
-        // key published empty, or the re-bind verdict ends the suppression.
-        ams::Observation stated{ams::ObservationSource::VendorCache};
-        ams::Observation cleared{ams::ObservationSource::VendorCache};
-        if (const auto it = frame.stated.find(gate); it != frame.stated.end()) {
-            stated = it->second;
-        }
-        if (const auto it = frame.cleared.find(gate); it != frame.cleared.end()) {
-            cleared = it->second;
-        }
-        const ams::Observation judged = stated;
-        own_write_echoes_.withhold(gate, std::string{}, stated, cleared);
-        ams::Observation filed = reading;
-        if (judged.color_rgb && !stated.color_rgb) {
-            filed.color_rgb.reset();
-        }
-        if (judged.material && !stated.material) {
-            filed.material.reset();
-        }
-        if (judged.brand && !stated.brand) {
-            filed.brand.reset();
-        }
-        own_write_echoes_.strip_standing(gate, filed);
-        ams::ingest(lane_id(gate), filed);
+        ams::ingest(lane_id(gate), reading);
     }
 }
 
@@ -2703,22 +2627,6 @@ AmsError AmsBackendHappyHare::cancel() {
 // Configuration Operations
 // ============================================================================
 
-void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info,
-                                           const helix::ams::Observation& declared) {
-    // Callers hold mutex_.
-    const helix::ams::FilamentSlotOverride o =
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
-
-    if (override_store_) {
-        override_store_->save_async(slot_index, o, [slot_index](bool ok, std::string err) {
-            if (!ok) {
-                spdlog::warn("[AMS HappyHare] override save failed for gate {}: {}", slot_index,
-                             err);
-            }
-        });
-    }
-}
-
 void AmsBackendHappyHare::clear_slot_override(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -2787,8 +2695,7 @@ AmsError pull_mode_refusal(const char* title, const char* message) {
 }
 } // namespace
 
-AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& info,
-                                              const helix::ams::Observation& declared) {
+AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& info) {
     int old_spoolman_id = 0;
     int old_mapped_tool = -1;
     bool old_had_identity = false;
@@ -2825,23 +2732,13 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 
         // Record the user's identity in the override store: the gate map cannot
         // hold brand / spool_name / total weight / colour name at all.
-        persist_override(slot_index, info, declared);
+        persist_user_record_locked(slot_index, info);
     }
 
     // Set when the material could not be expressed as a G-code parameter. Reported
     // after every other write has gone out, so a name the gate map cannot store costs
     // the user only the material rather than the whole save — but is never silent.
     std::string rejected_material;
-
-    // Record our own id write so Rule 1 does not read the in-flight
-    // frames (still reporting old_spoolman_id until the echo lands) as
-    // an external re-bind. An unlink (SPOOLID=-1) erases the pending
-    // expectation instead. The command build runs OUTSIDE mutex_ -
-    // take the lock just for the record, matching every other writer.
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        record_own_spool_write(slot_index, info.spoolman_id, old_spoolman_id);
-    }
 
     // Clear Spool: wipe everything the gate map holds for this gate. Happy
     // Hare keeps omitted params at their current value, so each writable field
@@ -2851,15 +2748,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     // every gate. Never TEMP=0 (falsy means "keep") or AVAILABLE=0 (that
     // marks the gate EMPTY, not unknown).
     if (is_full_clear(info) && old_had_identity) {
-        // The gate is being emptied deliberately, so a frame restating the
-        // edit's values afterwards is the machine's own reading, not an echo
-        // to hide - the guard from an earlier edit must not outlive it.
-        // Under the lock: the parse mutates the same map under mutex_.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.abandon(slot_index);
-        }
-
         // Spoolman pull mode: Happy Hare refuses local writes to material,
         // colour, name, vendor and spool id, and logs the refusal rather than
         // returning it - the gate map belongs to Spoolman on this printer.
@@ -2973,54 +2861,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} "
                      "edit kept locally only",
                      slot_index);
-        // No write goes out, so no echo is coming: the gate map's next frame
-        // is Spoolman's word, not ours.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.abandon(slot_index);
-        }
     } else if (has_changes) {
-        // Remember what the user declared, pruned to the fields this command
-        // actually carries, so the parse can tell the gate map repeating their
-        // choice back from Happy Hare's own readings. Staged before the
-        // dispatch: the guard has to be standing before any echo can arrive.
-        // A dispatch that failed outright leaves it armed to self-clean the
-        // same way - firmware still holds a value the declaration disagrees
-        // with. Under the lock: the parse mutates the same map under mutex_.
-        // The dispatch itself stays outside it, as every other writer here.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.stage(slot_index, declared);
-            if (auto* staged = own_write_echoes_.staged(slot_index)) {
-                // COLOR= is skipped for the no-colour sentinel and MATERIAL= for
-                // an unsafe or cleared name: a field the write omitted (or asked
-                // firmware to drop) is the gate map's to keep, so its echo is a
-                // reading.
-                if (!ams::is_declarable_color(info.color_rgb)) {
-                    staged->color_rgb.reset();
-                }
-                if (info.material.empty() ||
-                    !IMoonrakerAPI::is_safe_material_param(info.material)) {
-                    staged->material.reset();
-                }
-                // The command carries no name, colour name or product line, and
-                // carries a brand only as VENDOR=, so any other value firmware
-                // reports for them is its own. An inert field left declared
-                // would keep the entry alive after the real fields are all
-                // released.
-                if (!wrote_vendor) {
-                    staged->brand.reset();
-                }
-                staged->spool_name.reset();
-                staged->color_name.reset();
-                staged->product_name.reset();
-            }
-            // No boundary token: no tag names the spool a gate-map write was made
-            // against, so suppression ends on a differing value or a key
-            // published empty rather than on a boundary event.
-            own_write_echoes_.arm(slot_index, std::string{});
-        }
-
         execute_gcode(cmd);
         spdlog::debug("[AMS HappyHare] Sent: {}", cmd);
     }
@@ -3076,21 +2917,6 @@ AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotI
     // Emit OUTSIDE the lock to avoid deadlock with callbacks
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
-}
-
-void AmsBackendHappyHare::persist_external_identity_impl(int slot_index,
-                                                         const helix::ams::Observation& spoolman) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, "[AMS HappyHare]");
-}
-
-void AmsBackendHappyHare::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                              float total_weight_g) {
-    // The gate map holds no weight, so the stored record is its only durable home.
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, "[AMS HappyHare]");
 }
 
 uint64_t AmsBackendHappyHare::firmware_tool_mapping_generation() const {

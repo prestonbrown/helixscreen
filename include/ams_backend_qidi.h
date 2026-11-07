@@ -7,7 +7,6 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
-#include "lane_echo.h"
 
 #include <cstdint>
 #include <ctime>
@@ -197,8 +196,7 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     }
     [[nodiscard]] std::string eject_unavailable_reason(int slot_index) const override;
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The Box's saved RFID ids, resolved, kept while our own write-back holds
@@ -220,6 +218,7 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
 
   protected:
     void on_started() override;
+    void on_lane_records_read_locked() override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS QIDI Box]";
@@ -456,15 +455,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     // an identity push we issued. Shared with the other fingerprint backends
     // (CFS, Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What the user's own SAVE_VARIABLE push declared, so the ids echoing
-    // back through save_variables are not filed as the Box's reading. The
-    // ids name table rows rather than spelling the values, so the staged
-    // declaration is relocated to what the rows resolve to. No boundary
-    // token exists for this lane: suppression ends on a value the write did
-    // not carry, or with the override at the fingerprint-change clear, which
-    // is the Box's own spool-swap signal.
 };
 
 } // namespace helix

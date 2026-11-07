@@ -159,7 +159,7 @@ void AmsBackendIndx::handle_status(const nlohmann::json& status) {
             if (tool < 0 || tool >= system_info_.total_slots) {
                 continue;
             }
-            ams::Observation stated(ams::ObservationSource::VendorCache);
+            ams::Observation stated(ams::ObservationSource::Firmware);
             stated.spoolman_id = id > 0 ? id : 0;
             ams::ingest(lane_id(tool), stated);
         }

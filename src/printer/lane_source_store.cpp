@@ -2,27 +2,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_source_store.h"
 
-#include "lane_translation.h"
-
 #include <spdlog/spdlog.h>
 
-#include <chrono>
+#include <cmath>
 #include <cstddef>
+#include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 namespace helix::ams {
 
 namespace {
 
-template <typename IntoTuple, typename FromTuple, std::size_t... I>
-void merge_fields_impl(IntoTuple& into, const FromTuple& from, std::index_sequence<I...>) {
-    (
-        [&] {
-            if (std::get<I>(from).has_value())
-                std::get<I>(into) = std::get<I>(from);
-        }(),
-        ...);
+/// The tolerance a weight echo is compared within: the spool editor's own
+/// resolution, below which a difference is float noise.
+constexpr float kWeightEchoEpsilonG = 0.1f;
+
+template <typename Fn, typename IntoTuple, typename FromTuple, std::size_t... I>
+void zip_fields_impl(Fn&& fn, IntoTuple& into, const FromTuple& from, std::index_sequence<I...>) {
+    (fn(std::get<I>(into), std::get<I>(from)), ...);
+}
+
+/// Hand @p fn each field of @p into beside the same field of @p from. Folds
+/// over Observation::fields(), so a field added there is covered with no line
+/// here.
+template <typename Fn> void zip_fields(Observation& into, const Observation& from, Fn&& fn) {
+    auto into_fields = into.fields();
+    auto from_fields = from.fields();
+    zip_fields_impl(std::forward<Fn>(fn), into_fields, from_fields,
+                    std::make_index_sequence<std::tuple_size_v<decltype(into_fields)>>{});
 }
 
 template <typename Tuple, std::size_t... I>
@@ -30,25 +39,51 @@ bool any_observed_impl(const Tuple& fields, std::index_sequence<I...>) {
     return (std::get<I>(fields).has_value() || ...);
 }
 
-/// True when @p obs observed at least one field. Folds over
-/// Observation::fields() so a field added there is covered with no line here.
 bool any_observed(const Observation& obs) {
     auto fields = obs.fields();
     return any_observed_impl(fields,
                              std::make_index_sequence<std::tuple_size_v<decltype(fields)>>{});
 }
 
-/// Copy every field @p from has observed onto @p into, leaving the rest
-/// alone. Folds over Observation::fields() so a field added there is amended
-/// automatically, with no matching line to add here.
 void merge_observed_fields(Observation& into, const Observation& from) {
-    auto into_fields = into.fields();
-    auto from_fields = from.fields();
-    merge_fields_impl(into_fields, from_fields,
-                      std::make_index_sequence<std::tuple_size_v<decltype(into_fields)>>{});
+    zip_fields(into, from, [](auto& to, const auto& value) {
+        if (value.has_value())
+            to = value;
+    });
+}
+
+template <typename T> bool is_cleared(const T& value) {
+    if constexpr (std::is_same_v<T, std::string>) {
+        return value.empty();
+    } else if constexpr (std::is_same_v<T, int>) {
+        return value == 0;
+    } else {
+        return false;
+    }
+}
+
+template <typename T> bool same_value(const T& a, const T& b) {
+    if constexpr (std::is_same_v<T, float>) {
+        return std::fabs(a - b) <= kWeightEchoEpsilonG;
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+        return (a & 0xFFFFFFu) == (b & 0xFFFFFFu);
+    } else {
+        return a == b;
+    }
 }
 
 } // namespace
+
+void strip_echoed_fields(Observation& pending, const Observation& reading) {
+    zip_fields(pending, reading, [](auto& mine, const auto& theirs) {
+        if (!mine.has_value()) {
+            return;
+        }
+        if (theirs.has_value() ? same_value(*mine, *theirs) : is_cleared(*mine)) {
+            mine.reset();
+        }
+    });
+}
 
 LaneSourceStore& LaneSourceStore::instance() {
     static LaneSourceStore store;
@@ -58,45 +93,91 @@ LaneSourceStore& LaneSourceStore::instance() {
 void LaneSourceStore::write(LaneId lane, const Observation& obs, bool amend) {
     std::lock_guard<std::mutex> lock(mutex_);
     LaneSources& sources = lanes_[lane];
-    if (!amend) {
+    if (amend) {
+        const auto& existing = record_for(sources, obs.source);
+        Observation merged = existing.has_value() ? *existing : Observation(obs.source);
+        merge_observed_fields(merged, obs);
+        sources.apply(merged);
+    } else {
         sources.apply(obs);
+    }
+    if (obs.source == ObservationSource::Pending) {
+        pending_deadline_[lane] = std::chrono::steady_clock::now() + kPendingWriteTimeout;
         return;
     }
-    const auto& existing = record_for(sources, obs.source);
-    Observation merged = existing.has_value() ? *existing : Observation(obs.source);
-    merge_observed_fields(merged, obs);
-    sources.apply(merged);
+    if ((obs.source == ObservationSource::Firmware || obs.source == ObservationSource::Record) &&
+        sources.pending.has_value()) {
+        strip_echoed_fields(*sources.pending, obs);
+        if (!any_observed(*sources.pending)) {
+            sources.pending.reset();
+            pending_deadline_.erase(lane);
+        }
+    }
 }
 
-LaneSources LaneSourceStore::get(LaneId lane) const {
+bool LaneSourceStore::expire_locked(LaneId lane, std::chrono::steady_clock::time_point now) {
+    auto deadline = pending_deadline_.find(lane);
+    if (deadline == pending_deadline_.end() || now < deadline->second) {
+        return false;
+    }
+    pending_deadline_.erase(deadline);
+    auto it = lanes_.find(lane);
+    if (it == lanes_.end() || !it->second.pending.has_value()) {
+        return false;
+    }
+    it->second.pending.reset();
+    spdlog::warn("[LaneSourceStore] lane {}: edit not echoed within {}s; showing what Moonraker "
+                 "holds",
+                 lane, kPendingWriteTimeout.count());
+    return true;
+}
+
+LaneSources LaneSourceStore::get(LaneId lane) {
     std::lock_guard<std::mutex> lock(mutex_);
+    expire_locked(lane, std::chrono::steady_clock::now());
     auto it = lanes_.find(lane);
     return it == lanes_.end() ? LaneSources{} : it->second;
+}
+
+std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_point now) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<LaneId> lanes;
+    for (const auto& entry : pending_deadline_) {
+        lanes.push_back(entry.first);
+    }
+    std::vector<LaneId> expired;
+    for (LaneId lane : lanes) {
+        if (expire_locked(lane, now)) {
+            expired.push_back(lane);
+        }
+    }
+    return expired;
 }
 
 void LaneSourceStore::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     lanes_.clear();
-    warned_producer_drop_.reset();
-    warned_edit_drop_.reset();
+    pending_deadline_.clear();
+    warned_drop_.reset();
 }
 
 void LaneSourceStore::drop_source(LaneId lane, ObservationSource source) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto it = lanes_.find(lane);
-    if (it == lanes_.end()) {
-        return;
+    if (source == ObservationSource::Pending) {
+        pending_deadline_.erase(lane);
     }
-    it->second.drop(source);
+    auto it = lanes_.find(lane);
+    if (it != lanes_.end()) {
+        it->second.drop(source);
+    }
 }
 
-bool LaneSourceStore::first_drop_of(DropSite site, LaneId lane) {
+bool LaneSourceStore::first_drop_of(LaneId lane) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto& latch = site == DropSite::Producer ? warned_producer_drop_ : warned_edit_drop_;
-    if (latch == lane) {
+    if (warned_drop_ == lane) {
         return false;
     }
-    latch = lane;
+    warned_drop_ = lane;
     return true;
 }
 
@@ -112,61 +193,45 @@ std::vector<LaneId> LaneSourceStore::lanes() const {
 
 void ingest(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        if (LaneSourceStore::instance().first_drop_of(LaneSourceStore::DropSite::Producer, lane)) {
-            spdlog::warn("[LaneSourceStore] ingest called with lane {}, which names no position; "
-                         "dropped. Repeats for this lane are silent.",
+        if (LaneSourceStore::instance().first_drop_of(lane)) {
+            spdlog::warn("[LaneSourceStore] lane {} names no position; reading dropped. Repeats "
+                         "for this lane are silent.",
                          lane);
         }
         return;
     }
-    if (obs.source == ObservationSource::LocalUser) {
-        spdlog::warn("[LaneSourceStore] ingest called with a user source; dropped");
+    if (obs.source == ObservationSource::Pending) {
+        spdlog::warn("[LaneSourceStore] ingest called with a pending edit; dropped");
         return;
     }
     LaneSourceStore::instance().write(lane, obs, /*amend=*/false);
 }
 
-void commit_slot_edit(LaneId lane, const Observation& obs) {
+void file_pending(LaneId lane, const Observation& obs) {
     if (!is_lane_id(lane)) {
-        if (LaneSourceStore::instance().first_drop_of(LaneSourceStore::DropSite::UserEdit, lane)) {
-            spdlog::warn("[LaneSourceStore] commit_slot_edit called with lane {}, which names no "
-                         "position; dropped. Repeats for this lane are silent.",
+        if (LaneSourceStore::instance().first_drop_of(lane)) {
+            spdlog::warn("[LaneSourceStore] lane {} names no position; edit dropped. Repeats "
+                         "for this lane are silent.",
                          lane);
         }
         return;
     }
-    if (obs.source != ObservationSource::LocalUser) {
-        spdlog::warn("[LaneSourceStore] commit_slot_edit called with a non-user source; dropped");
+    if (obs.source != ObservationSource::Pending) {
+        spdlog::warn("[LaneSourceStore] file_pending called with a non-pending source; dropped");
         return;
     }
-    // An amendment that observed nothing states nothing. Writing it anyway
-    // would leave a declaration with no content on the lane, which reads as
-    // "a person declared something here" to anything testing for a record.
     if (!any_observed(obs)) {
         return;
     }
+    LaneSourceStore::instance().write(lane, obs, /*amend=*/true);
+}
 
-    // A field the edit cleared is a withdrawal, so it comes off the statement
-    // and off whatever the rung already declared for it: an engaged empty
-    // filed here would outrank the machine's own reading until a restart.
-    // The clear still reaches the stored record, through the edit's values.
-    Observation statement = obs;
-    withdraw_cleared_fields(statement, obs);
-    Observation rung(ObservationSource::LocalUser);
-    const LaneSources standing = LaneSourceStore::instance().get(lane);
-    if (standing.local_user.has_value()) {
-        rung = *standing.local_user;
-        withdraw_cleared_fields(rung, obs);
-    }
-    merge_observed_fields(rung, statement);
-    // The stamp of the newest edit this rung has absorbed: the caller's when
-    // it filed from a record, and this moment for an edit made here. The
-    // next record another tool writes is measured against it.
-    rung.edited_at = statement.edited_at.value_or(std::chrono::system_clock::now());
-    LaneSourceStore::instance().drop_source(lane, ObservationSource::LocalUser);
-    if (any_observed(rung)) {
-        LaneSourceStore::instance().write(lane, rung, /*amend=*/false);
-    }
+void withdraw_pending(LaneId lane) {
+    drop_lane_source(lane, ObservationSource::Pending);
+}
+
+std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now) {
+    return LaneSourceStore::instance().expire(now);
 }
 
 void drop_lane_source(LaneId lane, ObservationSource source) {
@@ -177,19 +242,19 @@ void drop_lane_source(LaneId lane, ObservationSource source) {
 }
 
 void reset_lane_to_machine_readings(LaneId lane) {
-    drop_lane_source(lane, ObservationSource::Spoolman);
-    drop_lane_source(lane, ObservationSource::LocalUser);
-    drop_lane_source(lane, ObservationSource::Metered);
-    drop_lane_source(lane, ObservationSource::Remembered);
+    for (ObservationSource source : {ObservationSource::Record, ObservationSource::Pending,
+                                     ObservationSource::Spoolman, ObservationSource::Metered}) {
+        drop_lane_source(lane, source);
+    }
 }
 
 void retract_lane_declarations(LaneId lane, const std::function<void(Observation&)>& trim) {
     const LaneSources sources = lane_sources(lane);
-    if (sources.local_user.has_value()) {
-        Observation kept = *sources.local_user;
+    if (sources.pending.has_value()) {
+        Observation kept = *sources.pending;
         trim(kept);
-        drop_lane_source(lane, ObservationSource::LocalUser);
-        commit_slot_edit(lane, kept);
+        withdraw_pending(lane);
+        file_pending(lane, kept);
     }
     if (sources.spoolman.has_value()) {
         Observation kept = *sources.spoolman;

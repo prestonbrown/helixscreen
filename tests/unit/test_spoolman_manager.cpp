@@ -943,8 +943,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // A delete is bookkeeping, not a spool change: what the resolved view
     // carried goes back on the lane as remembered, the way a denied slot's
     // does.
-    REQUIRE(sources.remembered.has_value());
-    CHECK(sources.remembered->material == "PETG");
+    REQUIRE(sources.record.has_value());
+    CHECK(sources.record->material == "PETG");
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
     CHECK(shown->material == "PETG");
@@ -988,7 +988,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     auto sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
     REQUIRE(sources.spoolman.has_value());
     CHECK(sources.spoolman->spoolman_id == 2);
-    CHECK_FALSE(sources.remembered.has_value());
+    CHECK_FALSE(sources.record.has_value());
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
     CHECK(shown->spoolman_id == 2);
@@ -1033,7 +1033,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     SpoolInfo& spool = server_spool(1);
     state_polymaker_pla(spool);
 
-    helix::ams::Observation firmware(helix::ams::ObservationSource::VendorCache);
+    helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
     firmware.brand = "Firmware Brand";
     firmware.spool_name = "Firmware Name";
     helix::ams::ingest(backend.lane(0), firmware);
@@ -1091,8 +1091,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
         CHECK_FALSE(sources.spoolman.has_value());
         // The lane shows what is loaded: the identity the record supplied is
         // re-filed as remembered, the way an unlink that kept it files it.
-        REQUIRE(sources.remembered.has_value());
-        CHECK(sources.remembered->brand == "Cached Brand");
+        REQUIRE(sources.record.has_value());
+        CHECK(sources.record->brand == "Cached Brand");
         CHECK(helix::ams::resolve(sources).brand == "Cached Brand");
     }
 
@@ -1352,45 +1352,6 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     }
 
     CHECK(client.call_count("server.database.post_item") == saves_after_link);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "a changed Spoolman identity amends the linked lane's stored record",
-                 "[spoolman][lane][1653]") {
-    // Without the amend the lane shows the server's identity while the record a
-    // restart reloads still holds the old one.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend(&api, nullptr);
-    helix::ams::FilamentSlotOverride stored;
-    stored.spoolman_id = 1;
-    stored.brand = "Polymaker";
-    stored.material = "PLA";
-    stored.color_rgb = 0xBCBCBC;
-    stored.color_set = true;
-    stored.declared = helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb"}));
-    Ad5xIfsTestAccess::seed_override(*backend, 0, stored);
-    link(*backend, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
-
-    // The spool is edited on the server.
-    server_spool(1).material = "PETG";
-    server_spool(1).vendor = "Sunlu";
-    poll();
-
-    const auto record = Ad5xIfsTestAccess::get_override(*backend, 0);
-    REQUIRE(record.has_value());
-    CHECK(record->material == "PETG");
-    CHECK(record->brand == "Sunlu");
-    // The colour is the user's, and the server does not get to move it.
-    CHECK(record->color_rgb == 0xBCBCBCu);
-    CHECK(helix::ams::declares_color(*record));
-
-    // What a restart would reload now resolves to what the lane shows.
-    const helix::ams::LaneSources reload = helix::ams::sources_from_record(
-        *record, helix::ams::to_lane_data_record(0, *record), helix::ams::LegacyLockKeys::LaneData);
-    CHECK(helix::ams::resolve(reload).material == std::string("PETG"));
-    CHECK(helix::ams::resolve(reload).brand == std::string("Sunlu"));
-    CHECK(helix::ams::resolve(reload).color_rgb == 0xBCBCBCu);
 }
 
 // A Spoolman fetch that times out is an ordinary network failure: the error

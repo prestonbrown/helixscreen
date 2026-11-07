@@ -207,9 +207,9 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
         SlotInfo spool;
         spool.material = "PLA";
         AmsState::instance().set_external_spool_info_in_memory(spool);
-        helix::ams::Observation edit(helix::ams::ObservationSource::LocalUser);
+        helix::ams::Observation edit(helix::ams::ObservationSource::Pending);
         edit.remaining_weight_g = 750.0f;
-        helix::ams::commit_slot_edit(helix::ams::kBypassLaneId, edit);
+        helix::ams::file_pending(helix::ams::kBypassLaneId, edit);
         REQUIRE(ams_state_spool_info().remaining_weight_g == 750.0);
 
         update_sensor_state("load_cell spool_weight", 290.0);

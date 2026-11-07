@@ -5,6 +5,7 @@
 #include "lane_observation.h"
 #include "lane_sources.h"
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -115,85 +116,61 @@ static_assert(kEndLaneId > kFirstToolLaneId,
     return LaneId{backend_index * kLanesPerBackend + slot_index};
 }
 
-/// The one way a non-UI source writes this store. Replaces this lane's record
-/// for obs.source whole and leaves every other source untouched. A field the
+/// How long an edit of ours stands on a lane without its echo. A write that
+/// neither echoes nor fails inside this window is withdrawn, and the lane shows
+/// what Moonraker holds.
+constexpr std::chrono::seconds kPendingWriteTimeout{30};
+
+/// The one way a reading reaches a lane. Replaces this lane's record for
+/// obs.source whole and leaves every other source untouched. A field the
 /// source did not observe stops contributing, which is what keeps a stale
 /// frame from re-asserting a value its author has stopped standing behind.
-/// obs.source must not be LocalUser; commit_slot_edit() is that source's only
-/// funnel.
+/// obs.source must not be Pending; file_pending() is that source's funnel.
+///
+/// A Firmware or Record reading is also the echo of our own writes: every
+/// Pending field it states with the same value is withdrawn, because the
+/// reading now carries it (pending_echoed()).
 ///
 /// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
-/// The one way a human edit writes this store. Unlike ingest(), this AMENDS
-/// the user's record field by field: a person states what they changed, and
-/// what they declared earlier still stands. obs.source must be LocalUser;
-/// every other source's only funnel is ingest().
-///
-/// A field the edit cleared is a withdrawal, not a value: it comes off the
-/// statement and off whatever the user's record already declared for the
-/// field, so nothing sits over the field and the weaker sources show through
-/// immediately. Without the withdrawal the clear would outrank the machine's
-/// own reading until a restart (prestonbrown/helixscreen#1661).
-///
-/// This is the declaration layer: it records the user's authorship as a lane
-/// source record. AmsState::commit_slot_edit (ams_state.h) is the method
-/// layer that performs the edit against every backing store.
+/// File an edit of ours as Pending while its write is in flight. Amends the
+/// lane's Pending record field by field, so a second edit before the first
+/// echoes keeps both, and restarts the kPendingWriteTimeout window.
+/// obs.source must be Pending.
 ///
 /// A lane that is not a lane is warned about and dropped.
-void commit_slot_edit(LaneId lane, const Observation& obs);
+void file_pending(LaneId lane, const Observation& obs);
+
+/// Withdraw a lane's Pending record whole: the write failed, or was refused.
+void withdraw_pending(LaneId lane);
+
+/// Withdraw every Pending record whose window closed before @p now, logging
+/// each at warn. Returns the lanes withdrawn so a caller can repaint them.
+/// lane_sources() applies the same expiry to the lane it reads.
+std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now);
+
+/// Take off @p pending every field @p reading states with the same value.
+/// A cleared Pending field (empty text, zero id) is echoed by a reading that
+/// leaves the field unset: firmware and records both state "none" as no value.
+/// Weights compare within 0.1 g. Pure.
+void strip_echoed_fields(Observation& pending, const Observation& reading);
 
 /// Remove one source's record from a lane, leaving every other source alone.
-///
-/// The counterpart to the two funnels rather than a third one: it puts no
-/// value anywhere, so nothing it does can land on a lane as a reading. What it
-/// can do is DESTROY a record a person made. A LocalUser record is a human's
-/// own declaration and this deletes it outright, with no undo and nothing
-/// kept; call it only where the statement that record makes has been shown to
-/// be about something that is no longer there.
-///
-/// A lane that is not a lane is dropped, silently: unlike the funnels, nothing
-/// is lost by a drop that names no lane.
+/// A lane that is not a lane is dropped, silently.
 void drop_lane_source(LaneId lane, ObservationSource source);
 
-/// Reset a lane to what the machine itself reports, dropping every record that
-/// came from somewhere else: the user's own declaration, a Spoolman binding,
-/// our meter's estimate, and what our stored record remembered. Sensed and
-/// VendorCache survive, because those alone are firmware's own readings and a
-/// clear is not a statement about them.
-///
-/// The counterpart to a backend erasing its stored override. That erase and
-/// this call are one operation in two stores: an override removed from one
-/// while its records stand in the other means resolve() keeps returning the
-/// identity the user just cleared, and the clear does not stick.
-///
-/// Not the same operation as drop_previous_spool_declarations() (lane_binding.h),
-/// which leaves Metered standing: a changed binding says nothing about a weight,
-/// where a cleared record takes the weight with it exactly as it takes the brand.
+/// Reset a lane to what the machine itself reports: drop the lane record, a
+/// pending edit, the Spoolman details and the meter's estimate. Sensed and
+/// Firmware survive, because a clear is not a statement about them. The
+/// counterpart to a backend erasing its stored record.
 ///
 /// A lane that is not a lane is dropped, silently, like drop_lane_source().
 void reset_lane_to_machine_readings(LaneId lane);
 
-/// Retract part of what a lane's declaring sources say, leaving the rest of
-/// each record standing. @p trim is handed each declaring record in turn and
-/// resets the fields being retracted. Which fields those are is the caller's
-/// decision: the fields that travel together differ per caller, and the store
-/// has no opinion about them.
-///
-/// The store offers no partial retraction, so this composes one, and the two
-/// declaring sources compose differently. commit_slot_edit() amends, so the
-/// user's record is dropped before the trimmed copy is filed; filing it onto
-/// the standing one would restore what the trim removed. A trimmed user record
-/// left declaring nothing files nothing, which retracts that declaration
-/// whole. ingest() replaces a source's record outright, so the Spoolman record
-/// is re-filed with no drop.
-///
-/// Both declaring sources are amended, because either can hold a value that
-/// outranks a machine reading: a retraction reaching one of them leaves
-/// resolve() painting what the lane has stopped declaring.
-///
-/// Narrower than reset_lane_to_machine_readings(), which discards whole
-/// records rather than fields within them.
+/// Retract part of what a lane's Pending and Spoolman records say, leaving the
+/// rest of each standing. @p trim is handed each record in turn and resets the
+/// fields being retracted; a record left stating nothing is dropped.
 void retract_lane_declarations(LaneId lane, const std::function<void(Observation&)>& trim);
 
 /// This lane's records, by value. An unwritten lane reads as nothing observed.
@@ -215,27 +192,22 @@ void reset_lane_sources();
 
 /// Holds one LaneSources per lane until the backends that wrote them go away.
 /// Bounded by construction: the funnels accept only ids is_lane_id() admits, so
-/// the map can never hold more than kMaxLanes (2305) entries.
+/// the map can never hold more than kMaxLanes entries.
 ///
-/// write() is private with exactly two friends: ingest() and commit_slot_edit().
-/// Those two are the only code that can reach a lane's records; a third friend
-/// would be a third writer. clear() and drop_source() are public beside them
-/// because neither files anything: a record removed is not a value asserted,
-/// so the two funnels stay the only way a reading arrives on a lane.
+/// write() is private with exactly two friends, ingest() and file_pending():
+/// those are the only code that can put a reading on a lane. Removing a record
+/// files nothing, so drop_source() and clear() are public beside them.
 class LaneSourceStore {
   public:
     static LaneSourceStore& instance();
 
-    [[nodiscard]] LaneSources get(LaneId lane) const;
+    /// A lane's records, with an expired Pending record withdrawn first.
+    [[nodiscard]] LaneSources get(LaneId lane);
     [[nodiscard]] std::vector<LaneId> lanes() const;
 
-    /// Discard every lane's records. Not a writer - it files nothing, so it
-    /// needs none of the friendship write() is guarded by.
     void clear();
-
-    /// Discard one lane's record for one source. Not a writer either, for the
-    /// same reason; drop_lane_source() is the free function callers use.
     void drop_source(LaneId lane, ObservationSource source);
+    std::vector<LaneId> expire(std::chrono::steady_clock::time_point now);
 
     LaneSourceStore(const LaneSourceStore&) = delete;
     LaneSourceStore& operator=(const LaneSourceStore&) = delete;
@@ -247,38 +219,22 @@ class LaneSourceStore {
     /// observed fields onto whatever that source already holds.
     void write(LaneId lane, const Observation& obs, bool amend);
 
-    /// Which funnel threw a record away. The two are different facts about
-    /// different callers, so each speaks for itself.
-    enum class DropSite {
-        Producer, ///< ingest(): a machine reading filed on no lane.
-        UserEdit, ///< commit_slot_edit(): a person's edit thrown away.
-    };
+    bool expire_locked(LaneId lane, std::chrono::steady_clock::time_point now);
 
-    /// True when @p site has not already warned about @p lane, latching it so
-    /// the next call naming the same pair is false.
-    ///
-    /// Each message carries its id and nothing else, so repeating one for the
-    /// same id tells a reader nothing they have not been told, and a producer
-    /// filing through a backend that has no index yet reaches this three times
-    /// per lane per frame - enough to push unrelated lines out of a test's log
-    /// ring. A changed id speaks again, and so does the other funnel: at
-    /// startup the producer's flood always runs first, and a lost user edit is
-    /// the more serious of the two to lose.
-    bool first_drop_of(DropSite site, LaneId lane);
+    /// True when @p lane differs from the last lane a funnel warned about,
+    /// latching it: a producer filing through an unregistered backend reaches
+    /// this on every frame, and one line per id says all there is to say.
+    bool first_drop_of(LaneId lane);
 
     friend void ingest(LaneId, const Observation&);
-    friend void commit_slot_edit(LaneId, const Observation&);
+    friend void file_pending(LaneId, const Observation&);
 
-    /// Backends parse on the main thread, but the Spoolman and database
-    /// callbacks that will feed this in plan 4 land on an HTTP worker.
+    /// Backends parse on the main thread; Spoolman and database callbacks
+    /// can land on an HTTP worker.
     mutable std::mutex mutex_;
     std::map<LaneId, LaneSources> lanes_;
-
-    /// The lane id each funnel's last dropped-lane warning named. Cleared with
-    /// the lanes, so a test that wants the warning gets it: every fixture
-    /// calls reset_lane_sources().
-    std::optional<LaneId> warned_producer_drop_;
-    std::optional<LaneId> warned_edit_drop_;
+    std::map<LaneId, std::chrono::steady_clock::time_point> pending_deadline_;
+    std::optional<LaneId> warned_drop_;
 };
 
 } // namespace helix::ams

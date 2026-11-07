@@ -26,7 +26,6 @@ namespace helix::printer {
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
-#include "lane_echo.h"
 
 #include <atomic>
 #include <chrono>
@@ -263,8 +262,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     }
 
     // Slot management (user overrides persisted via shared FilamentSlotOverrideStore)
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The box's record of the bay's tag, kept while our own write-back holds
@@ -273,10 +271,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// A stock box publishes each bay's whole tag record; the flat schema
     /// publishes no record to read a spool id from.
     [[nodiscard]] bool tags_name_spoolman_spools() const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
@@ -813,8 +807,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// the gcode without a live Moonraker connection.
     virtual void push_slot_identity_to_firmware(int global_index, const std::string& material,
                                                 const std::string& brand,
-                                                const std::string& catalog_id, uint32_t color_rgb,
-                                                const helix::ams::Observation* declared = nullptr);
+                                                const std::string& catalog_id, uint32_t color_rgb);
 
   private:
     friend class helix::CfsTestAccess;
@@ -1184,24 +1177,15 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// mark in memory and persist the record without it. Caller holds mutex_.
     void make_bay_record_locked(int bay, helix::ams::FilamentSlotOverride& record);
 
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
+    /// Fold legacy fingerprints onto the current shape and re-seed the swap
+    /// tracker's baselines from the records just read. Caller holds mutex_.
+    void on_lane_records_read_locked() override;
 
     // Per-slot last-observed RFID fingerprint (material_type + "|" +
     // color_value, using the raw pre-strip_code strings), plus the pending
     // expected fingerprints for an identity push we issued. Shared with the
     // other RFID-fingerprint backend (Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What the user declared in an edit of each bay, staged against the
-    // write so this backend does not file its own write-back echo as the
-    // box's RFID reading. The suppression ends when the user disowns the
-    // write (Clear Spool) or the fingerprint's own swap detection fires.
-    // All access under mutex_.
 
     // Insert-edge bookkeeping for docs/specs/filament_slots.md §6: the last
     // presence this backend derived for each bay, and the tag evidence it

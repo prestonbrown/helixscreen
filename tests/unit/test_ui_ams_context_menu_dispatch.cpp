@@ -323,9 +323,8 @@ namespace {
 class PartialClearMock : public helix::AmsBackendMock {
   public:
     using helix::AmsBackendMock::AmsBackendMock;
-    helix::AmsError apply_user_edit(int slot_index, const helix::SlotInfo& info,
-                                    const helix::ams::Observation& declared) override {
-        (void)helix::AmsBackendMock::apply_user_edit(slot_index, info, declared);
+    helix::AmsError apply_user_edit(int slot_index, const helix::SlotInfo& info) override {
+        (void)helix::AmsBackendMock::apply_user_edit(slot_index, info);
         helix::AmsError partial(helix::AmsResult::COMMAND_FAILED, "firmware refused",
                                 "Couldn't clear", "HelixScreen cleared its own copy.");
         partial.partially_applied = true;

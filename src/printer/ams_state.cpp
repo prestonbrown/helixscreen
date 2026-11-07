@@ -25,6 +25,7 @@
 #include "ams_state_internal.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
+#include "connection_state.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
@@ -2459,6 +2460,12 @@ AmsError AmsState::commit_slot_edit(int slot_index, const SlotInfo& original,
     if (!backend) {
         return AmsError(AmsResult::NO_AMS_DETECTED, "no AMS backend",
                         lv_tr("Multi-Filament System not available"));
+    }
+    // A lane holds only what Moonraker holds, so an edit with no printer to
+    // write it to is refused rather than kept here.
+    if (last_connection_state_ >= 0 &&
+        last_connection_state_ != static_cast<int>(ConnectionState::CONNECTED)) {
+        return AmsErrorHelper::not_connected();
     }
 
     // S1 — server-side active spool (fire-and-forget, warn on failure). The

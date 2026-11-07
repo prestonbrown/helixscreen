@@ -112,7 +112,7 @@ class HappyHareTestAccess {
     /// built. Lets a test assert the PRIVATE namespace without reaching for the
     /// store itself, which stays private.
     template <class B> static std::string store_namespace(const B& b) {
-        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
+        return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
 
     // --- private methods ----------------------------------------------------

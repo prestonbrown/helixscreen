@@ -17,7 +17,6 @@
 #include "filament_op_slot_resolver.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -124,11 +123,7 @@ AmsError AmsBackendToolChanger::additional_start_checks() {
 
 void AmsBackendToolChanger::on_started() {
     // Deliberately NOT additional_start_checks(): start() calls that one while
-    // holding mutex_, and load_blocking() both blocks the caller and needs
-    // mutex_ to publish its result. Doing it there self-deadlocks on a
-    // non-recursive mutex the moment a real API is attached - the app hangs at
-    // startup, not just the tests. on_started() runs after start() releases the
-    // lock, which is why AmsBackendSnapmaker loads from here too.
+    // holding mutex_, and opening the store takes mutex_.
     //
     register_mount_feed_listener();
 
@@ -141,27 +136,7 @@ void AmsBackendToolChanger::on_started() {
     if (!api_) {
         return;
     }
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "toolchanger", get_type(), backend_log_tag());
-    if (loaded.store) {
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-        seed_lane_records_seen_locked();
-        // set_discovered_tools() built the slots before start() ran, so they
-        // predate everything just loaded. Layer it on now rather than leaving
-        // the panel grey until the first status frame arrives.
-        if (!system_info_.units.empty()) {
-            auto& slots = system_info_.units[0].slots;
-            for (size_t i = 0; i < slots.size(); ++i) {
-                apply_resolved_lane(slots[i], static_cast<int>(i));
-            }
-        }
-    }
+    open_lane_record_store("toolchanger");
 
     register_zmod_marker_listener();
     query_zmod_tool_state();
@@ -1259,7 +1234,7 @@ void AmsBackendToolChanger::apply_material_reading_locked(
         seen = std::move(value);
         // The firmware's statement of what this head holds, replaced whole each
         // time the frame carries it.
-        helix::ams::Observation vendor(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation vendor(helix::ams::ObservationSource::Firmware);
         if (!slot->material.empty()) {
             vendor.material = slot->material;
         }
@@ -1279,7 +1254,7 @@ void AmsBackendToolChanger::apply_material_reading_locked(
         refresh_slot_statuses_locked();
     }
     if (restated) {
-        schedule_lane_record_reread();
+        schedule_lane_refresh();
     }
 }
 
@@ -1296,7 +1271,7 @@ void AmsBackendToolChanger::apply_afc_lane_spools_locked(
         }
     }
     if (changed) {
-        schedule_lane_record_reread();
+        schedule_lane_refresh();
     }
 }
 
@@ -1353,13 +1328,6 @@ std::optional<std::vector<std::string>> AmsBackendToolChanger::get_supported_mat
         return std::nullopt;
     }
     return firmware_valid_types_;
-}
-
-bool AmsBackendToolChanger::firmware_stores_color_and_material(int slot_index) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return material_source_.present && material_source_.write_gcode && firmware_slots_seen_ &&
-           firmware_palette_ && !firmware_palette_->empty() && slot_index >= 0 &&
-           slot_index < static_cast<int>(tool_names_.size());
 }
 
 void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_data) {
@@ -2849,8 +2817,7 @@ bool AmsBackendToolChanger::can_cancel_operation() const {
 // Configuration Operations
 // ============================================================================
 
-AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& info,
-                                                const helix::ams::Observation& declared) {
+AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& info) {
     std::string physical_tool_name;
     bool firmware_edit = false;
     std::vector<std::pair<int, std::uint32_t>> palette;
@@ -2928,15 +2895,14 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
             // Stage the user's edit. Every field is override-exclusive here:
             // klipper-toolchanger supplies no material, colour, brand or weight,
             // so there is nothing underneath for these to fall through to.
-            helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+            helix::ams::stage_user_override(overrides_, slot_index, info);
         }
     }
 
     // Persist BEFORE the remap's early return, or a slot edit that also moved a
     // tool number would send ASSIGN_TOOL and silently drop the metadata.
     if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+        persist_override(slot_index);
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks, and ahead of the
@@ -3016,22 +2982,6 @@ AmsError AmsBackendToolChanger::sync_external_identity(int slot_index, const Slo
     // Emit OUTSIDE the lock to avoid deadlock with callbacks
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
-}
-
-void AmsBackendToolChanger::persist_external_identity_impl(
-    int slot_index, const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendToolChanger::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                                float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
 }
 
 AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_name,

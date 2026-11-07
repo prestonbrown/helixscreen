@@ -93,13 +93,8 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// own errors are cleared by reset().
     AmsError clear_fault(int slot_index) override;
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     void clear_slot_override(int slot_index) override;
 
     /// Group names are configured in klipper_openams; `T<n>` groups are read
@@ -154,15 +149,6 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     SlotInfo* cached_slot_locked(int slot_index) override;
     void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
-    /// OpenAMS reports no filament identity, so the persisted lane record is
-    /// the only account of what a slot holds and a resync re-reads it.
-    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
-        return false;
-    }
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
     /// Sends one advertised load/unload command. The command runs the complete
     /// configured toolchange, homing included, so no home is added here; the
     /// failure it raises reaches the user through the G-code error stream,
@@ -189,14 +175,6 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
         std::string lane;
         std::vector<int> slots;
     };
-
-    /// Re-read the lane_data records and file what they say onto the lanes.
-    /// The read never blocks and never holds the backend mutex; the filing
-    /// runs on the main thread. A spool link written after start (by the
-    /// openams_spoolman component, or by another tool) shows up through this.
-    void refresh_lane_records();
-    void apply_lane_records(int backend_block,
-                            const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
 
     /// What a unit publishes about its dryer. Parallel to system_info_.units.
     struct UnitDryer {

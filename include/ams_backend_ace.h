@@ -147,18 +147,13 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // Configuration
     // ========================================================================
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// A bay's last identified tag read (rfid true, or 2): material, colour and
     /// the temperatures the frame carried. Dropped when the bay empties or a
     /// finished read finds no tag.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
 
     // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
     // in the AMS edit modal). Erases overrides_[slot_index], resets the
@@ -801,12 +796,6 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     bool path_sensors_seen_ = false;
     bool rdm_sensor_ = false;
     bool toolhead_sensor_ = false;
-
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
 
     // Previous slot status per slot index. Used as the insert-edge signal:
     // an EMPTY -> present transition runs the insert rule. Map presence also

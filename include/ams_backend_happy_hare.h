@@ -9,7 +9,6 @@
 #include "error_event.h"
 #include "filament_slot_override_store.h"
 #include "happy_hare_status_parse.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "slot_registry.h"
 
@@ -220,13 +219,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     toolchange_phase_template(StepOperationType op) const override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -434,8 +428,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// Store on the SHARED lane_data namespace, used only by
     /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
-    void persist_override(int slot_index, const SlotInfo& info,
-                          const helix::ams::Observation& declared);
     /// Put @p info's filament fields and tool mapping on @p slot, the half an
     /// edit and a sync share. Callers hold mutex_.
     void write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
@@ -499,37 +491,14 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // no // narration, so the backend drives the bar itself. Caller holds mutex_.
     void sync_narration_step();
 
-    /// What one printer.mmu frame accumulates while it is applied: the gate
-    /// identity it stated and cleared, which the echo guard judges at the
-    /// filing step, and what must happen once mutex_ is released.
-    ///
-    /// The accumulator gate_readings_ carries the gate map's last word on every
-    /// key, so a frame silent about material would otherwise offer the pre-edit
-    /// material as this frame's statement and release the material declaration
-    /// before its echo lands. The echo guard therefore judges these instead.
+    /// What one printer.mmu frame accumulates while it is applied: what must
+    /// happen once mutex_ is released.
     struct MmuFrame {
         /// A fault stood when the frame began (reason_for_pause was non-empty).
         bool was_faulted = false;
-        std::map<int, helix::ams::Observation> stated;
-        std::map<int, helix::ams::Observation> cleared;
         /// Gates that went from empty to holding filament with no spool
         /// binding to say what went in.
         std::vector<int> unverified_insert_gates;
-
-        /// Observation has no default constructor, so every entry is created
-        /// through these with a definite source.
-        helix::ams::Observation& stated_for(int gate) {
-            return stated
-                .try_emplace(gate,
-                             helix::ams::Observation{helix::ams::ObservationSource::VendorCache})
-                .first->second;
-        }
-        helix::ams::Observation& cleared_for(int gate) {
-            return cleared
-                .try_emplace(gate,
-                             helix::ams::Observation{helix::ams::ObservationSource::VendorCache})
-                .first->second;
-        }
     };
 
     // The sections of one printer.mmu frame, applied under mutex_ in this order.
@@ -541,11 +510,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     void apply_mmu_topology_locked(const happy_hare::MmuTopologyDelta& topology);
     void apply_gate_status_locked(const happy_hare::GateIdentityDelta& identity);
     /// gate_color_rgb / gate_color / gate_material.
-    void apply_gate_appearance_locked(const happy_hare::GateIdentityDelta& identity,
-                                      MmuFrame& frame);
-    /// Spool binding (with its reconcile), temperature, names, tool map and
+    void apply_gate_appearance_locked(const happy_hare::GateIdentityDelta& identity);
+    /// Spool binding, temperature, names, tool map and
     /// endless-spool groups.
-    void apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta, MmuFrame& frame);
+    void apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta);
     void apply_mmu_telemetry_locked(const happy_hare::MmuTelemetryDelta& telemetry);
     /// Pre-gate sensors, drying and the endless-spool enable bit.
     void apply_mmu_sensors_locked(const happy_hare::MmuStatusDelta& delta);
@@ -576,14 +544,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /**
      * @brief Blank the identity only a departed source could have stated.
      *
-     * reconcile_lane_binding() drops the Spoolman, user and remembered records
-     * from a gate's lane the moment the gate map stops agreeing with them. The
-     * fields below are the ones apply_mmu_status_locked() never writes, so with those
-     * records gone nothing can restate them, and apply_resolved() does not
-     * write a field no source observed. They would otherwise stand on a gate
-     * describing a spool that has nothing to do with it - on a re-bind, the
-     * incoming spool wearing the outgoing one's brand
-     * (prestonbrown/helixscreen#1672).
+     * A gate the gate map moves to another spool stops resolving the previous
+     * spool's Spoolman details. The fields below are the ones
+     * apply_mmu_status_locked() never writes, so nothing restates them, and
+     * apply_resolved() does not write a field no source observed. They would otherwise stand on a
+     * gate describing a spool that has nothing to do with it - on a re-bind, the incoming spool
+     * wearing the outgoing one's brand (prestonbrown/helixscreen#1672).
      *
      * Colour, material, gate name and the spool id are left alone: the gate map
      * states each of them and this frame has already written them.
@@ -746,13 +712,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// reading it back would file a user's own choice as something the MMU
     /// remembers.
     std::map<int, helix::ams::Observation> gate_readings_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What the user's own MMU_GATE_MAP write declared, so the gate map
-    // echoing it back through printer.mmu is not filed as firmware's reading.
-    // The gate map is user-maintained, so no tag names the spool a write was
-    // made against: suppression ends on a differing value, a key published
-    // empty, the re-bind verdict in the gate_spool_id parse, or a clear.
 
     // Path visualization state
     int filament_pos_{0};     ///< Happy Hare filament_pos value

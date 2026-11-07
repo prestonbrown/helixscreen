@@ -8,7 +8,6 @@
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "slot_registry.h"
 
@@ -451,8 +450,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     void on_klipper_restarted() override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The lane's inline colour scan (a TD-1), which SlotInfo keeps apart from
@@ -460,8 +458,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -689,15 +685,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// private override_store_ is deliberately NOT pointed at it.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     // overrides_ is keyed by the lane's registry position (slots_ index), the
-    // one key every per-lane store here shares: lane_id(), own-write
-    // expectations and own_write_echoes_ all take it. Never a SlotInfo field:
+    // one key every per-lane store here shares, lane_id() included. Never a
+    // SlotInfo field:
     // slot_index there is unit-local, and global_index is a copy the registry
     // stamps (#1644).
-    /// Layer the user override over firmware values. Callers hold mutex_.
-    /// Build + persist an override from a user edit, recording what @p declared
-    /// says the user moved. Callers hold mutex_.
-    void persist_override(int slot_index, const SlotInfo& info,
-                          const helix::ams::Observation& declared);
     /// Put @p info's filament fields and tool mapping on @p slot, the half an
     /// edit and a sync share. Callers hold mutex_.
     void write_lane_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
@@ -1036,45 +1027,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      */
     void parse_afc_stepper(int slot_index, const std::string& lane_name,
                            const nlohmann::json& data);
-
-    /**
-     * @brief Push a retained Spoolman binding back into AFC (#1289)
-     *
-     * Called from parse_afc_stepper on the empty -> loaded EDGE only. With
-     * "Keep Spool Info on Eject" on, AFC's own remember_spool = false means
-     * firmware dropped the lane's link on eject while our override kept the
-     * identity — re-inserting the spool would paint the retained id here
-     * while AFC/Mainsail show an unknown spool. Sends the same
-     * SET_SPOOL_ID write the editor re-link uses, wrapped in
-     * record_own_spool_write() so the echo cannot classify as a re-bind and
-     * drop the records that declared the binding.
-     *
-     * Gates: retention setting on, override holds a spool id for the lane,
-     * and firmware's freshest spool_id reading is 0/null (a
-     * remember_spool = true firmware or another writer's link wins by not
-     * firing). Edge-triggered — no re-send while loaded, no retry on a
-     * failed dispatch; the next eject/re-insert cycle is the retry.
-     *
-     * @param slot_index Registry slot index for this lane
-     * @param lane_name Lane identifier (e.g., "lane1") for the gcode
-     */
-    void maybe_reassert_retained_spool_link(int slot_index, const std::string& lane_name);
-
-    /**
-     * @brief Drop a binding firmware has stopped agreeing with, in both stores
-     *
-     * Both parsers state a spool id, so both invalidate on one: which of them
-     * ran last is not allowed to decide whether a stale binding still paints.
-     *
-     * The verdict is reached on every frame rather than only where a clear
-     * might follow, because reaching it is also what retires the own-write
-     * expectation for this lane.
-     *
-     * @param slot_index Registry slot index for this lane, the key its binding
-     *                   and its stored override are both filed under
-     * @param firmware_spool_id The id firmware states this frame, 0 for none
-     */
-    void invalidate_broken_binding(int slot_index, int firmware_spool_id);
 
     /**
      * @brief Parse AFC_hub object for per-hub sensor state
@@ -1536,8 +1488,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// Firmware's own last-reported spool_id per lane, updated only when a
     /// status delta carries the key. Distinct from SlotInfo::spoolman_id,
     /// which the §5 override merge re-supplies with the retained id — this
-    /// map preserves "does AFC itself still hold a link?" for
-    /// maybe_reassert_retained_spool_link() (#1289).
+    /// map preserves "does AFC itself still hold a link?".
     std::unordered_map<std::string, int> lane_firmware_spool_id_;
 
     /// Latest reading per OpenAMS sensor, keyed by lowercased sensor name.
@@ -1572,17 +1523,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// Nothing writes an override here, so what this holds is firmware's word
     /// by construction.
     struct LaneFirmwareReadings {
-        ams::Observation cache{ams::ObservationSource::VendorCache};
+        ams::Observation cache{ams::ObservationSource::Firmware};
         ams::Observation metered{ams::ObservationSource::Metered};
     };
     std::unordered_map<std::string, LaneFirmwareReadings> lane_firmware_readings_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What a user's edit declared and this backend wrote back, for the parse
-    // to tell firmware repeating our own SET_COLOR / SET_MATERIAL from a
-    // reading. Keyed by slot index like the guard's other users, and under
-    // the same mutex_ discipline as lane_firmware_readings_ above: both parse
-    // paths and apply_user_edit() run with the lock held.
 
     /// Lanes last seen on each buffer, keyed by buffer name. AFC's buffer status
     /// arrives as a Moonraker delta, so a frame that changes only `state` omits

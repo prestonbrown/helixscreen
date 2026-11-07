@@ -183,7 +183,7 @@ TEST_CASE("AFC lane_data applies the user's slot overrides", "[ams][afc][1195]")
     SECTION("a different firmware id is an external re-bind — the record drops (#1281)") {
         // Another writer set spool 5 on this lane; our stale override for 77
         // must not shadow it. Mirrors the status-path test in
-        // test_override_rebind.cpp through the DB parser.
+        // the DB parser.
         afc.feed_lane_data(
             both_lanes(nlohmann::json{{"material", "PLA"}, {"spool_id", 5}, {"color", "#FF0000"}}));
         CHECK(afc.spool_id(0) == 5);

@@ -13,6 +13,7 @@
 #include "ams_state.h"
 #include "ams_state_internal.h"
 #include "filament_accounting_controller.h"
+#include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "lane_apply.h"
 #include "lane_binding.h"
@@ -43,15 +44,13 @@ std::optional<SlotInfo> AmsState::get_external_spool_info() const {
         return out;
     }
     // The bypass lane carries what the sources say about this spool: the
-    // weight poll's Spoolman record, the consumption meter's count, the
-    // user's own edits. A Spoolman record standing from an earlier binding
-    // names a spool the raw record does not, so it is dropped from the copy
-    // rather than resolved - the same ranking a lane's declared id gets.
+    // weight poll's Spoolman record and the consumption meter's count, over
+    // the stored record. The record's identity is what links the spool; its
+    // weights are the base the meter counts down from, so they stay unfiled.
     helix::ams::LaneSources sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
-    if (sources.spoolman.has_value() &&
-        sources.spoolman->spoolman_id.value_or(0) != out->spoolman_id) {
-        sources.drop(helix::ams::ObservationSource::Spoolman);
-    }
+    sources.record = helix::ams::record_observation(helix::ams::external_lane_record(*out));
+    sources.record->remaining_weight_g.reset();
+    sources.record->total_weight_g.reset();
     helix::ams::apply_resolved(*out, helix::ams::resolve(sources));
     return out;
 }
@@ -124,15 +123,12 @@ void AmsState::apply_external_spool_store(const SlotInfo& info) {
     const SlotInfo original = raw_external_spool_info().value_or(SlotInfo{});
     if (info.spoolman_id > 0 || !info.material.empty()) {
         store_external_spool_info(info);
-        // The edit files on the bypass lane like a slot edit files on its
-        // lane: store_external_spool_info() has already taken the previous
-        // spool's records with any binding move, and the user's own values
-        // now stand as LocalUser.
-        helix::ams::commit_slot_edit(helix::ams::kBypassLaneId,
-                                     helix::ams::user_edit_observation(original, info));
-        // Observers re-read the resolved record, where the lane's previous
-        // LocalUser weight outranks the raw one, so they hear of the edit only
-        // once the lane carries it.
+        // The stored record is the edit; a meter count from before it no
+        // longer describes the spool.
+        if (info.remaining_weight_g != original.remaining_weight_g) {
+            helix::ams::drop_lane_source(helix::ams::kBypassLaneId,
+                                         helix::ams::ObservationSource::Metered);
+        }
         notify_external_spool_changed(info);
     } else {
         // Takes the lane's declarations with it, exactly as it takes the

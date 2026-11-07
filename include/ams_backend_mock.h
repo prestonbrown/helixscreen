@@ -190,8 +190,7 @@ class AmsBackendMock : public AmsBackend {
      * differs from the slot's current one logs a warning rather than silently
      * doing nothing — use force_slot_status() to stage a mock slot state.
      */
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
     /// The same write as apply_user_edit(). The mock has no firmware or store
     /// behind a slot, so an edit and a sync differ only in what the caller
@@ -954,21 +953,14 @@ class AmsBackendMock : public AmsBackend {
      *
      * The simulated population is this backend's firmware: the constructor seeds
      * it from kSampleFilaments and each rig mode rebuilds it, which is the same
-     * signal a real backend gets from a parse. Presence is Sensed; colour and
-     * material are VendorCache.
+     * signal a real backend gets from a parse. Presence is Sensed; identity is
+     * Firmware, every field the simulated firmware holds, the way AFC's lane
+     * object states colour, material, brand, name, spool id and weight. A write
+     * files the population again, so an edit echoes the way it does on such a
+     * printer and its Pending record retires.
      *
-     * Nothing else is, and the bound is deliberate: a mock that files a field
-     * no hardware reports lets a case pass against a reading no backend can
-     * produce. Brand is out for the reason the constructor gives, that a real
-     * lane's brand comes only from the override store or the Spoolman identity
-     * cache. Colour NAME is out for the same reason one step further on:
-     * firmware reports hex, and a name comes from our own naming or from
-     * Spoolman. The Spoolman handles and weights on these slots are Spoolman's
-     * to file, not this backend's.
-     *
-     * Called from start(), which AmsState reaches only after registration has
-     * stamped a backend index; an earlier call files onto kInvalidLaneId and
-     * is dropped.
+     * Called from start() and after every slot write. Before registration has
+     * stamped a backend index a call files onto kInvalidLaneId and is dropped.
      *
      * Takes mutex_ itself, so the caller must not hold it.
      */
