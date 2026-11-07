@@ -374,7 +374,6 @@ src/ui/view_gestures.cpp  # two-finger gestures for the 3D G-code viewer and 3D 
 src/system/jz_pwm_sound_backend.cpp  # AD5X-only: exec's the Linux fx-pwm child; no process model on ESP32
 src/ui/ui_selector_model.cpp  # selector model for the wizard printer step, not in the v1 Core+AMS cut
 src/printer/k2_stock_detection_source.cpp  # not in the v1 Core+AMS cut
-src/printer/z_offset_calibration_approach.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_permissions.cpp  # not in the v1 Core+AMS cut
 src/plugin/plugin_manifest.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_runtime.cpp  # not in the v1 Core+AMS cut
