@@ -4372,6 +4372,14 @@ void load_without_an_answer(MockPrinter& printer, FilamentSlotOverrideStore& sto
     (void)store.load_blocking();
 }
 
+/// A store for @p printer whose cache file lives in @p tmp.
+std::unique_ptr<FilamentSlotOverrideStore> store_over(MockPrinter& printer, const TmpCacheDir& tmp,
+                                                      const std::string& backend) {
+    auto store = std::make_unique<FilamentSlotOverrideStore>(&printer.api, backend);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    return store;
+}
+
 } // namespace
 
 TEST_CASE("an unanswered load writes nothing over the printer's records",
@@ -4513,10 +4521,9 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
     // The cache a previous run left: slot 1 as it was then, slot 2 present.
     FilamentSlotOverride cached = polymaker_record();
     {
-        FilamentSlotOverrideStore seed(&printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(seed, tmp.path);
-        seed.save_async(1, cached, nullptr);
-        seed.save_async(2, cached, nullptr);
+        const auto seed = store_over(printer, tmp, "ifs");
+        seed->save_async(1, cached, nullptr);
+        seed->save_async(2, cached, nullptr);
     }
     // Another tool moved slot 1 on while the app was down.
     FilamentSlotOverride newer = cached;
@@ -4528,21 +4535,19 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
     edit.color_rgb = 0x00FF00;
     edit.declared = helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb"}));
     {
-        FilamentSlotOverrideStore before(&printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(before, tmp.path);
-        load_without_an_answer(printer, before);
-        REQUIRE(before.namespace_unread());
-        before.save_async(1, edit, nullptr);
-        before.clear_async(2, nullptr);
+        const auto before = store_over(printer, tmp, "ifs");
+        load_without_an_answer(printer, *before);
+        REQUIRE(before->namespace_unread());
+        before->save_async(1, edit, nullptr);
+        before->clear_async(2, nullptr);
         printer.client.fire_deferred("server.database.get_item");
     }
 
-    FilamentSlotOverrideStore after(&printer.api, "ifs");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(after, tmp.path);
+    const auto after = store_over(printer, tmp, "ifs");
 
     SECTION("the read lands: the edits are merged onto the live records and sent") {
-        const auto loaded = after.load_blocking();
-        REQUIRE_FALSE(after.namespace_unread());
+        const auto loaded = after->load_blocking();
+        REQUIRE_FALSE(after->namespace_unread());
 
         const auto sent =
             helix::ams::from_lane_data_record(printer.client.mock_db_get("lane_data", "lane2"));
@@ -4556,17 +4561,17 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
 
         // Sent once: the next start owes the printer nothing.
         const int posts = printer.client.call_count("server.database.post_item");
-        FilamentSlotOverrideStore next(&printer.api, "ifs");
-        FilamentSlotOverrideStoreTestAccess::set_cache_directory(next, tmp.path);
-        (void)next.load_blocking();
+        const auto next = store_over(printer, tmp, "ifs");
+        (void)next->load_blocking();
         CHECK(printer.client.call_count("server.database.post_item") == posts);
     }
     SECTION("the read fails again: the edits are held again and shown") {
         const int posts = printer.client.call_count("server.database.post_item");
         printer.client.defer_next("server.database.get_item");
-        FilamentSlotOverrideStoreTestAccess::set_load_timeout(after, std::chrono::milliseconds(20));
-        const auto loaded = after.load_blocking();
-        REQUIRE(after.namespace_unread());
+        FilamentSlotOverrideStoreTestAccess::set_load_timeout(*after,
+                                                              std::chrono::milliseconds(20));
+        const auto loaded = after->load_blocking();
+        REQUIRE(after->namespace_unread());
         CHECK(printer.client.call_count("server.database.post_item") == posts);
         REQUIRE(loaded.count(1) == 1);
         CHECK(loaded.at(1).color_rgb == 0x00FF00u);
@@ -4575,7 +4580,7 @@ TEST_CASE("writes held when the app restarts are sent after the restart",
         std::unordered_map<int, helix::ams::LaneDataRecord> records;
         records[1] = helix::ams::LaneDataRecord{newer, helix::ams::to_lane_data_record(1, newer)};
         records[2] = helix::ams::LaneDataRecord{cached, helix::ams::to_lane_data_record(2, cached)};
-        const auto writes = after.adopt_namespace_read(std::move(records));
+        const auto writes = after->adopt_namespace_read(std::move(records));
         REQUIRE(writes.saves.count(1) == 1);
         CHECK(writes.saves.at(1).color_rgb == 0x00FF00u);
         CHECK(writes.saves.at(1).brand == "Prusament");
@@ -4597,14 +4602,6 @@ struct ActivePrinter {
         helix::ConfigTestAccess::active_printer_id(*cfg) = saved;
     }
 };
-
-/// A store for @p printer whose cache file lives in @p tmp.
-std::unique_ptr<FilamentSlotOverrideStore> store_over(MockPrinter& printer, const TmpCacheDir& tmp,
-                                                      const std::string& backend) {
-    auto store = std::make_unique<FilamentSlotOverrideStore>(&printer.api, backend);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    return store;
-}
 
 /// A run whose read of lane_data never lands makes @p edit, then the app stops.
 void hold_until_restart(MockPrinter& printer, const TmpCacheDir& tmp,
