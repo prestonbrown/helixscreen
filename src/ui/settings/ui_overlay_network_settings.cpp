@@ -331,6 +331,11 @@ void NetworkSettingsOverlay::on_activate() {
     const bool waking = take_wake();
     if (!waking) {
         forget_read_pending_ = false;
+        // A probe still out at the last close never lands, since closing
+        // invalidated lifetime_, and its mark would park every Ethernet
+        // refresh from here on.
+        eth_refresh_in_flight_ = false;
+        eth_refresh_trailing_ = false;
     }
 
     spdlog::debug("[NetworkSettingsOverlay] on_activate()");

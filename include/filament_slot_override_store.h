@@ -134,6 +134,16 @@ inline std::string& slot_override_cache_dir_ref() {
 [[nodiscard]] nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
                                              const nlohmann::json& live);
 
+/// Whether @p live, the printer's record now, changed since @p base on a field the
+/// held write changes: any field @p held (a lane_data record) sets differently
+/// from @p base, or, for a clear (@p held null), the identity (material, colour,
+/// spool). A write held across a restart gives way to such a record. Pure.
+[[nodiscard]] bool held_write_conflicts(const nlohmann::json& base, const nlohmann::json& held,
+                                        const nlohmann::json& live);
+
+/// How long a held write survives in the cache file before it is dropped unsent.
+inline constexpr std::chrono::hours kHeldWriteMaxAge{24};
+
 class FilamentSlotOverrideStore {
   public:
     // key_style defaults to Lane so the many lane-based construction sites and
@@ -183,7 +193,13 @@ class FilamentSlotOverrideStore {
 
     using SaveCallback = helix::SharedCallback<void(bool success, std::string error)>;
     /// While namespace_unread(), saves and clears are held rather than sent: a
-    /// record built without the live one would replace it wholesale.
+    /// record built without the live one would replace it wholesale. Held writes
+    /// stay in the local cache file, tagged with the active printer, until the
+    /// printer acknowledges them, so the load_blocking() after a restart picks them
+    /// up again: it holds them once more when the read fails, and merges and sends
+    /// them when it lands. A write from another printer, or older than
+    /// kHeldWriteMaxAge, is dropped, and one restored from the file gives way to a
+    /// record the printer changed since (held_write_conflicts()).
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
 
@@ -259,6 +275,16 @@ class FilamentSlotOverrideStore {
     // thin never-throws boundary that no caller has to remember to guard.
     std::unordered_map<int, FilamentSlotOverride> load_blocking_impl();
 
+    // A load that read the namespace sends the writes a previous run held and
+    // could not send, merged onto the records it read, and files them into
+    // @p result.
+    void send_persisted_held_writes(std::unordered_map<int, FilamentSlotOverride>& result);
+    // held_writes_ to and from the local cache file. Call with held_mutex_ held.
+    void persist_held_locked() const;
+    void restore_held_locked();
+    struct HeldWrite;
+    void persist_held_locked(const std::unordered_map<int, HeldWrite>& held) const;
+
     IMoonrakerAPI* api_;
     std::string backend_id_;
     // Outer-key style for this backend's lane_data records (laneN vs T<n>). Set
@@ -293,6 +319,10 @@ class FilamentSlotOverrideStore {
     struct HeldWrite {
         bool cleared = false;
         std::optional<FilamentSlotOverride> save;
+        std::chrono::system_clock::time_point held_at;
+        // Read back from the cache file: the printer's record may have moved on
+        // since, for as long as the app was down.
+        bool restored = false;
     };
     // The held writes, and the cache the failed load returned, which is what a
     // held save changed from. namespace_unread_ changes and is tested under
@@ -300,6 +330,9 @@ class FilamentSlotOverrideStore {
     std::mutex held_mutex_;
     std::unordered_map<int, HeldWrite> held_writes_;
     std::unordered_map<int, FilamentSlotOverride> unread_fallback_;
+    // The configured printer this store serves (Config's active printer id when it
+    // was built), stamped on every held write it persists.
+    std::string printer_id_;
     // Absolute path to the cache JSON file. Computed from cache_dir_ (or
     // get_user_config_dir() if empty). One file serves all backends; each
     // backend's slots live under doc[backend_id]["slots"].
@@ -329,6 +362,11 @@ class FilamentSlotOverrideStore {
 void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
                          const FilamentSlotOverride& record, const std::string& tag,
                          const char* noun);
+
+/// Send what adopt_namespace_read() returned: each clear not superseded by a
+/// save, then each save, warning under @p tag when one fails.
+void send_held_writes(FilamentSlotOverrideStore* store,
+                      const FilamentSlotOverrideStore::HeldWrites& writes, const std::string& tag);
 
 /// Snapshot @p overrides' record for @p slot_index under @p mutex and persist
 /// it. A slot with no staged record saves nothing. This is the tail every

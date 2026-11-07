@@ -2,6 +2,7 @@
 #include "filament_slot_override_store.h"
 
 #include "ams_types.h"
+#include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "exception_policy.h"
@@ -32,6 +33,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -163,31 +165,20 @@ std::chrono::system_clock::time_point parse_iso8601(const std::string& s) {
 #endif
 }
 
-// Update the on-disk cache file with the current state of one slot.
-//
-// Intentionally a free function, NOT a member — it's called from the success
-// lambdas of save_async / clear_async, which must NOT capture `this`. The
-// store may be destroyed before Moonraker's callback fires (the whole point
-// of the lifetime discipline elsewhere in this file), so the cache write
-// must work from value-captured locals only.
-//
-// Behavior:
-// - Reads the existing cache file (if present). Parse failures are logged at
-//   warn and treated as "start fresh" — a corrupt cache MUST NOT fail the
-//   save call, because the MR DB write already succeeded (source of truth).
-// - Ensures doc["version"] == 1 and doc[backend_id]["slots"] is an object.
-// - If `ovr` is non-null: writes doc[backend_id]["slots"][slot_index] = to_json(*ovr).
-// - If `ovr` is null: erases doc[backend_id]["slots"][slot_index] (clear path).
-// - Writes atomically via tmp file + rename. Any IO failure is logged at warn
-//   but does NOT propagate to the caller.
-//
-// Thread-model assumption: Moonraker's libhv EventLoop serializes all callback
-// dispatch for a given connection on a single thread, so concurrent R-M-W of
-// this cache file across two backends (e.g. IFS + ACE) can't interleave today.
-// If that threading model ever changes (per-request dispatch, multi-connection
-// fan-out), this read-modify-write becomes racy and needs a file lock.
-void write_cache_slot(const std::string& cache_path, const std::string& backend_id, int slot_index,
-                      const FilamentSlotOverride* ovr) {
+// Every read-modify-write of the cache file holds this, whatever thread it runs
+// on: slot writes run on the libhv callback thread, held writes on the caller's,
+// and one file serves every backend.
+std::mutex& cache_file_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+// The writes a store holds while its namespace is unread, beside its "slots".
+constexpr const char* kHeldCacheKey = "held";
+
+// The cache document to change and write back, with this backend's "slots"
+// object in place: the file's, or a fresh one when it is absent or unreadable.
+nlohmann::json cache_doc_for_update(const std::string& cache_path, const std::string& backend_id) {
     nlohmann::json doc = nlohmann::json::object();
     if (helix::fs::exists(cache_path)) {
         if (auto text = helix::text_io::read_file(cache_path)) {
@@ -210,6 +201,40 @@ void write_cache_slot(const std::string& cache_path, const std::string& backend_
     if (!doc[backend_id].contains("slots") || !doc[backend_id]["slots"].is_object()) {
         doc[backend_id]["slots"] = nlohmann::json::object();
     }
+    return doc;
+}
+
+// Atomic write: tmp file + rename. POSIX rename is atomic within a fs.
+void write_cache_doc(const std::string& cache_path, const nlohmann::json& doc) {
+    if (!helix::text_io::write_file_atomic(cache_path, helix::json_util::safe_dump(doc, 2))) {
+        spdlog::warn("[FilamentSlotOverrideStore] cache write failed ({}): {}", cache_path,
+                     std::strerror(errno));
+    }
+}
+
+// Update the on-disk cache file with the current state of one slot.
+//
+// Intentionally a free function, NOT a member — it's called from the success
+// lambdas of save_async / clear_async, which must NOT capture `this`. The
+// store may be destroyed before Moonraker's callback fires (the whole point
+// of the lifetime discipline elsewhere in this file), so the cache write
+// must work from value-captured locals only.
+//
+// Behavior:
+// - Reads the existing cache file (if present). Parse failures are logged at
+//   warn and treated as "start fresh" — a corrupt cache MUST NOT fail the
+//   save call, because the MR DB write already succeeded (source of truth).
+// - Ensures doc["version"] == 1 and doc[backend_id]["slots"] is an object.
+// - If `ovr` is non-null: writes doc[backend_id]["slots"][slot_index] = to_json(*ovr).
+// - If `ovr` is null: erases doc[backend_id]["slots"][slot_index] (clear path).
+// - Erases the slot's held write, which the printer now has, or which this
+//   newer write replaced.
+// - Writes atomically via tmp file + rename. Any IO failure is logged at warn
+//   but does NOT propagate to the caller.
+void write_cache_slot(const std::string& cache_path, const std::string& backend_id, int slot_index,
+                      const FilamentSlotOverride* ovr) {
+    std::lock_guard<std::mutex> lock(cache_file_mutex());
+    nlohmann::json doc = cache_doc_for_update(cache_path, backend_id);
 
     // The local cache is keyed by the slot_index string ("0", "1", ...),
     // independent of the DB key style (laneN vs T<n>). Key style is invisible
@@ -221,12 +246,36 @@ void write_cache_slot(const std::string& cache_path, const std::string& backend_
     } else {
         doc[backend_id]["slots"].erase(key);
     }
-
-    // Atomic write: tmp file + rename. POSIX rename is atomic within a fs.
-    if (!helix::text_io::write_file_atomic(cache_path, helix::json_util::safe_dump(doc, 2))) {
-        spdlog::warn("[FilamentSlotOverrideStore] cache write failed ({}): {}", cache_path,
-                     std::strerror(errno));
+    if (const auto held = doc[backend_id].find(kHeldCacheKey);
+        held != doc[backend_id].end() && held->is_object()) {
+        held->erase(key);
+        if (held->empty()) {
+            doc[backend_id].erase(kHeldCacheKey);
+        }
     }
+    write_cache_doc(cache_path, doc);
+}
+
+// This backend's @p section of the cache file, or an empty object.
+nlohmann::json read_cache_section(const std::string& cache_path, const std::string& backend_id,
+                                  const char* section) {
+    if (!helix::fs::exists(cache_path)) {
+        return nlohmann::json::object();
+    }
+    const auto text = helix::text_io::read_file(cache_path);
+    if (!text) {
+        return nlohmann::json::object();
+    }
+    const nlohmann::json doc = nlohmann::json::parse(*text, nullptr, /*allow_exceptions=*/false);
+    if (!doc.is_object() || helix::json_util::safe_int(doc, "version", 0) != 1) {
+        return nlohmann::json::object();
+    }
+    const auto backend = doc.find(backend_id);
+    if (backend == doc.end() || !backend->is_object()) {
+        return nlohmann::json::object();
+    }
+    const auto found = backend->find(section);
+    return found != backend->end() && found->is_object() ? *found : nlohmann::json::object();
 }
 
 // Read the on-disk cache file and return this backend's slot overrides.
@@ -833,7 +882,11 @@ FilamentSlotOverrideStore::FilamentSlotOverrideStore(IMoonrakerAPI* api, std::st
                                                      LaneKeyStyle key_style, std::string ns,
                                                      bool migrates_legacy_namespace)
     : api_(api), backend_id_(std::move(backend_id)), key_style_(key_style),
-      namespace_(std::move(ns)), migrates_legacy_namespace_(migrates_legacy_namespace) {}
+      namespace_(std::move(ns)), migrates_legacy_namespace_(migrates_legacy_namespace) {
+    if (const Config* config = Config::get_instance()) {
+        printer_id_ = config->get_active_printer_id();
+    }
+}
 
 std::string FilamentSlotOverrideStore::cache_dir_effective() const {
     if (!cache_dir_.empty()) {
@@ -1373,19 +1426,80 @@ nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json&
     return merged;
 }
 
+bool held_write_conflicts(const nlohmann::json& base, const nlohmann::json& held,
+                          const nlohmann::json& live) {
+    const auto value = [](const nlohmann::json& record, const std::string& key) {
+        if (!record.is_object()) {
+            return nlohmann::json();
+        }
+        const auto found = record.find(key);
+        return found != record.end() ? *found : nlohmann::json();
+    };
+    const auto moved = [&](const std::string& key) { return value(live, key) != value(base, key); };
+    if (held.is_null()) {
+        for (const char* key : {"material", "helix_material", "color", "spool_id"}) {
+            if (moved(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    std::set<std::string> keys;
+    for (const auto* record : {&base, &held}) {
+        if (record->is_object()) {
+            for (auto it = record->begin(); it != record->end(); ++it) {
+                keys.insert(it.key());
+            }
+        }
+    }
+    for (const std::string& key : keys) {
+        // These two describe the write, not the slot.
+        if (key == "scan_time" || key == "helix_declared") {
+            continue;
+        }
+        if (value(held, key) != value(base, key) && moved(key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 FilamentSlotOverrideStore::HeldWrites
 FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records) {
     HeldWrites writes;
     std::lock_guard<std::mutex> lock(held_mutex_);
+    // What the file keeps until the printer acknowledges it: the writes sent.
+    std::unordered_map<int, HeldWrite> unsent;
     for (const auto& [slot, held] : held_writes_) {
+        const auto fallback = unread_fallback_.find(slot);
+        if (held.restored) {
+            // The record the edit was made against, and the printer's now; either
+            // may be absent.
+            const nlohmann::json cached = fallback != unread_fallback_.end()
+                                              ? to_lane_data_record(slot, fallback->second)
+                                              : nlohmann::json();
+            const auto real = records.find(slot);
+            const nlohmann::json now = real != records.end() ? real->second.wire : nlohmann::json();
+            // A clear covers the save after it: that save starts from no record.
+            const bool conflicts =
+                held.cleared
+                    ? held_write_conflicts(cached, nullptr, now)
+                    : held_write_conflicts(cached, to_lane_data_record(slot, *held.save), now);
+            if (conflicts) {
+                spdlog::warn("[FilamentSlotOverrideStore:{}] slot {} held edit dropped: the "
+                             "printer's record changed since it was made",
+                             backend_id_, slot);
+                continue;
+            }
+        }
         if (held.cleared) {
             records.erase(slot);
             writes.clears.push_back(slot);
+            unsent[slot] = held;
         }
         if (!held.save) {
             continue;
         }
-        const auto fallback = unread_fallback_.find(slot);
         const nlohmann::json base = fallback != unread_fallback_.end() && !held.cleared
                                         ? to_lane_data_record(slot, fallback->second)
                                         : to_lane_data_record(slot, FilamentSlotOverride{});
@@ -1409,12 +1523,111 @@ FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneData
         }
         writes.saves[slot] = parsed->second;
         records[slot] = LaneDataRecord{std::move(parsed->second), std::move(merged)};
+        unsent[slot] = held;
     }
-    held_writes_.clear();
+    if (!held_writes_.empty()) {
+        held_writes_.clear();
+        persist_held_locked(unsent);
+    }
     unread_fallback_.clear();
     lane_data_records_ = std::move(records);
     namespace_unread_ = false;
     return writes;
+}
+
+void FilamentSlotOverrideStore::persist_held_locked() const {
+    persist_held_locked(held_writes_);
+}
+
+void FilamentSlotOverrideStore::persist_held_locked(
+    const std::unordered_map<int, HeldWrite>& held) const {
+    const std::string path = cache_path();
+    std::lock_guard<std::mutex> file_lock(cache_file_mutex());
+    nlohmann::json doc = cache_doc_for_update(path, backend_id_);
+    if (held.empty()) {
+        if (!doc[backend_id_].contains(kHeldCacheKey)) {
+            return;
+        }
+        doc[backend_id_].erase(kHeldCacheKey);
+    } else {
+        nlohmann::json section = nlohmann::json::object();
+        for (const auto& [slot, write] : held) {
+            nlohmann::json entry = {{"cleared", write.cleared},
+                                    {"printer", printer_id_},
+                                    {"held_at", std::chrono::duration_cast<std::chrono::seconds>(
+                                                    write.held_at.time_since_epoch())
+                                                    .count()}};
+            if (write.save) {
+                entry["save"] = to_json(*write.save);
+            }
+            section[std::to_string(slot)] = std::move(entry);
+        }
+        doc[backend_id_][kHeldCacheKey] = std::move(section);
+    }
+    write_cache_doc(path, doc);
+}
+
+void FilamentSlotOverrideStore::restore_held_locked() {
+    held_writes_.clear();
+    const nlohmann::json held = read_cache_section(cache_path(), backend_id_, kHeldCacheKey);
+    const auto now = std::chrono::system_clock::now();
+    bool dropped = false;
+    for (auto it = held.begin(); it != held.end(); ++it) {
+        const auto slot = helix::text_io::parse_leading<int>(it.key());
+        if (!slot || *slot < 0 || !it.value().is_object()) {
+            continue;
+        }
+        HeldWrite write;
+        write.restored = true;
+        write.cleared = helix::json_util::safe_bool(it.value(), "cleared", false);
+        write.held_at = std::chrono::system_clock::time_point(
+            std::chrono::seconds(helix::json_util::safe_int64(it.value(), "held_at", 0)));
+        if (const auto save = it.value().find("save");
+            save != it.value().end() && save->is_object()) {
+            write.save = from_json(*save);
+        }
+        // Another printer's record, or an edit gone stale, is not this one's to change.
+        const std::string printer = helix::json_util::safe_string(it.value(), "printer", "");
+        if (printer != printer_id_ || now - write.held_at > kHeldWriteMaxAge) {
+            spdlog::info("[FilamentSlotOverrideStore:{}] slot {} held edit dropped: {}",
+                         backend_id_, *slot,
+                         printer != printer_id_ ? "made on printer '" + printer + "'"
+                                                : std::string("too old"));
+            dropped = true;
+            continue;
+        }
+        if (write.cleared || write.save) {
+            held_writes_[*slot] = std::move(write);
+        }
+    }
+    if (dropped) {
+        persist_held_locked();
+    }
+}
+
+void FilamentSlotOverrideStore::send_persisted_held_writes(
+    std::unordered_map<int, FilamentSlotOverride>& result) {
+    {
+        std::lock_guard<std::mutex> lock(held_mutex_);
+        restore_held_locked();
+        if (held_writes_.empty()) {
+            return;
+        }
+        // The cache file is unchanged while writes are held, so its records are
+        // what the held saves changed from.
+        unread_fallback_ = read_cache(cache_path(), backend_id_);
+    }
+    const HeldWrites writes = adopt_namespace_read(lane_data_records_);
+    spdlog::info("[FilamentSlotOverrideStore:{}] sending {} save(s), {} clear(s) held before "
+                 "a restart",
+                 backend_id_, writes.saves.size(), writes.clears.size());
+    for (const int slot : writes.clears) {
+        result.erase(slot);
+    }
+    for (const auto& [slot, save] : writes.saves) {
+        result[slot] = save;
+    }
+    send_held_writes(this, writes, fmt::format("[FilamentSlotOverrideStore:{}]", backend_id_));
 }
 
 // load_blocking_impl reads every record without throwing. Where the build has
@@ -1428,6 +1641,9 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         spdlog::warn("[FilamentSlotOverrideStore:{}] continuing with no overrides", backend_id_);
         namespace_unread_ = true;
         return {};
+    }
+    if (!namespace_unread_) {
+        send_persisted_held_writes(result);
     }
     return result;
 }
@@ -1573,8 +1789,17 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         {
             std::lock_guard<std::mutex> lock(held_mutex_);
             unread_fallback_ = cached;
-            held_writes_.clear();
+            restore_held_locked();
             namespace_unread_ = true;
+            // Show the edits a previous run held, as that run did.
+            for (const auto& [slot, write] : held_writes_) {
+                if (write.cleared) {
+                    cached.erase(slot);
+                }
+                if (write.save) {
+                    cached[slot] = *write.save;
+                }
+            }
         }
         return cached;
     }
@@ -1757,7 +1982,10 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
         if (namespace_unread_) {
             spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} save held: {} not read yet",
                           backend_id_, slot_index, namespace_);
-            held_writes_[slot_index].save = ovr;
+            HeldWrite& held = held_writes_[slot_index];
+            held.save = ovr;
+            held.held_at = std::chrono::system_clock::now();
+            persist_held_locked();
             lock.unlock();
             if (cb)
                 cb(true, "");
@@ -1822,6 +2050,8 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
             HeldWrite& held = held_writes_[slot_index];
             held.cleared = true;
             held.save.reset();
+            held.held_at = std::chrono::system_clock::now();
+            persist_held_locked();
             lock.unlock();
             if (cb)
                 cb(true, "");
@@ -2463,6 +2693,23 @@ void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
             spdlog::warn("{} {} persist failed for slot {}: {}", tag, noun, slot_index, err);
         }
     });
+}
+
+void send_held_writes(FilamentSlotOverrideStore* store,
+                      const FilamentSlotOverrideStore::HeldWrites& writes, const std::string& tag) {
+    for (const int slot : writes.clears) {
+        // A slot saved again after its clear replaces the record instead.
+        if (writes.saves.count(slot) == 0) {
+            store->clear_async(slot, [tag, slot](bool ok, std::string err) {
+                if (!ok) {
+                    spdlog::warn("{} held clear failed for slot {}: {}", tag, slot, err);
+                }
+            });
+        }
+    }
+    for (const auto& [slot, held] : writes.saves) {
+        save_override_async(store, slot, held, tag, "Held edit");
+    }
 }
 
 void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,
