@@ -1327,9 +1327,10 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         // A live preparing job means WE started this and the printer has not
         // caught up yet - print_active is legitimately 0 for the whole
         // host-side pre-start block, and dropping these updates freezes the
-        // overlay on its first phase.
+        // overlay on its first phase. A start the printer announced itself is
+        // in the same window without a job of ours.
         if (phase != PrintStartPhase::IDLE && lv_subject_get_int(&print_active_) == 0 &&
-            !is_new_print_start && !has_preparing_job()) {
+            !is_new_print_start && !has_preparing_job() && !printer_side_pre_start_) {
             spdlog::debug("[PrinterPrintState] Ignoring stale phase {} (print inactive)",
                           static_cast<int>(phase));
             return;

@@ -169,3 +169,33 @@ TEST_CASE("PrinterDetector: both Creator 5 models use the creator5 pre-print pro
     REQUIRE(PrinterDetector::get_print_start_profile("FlashForge Creator 5") == "creator5");
     REQUIRE(PrinterDetector::get_print_start_profile("FlashForge Creator 5 Pro") == "creator5");
 }
+
+TEST_CASE("PrintStartProfile: creator5 announces a start with Z-Mod's per-tool table",
+          "[profile][print][creator5][2054]") {
+    auto profile = get_creator5_profile();
+    auto generic = PrintStartProfile::load_default();
+    REQUIRE(profile != nullptr);
+    REQUIRE(generic != nullptr);
+
+    // PRINT_ZCOLOR prints the table once the colour prompt is answered, 80-90s
+    // before print_stats takes the file.
+    const std::string table = "// T0 (PLA):\n// temp (auto purge): 220\xC2\xB0"
+                              "C\n// temp_wait:         120\xC2\xB0"
+                              "C\n// drop_length:       50 mm";
+    CHECK(profile->announces_print_start(table));
+    CHECK_FALSE(generic->announces_print_start(table));
+
+    // A tool change by hand, a prompt closing and a heater wait name no start.
+    const char* const lines[] = {
+        "// Grab attempt for T0: 1 of 5...",
+        "// Unload attempt for T1: 1 of 5...",
+        "// action:prompt_end",
+        "// Head: -1",
+        "// Waiting for temperature normalization. Extruder: 218.0-222.0 T0 _T_PREPARE",
+        "echo: START_PRINT has finished its work.",
+    };
+    for (const char* line : lines) {
+        CAPTURE(line);
+        CHECK_FALSE(profile->announces_print_start(line));
+    }
+}

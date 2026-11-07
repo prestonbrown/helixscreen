@@ -438,6 +438,21 @@ class PrinterPrintState {
     }
 
     /**
+     * @brief A print start the printer announced on its console is live
+     *
+     * Such a start has no preparing job: another app sent it, and print_stats
+     * reports no job until the file opens. Its pre-print phases are accepted
+     * while this holds, as a preparing job's are. Set and cleared by
+     * PrintStartCollector. Main thread only.
+     */
+    void set_printer_side_pre_start(bool live) {
+        printer_side_pre_start_ = live;
+    }
+    [[nodiscard]] bool printer_side_pre_start() const {
+        return printer_side_pre_start_;
+    }
+
+    /**
      * @brief The preparing job's start command is being sent to the printer
      *
      * From here retiring the job locally no longer stops it: only the printer
@@ -1297,6 +1312,7 @@ class PrinterPrintState {
     PrintJobRef preparing_job_{};
     lv_subject_t preparing_start_{};          // Integer PreparingStart
     bool preparing_cancel_requested_ = false; // See note_preparing_cancel_requested()
+    bool printer_side_pre_start_ = false;     // See set_printer_side_pre_start()
     void set_preparing_start(PreparingStart start);
     lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;

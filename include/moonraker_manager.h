@@ -258,15 +258,25 @@ class MoonrakerManager {
      * so the collector has to survive the handoff and finish on its own phase
      * detection.
      *
-     * @param new_state         The state just reported
-     * @param has_preparing_job Whether a job is currently being prepared
+     * A start the printer announced itself (PrinterPrintState::
+     * printer_side_pre_start()) makes the same STANDBY hop when its file opens,
+     * but has no job of ours to vouch for any other state: a cancel or error
+     * still ends it.
+     *
+     * @param new_state              The state just reported
+     * @param has_preparing_job      Whether a job is currently being prepared
+     * @param printer_side_pre_start Whether a printer-announced start is live
      */
     static inline bool should_stop_print_collector(helix::PrintJobState new_state,
-                                                   bool has_preparing_job) {
+                                                   bool has_preparing_job,
+                                                   bool printer_side_pre_start = false) {
         // Teardown mirrors the arming predicate above; the preparing axis is
         // carried by the separate has_preparing_job argument so the two
         // questions stay independent.
         if (helix::printer_has_job(new_state)) {
+            return false;
+        }
+        if (printer_side_pre_start && new_state == helix::PrintJobState::STANDBY) {
             return false;
         }
         return !has_preparing_job;
@@ -426,6 +436,7 @@ class MoonrakerManager {
     std::shared_ptr<PrintStartCollector> m_print_start_collector;
     std::unique_ptr<helix::PrintStopReasonTracker> m_print_stop_reason;
     ObserverGuard m_preparing_epoch_observer;
+    ObserverGuard m_print_start_profile_observer;
     ObserverGuard m_print_start_observer;
     ObserverGuard m_print_start_phase_observer;
     ObserverGuard m_print_klippy_state_observer;

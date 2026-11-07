@@ -945,6 +945,21 @@ TEST_CASE("should_stop_print_collector spares a collector armed at commit",
     }
 }
 
+TEST_CASE("should_stop_print_collector spares a printer-side pre-start only across standby",
+          "[application][print_start][preparing][2054]") {
+    // A start the printer announced on its console, with no job of ours behind
+    // it: print_stats hops to STANDBY when the file opens, just before PRINTING.
+    REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::STANDBY, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    // A cancel or an error ends that start like any other.
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::CANCELLED, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::ERROR, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::COMPLETE, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+}
+
 // ============================================================================
 // Retiring a preparing job that never became a print
 //

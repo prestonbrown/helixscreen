@@ -52,6 +52,7 @@ class PrinterPrintStateTestAccess {
         // live preparing job into the next test, where it relaxes the
         // phase-update guard and the print_active safety reset.
         pps.preparing_job_ = {};
+        pps.printer_side_pre_start_ = false;
         pps.cancel_preparing_watchdog();
     }
 

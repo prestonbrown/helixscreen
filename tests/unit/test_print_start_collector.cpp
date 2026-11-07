@@ -532,6 +532,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 #include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/print_start_profile_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
@@ -9067,11 +9068,23 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
 
     bool have_profile_ = false;
 
-    /// @param armed_from_commit arm at t=0, as a print this app starts does
-    ///        (the preparing job arms the collector before the printer has a job);
-    ///        otherwise arm where print_stats takes the file.
-    Result replay(const std::string& fixture, bool armed_from_commit = false) {
+    /// Where the collector arms.
+    enum class Arm {
+        AtFile,    ///< where print_stats takes the file, as a collector that missed
+                   ///< the start announcement (connected late) does
+        AtCommit,  ///< at t=0, as a print this app starts does (its preparing job)
+        ByConsole, ///< by itself, from the profile's start announcement, after a
+                   ///< cancelled print; PRINTING drives what MoonrakerManager does
+    };
+
+    Result replay(const std::string& fixture, Arm arming = Arm::AtFile) {
+        const bool armed_from_commit = arming == Arm::AtCommit;
+        const bool by_console = arming == Arm::ByConsole;
         Result result;
+        if (by_console) {
+            test::set_wire_state(state(), PrintJobState::CANCELLED);
+            drain_async_updates();
+        }
         std::ifstream f(collector_fixture_dir() + fixture);
         REQUIRE(f.good());
         int now_ms = 0;
@@ -9106,6 +9119,9 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
             }
         };
         const auto arm = [&]() {
+            if (by_console) {
+                return;
+            }
             if (result.armed_at_ms >= 0) {
                 return;
             }
@@ -9146,7 +9162,14 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
                 if (line.rfind("File opened:", 0) == 0) {
                     arm();
                 }
-                send_gcode_response(line);
+                // Before it arms, an idle collector would take the table as a
+                // start announcement; these modes arm it themselves.
+                if (by_console || result.armed_at_ms >= 0) {
+                    send_gcode_response(line);
+                }
+                if (by_console && result.armed_at_ms < 0 && collector().is_active()) {
+                    result.armed_at_ms = now_ms;
+                }
             } else {
                 char ps[16] = {};
                 float bed = 0, bed_target = 0, ext = 0, ext_target = 0;
@@ -9158,6 +9181,12 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
                               static_cast<int>(std::lround(ext_target * 10)));
                 if (std::string(ps) == "printing") {
                     arm();
+                    if (by_console &&
+                        state().print_state().get_print_job_state() != PrintJobState::PRINTING) {
+                        test::set_wire_state(state(), PrintJobState::PRINTING);
+                        drain_async_updates();
+                        collector().enable_fallbacks();
+                    }
                 }
                 if (result.armed_at_ms >= 0) {
                     collector().check_fallback_completion();
@@ -9171,7 +9200,7 @@ class CreatorFivePrintStartReplayFixture : public PrintStartCollectorHeaterFixtu
         return result;
     }
 
-  private:
+  protected:
     PreprintConfigScope config_{"FlashForge Creator 5 Pro"};
     helix::sim::SimulatedClock::ManualScope clock_{helix::sim::SimSpeed::of(1.0)};
 };
@@ -9225,7 +9254,7 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     // A print started from this app arms at commit, so the collector sees Z-Mod's
     // preparation that runs before print_stats takes the file: the colour table,
     // the tool pickup and the two heater normalization waits.
-    const Result result = replay("c5_zmod_saved_mesh_start.txt", /*armed_from_commit=*/true);
+    const Result result = replay("c5_zmod_saved_mesh_start.txt", Arm::AtCommit);
     CAPTURE(result.trace);
     REQUIRE(result.armed_at_ms == 50);
     REQUIRE(result.trace == "0:INITIALIZING:Preparing Print...\n"
@@ -9238,4 +9267,124 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
                             "279:PURGING:Purging...\n"
                             "284:COMPLETE:Starting Print...");
     REQUIRE(result.completed_at_ms == 284133);
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a Creator 5 Z-Mod start from another app arms on its table",
+                 "[print][collector][creator5][integration][2054]") {
+    REQUIRE(have_profile_);
+    // Started from Orca or Fluidd after a cancelled print: nothing of ours arms
+    // the collector, so the table PRINT_ZCOLOR prints arms it, and Preparing
+    // replaces the cancelled result 80s before print_stats takes the file.
+    const Result result = replay("c5_zmod_saved_mesh_start.txt", Arm::ByConsole);
+    CAPTURE(result.trace);
+    REQUIRE(result.armed_at_ms == 211);
+    REQUIRE(result.trace == "0:INITIALIZING:Preparing...\n"
+                            "45:INITIALIZING:Picking up tool\n"
+                            "51:HEATING_NOZZLE:Heating Nozzle...\n"
+                            "75:HEATING_BED:Heating Bed...\n"
+                            "78:INITIALIZING:Starting Print...\n"
+                            "80:HEATING_BED:Waiting for bed temperature...\n"
+                            "279:PURGING:Purging...\n"
+                            "284:COMPLETE:Starting Print...");
+    REQUIRE(result.completed_at_ms == 284133);
+}
+
+namespace {
+/// The first lines of the table Z-Mod's PRINT_ZCOLOR prints for a start.
+const char* const kCreatorFiveStartTable = "// T0 (PLA):\n// temp (auto purge): 220\xC2\xB0"
+                                           "C\n// temp_wait:         120\xC2\xB0"
+                                           "C\n// drop_length:       50 mm";
+} // namespace
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a start announcement arms only a printer with no job",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    SECTION("after a cancelled print it arms and shows Preparing") {
+        test::set_wire_state(state(), PrintJobState::CANCELLED);
+        drain_async_updates();
+        send_gcode_response(kCreatorFiveStartTable);
+        drain_async_updates();
+        REQUIRE(collector().is_active());
+        CHECK(collector().armed_by_printer());
+        CHECK(get_current_phase() == PrintStartPhase::INITIALIZING);
+        CHECK(get_current_message() == "Preparing...");
+        CHECK(state().print_state().get_print_lifecycle() == PrintState::Preparing);
+    }
+    SECTION("mid-print it does nothing") {
+        test::set_wire_state(state(), PrintJobState::PRINTING);
+        drain_async_updates();
+        send_gcode_response(kCreatorFiveStartTable);
+        drain_async_updates();
+        CHECK_FALSE(collector().is_active());
+    }
+    SECTION("a line that announces no start does nothing") {
+        test::set_wire_state(state(), PrintJobState::CANCELLED);
+        drain_async_updates();
+        send_gcode_response("// Grab attempt for T0: 1 of 5...");
+        drain_async_updates();
+        CHECK_FALSE(collector().is_active());
+    }
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: the generic profile arms on no console line",
+                 "[print][collector][2054]") {
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    send_gcode_response("G28");
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a printer-announced start that never prints retires",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    auto& clock = clock_;
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+
+    // The printer keeps talking: a step line restarts the quiet time.
+    clock.advance(std::chrono::minutes(8));
+    send_gcode_response("// Grab attempt for T0: 1 of 5...");
+    clock.advance(std::chrono::minutes(8));
+    collector().check_printer_start_retirement();
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+    CHECK(get_current_message() == "Picking up tool");
+
+    // Then nothing, and print_stats never takes a file.
+    clock.advance(std::chrono::minutes(3));
+    collector().check_printer_start_retirement();
+    drain_async_updates(); // the retirement
+    drain_async_updates(); // the phase reset stop() queues
+    CHECK_FALSE(collector().is_active());
+    CHECK(get_current_phase() == PrintStartPhase::IDLE);
+    CHECK(state().print_state().get_print_lifecycle() == PrintState::Cancelled);
+}
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: a printer-announced start that prints does not retire",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    auto& clock = clock_;
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    drain_async_updates();
+
+    // START_PRINT's bed wait can hold the console silent for minutes.
+    clock.advance(std::chrono::minutes(30));
+    collector().check_printer_start_retirement();
+    drain_async_updates();
+    CHECK(collector().is_active());
 }
