@@ -622,6 +622,7 @@ std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     j["dns"] = pending.previous.dns;
     j["owner"] = pending.owner;
     j["failed"] = pending.failed;
+    j["notified"] = pending.notified;
     j["failure"] = pending.failure;
     j["any_link"] = pending.any_link;
     j["store"] = pending.snapshot.store;
@@ -645,6 +646,7 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
     p.link = *link;
     p.owner = helix::json_util::safe_string(j, "owner");
     p.failed = helix::json_util::safe_bool(j, "failed");
+    p.notified = helix::json_util::safe_bool(j, "notified");
     p.failure = helix::json_util::safe_string(j, "failure");
     p.any_link = helix::json_util::safe_bool(j, "any_link");
     p.previous.dhcp = helix::json_util::safe_bool(j, "dhcp", true);
@@ -750,7 +752,7 @@ Ipv4RecordLoad read_pending_ipv4_revert() {
 
 bool ipv4_record_blocks_change(const Ipv4RecordLoad& loaded) {
     return loaded.kind != Ipv4RecordLoad::Kind::None &&
-           (loaded.kind != Ipv4RecordLoad::Kind::Ok || !loaded.record.failed);
+           (loaded.kind != Ipv4RecordLoad::Kind::Ok || !loaded.record.given_up());
 }
 
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert() {

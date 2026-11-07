@@ -90,7 +90,7 @@ void finish(const net::Ipv4RestoreOutcome& outcome) {
         s.timer.reset();
         return;
     case Kind::Terminal:
-        give_up_ipv4_revert(s.link, outcome.detail);
+        give_up_ipv4_revert(s.link, outcome.detail, net::Ipv4GiveUp::Terminal);
         return;
     case Kind::Retry:
         s.last_failure = outcome.detail;
@@ -122,9 +122,11 @@ void tick() {
         attempt();
         return;
     case net::Ipv4RevertRetry::Step::GiveUp:
-        give_up_ipv4_revert(s.link, s.last_failure.empty()
-                                        ? std::string("no restore succeeded in two minutes")
-                                        : s.last_failure);
+        give_up_ipv4_revert(s.link,
+                            s.last_failure.empty()
+                                ? std::string("no restore succeeded in two minutes")
+                                : s.last_failure,
+                            net::Ipv4GiveUp::UntilNextStart);
         return;
     }
 }
@@ -145,20 +147,23 @@ void retry_ipv4_revert(net::Ipv4Link link, bool include_own) {
     tick();
 }
 
-void give_up_ipv4_revert(std::optional<net::Ipv4Link> link, const std::string& why) {
+void give_up_ipv4_revert(std::optional<net::Ipv4Link> link, const std::string& why,
+                         net::Ipv4GiveUp how) {
     state().timer.reset();
-    spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}: {}",
-                  link ? net::ipv4_link_name(*link) : "every link", why);
+    spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}{}: {}",
+                  link ? net::ipv4_link_name(*link) : "every link",
+                  how == net::Ipv4GiveUp::UntilNextStart ? " until the next start" : "", why);
     const std::vector<net::Ipv4Link> told =
         link ? std::vector<net::Ipv4Link>{*link}
              : std::vector<net::Ipv4Link>{net::Ipv4Link::Wifi, net::Ipv4Link::Ethernet};
     http::HttpExecutor::fast().start();
-    http::HttpExecutor::fast().submit([link, told, why]() {
-        const bool marked = net::mark_pending_ipv4_failed(link, why);
-        ui::queue_update("Ipv4RevertRetry::gave_up", [told, why, marked]() {
-            if (marked) {
+    http::HttpExecutor::fast().submit([link, told, why, how]() {
+        const net::Ipv4Mark mark = net::mark_pending_ipv4_given_up(link, why, how);
+        ui::queue_update("Ipv4RevertRetry::gave_up", [told, why, mark]() {
+            const bool marked = mark != net::Ipv4Mark::Unmarked;
+            if (mark == net::Ipv4Mark::Marked) {
                 NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
-            } else {
+            } else if (!marked) {
                 spdlog::error("[Ipv4] {} could not be marked failed",
                               net::pending_ipv4_revert_path());
                 NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the "
@@ -194,7 +199,8 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
         return false;
     }
     if (loaded.kind == RecordKind::Unreadable) {
-        give_up_ipv4_revert(loaded.unreadable_link, net::pending_ipv4_undecodable_detail());
+        give_up_ipv4_revert(loaded.unreadable_link, net::pending_ipv4_undecodable_detail(),
+                            net::Ipv4GiveUp::Terminal);
         return true;
     }
     const auto& pending = loaded.record;
@@ -240,6 +246,10 @@ void start_ipv4_startup_revert() {
     StartupRead& s = startup_read();
     s.schedule.start(lv_tick_get());
     s.timer.reset(lv_timer_create([](lv_timer_t*) { startup_read_tick(); }, kTickMs, nullptr));
+}
+
+lv_timer_t* ipv4_revert_retry_timer_for_test() {
+    return state().timer.get();
 }
 
 lv_timer_t* ipv4_startup_read_timer_for_test() {

@@ -351,11 +351,19 @@ struct PendingIpv4Revert {
     /// The restore gave up for good: kept for the user, never retried, and a
     /// new change may replace it.
     bool failed = false;
+    /// A retry ran out of time and said so. Unlike failed, the next start tries
+    /// it again, quietly unless the outcome changes; until then a new change
+    /// may replace it.
+    bool notified = false;
     std::string failure; ///< Why, for the screen and the log
     /// A failed stub for a record that named no link it could be read for: its
     /// failure is shown on every link.
     bool any_link = false;
 
+    /// Given up for now, with `failure` for the screen.
+    bool given_up() const {
+        return failed || notified;
+    }
     /// Whether the record is @p l's to restore or show.
     bool concerns(Ipv4Link l) const {
         return any_link || link == l;
@@ -400,7 +408,7 @@ Ipv4RecordLoad read_pending_ipv4_revert();
 /// The usable record, if any.
 std::optional<PendingIpv4Revert> load_pending_ipv4_revert();
 /// True while the record still holds the only way back: anything but none or
-/// one marked failed, including one that cannot be read or decoded.
+/// one given up, including one that cannot be read or decoded.
 bool ipv4_record_blocks_change(const Ipv4RecordLoad& loaded);
 /// True when no record remains (removed now, or there was none).
 bool clear_pending_ipv4_revert();

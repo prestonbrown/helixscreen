@@ -332,7 +332,7 @@ void Ipv4SettingsOverlay::load_current() {
         set_busy(false);
         // A revert the retry gave up on stays on show until a change replaces it.
         const auto pending = helix::net::load_pending_ipv4_revert();
-        if (pending && pending->failed && pending->concerns(link_)) {
+        if (pending && pending->given_up() && pending->concerns(link_)) {
             set_error(fmt::format(fmt::runtime(lv_tr(
                                       "The previous IPv4 settings could not be restored: {}")),
                                   pending->failure)
@@ -524,7 +524,7 @@ void Ipv4SettingsOverlay::on_reverted(const helix::net::Ipv4RestoreOutcome& outc
         set_busy(false);
         loaded_ = false;
         set_error(lv_tr("Could not restore the previous IPv4 settings"));
-        give_up_ipv4_revert(link_, outcome.detail);
+        give_up_ipv4_revert(link_, outcome.detail, helix::net::Ipv4GiveUp::Terminal);
         return;
     case Kind::Nothing:
     case Kind::Skipped:

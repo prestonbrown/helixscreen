@@ -192,7 +192,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "WiFiManager applies a change and the recor
         CHECK(backend_config() == static_config("192.168.1.50"));
         CHECK(load_pending_ipv4_revert()->previous == was);
 
-        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "edited by hand"));
+        REQUIRE(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "edited by hand",
+                                           Ipv4GiveUp::Terminal) == Ipv4Mark::Marked);
         CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Skipped);
         wm->apply_ipv4_change_async(static_config("192.168.1.50"), static_config("192.168.1.60"),
                                     std::make_shared<std::atomic<bool>>(false), guard.token(),
@@ -235,7 +236,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that cannot be used is a failure,
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Terminal);
 
     SECTION("its bytes are kept beside the failed stub") {
-        REQUIRE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "undecodable"));
+        REQUIRE(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "undecodable", Ipv4GiveUp::Terminal) ==
+                Ipv4Mark::Marked);
         CHECK(std::filesystem::exists(pending_ipv4_revert_path() + ".unreadable"));
     }
     SECTION("a dhcpcd record left by another build is given up, not restored") {
@@ -262,7 +264,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a given-up revert is announced once its re
             const auto record = load_pending_ipv4_revert();
             failed_when_told = record && record->failed;
         });
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Ethernet, "unreachable");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Ethernet, "unreachable", Ipv4GiveUp::Terminal);
     CHECK(wait_until([&] { return failed_when_told.has_value(); }));
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(failed_when_told.value_or(false));
@@ -274,7 +276,8 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a record that fails to read is retried, ne
     REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
     CHECK(read_pending_ipv4_revert().kind == Ipv4RecordLoad::Kind::ReadError);
     CHECK(restore_pending_ipv4(Ipv4Link::Wifi, true).kind == Ipv4RestoreOutcome::Kind::Retry);
-    CHECK_FALSE(mark_pending_ipv4_failed(Ipv4Link::Wifi, "read error"));
+    CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "read error", Ipv4GiveUp::Terminal) ==
+          Ipv4Mark::Unmarked);
     CHECK(std::filesystem::is_directory(pending_ipv4_revert_path()));
 }
 
@@ -284,7 +287,7 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     REQUIRE(std::filesystem::create_directory(pending_ipv4_revert_path()));
     std::optional<Ipv4RevertEnd> told;
     helix::settings::set_ipv4_revert_listener([&](Ipv4Link, Ipv4RevertEnd end) { told = end; });
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "read error");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "read error", Ipv4GiveUp::Terminal);
     REQUIRE(wait_until([&] { return told.has_value(); }));
     CHECK(told == Ipv4RevertEnd::GaveUpUnrecorded);
     CHECK(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi) == "read error");
@@ -296,11 +299,60 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
     REQUIRE(save_pending_ipv4_revert(p));
     told.reset();
-    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "unreachable");
+    helix::settings::give_up_ipv4_revert(Ipv4Link::Wifi, "unreachable", Ipv4GiveUp::Terminal);
     REQUIRE(wait_until([&] { return told.has_value(); }));
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(told == Ipv4RevertEnd::GaveUp);
     CHECK_FALSE(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture,
+                 "a revert that runs out of time is tried again at the next start",
+                 "[ipv4][ipv4_manager]") {
+    using helix::settings::Ipv4RevertEnd;
+    const Ipv4Config was = static_config("192.168.1.40");
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(was).ok());
+    PendingIpv4Revert p;
+    p.previous = was;
+    p.owner = "another-run";
+    p.snapshot = mock_ipv4_snapshot(Ipv4Link::Wifi);
+    REQUIRE(mock_ipv4_store(Ipv4Link::Wifi).apply(static_config("192.168.1.50")).ok());
+    REQUIRE(save_pending_ipv4_revert(p));
+
+    std::optional<Ipv4RevertEnd> told;
+    helix::settings::set_ipv4_revert_listener([&](Ipv4Link, Ipv4RevertEnd end) { told = end; });
+    setenv("HELIX_MOCK_IPV4_APPLY_FAIL", "1", 1);
+    helix::settings::retry_ipv4_revert(Ipv4Link::Wifi, /*include_own=*/false);
+    process_lvgl(static_cast<int>(kIpv4RetryForMs));
+    REQUIRE(wait_until([&] {
+        if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
+            t->timer_cb(t);
+        }
+        return told.has_value();
+    }));
+    CHECK(told == Ipv4RevertEnd::GaveUp);
+    const auto record = load_pending_ipv4_revert();
+    REQUIRE(record);
+    CHECK(record->notified);
+    CHECK_FALSE(record->failed);
+    CHECK_FALSE(record->failure.empty());
+    CHECK_FALSE(ipv4_record_blocks_change(read_pending_ipv4_revert()));
+
+    SECTION("the same outcome again says nothing new") {
+        CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, record->failure,
+                                         Ipv4GiveUp::UntilNextStart) == Ipv4Mark::Unchanged);
+        CHECK(mark_pending_ipv4_given_up(Ipv4Link::Wifi, "something else",
+                                         Ipv4GiveUp::UntilNextStart) == Ipv4Mark::Marked);
+    }
+    SECTION("the next start restores it once the network allows") {
+        unsetenv("HELIX_MOCK_IPV4_APPLY_FAIL");
+        told.reset();
+        helix::settings::start_ipv4_startup_revert();
+        CHECK(wait_until([&] { return !record_exists(); }));
+        CHECK(backend_config() == was);
+        CHECK(told == Ipv4RevertEnd::Restored);
+    }
+    helix::settings::set_ipv4_revert_listener(nullptr);
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "an undecodable startup record is given up on its own link",

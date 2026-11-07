@@ -419,7 +419,8 @@ Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own) {
     return {Kind::Restored, {}};
 }
 
-bool mark_pending_ipv4_failed(std::optional<Ipv4Link> link, const std::string& why) {
+Ipv4Mark mark_pending_ipv4_given_up(std::optional<Ipv4Link> link, const std::string& why,
+                                    Ipv4GiveUp how) {
     std::lock_guard<std::mutex> lock(ipv4_change_mutex());
     Ipv4RecordLoad loaded = read_pending_ipv4_revert();
     PendingIpv4Revert& record = loaded.record;
@@ -428,17 +429,22 @@ bool mark_pending_ipv4_failed(std::optional<Ipv4Link> link, const std::string& w
         // and the bytes are kept beside it as the only evidence.
         const std::string path = pending_ipv4_revert_path();
         if (std::rename(path.c_str(), (path + ".unreadable").c_str()) != 0) {
-            return false;
+            return Ipv4Mark::Unmarked;
         }
         record = {};
         record.link = loaded.unreadable_link.value_or(Ipv4Link::Wifi);
         record.any_link = !loaded.unreadable_link;
+        how = Ipv4GiveUp::Terminal;
     } else if (loaded.kind != Ipv4RecordLoad::Kind::Ok || !link || record.link != *link) {
-        return false;
+        return Ipv4Mark::Unmarked;
     }
-    record.failed = true;
+    if (how == Ipv4GiveUp::UntilNextStart && record.notified && record.failure == why) {
+        return Ipv4Mark::Unchanged;
+    }
+    record.failed = how == Ipv4GiveUp::Terminal;
+    record.notified = how == Ipv4GiveUp::UntilNextStart;
     record.failure = why;
-    return save_pending_ipv4_revert(record);
+    return save_pending_ipv4_revert(record) ? Ipv4Mark::Marked : Ipv4Mark::Unmarked;
 }
 
 } // namespace helix::net

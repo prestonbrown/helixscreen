@@ -84,10 +84,20 @@ struct Ipv4RestoreOutcome {
 /// countdown owns. BLOCKING.
 Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own);
 
-/// Mark @p link's record as given up: kept, with @p why, never retried. One
-/// that cannot be decoded becomes a failed stub for the link its text names,
-/// or for every link when it names none; @p link is then unused. BLOCKING.
-bool mark_pending_ipv4_failed(std::optional<Ipv4Link> link, const std::string& why);
+/// How a revert is given up. Terminal never succeeds (refused, undecodable);
+/// UntilNextStart ran out of retries, and the next start tries again.
+enum class Ipv4GiveUp { Terminal, UntilNextStart };
+
+/// What marking a record given up did. Unchanged: it already said the same
+/// thing, so nobody needs telling again.
+enum class Ipv4Mark { Unmarked, Marked, Unchanged };
+
+/// Mark @p link's record as given up, with @p why: failed for good, or
+/// notified and retried at the next start. One that cannot be decoded becomes
+/// a failed stub for the link its text names, or for every link when it names
+/// none; @p link is then unused. BLOCKING.
+Ipv4Mark mark_pending_ipv4_given_up(std::optional<Ipv4Link> link, const std::string& why,
+                                    Ipv4GiveUp how);
 
 /// Whether NetworkManager is the active network owner (nmcli + its runtime dir).
 bool network_manager_active();
