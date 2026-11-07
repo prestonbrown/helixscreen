@@ -476,6 +476,22 @@ class AmsSubscriptionBackend : public AmsBackend {
     void persist_user_record_locked(int slot_index, const SlotInfo& info,
                                     const std::string& material);
 
+    /// persist_user_record_locked() for a backend whose firmware holds the
+    /// lane's colour and material. Those two reach the firmware through the
+    /// edit's own command, so the record keeps the ones it already carries
+    /// (what mirror_firmware_identity_locked() last copied from the firmware)
+    /// and never states a value the firmware has not taken. Caller holds mutex_.
+    void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
+
+    /// Copy the firmware's colour and material for @p slot_index into its
+    /// record and save it, for the lane_data readers (OrcaSlicer, another
+    /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
+    /// is copied before the first record read lands: a save then would replace
+    /// the stored record with a bare one. True when the record changed. Caller
+    /// holds mutex_.
+    bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
+                                         const std::string& material);
+
     /// Save @p slot_index's staged record. A failure is reported to the user
     /// and withdraws the lane's pending edit. Takes mutex_; call without it.
     void persist_override(int slot_index, const char* noun = "Override");

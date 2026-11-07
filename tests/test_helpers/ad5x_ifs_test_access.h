@@ -230,14 +230,6 @@ class Ad5xIfsTestAccess {
     static void parse_adventurer_json(AmsBackendAd5xIfs& b, const std::string& content) {
         b.parse_adventurer_json(content);
     }
-    static bool dirty(const AmsBackendAd5xIfs& b, size_t idx) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.dirty_[idx];
-    }
-    static void set_dirty(AmsBackendAd5xIfs& b, size_t idx, bool val) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        b.dirty_[idx] = val;
-    }
     // Seed firmware-state arrays directly. parse_save_variables no longer
     // writes colors_[]/materials_[] (those come from CHANGE_ZCOLOR/GET_ZCOLOR
     // exclusively now); tests that previously seeded via _IFS_VARS save_variables
@@ -362,6 +354,11 @@ class Ad5xIfsTestAccess {
         // The backend's own init files both stores together; a fixture that
         // wrote only this map would leave the lane reading empty.
         helix::test::file_override_as_lane_records(b, slot_index, ovr);
+    }
+    // Build the lane record store and start its first read, as on_started()
+    // does; the read lands when the update queue drains.
+    static void open_lane_record_store(AmsBackendAd5xIfs& b) {
+        b.open_lane_record_store("ifs");
     }
     // A read of the lane records, as the poll and every write start one.
     static void refresh_lane_records(AmsBackendAd5xIfs& b) {

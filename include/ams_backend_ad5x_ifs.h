@@ -595,10 +595,14 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // from screen-activation hooks.
     void request_resync() override;
 
+    /// Colour and type go to the firmware (IFS_SET_MATERIAL on the module,
+    /// else Adventurer5M.json plus the plugin's _IFS_VARS); everything else
+    /// goes in the lane_data record, which takes colour and type only from the
+    /// firmware's echo.
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    // Weight-only persist: updates remaining/total weight in the override store
-    // and NEVER rewrites Adventurer5M.json / _IFS_VARS or re-locks material —
+    // Weight-only persist: updates remaining/total weight in the lane_data record
+    // and NEVER rewrites Adventurer5M.json / _IFS_VARS —
     // the firmware-facing writers in apply_user_edit() are what reverted the
     // user's material on every 60 s consumption persist (#981).
     void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
@@ -958,21 +962,16 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // Material counterpart to check_external_color_change. A firmware TYPE
     // change that leaves the color unchanged (user picks a new material on the
     // zmod COLOR menu / LCD, or an external CHANGE_ZCOLOR ... TYPE=) never
-    // trips the color detector, so an undeclared override's baked material would
-    // otherwise go stale and mask firmware truth forever — color updated, type
-    // stuck (raza616, prestonbrown/helixscreen#981/#1065). Same contract as the
-    // color detector: called BEFORE apply_resolved_lane, first observation is a
-    // baseline, empty material is the "no reading" signal (ignored), and on a
-    // real delta it fires sync_override_to_firmware_locked() which refreshes
-    // the override's material via the OverwriteAlways mirror. Returns true if
-    // a sync fired.
+    // trips the color detector, so the record's material would go stale beside
+    // the firmware's (prestonbrown/helixscreen#981/#1065). Same contract as the
+    // color detector: first observation is a baseline, empty material is the
+    // "no reading" signal (ignored), and on a real delta it fires
+    // sync_override_to_firmware_locked(). Returns true if a sync fired.
     bool check_external_type_change(int slot_index, const std::string& observed_material,
                                     std::optional<uint32_t> observed_color, bool slot_has_filament);
-    // Sync helper used by check_external_color_change. Caller must hold mutex_.
-    // Updates an existing override's color_rgb + material, or creates a
-    // minimal one if none exists. Fires save_async to push the result to the
-    // Moonraker DB lane_data namespace. Returns true if anything actually
-    // changed (i.e. save_async was issued); false on the in-sync short-circuit.
+    // Copy the firmware's colour and type into the slot's lane_data record
+    // (mirror_firmware_identity_locked()) and count the sync for the _IFS_VARS
+    // push. Caller must hold mutex_. True when the record changed.
     bool sync_override_to_firmware_locked(int slot_index, uint32_t firmware_color,
                                           const std::string& firmware_material);
     void parse_adventurer_json(const std::string& content);
@@ -1004,8 +1003,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     void recheck_ifs_vars_macro();
     void unregister_moonraker_listeners();
     void schedule_json_reread();
-    // Save @p slot_index's override to lane_data. Caller holds mutex_.
-    void publish_override_locked(int slot_index, const char* reason);
     // True when `content` differs from the last observed Adventurer5M.json
     // body. Updates last_json_content_ on change. Single source of truth for
     // the "did the JSON change?" decision used by both the initial read and
@@ -1496,8 +1493,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // do_unload_filament()'s early returns, which leave action IDLE.
     static constexpr std::chrono::seconds kRunoutOpSuppression{30};
 
-    std::array<bool, kNumPorts> dirty_{}; // Per-slot dirty flag to prevent stale overwrites
-
     helix::printer::SlotRegistry slots_;
 
     // Native ZMOD IFS has no per-port sensors — infer port presence from active
@@ -1755,10 +1750,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // any firmware parse runs, and last_firmware_color_ stays empty until the
     // first parse — so the startup window can't flag the initial observation
     // as an external edit. The map records only what parses read; an edit
-    // never touches it. When firmware echoes an edit back, that delta fires
-    // the mirror, whose declared_on_lane guard skips the fields the user
-    // declared — an edit survives its own echo through the declaration, not
-    // through this baseline.
+    // never touches it. When firmware echoes an edit back, that delta copies
+    // the edit's colour and type into the record like any other firmware change.
     //
     // Access is always under mutex_ (written/read from update_slot_from_state
     // -> check_external_color_change, which runs under the lock).

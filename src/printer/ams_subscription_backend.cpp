@@ -362,6 +362,35 @@ void AmsSubscriptionBackend::persist_user_record_locked(int slot_index, const Sl
     }
 }
 
+void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_index,
+                                                                   const SlotInfo& info) {
+    const auto prior = overrides_.find(slot_index);
+    const bool had_prior = prior != overrides_.end();
+    const uint32_t color = had_prior ? prior->second.color_rgb : 0;
+    const bool color_set = had_prior && prior->second.color_set;
+    const std::string material = had_prior ? prior->second.material : std::string{};
+
+    helix::ams::FilamentSlotOverride& staged =
+        helix::ams::stage_user_override(overrides_, slot_index, info);
+    staged.color_rgb = color;
+    staged.color_set = color_set;
+    staged.material = material;
+    if (override_store_) {
+        helix::ams::save_override_async(override_store_.get(), slot_index, staged,
+                                        backend_log_tag(), "Override", lane_id(slot_index));
+    }
+}
+
+bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
+                                                             const std::string& material) {
+    if (lane_records_unread_) {
+        return false;
+    }
+    return helix::ams::mirror_firmware_to_lane_data(
+        override_store_.get(), overrides_, slot_index, color, material,
+        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
+}
+
 void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,
                                                  float total_weight_g) {
     std::lock_guard<std::mutex> lock(mutex_);

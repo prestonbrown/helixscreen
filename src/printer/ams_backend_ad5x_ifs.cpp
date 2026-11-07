@@ -504,14 +504,6 @@ void AmsBackendAd5xIfs::on_started() {
         });
 }
 
-void AmsBackendAd5xIfs::publish_override_locked(int slot_index, const char* reason) {
-    auto it = overrides_.find(slot_index);
-    if (it != overrides_.end() && override_store_) {
-        helix::ams::save_override_async(override_store_.get(), slot_index, it->second,
-                                        backend_log_tag(), reason);
-    }
-}
-
 void AmsBackendAd5xIfs::on_stopping() {
     unregister_moonraker_listeners();
     vendor_push_.reset();
@@ -930,9 +922,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
     // values that diverged silently from zmod's truth (raza's debug bundle
     // ZYYRVVTG showed Adventurer5M.json and less_waste_colors out of sync).
     // Color/type reads now come from GET_ZCOLOR SILENT=1 (live) and
-    // Adventurer5M.json (boot snapshot) only. apply_user_edit() correspondingly
-    // writes via CHANGE_ZCOLOR rather than _IFS_VARS, so the dirty_-clearing
-    // round-trip that lived in this branch is no longer needed.
+    // Adventurer5M.json (boot snapshot) only.
     //
     // The fields below — tools, current_tool, external — DO live only in the
     // plugin's save_variables namespace (no other Moonraker-visible source),
@@ -1352,8 +1342,8 @@ void AmsBackendAd5xIfs::update_slot_from_state(int slot_index) {
     // path in parse_adventurer_json clears the override explicitly.
     check_external_color_change(slot_index, observed_color, port_presence_[idx]);
     // Material counterpart: a type-only firmware edit (same color) doesn't trip
-    // the color detector, so a non-locked override's baked material would go
-    // stale and mask firmware truth (#981/#1065 — color updated, type stuck).
+    // the color detector, so the record's material would go stale beside the
+    // firmware's (#981/#1065).
     check_external_type_change(slot_index, materials_[idx], observed_color, port_presence_[idx]);
 
     // Translate this frame's signal into the lane source model. Every value
@@ -1403,9 +1393,9 @@ bool AmsBackendAd5xIfs::check_external_color_change(int slot_index,
                                                     bool slot_has_filament) {
     // observed_color is the reading update_slot_from_state() took from
     // colors_[idx]: firmware truth from a printer frame, always. A user edit
-    // never reaches this helper as a value — it rides the lane's declaration,
-    // so when the echo parse lands the edited colour here, the delta fires
-    // and the mirror's declared_on_lane guard keeps the edit (#965).
+    // never reaches this helper as a value: it goes to the firmware, and when
+    // the echo parse lands the edited colour here, the delta copies it into
+    // the record like any other firmware change.
     //
     // `nullopt` is the explicit "no reading available" signal (empty
     // colors_[idx], unread slot, transient JSON parse race). Treat as
@@ -1460,22 +1450,16 @@ bool AmsBackendAd5xIfs::check_external_color_change(int slot_index,
     it->second = color;
 
     // Provenance-neutral wording: the delta between two firmware readings is
-    // a fact, but whether it is our own write echoing back or a foreign edit
-    // is not knowable here — that discrimination is the round-trip echo
-    // guard's job. The mirror itself is safe either way: declared fields are
-    // skipped, so our own echo lands as a no-op.
+    // a fact, whether it is our own write echoing back or a foreign edit.
     spdlog::info("{} Slot {} firmware color changed #{:06X} -> #{:06X}, "
                  "syncing override + Moonraker DB lane_data",
                  backend_log_tag(), slot_index, old_color, color);
 
     // External edit (Mainsail console, AD5X LCD, native zmod dialog,
-    // CHANGE_ZCOLOR from any non-Helix path). Refresh the override's
+    // CHANGE_ZCOLOR from any non-Helix path). Refresh the record's
     // color_rgb + material — preserving brand/spool_name/spoolman_id —
-    // and push the result to lane_data so OrcaSlicer's MoonrakerPrinterAgent
-    // sees the new state. The caller's next apply_resolved_lane() lays the
-    // lane's resolved answer back over entry->info; the call below retracts
-    // the lane's declaration of the same fields, so color_rgb + material
-    // resolve to the firmware truth just accepted.
+    // and push it to lane_data so OrcaSlicer's MoonrakerPrinterAgent
+    // sees the new state.
     sync_override_to_firmware_locked(slot_index, color,
                                      materials_[static_cast<size_t>(slot_index)]);
     return true;
@@ -1536,9 +1520,6 @@ bool AmsBackendAd5xIfs::check_external_type_change(int slot_index,
     //     — hold the old value so the delta survives until a present-lane frame,
     //     otherwise the sync is swallowed and the new type never reaches the
     //     override (color updated on screen, material stuck — #981/#1065).
-    // The user-locked-material guard (#965) still lives inside
-    // sync_override_to_firmware_locked's OverwriteAlways mirror, so a
-    // deliberately locked material is preserved through this path too.
     if (!slot_has_filament || observed_material.empty()) {
         if (observed_material.empty())
             it->second = observed_material; // eject: baseline -> ""
@@ -1567,26 +1548,18 @@ bool AmsBackendAd5xIfs::check_external_type_change(int slot_index,
                  "+ Moonraker DB lane_data",
                  backend_log_tag(), slot_index, old_material, observed_material);
 
-    // OverwriteAlways mirror skips user-locked material (#965), so a genuine
-    // user choice is preserved; a stale auto-mirror material is refreshed so
-    // the new firmware type surfaces on the next apply_resolved_lane().
     sync_override_to_firmware_locked(slot_index, *observed_color, observed_material);
     return true;
 }
 
 bool AmsBackendAd5xIfs::sync_override_to_firmware_locked(int slot_index, uint32_t firmware_color,
                                                          const std::string& firmware_material) {
-    // IFS callers (check_external_color_change) have already filtered for
-    // empty-slot / no-signal cases, so this path always represents a real
-    // observation. OverwriteAlways: apply_user_edit pushes the user's colour
-    // back to firmware via Adventurer5M.json, so firmware's restatement is the
-    // lane's colour and material, and the record follows it.
-    const bool changed = helix::ams::mirror_firmware_to_lane_data(
-        /*store=*/nullptr, overrides_, slot_index, firmware_color, firmware_material,
-        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
-    if (!changed)
+    // The record carries what the firmware holds, for OrcaSlicer and other
+    // lane_data readers; the lane itself shows the firmware reading filed
+    // beside it, so an LCD or CHANGE_ZCOLOR edit wins whatever the record says.
+    if (!mirror_firmware_identity_locked(slot_index, firmware_color, firmware_material)) {
         return false;
-    publish_override_locked(slot_index, "auto-mirror");
+    }
 
     // parse_adventurer_json reads external_sync_count_ before/after its loop
     // to decide whether to also push an _IFS_VARS mirror to the
@@ -2968,9 +2941,6 @@ std::string AmsBackendAd5xIfs::write_port_locked(int slot_index, SlotInfo& slot,
                                                  const SlotInfo& info) {
     auto idx = static_cast<size_t>(slot_index);
 
-    // Mark slot dirty to prevent parse_save_variables from overwriting our edit
-    dirty_[idx] = true;
-
     // colors_[idx] / materials_[idx] are firmware-truth caches: only a printer
     // frame (a parse) moves them. The edit's own values travel with the
     // callers below and the firmware writers in apply_user_edit(); the echo
@@ -2996,7 +2966,7 @@ std::string AmsBackendAd5xIfs::write_port_locked(int slot_index, SlotInfo& slot,
         port_presence_[idx] = has_data;
     }
 
-    spdlog::debug("{} slot {} written: dirty=true, color={:06X}, material={} (raw={}), "
+    spdlog::debug("{} slot {} written: color={:06X}, material={} (raw={}), "
                   "presence={}",
                   backend_log_tag(), slot_index, info.color_rgb & 0xFFFFFF, normalized_material,
                   info.material, port_presence_[idx]);
@@ -3050,8 +3020,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         return err;
     }
 
-    auto idx = static_cast<size_t>(slot_index);
-
     // Assigned inside the locked block below; hoisted here so the write paths
     // (outside the lock, further down) carry the same normalized value
     // write_port_locked() returned.
@@ -3066,19 +3034,25 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         }
         normalized_material = write_port_locked(slot_index, entry->info, info);
 
-        // Stage the new override into overrides_ BEFORE settle_port_locked()
-        // runs update_slot_from_state(), or that call re-applies the PRE-EDIT
-        // override (if any), snaps brand / spool_name / spoolman_id back to
-        // their old saved values, and reverts the edit visually until the next
-        // parse. The override store's own save_async fires outside the lock
-        // further down, so this is the one place an edit mutates overrides_.
-        //
-        // normalize_material() was already applied to the cached materials_
-        // copy; record that instead of the raw user-typed string so the
-        // on-disk record carries a firmware-valid value.
-        helix::ams::stage_user_override(overrides_, slot_index, info, normalized_material);
+        // Brand, spool, weights, colour name and temperatures go in the
+        // lane_data record. Colour and type go to the firmware below; the
+        // record takes them from the firmware's echo, so it never names a
+        // colour the firmware refused.
+        persist_record_beside_firmware_locked(slot_index, info);
 
         settle_port_locked(slot_index);
+    }
+
+    // The firmware stores the type in its own spelling, so the edit stands
+    // until that spelling echoes rather than the one the user picked.
+    if (!normalized_material.empty() && normalized_material != info.material) {
+        const helix::ams::LaneId lane = lane_id(slot_index);
+        const auto pending = helix::ams::lane_sources(lane).pending;
+        if (pending.has_value() && pending->material.has_value()) {
+            helix::ams::Observation spelled(helix::ams::ObservationSource::Pending);
+            spelled.material = normalized_material;
+            helix::ams::file_pending(lane, spelled);
+        }
     }
 
     // Bare-hex spelling of the edit's colour — the wire form IFS_SET_MATERIAL,
@@ -3087,28 +3061,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
     // takes the edit's own values, not theirs.
     char color_hex[7];
     snprintf(color_hex, sizeof(color_hex), "%06X", info.color_rgb & 0xFFFFFF);
-
-    // Persist user-provided metadata to the slot-override store.
-    //
-    // Two persistence paths run here, by design:
-    //
-    //   1. IFS-native fields (color, material) are sent to Klipper via
-    //      _IFS_VARS / Adventurer5M.json below — that's the printer-
-    //      facing side the firmware and other UIs (Orca, LCD) see.
-    //
-    //   2. User metadata the firmware can't carry (brand, spool_name,
-    //      spoolman_id, weights, color_name) lands in the Moonraker DB
-    //      lane_data namespace via the override store. The lane resolves
-    //      these back over firmware data on every parse, through
-    //      apply_resolved_lane().
-    //
-    // Color + material go into BOTH stores so an external writer
-    // (Orca via its own MoonrakerPrinterAgent, another HelixScreen
-    // instance) sees the full record in lane_data even when it's not
-    // also listening to _IFS_VARS.
-    if (override_store_) {
-        persist_override(slot_index);
-    }
 
     if (ifs_module_live_.load()) {
         // Standalone module: IFS_SET_MATERIAL is the writer. The module
@@ -3124,10 +3076,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
             "IFS_SET_MATERIAL SLOT=" +
             std::to_string(slot_index + 1) + // DISPLAY_NUMBERING_OK: gcode wire, not a label
             " TYPE=" + normalized_material + " COLOR=" + color_hex);
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            dirty_[idx] = false;
-        }
         if (!err.success()) {
             return err;
         }
@@ -3140,10 +3088,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
         // GET_ZCOLOR call (no in-memory cache), so direct file writes are
         // picked up without ceremony.
         auto err = write_adventurer_json(slot_index, color_hex, normalized_material);
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            dirty_[idx] = false;
-        }
         if (!err.success()) {
             return err;
         }
@@ -3236,9 +3180,7 @@ void AmsBackendAd5xIfs::update_slot_weight_impl(int slot_index, float remaining_
     // flags, and never write_adventurer_json()/_IFS_VARS. apply_user_edit()'s
     // firmware-facing writers re-emitted ffmType from a stale override material
     // on every 60 s persist, reverting the user's material to disk (#981). Weight
-    // lives in the Moonraker DB lane_data override record, which is the only
-    // store we persist here.
-    helix::ams::FilamentSlotOverride ovr_to_save;
+    // lives in the lane_data record, which is the only store we persist here.
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (auto* entry = slots_.get_mut(slot_index)) {
@@ -3246,17 +3188,9 @@ void AmsBackendAd5xIfs::update_slot_weight_impl(int slot_index, float remaining_
             if (total_weight_g >= 0.0f)
                 entry->info.total_weight_g = total_weight_g;
         }
-        // A slot with no prior override gets a weight-only record (material
-        // empty, color_set=false, locks false), so the lane declares only the
-        // weight. An existing override (e.g. a user-locked material edit) keeps
-        // every other field intact.
-        ovr_to_save = helix::ams::stage_weight_override(overrides_, slot_index, remaining_weight_g,
-                                                        total_weight_g);
     }
-
-    if (persist && override_store_) {
-        helix::ams::save_override_async(override_store_.get(), slot_index, ovr_to_save,
-                                        backend_log_tag(), "weight");
+    if (persist) {
+        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
     }
 
     emit_event(kEventSlotChanged, std::to_string(slot_index));
@@ -4230,23 +4164,9 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
         // A CHANGE_ZCOLOR in the gcode stream is always a DELIBERATE external
         // edit: HelixScreen persists colors by writing Adventurer5M.json directly
         // and never emits CHANGE_ZCOLOR, so this command can only originate from
-        // the AD5X LCD, Mainsail, or zmod's COLOR/material macro. If the slot
-        // still carries a user-locked override from an earlier HelixScreen edit,
-        // sync_override_to_firmware_locked() skips the locked color/material
-        // (the #965 guard) and apply_resolved_lane() keeps re-painting that
-        // stale declared value on every parse — so the user's new firmware color/type never
-        // surfaces (raza616, #981: set yellow PLA on the zmod screen, HelixScreen
-        // kept showing the previously Helix-set white PETG). The user has plainly
-        // overridden their earlier choice, so drop the stale override and let
-        // firmware truth (colors_/materials_, refreshed by the re-read below)
-        // show through. clear_slot_override() persists the clear, so it survives
-        // a restart instead of reloading the locked value from lane_data.
-        //
-        // This is gated on a CHANGE_ZCOLOR carrying a real locked override —
-        // RUN_ZCOLOR (display-only) and the post-print FFMInfo auto-revert that
-        // #965 guards against (it rewrites the JSON WITHOUT emitting
-        // CHANGE_ZCOLOR) never reach the clear, so the lock still protects the
-        // user's material there.
+        // the AD5X LCD, Mainsail, or zmod's COLOR/material macro. The firmware
+        // holds colour and type, so the edit is the lane's new truth (#981): it
+        // lands in colors_/materials_ below and the record follows it.
         //
         // TYPE=/HEX= extraction (#1065 v0.99.94, bundle NJB2U558): the
         // CHANGE_ZCOLOR token carries the user's intent at emission time:
@@ -4313,8 +4233,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                 const bool slot_valid = (slot0 >= 0 && slot0 < kNumPorts);
                 const bool has_params = parsed_type.has_value() || parsed_hex.has_value();
 
-                // Decide under the lock whether there's real work: clearing a
-                // stale locked override (existing #981 path) and/or applying
+                // Decide under the lock whether there's real work: applying
                 // freshly-parsed TYPE=/HEX= parameters to colors_/materials_.
                 bool mutated = false;
                 if (slot_valid) {
@@ -4351,36 +4270,14 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
                                 mutated = true;
                             }
                         }
-                        // Refresh a pre-existing NON-locked auto-mirror override
-                        // to match what we just wrote. Without this, the values
-                        // above land in colors_/materials_ but
-                        // apply_resolved_lane (below, via update_slot_from_state)
-                        // re-paints them from the lane's stale declared
-                        // color_rgb / material — so the
-                        // just-tapped value never surfaces. Concretely: change a
-                        // slot's type then its color from back-to-back COLOR
-                        // macros and the new color never appeared, because an
-                        // earlier external edit had created an auto-mirror
-                        // override still pinning the previous color (#1065
-                        // raza616 07-22, bundle H2X5QMCU).
-                        //
-                        // Only refresh an override that ALREADY exists. Never
-                        // create one here: mirror_firmware_to_lane_data
-                        // default-constructs the map entry, and zmod floods the
-                        // stream with echoed CHANGE_ZCOLOR button-definition
-                        // lines on every prompt render — syncing on each would
-                        // fabricate auto-mirror overrides for slots the user
-                        // never edited. When no override exists, the lane
-                        // declares nothing for those fields and firmware truth
-                        // shows unaided.
-                        //
-                        // The #981 clear above erases any declared override
-                        // before we get here, so a surviving entry is
-                        // auto-mirror (nothing declared); sync_override_to_firmware_locked diffs
-                        // both fields and honors a declared colour or material regardless, so it
-                        // updates only the dimension that actually changed. Skip
-                        // when no real firmware color baseline exists yet, so we
-                        // don't pin black (0x000000) onto the override.
+                        // The baselines moved above, so no later reading
+                        // syncs the record: copy the edit into it here. Only a
+                        // record that ALREADY exists: zmod floods the stream
+                        // with echoed CHANGE_ZCOLOR button-definition lines on
+                        // every prompt render, and creating a record on each
+                        // would fabricate lane_data for slots nobody edited.
+                        // Skip when no real firmware color baseline exists yet,
+                        // so we don't pin black (0x000000) onto the record.
                         if (mutated) {
                             auto ovr_it = overrides_.find(slot0);
                             auto color_it = last_firmware_color_.find(slot0);
@@ -4394,10 +4291,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
 
                     if (mutated) {
                         // Re-run the lane resolve + slot-state derivation so
-                        // the UI-visible SlotInfo picks up the new values. If a
-                        // locked override was cleared above, the lane declares
-                        // nothing for those fields and the firmware-truth
-                        // arrays win.
+                        // the UI-visible SlotInfo picks up the new values.
                         update_slot_from_state(slot0);
                     }
                 }
@@ -4504,8 +4398,7 @@ bool AmsBackendAd5xIfs::apply_color_menu_slot_row(const std::string& line) {
         // Deliberately does NOT pre-advance last_firmware_* the way the
         // CHANGE_ZCOLOR path does: this is a firmware READING, so it must flow
         // through check_external_*_change exactly as a GET_ZCOLOR response
-        // would — refreshing a non-locked auto-mirror override and mirroring to
-        // lane_data, while honouring a user-locked one. It is the same data the
+        // would, refreshing the lane_data record. It is the same data the
         // debounced query returns, only ~500ms sooner.
         update_slot_from_state(slot0);
     }
@@ -5624,9 +5517,8 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
                 }
             }
 
-            // Fill in color/material if we got them and the slot isn't locally
-            // dirty (unsaved user edit pending).
-            if (!loaded || result.is_old_format || dirty_[idx]) {
+            // Fill in color/material if we got them.
+            if (!loaded || result.is_old_format) {
                 continue;
             }
             if (!parsed->hex.empty() && colors_[idx] != parsed->hex) {
@@ -5976,8 +5868,6 @@ void AmsBackendAd5xIfs::parse_adventurer_json(const std::string& content) {
                 type.clear();
 
             int idx = port - 1;
-            if (dirty_[static_cast<size_t>(idx)])
-                continue;
             // Once the live RS-485 authority is established (a GET_ZCOLOR SILENT
             // response actually confirmed, or IFS_STATUS Ports seen), zmod's
             // persisted ffmColor/ffmType are a stale cache it never blanks on
