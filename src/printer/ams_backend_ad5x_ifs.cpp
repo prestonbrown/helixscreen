@@ -3721,21 +3721,21 @@ AmsError AmsBackendAd5xIfs::set_tool_mapping_impl(int tool_number, int slot_inde
             tools_val = build_tool_map_value();
         }
     }
+    // No contract detected: nothing echoes or replays a mapping, the answer
+    // remap_ready() already gives before a caller gets here.
+    AmsError result = plugin_backed ? write_ifs_var("tools", tools_val) : AmsErrorHelper::success();
     // Z-Mod's built-in AFC keeps its own lane map for the Fluidd/Mainsail AFC
     // panels, lane N being port N. It does not route the print, which takes
-    // the map at the start (print_start_params()), so it only follows the pick.
+    // the map at the start (print_start_params()), so it only follows the pick,
+    // and a refused SET_MAP never costs the table above its write.
     if (print_start_takes_tool_slots_ && port != kUnmappedPort) {
-        if (auto err = execute_gcode(fmt::format("SET_MAP LANE=lane{} MAP=T{}", port, tool_number));
-            !err.success()) {
-            return err;
+        AmsError lane_map =
+            execute_gcode(fmt::format("SET_MAP LANE=lane{} MAP=T{}", port, tool_number));
+        if (result.success() && !lane_map.success()) {
+            result = lane_map;
         }
     }
-    if (!plugin_backed) {
-        // No contract detected: nothing echoes or replays a mapping — the
-        // answer remap_ready() already gives before a caller gets here.
-        return AmsErrorHelper::success();
-    }
-    return write_ifs_var("tools", tools_val);
+    return result;
 }
 
 AmsError AmsBackendAd5xIfs::reset_tool_mappings() {
