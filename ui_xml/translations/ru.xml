@@ -916,6 +916,7 @@
   <translation tag="Cool Down" ru="Охладить"/>
   <translation tag="Cool nozzle after filament ops" ru="Остужать сопло после операций с филаментом"/>
   <translation tag="Cooling" ru="Охлаждение"/>
+  <translation tag="Cooling Bed..." ru="Охлаждение стола..."/>
   <translation tag="Cooling Tube Length" ru="Длина трубки охлаждения"/>
   <translation tag="Cooling Tube Retraction" ru="Ретракция в трубке охлаждения"/>
   <translation tag="Cooling for probing..." ru="Охлаждение перед зондированием..."/>

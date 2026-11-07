@@ -871,6 +871,7 @@
   <translation tag="Cool Down" ja="冷却"/>
   <translation tag="Cool nozzle after filament ops" ja="フィラメント操作後にノズルを冷却"/>
   <translation tag="Cooling" ja="冷却中"/>
+  <translation tag="Cooling Bed..." ja="ベッド冷却中..."/>
   <translation tag="Cooling Tube Length" ja="冷却チューブ長"/>
   <translation tag="Cooling Tube Retraction" ja="冷却チューブの引き戻し"/>
   <translation tag="Cooling for probing..." ja="プローブのため冷却中..."/>

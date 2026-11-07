@@ -871,6 +871,7 @@
   <translation tag="Cool Down" zh="冷却"/>
   <translation tag="Cool nozzle after filament ops" zh="耗材操作后冷却喷嘴"/>
   <translation tag="Cooling" zh="冷却中"/>
+  <translation tag="Cooling Bed..." zh="正在冷却热床..."/>
   <translation tag="Cooling Tube Length" zh="冷却管长度"/>
   <translation tag="Cooling Tube Retraction" zh="冷却管回抽"/>
   <translation tag="Cooling for probing..." zh="正在降温以便探测..."/>

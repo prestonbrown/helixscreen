@@ -1,0 +1,54 @@
+{
+  "name": "FlashForge Creator 5",
+  "description": "FlashForge Creator 5 / 5 Pro. Z-Mod narrates its START_PRINT on the console in its own words, captured live on a Creator 5 Pro on Z-Mod 1.7.5 (2026-11-06: a saved-mesh start and a full 10x10 mesh start). Those lines are tag_patterns because the sequence is not monotonic in the phase enum: the bed is raised about 10C above the print temperature while the tool is picked up, the mesh (with the head docked) runs after that, and the bed then cools back into the print window (Waiting for temperature normalization. Bed: lo-hi ... START_PRINT) for up to several minutes before the purge. 'info Priming algorithm:' and 'info Load bed mesh:' are settings in the START_PRINT banner, not steps, so no pattern here matches them. The response_patterns are the generic ones without the alternatives Z-Mod's banner trips (BED_TEMP, LINE_PURGE, Priming, bed-mesh loading), for the Creator 5's other firmwares.",
+  "progress_mode": "weighted",
+  "phase_object": {
+    "object": "display_status",
+    "field": "message"
+  },
+  "tag_patterns": [
+    { "pattern": "^// T[0-9]+ \\([^)]*\\):\\n// temp \\(auto purge\\):", "case_sensitive": true, "phase": "INITIALIZING", "message": "Preparing..." },
+    { "pattern": "^// Grab attempt for T[0-9]+: 1 of ", "case_sensitive": true, "phase": "INITIALIZING", "message": "Picking up tool" },
+    { "pattern": "^// Unload attempt for T[0-9]+: 1 of ", "case_sensitive": true, "phase": "INITIALIZING", "message": "Docking tool" },
+    { "pattern": "^// Waiting for temperature normalization\\. Extruder: ", "case_sensitive": true, "phase": "HEATING_NOZZLE", "message": "Heating Nozzle..." },
+    { "pattern": "^// Waiting for temperature normalization\\. Bed: .* START_PRINT$", "case_sensitive": true, "phase": "HEATING_BED", "message": "Cooling Bed..." },
+    { "pattern": "^// Waiting for temperature normalization\\. Bed: ", "case_sensitive": true, "phase": "HEATING_BED", "message": "Heating Bed..." },
+    { "pattern": "^info Bed calibration\\. ", "case_sensitive": true, "phase": "HEATING_BED", "message": "Cooling for probing..." },
+    { "pattern": "^info Nozzle line purge\\. |^// KAMP purge starts at ", "case_sensitive": true, "phase": "PURGING", "message": "Purging..." },
+    { "pattern": "^echo: START_PRINT has finished its work\\.", "case_sensitive": true, "phase": "COMPLETE", "message": "Starting Print..." }
+  ],
+  "signal_formats": [],
+  "response_patterns": [
+    { "pattern": "G28|Homing|Home All|homing axes|homing all", "phase": "HOMING", "message": "Homing...", "weight": 10 },
+    { "pattern": "M190|M140\\s+S[1-9]|Heating bed|Heat Bed", "phase": "HEATING_BED", "message": "Heating Bed...", "weight": 20 },
+    { "pattern": "(heat|bed|chamber).?soak|soaking|heating chamber|waiting for chamber", "phase": "SOAKING", "message": "Heat Soaking...", "weight": 20 },
+    { "pattern": "M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 20 },
+    { "pattern": "BED_MESH_CALIBRATE|Probing mesh|generating mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
+    { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|WIPE_NOZZLE|nozzle.?wipe|clean(ing)?.?nozzle", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
+    { "pattern": "VORON_PURGE|PURGE_LINE|Prime.?Line|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE|\\bpurging\\b", "phase": "PURGING", "message": "Purging...", "weight": 5 }
+  ],
+  "status_signals": [
+    {
+      "name": "heating_bed",
+      "object": "heater_bed",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 15
+    },
+    {
+      "name": "heating_nozzle",
+      "object": "extruder",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    }
+  ]
+}
