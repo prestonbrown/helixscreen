@@ -4233,6 +4233,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." fr="En attente de la fin de %s. Un seul chauffage à la fois."/>
   <translation tag="Waiting for Moonraker..." fr="En attente de Moonraker..."/>
   <translation tag="Waiting for another box to finish." fr="En attente de la fin d&apos;une autre boîte."/>
+  <translation tag="Waiting for bed temperature..." fr="Attente de la température du plateau..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." fr="En attente que le plateau atteigne la température pour une calibration précise."/>
   <translation tag="Waiting for chamber {} / {}°C" fr="Attente de la chambre {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" fr="Attente de la chambre {}°C"/>

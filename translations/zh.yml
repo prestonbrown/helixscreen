@@ -4401,6 +4401,7 @@ translations:
   Waiting for Moonraker...: 正在等待 Moonraker...
   Waiting for %s to finish. One heater at a time.: 正在等待 %s 完成。一次只能使用一个加热器。
   Waiting for another box to finish.: 正在等待另一个料盒完成。
+  Waiting for bed temperature...: 正在等待热床温度...
   Waiting for bed to reach temperature for accurate calibration.: 等待热床达到温度以进行精确校准。
   Waiting for chamber {} / {}°C: '等待腔体 {} / {}°C'
   Waiting for chamber {}°C: '等待腔体 {}°C'

@@ -4233,6 +4233,7 @@
   <translation tag="Waiting for %s to finish. One heater at a time." en="Waiting for %s to finish. One heater at a time."/>
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for another box to finish." en="Waiting for another box to finish."/>
+  <translation tag="Waiting for bed temperature..." en="Waiting for bed temperature..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for chamber {} / {}°C" en="Waiting for chamber {} / {}°C"/>
   <translation tag="Waiting for chamber {}°C" en="Waiting for chamber {}°C"/>
