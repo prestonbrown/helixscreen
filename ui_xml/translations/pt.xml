@@ -318,6 +318,7 @@
   <translation tag="App Background" pt="Fundo do Aplicativo"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." pt="A inicialização do aplicativo encontrou um erro. Alguns recursos podem estar indisponíveis."/>
   <translation tag="Appearance" pt="Aparência"/>
+  <translation tag="Appearance &amp; Region" pt="Aparência e região"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." pt="Aplicado a {}. O Klipper esquece ao reiniciar: insira {} como Pressure Advance no perfil de filamento do seu fatiador, ou salve no carretel."/>
   <translation tag="Applies to" pt="Aplica-se a"/>
   <translation tag="Apply" pt="Aplicar"/>
@@ -765,6 +766,7 @@
   <translation tag="Color" pt="Cor"/>
   <translation tag="Color Mismatch" pt="Cor Incompatível"/>
   <translation tag="Color Sensors" pt="Sensores de cor"/>
+  <translation tag="Colors for every screen" pt="Cores de todas as telas"/>
   <translation tag="Command Failed" pt="O comando falhou"/>
   <translation tag="Command failed" pt="O comando falhou"/>
   <translation tag="Communication Test" pt="Teste de comunicação"/>
@@ -3409,6 +3411,7 @@
   <translation tag="Set local timezone for time display" pt="Definir fuso horário local para exibição"/>
   <translation tag="Set logging verbosity for troubleshooting" pt="Definir nível de detalhe do log para solução de problemas"/>
   <translation tag="Set temperature between {}°C and {}°C" pt="Defina uma temperatura entre {}°C e {}°C"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." pt="Defina o relógio, o tema e as unidades. Você pode alterá-los depois em Configurações."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" pt="Defina manualmente o tipo e a cor do filamento deste slot. Se a etiqueta deveria ser legível, reencaixe o carretel com o rótulo voltado para o leitor quando a caixa estiver ociosa"/>
   <translation tag="Set up" pt="Configurar"/>
   <translation tag="Set up your label printer in Settings" pt="Configure sua impressora de etiquetas em Configurações"/>
@@ -3438,6 +3441,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" pt="Mostrar diálogo de confirmação ao tocar em uma macro"/>
   <translation tag="Show instead of dimming" pt="Exibir em vez de escurecer"/>
   <translation tag="Show light controls for a light connected to this printer" pt="Mostrar os controles de uma luz conectada a esta impressora"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" pt="Mostrar velocidade e fluxo em mm/s e mm³/s em vez de porcentagem"/>
   <translation tag="Show printer icon in navigation bar" pt="Mostrar ícone da impressora na barra de navegação"/>
   <translation tag="Show sliced colors" pt="Mostrar cores fatiadas"/>
   <translation tag="Show temp for" pt="Mostrar temp. para"/>
@@ -3505,6 +3509,7 @@
   <translation tag="Spaghetti detected (%d%%)" pt="Espaguete detectado (%d%%)"/>
   <translation tag="Speaker" pt="Alto-falante"/>
   <translation tag="Speed" pt="Velocidade"/>
+  <translation tag="Speed &amp; Flow in mm/s" pt="Velocidade e fluxo em mm/s"/>
   <translation tag="Speed / Flow" pt="Velocidade / Fluxo"/>
   <translation tag="Speed Settings" pt="Configurações de velocidade"/>
   <translation tag="Speed and flow overrides, with a tap to tune" pt="Velocidade e fluxo; toque para ajustar"/>
@@ -3978,6 +3983,7 @@
   <translation tag="This printer has no IFS." pt="Esta impressora não tem IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" pt="Esta impressora não tem a macro LOAD_FILAMENT do INDX"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pt="Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão."/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." pt="Esta impressora não tem fuso horário, então o relógio mostra UTC. Escolha o seu."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." pt="Esta impressora não tem o comando {}, então o Z-offset não pode ser salvo."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." pt="Esta impressora parece ser uma {} ({}% de confiança), mas está configurada como {}. Um tipo errado aplica opções de pré-impressão e predefinições incorretas."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" pt="Faltam nas macros do INDX desta impressora: {}"/>

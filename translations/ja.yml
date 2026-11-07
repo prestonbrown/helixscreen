@@ -323,6 +323,7 @@ translations:
   App Background: アプリ背景
   App startup encountered an error. Some features may be unavailable.: アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。
   Appearance: 外観
+  Appearance & Region: "外観と地域"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。'
   Applies to: 適用対象
@@ -782,6 +783,7 @@ translations:
   Color: 色
   Color Mismatch: 色の不一致
   Color Sensors: カラーセンサー
+  Colors for every screen: "すべての画面の配色"
   Command Failed: 'コマンドに失敗しました'
   Command failed: コマンドに失敗しました
   Communication Test: '通信テスト'
@@ -3531,6 +3533,7 @@ translations:
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
   Set temperature between {}°C and {}°C: '温度は {}〜{}°C にしてください'
+  Set the clock, theme and units. You can change any of these later in Settings.: "時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
   Set up: セットアップ
@@ -3561,6 +3564,7 @@ translations:
   Show a confirmation dialog when tapping a macro: マクロをタップした際に確認ダイアログを表示
   Show instead of dimming: 暗くする代わりに表示
   Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"
   Show printer icon in navigation bar: ナビゲーションバーにプリンターアイコンを表示
   Show sliced colors: スライスした色を表示
   Show temp for: 温度表示対象
@@ -3630,6 +3634,7 @@ translations:
   Spaghetti detected (%d%%): スパゲッティを検出しました（%d%%）
   Speaker: スピーカー
   Speed: 速度
+  Speed & Flow in mm/s: "速度とフローを mm/s で表示"
   Speed / Flow: '速度 / フロー'
   Speed Settings: '速度設定'
   Speed and flow overrides, with a tap to tune: '速度とフロー。タップして調整'
@@ -4145,6 +4150,7 @@ translations:
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。

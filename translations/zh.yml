@@ -322,6 +322,7 @@ translations:
   App Background: 应用背景
   App startup encountered an error. Some features may be unavailable.: 应用程序启动时遇到错误。某些功能可能不可用。
   Appearance: 外观
+  Appearance & Region: "外观与区域"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。'
   Applies to: 适用于
@@ -780,6 +781,7 @@ translations:
   Color: 颜色
   Color Mismatch: 颜色不匹配
   Color Sensors: 颜色传感器
+  Colors for every screen: "所有屏幕的配色"
   Command Failed: '命令失败'
   Command failed: 命令失败
   Communication Test: '通信测试'
@@ -3522,6 +3524,7 @@ translations:
   Set local timezone for time display: 设置本地时区以显示时间
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
   Set temperature between {}°C and {}°C: '请设置 {}°C 到 {}°C 之间的温度'
+  Set the clock, theme and units. You can change any of these later in Settings.: "设置时钟、主题和单位。之后可以随时在设置中更改。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : 请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入
   Set up: 设置
@@ -3552,6 +3555,7 @@ translations:
   Show a confirmation dialog when tapping a macro: 点击宏时显示确认对话框
   Show instead of dimming: 显示而非变暗
   Show light controls for a light connected to this printer: '显示连接到此打印机的灯的控制'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "以 mm/s 和 mm³/s 而非 % 显示打印速度和流量"
   Show printer icon in navigation bar: 在导航栏中显示打印机图标
   Show sliced colors: 显示切片颜色
   Show temp for: 显示温度
@@ -3621,6 +3625,7 @@ translations:
   Spaghetti detected (%d%%): 检测到拉丝故障（%d%%）
   Speaker: 扬声器
   Speed: 速度
+  Speed & Flow in mm/s: "速度和流量以 mm/s 显示"
   Speed / Flow: '速度 / 流量'
   Speed Settings: '速度设置'
   Speed and flow overrides, with a tap to tune: '速度与流量,点按即可调整'
@@ -4136,6 +4141,7 @@ translations:
   This printer has no IFS.: "此打印机没有 IFS。"
   This printer has no INDX LOAD_FILAMENT macro: "此打印机没有 INDX LOAD_FILAMENT 宏"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
