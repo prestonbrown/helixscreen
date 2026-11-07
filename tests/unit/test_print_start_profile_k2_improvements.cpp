@@ -35,18 +35,14 @@ TEST_CASE("PrintStartProfile: k2_improvements maps the mod's narration",
         REQUIRE(result.phase == PrintStartPhase::SOAKING);
     }
 
-    SECTION("M191 chamber wait is also SOAKING") {
-        REQUIRE(profile->try_match_pattern("// [START_PRINT]: Waiting for chamber to reach 45C...",
-                                           result));
-        REQUIRE(result.phase == PrintStartPhase::SOAKING);
-    }
-
-    SECTION("Bed-assist notice keeps the chamber wait in SOAKING") {
-        // M191 drives the bed to 105C to help the chamber. Matching that on
-        // the bed heater would walk the phase backwards mid-soak.
-        REQUIRE(profile->try_match_pattern(
-            "// The chamber heater alone can not reach 45.0c, using bed assist ...", result));
-        REQUIRE(result.phase == PrintStartPhase::SOAKING);
+    SECTION("M191 chamber wait, bed assist included, is chamber heating, not a soak") {
+        // M191 drives the bed to help the chamber; that is still the chamber's wait.
+        for (const char* line :
+             {"// [START_PRINT]: Waiting for chamber to reach 45C...",
+              "// The chamber heater alone can not reach 45.0c, using bed assist ..."}) {
+            REQUIRE(profile->try_match_pattern(line, result));
+            CHECK(result.phase == PrintStartPhase::HEATING_CHAMBER);
+        }
     }
 
     SECTION("Rehome after the soak") {

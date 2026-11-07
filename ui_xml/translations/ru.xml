@@ -1722,6 +1722,7 @@
   <translation tag="Heating bed" ru="Нагрев стола"/>
   <translation tag="Heating bed to $1°C..." ru="Нагрев стола до $1°C..."/>
   <translation tag="Heating bed..." ru="Нагрев стола..."/>
+  <translation tag="Heating chamber" ru="Нагрев камеры"/>
   <translation tag="Heating chamber..." ru="Нагрев камеры..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." ru="Нагрев занимает почти всё ожидание. Если покинуть экран сейчас, запуск остановится."/>
   <translation tag="Heating nozzle" ru="Нагрев сопла"/>

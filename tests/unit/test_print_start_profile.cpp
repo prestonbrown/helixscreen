@@ -236,17 +236,21 @@ TEST_CASE("PrintStartProfile: forge_x response patterns match temperature wait l
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
-    SECTION("Default profile uses weighted mode") {
-        auto profile = get_default_profile();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
-    }
+    CHECK(get_default_profile()->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
+    auto artillery = PrintStartProfile::load("artillery_m1");
+    REQUIRE(artillery->name() == "Artillery M1 Pro");
+    CHECK(artillery->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
+}
 
-    SECTION("Artillery M1 profile uses sequential mode") {
-        auto profile = PrintStartProfile::load("artillery_m1");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->name() == "Artillery M1 Pro");
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
+TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a soak",
+          "[profile][print][chamber]") {
+    for (const auto& [name, line] :
+         {std::pair{"qidi", "M191 S45"}, std::pair{"artillery_m1", "[AM1P] State: HEAT_CHAMBER"}}) {
+        CAPTURE(name, line);
+        auto profile = PrintStartProfile::load(name);
+        PrintStartProfile::MatchResult r;
+        REQUIRE((profile->try_match_signal(line, r) || profile->try_match_pattern(line, r)));
+        CHECK(r.phase == PrintStartPhase::HEATING_CHAMBER);
     }
 }
 
@@ -255,22 +259,13 @@ TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile][print][mesh]") {
-    SECTION("Snapmaker U1 declares adaptive_meshing=true") {
-        auto profile = PrintStartProfile::load("snapmaker_u1");
+    for (const auto& [name, adaptive] :
+         {std::pair{"snapmaker_u1", true}, std::pair{"default", false},
+          std::pair{"forge_x", false}}) {
+        CAPTURE(name);
+        auto profile = PrintStartProfile::load(name);
         REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == true);
-    }
-
-    SECTION("Default profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load_default();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
-    }
-
-    SECTION("Forge-X profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load("forge_x");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
+        CHECK(profile->adaptive_meshing() == adaptive);
     }
 }
 
@@ -1130,8 +1125,8 @@ TEST_CASE("PrintStartProfile: default patterns match macro narration, not just c
         {"Cleaning nozzle...", PrintStartPhase::CLEANING},
         {"Bed mesh", PrintStartPhase::BED_MESH},
         {"Bed Mesh", PrintStartPhase::BED_MESH},
-        {"Heating chamber: 45c", PrintStartPhase::SOAKING},
-        {"Waiting for chamber temp", PrintStartPhase::SOAKING},
+        {"Heating chamber: 45c", PrintStartPhase::HEATING_CHAMBER},
+        {"Waiting for chamber temp", PrintStartPhase::HEATING_CHAMBER},
         {"Bed soak - 2 minutes remaining", PrintStartPhase::SOAKING},
         {"Bed soak finished", PrintStartPhase::SOAKING},
         {"Heat soak", PrintStartPhase::SOAKING},

@@ -672,7 +672,7 @@ class PrinterPrintState {
 
     /// 1 while the job is held by a heater wait on the chamber: the nozzle
     /// and bed are at target and the wait goes on. Main thread only; any
-    /// phase change other than to SOAKING clears it.
+    /// phase change other than to HEATING_CHAMBER clears it.
     lv_subject_t* get_print_start_chamber_wait_subject() {
         return &print_start_chamber_wait_;
     }

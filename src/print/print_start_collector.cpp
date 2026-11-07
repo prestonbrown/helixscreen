@@ -1030,7 +1030,7 @@ void PrintStartCollector::check_fallback_completion() {
             const PrintStartPhase guessed = nozzle_short ? PrintStartPhase::HEATING_NOZZLE
                                             : bed_short  ? PrintStartPhase::HEATING_BED
                                             : device_wait || chamber_heating || chamber_unheated
-                                                ? PrintStartPhase::SOAKING
+                                                ? PrintStartPhase::HEATING_CHAMBER
                                                 : PrintStartPhase::IDLE;
             const PrintStartPhase waited_on = named.value_or(guessed);
             tick_waited_on = waited_on;
@@ -1054,7 +1054,7 @@ void PrintStartCollector::check_fallback_completion() {
             if (waited_on != PrintStartPhase::IDLE && may_relabel) {
                 relabel_heating_phase(
                     waited_on, /*heater_wait=*/true,
-                    waited_on == PrintStartPhase::SOAKING
+                    waited_on == PrintStartPhase::HEATING_CHAMBER
                         ? chamber_wait_message(chamber_temp,
                                                device_wait && temps.chamber_wait_target_c() > 0
                                                    ? static_cast<int>(std::lround(
@@ -1068,8 +1068,9 @@ void PrintStartCollector::check_fallback_completion() {
         bool chamber_wait;
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
-            chamber_wait = heater_wait_shown_ && current_phase_ == PrintStartPhase::SOAKING &&
-                           tick_waited_on == PrintStartPhase::SOAKING;
+            chamber_wait = heater_wait_shown_ &&
+                           current_phase_ == PrintStartPhase::HEATING_CHAMBER &&
+                           tick_waited_on == PrintStartPhase::HEATING_CHAMBER;
         }
         state_.print_state().set_print_start_chamber_wait(chamber_wait);
     }
@@ -2369,7 +2370,7 @@ PrintStartCollector::heater_waited_on(const helix::WaitLine& line,
         if (chamber_heater.empty()) {
             return std::nullopt;
         }
-        return PrintStartPhase::SOAKING;
+        return PrintStartPhase::HEATING_CHAMBER;
     case helix::WaitKind::TemperatureWait:
         if (line.sensor == "heater_bed") {
             return PrintStartPhase::HEATING_BED;
@@ -2378,7 +2379,7 @@ PrintStartCollector::heater_waited_on(const helix::WaitLine& line,
             return PrintStartPhase::HEATING_NOZZLE;
         }
         if (helix::wait_names_chamber_heater(line, chamber_heater)) {
-            return PrintStartPhase::SOAKING;
+            return PrintStartPhase::HEATING_CHAMBER;
         }
         return std::nullopt;
     case helix::WaitKind::Other:
@@ -2673,10 +2674,10 @@ std::string PrintStartCollector::chamber_wait_message(int temp_deci, int target_
 void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved, bool heater_wait,
                                                 const std::string& label) {
     const std::string message =
-        !label.empty()                             ? label
-        : resolved == PrintStartPhase::HEATING_BED ? std::string(lv_tr("Heating Bed..."))
-        : resolved == PrintStartPhase::SOAKING     ? std::string(lv_tr("Heating chamber..."))
-                                                   : std::string(lv_tr("Heating Nozzle..."));
+        !label.empty()                                 ? label
+        : resolved == PrintStartPhase::HEATING_BED     ? std::string(lv_tr("Heating Bed..."))
+        : resolved == PrintStartPhase::HEATING_CHAMBER ? std::string(lv_tr("Heating chamber..."))
+                                                       : std::string(lv_tr("Heating Nozzle..."));
     int progress;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -2685,7 +2686,7 @@ void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved, bool h
         // since. Relabeling then would regress a newer, correct phase.
         const bool heating = current_phase_ == PrintStartPhase::HEATING_BED ||
                              current_phase_ == PrintStartPhase::HEATING_NOZZLE;
-        const bool wait_label = heating || current_phase_ == PrintStartPhase::SOAKING;
+        const bool wait_label = heating || current_phase_ == PrintStartPhase::HEATING_CHAMBER;
         bool takeover = false;
         bool allowed;
         if (heater_wait) {
@@ -2743,7 +2744,7 @@ void PrintStartCollector::end_heater_wait() {
         // Restore only over the wait's own label: anything else got there later.
         if (current_phase_ != PrintStartPhase::HEATING_BED &&
             current_phase_ != PrintStartPhase::HEATING_NOZZLE &&
-            current_phase_ != PrintStartPhase::SOAKING) {
+            current_phase_ != PrintStartPhase::HEATING_CHAMBER) {
             return;
         }
         // A finished mesh gives way for good to a nozzle target raised after

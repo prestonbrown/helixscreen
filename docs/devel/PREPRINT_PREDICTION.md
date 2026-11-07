@@ -74,7 +74,8 @@ number then names a different one.
 | HOMING | `HOMING` | G28 / Home All Axes |
 | MOTOR_SYNC | `MOTOR_SYNC` | motors-sync SYNC_MOTORS (AWD) |
 | HEATING_BED | `HEATING_BED` | M140/M190 |
-| SOAKING | `SOAKING` | Holding at temperature: heat-soak dwell or chamber wait |
+| SOAKING | `SOAKING` | Holding at temperature: the heat-soak dwell |
+| HEATING_CHAMBER | `HEATING_CHAMBER` | Waiting for the chamber to reach temperature (M191, chamber wait) |
 | HEATING_NOZZLE | `HEATING_NOZZLE` | M104/M109 |
 | QGL | `QGL` | QUAD_GANTRY_LEVEL |
 | Z_TILT | `Z_TILT` | Z_TILT_ADJUST |
@@ -84,7 +85,7 @@ number then names a different one.
 | COMPLETE | `COMPLETE` | Transition to printing |
 
 `print_start_phase_stores_duration()` is the single answer to which of these the
-history keeps a duration for: HOMING, MOTOR_SYNC, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING
+history keeps a duration for: HOMING, MOTOR_SYNC, SOAKING, HEATING_CHAMBER, QGL, Z_TILT, BED_MESH, CLEANING
 and PURGING. IDLE, INITIALIZING and COMPLETE are lifecycle markers with no dwell
 of their own, and the two heating phases are owned by `ThermalRateModel`, which
 predicts them from measured heat rates.
@@ -368,7 +369,7 @@ arrives for a file the view no longer shows is dropped
 slow fetch never prices the next file with the previous file's temperatures. The label reads
 "~4:30 prep time", "~5 min prep time" or "~50 sec prep time", rounded to 30 seconds above two
 minutes and to 10 seconds at or below. A chamber target is in neither the metadata nor the thermal model; a
-chamber wait reaches the estimate as the SOAKING phase the history or the database defaults
+chamber wait reaches the estimate as the HEATING_CHAMBER phase the history or the database defaults
 carry.
 
 ## Real-Time Remaining Calculation

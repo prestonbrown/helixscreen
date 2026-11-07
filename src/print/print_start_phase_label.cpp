@@ -17,6 +17,8 @@ const char* print_start_phase_step_key(PrintStartPhase phase) {
         return TR_NOOP("Heating bed");
     case PrintStartPhase::SOAKING:
         return TR_NOOP("Heat soak");
+    case PrintStartPhase::HEATING_CHAMBER:
+        return TR_NOOP("Heating chamber");
     case PrintStartPhase::HEATING_NOZZLE:
         return TR_NOOP("Heating nozzle");
     case PrintStartPhase::QGL:
@@ -57,6 +59,8 @@ const char* print_start_phase_signal_message(PrintStartPhase phase) {
         return lv_tr("Heating Bed...");
     case PrintStartPhase::SOAKING:
         return lv_tr("Heat Soaking...");
+    case PrintStartPhase::HEATING_CHAMBER:
+        return lv_tr("Heating Chamber...");
     case PrintStartPhase::HEATING_NOZZLE:
         return lv_tr("Heating Nozzle...");
     case PrintStartPhase::QGL:

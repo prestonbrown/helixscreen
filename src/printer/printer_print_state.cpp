@@ -1376,7 +1376,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
                 lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
             }
         }
-        if (phase != PrintStartPhase::SOAKING) {
+        if (phase != PrintStartPhase::HEATING_CHAMBER) {
             set_print_start_chamber_wait(false);
         }
         if (lv_subject_get_int(&print_start_phase_) != static_cast<int>(phase)) {

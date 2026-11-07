@@ -1674,6 +1674,7 @@
   <translation tag="Heating bed" en="Heating bed"/>
   <translation tag="Heating bed to $1°C..." en="Heating bed to $1°C..."/>
   <translation tag="Heating bed..." en="Heating bed..."/>
+  <translation tag="Heating chamber" en="Heating chamber"/>
   <translation tag="Heating chamber..." en="Heating chamber..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." en="Heating is nearly the whole wait. Leaving the screen now stops the run."/>
   <translation tag="Heating nozzle" en="Heating nozzle"/>
