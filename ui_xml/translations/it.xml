@@ -3825,6 +3825,8 @@
   <translation tag="The printer rejected the filament configuration. The print was not started." it="La stampante ha rifiutato la configurazione del filamento. La stampa non è stata avviata."/>
   <translation tag="The printer reports measured fan speeds. HelixScreen shows them on the Fans screen." it="La stampante riporta le velocità misurate delle ventole. HelixScreen le mostra nella schermata Ventole."/>
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." it="La stampante non riporta alcun registro delle corsie, quindi solo lo svuotamento dell&apos;estrusore può scaricare."/>
+  <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" it="La stampante richiede una connessione cifrata, ma ha rifiutato il lavoro cifrato: HTTP {} {}"/>
+  <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" it="La stampante richiede una connessione cifrata, ma la connessione cifrata a {}:{} non è riuscita"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." it="La stampante cambia tra più testine. Gestisci gli strumenti nella schermata del sistema filamento."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" it="Il firmware della stampante sceglie dove passare a filamento esaurito"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" it="La posizione richiesta è fuori dai limiti della stampante"/>
