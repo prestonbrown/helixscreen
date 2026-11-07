@@ -23,6 +23,7 @@
 #include "klipper_config_editor.h"
 #include "preset_materials.h"
 #include "print_lifecycle_state.h"
+#include "printer_discovery.h"
 #include "temperature_service.h"
 #include "thermal_rate_model.h"
 #include "ui/ui_widget_helpers.h"
@@ -30,6 +31,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -557,7 +559,14 @@ std::string PIDCalibrationPanel::mpc_cooling_fan() const {
     if (tool < 0 || tool >= static_cast<int>(tools.size())) {
         return "";
     }
-    return tools[static_cast<size_t>(tool)].fan_name.value_or("");
+    // T0 is named "fan" whether or not the printer has a [fan], and Kalico
+    // refuses to start when cooling_fan names an object it cannot find.
+    const std::string fan = tools[static_cast<size_t>(tool)].fan_name.value_or("");
+    if (fan.empty() || !api_) {
+        return "";
+    }
+    const auto& fans = api_->hardware().fans();
+    return std::find(fans.begin(), fans.end(), fan) != fans.end() ? fan : "";
 }
 
 void PIDCalibrationPanel::update_fan_section_visibility() {
@@ -1379,8 +1388,9 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
 
     // heater_power is ours, written by the forward migration. MPC_CALIBRATE's
     // results land in Klipper's autosave block instead, which we never edit and
-    // which tolerates them under PID control. The other four REMOVE_KEYs cover
-    // the hand-written case: an MPC key left active in the section itself fails
+    // which tolerates them under PID control. The other REMOVE_KEYs cover keys
+    // that live in the section itself (cooling_fan from the forward migration,
+    // the model from a hand-written config): an MPC key left active there fails
     // Klipper's unused-option check once no MPC object reads it.
     return {
         {ConfigEdit::Type::ADD_KEY, "control", "pid"},
@@ -1389,6 +1399,7 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
         {ConfigEdit::Type::REMOVE_KEY, "sensor_responsiveness", ""},
         {ConfigEdit::Type::REMOVE_KEY, "ambient_transfer", ""},
         {ConfigEdit::Type::REMOVE_KEY, "fan_ambient_transfer", ""},
+        {ConfigEdit::Type::REMOVE_KEY, "cooling_fan", ""},
     };
 }
 
