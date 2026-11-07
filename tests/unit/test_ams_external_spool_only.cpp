@@ -215,7 +215,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
         refresh(false);
         CHECK_FALSE(ams.filament_hardware_absent());
         CHECK_FALSE(sensors.listed_in_settings(toolhead));
-        CHECK(gather_capability_chip_facts().filament_systems.size() == 1);
+        REQUIRE(gather_capability_chip_facts().filament_systems.size() == 1);
+        // The count names what it counts in the backend's noun (the mock's is Gate).
+        CHECK(gather_capability_chip_facts().filament_systems[0].slot_count == "4 gates");
         ams.clear_backends();
     }
 

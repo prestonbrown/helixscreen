@@ -48,9 +48,9 @@ std::string filament_system_text(const std::vector<FilamentSystemFact>& systems)
             out += ", ";
         }
         out += sys.name;
-        if (sys.slots > 0) {
+        if (!sys.slot_count.empty()) {
             out += kSep;
-            out += helix::ui::lane_count_label(sys.noun, sys.slots);
+            out += sys.slot_count;
         }
     }
     return out;
