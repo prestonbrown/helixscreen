@@ -108,6 +108,30 @@ TEST_CASE("Migrating to PID never adds heater_power", "[mpc_migration]") {
     REQUIRE(value_of(edits, "heater_power").empty());
 }
 
+TEST_CASE("Migrating to MPC names the part fan unless the section names a fan", "[mpc_migration]") {
+    KlipperConfigEditor editor;
+    const auto edits =
+        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50, "fan");
+
+    auto added = editor.apply_edits("[extruder]\nstep_pin: PA1\n", "extruder", edits);
+    REQUIRE(added.has_value());
+    CHECK(added->find("\ncooling_fan: fan") != std::string::npos);
+
+    // Kalico reads any fan object; a user's own choice is not ours to replace.
+    auto kept =
+        editor.apply_edits("[extruder]\ncooling_fan: fan_generic nozzle\n", "extruder", edits);
+    REQUIRE(kept.has_value());
+    CHECK(kept->find("cooling_fan: fan_generic nozzle") != std::string::npos);
+    CHECK(kept->find("cooling_fan: fan\n") == std::string::npos);
+
+    CHECK(value_of(PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50),
+                   "cooling_fan")
+              .empty());
+    CHECK(value_of(PIDCalibrationPanel::build_control_migration_edits(CalibMethod::PID, 50, "fan"),
+                   "cooling_fan")
+              .empty());
+}
+
 // ============================================================================
 // Round trip through the real editor
 // ============================================================================
