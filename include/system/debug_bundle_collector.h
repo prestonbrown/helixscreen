@@ -52,8 +52,9 @@ struct BundleOptions {
     /// PrinterState itself, so a caller that leaves this uncaptured gets empty
     /// printer and moonraker sections.
     PrinterSnapshot printer;
-    /// Filled by upload_async() on the main thread; uncaptured leaves out `ui_perf`.
-    UiPerfSnapshot ui_perf;
+    /// The `ui_perf` section as serialized JSON, filled by upload_async() on the main
+    /// thread from the registered provider. Empty leaves the section out.
+    std::string ui_perf_json;
 };
 
 struct BundleResult {
@@ -115,6 +116,11 @@ class DebugBundleCollector {
     /// upload_async captures the value at submit.
     using CollectFn = std::function<nlohmann::json(const BundleOptions&)>;
     static void set_collect_override_for_test(CollectFn fn);
+
+    /// The app's UI cost counters live above this layer, so the app registers a
+    /// provider that serializes them. Main thread only; upload_async calls it there.
+    using UiPerfProvider = std::function<std::string()>;
+    static void set_ui_perf_provider(UiPerfProvider provider);
 
     /// Read PrinterState and its LVGL subjects into plain data.
     ///

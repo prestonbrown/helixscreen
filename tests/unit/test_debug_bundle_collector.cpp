@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_perf_report.h"
+
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -2187,13 +2189,15 @@ TEST_CASE("DebugBundleCollector: ui_perf carries the captured snapshot, and only
     helix::BundleOptions options;
     CHECK_FALSE(helix::DebugBundleCollector::collect(options).contains("ui_perf"));
 
-    options.ui_perf.captured = true;
-    options.ui_perf.sample.frames = 4;
-    options.ui_perf.sample.render_ns = 4 * 25'000'000ULL;
-    options.ui_perf.sample.peak_rss_kb = 4096;
+    helix::UiPerfSnapshot snapshot;
+    snapshot.captured = true;
+    snapshot.sample.frames = 4;
+    snapshot.sample.render_ns = 4 * 25'000'000ULL;
+    snapshot.sample.peak_rss_kb = 4096;
     helix::nav::OverlayOpenRecord fast{"Fast", 2, 1, 10.0, 12.0, 20.0};
     helix::nav::OverlayOpenRecord slow{"Spoolman", 3, 3, 250.0, 300.0, 750.0};
-    options.ui_perf.overlays = {fast, slow};
+    snapshot.overlays = {fast, slow};
+    options.ui_perf_json = helix::ui_perf_to_json(snapshot).dump();
     const json perf = helix::DebugBundleCollector::collect(options)["ui_perf"];
     CHECK(perf["frames"]["drawn"] == 4);
     CHECK(perf["frames"]["render_ms_mean"] == 25.0);

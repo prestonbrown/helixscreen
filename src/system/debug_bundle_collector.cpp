@@ -144,8 +144,11 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // BSSID or MAC may enter this section.
     bundle["network"] = helix::WifiLinkMonitor::instance().to_json();
 
-    if (options.ui_perf.captured) {
-        bundle["ui_perf"] = ui_perf_to_json(options.ui_perf);
+    if (!options.ui_perf_json.empty()) {
+        json ui_perf = json::parse(options.ui_perf_json, nullptr, false);
+        if (!ui_perf.is_discarded()) {
+            bundle["ui_perf"] = std::move(ui_perf);
+        }
     }
 
     // log_meta records the active sink target, the persistent level, and whether
@@ -2429,10 +2432,19 @@ DebugBundleCollector::CollectFn& collect_override() {
     static DebugBundleCollector::CollectFn fn;
     return fn;
 }
+
+DebugBundleCollector::UiPerfProvider& ui_perf_provider() {
+    static DebugBundleCollector::UiPerfProvider fn;
+    return fn;
+}
 } // namespace
 
 void DebugBundleCollector::set_collect_override_for_test(CollectFn fn) {
     collect_override() = std::move(fn);
+}
+
+void DebugBundleCollector::set_ui_perf_provider(UiPerfProvider provider) {
+    ui_perf_provider() = std::move(provider);
 }
 
 void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCallback callback) {
@@ -2456,7 +2468,9 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
     // slow lane, where touching either is a data race (see PrinterSnapshot).
     BundleOptions opts = options;
     opts.printer = snapshot_printer_state();
-    opts.ui_perf = capture_ui_perf(lv_display_get_default());
+    if (const auto& provider = ui_perf_provider()) {
+        opts.ui_perf_json = provider();
+    }
 
     // Resolve the worker URL on the submitting thread, with the rest of the
     // caller-thread state: the slow lane can execute after the caller's
