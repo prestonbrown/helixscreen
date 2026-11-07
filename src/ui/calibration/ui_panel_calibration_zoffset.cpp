@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
 #include "ui_z_offset_indicator.h"
@@ -223,6 +224,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[ZOffsetCal] on_activate()");
+    tool_confirm_pending_ = false;
 
     // If manual probe is already active (e.g., started from Mainsail before HelixScreen
     // launched), skip to ADJUSTING with the current Z position instead of resetting to IDLE
@@ -474,31 +476,59 @@ void ZOffsetCalibrationPanel::start_calibration() {
         return;
     }
 
-    // A tool changer's probe offset belongs to one tool. Refusing rather than
-    // mounting it here keeps a calibration entry from starting a tool change.
-    {
-        PrinterState& ps = get_printer_state();
-        const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
-        const auto& tools = ToolState::instance();
-        if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
-                                             reference, tools.active_tool_index()) ==
-            zoffset_cal::ToolGate::MountReferenceFirst) {
-            std::string label = "T" + std::to_string(*reference);
-            for (const auto& tool : tools.tools()) {
-                if (tool.index == *reference) {
-                    label = tool.display_label;
-                    break;
-                }
-            }
-            spdlog::info("[ZOffsetCal] Refusing: tool {} mounted, calibration needs {}",
-                         tools.active_tool_index(), label);
-            on_calibration_result(
-                false, fmt::format(fmt::runtime(lv_tr("Mount {} before calibrating the Z offset")),
-                                   label));
-            return;
-        }
+    if (tool_confirm_pending_) {
+        return; // the mounted-tool question is already on screen
     }
 
+    // A tool changer's probe offset can belong to one tool. Asking rather than
+    // mounting it keeps a calibration entry from starting a tool change.
+    PrinterState& ps = get_printer_state();
+    const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
+    const int active = ToolState::instance().active_tool_index();
+    if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
+                                         reference,
+                                         active) == zoffset_cal::ToolGate::ConfirmFirst) {
+        confirm_tool_then_start(*reference, active);
+        return;
+    }
+    begin_calibration();
+}
+
+void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int active_tool) {
+    const std::string reference = "T" + std::to_string(reference_tool);
+    const std::string message =
+        active_tool >= 0
+            ? fmt::format(fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
+                                             "with {1}. Continue with {0}?")),
+                          "T" + std::to_string(active_tool), reference)
+            : fmt::format(fmt::runtime(lv_tr("No tool is known to be mounted. With one shared "
+                                             "probe, calibrate with {}. Continue anyway?")),
+                          reference);
+    spdlog::info("[ZOffsetCal] Tool {} mounted, probe reference is {}: asking first", active_tool,
+                 reference);
+
+    tool_confirm_pending_ = true;
+    helix::ui::ConfirmOptions opts;
+    auto declined = [this]() { tool_confirm_pending_ = false; };
+    opts.on_cancel = declined;
+    opts.on_dismiss = declined;
+    opts.owner_token = lifetime_.token();
+    lv_obj_t* dialog = helix::ui::modal_confirm(
+        lv_tr("Calibrate with this tool?"), message.c_str(), ModalSeverity::Warning,
+        lv_tr("Continue"),
+        [this]() {
+            tool_confirm_pending_ = false;
+            begin_calibration();
+        },
+        opts);
+    if (!dialog) {
+        // Nothing to answer: leave Start usable rather than latched shut.
+        tool_confirm_pending_ = false;
+        spdlog::warn("[ZOffsetCal] Mounted-tool question could not be shown");
+    }
+}
+
+void ZOffsetCalibrationPanel::begin_calibration() {
     // Check if warm bed is requested
     bool warm_bed = lv_subject_get_int(&s_zoffset_warm_bed) == 1;
     if (warm_bed) {

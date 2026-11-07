@@ -168,6 +168,10 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // Strategy-aware gcode command helpers
     void start_calibration();
+    /// Warm-up or probing: the start once every check has passed.
+    void begin_calibration();
+    /// Ask before calibrating with a tool other than the probe's reference tool.
+    void confirm_tool_then_start(int reference_tool, int active_tool);
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();
@@ -202,6 +206,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     float cumulative_z_delta_ = 0.0f; ///< Tracks total Z adjustment in gcode_offset mode
 
     // Warm bed for calibration
+    bool tool_confirm_pending_ = false; ///< The mounted-tool question is on screen
     bool bed_was_warmed_ = false;       ///< True if we sent M140 to warm bed this session
     int warm_bed_target_deci_ = 0;      ///< Target temp in decidegrees during WARMING
     SubjectLifetime bed_temp_lifetime_; ///< Lifetime token for bed temp subject (#734)

@@ -207,18 +207,17 @@ TEST_CASE("Z-offset tool gate: the reference tool mounted proceeds",
           ToolGate::Proceed);
 }
 
-TEST_CASE("Z-offset tool gate: another tool mounted asks for the reference tool",
+TEST_CASE("Z-offset tool gate: another tool mounted asks before starting",
           "[zoffset_cal][reference_tool]") {
     CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 2) ==
-          ToolGate::MountReferenceFirst);
-    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::ENDSTOP, 0, 1) ==
-          ToolGate::MountReferenceFirst);
+          ToolGate::ConfirmFirst);
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::ENDSTOP, 0, 1) == ToolGate::ConfirmFirst);
 }
 
-TEST_CASE("Z-offset tool gate: an unknown mounted tool asks for the reference tool",
+TEST_CASE("Z-offset tool gate: an unknown mounted tool asks before starting",
           "[zoffset_cal][reference_tool]") {
     CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, -1) ==
-          ToolGate::MountReferenceFirst);
+          ToolGate::ConfirmFirst);
 }
 
 TEST_CASE("Z-offset tool gate: no reference tool leaves calibration as it was",

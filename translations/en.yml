@@ -545,6 +545,7 @@ translations:
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: CONNECTION TYPE
   CONTROLLABLE FANS: CONTROLLABLE FANS
+  Calibrate with this tool?: 'Calibrate with this tool?'
   Could not turn the heaters off: Could not turn the heaters off
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2415,7 +2416,6 @@ translations:
   Mount: Mount
   Mount tool: Mount tool
   Mount which tool?: Mount which tool?
-  Mount {} before calibrating the Z offset: 'Mount {} before calibrating the Z offset'
   Mount...: Mount...
   Move: Move
   Move here: Move here
@@ -2592,6 +2592,7 @@ translations:
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
   No timelapse videos found: No timelapse videos found
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?'
   No tool is mounted: No tool is mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
@@ -4984,6 +4985,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": "{}: the tag names Spoolman spool #{}, which doesn't exist"
   '{}:{:02} elapsed': '{}:{:02} elapsed'
   '{}% left': '{}% left'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?'
   'Basic': 'Basic'
   'Recycled': 'Recycled'
   ~{:.1f} Hz / turn: ~{:.1f} Hz / turn

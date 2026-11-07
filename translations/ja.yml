@@ -528,6 +528,7 @@ translations:
   CONFIGURATION: 設定
   CONNECTION TYPE: 接続タイプ
   CONTROLLABLE FANS: 制御可能なファン
+  Calibrate with this tool?: 'このツールで校正しますか？'
   Could not turn the heaters off: 'ヒーターを切れませんでした'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2346,7 +2347,6 @@ translations:
   Mount: 装着
   Mount tool: 'ツールを装着'
   Mount which tool?: 'どのツールを装着しますか？'
-  Mount {} before calibrating the Z offset: 'Z-offset を校正する前に {} を装着してください'
   Mount...: '装着...'
   Move: 移動
   Move here: ここへ移動
@@ -2519,6 +2519,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
@@ -4832,6 +4833,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？'
   'Basic': '標準'
   'Recycled': 'リサイクル'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'

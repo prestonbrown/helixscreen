@@ -587,6 +587,7 @@
   <translation tag="Calibrate now" ru="Откалибровать"/>
   <translation tag="Calibrate part fan" ru="Калибровать обдув модели"/>
   <translation tag="Calibrate tool offsets?" ru="Калибровать смещения инструментов?"/>
+  <translation tag="Calibrate with this tool?" ru="Калибровать с этим инструментом?"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
   <translation tag="Calibrated" ru="Откалиброван"/>
   <translation tag="Calibrating Probe..." ru="Калибровка зонда..."/>
@@ -2309,7 +2310,6 @@
   <translation tag="Mount" ru="Установить"/>
   <translation tag="Mount tool" ru="Установить инструмент"/>
   <translation tag="Mount which tool?" ru="Какой инструмент установить?"/>
-  <translation tag="Mount {} before calibrating the Z offset" ru="Установите {} перед калибровкой Z-смещения"/>
   <translation tag="Mount..." ru="Установить..."/>
   <translation tag="Move" ru="Двигать"/>
   <translation tag="Move here" ru="Переместить сюда"/>
@@ -2476,6 +2476,7 @@
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ru="Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?"/>
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool on the head" ru="На печатающей головке нет инструмента"/>
   <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
@@ -4613,6 +4614,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
   <translation tag="you have" ru="у вас"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." ru="{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно."/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" ru="Установлен {0}. С общим датчиком калибруйте с {1}. Продолжить с {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ru="{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
