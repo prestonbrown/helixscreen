@@ -2016,7 +2016,6 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
     }
 
     load_persisted_overrides();
-    reapply_overrides();
 }
 
 void AmsBackendHappyHare::query_config_from_printer() {
@@ -2083,42 +2082,62 @@ void AmsBackendHappyHare::query_config_from_printer() {
         });
 }
 
-namespace {
-/// Where a Happy Hare tunable is kept: under the active printer, since one
-/// printer's MMU tuning says nothing about another's.
-std::string hh_override_path(helix::Config* config, const std::string& key) {
-    return config->df() + "hh_overrides/" + key;
-}
-} // namespace
-
 void AmsBackendHappyHare::load_persisted_overrides() {
+    if (!api_) {
+        adopt_hh_tuning(nlohmann::json::object(), /*writable=*/false);
+        return;
+    }
+    auto token = lifetime_.token();
+    api_->database_get_item(
+        kHhTuningNamespace, kHhTuningKey,
+        [this, token](const nlohmann::json& value) {
+            token.defer("AmsBackendHappyHare::hh_tuning_read", [this, value]() {
+                adopt_hh_tuning(value.is_object() ? value : nlohmann::json::object(), true);
+            });
+        },
+        [this, token](const MoonrakerError& err) {
+            // Nothing stored yet reads as an empty document; any other
+            // failure keeps what is stored there untouched.
+            const bool absent = err.is_not_found();
+            if (!absent) {
+                spdlog::warn("[AMS HappyHare] Couldn't read the tuning values: {}", err.message);
+            }
+            token.defer("AmsBackendHappyHare::hh_tuning_unread",
+                        [this, absent]() { adopt_hh_tuning(nlohmann::json::object(), absent); });
+        });
+}
+
+void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
+    bool changed = false;
+    // Tuning kept in the local config before it lived in Moonraker belongs to
+    // the printer this screen drives: it moves there, once.
     auto* config = helix::Config::get_instance();
-    // Overrides kept before they were per printer belong to whichever printer
-    // was set up when they were made: the active one takes them, once.
-    if (const nlohmann::json* global = config->try_get_json("/hh_overrides");
-        global && global->is_object() && !config->exists(config->df() + "hh_overrides")) {
-        config->set<nlohmann::json>(config->df() + "hh_overrides", *global);
+    if (const nlohmann::json* local = config->try_get_json("/hh_overrides");
+        writable && doc.empty() && local && local->is_object()) {
+        doc = *local;
         config->get_json("").erase("hh_overrides");
         config->save();
+        changed = true;
     }
     // An override saved against the built-in default, not the printer's own,
     // still applies: the built-ins stood in whenever the printer's config
     // could not be read. Its record is re-pointed at the real default.
     const ConfigDefaults builtin;
-    bool migrated = false;
-
-    // Helper: load an override if its saved config_default still matches.
+    UserOverrides loaded;
     auto load = [&](const std::string& key, auto& field, auto current_default,
                     auto builtin_default) {
         using T = decltype(current_default);
-        std::string base = hh_override_path(config, key);
+        std::string name = key;
         // Records saved under the action id selector_speed load too.
-        if (!config->exists(base + "/value") && key == "selector_move_speed") {
-            base = hh_override_path(config, "selector_speed");
+        if (!doc.contains(name) && key == "selector_move_speed") {
+            name = "selector_speed";
         }
-        if (!config->exists(base + "/value"))
+        const auto entry = doc.find(name);
+        if (entry == doc.end() || !entry->is_object()) {
             return;
-        const T saved_default = config->get<T>(base + "/config_default", T(-999));
+        }
+        const T saved_default =
+            static_cast<T>(helix::json_util::safe_double(*entry, "config_default", -999.0));
         auto same = [](T a, T b) { return std::abs(static_cast<float>(a - b)) < 0.01f; };
         if (!same(saved_default, current_default)) {
             if (!same(saved_default, builtin_default)) {
@@ -2130,11 +2149,11 @@ void AmsBackendHappyHare::load_persisted_overrides() {
             spdlog::info("[AMS HappyHare] Keeping override {} saved against the built-in "
                          "default {} (printer's default {})",
                          key, saved_default, current_default);
-            config->set<T>(base + "/config_default", current_default);
-            migrated = true;
+            (*entry)["config_default"] = current_default;
+            changed = true;
         }
-        const nlohmann::json* value = config->try_get_json(base + "/value");
-        if (!value || !(value->is_number() || value->is_boolean())) {
+        const auto value = entry->find("value");
+        if (value == entry->end() || !(value->is_number() || value->is_boolean())) {
             spdlog::warn("[AMS HappyHare] Failed to load override {}", key);
             return;
         }
@@ -2143,22 +2162,38 @@ void AmsBackendHappyHare::load_persisted_overrides() {
     };
 
     // clang-format off
-    load("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed, config_defaults_.gear_from_buffer_speed, builtin.gear_from_buffer_speed);
-    load("gear_from_spool_speed", user_overrides_.gear_from_spool_speed, config_defaults_.gear_from_spool_speed, builtin.gear_from_spool_speed);
-    load("gear_unload_speed", user_overrides_.gear_unload_speed, config_defaults_.gear_unload_speed, builtin.gear_unload_speed);
-    load("selector_move_speed", user_overrides_.selector_move_speed, config_defaults_.selector_move_speed, builtin.selector_move_speed);
-    load("extruder_load_speed", user_overrides_.extruder_load_speed, config_defaults_.extruder_load_speed, builtin.extruder_load_speed);
-    load("extruder_unload_speed", user_overrides_.extruder_unload_speed, config_defaults_.extruder_unload_speed, builtin.extruder_unload_speed);
-    load("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle, config_defaults_.toolhead_sensor_to_nozzle, builtin.toolhead_sensor_to_nozzle);
-    load("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle, config_defaults_.toolhead_extruder_to_nozzle, builtin.toolhead_extruder_to_nozzle);
-    load("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
-    load("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
-    load("sync_to_extruder", user_overrides_.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
+    load("gear_from_buffer_speed", loaded.gear_from_buffer_speed, config_defaults_.gear_from_buffer_speed, builtin.gear_from_buffer_speed);
+    load("gear_from_spool_speed", loaded.gear_from_spool_speed, config_defaults_.gear_from_spool_speed, builtin.gear_from_spool_speed);
+    load("gear_unload_speed", loaded.gear_unload_speed, config_defaults_.gear_unload_speed, builtin.gear_unload_speed);
+    load("selector_move_speed", loaded.selector_move_speed, config_defaults_.selector_move_speed, builtin.selector_move_speed);
+    load("extruder_load_speed", loaded.extruder_load_speed, config_defaults_.extruder_load_speed, builtin.extruder_load_speed);
+    load("extruder_unload_speed", loaded.extruder_unload_speed, config_defaults_.extruder_unload_speed, builtin.extruder_unload_speed);
+    load("toolhead_sensor_to_nozzle", loaded.toolhead_sensor_to_nozzle, config_defaults_.toolhead_sensor_to_nozzle, builtin.toolhead_sensor_to_nozzle);
+    load("toolhead_extruder_to_nozzle", loaded.toolhead_extruder_to_nozzle, config_defaults_.toolhead_extruder_to_nozzle, builtin.toolhead_extruder_to_nozzle);
+    load("toolhead_entry_to_extruder", loaded.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
+    load("toolhead_ooze_reduction", loaded.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
+    load("sync_to_extruder", loaded.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
     // clang-format on
 
-    if (migrated) {
-        config->save();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        user_overrides_ = loaded;
     }
+    hh_tuning_ = std::move(doc);
+    if (changed && writable) {
+        write_hh_tuning();
+    }
+    reapply_overrides();
+}
+
+void AmsBackendHappyHare::write_hh_tuning() {
+    if (!api_) {
+        return;
+    }
+    api_->database_post_item(
+        kHhTuningNamespace, kHhTuningKey, hh_tuning_, nullptr, [](const MoonrakerError& err) {
+            spdlog::warn("[AMS HappyHare] Couldn't save the tuning values: {}", err.message);
+        });
 }
 
 /// Helper to get the config default float for a given action key
@@ -2219,12 +2254,8 @@ void AmsBackendHappyHare::save_override(const std::string& key, float value) {
             user_overrides_.toolhead_ooze_reduction = value;
     } // end mutex scope
 
-    // Persist to Config JSON (outside lock — disk I/O)
-    auto* config = helix::Config::get_instance();
-    const std::string base = hh_override_path(config, key);
-    config->set<float>(base + "/value", value);
-    config->set<float>(base + "/config_default", get_config_default_float(key));
-    config->save();
+    hh_tuning_[key] = {{"value", value}, {"config_default", get_config_default_float(key)}};
+    write_hh_tuning();
 }
 
 void AmsBackendHappyHare::save_override(const std::string& key, int value) {
@@ -2234,12 +2265,8 @@ void AmsBackendHappyHare::save_override(const std::string& key, int value) {
             user_overrides_.sync_to_extruder = value;
     } // end mutex scope
 
-    // Persist to Config JSON (outside lock — disk I/O)
-    auto* config = helix::Config::get_instance();
-    const std::string base = hh_override_path(config, key);
-    config->set<int>(base + "/value", value);
-    config->set<int>(base + "/config_default", get_config_default_int(key));
-    config->save();
+    hh_tuning_[key] = {{"value", value}, {"config_default", get_config_default_int(key)}};
+    write_hh_tuning();
 }
 
 std::string AmsBackendHappyHare::test_config_param_locked(std::string_view key) const {

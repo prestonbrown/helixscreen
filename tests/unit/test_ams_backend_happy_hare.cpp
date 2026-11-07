@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
+#include "../test_helpers/mock_printer.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_backend_happy_hare.h"
@@ -4170,7 +4171,6 @@ TEST_CASE("execute_device_action calibrate_servo is not a valid action",
 
 TEST_CASE("clog detection is written to the MMU and read back from its status, never kept here",
           "[ams][happy_hare][device_actions][hh_overrides]") {
-    auto* config = helix::Config::get_instance();
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4179,7 +4179,6 @@ TEST_CASE("clog detection is written to the MMU and read back from its status, n
     auto result = helper.execute_device_action("clog_detection", std::any(std::string("Auto")));
     REQUIRE(result.success());
     REQUIRE(helper.has_gcode_containing("CLOG_DETECTION=2"));
-    CHECK_FALSE(config->exists(config->df() + "hh_overrides/clog_detection"));
 
     // Until the status reports the encoder's mode, the configfile's stands.
     const auto mode = [&helper]() {
@@ -6862,80 +6861,113 @@ class ScopedConfig {
 
 } // namespace
 
-TEST_CASE("Happy Hare keeps an override saved against the built-in default",
-          "[ams][happy_hare][hh_v4]") {
-    ScopedConfig config;
-    // Saved while the printer's own default could not be read: the record names
-    // the built-in 60, the printer's real default is 80.
-    config->set<float>(config->df() + "hh_overrides/gear_from_spool_speed/value", 95.0f);
-    config->set<float>(config->df() + "hh_overrides/gear_from_spool_speed/config_default", 60.0f);
-    // Saved against a real default the printer has since changed: stale.
-    config->set<float>(config->df() + "hh_overrides/gear_unload_speed/value", 99.0f);
-    config->set<float>(config->df() + "hh_overrides/gear_unload_speed/config_default", 111.0f);
+namespace {
 
+/// A Happy Hare on a mock Moonraker whose database holds @p tuning (or
+/// nothing), connected through the v4 fixture.
+struct TuningRig {
+    MockPrinter printer;
     QueryCapturingClient client;
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    connect_with_fixture(helper, client,
-                         helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json"));
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> reg;
+    explicit TuningRig(const nlohmann::json& tuning = nullptr) : reg(&printer.api, &client) {
+        if (!tuning.is_null()) {
+            printer.client.mock_db_set("helix-screen", "hh_tuning", tuning);
+        }
+        reg->initialize_test_gates(4);
+    }
+    void connect(const nlohmann::json& fx =
+                     helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json")) {
+        connect_with_fixture(*reg, client, fx);
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    }
+    [[nodiscard]] nlohmann::json stored() {
+        return printer.client.mock_db_get("helix-screen", "hh_tuning");
+    }
+};
 
-    const auto& o = HappyHareTestAccess::user_overrides(helper);
-    REQUIRE(o.gear_from_spool_speed);
-    CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
-    CHECK(config->get<float>(config->df() + "hh_overrides/gear_from_spool_speed/config_default",
-                             0.0f) == Catch::Approx(80.0f));
-    CHECK_FALSE(o.gear_unload_speed);
-    CHECK(config->get_path().empty()); // the migration's save() wrote no file
+/// A v3 Happy Hare with a moving selector, which takes every tunable.
+nlohmann::json v3_linear_fixture() {
+    return {{"configfile_settings",
+             {{"mmu", {{"happy_hare_version", 3.42}, {"selector_move_speed", 200.0}}},
+              {"mmu_machine", {{"selector_type", "LinearSelector"}}}}}};
 }
 
-TEST_CASE("Happy Hare tunables are kept per printer; the old global record moves to the active one",
+} // namespace
+
+TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has outgrown",
+          "[ams][happy_hare][hh_v4][hh_overrides]") {
+    // One saved against the built-in 60 while the printer's own default could
+    // not be read (the printer's real default is 80); one saved against a real
+    // default the printer has since changed, which is stale.
+    TuningRig rig({{"gear_from_spool_speed", {{"value", 95.0}, {"config_default", 60.0}}},
+                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}}});
+    rig.connect();
+
+    const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
+    REQUIRE(o.gear_from_spool_speed);
+    CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
+    CHECK_FALSE(o.gear_unload_speed);
+    // The built-in-default record is re-pointed at the printer's, in Moonraker.
+    CHECK(rig.stored()["gear_from_spool_speed"]["config_default"] == Catch::Approx(80.0));
+    CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
+}
+
+TEST_CASE("a Happy Hare tuning change is written to Moonraker, not the local config",
+          "[ams][happy_hare][hh_overrides]") {
+    ScopedConfig config;
+    TuningRig rig;
+    rig.connect(v3_linear_fixture());
+    REQUIRE(rig.reg->execute_device_action("gear_from_spool_speed", std::any(70.0)).success());
+    CHECK(rig.stored()["gear_from_spool_speed"]["value"] == Catch::Approx(70.0));
+    // Clog detection is the MMU's to report, so it is never stored.
+    REQUIRE(
+        rig.reg->execute_device_action("clog_detection", std::any(std::string("Auto"))).success());
+    CHECK_FALSE(rig.stored().contains("clog_detection"));
+    CHECK_FALSE(config->exists("/hh_overrides"));
+    CHECK_FALSE(config->exists(config->df() + "hh_overrides"));
+}
+
+TEST_CASE("a local Happy Hare tuning record moves to Moonraker once",
           "[ams][happy_hare][hh_overrides]") {
     ScopedConfig config;
     config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
     config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 80.0f);
 
-    QueryCapturingClient client;
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    connect_with_fixture(helper, client,
-                         helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json"));
-
-    CHECK_FALSE(config->exists("/hh_overrides"));
-    CHECK(config->get<float>(config->df() + "hh_overrides/gear_from_spool_speed/value", 0.0f) ==
-          Catch::Approx(95.0f));
-    const auto& o = HappyHareTestAccess::user_overrides(helper);
-    REQUIRE(o.gear_from_spool_speed);
-    CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
+    SECTION("Moonraker holds none: it moves") {
+        TuningRig rig;
+        rig.connect();
+        CHECK_FALSE(config->exists("/hh_overrides"));
+        CHECK(rig.stored()["gear_from_spool_speed"]["value"] == Catch::Approx(95.0));
+        const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
+        REQUIRE(o.gear_from_spool_speed);
+        CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
+    }
+    SECTION("Moonraker already holds a document: it wins") {
+        TuningRig rig({{"gear_unload_speed", {{"value", 90.0}, {"config_default", 80.0}}}});
+        rig.connect();
+        CHECK_FALSE(rig.stored().contains("gear_from_spool_speed"));
+        CHECK_FALSE(HappyHareTestAccess::user_overrides(*rig.reg).gear_from_spool_speed);
+    }
 }
 
 TEST_CASE("Happy Hare selector speed override survives a restart under either key",
           "[ams][happy_hare][hh_v4]") {
-    ScopedConfig config;
+    nlohmann::json tuning;
     SECTION("saved by the slider") {
-        {
-            helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
-            AmsBackendHappyHareTestHelper& helper = *helper_reg;
-            helper.initialize_test_gates(4);
-            helper.set_config_defaults_for_test();
-            REQUIRE(helper.execute_device_action("selector_speed", std::any(180.0)).success());
-        }
-        CHECK(config->exists(config->df() + "hh_overrides/selector_move_speed/value"));
+        TuningRig first;
+        first.connect(v3_linear_fixture());
+        REQUIRE(first.reg->execute_device_action("selector_speed", std::any(180.0)).success());
+        tuning = first.stored();
+        CHECK(tuning.contains("selector_move_speed"));
     }
     SECTION("an older record under the action id") {
-        config->set<float>(config->df() + "hh_overrides/selector_speed/value", 180.0f);
-        config->set<float>(config->df() + "hh_overrides/selector_speed/config_default", 200.0f);
+        tuning = {{"selector_speed", {{"value", 180.0}, {"config_default", 200.0}}}};
     }
-    QueryCapturingClient client;
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    connect_with_fixture(helper, client,
-                         {{"configfile_settings",
-                           {{"mmu", {{"happy_hare_version", 3.42}, {"selector_move_speed", 200.0}}},
-                            {"mmu_machine", {{"selector_type", "LinearSelector"}}}}}});
-    const auto& o = HappyHareTestAccess::user_overrides(helper);
+    TuningRig rig(tuning);
+    rig.connect(v3_linear_fixture());
+    const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
     REQUIRE(o.selector_move_speed);
     CHECK(*o.selector_move_speed == Catch::Approx(180.0f));
 }
