@@ -1592,16 +1592,6 @@ void AmsBackendAd5xIfs::clear_slot_override(int slot_index) {
 
 // --- State queries ---
 
-void AmsBackendAd5xIfs::publish_external_spool_lane(const SlotInfo* spool) {
-    // ZMOD never writes lane_data — our mirror store owns it — so no separate
-    // publish store is needed (unlike AFC/HH, whose plugins own the namespace).
-    // IFS is fixed at kNumPorts bays; the extern lane rides one past.
-    if (!override_store_ || !system_info_.supports_bypass) {
-        return;
-    }
-    helix::ams::publish_external_lane(override_store_.get(), kNumPorts, spool, backend_log_tag());
-}
-
 helix::FirmwareRouting AmsBackendAd5xIfs::firmware_default_routing() const {
     std::lock_guard<std::mutex> lock(mutex_);
 

@@ -21,6 +21,7 @@
 #include "ams_types.h"
 #include "display_numbering.h"
 #include "error_event.h"
+#include "filament_slot_override.h"
 #include "firmware_routing.h"
 #include "lane_binding.h"
 #include "lane_source_store.h"
@@ -2585,28 +2586,24 @@ class AmsBackend {
         return false;
     }
 
-    /**
-     * @brief Publish the external (bypass) spool into the backend's lane_data
-     *        mirror, or clear it.
-     *
-     * Capability question, not vendor dispatch: "can this filament system's
-     * external spool appear as an extra lane in the shared lane_data namespace
-     * (so slicers like OrcaSlicer can select it)?" Default no-op — backends
-     * whose firmware publishes lane_data itself (AFC, Happy Hare) or that have
-     * no bypass never publish. A backend that owns its lane_data mirror and
-     * supports bypass (CFS) publishes the spool as the lane one past its last
-     * physical slot.
-     *
-     * Called by AmsState when bypass engages and whenever the external spool's
-     * identity changes. Not called on bypass disengage — the lane mirrors the
-     * spool record, not the feed state, so a slicer mapping survives a
-     * bypass-off period.
-     *
-     * @param spool external spool info; nullptr (or an identity-less record)
-     *              clears the published lane
-     */
-    virtual void publish_external_spool_lane(const SlotInfo* spool) {
-        (void)spool;
+    /// Whether this backend keeps the printer's bypass spool record among its
+    /// own lane records. AmsState asks the primary backend; with no backend
+    /// that answers, AmsState keeps the record in lane_data itself.
+    [[nodiscard]] virtual bool holds_bypass_record() const {
+        return false;
+    }
+
+    /// The bypass spool's record as the last read of this backend's lane
+    /// records found it; nullopt when there is none.
+    [[nodiscard]] virtual std::optional<helix::ams::FilamentSlotOverride> bypass_record() const {
+        return std::nullopt;
+    }
+
+    /// Write @p record as the bypass spool's lane record, or delete it when
+    /// @p record is null. A failed write withdraws the bypass lane's pending
+    /// edit; the read that follows a write files the echo.
+    virtual void publish_external_spool_lane(const helix::ams::FilamentSlotOverride* record) {
+        (void)record;
     }
 
     // ========================================================================

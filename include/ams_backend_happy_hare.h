@@ -295,14 +295,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// Delete this gate's user override ("Clear Spool").
     void clear_slot_override(int slot_index) override;
 
-    /// Publish the external spool as lane{N+1} in the SHARED lane_data
-    /// namespace — Happy Hare's plugin never publishes its bypass/external
-    /// spool (verified: push_lane_data iterates gates only), and its boot-time
-    /// cleanup deletes records with lane >= num_gates. Our entry is wiped at
-    /// HH boot; the AmsState event triggers (bypass engage, external-spool
-    /// edit) re-publish.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
-
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
     }
@@ -425,9 +417,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     // AFC. See AmsBackendAfc for the full rationale.
     //
     static constexpr const char* kOverrideNamespace = "helix-screen-hh-overrides";
-    /// Store on the SHARED lane_data namespace, used only by
-    /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
 
     // The MMU_HEATER target for @p unit: UNIT= where unit_suffix_locked() needs
     // one, then " GATES=g0,g1,..." naming the unit's gates on multi-unit (EMU)

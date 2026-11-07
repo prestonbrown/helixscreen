@@ -16,6 +16,7 @@
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -47,7 +48,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool wide canvas is colored after r
     ext.brand = "TestBrand";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     // Build the controller, then its component, the way the panel manager
     // does: the widget's subjects must exist before the XML binds to them.
@@ -95,7 +96,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a 2x1 inst
     ext.material = "PLA";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     ActiveSpoolWidget widget(api());
 

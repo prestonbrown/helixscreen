@@ -22,8 +22,8 @@
 //
 // Two mechanisms are covered, because SettingsManager reads config two ways:
 //
-//   * Live readers  — get_hidden_macros(), get_external_spool_info(),
-//     get_console_filter_user_*() hit Config on every call, so switching the
+//   * Live readers  — get_hidden_macros(), get_console_filter_user_*()
+//     hit Config on every call, so switching the
 //     active printer changes what they return immediately.
 //   * Cached readers — everything subject-backed, plus the chamber/scanner
 //     strings, is loaded once in init_subjects(). Those only follow the active
@@ -228,43 +228,6 @@ TEST_CASE_METHOD(SettingsScopeFixture,
     CHECK(sm.get_console_filter_user_add() == a_add);
 }
 
-TEST_CASE_METHOD(SettingsScopeFixture,
-                 "SettingsManager: external spool assignment does not leak between printers",
-                 "[settings][multi-printer]") {
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PETG";
-    info.brand = "Acme";
-    info.nozzle_temp_min = 230;
-    info.nozzle_temp_max = 250;
-    info.bed_temp = 80;
-    sm.set_external_spool_info(info);
-
-    auto on_a = sm.get_external_spool_info();
-    REQUIRE(on_a.has_value());
-    CHECK(on_a->material == "PETG");
-    CHECK(on_a->slot_index == -2); // external-spool sentinel
-
-    activate(kPrinterB);
-
-    // The bypass spool is physically loaded on ONE machine. If this ever reads
-    // A's spool, the other printer's filament panel shows a spool that is not
-    // there and the AMS mapping picks its material.
-    CHECK_FALSE(sm.get_external_spool_info().has_value());
-
-    // Clearing on B must not reach into A's section.
-    sm.clear_external_spool_info();
-
-    activate(kPrinterA);
-    auto back_on_a = sm.get_external_spool_info();
-    REQUIRE(back_on_a.has_value());
-    CHECK(back_on_a->brand == "Acme");
-
-    CHECK(cfg->exists(a("filament/external_spool/assigned")));
-    CHECK_FALSE(cfg->exists(b("filament/external_spool/assigned")));
-    CHECK_FALSE(cfg->exists("/filament/external_spool/assigned"));
-}
-
 // ============================================================================
 // Cached readers — the subject/member reload is what makes the switch visible
 // ============================================================================
@@ -457,9 +420,6 @@ TEST_CASE_METHOD(SettingsScopeFixture,
         sm.set_detection_policy_u1(1);
         sm.set_console_filter_user_add({"prefix:HERE"}, ConsoleFilterScope::Printer);
         sm.set_console_filter_user_remove({"prefix:NOT_HERE"}, ConsoleFilterScope::Printer);
-        SlotInfo info;
-        info.material = "PLA";
-        sm.set_external_spool_info(info);
 
         expect_per_printer("z_movement_style");
         expect_per_printer("filament/extrude_speed");
@@ -472,8 +432,6 @@ TEST_CASE_METHOD(SettingsScopeFixture,
         expect_per_printer("macros/hidden");
         expect_per_printer(wizard::CHAMBER_HEATER); // "heaters/chamber"
         expect_per_printer(wizard::CHAMBER_SENSOR); // "temp_sensors/chamber"
-        expect_per_printer("filament/external_spool/assigned");
-        expect_per_printer("filament/external_spool/material");
         expect_per_printer("appearance/toolhead_style");
         expect_per_printer("detection/policy_u1");
         // The per-printer LAYER of the two-layer console user filters. Its root

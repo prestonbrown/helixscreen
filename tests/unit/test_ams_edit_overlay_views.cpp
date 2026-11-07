@@ -4355,7 +4355,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off wit
     SlotInfo linked = tracked_slot();
     linked.slot_index = -2;
     linked.global_index = -2;
-    AmsState::instance().set_external_spool_info(linked);
+    helix::AmsStateTestAccess::seed_external_spool(linked);
     REQUIRE(AmsState::instance().get_external_spool_info().has_value());
 
     auto& overlay = get_ams_edit_overlay();

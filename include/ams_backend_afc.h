@@ -432,13 +432,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// inherited the no-op default, so the button did nothing here.
     void clear_slot_override(int slot_index) override;
 
-    /// Publish the external spool as T{N} (one past the last lane) in the
-    /// SHARED lane_data namespace — AFC's own plugin never publishes its
-    /// extern (verified: AFC_lane.send_lane_data runs only for lanes with a
-    /// tool mapping, and AFC deletes the whole namespace at boot). Our entry
-    /// is wiped by that boot delete; the AmsState event triggers (bypass
-    /// engage, external-spool edit) re-publish.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
     AmsError eject_lane(int slot_index) override;
     [[nodiscard]] bool supports_lane_eject() const override {
         return true;
@@ -680,10 +673,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // parse_afc_stepper honours AFC's clears: firmware truth clears, and the
     // override re-supplies the identity the user attached.
     static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
-    /// Store on the SHARED lane_data namespace, used only by
-    /// publish_external_spool_lane. AFC's plugin owns that namespace — our
-    /// private override_store_ is deliberately NOT pointed at it.
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     // overrides_ is keyed by the lane's registry position (slots_ index), the
     // one key every per-lane store here shares, lane_id() included. Never a
     // SlotInfo field: slot_index there is unit-local, and global_index is a

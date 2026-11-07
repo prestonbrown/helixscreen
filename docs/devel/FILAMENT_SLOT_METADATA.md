@@ -63,7 +63,7 @@ types every supported Orca release carries.
 | `lss_version` | `"0.1"` (`kLaneDataLssVersion`) |
 | `writer` | `"helixscreen"` (`kLaneDataWriter`) |
 | `lane` | the 0-based slot index as a string (Orca drops a numeric lane) |
-| `lane_name` | the outer key (`laneN` or `T<n>`, below) |
+| `lane_name` | the outer key (`laneN` or `T<n>`, below); `"bypass"` on the bypass spool's record |
 | `loaded` | bool, or `null` |
 | `color` | `"#RRGGBB"`, or `null` when `color_set` is false (pure black is a colour) |
 | `material`, `filament_type` | the Orca match string and the precise type |
@@ -72,7 +72,7 @@ types every supported Orca release carries.
 | `bed_temp`, `nozzle_temp` | numbers resolved from the material at write time, or `null` |
 | `remaining_weight_g`, `total_weight_g` | numbers or `null` |
 | `scan_time` | `null` |
-| `helix_color_name`, `helix_catalog_id`, `helix_product_name`, `helix_spoolman_vendor_id`, `helix_fingerprint`, `helix_external`, `helix_unlinked_spool_id`, `helix_filament_id_source` | HelixScreen's own keys, omitted when empty |
+| `helix_color_name`, `helix_catalog_id`, `helix_product_name`, `helix_spoolman_vendor_id`, `helix_fingerprint`, `helix_unlinked_spool_id`, `helix_filament_id_source` | HelixScreen's own keys, omitted when empty |
 
 `from_lane_data_record()` reads the RFC spellings first and the legacy ones
 (`vendor`, `spool_name`, `helix_material`, a numeric `lane`) after, so a record
@@ -187,10 +187,38 @@ drops the `Record` of a slot whose record vanished, and repaints every slot and
 emits `EVENT_STATE_CHANGED` when the records changed since the last read, a
 Pending edit was echoed, or this is the store's first read (sources filed before
 it, such as a Spoolman fetch, were never painted). A read for a store a reconnect
-has since replaced is dropped. The bypass mirror a backend publishes one past its
-slots is not a slot's record and is not filed.
+has since replaced is dropped. The bypass spool's record (below) is not a slot's
+record: the primary backend (index 0) files it on the bypass lane instead.
 
 A failed read is logged at debug and changes nothing; the next poll retries.
+
+### The bypass spool's record
+
+The bypass (external) spool is a lane record like any other, told apart by
+`lane_name: "bypass"` rather than by its index (`helix_external: true` on a
+1.1 beta record reads the same way). There is no other store: no settings key,
+no in-memory copy.
+
+- **Where it lives.** The primary backend holds it when it answers
+  `AmsBackend::holds_bypass_record()` (every `AmsSubscriptionBackend`): in its
+  own lane-record store at `bypass_lane_index_locked()`, one past its lanes by
+  default (CFS: the Fork's external slot, or 16 on stock firmware). On AFC and
+  Happy Hare that store is the extras namespace, so HelixScreen still never
+  writes `lane_data` there; `extras_only()` keeps a bypass record whole, since
+  no firmware holds the bypass spool. With no such backend (no filament system,
+  or the mock), AmsState keeps it in `lane_data` at lane 0 (`lane1`) and reads
+  it itself: at connect, after each write, and every 10 seconds.
+- **Reading.** Either read path files the record as the `Record` source on
+  `kBypassLaneId` (`file_bypass_record()`).
+  `AmsState::raw_external_spool_info()` is that record with any pending edit
+  laid over it; `get_external_spool_info()` adds the Spoolman details and the
+  meter, which rank above the record's weights.
+- **Writing.** `AmsState::set_external_spool_info()` files the edit as the
+  bypass lane's Pending source and writes the whole record
+  (`external_lane_record()`); the read that follows echoes it, and a failed
+  write withdraws it. `AmsSubscriptionBackend::publish_external_spool_lane()`
+  is the one writer on the backend side: it deletes a record of ours left at an
+  earlier index and never overwrites a slot's record at the index.
 
 ### Editing waits for the first read
 
@@ -270,7 +298,6 @@ is never queued.
 | `persist_override_external_identity()` | Amend a linked slot's record with what Spoolman now states (colour only when the record has none) |
 | `mirror_firmware_to_lane_data(..., MirrorPolicy)` | Mirror firmware-detected colour and material into the record on backends whose firmware does not publish `lane_data` (IFS and Snapmaker `OverwriteAlways`, CFS `FillUnsetOnly`) |
 | `clear_persisted_override()` | Erase a slot's record in memory and on the printer |
-| `publish_external_lane()` | Publish or clear the bypass spool as the lane one past the last slot (`helix_external`) |
 
 ---
 

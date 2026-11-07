@@ -266,22 +266,31 @@ bool persist_override_external_identity(FilamentSlotOverrideStore* store,
                                         int slot_index, const Observation& spoolman,
                                         const std::string& log_tag);
 
-/// Publish (or clear) the external / bypass spool as an extra lane one past
-/// the last physical slot, so slicers can select it as the "next tool over".
-/// `spool` null or identity-less CLEARS the lane instead of publishing an
-/// empty phantom. Returns true if a record was published.
-bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, const SlotInfo* spool,
-                           const std::string& log_tag);
+// =============================================================================
+// The bypass spool's record
+// =============================================================================
+//
+// The bypass (external) spool is a lane record like any other, told apart by
+// its lane_name rather than by its index: the index is the lane one past the
+// backend's own (AmsSubscriptionBackend::bypass_lane_index_locked()), which
+// moves when the backend's lane count does.
 
-/// The marked lane_data record publish_external_lane() writes for @p spool.
+/// The lane_name of the bypass spool's record.
+inline constexpr const char* kBypassLaneName = "bypass";
+
+/// The record HelixScreen writes for the bypass spool @p spool.
 [[nodiscard]] FilamentSlotOverride external_lane_record(const SlotInfo& spool);
 
-/// Whether unmarked @p record is an external-spool mirror written before the
-/// `helix_external` mark existed: it names @p spool. The same Spoolman id when
-/// either side has one; otherwise the same material and colour, and the same
-/// brand when both carry one.
-[[nodiscard]] bool record_describes_spool(const FilamentSlotOverride& record,
-                                          const SlotInfo& spool);
+/// external_lane_record() run backwards: the bypass spool a record describes.
+[[nodiscard]] SlotInfo external_spool_from_record(const FilamentSlotOverride& record);
+
+/// The bypass spool's record in one namespace read, with the index it sits at.
+[[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
+find_bypass_record(const std::unordered_map<int, LaneDataRecord>& records);
+
+/// File @p record as the bypass lane's Record source, or drop that source when
+/// the read found none. Main thread.
+void file_bypass_record(const FilamentSlotOverride* record);
 
 // =============================================================================
 // Shared per-slot firmware-observation baseline tracker

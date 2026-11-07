@@ -1452,6 +1452,28 @@ static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Drop the bypass spool settings: the bypass spool is a lane record in
+/// Moonraker's database (lane_name "bypass"), and nothing reads these keys.
+static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/) {
+    int dropped = 0;
+    if (json* filament = find_relative(config, "filament");
+        filament != nullptr && filament->is_object()) {
+        dropped += static_cast<int>(filament->erase("external_spool"));
+    }
+    if (config.contains("printers") && config["printers"].is_object()) {
+        for (auto& [printer_id, printer] : config["printers"].items()) {
+            if (!printer.is_object() || !printer.contains("filament") ||
+                !printer["filament"].is_object()) {
+                continue;
+            }
+            dropped += static_cast<int>(printer["filament"].erase("external_spool"));
+        }
+    }
+    if (dropped > 0) {
+        spdlog::info("[Config] Migration v34: dropped {} filament/external_spool node(s)", dropped);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1468,6 +1490,7 @@ constexpr struct {
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
     {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32}, {33, migrate_v32_to_v33},
+    {34, migrate_v33_to_v34},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,

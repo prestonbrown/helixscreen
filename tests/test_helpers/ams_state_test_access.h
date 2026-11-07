@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_state.h"
+#include "filament_slot_override_store.h"
 
 #include <chrono>
 
@@ -118,6 +119,18 @@ class AmsStateTestAccess {
         if (ams.initialized_ && !ams.last_narration_label_.empty()) {
             ams.set_narration_phase(-1, "");
         }
+    }
+
+    /// The bypass record @p info describes, landed as a read of AmsState's own
+    /// bypass store does: the record kept, filed as the bypass lane's Record
+    /// source, and the external spool subjects notified. For a test that needs
+    /// an external spool present without a Moonraker round trip.
+    static void seed_external_spool(const SlotInfo& info) {
+        AmsState& ams = AmsState::instance();
+        const helix::ams::FilamentSlotOverride record = helix::ams::external_lane_record(info);
+        ams.bypass_record_read_ = record;
+        helix::ams::file_bypass_record(&record);
+        ams.refresh_external_spool();
     }
 };
 } // namespace helix

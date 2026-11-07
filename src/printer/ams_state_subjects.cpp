@@ -119,9 +119,9 @@ void AmsState::init_subjects(bool register_xml) {
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_bypass_active", &bypass_active_);
 
-    // External spool color subject (loaded from persistent settings)
+    // External spool color subject (the bypass record, once one has been read)
     {
-        auto ext_spool = helix::SettingsManager::instance().get_external_spool_info();
+        auto ext_spool = get_external_spool_info();
         int initial_color = ext_spool.has_value() ? static_cast<int>(ext_spool->color_rgb) : 0;
         lv_subject_init_int(&external_spool_color_, initial_color);
         subjects_.register_subject(&external_spool_color_,
@@ -1007,6 +1007,7 @@ void AmsState::deinit_subjects() {
     // before AmsState re-initializes. Without this, sync_from_backend() would
     // dereference a freed pointer on the next init_subjects() cycle.
     api_ = nullptr;
+    restart_bypass_reads();
 
     // Tear down the print-state observer BEFORE deiniting subjects so the
     // LVGL observer is removed cleanly (reset(), not release() — see project

@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/seeded_override.h"
@@ -525,11 +526,14 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
         TA::reset_identity(SpoolmanManager::instance());
         set_spoolman_available(true);
         SpoolmanManager::instance().set_api(&api);
+        // The bypass record lives in the mock's database.
+        AmsState::instance().set_moonraker_api(&api);
     }
 
     ~SpoolmanLaneFixture() {
         SpoolmanManager::instance().set_api(nullptr);
         drain();
+        AmsState::instance().set_moonraker_api(nullptr);
         TA::reset_identity(SpoolmanManager::instance());
     }
 
@@ -821,7 +825,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F; // the meter's count, in the raw store
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -836,7 +840,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // to its number between polls.
     SlotInfo metered_raw = *shown;
     metered_raw.remaining_weight_g = 390.0F;
-    AmsState::instance().set_external_spool_info_in_memory(metered_raw);
+    helix::AmsStateTestAccess::seed_external_spool(metered_raw);
     poll();
 
     shown = AmsState::instance().get_external_spool_info();
@@ -852,7 +856,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     lv_tick_inc(1000);
@@ -882,17 +886,17 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F; // the link-time stub
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
 
-    // The raw record is what a restart (or a server that stays down) reads
-    // before any poll answers: it carries the fetched weight and identity,
-    // not the link-time stub.
+    // The bypass record is what a restart (or a server that stays down) reads
+    // before any poll answers: it carries the fetched identity, as a lane's
+    // record does. The weight stays Spoolman's to state while the spool is
+    // linked.
     auto raw = AmsState::instance().raw_external_spool_info();
     REQUIRE(raw.has_value());
-    CHECK(raw->remaining_weight_g == 850.0F);
     CHECK(raw->brand == "Polymaker");
     CHECK(raw->material == "PLA");
 }
@@ -905,7 +909,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -917,9 +921,9 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).spoolman.has_value());
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
-    // The first poll moved the stored binding to the fetched weight, so the
-    // display falls back to that, not to the link-time stub.
-    CHECK(shown->remaining_weight_g == 850.0F);
+    // The first poll wrote the fetched identity into the bypass record, so the
+    // brand stays; the weight falls back to the record's own.
+    CHECK(shown->remaining_weight_g == 400.0F);
     CHECK(shown->brand == "Polymaker");
 }
 
@@ -931,7 +935,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -947,7 +951,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext2.material = "ABS";
     ext2.remaining_weight_g = 600.0F;
     ext2.total_weight_g = 750.0F;
-    AmsState::instance().set_external_spool_info(ext2);
+    helix::AmsStateTestAccess::seed_external_spool(ext2);
     SpoolInfo& s2 = server_spool(2);
     s2.vendor = "Prusa";
     s2.material = "ABS";
@@ -960,7 +964,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     auto sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
     REQUIRE(sources.spoolman.has_value());
     CHECK(sources.spoolman->spoolman_id == 2);
-    CHECK_FALSE(sources.record.has_value());
+    REQUIRE(sources.record.has_value());
+    CHECK(sources.record->spoolman_id == 2);
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
     CHECK(shown->spoolman_id == 2);
@@ -1181,7 +1186,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     SlotInfo ext;
     ext.spoolman_id = 135;
     ext.material = "PLA";
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     const auto exceptions_before = helix::ui::UpdateQueueTestAccess::callback_exception_count();
     client.set_mock_spoolman_enabled(false);
@@ -1190,7 +1195,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     poll();
 
     // The error path ran and reported where the fetch failed.
-    CHECK(capture.contains("Failed to fetch external spool Spoolman #135"));
+    CHECK(capture.contains("Failed to fetch Spoolman spool 135"));
     // And it threw nothing into the drain.
     CHECK(helix::ui::UpdateQueueTestAccess::callback_exception_count() == exceptions_before);
 

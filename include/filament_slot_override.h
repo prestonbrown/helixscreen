@@ -85,11 +85,8 @@ struct FilamentSlotOverride {
     // namespace demands the prefix, and the key is omitted when empty so a
     // lane without swap detection squats no names).
     std::string fingerprint;
-    // This record is the external-spool mirror published for slicers, not a
-    // bay's record. The publisher writes or clears a key only when it is empty
-    // or carries this mark, so a bay that shares the key keeps its record.
-    // Persistence: `helix_external: true` in the lane_data record, omitted
-    // otherwise.
+    // This record is the bypass (external) spool's, not a slot's. Persistence:
+    // `lane_name: "bypass"` in the record.
     bool external_mirror = false;
     // Whether a spool is in the lane, the record's `loaded` (RFC 0001 §5).
     // Unset is unknown and writes null.

@@ -1622,6 +1622,8 @@ Located in the `filament` section:
 **Default:** `[]`
 **Description:** The filament types you have starred, in star order. Written whenever you tap a star in a filament selector; each entry is the filament's product id. Edit it only to reorder or clear: a hand-added id that matches nothing simply never shows.
 
+The external (bypass) spool is not a setting. It is stored on the printer, in Moonraker's database, as a filament lane record named `bypass`, so every screen connected to the printer shows the same spool. An `external_spool` section left in `filament` by an earlier version is removed when the settings file is upgraded.
+
 ---
 
 ## Filament Sensor Settings
