@@ -843,6 +843,8 @@ translations:
   'Connected to ': '接続先: '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Moonraker に接続しましたが、Klipper が実行されていません。続行できます — HelixScreen は Klipper のエラーを表示し、Klipper が起動するまでハードウェア検出は制限されます。
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : "Moonrakerに接続しましたが、Klipperがエラーを報告しました。続行できます。セットアップ後にHelixScreenが再度表示します。Klipperが起動するまでハードウェア検出は制限されます。"
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Moonraker に接続しましたが、プリンターの検出が完了しませんでした。続行できます — プリンターが応答するまでハードウェア検出は制限されます。
   Connected to {}: '{} に接続しました'
@@ -1981,8 +1983,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : 'Klippain Shake&Tuneのマクロがプリンターにインストールされています。HelixScreenは検出しますが使用しません。MainsailまたはFluiddから実行してください。'
   Klipper: Klipper
+  Klipper Config Error: "Klipper設定エラー"
   Klipper Error: Klipper エラー
   Klipper already reports the ACE slots.: "KlipperがすでにACEのスロットを報告しています。"
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipperが設定を読み込めませんでした。プリンターの設定ファイルで下記の設定を修正してから、Klipperを再起動してください。"
   Klipper disconnected: Klipper切断
   Klipper failed to start with the skip macros, so they were removed: 'スキップ用マクロでは Klipper が起動しなかったため、削除しました'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper を起動できませんでした。printer.cfg から helix_skips.cfg の include を削除してください。'

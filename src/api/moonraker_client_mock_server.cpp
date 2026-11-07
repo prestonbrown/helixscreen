@@ -917,7 +917,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             break;
         case MoonrakerClientMock::KlippyState::ERROR:
             state_str = "error";
-            state_message = "Printer is in error state";
+            state_message = self->klippy_error_message().empty() ? "Printer is in error state"
+                                                                 : self->klippy_error_message();
             break;
         }
 

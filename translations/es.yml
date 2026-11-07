@@ -906,6 +906,8 @@ translations:
   'Connected to ': 'Conectado a '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Conectado a Moonraker, pero Klipper no está en ejecución. Puede continuar — HelixScreen mostrará el error de Klipper y la detección de hardware será limitada hasta que Klipper arranque.
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : "Conectado a Moonraker, pero Klipper informó de un error. Puede continuar y HelixScreen lo mostrará de nuevo tras la configuración. La detección de hardware seguirá limitada hasta que Klipper arranque."
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Conectado a Moonraker, pero la detección de la impresora no terminó. Puede continuar — la detección de hardware será limitada hasta que la impresora responda.
   Connected to {}: Conectado a {}
@@ -2091,8 +2093,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : 'Las macros de Klippain Shake&Tune están instaladas en la impresora. HelixScreen las detecta pero no las usa; ejecútalas desde Mainsail o Fluidd.'
   Klipper: Klipper
+  Klipper Config Error: "Error de configuración de Klipper"
   Klipper Error: Error de Klipper
   Klipper already reports the ACE slots.: "Klipper ya informa de las ranuras del ACE."
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper no pudo cargar su configuración. Corrija el ajuste indicado abajo en los archivos de configuración de la impresora y luego reinicie Klipper."
   Klipper disconnected: Klipper desconectado
   Klipper failed to start with the skip macros, so they were removed: 'Klipper no arrancó con las macros de omisión, así que se eliminaron'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper no pudo arrancar. Quita el include de helix_skips.cfg de printer.cfg.'

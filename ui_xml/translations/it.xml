@@ -825,6 +825,7 @@
   <translation tag="Connected to" it="Connesso a"/>
   <translation tag="Connected to " it="Connesso a "/>
   <translation tag="Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts." it="Connesso a Moonraker, ma Klipper non è in esecuzione. Puoi continuare — HelixScreen mostrerà l&apos;errore di Klipper e il rilevamento hardware resterà limitato finché Klipper non si avvia."/>
+  <translation tag="Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts." it="Connesso a Moonraker, ma Klipper ha segnalato un errore. Puoi continuare e HelixScreen lo mostrerà di nuovo dopo la configurazione. Il rilevamento dell&apos;hardware resta limitato finché Klipper non si avvia."/>
   <translation tag="Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds." it="Connesso a Moonraker, ma il rilevamento della stampante non è terminato. Puoi continuare — il rilevamento hardware resterà limitato finché la stampante non risponde."/>
   <translation tag="Connected to {}" it="Connesso a {}"/>
   <translation tag="Connected! Discovering printer..." it="Connesso! Rilevamento stampante..."/>
@@ -1904,8 +1905,10 @@
   <translation tag="Kinematics" it="Cinematica"/>
   <translation tag="Klippain Shake&amp;Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd." it="Le macro Klippain Shake&amp;Tune sono installate sulla stampante. HelixScreen le rileva ma non le usa; eseguile da Mainsail o Fluidd."/>
   <translation tag="Klipper" it="Klipper"/>
+  <translation tag="Klipper Config Error" it="Errore di configurazione di Klipper"/>
   <translation tag="Klipper Error" it="Errore Klipper"/>
   <translation tag="Klipper already reports the ACE slots." it="Klipper riporta già gli slot dell&apos;ACE."/>
+  <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." it="Klipper non è riuscito a caricare la sua configurazione. Correggi l&apos;impostazione indicata sotto nei file di configurazione della stampante, poi riavvia Klipper."/>
   <translation tag="Klipper disconnected" it="Klipper disconnesso"/>
   <translation tag="Klipper failed to start with the skip macros, so they were removed" it="Klipper non si è avviato con le macro di salto, quindi sono state rimosse"/>
   <translation tag="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg." it="Klipper non si è avviato. Rimuovi l&apos;include di helix_skips.cfg da printer.cfg."/>
