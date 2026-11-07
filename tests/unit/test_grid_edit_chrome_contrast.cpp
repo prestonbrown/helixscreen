@@ -392,22 +392,22 @@ TEST_CASE_METHOD(XMLTestFixture, "a new selection's pills start their own lockou
     // Tile A's pills have been drawn and its lockout has run out; then tile B
     // is selected. B's pills owe a fresh lockout from their own first frame,
     // and nothing latched on A's pill decides a click on B's.
-    ChromeScene scene(test_screen(), 8, 4);
+    GridEditScene scene(test_screen(), "test_pill_lockout_reselect");
     lv_obj_t* tile_b = lv_obj_create(scene.container);
     lv_obj_set_name(tile_b, "fan");
     lv_obj_remove_flag(tile_b, LV_OBJ_FLAG_SCROLLABLE);
     const int span = GridLayout::TRACKS_PER_CELL;
-    lv_obj_set_grid_cell(tile_b, LV_GRID_ALIGN_STRETCH, 2, span, LV_GRID_ALIGN_STRETCH, 4, span);
+    lv_obj_set_grid_cell(tile_b, LV_GRID_ALIGN_STRETCH, 4, span, LV_GRID_ALIGN_STRETCH, 4, span);
     lv_obj_update_layout(scene.container);
-    scene.config->page_entries_mut(ChromeScene::kPageIndex)
-        .push_back({"fan", true, nlohmann::json::object(), 2, 4, span, span});
+    scene.config->page_entries_mut(GridEditScene::kPageIndex)
+        .push_back({"fan", true, nlohmann::json::object(), 4, 4, span, span});
     helix_test::ScopedPointerIndev pointer;
     GridEditMode em;
-    em.enter(scene.container, scene.config, ChromeScene::kPageIndex);
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
     em.select_widget(scene.widget);
     lv_obj_update_layout(scene.container);
     lv_refr_now(nullptr);
-    lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+    lv_tick_inc(GridEditMode::kPillLockoutMs + 100);
     const auto b_on_page = [&] { return scene.config->is_placed("fan"); };
 
     SECTION("a press right after B's first frame, which came late") {
@@ -415,11 +415,11 @@ TEST_CASE_METHOD(XMLTestFixture, "a new selection's pills start their own lockou
         lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_PRESSED, nullptr);
         em.select_widget(tile_b);
         lv_obj_update_layout(scene.container);
-        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+        lv_tick_inc(GridEditMode::kPillLockoutMs + 100);
         lv_refr_now(nullptr);
         lv_area_t a;
         lv_obj_get_coords(GridEditModeTestAccess::remove_button(em), &a);
-        const lv_point_t c = centre_of_area(a);
+        const lv_point_t c{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
         pointer.press(c.x, c.y);
         pointer.release(c.x, c.y);
         CHECK(b_on_page());
@@ -428,11 +428,13 @@ TEST_CASE_METHOD(XMLTestFixture, "a new selection's pills start their own lockou
         lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_PRESSED, nullptr);
         em.select_widget(tile_b);
         lv_obj_update_layout(scene.container);
-        lv_tick_inc(GridEditModeTestAccess::pill_lockout_ms() + 100);
+        lv_tick_inc(GridEditMode::kPillLockoutMs + 100);
         // A click with no press behind it (remote control), past B's lockout.
         lv_obj_send_event(GridEditModeTestAccess::remove_button(em), LV_EVENT_CLICKED, nullptr);
         CHECK_FALSE(b_on_page());
     }
 
     em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
 }
