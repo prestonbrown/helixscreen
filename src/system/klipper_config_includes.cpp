@@ -465,15 +465,16 @@ void walk_include_graph(const std::string& root_file, ConfigListFn list, ConfigD
     (*pump)();
 }
 
-ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
-                                     helix::SharedCallback<bool()> still_wanted) {
-    return [&api, tok = api.lifetime_token(), still_wanted = std::move(still_wanted)](
+ConfigDownloadFn api_config_download(IMoonrakerAPI& api, helix::SharedCallback<bool()> still_wanted,
+                                     ConfigDownloadFailureFn on_failure) {
+    return [&api, tok = api.lifetime_token(), still_wanted = std::move(still_wanted),
+            on_failure = std::move(on_failure)](
                const std::string& path, helix::SharedCallback<void(std::string)> ok,
                helix::SharedCallback<void(std::string, bool)> fail) {
         // Queued directly rather than through tok.defer(), which would drop the
         // request silently once the API is gone and leave the walk waiting forever.
         helix::ui::queue_update(
-            "ConfigIncludes::download", [&api, tok, still_wanted, path, ok, fail]() {
+            "ConfigIncludes::download", [&api, tok, still_wanted, on_failure, path, ok, fail]() {
                 if (tok.expired()) {
                     fail("the printer disconnected", false);
                     return;
@@ -484,8 +485,13 @@ ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
                 }
                 api.transfers().download_file(
                     "config", path, [ok](const std::string& content) { ok(content); },
-                    [fail](const MoonrakerError& err) {
-                        fail(err.message, err.type == MoonrakerErrorType::QUEUE_FULL);
+                    [fail, ok, on_failure, path](const MoonrakerError& err) {
+                        const bool queue_full = err.type == MoonrakerErrorType::QUEUE_FULL;
+                        if (!queue_full && on_failure && on_failure(path, err)) {
+                            ok(std::string());
+                            return;
+                        }
+                        fail(err.message, queue_full);
                     });
             });
     };
