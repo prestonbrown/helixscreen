@@ -97,7 +97,7 @@ TEST_CASE_METHOD(ArchivePanel, "a .3mf the printer has metadata for keeps it",
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
-    CHECK(prep->archive_plate_for(file.name()) == 0);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
 }
 
 TEST_CASE_METHOD(ArchivePanel,
@@ -116,7 +116,7 @@ TEST_CASE_METHOD(ArchivePanel,
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(prep->archive_plate_for(file.name()) == 2);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 2);
 
     // The card is about the whole file: both plates added up.
     const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
@@ -138,7 +138,7 @@ TEST_CASE_METHOD(ArchivePanel,
     CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
           std::vector<std::string>{"#000000", "#FF0000"});
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(prep->archive_plate_for(file.name()) == 5);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
 
     // Both ways round, wrapping.
     PrintSelectPanelTestAccess::step_plate(*panel_, 1);
@@ -173,7 +173,7 @@ TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already r
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(prep->archive_plate_for(file.name()) == 5);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
 }
 
 TEST_CASE_METHOD(ArchivePanel, "the plate stepper shows a plate's name from model_settings",
@@ -206,7 +206,9 @@ TEST_CASE_METHOD(ArchivePanel, "one sliced plate shows its number and no arrows"
     CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 9");
     CHECK(PrintSelectPanelTestAccess::plate_position(*panel_).empty());
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(PrintSelectPanelTestAccess::prep_manager(*panel_)->archive_plate_for(file.name()) == 9);
+    CHECK(PrintSelectPanelTestAccess::prep_manager(*panel_)
+              ->archive_route(file.name(), print_3mf::Rewrite::None)
+              .plate == 9);
 }
 
 TEST_CASE_METHOD(ArchivePanel,
@@ -336,13 +338,13 @@ TEST_CASE_METHOD(ArchivePanel, "a plate the printer already converted prints fro
         mock().transfers_mock().mock_no_local_copies();
         REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
         CHECK(prep->printable_path(archive.name()) == "Set_plate2.gcode");
-        CHECK(prep->archive_plate_for(archive.name()) == 0);
+        CHECK(prep->archive_route(archive.name(), print_3mf::Rewrite::None).plate == 0);
     }
     SECTION("the plate still pending is extracted") {
         PrintSelectPanelTestAccess::step_plate(*panel_, 1);
         REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
         CHECK(prep->printable_path(archive.name()) == archive.name());
-        CHECK(prep->archive_plate_for(archive.name()) == 5);
+        CHECK(prep->archive_route(archive.name(), print_3mf::Rewrite::None).plate == 5);
     }
     SECTION("the queue takes the converted plate's output, and refuses the pending one") {
         CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
@@ -412,7 +414,7 @@ TEST_CASE_METHOD(ArchivePanel,
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
-    CHECK(prep->archive_plate_for(file.name()) == 0);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
     CHECK(prep->printable_path(file.name()) == file.name());
 }
 
@@ -490,8 +492,9 @@ TEST_CASE_METHOD(ArchivePanel,
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(prep->archive_plate_for(file.name()) == 2);
-    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::NativePlate);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 2);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::NativePlate);
     // The default plate is what a queued start, which names none, prints.
     CHECK(PrintSelectPanelTestAccess::queueable_path(*panel_) ==
           std::optional<std::string>(file.name()));
@@ -502,12 +505,14 @@ TEST_CASE_METHOD(ArchivePanel,
     CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
           std::vector<std::string>{"#000000", "#FF0000"});
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
-    CHECK(prep->archive_plate_for(file.name()) == 5);
-    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::NativePlate);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 5);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::NativePlate);
     CHECK_FALSE(PrintSelectPanelTestAccess::queueable_path(*panel_));
 }
 
-TEST_CASE_METHOD(ArchivePanel, "a .3mf whose printer metadata lists no plates keeps today's route",
+TEST_CASE_METHOD(ArchivePanel,
+                 "a .3mf whose printer metadata lists no plates starts the archive naming no plate",
                  "[print_select][three_mf][native_3mf]") {
     ScopedEnv native("HELIX_MOCK_3MF_METADATA", "1");
     PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
@@ -519,6 +524,37 @@ TEST_CASE_METHOD(ArchivePanel, "a .3mf whose printer metadata lists no plates ke
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
     REQUIRE(prep);
-    CHECK(prep->archive_plate_for(file.name()) == 0);
-    CHECK(prep->archive_route(file.name(), false).kind == print_3mf::RouteKind::AsFile);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).plate == 0);
+    CHECK(prep->archive_route(file.name(), print_3mf::Rewrite::None).kind ==
+          print_3mf::RouteKind::AsFile);
+}
+
+TEST_CASE_METHOD(ArchivePanel, "the plate stepper offers only the plates the printer lists",
+                 "[print_select][three_mf][native_3mf]") {
+    ScopedEnv native("HELIX_MOCK_3MF_METADATA", "1");
+    PlantedGcode file("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
+    panel_->refresh_files(true);
+    drain();
+    FileMetadata meta;
+    meta.filename = file.name();
+    meta.estimated_time = 600;
+    meta.sliced_plates = std::vector<int>{5};
+    meta.plate_index = 5;
+    PrintSelectPanelTestAccess::apply_metadata(*panel_, file.name(), meta);
+    drain();
+    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    drain();
+
+    // The archive holds plates 2 and 5; the printer starts only 5, its default.
+    CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 1);
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
+    auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
+    REQUIRE(prep);
+    const print_3mf::Route route = prep->archive_route(file.name(), print_3mf::Rewrite::None);
+    CHECK(route.kind == print_3mf::RouteKind::NativePlate);
+    CHECK(route.plate == 5);
 }

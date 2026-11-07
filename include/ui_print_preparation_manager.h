@@ -499,7 +499,7 @@ class PrintPreparationManager {
      *
      * Every start of @p file_path follows print_3mf::classify() over @p inputs,
      * asked again with what that start rewrites: a plate the printer starts
-     * itself goes as the archive and its plate (print_start::plate_params()),
+     * itself goes as the archive and its plate (print_start::start_request_params()),
      * and prints extracted when the start rewrites its G-code. The transport's
      * local copies are this manager's own. Inputs for an archive the printer
      * picks the plate of forget the file.
@@ -507,8 +507,9 @@ class PrintPreparationManager {
     void set_archive_route(const std::string& file_path, const print_3mf::RouteInputs& inputs);
 
     /// The route a start of @p file_path takes (print_3mf::classify()); AsFile
-    /// for anything but a .3mf. @p rewrites: the start rewrites what prints.
-    [[nodiscard]] print_3mf::Route archive_route(const std::string& file_path, bool rewrites) const;
+    /// for anything but a .3mf. @p rewrite: what the start changes in what prints.
+    [[nodiscard]] print_3mf::Route archive_route(const std::string& file_path,
+                                                 print_3mf::Rewrite rewrite) const;
 
     /// What prints for an archive, so its scan reads that G-code: the
     /// printer's conversion of the shown plate, or the plate's own entry.
@@ -538,11 +539,6 @@ class PrintPreparationManager {
     /// of the archive too. @p on_completion reports how it ended.
     void start_archive_reprint(const std::string& file_path, int plate,
                                PrintCompletionCallback on_completion);
-
-    /// The plate a start of @p file_path that rewrites nothing prints, extracted
-    /// or by the printer's own start; 0 when the archive or its converted
-    /// output starts as it is.
-    [[nodiscard]] int archive_plate_for(const std::string& file_path) const;
 
     /// What a start of @p file_path prints: the printer's own conversion of
     /// the archive when set_archive_plate() named one, else @p file_path.

@@ -10,8 +10,7 @@
 #include "moonraker_client_mock_internal.h"
 #include "runtime_config.h"
 #include "text_io.h"
-#include "three_mf.h"
-#include "zip_reader.h"
+#include "three_mf_reader.h"
 
 #include <spdlog/spdlog.h>
 
@@ -20,7 +19,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
-#include <fstream>
 #include <sys/stat.h>
 
 // Directory path for thumbnail cache (test G-code dir comes from RuntimeConfig::TEST_GCODE_DIR)
@@ -262,32 +260,6 @@ static bool reports_3mf_plates() {
     return helix::env_flag("HELIX_MOCK_3MF_PLATES");
 }
 
-/// The sliced plates of the .3mf at @p disk_path, read from its central directory.
-static std::vector<int> sliced_plates_on_disk(const std::string& disk_path) {
-    std::ifstream in(disk_path, std::ios::binary | std::ios::ate);
-    if (!in) {
-        return {};
-    }
-    const auto size = static_cast<uint64_t>(in.tellg());
-    const size_t n = static_cast<size_t>(std::min<uint64_t>(size, helix::zip::kZipTailReadBytes));
-    std::string tail(n, '\0');
-    in.seekg(static_cast<std::streamoff>(size - n));
-    in.read(tail.data(), static_cast<std::streamsize>(n));
-    std::vector<helix::zip::ZipEntry> entries;
-    helix::zip::ZipError error = helix::zip::ZipError::None;
-    if (!helix::zip::parse_central_directory(reinterpret_cast<const uint8_t*>(tail.data()), n, size,
-                                             entries, error)) {
-        spdlog::debug("[MoonrakerClientMock] {} has no readable central directory: {}", disk_path,
-                      helix::zip::zip_error_name(error));
-        return {};
-    }
-    std::vector<int> plates;
-    for (const auto& plate : helix::three_mf::sliced_plates(entries)) {
-        plates.push_back(plate.index);
-    }
-    return plates;
-}
-
 /**
  * @brief Build mock JSON response for server.files.metadata
  * @param filename Filename to get metadata for
@@ -384,7 +356,8 @@ static json build_mock_file_metadata_response(const std::string& filename) {
                    {"thumbnails", thumbnails}};
 
     if (helix::gcode::is_3mf(clean_filename) && reports_3mf_plates()) {
-        const std::vector<int> plates = sliced_plates_on_disk(full_path);
+        const std::vector<int> plates =
+            helix::three_mf::ThreeMfReader::local_plate_numbers(full_path);
         result["sliced_plates"] = plates;
         result["plate_index"] = plates.empty() ? 1 : plates.front();
     }

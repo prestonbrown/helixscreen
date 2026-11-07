@@ -1283,6 +1283,7 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
         PrintFileData& f = file_list_[i];
         f.archive_native = print_3mf::printer_reads(&metadata) == print_3mf::PrinterReads::Plates;
         f.archive_native_plate = f.archive_native ? metadata.plate_index : 0;
+        f.printer_plates = f.archive_native ? *metadata.sliced_plates : std::vector<int>{};
         if (f.archive_native && f.archive_plate == 0) {
             f.archive_plate = metadata.plate_index;
         }
@@ -2207,7 +2208,7 @@ void PrintSelectPanel::apply_plate_stats_to_detail() {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
     if (it == file_list_.end() || !it->archive ||
-        !print_3mf::user_picks_plate(it->printer_reads()) || it->archive->plates.size() < 2) {
+        !print_3mf::user_picks_plate(it->printer_reads()) || offered_plates(*it).size() < 2) {
         return;
     }
     const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
