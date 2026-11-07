@@ -133,6 +133,7 @@ ControlButtonView PrintControlButtons::current_view() const {
     in.cancel_available = !macros.get(StandardMacroSlot::Cancel).is_empty();
     in.start_sent = state.print_state().preparing_start() != helix::PreparingStart::None;
     in.cancel_requested = cancel_state_ != CancelState::Idle;
+    in.printer_announced_start = state.print_state().printer_side_pre_start();
     return compute_control_button_view(in);
 }
 
@@ -308,7 +309,11 @@ void PrintControlButtons::request_sent_start_cancel() {
     NOTIFY_INFO(lv_tr("Cancel sent. The printer finishes its start sequence, then stops "
                       "before printing."));
     const auto start = ps.preparing_start();
-    if (start == helix::PreparingStart::Accepted || start == helix::PreparingStart::Unanswered) {
+    // A start the printer announced itself is on the printer with no job of ours
+    // to wait for.
+    const bool printer_started = !ps.has_preparing_job() && ps.printer_side_pre_start();
+    if (start == helix::PreparingStart::Accepted || start == helix::PreparingStart::Unanswered ||
+        printer_started) {
         send_cancel();
         return;
     }

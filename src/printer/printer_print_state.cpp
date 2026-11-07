@@ -495,6 +495,9 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
     // false mid-print detection and preventing the print start collector from activating.
     if (status.contains("print_stats")) {
         const auto& stats = status["print_stats"];
+        // A printer-announced start learns its identity when the printer takes
+        // the job, even when the file's name is the one print_stats already held.
+        bool identity_follows_job = false;
 
         // plr_backend owns which print_stats key signals PLR support and the
         // numeric-only rule. Latch UP only: status arrives as deltas, so a later
@@ -674,6 +677,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
             int active_val = is_active ? 1 : 0;
             if (lv_subject_get_int(&print_active_) != active_val) {
                 lv_subject_set_int(&print_active_, active_val);
+                identity_follows_job = printer_side_pre_start_;
 
                 // Safety: When print becomes inactive, ensure print_start_phase is IDLE
                 // This prevents "Preparing Print" from showing when print is finished
@@ -710,8 +714,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                 // new print through the previous one's name.
                 recompute_effective_print_filename(filename);
                 lv_subject_copy_string(&print_filename_, filename.c_str());
+                identity_follows_job = false;
             }
             reconcile_preparing();
+        }
+        if (identity_follows_job) {
+            recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
         }
 
         // Structured pause cause. pause_descriptor owns which firmware publishes
@@ -1196,7 +1204,11 @@ void PrinterPrintState::recompute_effective_print_filename(const std::string& ra
         print_identity_override_.clear();
     }
 
-    if (!print_identity_override_.empty()) {
+    if (printer_side_pre_start_ && lv_subject_get_int(&print_active_) == 0) {
+        // Another app's start, before its file opens: print_stats still names the
+        // previous job, and nothing names this one yet.
+        effective_print_filename_.clear();
+    } else if (!print_identity_override_.empty()) {
         effective_print_filename_ = print_identity_override_;
     } else {
         // No override: a rewritten path still has to resolve, because a print we
@@ -1215,6 +1227,14 @@ void PrinterPrintState::publish_identity_if_changed(const std::string& before) {
     spdlog::debug("[PrinterPrintState] Effective print filename: '{}' -> '{}'", before,
                   effective_print_filename_);
     lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+}
+
+void PrinterPrintState::set_printer_side_pre_start(bool live) {
+    if (printer_side_pre_start_ == live) {
+        return;
+    }
+    printer_side_pre_start_ = live;
+    recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
 }
 
 void PrinterPrintState::set_print_identity_override(const std::string& name) {
@@ -1472,6 +1492,10 @@ bool PrinterPrintState::can_start_new_print() const {
     // Check if a print workflow is already in progress (UI state)
     // This prevents double-tap issues during long G-code modification workflows
     if (is_print_in_progress()) {
+        return false;
+    }
+    // The printer is running a start another app sent, before its file opens.
+    if (printer_side_pre_start_) {
         return false;
     }
 
