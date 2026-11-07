@@ -34,6 +34,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -84,6 +85,41 @@ AmsBackend* slot_still_bound_to(int backend_index, int slot_index, int spoolman_
         return nullptr;
     }
     return owner;
+}
+
+/// The lane a fetch was for, while it still links the spool fetched: a slot
+/// (owner set) or the bypass lane (owner null).
+struct LinkedLane {
+    helix::ams::LaneId lane;
+    AmsBackend* owner;
+};
+
+std::optional<LinkedLane> lane_still_linked(int backend_index, int slot_index, int spoolman_id) {
+    if (slot_index == helix::ams::kBypassSlotIndex) {
+        if (AmsState::instance().raw_external_spool_info().value_or(SlotInfo{}).spoolman_id !=
+            spoolman_id) {
+            spdlog::debug("[SpoolmanManager] External spool changed, skipping stale update");
+            return std::nullopt;
+        }
+        return LinkedLane{helix::ams::kBypassLaneId, nullptr};
+    }
+    AmsBackend* owner = slot_still_bound_to(backend_index, slot_index, spoolman_id);
+    if (owner == nullptr) {
+        return std::nullopt;
+    }
+    return LinkedLane{owner->lane_id(slot_index), owner};
+}
+
+/// Show what a filing moved on @p linked's lane: repaint the slot, or the
+/// external spool, and tell the version-keyed consumers.
+void show_lane_filing(const LinkedLane& linked, int backend_index, int slot_index) {
+    if (linked.owner != nullptr) {
+        linked.owner->repaint_slot_from_lane(slot_index);
+        AmsState::instance().update_slot_for_backend(backend_index, slot_index);
+    } else {
+        AmsState::instance().refresh_external_spool();
+    }
+    AmsState::instance().bump_slots_version();
 }
 
 } // namespace
@@ -231,92 +267,6 @@ void SpoolmanManager::set_api(IMoonrakerAPI* api) {
     reset_circuit_breaker();
 }
 
-void SpoolmanManager::fetch_linked_external_spool(int ext_spoolman_id) {
-    api_->spoolman().get_spoolman_spool(
-        ext_spoolman_id,
-        [ext_spoolman_id](const std::optional<SpoolInfo>& spool_opt) {
-            if (!spool_opt.has_value()) {
-                spdlog::warn("[SpoolmanManager] External spool Spoolman #{} not found",
-                             ext_spoolman_id);
-                helix::ui::queue_update("SpoolmanManager::ext_unresolvable", [ext_spoolman_id]() {
-                    note_identity_unresolvable(ext_spoolman_id);
-                    if (s_shutdown_flag.load(std::memory_order_acquire)) {
-                        return;
-                    }
-                    AmsState& state = AmsState::instance();
-                    const auto raw = state.raw_external_spool_info();
-                    if (!raw.has_value() || raw->spoolman_id != ext_spoolman_id) {
-                        // The binding moved while this denial was in
-                        // flight; its records were already retired by
-                        // the rebind, and a newer spool's records are
-                        // not this denial's to touch.
-                        return;
-                    }
-                    // Same contract as a denied slot: the details describe
-                    // a spool Spoolman no longer knows, so they stop filling
-                    // the lane.
-                    helix::ams::drop_lane_source(helix::ams::kBypassLaneId,
-                                                 helix::ams::ObservationSource::Spoolman);
-                    state.bump_slots_version();
-                });
-                return;
-            }
-
-            const SpoolInfo& spool = spool_opt.value();
-            float new_remaining = static_cast<float>(spool.remaining_weight_g);
-            float new_total = static_cast<float>(spool.initial_weight_g);
-
-            helix::ui::queue_update("SpoolmanManager::ext_weights", [ext_spoolman_id, new_remaining,
-                                                                     new_total, spool]() {
-                if (s_shutdown_flag.load(std::memory_order_acquire)) {
-                    return;
-                }
-
-                // Same shape as the slot arm: cache the identity before
-                // any early return, then file the spool on the bypass
-                // lane and let resolve() rank it.
-                const bool identity_is_new = cache_identity(spool);
-
-                AmsState& state = AmsState::instance();
-                if (identity_is_new) {
-                    // One spool can be linked on a lane as well as here.
-                    state.refresh_slot_names();
-                    state.bump_slots_version();
-                }
-                auto ext = state.raw_external_spool_info();
-                if (!ext.has_value() || ext->spoolman_id != ext_spoolman_id) {
-                    spdlog::debug(
-                        "[SpoolmanManager] External spool changed, skipping stale update");
-                    return;
-                }
-
-                if (SpoolmanManager::file_spool_on_lane(helix::ams::kBypassLaneId, spool)) {
-                    // The stored binding is what a restart reads before any
-                    // poll answers, so the fetched record moves it too, the
-                    // same reason a slot fetch persists its lane record.
-                    SlotInfo stored = *ext;
-                    apply_spool_to_slot(stored, spool);
-                    if (spool.initial_weight_g <= 0) {
-                        // No weight stated is not a zero weight: the filing
-                        // above skipped the weights for the same reason.
-                        stored.remaining_weight_g = ext->remaining_weight_g;
-                        stored.total_weight_g = ext->total_weight_g;
-                    }
-                    state.set_external_spool_info(stored);
-                    state.bump_slots_version();
-                    spdlog::debug("[SpoolmanManager] Filed external spool weights on bypass lane: "
-                                  "{:.0f}g / {:.0f}g",
-                                  new_remaining, new_total);
-                }
-            });
-        },
-        [ext_spoolman_id](const MoonrakerError& err) {
-            spdlog::warn("[SpoolmanManager] Failed to fetch external spool Spoolman #{}: {}",
-                         ext_spoolman_id, err.message);
-        },
-        /*silent=*/true);
-}
-
 void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int spoolman_id) {
     api_->spoolman().get_spoolman_spool(
         spoolman_id,
@@ -330,27 +280,27 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                 // not exist, so that record goes. An unreachable
                 // server proves nothing about the record and takes
                 // the error path instead, leaving it standing.
-                helix::ui::queue_update("SpoolmanManager::slot_unresolvable", [spoolman_id,
-                                                                               slot_index,
-                                                                               backend_index]() {
-                    note_identity_unresolvable(spoolman_id);
-                    if (s_shutdown_flag.load(std::memory_order_acquire)) {
-                        return;
-                    }
-                    AmsBackend* bound = slot_still_bound_to(backend_index, slot_index, spoolman_id);
-                    if (bound) {
-                        const helix::ams::LaneId lane = bound->lane_id(slot_index);
-                        const bool had_record = helix::ams::lane_sources(lane).spoolman.has_value();
-                        helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
-                        if (had_record) {
-                            // The details stop filling the lane; what the
-                            // firmware and record state stays. The polling for
-                            // this spool already stopped above.
-                            bound->repaint_slot_from_lane(slot_index);
-                            AmsState::instance().update_slot_for_backend(backend_index, slot_index);
+                helix::ui::queue_update(
+                    "SpoolmanManager::slot_unresolvable",
+                    [spoolman_id, slot_index, backend_index]() {
+                        note_identity_unresolvable(spoolman_id);
+                        if (s_shutdown_flag.load(std::memory_order_acquire)) {
+                            return;
                         }
-                    }
-                });
+                        if (const auto linked =
+                                lane_still_linked(backend_index, slot_index, spoolman_id)) {
+                            const bool had_record =
+                                helix::ams::lane_sources(linked->lane).spoolman.has_value();
+                            helix::ams::drop_lane_source(linked->lane,
+                                                         helix::ams::ObservationSource::Spoolman);
+                            if (had_record) {
+                                // The details stop filling the lane; what the
+                                // firmware and record state stays. The polling for
+                                // this spool already stopped above.
+                                show_lane_filing(*linked, backend_index, slot_index);
+                            }
+                        }
+                    });
                 return;
             }
 
@@ -411,6 +361,16 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                     // is every poll once a spool settles (#1264).
                     ams.refresh_slot_names();
                     ams.bump_slots_version();
+                }
+                if (d->slot_index == helix::ams::kBypassSlotIndex) {
+                    if (const auto linked = lane_still_linked(d->backend_index, d->slot_index,
+                                                              d->expected_spoolman_id)) {
+                        if (file_spool_on_lane(linked->lane, d->spool)) {
+                            AmsState::instance().persist_external_spool_identity();
+                            show_lane_filing(*linked, d->backend_index, d->slot_index);
+                        }
+                    }
+                    return;
                 }
                 AmsBackend* owner =
                     slot_still_bound_to(d->backend_index, d->slot_index, d->expected_spoolman_id);
@@ -519,7 +479,7 @@ void SpoolmanManager::refresh_spool(int spool_id) {
         }
     }
     if (ext_spoolman_id == spool_id) {
-        mgr.fetch_linked_external_spool(spool_id);
+        mgr.fetch_linked_slot(-1, helix::ams::kBypassSlotIndex, spool_id);
     }
 }
 
@@ -624,7 +584,7 @@ void SpoolmanManager::refresh_spoolman_weights() {
     if (ext_spool.has_value() && ext_spool->spoolman_id > 0 &&
         !is_identity_unresolvable(ext_spool->spoolman_id)) {
         ++linked_count;
-        fetch_linked_external_spool(ext_spool->spoolman_id);
+        fetch_linked_slot(-1, helix::ams::kBypassSlotIndex, ext_spool->spoolman_id);
     }
 
     if (linked_count > 0) {

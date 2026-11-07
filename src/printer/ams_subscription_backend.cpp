@@ -4,6 +4,7 @@
 #include "ams_subscription_backend.h"
 
 #include "http_executor.h"
+#include "json_utils.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "moonraker_error.h"
@@ -281,25 +282,33 @@ void AmsSubscriptionBackend::adopt_lane_records(
 
     // Every read is filed whole, so a record another client rewrote shows on
     // the next poll, and a Pending edit it echoes is withdrawn. The bypass
-    // mirror a backend publishes one past its slots is not a slot's record.
+    // spool's record is the printer's bypass lane, not a slot's; the primary
+    // backend is the one that holds it (AmsState asks backend 0).
     const bool file_records = lane_records_describe_slots();
     for (const auto& [slot, entry] : records) {
-        if (!file_records) {
-            break;
+        if (!file_records || entry.record.external_mirror) {
+            continue;
         }
         const helix::ams::LaneId lane = lane_id(slot);
         const bool had_pending = helix::ams::lane_sources(lane).pending.has_value();
-        if (!entry.record.external_mirror) {
-            helix::ams::Observation record = helix::ams::record_observation(entry.record);
-            drop_firmware_held_fields(record);
-            helix::ams::ingest(lane, record);
-        }
+        helix::ams::Observation record = helix::ams::record_observation(entry.record);
+        drop_firmware_held_fields(record);
+        helix::ams::ingest(lane, record);
         changed = changed || had_pending != helix::ams::lane_sources(lane).pending.has_value();
     }
     for (const auto& [slot, wire] : previous) {
         if (records.count(slot) == 0) {
             helix::ams::drop_lane_source(lane_id(slot), helix::ams::ObservationSource::Record);
         }
+    }
+    if (backend_index() == 0) {
+        const auto bypass = helix::ams::find_bypass_record(records);
+        const bool had_pending =
+            helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value();
+        helix::ams::file_bypass_record(bypass ? &bypass->second : nullptr);
+        changed =
+            changed ||
+            had_pending != helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value();
     }
 
     if (changed) {
@@ -318,6 +327,85 @@ void AmsSubscriptionBackend::adopt_lane_records(
         refresh_again_ = false;
         refresh_lane_records();
     }
+}
+
+std::optional<helix::ams::FilamentSlotOverride> AmsSubscriptionBackend::bypass_record() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto& [slot, record] : overrides_) {
+        if (record.external_mirror) {
+            return record;
+        }
+    }
+    return std::nullopt;
+}
+
+void AmsSubscriptionBackend::publish_external_spool_lane(
+    const helix::ams::FilamentSlotOverride* record) {
+    helix::ams::FilamentSlotOverrideStore* store = nullptr;
+    int index = -1;
+    int stale = -1;
+    bool slot_record_there = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        store = override_store_.get();
+        index = bypass_lane_index_locked();
+        for (const auto& [slot, held] : overrides_) {
+            if (held.external_mirror && slot != index) {
+                stale = slot;
+            } else if (!held.external_mirror && slot == index) {
+                slot_record_there = true;
+            }
+        }
+    }
+    // A record with no writer at an index past the lanes is a bypass record
+    // written before records named their writer or the bypass; it is ours.
+    if (slot_record_there && index >= 0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto wire = lane_wire_seen_.find(index);
+        const bool legacy = wire == lane_wire_seen_.end() ||
+                            helix::json_util::safe_string(wire->second, "writer").empty();
+        slot_record_there = !legacy || index < slot_index_bound_locked();
+    }
+    const std::string tag = backend_log_tag();
+    const auto refuse = [&tag](const std::string& why) {
+        spdlog::warn("{} bypass spool record not written: {}", tag, why);
+        helix::ams::withdraw_pending(helix::ams::kBypassLaneId, why);
+    };
+    if (store == nullptr || index < 0) {
+        refuse("the lane records are not open");
+        return;
+    }
+    // A Fork CFS numbers its external slot after the boxes it sees, so the
+    // index can name a bay whose box is off the bus; that bay's record stays.
+    if (slot_record_there) {
+        refuse(fmt::format("lane {} holds a slot's record", index));
+        return;
+    }
+    if (stale >= 0) {
+        store->clear_async(stale, [tag, stale](bool ok, const std::string& err) {
+            if (!ok) {
+                spdlog::warn("{} deleting the bypass record at lane {} failed: {}", tag, stale,
+                             err);
+            }
+        });
+    }
+    if (record != nullptr) {
+        helix::ams::save_override_async(store, index, *record, tag, "Bypass spool",
+                                        helix::ams::kBypassLaneId);
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (auto it = overrides_.find(index);
+            it != overrides_.end() && it->second.external_mirror) {
+            overrides_.erase(it);
+        }
+    }
+    store->clear_async(index, [tag, index](bool ok, const std::string& err) {
+        if (!ok) {
+            spdlog::warn("{} deleting the bypass record at lane {} failed: {}", tag, index, err);
+        }
+    });
 }
 
 void AmsSubscriptionBackend::poll_lane_records() {

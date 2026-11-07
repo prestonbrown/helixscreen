@@ -2993,8 +2993,8 @@ display-and-tracking rows below never suppress anything.
 
 On the bottom five rows the override is display-and-tracking only. Their `is_bypass_active()`
 returns a literal `false`, so `bypass_node_visible()` reaches the `!bypass_is_virtual` branch and renders
-the node; tapping it opens `show_external_spool_menu()`, which writes HelixScreen-side slot
-metadata (`AmsState::set_external_spool_info()`) and sends nothing to the printer. The sidebar
+the node; tapping it opens `show_external_spool_menu()`, which writes the bypass spool's lane
+record (`AmsState::set_external_spool_info()`) and sends no G-code. The sidebar
 toggle, however, is gated on the same `ams_supports_bypass` subject, so it appears too and then
 fails with the backend's `not_supported`.
 
@@ -3196,33 +3196,22 @@ drop it from the armed set, so the restore never sends a command for state we no
 own. The user's monitoring switches (master enable, per-sensor enable) gate the arming,
 which is a temporary firmware-state change, not a settings change.
 
-**External lane publish** (`AmsBackend::publish_external_spool_lane` +
-`helix::ams::publish_external_lane`): the external spool is published as the lane one past
-the last physical slot in the shared `lane_data` namespace, so OrcaSlicer's
-MoonrakerPrinterAgent can select it as the "next tool over" (T4 beside T0–T3). Readers key
-off the inner 0-based `lane` field (`filament_slots.md` §4), which is the slot count.
-Triggered on bypass engage and on every external-spool identity change
-(`AmsState::apply_external_spool_store`), on every backend — each override decides for
-itself:
+**The bypass spool is a lane record** (`lane_name: "bypass"`), so slicers reading
+`lane_data` see it as the "next tool over" (T4 beside T0–T3) on the backends where
+HelixScreen writes `lane_data`. The primary backend keeps it among its own lane records,
+at `AmsSubscriptionBackend::bypass_lane_index_locked()`, and reads it with the same
+refresh and poll as its slots:
 
-| Backend | Publishes | Namespace owner / source-verified caveat |
-|---------|-----------|------------------------------------------|
-| CFS | Fork: the payload's external slot (`T<that>` is what box.py registers), so `lane5` on one box. Stock: `lane17` (index 16, past every bay) | The Fork key can be a real bay of a box off the bus, so CFS writes or clears it only when it is empty or holds our `helix_external: true` mirror |
-| AD5X IFS | `lane{kNumPorts+1}` via its own mirror store | same — ours alone |
-| AFC | `T{N}` via a dedicated shared-namespace store (lazy, from `api_`) | AFC's plugin never publishes extern (`AFC_lane.send_lane_data` runs only for lanes with a tool mapping) and **deletes the whole namespace at boot** (its `delete_lane_data()`); our entry dies at AFC restart and is re-published on the next trigger |
-| Happy Hare | `lane{N+1}` via a dedicated shared-namespace store | HH's plugin publishes gates only (`push_lane_data` in its Moonraker component), and its **boot-time cleanup deletes records with `lane >= num_gates`**; same die-at-restart, re-publish-on-trigger cycle |
-| ACE / Snapmaker / QIDI / Tool Changer | no (default no-op) | `supports_bypass` is false — there is no external spool to publish |
+| Backend | Index | Store |
+|---------|-------|-------|
+| CFS | Fork: the payload's external slot (`T<that>` is what box.py registers), so `lane5` on one box. Stock: `lane17` (index 16, past every bay) | `lane_data`. The Fork index can be a bay of a box off the bus; a slot's record there is never overwritten or deleted |
+| AFC, Happy Hare | one past the lanes | the extras namespace (`helix-screen-afc-overrides`, `helix-screen-hh-overrides`): HelixScreen never writes `lane_data` on these, so slicers do not see the bypass spool there |
+| Every other `AmsSubscriptionBackend` (AD5X IFS, ACE, QIDI, Snapmaker U1, OpenAMS, tool changers, INDX) | one past the lanes | `lane_data` |
+| No filament backend | lane 0 (`lane1`) | `lane_data`, kept and polled by AmsState |
 
-Every mirror `publish_external_lane()` writes carries `helix_external: true`. CFS sorts the
-loaded mirrors against the first box frame of a session: one whose key is a bay the box reports
-becomes that bay's record (an adopted mirror may have been one) and is rewritten without the
-mark, and any other is dropped from the bay overrides. An unmarked record at the external key is adopted when it names the spool
-being published (`record_describes_spool()`), and left alone otherwise. When the Fork key moves
-(the top box returns), the old key is cleared only where CFS still holds its own marked mirror.
-
-The identity rule is shared in `publish_external_lane()`: a null or identity-less record
-(no Spoolman id, no material, default-gray color) **clears** the lane rather than
-publishing a phantom tray; pure black is a real pick and publishes.
+A record of ours left at an earlier index (the Fork's external slot moves with the chain)
+is deleted on the next write. `docs/devel/FILAMENT_SLOT_METADATA.md` § "The bypass
+spool's record" has the read and write paths.
 
 ### Dynamic Actions (backend-specific)
 

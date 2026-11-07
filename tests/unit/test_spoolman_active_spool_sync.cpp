@@ -18,6 +18,7 @@
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/mock_printer.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
@@ -117,6 +118,8 @@ struct SyncFixture : LVGLTestFixture {
     std::string temp_dir = helix::test::unique_temp_dir("helix_spool_sync");
     FakeMoonrakerClient client;
     RecordingSpoolman spoolman;
+    /// The database the bypass record is written to and read back from.
+    MockPrinter db;
 
     SyncFixture() {
         fs::create_directories(temp_dir);
@@ -125,7 +128,7 @@ struct SyncFixture : LVGLTestFixture {
         fs::remove(helix::app_constants::update::env_backup_fallback());
         Config::get_instance()->init(temp_dir + "/settings.json");
         AmsState::instance().clear_backends();
-        AmsState::instance().clear_external_spool_info();
+        AmsState::instance().set_moonraker_api(&db.api);
         spool_sync::attach(client, spoolman);
     }
 
@@ -134,6 +137,8 @@ struct SyncFixture : LVGLTestFixture {
         helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
         AmsState::instance().clear_backends();
         AmsState::instance().clear_external_spool_info();
+        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        AmsState::instance().set_moonraker_api(nullptr);
         Config::get_instance()->clear_path();
         std::error_code ec;
         fs::remove_all(temp_dir, ec);

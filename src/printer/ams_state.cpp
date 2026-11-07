@@ -391,6 +391,9 @@ void AmsState::clear_backends() {
     // takes these blocks of lane ids. A declaration left behind would be
     // handed to whatever hardware lands on the same block next.
     helix::ams::reset_lane_sources();
+    // The bypass record goes with them; the next printer's is read afresh.
+    restart_bypass_reads();
+    refresh_bypass_record();
 
     // The runout edge state describes a specific backend's flag history. A new
     // backend's first sample must re-seed rather than read as a transition.
@@ -556,6 +559,7 @@ void AmsState::set_moonraker_api(IMoonrakerAPI* api) {
     assert_main_thread();
     api_ = api;
     last_synced_spoolman_id_ = 0; // Reset tracking on API change
+    restart_bypass_reads();
     spdlog::debug("[AMS State] Moonraker API {} for Spoolman integration", api ? "set" : "cleared");
 }
 
@@ -1003,20 +1007,6 @@ void AmsState::sync_bypass(AmsBackend* backend, const AmsSystemInfo& info) {
         // sensors at the firmware level) lives entirely in
         // FilamentSensorManager, the sensor abstraction layer.
         FilamentSensorManager::instance().on_bypass_active_changed(bypass_now);
-
-        // Publish the external spool as an extra lane_data entry for slicer
-        // sync (OrcaSlicer) when bypass engages. Capability question via the
-        // backend virtual — only backends that own a lane_data mirror and
-        // support bypass answer; AmsState names no system.
-        if (bypass_now) {
-            const auto spool = get_external_spool_info();
-            for (auto& backend : registry_.backends()) {
-                if (backend) {
-                    backend->publish_external_spool_lane(spool.has_value() ? &spool.value()
-                                                                           : nullptr);
-                }
-            }
-        }
     }
     // With no system presented the external spool is the only path, so there
     // is no bypass to switch to, forced or not.
@@ -1025,8 +1015,9 @@ void AmsState::sync_bypass(AmsBackend* backend, const AmsSystemInfo& info) {
                                                                                              : 0;
     lv_subject_set_int(&supports_bypass_, new_supports_bypass);
 
-    // Update external spool color from persistent settings
-    auto ext_spool = helix::SettingsManager::instance().get_external_spool_info();
+    // The external spool subjects follow the bypass record, which a read of
+    // the backend's lane records may have just moved.
+    auto ext_spool = get_external_spool_info();
     int new_ext_color = ext_spool.has_value() ? static_cast<int>(ext_spool->color_rgb) : 0;
     lv_subject_set_int(&external_spool_color_, new_ext_color);
     lv_subject_copy_string(&external_spool_material_,

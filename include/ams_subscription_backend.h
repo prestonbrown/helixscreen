@@ -73,6 +73,18 @@ class AmsSubscriptionBackend : public AmsBackend {
         return !lane_records_unread_;
     }
 
+    /// The bypass spool's record lives among this backend's lane records, in
+    /// the store open_lane_record_store() built: lane_data, or the extras
+    /// namespace on a backend whose firmware owns lane_data.
+    [[nodiscard]] bool holds_bypass_record() const override {
+        return true;
+    }
+    [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const override;
+    /// Written at bypass_lane_index_locked(). A record of ours left at an
+    /// earlier index is deleted; a slot's record at the index is never
+    /// overwritten.
+    void publish_external_spool_lane(const helix::ams::FilamentSlotOverride* record) override;
+
     // --- Event system (final) ---
     void set_event_callback(EventCallback callback) final;
 
@@ -249,6 +261,14 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Exclusive upper bound for a valid slot index. Caller holds mutex_.
     [[nodiscard]] virtual int slot_index_bound_locked() const {
         return system_info_.total_slots;
+    }
+
+    /// The index the bypass spool's record is written at: one past the
+    /// backend's lanes, so a slicer reading lane_data sees it as the next
+    /// lane over. -1 while there is no index to write at (no lanes known
+    /// yet). Caller holds mutex_.
+    [[nodiscard]] virtual int bypass_lane_index_locked() const {
+        return system_info_.total_slots > 0 ? system_info_.total_slots : -1;
     }
 
     /// Drop what earlier paints left on a persistent SlotInfo, so the paint

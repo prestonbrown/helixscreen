@@ -5310,32 +5310,6 @@ void AmsBackendAfc::clear_slot_override(int slot_index) {
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
-void AmsBackendAfc::publish_external_spool_lane(const SlotInfo* spool) {
-    // Capability + index under the lock; the store send happens outside.
-    // Lazy store construction: built on first use from api_ so a never-started
-    // backend (unit tests) needs no Moonraker connection, and the shared
-    // namespace store only ever exists on a live API. Tool key style matches
-    // AFC's own lane_data keys since its virtual-tools firmware (T<n>, spec
-    // filament_slots.md §4) — one convention per namespace, and the inner
-    // 0-based `lane` field is what readers key off either way.
-    int lane_index = 0;
-    bool supported = false;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        supported = system_info_.supports_bypass;
-        lane_index = system_info_.total_slots;
-    }
-    if (!supported || lane_index <= 0 || !api_) {
-        return;
-    }
-    if (!lane_publish_store_) {
-        lane_publish_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-            api_, "afc", helix::ams::LaneKeyStyle::Tool);
-    }
-    helix::ams::publish_external_lane(lane_publish_store_.get(), lane_index, spool,
-                                      backend_log_tag());
-}
-
 bool AmsBackendAfc::can_recover_lane_position(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
 

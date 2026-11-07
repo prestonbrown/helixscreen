@@ -140,7 +140,6 @@ struct OverlayCommitFixture : LVGLTestFixture {
         std::filesystem::remove(app_constants::update::legacy_config_backup_fallback());
         std::filesystem::remove(app_constants::update::env_backup_fallback());
         Config::get_instance()->init(config_path);
-        SettingsManager::instance().clear_external_spool_info();
 
         auto& ams = AmsState::instance();
         ams.clear_backends();

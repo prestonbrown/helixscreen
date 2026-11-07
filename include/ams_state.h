@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "ams_backend_registry.h"
@@ -14,6 +15,7 @@
 #include "buffer_reading.h"
 #include "filament_consumption_tracker.h"
 #include "filament_mapper.h"
+#include "filament_slot_override_store.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_error.h"
 #include "subject_managed_panel.h"
@@ -2013,37 +2015,47 @@ class AmsState {
     /**
      * @brief Get external spool info, resolved through the bypass lane
      *
-     * The stored record is the binding; what the sources say about the bound
-     * spool (the Spoolman poll's record, the consumption meter, the user's
-     * edits) is layered on via resolve(kBypassLaneId) before returning.
-     * @return SlotInfo or nullopt if not set
+     * The bypass spool is a lane record (lane_name "bypass") in Moonraker's
+     * database: among the primary backend's lane records when it holds them
+     * (AmsBackend::holds_bypass_record()), otherwise in lane_data, read by
+     * AmsState itself. The record is the binding; what the sources say about
+     * the bound spool (the Spoolman poll's record, the consumption meter, an
+     * edit in flight) is layered on via resolve(kBypassLaneId).
+     * @return SlotInfo or nullopt if no spool is recorded
      */
     std::optional<SlotInfo> get_external_spool_info() const;
 
-    /// The stored record with no lane resolution: in-memory override, else
-    /// SettingsManager. The poll's stale guard and the edit diff compare
-    /// against this raw binding, not the resolved view.
+    /// The bypass record as last read, with an edit still in flight laid over
+    /// it; no Spoolman details and no meter. The poll's stale guard, the edit
+    /// diff and the consumption meter's baseline compare against this.
     std::optional<SlotInfo> raw_external_spool_info() const;
 
     /**
-     * @brief Set external spool info and update color subject
-     * @param info SlotInfo with filament data
+     * @brief Write @p info as the bypass spool's record
+     *
+     * The bypass lane shows it as Pending until the read that follows the
+     * write echoes it; a failed write withdraws it.
      */
     void set_external_spool_info(const SlotInfo& info);
 
     /**
-     * Update the external-spool info without writing settings.json.
-     *
-     * Used by FilamentConsumptionTracker to push live weight updates
-     * to observers while throttling disk writes to a slower cadence.
-     * Callers that need persistence should call set_external_spool_info().
-     */
-    void set_external_spool_info_in_memory(const SlotInfo& info);
-
-    /**
-     * @brief Clear external spool info
+     * @brief Delete the bypass spool's record
      */
     void clear_external_spool_info();
+
+    /// Re-read the external spool and notify its subjects' observers, for a
+    /// source filed on the bypass lane outside an edit (the meter, a load
+    /// cell, a Spoolman answer).
+    void refresh_external_spool();
+
+    /// Amend the bypass record with what the bypass lane's Spoolman record
+    /// states for the spool it links, and write it when that moved a field:
+    /// persist_external_identity() for the bypass lane.
+    void persist_external_spool_identity();
+
+    /// Read the bypass record now, where AmsState keeps it (no backend holds
+    /// it). The read runs at connect, after each write and on the poll.
+    void refresh_bypass_record();
 
     /**
      * @brief Commit a backend-slot spool edit through every backing store.
@@ -2282,6 +2294,18 @@ class AmsState {
     /// set_external_spool_info() without the notify, for a caller that still
     /// has lane sources to file before observers may re-read the record.
     void store_external_spool_info(const SlotInfo& info);
+
+    /// The backend holding the bypass record (the primary, when it answers
+    /// holds_bypass_record()), or nullptr when AmsState keeps it.
+    [[nodiscard]] AmsBackend* bypass_record_holder() const;
+    /// The bypass record as its holder's last read found it.
+    [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const;
+    /// Write @p record as the bypass record, or delete it (null).
+    void write_bypass_record(const helix::ams::FilamentSlotOverride* record);
+    /// A read of AmsState's bypass store landed. Main thread.
+    void adopt_bypass_records(const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
+    /// Start or stop AmsState's bypass reads to follow api_. Main thread.
+    void restart_bypass_reads();
 
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults(bool write_header = true);
@@ -2676,10 +2700,18 @@ class AmsState {
     /// registered there must be registered here too.
     void register_xml_subject_names();
 
-    /// In-memory override for external spool info. Set by set_external_spool_info_in_memory()
-    /// to allow live tracker updates without touching settings.json. When set, takes priority
-    /// over SettingsManager in get_external_spool_info(). Cleared by clear_external_spool_info().
-    std::optional<SlotInfo> in_memory_external_spool_;
+    /// The bypass record where AmsState keeps it (no backend holds it): the
+    /// lane_data store, the record its last read found, and the poll. Main
+    /// thread.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> bypass_store_;
+    std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
+    bool bypass_read_in_flight_ = false;
+    /// A read was asked for while one was out.
+    bool bypass_read_again_ = false;
+    /// Advanced by every write of the bypass record: a read started before
+    /// the latest write is discarded rather than filed over it.
+    uint64_t bypass_write_generation_ = 0;
+    helix::ui::LvglTimerGuard bypass_poll_;
 
     // String subjects (need buffers)
     lv_subject_t ams_action_detail_{};

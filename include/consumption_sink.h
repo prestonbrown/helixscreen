@@ -61,9 +61,9 @@ class IConsumptionSink {
     virtual void rebaseline(float filament_used_mm) = 0;
 };
 
-/// Sink for the non-AMS external spool (single global). Writes go through
-/// AmsState::set_external_spool_info_in_memory() for hot updates and
-/// set_external_spool_info() for throttled disk persistence via SettingsManager.
+/// Sink for the external (bypass) spool. Each tick files the counted weight as
+/// the bypass lane's Metered source; the bypass record itself is rewritten on
+/// a throttle (AmsState::set_external_spool_info()) and at flush().
 class ExternalSpoolSink : public IConsumptionSink {
   public:
     [[nodiscard]] SinkKind kind() const override {
@@ -90,10 +90,15 @@ class ExternalSpoolSink : public IConsumptionSink {
     float density_g_cm3_ = 0.0f;
     float diameter_mm_ = filament::kDefaultDiameterMm;
     float last_written_weight_g_ = 0.0f;
+    /// The weight the bypass record was last written with (or read at); a
+    /// record that moves away from it was written by someone else.
+    float last_persisted_weight_g_ = 0.0f;
     uint32_t last_persist_tick_ms_ = 0;
     uint32_t persist_interval_override_ms_ = 0;
 
     [[nodiscard]] uint32_t persist_interval_ms() const;
+    /// Write @p info with the metered weight as the bypass record.
+    void persist(SlotInfo info);
 };
 
 /// Sink for a single AMS slot. Reads current SlotInfo via

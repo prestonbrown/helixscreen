@@ -87,7 +87,8 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     j["writer"] = kLaneDataWriter;
     // A string: OrcaSlicer drops a numeric lane. 0-based whatever the key style.
     j["lane"] = std::to_string(slot_index);
-    j["lane_name"] = format_lane_key(slot_index, style);
+    j["lane_name"] =
+        o.external_mirror ? std::string(kBypassLaneName) : format_lane_key(slot_index, style);
     j["loaded"] = o.loaded.has_value() ? nlohmann::json(*o.loaded) : nlohmann::json(nullptr);
     // Pure black is a colour; color_set, not the value, says whether there is one.
     if (o.color_set) {
@@ -139,8 +140,6 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["helix_spoolman_vendor_id"] = o.spoolman_vendor_id;
     if (!o.fingerprint.empty())
         j["helix_fingerprint"] = o.fingerprint;
-    if (o.external_mirror)
-        j["helix_external"] = true;
     return j;
 }
 
@@ -202,13 +201,18 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     o.catalog_id = helix::json_util::safe_string(j, "helix_catalog_id");
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
     o.fingerprint = helix::json_util::safe_string(j, "helix_fingerprint");
-    o.external_mirror = helix::json_util::safe_bool(j, "helix_external", false);
+    // helix_external marks the bypass records 1.1 betas wrote.
+    o.external_mirror = helix::json_util::safe_string(j, "lane_name") == kBypassLaneName ||
+                        helix::json_util::safe_bool(j, "helix_external", false);
     if (j.contains("loaded") && j["loaded"].is_boolean())
         o.loaded = j["loaded"].get<bool>();
     return std::make_pair(slot_index, o);
 }
 
 FilamentSlotOverride extras_only(const FilamentSlotOverride& o) {
+    // No firmware holds the bypass spool, so its record keeps everything.
+    if (o.external_mirror)
+        return o;
     FilamentSlotOverride kept;
     kept.brand = o.brand;
     kept.spool_name = o.spool_name;
@@ -881,19 +885,6 @@ void persist_override_weight(FilamentSlotOverrideStore* store,
     }
 }
 
-bool record_describes_spool(const FilamentSlotOverride& record, const SlotInfo& spool) {
-    if (record.spoolman_id > 0 || spool.spoolman_id > 0) {
-        return record.spoolman_id == spool.spoolman_id;
-    }
-    if (record.material.empty() || record.material != spool.material) {
-        return false;
-    }
-    if (!record.color_set || record.color_rgb != spool.color_rgb) {
-        return false;
-    }
-    return record.brand.empty() || spool.brand.empty() || record.brand == spool.brand;
-}
-
 FilamentSlotOverride external_lane_record(const SlotInfo& spool) {
     FilamentSlotOverride ovr;
     ovr.external_mirror = true;
@@ -916,41 +907,46 @@ FilamentSlotOverride external_lane_record(const SlotInfo& spool) {
     return ovr;
 }
 
-bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, const SlotInfo* spool,
-                           const std::string& log_tag) {
-    if (!store || lane_index < 0) {
-        return false;
+SlotInfo external_spool_from_record(const FilamentSlotOverride& record) {
+    SlotInfo info;
+    info.slot_index = kBypassSlotIndex;
+    info.global_index = kBypassSlotIndex;
+    info.status = SlotStatus::AVAILABLE;
+    info.material = record.material;
+    info.brand = record.brand;
+    info.spool_name = record.spool_name;
+    info.spoolman_id = record.spoolman_id;
+    info.spoolman_filament_id = record.spoolman_filament_id;
+    info.spoolman_vendor_id = record.spoolman_vendor_id;
+    info.spoolman_orca_filament_id = record.spoolman_orca_filament_id;
+    info.remaining_weight_g = record.remaining_weight_g;
+    info.total_weight_g = record.total_weight_g;
+    info.color_name = record.color_name;
+    info.catalog_id = record.catalog_id;
+    info.product_name = record.product_name;
+    if (record.color_set)
+        info.color_rgb = record.color_rgb;
+    info.nozzle_temp_min = record.nozzle_temp;
+    info.nozzle_temp_max = record.nozzle_temp;
+    info.bed_temp = record.bed_temp;
+    return info;
+}
+
+std::optional<std::pair<int, FilamentSlotOverride>>
+find_bypass_record(const std::unordered_map<int, LaneDataRecord>& records) {
+    for (const auto& [slot, entry] : records) {
+        if (entry.record.external_mirror)
+            return std::make_pair(slot, entry.record);
     }
+    return std::nullopt;
+}
 
-    // Identity = anything a slicer could map to: a Spoolman link, a material,
-    // or a picked color. Black (0x000000) is a real pick and must publish; the
-    // "never picked" sentinel must not.
-    const bool color_picked = spool != nullptr && is_declarable_color(spool->color_rgb);
-    const bool has_identity =
-        spool != nullptr && (spool->spoolman_id > 0 || !spool->material.empty() || color_picked);
-
-    if (!has_identity) {
-        // Clear, not publish: an identity-less record would squat the lane
-        // with an empty phantom a slicer renders as an unknown tray.
-        store->clear_async(lane_index, [log_tag, lane_index](bool ok, std::string err) {
-            if (!ok) {
-                spdlog::warn("{} external-spool lane clear failed ({}): {}", log_tag, lane_index,
-                             err);
-            }
-        });
-        return false;
+void file_bypass_record(const FilamentSlotOverride* record) {
+    if (record != nullptr) {
+        ingest(kBypassLaneId, record_observation(*record));
+    } else {
+        drop_lane_source(kBypassLaneId, ObservationSource::Record);
     }
-
-    const FilamentSlotOverride ovr = external_lane_record(*spool);
-    store->save_async(lane_index, ovr, [log_tag, lane_index](bool ok, std::string err) {
-        if (!ok) {
-            spdlog::warn("{} external-spool lane publish failed ({}): {}", log_tag, lane_index,
-                         err);
-        }
-    });
-    spdlog::debug("{} published external spool as lane {} (material={}, color=#{:06X})", log_tag,
-                  lane_index, spool->material, spool->color_rgb);
-    return true;
 }
 
 void save_override_async(FilamentSlotOverrideStore* store, int slot_index,

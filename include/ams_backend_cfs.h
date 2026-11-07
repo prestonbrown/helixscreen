@@ -284,12 +284,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // _BOX_SLOT_CLEAR; stock K1/K2 dialects have no equivalent command.
     void clear_slot_override(int slot_index) override;
 
-    /// Publish the external spool as the lane one past the last physical slot
-    /// (lane{total_slots+1}) in our lane_data mirror, so OrcaSlicer can select
-    /// it. Stock and fork dialects alike: the lane is OUR mirror record, no
-    /// firmware involvement.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
-
     // Bypass / external spool. Fork firmware owns the flow (selecting the
     // external slot to feed, BOX_UNLOAD to eject — box.py numbers the external
     // slot alongside the bays); stock K1/K2 firmware has no command for the holder,
@@ -769,6 +763,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// The attached bay count, or the whole TNN alphabet while the box size
     /// is still unknown. Caller holds mutex_.
     [[nodiscard]] int slot_index_bound_locked() const override;
+    /// OrcaSlicer sends the lane as the tool, so on Fork the bypass record sits
+    /// at the firmware's own external slot (box.py registers T<that>); stock
+    /// has no external T command, and takes 16 (lane17), past the highest bay
+    /// a chain numbers. Caller holds mutex_.
+    [[nodiscard]] int bypass_lane_index_locked() const override;
 
     /// Write a person's edit of @p global_index to the box, which holds the
     /// slot's colour and material.
@@ -939,18 +938,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Adopt the declaration a lane-record read found (this client's or
     /// another's). Caller holds mutex_.
     bool on_lane_record_keys_locked(const nlohmann::json& keys) override;
-
-    /// The external-spool lane key last held a record that is not our mirror,
-    /// and that was logged. Reset once the key is ours again. Guarded by mutex_.
-    bool external_key_conflict_logged_ = false;
-
-    /// Lane the external-spool mirror was last published at, -1 for none.
-    /// Guarded by mutex_.
-    int external_lane_published_ = -1;
-
-    /// Loaded external-spool mirrors have been sorted into bay records and
-    /// strays against the first frame of this session. Guarded by mutex_.
-    bool mirrors_sorted_ = false;
 
     /// SUCCESS for stock schemas and the identified Fork dialect; returns
     /// not_supported for an unidentified Flat implementation.
@@ -1194,10 +1181,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// callers refuse rather than guess.
     /// **Caller must hold mutex_.**
     [[nodiscard]] int firmware_slot_locked(int bay) const;
-
-    /// Make external-spool mirror @p record the record of bay @p bay: drop the
-    /// mark in memory and persist the record without it. Caller holds mutex_.
-    void make_bay_record_locked(int bay, helix::ams::FilamentSlotOverride& record);
 
     /// Fold legacy fingerprints onto the current shape and re-seed the swap
     /// tracker's baselines from the records just read. Caller holds mutex_.

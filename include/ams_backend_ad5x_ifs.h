@@ -634,11 +634,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // stays in one place.
     void clear_slot_override(int slot_index) override;
 
-    /// Publish the external spool as lane{N+1} in the lane_data namespace.
-    /// ZMOD never writes lane_data — our mirror owns the namespace entirely,
-    /// so unlike AFC/HH there is no firmware writer to collide with.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
-
     AmsError enable_bypass() override;
     AmsError disable_bypass() override;
 
