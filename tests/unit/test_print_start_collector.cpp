@@ -1048,11 +1048,12 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // the prior print until reset_for_new_print() runs async — note_current_layer
     // must NOT latch on that stale positive, only on a freshly observed value < 1.
 
+    lv_subject_set_int(state().print_state().get_print_layer_current_subject(), 250);
     set_all_temps(0, 0, 0, 0);
     collector().start();
     drain_async_updates();
 
-    SECTION("Fresh collector has not seen layer zero") {
+    SECTION("A collector started over a stale positive has not seen layer zero") {
         REQUIRE_FALSE(collector().has_seen_layer_zero());
     }
 
@@ -1088,6 +1089,28 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
         collector().start();
         drain_async_updates();
         REQUIRE_FALSE(collector().has_seen_layer_zero());
+    }
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Layer-zero edge: a layer already at 0 when collection starts arms the edge",
+                 "[print][collector][completion][regression]") {
+    // A slicer's SET_PRINT_STATS_INFO TOTAL_LAYER runs before PRINT_START and
+    // reports current_layer 0, which the subject already holds, so no change
+    // reaches the layer observer. Layer 1 must still be the first layer: on a
+    // Voron V0 the pre-print otherwise ran on to layer 2, minutes later.
+    lv_subject_set_int(state().print_state().get_print_layer_current_subject(), 0);
+    set_all_temps(0, 0, 0, 0);
+    collector().start();
+    drain_async_updates();
+    CHECK(collector().has_seen_layer_zero());
+
+    SECTION("a stale positive at start still does not arm it") {
+        collector().stop();
+        lv_subject_set_int(state().print_state().get_print_layer_current_subject(), 250);
+        collector().start();
+        drain_async_updates();
+        CHECK_FALSE(collector().has_seen_layer_zero());
     }
 }
 
