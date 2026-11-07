@@ -106,14 +106,22 @@ inline constexpr size_t kMaxConfigDownloadsInFlight = 4;
 /// still_wanted() refused; the walk's error message contains it.
 inline constexpr const char* kConfigDownloadNotWanted = "no longer wanted";
 
+/// Decides a download Moonraker answered with an error (a full queue aside): true
+/// hands the walk an empty file to read past, false fails the walk. Runs on the
+/// thread the error arrives on.
+using ConfigDownloadFailureFn =
+    helix::SharedCallback<bool(const std::string& path, const MoonrakerError& err)>;
+
 /// A ConfigDownloadFn that fetches through @p api, always from the main thread.
 /// The walk asks for each next file from the previous download's completion, on
 /// a background thread, and printer teardown destroys the API on the main thread
 /// without draining those; on the main thread @p api's lifetime token proves it
 /// still alive. Once the API is gone, or @p still_wanted (run on the main thread)
-/// returns false, the request fails without touching @p api.
+/// returns false, the request fails without touching @p api. Without
+/// @p on_failure every error fails the walk.
 [[nodiscard]] ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
-                                                   helix::SharedCallback<bool()> still_wanted = {});
+                                                   helix::SharedCallback<bool()> still_wanted = {},
+                                                   ConfigDownloadFailureFn on_failure = {});
 
 /// A ConfigListFn over @p api, keeping paths ending in @p suffix ("" keeps every file).
 /// One directory goes through server.files.get_directory, the whole tree through
