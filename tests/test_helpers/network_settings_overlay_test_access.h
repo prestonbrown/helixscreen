@@ -3,6 +3,7 @@
 
 #include "ui_overlay_network_settings.h"
 
+#include "ethernet_manager.h"
 #include "wifi_backend.h"
 
 #include <cstring>
@@ -35,6 +36,14 @@ class NetworkSettingsOverlayTestAccess {
     /// WiFiManager instead of the process-global singleton, before create().
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
         return o.wifi_manager_;
+    }
+    /// The overlay's EthernetManager, created by create().
+    static EthernetManager* ethernet_manager(NetworkSettingsOverlay& o) {
+        return o.ethernet_manager_.get();
+    }
+    /// The eth_connected subject (0/1) the Ethernet row binds to.
+    static lv_subject_t& eth_connected(NetworkSettingsOverlay& o) {
+        return o.eth_connected_;
     }
     /// The wifi_connected subject (0/1) — the observable a transport refresh
     /// must move.

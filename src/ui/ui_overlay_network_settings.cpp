@@ -341,6 +341,13 @@ void NetworkSettingsOverlay::on_activate() {
                                           [this]() { refresh_transport_status(); });
         wifi_manager_->add_country_observer(lifetime_.token(), [this]() { refresh_country(); });
     }
+    // A cable plugged or pulled while the overlay is open (#1976).
+    if (ethernet_manager_) {
+        ethernet_manager_->add_link_observer(lifetime_.token(), [this]() {
+            update_ethernet_status();
+            update_any_network_connected();
+        });
+    }
 
     // Backend capabilities: the 2.4GHz-only indicator, and the Forget and
     // radio-toggle controls, which are hidden where the backend cannot act.

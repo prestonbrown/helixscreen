@@ -19,11 +19,16 @@
 #endif
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
+#include <cerrno>
 #include <cstring>
 #include <dirent.h>
 #include <fstream>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <memory>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace {
 
@@ -120,8 +125,68 @@ std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root) {
     return ethernet_interfaces;
 }
 
+namespace {
+
+/// A non-blocking rtnetlink socket subscribed to link and IPv4 address changes.
+class KernelLinkEvents : public LinkEvents {
+  public:
+    explicit KernelLinkEvents(int fd) : fd_(fd) {}
+    ~KernelLinkEvents() override {
+        ::close(fd_);
+    }
+    KernelLinkEvents(const KernelLinkEvents&) = delete;
+    KernelLinkEvents& operator=(const KernelLinkEvents&) = delete;
+
+    bool poll() override {
+        bool any = false;
+        char buf[4096];
+        for (;;) {
+            const ssize_t n = ::recv(fd_, buf, sizeof(buf), MSG_DONTWAIT);
+            if (n > 0) {
+                any = true;
+                continue;
+            }
+            // ENOBUFS: the kernel dropped notifications because nobody read
+            // them in time, which is itself news that something changed.
+            if (n < 0 && errno == ENOBUFS) {
+                any = true;
+                continue;
+            }
+            return any;
+        }
+    }
+
+  private:
+    int fd_;
+};
+
+} // namespace
+
+std::unique_ptr<LinkEvents> open_kernel_link_events() {
+    const int fd = ::socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_ROUTE);
+    if (fd < 0) {
+        spdlog::debug("[Ethernet] rtnetlink socket unavailable: {}", std::strerror(errno));
+        return nullptr;
+    }
+    sockaddr_nl addr{};
+    addr.nl_family = AF_NETLINK;
+    addr.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
+    if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        spdlog::debug("[Ethernet] rtnetlink bind failed: {}", std::strerror(errno));
+        ::close(fd);
+        return nullptr;
+    }
+    return std::make_unique<KernelLinkEvents>(fd);
+}
+
 } // namespace helix::ethernet
 #endif // !__APPLE__ && !__ANDROID__
+
+#if defined(__APPLE__) || defined(__ANDROID__)
+std::unique_ptr<helix::ethernet::LinkEvents> helix::ethernet::open_kernel_link_events() {
+    return nullptr;
+}
+#endif
 
 std::unique_ptr<EthernetBackend> EthernetBackend::create() {
     // In test mode, always use mock unless --real-ethernet was specified

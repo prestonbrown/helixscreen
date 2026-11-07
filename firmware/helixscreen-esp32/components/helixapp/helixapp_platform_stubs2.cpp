@@ -737,6 +737,7 @@ int dup2(int, int) {
 EthernetManager::EthernetManager() {}
 EthernetManager::~EthernetManager() = default;
 void EthernetManager::get_info_async(std::function<void(const EthernetInfo&)>) {}
+void EthernetManager::add_link_observer(helix::LifetimeToken, helix::SharedCallback<void()>) {}
 
 // --- app_globals, fourth batch ------------------------------------------------
 // Process-global storage for both accessors (get returns what set stored),

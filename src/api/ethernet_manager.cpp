@@ -7,6 +7,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <utility>
 
 EthernetManager::EthernetManager() {
@@ -26,6 +27,8 @@ EthernetManager::EthernetManager() {
 EthernetManager::~EthernetManager() {
     // Use fprintf - spdlog may be destroyed during static cleanup
     fprintf(stderr, "[EthernetManager] Shutting down Ethernet manager\n");
+    link_lifetime_.invalidate();
+    link_timer_.reset();
     backend_.reset();
 }
 
@@ -107,4 +110,98 @@ std::string EthernetManager::get_ip_address() {
     }
 
     return "";
+}
+
+// ============================================================================
+// Link Changes
+// ============================================================================
+
+namespace {
+
+/// What the link observers care about: a change in any field is news.
+std::string link_signature(const EthernetInfo& info) {
+    return (info.connected ? "1|" : "0|") + info.interface + "|" + info.ip_address + "|" +
+           info.status;
+}
+
+} // namespace
+
+void EthernetManager::add_link_observer(helix::LifetimeToken token,
+                                        helix::SharedCallback<void()> on_change) {
+    if (!on_change || !backend_) {
+        return;
+    }
+    link_observers_.push_back({std::move(token), std::move(on_change)});
+    if (link_timer_) {
+        return;
+    }
+
+    link_events_ = backend_->open_link_events();
+    ticks_since_probe_ = 0;
+    last_link_signature_.clear();
+    spdlog::debug("[EthernetManager] Watching the link ({})",
+                  link_events_ ? "backend events" : "periodic probe");
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            static_cast<EthernetManager*>(lv_timer_get_user_data(t))->link_watch_tick();
+        },
+        kLinkWatchPeriodMs, this);
+    link_timer_.reset(timer);
+    // The fallback compares against what the first probe finds, so take it now
+    // rather than one fallback period from now.
+    if (!link_events_) {
+        ticks_since_probe_ = kLinkProbeFallbackMs / kLinkWatchPeriodMs;
+    }
+}
+
+void EthernetManager::link_watch_tick() {
+    link_observers_.erase(
+        std::remove_if(link_observers_.begin(), link_observers_.end(),
+                       [](const LinkObserver& obs) { return obs.token.expired(); }),
+        link_observers_.end());
+    if (link_observers_.empty()) {
+        stop_link_watch();
+        return;
+    }
+
+    if (link_events_) {
+        if (link_events_->poll()) {
+            spdlog::debug("[EthernetManager] Link event");
+            notify_link_observers();
+        }
+        return;
+    }
+
+    if (probe_in_flight_ || ++ticks_since_probe_ < kLinkProbeFallbackMs / kLinkWatchPeriodMs) {
+        return;
+    }
+    ticks_since_probe_ = 0;
+    probe_in_flight_ = true;
+    auto tok = link_lifetime_.token();
+    get_info_async([this, tok](const EthernetInfo& info) {
+        std::string signature = link_signature(info);
+        tok.defer("EthernetManager::link_probe", [this, signature = std::move(signature)]() {
+            probe_in_flight_ = false;
+            const bool changed = !last_link_signature_.empty() && signature != last_link_signature_;
+            last_link_signature_ = signature;
+            if (changed) {
+                spdlog::debug("[EthernetManager] Link changed: {}", signature);
+                notify_link_observers();
+            }
+        });
+    });
+}
+
+void EthernetManager::stop_link_watch() {
+    spdlog::debug("[EthernetManager] No link observers left; watch stopped");
+    link_timer_.reset();
+    link_events_.reset();
+    link_lifetime_.invalidate();
+    probe_in_flight_ = false;
+}
+
+void EthernetManager::notify_link_observers() {
+    for (const auto& obs : link_observers_) {
+        obs.token.defer("EthernetManager::link_observer", obs.callback);
+    }
 }

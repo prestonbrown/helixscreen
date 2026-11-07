@@ -3,11 +3,16 @@
 
 #pragma once
 
+#include "ui_timer_guard.h"
+
+#include "async_lifetime_guard.h"
 #include "ethernet_backend.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 /**
  * @brief Ethernet Manager - High-level interface for Ethernet status queries
@@ -107,9 +112,52 @@ class EthernetManager {
      */
     std::string get_ip_address();
 
+    // ========================================================================
+    // Link Changes
+    // ========================================================================
+
+    /**
+     * @brief Be told when the Ethernet link or its address changes
+     *
+     * @p on_change runs on the UI thread through @p token, so an expired
+     * owner is never called. It carries no state: re-probe with
+     * get_info_async(). UI thread only.
+     *
+     * While any observer lives the manager watches the backend's link
+     * events (the kernel's, on Linux), or re-probes every
+     * kLinkProbeFallbackMs where the backend announces none. The watch
+     * stops once every observer has expired.
+     */
+    void add_link_observer(helix::LifetimeToken token, helix::SharedCallback<void()> on_change);
+
+    /// How often the watch checks for link events, in milliseconds.
+    static constexpr uint32_t kLinkWatchPeriodMs = 500;
+    /// How often a backend without link events is re-probed, in milliseconds.
+    static constexpr uint32_t kLinkProbeFallbackMs = 3000;
+
     friend class EthernetManagerTestAccess;
 
   private:
+    struct LinkObserver {
+        helix::LifetimeToken token;
+        helix::SharedCallback<void()> callback;
+    };
+
+    /// One watch tick: drop expired observers, then check for a change.
+    void link_watch_tick();
+    void stop_link_watch();
+    void notify_link_observers();
+
+    std::vector<LinkObserver> link_observers_;
+    helix::ui::LvglTimerGuard link_timer_;
+    std::unique_ptr<helix::ethernet::LinkEvents> link_events_;
+    /// Fallback probing: ticks since the last probe, one probe at a time, and
+    /// the state the last probe found ("" until the first one lands).
+    uint32_t ticks_since_probe_ = 0;
+    bool probe_in_flight_ = false;
+    std::string last_link_signature_;
+    helix::AsyncLifetimeGuard link_lifetime_;
+
     // Held as shared_ptr so that an in-flight async worker (see
     // get_info_async) can keep the backend alive past EthernetManager's
     // destruction. The worker captures a copy of this shared_ptr by value;
