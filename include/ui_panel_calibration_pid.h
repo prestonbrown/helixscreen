@@ -273,9 +273,6 @@ class PIDCalibrationPanel : public OverlayBase {
     /// migration). It outlives the screensaver, which leaves the run going on
     /// the printer, and is invalidated when the user really leaves the panel.
     helix::AsyncLifetimeGuard run_lifetime_;
-    /// Set while the screensaver has the panel suspended: the wake resumes
-    /// whatever the panel showed instead of resetting it.
-    bool suspended_ = false;
     /// A run entered CALIBRATING behind the screensaver: the wake starts its
     /// progress tracking instead of resuming one.
     bool tracking_starts_on_wake_ = false;
