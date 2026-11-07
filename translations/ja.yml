@@ -4671,6 +4671,7 @@ translations:
   target {}%: '目標 {}%'
   target {}°: '目標 {}°'
   the ACE needs a material and its nozzle temperature: "ACEには素材とそのノズル温度が必要です"
+  "the CFS can't change a slot while a print is running": "印刷中はCFSのスロットを変更できません"
   the QIDI Box filament list has not loaded: "QIDI Boxのフィラメントリストが読み込まれていません"
   the QIDI Box has no {} in its filament list: "QIDI Boxのフィラメントリストに{}がありません"
   the extruder: エクストルーダー

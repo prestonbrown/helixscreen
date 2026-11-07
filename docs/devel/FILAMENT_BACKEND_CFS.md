@@ -204,8 +204,10 @@ the same way
 
 **Edits are written to the box.** The box holds a bay's colour and material, so
 `apply_user_edit()` writes them there (`push_slot_identity_to_firmware`) and the lane shows
-the edit as Pending until a frame restates it. A write that does not reach the printer
-refuses the edit and saves nothing.
+the edit as Pending until a frame restates it. The lane record is saved once Klipper has run
+the write; a write that does not reach the printer, or that Klipper rejects, saves nothing
+and withdraws the pending edit with Klipper's message. While a print holds the printer an
+edit is refused (a box write changes the same-material refill groups under the print).
 
 - **Stock:** `BOX_MODIFY_TN_DATA ... PART=color_value DATA=0RRGGBB` (`-1` for a cleared
   colour) and `PART=material_type DATA=<code>`, then `BOX_UPDATE_SAME_MATERIAL_LIST`. The
@@ -224,16 +226,19 @@ refuses the edit and saves nothing.
   `_BOX_SLOT_CLEAR`, since `_BOX_SLOT_SET` requires one.
 - **Unidentified flat module:** no write command, so an edit is refused.
 
-The lane record (`lane_data`, writer `helixscreen`) carries what the box has no field for
+The colour/material mirror into the record (`converge_box_lanes_locked`) waits for the first
+read of the records to land, so a frame that beats it cannot post a bare record over a stored
+one. The lane record (`lane_data`, writer `helixscreen`) carries what the box has no field for
 (brand, spool, weights, temperatures, colour name, catalog pick, a material without a code)
 plus the colour and material for slicers. Firmware outranks the record wherever the box
 states a field.
 
-**Clear Spool** resets the box too, so Creality's own screen agrees: stock sends
-`material_type DATA=-1` and `color_value DATA=-1` (and `remain_len DATA=-1` on a bay
-whose tag is seated, so the untagged `remain_len` presence fallback cannot keep the
-pulled spool present once the code reads unset), then `BOX_UPDATE_SAME_MATERIAL_LIST`;
-Fork sends `_BOX_SLOT_CLEAR`.
+**Clear Spool** resets the box too, so Creality's own screen agrees. Its cleared edit is the
+box write (once; `clear_slot_override()` is the lane half and writes nothing): stock sends
+`material_type DATA=-1` and `color_value DATA=-1` (and, for any emptied material on a bay
+whose tag is seated, `remain_len DATA=-1`, so the untagged `remain_len` presence fallback
+cannot keep the pulled spool present once the code reads unset), then
+`BOX_UPDATE_SAME_MATERIAL_LIST`; Fork sends `_BOX_SLOT_CLEAR`.
 
 What a stock tag reading can carry is whatever `box_wrapper` publishes per bay in
 `T<n>`: `material_type` (catalog code, resolved through `assets/filaments.json`'s `cfs`
@@ -384,13 +389,14 @@ Two deliberate subtleties in the stock derivation:
   pulls the external filament back out, the sentinel clears but the declaration stands
   until the toggle is turned off — matching what the sidebar toggle shows.
 
-The declaration lives in Moonraker, as the `helix_bypass_declared` key beside the bays'
-records in `lane_data` (`FilamentSlotOverrideStore::save_key_async`), because the box cannot
+The declaration lives in Moonraker, as the `cfs_bypass_declared` key in HelixScreen's own
+`helix-screen` namespace (`FilamentSlotOverrideStore::save_key_async`; not in `lane_data`, whose
+every value OrcaSlicer reads as a record), because the box cannot
 hold it: on a K2 Plus `enable` returned to 1 by itself across a restart, with no host command,
 while the external spool was still feeding, so `enable` is not read as the declaration.
 `enable_bypass`/`disable_bypass` write and delete the key, a lane load that re-arms the box
-deletes it, and so does the drift guard below (a bay named active). It is read with the lane
-records on every refresh and poll (`AmsBackendCfs::on_lane_record_keys_locked`), so a restart
+deletes it, and so does the drift guard below (a bay named active). It is read beside the lane
+records on every refresh and poll (`AmsBackendCfs::refresh_backend_keys`), so a restart
 and every other HelixScreen on the printer see the same declaration. A value this client wrote holds
 until a read returns it or the write fails (`bypass_declared_unconfirmed_`), so a read that
 left before the write landed cannot flip the toggle back.

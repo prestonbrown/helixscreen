@@ -239,6 +239,7 @@ void AmsSubscriptionBackend::refresh_lane_records() {
     if (store == nullptr) {
         return;
     }
+    refresh_backend_keys(*store);
     if (refresh_in_flight_) {
         refresh_again_ = true;
         return;
@@ -246,13 +247,11 @@ void AmsSubscriptionBackend::refresh_lane_records() {
     refresh_in_flight_ = true;
     auto token = lifetime_.token();
     store->reload_async(
-        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records,
-                             nlohmann::json keys) {
-            token.defer(
-                "AmsSubscriptionBackend::adopt_lane_records",
-                [this, store, records = std::move(records), keys = std::move(keys)]() mutable {
-                    adopt_lane_records(store, std::move(records), keys);
-                });
+        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            token.defer("AmsSubscriptionBackend::adopt_lane_records",
+                        [this, store, records = std::move(records)]() mutable {
+                            adopt_lane_records(store, std::move(records));
+                        });
         },
         [this, token]() {
             token.defer("AmsSubscriptionBackend::lane_records_unread", [this]() {
@@ -265,7 +264,7 @@ void AmsSubscriptionBackend::refresh_lane_records() {
 
 void AmsSubscriptionBackend::adopt_lane_records(
     helix::ams::FilamentSlotOverrideStore* store,
-    std::unordered_map<int, helix::ams::LaneDataRecord> records, const nlohmann::json& keys) {
+    std::unordered_map<int, helix::ams::LaneDataRecord> records) {
     refresh_in_flight_ = false;
     bool changed = false;
     std::unordered_map<int, nlohmann::json> previous;
@@ -288,7 +287,6 @@ void AmsSubscriptionBackend::adopt_lane_records(
         changed = lane_records_unread_ || previous != lane_wire_seen_;
         lane_records_unread_ = false;
         on_lane_records_read_locked();
-        changed = on_lane_record_keys_locked(keys) || changed;
     }
 
     // Every read is filed whole, so a record another client rewrote shows on
@@ -365,6 +363,25 @@ void AmsSubscriptionBackend::persist_user_record_locked(int slot_index, const Sl
         helix::ams::save_override_async(override_store_.get(), slot_index, staged,
                                         backend_log_tag(), "Override", lane_id(slot_index));
     }
+}
+
+helix::SharedCallback<void()> AmsSubscriptionBackend::record_once_written(int slot_index,
+                                                                          SlotInfo recorded) {
+    return [this, slot_index, recorded = std::move(recorded)]() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        persist_user_record_locked(slot_index, recorded);
+    };
+}
+
+helix::SharedCallback<void(const MoonrakerError&)>
+AmsSubscriptionBackend::withdraw_edit_if_rejected(int slot_index) {
+    return [this, slot_index](const MoonrakerError& err) {
+        spdlog::warn("{} edit of slot {} not written: {}", backend_log_tag(), slot_index,
+                     err.message);
+        helix::ams::withdraw_pending(lane_id(slot_index), err.message);
+        repaint_slot_from_lane(slot_index);
+        emit_event(kEventSlotChanged, std::to_string(slot_index));
+    };
 }
 
 void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,

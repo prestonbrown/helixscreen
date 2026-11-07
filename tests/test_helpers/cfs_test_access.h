@@ -126,10 +126,10 @@ class CfsTestAccess {
         b.system_info_.supports_bypass = true;
     }
 
-    /// What a lane-record read carrying @p keys does to the backend.
-    static bool adopt_lane_keys(helix::printer::AmsBackendCfs& b, const nlohmann::json& keys) {
+    /// What a read of the bypass declaration finding @p declared does.
+    static bool adopt_bypass_declaration(helix::printer::AmsBackendCfs& b, bool declared) {
         std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.on_lane_record_keys_locked(keys);
+        return b.adopt_bypass_declaration_locked(declared);
     }
 
     static void mark_running(helix::printer::AmsBackendCfs& b) {
@@ -243,6 +243,11 @@ class CfsTestAccess {
 
     /// Run the real on_started (declaration restore + initial query; the
     /// Moonraker query itself is null-guarded in test constructions).
+    /// on_started() with the store's first read left unlanded on the queue.
+    static void call_on_started_unread(helix::printer::AmsBackendCfs& b) {
+        b.on_started();
+    }
+
     static void call_on_started(helix::printer::AmsBackendCfs& b) {
         b.on_started();
         // The store's first read lands through the update queue.

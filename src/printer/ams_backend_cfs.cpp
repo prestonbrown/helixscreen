@@ -2507,7 +2507,10 @@ void AmsBackendCfs::converge_box_lanes_locked(BoxFrame& f) {
             // a DELETE landing second silently drops the record we just
             // published. The next poll republishes from firmware truth
             // with the delete already settled.
-            if (!cleared) {
+            // Not before the first read of the records lands: the read
+            // replaces overrides_, and a mirror save from an empty map would
+            // post a bare record over the stored one.
+            if (!cleared && lane_records_ready()) {
                 strip_spoolman_link_on_runout_locked(slot, global_idx);
                 helix::ams::mirror_firmware_to_lane_data(
                     override_store_.get(), overrides_, global_idx, slot.color_rgb, slot.material,
@@ -2934,6 +2937,13 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info) {
                                                 system_info_.total_slots - 1);
         }
     }
+    // A box write changes the same-material refill groups, and a cleared bay
+    // its remaining length, under a print that may be drawing on them.
+    if (print_holds_printer()) {
+        return AmsError(AmsResult::WRONG_STATE, "CFS slot write refused during a print",
+                        lv_tr("the CFS can't change a slot while a print is running"), "",
+                        slot_index);
+    }
 
     // The Fork module stores a material uppercased, so that is the spelling
     // the lane waits for and the record carries.
@@ -2943,25 +2953,29 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info) {
     }
 
     // The box holds the colour and material, so the edit goes to the box; the
-    // lane shows it as pending until the box restates it. A write the box
-    // never received is the edit refused.
-    if (auto err = push_slot_identity_to_firmware(slot_index, written); !err.success()) {
+    // lane shows it as pending until the box restates it. What the box holds
+    // no field for (brand, spool, weights, temperatures, a material it has no
+    // code for) lives in the lane record, which also gives slicers the colour
+    // and material, and is saved once Klipper has run the write: a write it
+    // rejects saves nothing.
+    auto record = record_once_written(slot_index, written);
+    auto on_written = [this, slot_index, written, record]() {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (SlotInfo* target = bay_locked(slot_index)) {
+                write_filament_fields(*target, written);
+            }
+        }
+        record();
+    };
+    if (auto err = push_slot_identity_to_firmware(slot_index, written, on_written,
+                                                  withdraw_edit_if_rejected(slot_index));
+        !err.success()) {
         return err;
     }
     if (written.material != info.material) {
         helix::ams::file_pending(lane_id(slot_index),
                                  helix::ams::user_edit_observation(info, written));
-    }
-
-    // What the box holds no field for (brand, spool, weights, temperatures, a
-    // material it has no code for) lives in the lane record, which also gives
-    // slicers the colour and material.
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (SlotInfo* target = bay_locked(slot_index)) {
-            write_filament_fields(*target, written);
-        }
-        persist_user_record_locked(slot_index, written);
     }
     spdlog::info("[AMS CFS] Updated slot {} info: {} {}", slot_index, info.material,
                  info.color_name);
@@ -3050,7 +3064,9 @@ void AmsBackendCfs::expect_box_to_restate_locked(int slot_index, std::string uid
         std::move(uid), std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout};
 }
 
-AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const SlotInfo& info) {
+AmsError AmsBackendCfs::push_slot_identity_to_firmware(
+    int global_index, const SlotInfo& info, helix::SharedCallback<void()> on_written,
+    helix::SharedCallback<void(const MoonrakerError&)> on_rejected) {
     // Validate slot index BEFORE formatting the gcode — invalid args trigger
     // an unhandled TypeError in box_wrapper that Klipper escalates to
     // invoke_shutdown. The bound is the attached unit count (the TNN alphabet
@@ -3072,27 +3088,37 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
         if (firmware_slot < 0) {
             return firmware_slot_unknown(global_index);
         }
+        // `_BOX_SLOT_SET` requires a colour and stores whatever it is given,
+        // so an edit naming none keeps the colour the box holds (or, with
+        // none, the module's own unset grey) rather than writing the "no
+        // colour" sentinel as a real one.
+        uint32_t color_rgb = info.color_rgb;
+        if (!helix::ams::is_declarable_color(color_rgb)) {
+            const auto firmware = helix::ams::lane_sources(lane_id(global_index)).firmware;
+            if (firmware && firmware->color_rgb) {
+                color_rgb = *firmware->color_rgb;
+            }
+        }
         // `_BOX_SLOT_SET` requires a material, so an edit that empties it
         // empties the slot's profile.
         const std::string gcode =
             info.material.empty() ? "_BOX_SLOT_CLEAR SLOT=" + std::to_string(firmware_slot)
-                                  : slot_set_gcode(firmware_slot, info.material, info.color_rgb,
+                                  : slot_set_gcode(firmware_slot, info.material, color_rgb,
                                                    info.brand, info.spool_name, info.spoolman_id);
         if (gcode.empty()) {
             return AmsErrorHelper::invalid_slot(lane_noun(), global_index,
                                                 system_info_.total_slots - 1);
         }
-        if (auto err = execute_gcode(gcode); !err.success()) {
+        if (auto err = execute_gcode(gcode, on_written, on_rejected, /*silent=*/false);
+            !err.success()) {
             return err;
         }
         std::lock_guard<std::mutex> lock(mutex_);
         expect_box_to_restate_locked(
-            global_index,
-            info.material.empty()
-                ? std::string{}
-                : compose_cfs_flat_uid(helix::text_io::to_upper(info.material),
-                                       helix::ams::is_declarable_color(info.color_rgb),
-                                       info.color_rgb));
+            global_index, info.material.empty()
+                              ? std::string{}
+                              : compose_cfs_flat_uid(helix::text_io::to_upper(info.material),
+                                                     /*has_color=*/true, color_rgb));
         return AmsErrorHelper::success();
     }
 
@@ -3112,8 +3138,11 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
     // over the code the box still carries.
     std::string material_data;
     std::string base_material;
+    bool tag_seated = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        const auto occupied = bay_occupied_.find(global_index);
+        tag_seated = occupied != bay_occupied_.end() && occupied->second;
         material_data = info.material.empty()
                             ? std::string("-1")
                             : material_code_locked(info.material, info.brand, info.catalog_id);
@@ -3145,11 +3174,18 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const S
         gcode += target + "material_type DATA=" + material_data + "\n";
     }
     gcode += target + "color_value DATA=" + color_data;
+    // Once the code reads unset, a seated tag's latched remain_len would keep
+    // the pulled spool reading present (the untagged presence fallback,
+    // #1077), so an emptied material forgets the length too.
+    if (material_data == "-1" && tag_seated) {
+        gcode += "\n" + target + "remain_len DATA=-1";
+    }
     spdlog::debug("{} writing slot {} identity: material_type={} color={}", backend_log_tag(),
                   global_index, material_data.empty() ? "(record only)" : material_data,
                   color_data);
 
-    if (auto err = execute_gcode(gcode); !err.success()) {
+    if (auto err = execute_gcode(gcode, on_written, on_rejected, /*silent=*/false);
+        !err.success()) {
         std::lock_guard<std::mutex> lock(mutex_);
         pushed_material_codes_.erase(global_index);
         return err;
@@ -3350,8 +3386,23 @@ void AmsBackendCfs::persist_bypass_declared_locked(bool declared) {
     }
 }
 
-bool AmsBackendCfs::on_lane_record_keys_locked(const nlohmann::json& keys) {
-    const bool declared = helix::json_util::safe_bool(keys, kBypassDeclaredKey, false);
+void AmsBackendCfs::refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) {
+    store.load_key_async(kBypassDeclaredKey, [this,
+                                              token = lifetime_.token()](nlohmann::json value) {
+        token.defer("AmsBackendCfs::adopt_bypass_declaration", [this, value]() {
+            bool changed = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                changed = adopt_bypass_declaration_locked(value.is_boolean() && value.get<bool>());
+            }
+            if (changed) {
+                emit_event(EVENT_STATE_CHANGED);
+            }
+        });
+    });
+}
+
+bool AmsBackendCfs::adopt_bypass_declaration_locked(bool declared) {
     if (bypass_declared_unconfirmed_) {
         if (*bypass_declared_unconfirmed_ != declared) {
             return false;
@@ -5541,8 +5592,9 @@ void AmsBackendCfs::strip_spoolman_link_on_runout_locked(SlotInfo& slot, int slo
 }
 
 void AmsBackendCfs::clear_slot_override(int slot_index) {
-    int firmware_slot;
-    bool tag_seated = false;
+    // The lane half of Clear Spool. The box's own clear went out with the
+    // cleared edit that precedes this (push_slot_identity_to_firmware), so
+    // nothing is written to the box here.
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.get_slot_global(slot_index);
@@ -5553,42 +5605,8 @@ void AmsBackendCfs::clear_slot_override(int slot_index) {
         }
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
-        firmware_slot = firmware_slot_locked(slot_index);
-        pushed_material_codes_.erase(slot_index);
-        unconfirmed_writes_.erase(slot_index);
-        const auto occupied = bay_occupied_.find(slot_index);
-        tag_seated = occupied != bay_occupied_.end() && occupied->second;
     }
-
     emit_event(kEventSlotChanged, std::to_string(slot_index));
-    if (macro_variant_ == CfsMacroVariant::Fork) {
-        if (firmware_slot < 0) {
-            spdlog::warn("{} clear_slot_override: bay {} has no firmware slot - not clearing the "
-                         "Box profile",
-                         backend_log_tag(), slot_index);
-            return;
-        }
-        execute_gcode("_BOX_SLOT_CLEAR SLOT=" + std::to_string(firmware_slot));
-        return;
-    }
-    if (schema_ == CfsSchema::Flat || !validate_slot_index(slot_index).success()) {
-        return;
-    }
-
-    // The box forgets the bay's colour and material too, so Creality's own
-    // screen agrees with the clear: "-1" is the box's own unset value. A bay
-    // with a tag seated also forgets its remaining length: once the material
-    // code reads unset, the box's latched remain_len would otherwise keep the
-    // pulled spool reading present (the untagged presence fallback, #1077).
-    const std::string target = "BOX_MODIFY_TN_DATA ADDR=" + std::to_string(slot_index / 4 + 1) +
-                               " NUM=" + static_cast<char>('A' + slot_index % 4) + " PART=";
-    std::string gcode = target + "material_type DATA=-1\n" + target + "color_value DATA=-1";
-    if (tag_seated) {
-        gcode += "\n" + target + "remain_len DATA=-1";
-    }
-    if (execute_gcode(gcode).success()) {
-        execute_gcode("BOX_UPDATE_SAME_MATERIAL_LIST");
-    }
 }
 
 void AmsBackendCfs::publish_external_spool_lane(const SlotInfo* spool) {

@@ -751,8 +751,12 @@ void AmsBackendAce::apply_hub_temps_locked(int slot_index, SlotInfo& slot,
         user_temps_[static_cast<size_t>(slot_index)]) {
         return;
     }
-    slot.nozzle_temp_min = helix::json_util::safe_int(slot_json, "temp_min", slot.nozzle_temp_min);
-    slot.nozzle_temp_max = helix::json_util::safe_int(slot_json, "temp_max", slot.nozzle_temp_max);
+    // The ACEPRO driver keeps one temperature per slot, `temp`.
+    const int temp = helix::json_util::safe_int(slot_json, "temp", 0);
+    slot.nozzle_temp_min =
+        helix::json_util::safe_int(slot_json, "temp_min", temp > 0 ? temp : slot.nozzle_temp_min);
+    slot.nozzle_temp_max =
+        helix::json_util::safe_int(slot_json, "temp_max", temp > 0 ? temp : slot.nozzle_temp_max);
 }
 
 void AmsBackendAce::note_tag_frame_locked(int slot_index, helix::ace::TagRead tag_read,
@@ -826,6 +830,26 @@ std::string AmsBackendAce::set_slot_gcode(int slot_index, const SlotInfo& info) 
                        rgb & 0xFF, helix::text_io::quote_gcode_param(info.material), nozzle);
 }
 
+void AmsBackendAce::apply_edit_to_slot(int slot_index, const SlotInfo& info) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    SlotInfo* slot = mutable_slot_locked(slot_index);
+    if (!slot) {
+        return;
+    }
+    // The hub states its own temperatures on the REST bridge, and the record
+    // keeps one for every edit, so only an edit that moved them marks them the
+    // user's (apply_hub_temps_locked).
+    if (info.nozzle_temp_min != slot->nozzle_temp_min ||
+        info.nozzle_temp_max != slot->nozzle_temp_max) {
+        const auto idx = static_cast<size_t>(slot_index);
+        if (user_temps_.size() <= idx) {
+            user_temps_.resize(idx + 1, false);
+        }
+        user_temps_[idx] = true;
+    }
+    write_filament_fields(*slot, info);
+}
+
 AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
     bool hub_stores_edits = false;
     {
@@ -849,31 +873,22 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
                             lv_tr("the ACE needs a material and its nozzle temperature"), "",
                             slot_index);
         }
-        if (auto err = execute_gcode(gcode); !err.success()) {
-            return err;
-        }
+        // The record is saved once the driver has run the write: one it
+        // rejects saves nothing.
+        auto record = record_once_written(slot_index, info);
+        auto on_written = [this, slot_index, info, record]() {
+            apply_edit_to_slot(slot_index, info);
+            record();
+        };
+        return execute_gcode(gcode, on_written, withdraw_edit_if_rejected(slot_index),
+                             /*silent=*/false);
     }
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = mutable_slot_locked(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
-        }
-        // The hub states its own temperatures on the REST bridge, and the
-        // record keeps one for every edit, so only an edit that moved them
-        // marks them the user's (apply_hub_temps_locked).
-        if (info.nozzle_temp_min != slot->nozzle_temp_min ||
-            info.nozzle_temp_max != slot->nozzle_temp_max) {
-            const auto idx = static_cast<size_t>(slot_index);
-            if (user_temps_.size() <= idx) {
-                user_temps_.resize(idx + 1, false);
-            }
-            user_temps_[idx] = true;
-        }
-        write_filament_fields(*slot, info);
         persist_user_record_locked(slot_index, info);
     }
+    apply_edit_to_slot(slot_index, info);
     spdlog::info("[ACE] Updated slot {} info: {} {}", slot_index, info.material, info.color_name);
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
@@ -1666,6 +1681,7 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
                 cache.color_rgb = observed_color;
                 cache.material = observed_material;
                 file_hub_reading_locked(idx, cache);
+                apply_hub_temps_locked(idx, slot, slot_json);
                 note_tag_frame_locked(idx, tag_read, slot_json, observed_material, observed_color,
                                       observed_present);
 
@@ -2814,7 +2830,6 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
 }
 
 void AmsBackendAce::clear_slot_override(int slot_index) {
-    bool hub_stores_edits = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = mutable_slot_locked(slot_index);
@@ -2826,14 +2841,9 @@ void AmsBackendAce::clear_slot_override(int slot_index) {
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
         forget_user_temps_locked(slot_index);
-        hub_stores_edits = instance_commands_;
     }
-
-    // The ACEPRO hub forgets the slot's colour, material and temperature too;
-    // its presence comes back from the hardware on the next heartbeat.
-    if (hub_stores_edits) {
-        execute_gcode(slot_command("ACE_SET_SLOT", slot_index) + " EMPTY=1");
-    }
+    // The lane half of Clear Spool: on ACEPRO the hub's own clear
+    // (ACE_SET_SLOT EMPTY=1) went out with the cleared edit before this.
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 

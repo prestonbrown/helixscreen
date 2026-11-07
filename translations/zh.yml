@@ -4661,6 +4661,7 @@ translations:
   target {}%: '目标 {}%'
   target {}°: '目标 {}°'
   the ACE needs a material and its nozzle temperature: "ACE 需要材料及其喷嘴温度"
+  "the CFS can't change a slot while a print is running": "打印期间 CFS 无法更改槽位"
   the QIDI Box filament list has not loaded: "QIDI Box 的耗材列表尚未加载"
   the QIDI Box has no {} in its filament list: "QIDI Box 的耗材列表中没有 {}"
   the extruder: 挤出机

@@ -794,7 +794,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Returns the dispatch's error when the write did not go out, so the
     /// caller refuses the edit. Virtual + protected so test subclasses can
     /// capture the gcode without a live Moonraker connection.
-    virtual AmsError push_slot_identity_to_firmware(int global_index, const SlotInfo& info);
+    /// @p on_written and @p on_rejected are execute_gcode()'s answers for the
+    /// identity write itself.
+    virtual AmsError push_slot_identity_to_firmware(
+        int global_index, const SlotInfo& info, helix::SharedCallback<void()> on_written = nullptr,
+        helix::SharedCallback<void(const MoonrakerError&)> on_rejected = nullptr);
 
     /// The 6-char material_type code to write for @p material: the catalog
     /// product @p catalog_id names, then a code this box reported for
@@ -915,8 +919,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     std::atomic<bool> fork_print_map_{false};
 
     /// Stock dialect only: a client has declared bypass intent (sidebar toggle
-    /// ON after the chained unload). Held in Moonraker as the lane namespace's
-    /// kBypassDeclaredKey and read with the lane records, since the box cannot
+    /// ON after the chained unload). Held in Moonraker as kBypassDeclaredKey in
+    /// HelixScreen's own namespace and read with every lane-record refresh,
+    /// since the box cannot
     /// hold it: its `enable` can return to 1 by itself across a restart with
     /// the external spool still feeding. Paired with BOX_ENABLE_CFS_PRINT ENABLE=0
     /// on enable (the box must stand down or it can drive bay filament into a
@@ -925,8 +930,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// never sets it — its firmware owns the external slot natively.
     bool bypass_declared_ = false;
 
-    /// The lane namespace key holding the bypass declaration.
-    static constexpr const char* kBypassDeclaredKey = "helix_bypass_declared";
+    /// The key (FilamentSlotOverrideStore::save_key_async()) holding the bypass
+    /// declaration.
+    static constexpr const char* kBypassDeclaredKey = "cfs_bypass_declared";
 
     /// Write or withdraw the declaration in Moonraker. Caller holds mutex_.
     void persist_bypass_declared_locked(bool declared);
@@ -936,9 +942,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// older than the write. Under mutex_.
     std::optional<bool> bypass_declared_unconfirmed_;
 
-    /// Adopt the declaration a lane-record read found (this client's or
-    /// another's). Caller holds mutex_.
-    bool on_lane_record_keys_locked(const nlohmann::json& keys) override;
+    /// Read the declaration with every lane-record refresh and poll.
+    void refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) override;
+
+    /// Adopt the declaration a read found (this client's or another's).
+    /// Returns true when it changed. Caller holds mutex_.
+    bool adopt_bypass_declaration_locked(bool declared);
 
     /// The external-spool lane key last held a record that is not our mirror,
     /// and that was logged. Reset once the key is ours again. Guarded by mutex_.
