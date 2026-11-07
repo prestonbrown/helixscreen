@@ -49,10 +49,11 @@ void format_offset_compact(int microns, char* buf, size_t buf_size);
 ///                           (every non-ZMOD printer, and ZMOD before its
 ///                           save_variables frame has arrived)
 /// @param print_active       a print is currently running
-/// @param per_head           the firmware keeps a Z offset per head
-///                           (firmware_applies_z_offset_per_head()): the live
-///                           offset is the mounted head's own, and a stored
-///                           machine-wide value is never shown
+/// @param per_head           the firmware applies each head's own Z offset at
+///                           pickup (PrinterProfileState::
+///                           z_offset_reapplied_per_head()): the live offset is
+///                           the mounted head's own, and a stored machine-wide
+///                           value is never shown
 int displayed_z_offset_microns(int live_microns, std::optional<int> persisted_microns,
                                bool print_active, bool per_head = false);
 
@@ -73,12 +74,12 @@ int displayed_z_offset_microns(helix::PrinterState& state);
 /// @param base_microns  offset the UI displayed and is adjusting from
 /// @param live_microns  Klipper's current gcode_move.homing_origin[2]
 /// @param delta_microns signed baby-step
-/// A firmware that keeps a Z offset per head (@p per_head) always gets the
-/// relative form: it saves only a Z_ADJUST against the mounted head, and an
-/// absolute Z= would put a value that belongs to no head on the mounted one.
+/// A firmware that applies each head's own Z offset at pickup (@p per_head)
+/// always gets the relative form: an absolute Z= would put a value that
+/// belongs to no head on the mounted one, and Z-Mod saves only a Z_ADJUST.
 ///
 /// @param all_homed     x, y and z are all homed (MOVE=1 errors otherwise)
-/// @param per_head      firmware_applies_z_offset_per_head() for this printer
+/// @param per_head      PrinterProfileState::z_offset_reapplied_per_head()
 std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
                                  bool all_homed, bool per_head = false);
 

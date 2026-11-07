@@ -36,7 +36,7 @@ class ProbeOverlayZOffsetFixture : public XMLTestFixture {
     }
 
     ~ProbeOverlayZOffsetFixture() override {
-        set("printer_z_offset_per_head", 0);
+        set("z_offset_reapplied_per_head", 0);
         set("printer_has_tool_offset_cal", 0);
         set("hide_manual_z_calibration", 0);
     }
@@ -63,17 +63,17 @@ TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
                  "[probe][xml][per_head]") {
     set("printer_has_tool_offset_cal", 0);
     set("hide_manual_z_calibration", 0);
-    set("printer_z_offset_per_head", 0);
+    set("z_offset_reapplied_per_head", 0);
     CHECK_FALSE(button_hidden());
 
-    set("printer_z_offset_per_head", 1);
+    set("z_offset_reapplied_per_head", 1);
     CHECK(button_hidden());
 }
 
 TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
                  "Probe Z-Offset button steps aside for a full tool offset routine",
                  "[probe][xml][tool_offsets]") {
-    set("printer_z_offset_per_head", 0);
+    set("z_offset_reapplied_per_head", 0);
     set("printer_has_tool_offset_cal", 1);
     set("hide_manual_z_calibration", 0);
     CHECK_FALSE(button_hidden());

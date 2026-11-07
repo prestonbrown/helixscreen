@@ -304,12 +304,12 @@ TEST_CASE_METHOD(ControlsCalibGridFixture,
         return false;
     };
 
-    set("printer_z_offset_per_head", 0);
+    set("z_offset_reapplied_per_head", 0);
     settle();
     CHECK_FALSE(tile_hidden());
 
-    set("printer_z_offset_per_head", 1);
+    set("z_offset_reapplied_per_head", 1);
     settle();
     CHECK(tile_hidden());
-    set("printer_z_offset_per_head", 0);
+    set("z_offset_reapplied_per_head", 0);
 }

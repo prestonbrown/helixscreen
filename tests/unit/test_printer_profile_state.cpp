@@ -175,6 +175,37 @@ TEST_CASE("PrinterProfileState republishes the tune hint when per-head storage i
     profile.deinit_subjects();
 }
 
+TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-applied at pickup",
+          "[printer_state][profile][zoffset][per_head]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+    auto reapplied = [&] {
+        return lv_subject_get_int(profile.get_z_offset_reapplied_per_head_subject());
+    };
+
+    // The U1 re-applies the mounted head's stored offset at every tool change and
+    // saves nothing: re-applied, but the tune hint keeps saying temporary.
+    REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
+    CHECK(profile.z_offset_reapplied_per_head());
+    CHECK(reapplied() == 1);
+    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
+          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE));
+
+    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
+    CHECK_FALSE(profile.z_offset_reapplied_per_head());
+    CHECK(reapplied() == 0);
+
+    // Z-Mod's per-head storage, found by discovery rather than the database.
+    CHECK(profile.set_z_offset_per_head(true));
+    CHECK(profile.z_offset_reapplied_per_head());
+    CHECK(reapplied() == 1);
+    CHECK(profile.set_z_offset_per_head(false));
+    CHECK(reapplied() == 0);
+
+    profile.deinit_subjects();
+}
+
 TEST_CASE("PrinterProfileState republishes the tune hint when Z-offset saving changes",
           "[printer_state][profile][zoffset][save-toggle]") {
     LVGLTestFixture fixture;

@@ -21,7 +21,6 @@
 #include "stepper_resonance_calibration.h"
 #include "tool_offset_calibration.h"
 #include "webcam_selection.h"
-#include "z_offset_persistence.h"
 
 #include <spdlog/spdlog.h>
 
@@ -71,7 +70,6 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasLayerPause, "printer_has_layer_pause", 0},
     {Capability::HasToolOffsetCal, "printer_has_tool_offset_cal", 0},
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
-    {Capability::ZOffsetPerHead, "printer_z_offset_per_head", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
@@ -296,8 +294,6 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(
         Capability::HasToolOffsetCal,
         tool_offset_procedure.kind != helix::tool_offset_calibration::ProcedureKind::None ? 1 : 0);
-    set_capability(Capability::ZOffsetPerHead,
-                   helix::zoffset::firmware_applies_z_offset_per_head(hardware) ? 1 : 0);
     tool_offset_cal_description_key_ = tool_offset_procedure.entry_description;
     render_tool_offset_cal_description();
 

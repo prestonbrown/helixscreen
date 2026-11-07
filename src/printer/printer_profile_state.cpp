@@ -43,6 +43,8 @@ void PrinterProfileState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(z_offset_can_save, 1, subjects_, register_xml);
     INIT_SUBJECT_INT(z_offset_tune_hint, static_cast<int>(z_offset_tune_hint_value_), subjects_,
                      register_xml);
+    INIT_SUBJECT_INT(z_offset_reapplied_per_head, z_offset_reapplied_per_head() ? 1 : 0, subjects_,
+                     register_xml);
     subjects_initialized_ = true;
 }
 
@@ -112,6 +114,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
                            new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? 1 : 0);
         lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
+    publish_z_offset_reapplied_per_head();
     return true;
 }
 
@@ -146,7 +149,14 @@ bool PrinterProfileState::set_z_offset_per_head(bool per_head) {
         return false;
     }
     z_offset_per_head_ = per_head;
+    publish_z_offset_reapplied_per_head();
     return true;
+}
+
+void PrinterProfileState::publish_z_offset_reapplied_per_head() {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&z_offset_reapplied_per_head_, z_offset_reapplied_per_head() ? 1 : 0);
+    }
 }
 
 bool PrinterProfileState::merge_firmware_option_defaults(

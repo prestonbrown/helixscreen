@@ -71,7 +71,7 @@ int displayed_z_offset_microns(helix::PrinterState& state) {
         lv_subject_get_int(state.motion_state().get_gcode_z_offset_subject()),
         state.get_persisted_z_offset_microns(),
         lv_subject_get_int(state.print_state().get_print_active_subject()) != 0,
-        firmware_applies_z_offset_per_head(state.get_discovery()));
+        state.profile_state().z_offset_reapplied_per_head());
 }
 
 std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
@@ -270,7 +270,7 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
     // Read the live offset before the optimistic write below overwrites it.
     const int live_microns =
         ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
-    const bool per_head = ps && firmware_applies_z_offset_per_head(ps->get_discovery());
+    const bool per_head = ps && ps->profile_state().z_offset_reapplied_per_head();
     const bool adjusting_from_persisted = ps && !per_head && base_microns != live_microns;
 
     if (ps) {
