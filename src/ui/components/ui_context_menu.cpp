@@ -380,6 +380,18 @@ void ContextMenu::stretch_rows_to_card(lv_obj_t* menu_card) {
     lv_obj_t* columns = lv_obj_find_by_name(menu_card, kColumnsName);
     if (columns) {
         uint32_t col_cnt = lv_obj_get_child_count(columns);
+        // Stacked, the groups are rows of one list: each takes the list's width, so
+        // the narrower group's rows still reach the card's far edge.
+        const int32_t columns_w = lv_obj_get_content_width(columns);
+        if (lv_obj_get_style_flex_flow(columns, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN &&
+            columns_w > 0) {
+            for (uint32_t i = 0; i < col_cnt; i++) {
+                lv_obj_t* col = lv_obj_get_child(columns, i);
+                if (col && !lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+                    lv_obj_set_width(col, columns_w);
+            }
+            lv_obj_update_layout(menu_card);
+        }
         for (uint32_t i = 0; i < col_cnt; i++) {
             lv_obj_t* col = lv_obj_get_child(columns, i);
             if (col && !lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))

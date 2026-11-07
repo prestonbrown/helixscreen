@@ -165,6 +165,51 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: every tappable row spans its own
     process_lvgl(50);
 }
 
+// Stacked one above the other, the groups share one width: a row in the narrower
+// group ("Load") must still reach the card's far edge, or a tap on its right end
+// lands in dead space beside it.
+TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the whole card",
+                 "[ui][context_menu]") {
+    REQUIRE(register_component("ams_context_menu"));
+    AmsState::instance().init_subjects(true);
+    helix::ui::AmsContextMenu::init_subjects();
+
+    ScopedResolution tall(lv_display_get_default(), 800, 1280);
+
+    BareContextMenu menu;
+    lv_obj_t* card = show_and_get_card(menu, test_screen());
+
+    lv_obj_t* columns = lv_obj_find_by_name(card, "menu_columns");
+    REQUIRE(columns != nullptr);
+    REQUIRE(lv_obj_get_style_flex_flow(columns, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+
+    lv_area_t columns_area;
+    lv_obj_get_coords(columns, &columns_area);
+
+    int checked = 0;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(columns); i++) {
+        lv_obj_t* col = lv_obj_get_child(columns, i);
+        if (!col || lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+            continue;
+        for (uint32_t r = 0; r < lv_obj_get_child_count(col); r++) {
+            lv_obj_t* row = lv_obj_get_child(col, r);
+            if (!is_tappable(row))
+                continue;
+            lv_area_t row_area;
+            lv_obj_get_coords(row, &row_area);
+            INFO("column " << i << " row " << r << ": x " << row_area.x1 << ".." << row_area.x2
+                           << ", groups x " << columns_area.x1 << ".." << columns_area.x2);
+            CHECK(row_area.x1 == columns_area.x1);
+            CHECK(row_area.x2 == columns_area.x2);
+            checked++;
+        }
+    }
+    CHECK(checked >= 4);
+
+    menu.hide();
+    process_lvgl(50);
+}
+
 // The whole point of the reflow: whatever the layout ends up being, the card has to
 // sit inside the screen with a margin, or be scrollable if even the wide layout
 // cannot fit. A card that overflows is one whose top rows cannot be reached at all.
