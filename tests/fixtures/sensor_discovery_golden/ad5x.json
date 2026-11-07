@@ -22,7 +22,8 @@
       "extruder"
     ],
     "leds": [
-      "led chamber_led"
+      "led chamber_led",
+      "led chamber_light"
     ],
     "load_cells": [],
     "printer_objects": [
@@ -37,6 +38,7 @@
       "fan_generic chamber_fan",
       "controller_fan driver_fan",
       "led chamber_led",
+      "led chamber_light",
       "gcode_macro SET_EXTRUDER_SLOT",
       "exclude_object",
       "gcode_macro START_PRINT",
@@ -208,6 +210,9 @@
       "state"
     ],
     "led chamber_led": [
+      "color_data"
+    ],
+    "led chamber_light": [
       "color_data"
     ],
     "manual_probe": [

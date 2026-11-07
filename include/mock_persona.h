@@ -132,13 +132,13 @@ inline constexpr PersonaHardware kElegooCc1Hardware = {
      "temperature_fan mainboard"},
     {"led case", "led hotend"}};
 
-/// Fans mirror assets/config/presets/ad5x.json hardware/expected.
+/// Fans and LEDs mirror assets/config/presets/ad5x.json hardware/expected.
 inline constexpr PersonaHardware kFlashforgeAd5xHardware = {
     {"heater_bed", "extruder"},
     {"heater_bed", "extruder", "temperature_sensor chamber"},
     {"fan_generic fanM106", "heater_fan heat_fan", "fan_generic chamber_fan",
      "controller_fan driver_fan"},
-    {"led chamber_led"}};
+    {"led chamber_led", "led chamber_light"}};
 
 /// Names mirror tests/fixtures/printers/creality_k2_plus.json and
 /// assets/config/presets/k2.json hardware/expected. `temperature_fan chamber_fan` is
