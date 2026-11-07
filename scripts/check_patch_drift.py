@@ -83,6 +83,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 STAMP_NAME = "helix-patches-applied.json"
+OWN_GIT_DIR = Path(__file__).resolve().parent / "own_git_dir.sh"
 STAMP_VERSION = 1
 
 # Every patch-to-submodule binding in mk/patches.mk has one of two shapes:
@@ -202,10 +203,16 @@ class Submodule:
         which for a worktree's private lvgl/libhv checkout is that worktree's own
         .git/worktrees/<name>/modules/<name>. Asking the checkout is what keeps
         the stamp with the files it describes, since each tree patches its own.
+        A plain directory (a source tarball) has none, even inside another
+        repository: scripts/own_git_dir.sh is the one answer to that question.
         """
+        if not OWN_GIT_DIR.is_file():
+            # Without it every submodule would read as "not a git checkout"
+            # and the whole gate would pass by skipping.
+            sys.exit(f"check_patch_drift: {OWN_GIT_DIR} is missing")
         try:
             out = subprocess.run(
-                ["git", "-C", str(self.path), "rev-parse", "--absolute-git-dir"],
+                ["bash", str(OWN_GIT_DIR), str(self.path)],
                 capture_output=True,
                 text=True,
                 check=True,

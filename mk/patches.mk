@@ -304,13 +304,17 @@ PATCH_EXEMPT := libnl-socket-time-include.patch
 # lib/lvgl rev-parse` would then answer with the superproject's git dir, whose
 # HEAD moves on every commit. Scrub them so the question is answered by the -C
 # path.
-# In Docker/non-git contexts (rsync'd source), there is no git dir — that's fine,
-# patches will be re-checked based on patch file changes only.
+# In Docker/non-git contexts (rsync'd source, a source tarball), there is no git
+# dir — that's fine, patches will be re-checked based on patch file changes only.
+# A plain submodule directory inside some other repository has none either:
+# OWN_GIT_DIR names a git dir only for a directory that is its own checkout's
+# top, never the enclosing repository's.
 GIT_NOENV := env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY git
+OWN_GIT_DIR := bash scripts/own_git_dir.sh
 GIT_DIR := $(shell git rev-parse --git-dir 2>/dev/null || echo ".git")
-LVGL_GIT_DIR := $(shell $(GIT_NOENV) -C $(LVGL_DIR) rev-parse --absolute-git-dir 2>/dev/null)
-LIBHV_GIT_DIR := $(shell $(GIT_NOENV) -C $(LIBHV_DIR) rev-parse --absolute-git-dir 2>/dev/null)
-LUA_GIT_DIR := $(shell $(GIT_NOENV) -C $(LUA_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LVGL_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LVGL_DIR) 2>/dev/null)
+LIBHV_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LIBHV_DIR) 2>/dev/null)
+LUA_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LUA_DIR) 2>/dev/null)
 LVGL_HEAD := $(if $(LVGL_GIT_DIR),$(wildcard $(LVGL_GIT_DIR)/HEAD))
 LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
 LUA_HEAD := $(if $(LUA_GIT_DIR),$(wildcard $(LUA_GIT_DIR)/HEAD))
@@ -391,8 +395,16 @@ CHECK_PATCH_DRIFT := python3 scripts/check_patch_drift.py
 # which has not moved yet, so a file the old set created is deleted by name.
 # No stamp (never applied, or applied by a build that predates stamping) leaves
 # just the list.
+#
+# A submodule that is not its own git checkout (a source tarball) has no
+# upstream bytes to restore from, and git asked about it answers from the
+# enclosing repository, which calls every upstream file untracked and would
+# delete it. Such a tree is left as it is; re-extracting the source is the reset.
 define reset_submodule_patches
-	$(Q)files="$(2)"; \
+	$(Q)if ! $(OWN_GIT_DIR) $(1) >/dev/null 2>&1; then \
+		echo "$(YELLOW)⚠ $(1) is not a git checkout, so there is no upstream copy to reset to - left as it is. Re-extract the source to reset it.$(RESET)"; \
+	else \
+	files="$(2)"; \
 	if command -v python3 >/dev/null 2>&1; then \
 		files="$$files $$($(CHECK_PATCH_DRIFT) --stamped-files $(1) 2>/dev/null)"; \
 	fi; \
@@ -410,7 +422,8 @@ define reset_submodule_patches
 		else \
 			echo "$(DIM)  (clean) $$file$(RESET)"; \
 		fi \
-	done
+	done; \
+	fi
 endef
 
 # Reset all patched files in every patched submodule to upstream state.
@@ -547,7 +560,8 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 		            "$(LIBHV_DIR)|$(LIBHV_PATCHED_FILES)" \
 		            "$(LUA_DIR)|$(LUA_PATCHED_FILES)"; do \
 			dir=$${pair%%|*}; files=$${pair#*|}; \
-			if [ -n "$$($(GIT_NOENV) -C "$$dir" status --porcelain -- $$files 2>/dev/null)" ] || \
+			if ! $(OWN_GIT_DIR) "$$dir" >/dev/null 2>&1 || \
+			   [ -n "$$($(GIT_NOENV) -C "$$dir" status --porcelain -- $$files 2>/dev/null)" ] || \
 			   ! $(GIT_NOENV) -C "$$dir" status --porcelain -- $$files >/dev/null 2>&1; then \
 				ok=0; \
 				echo "$(YELLOW)⚠ $$dir is not pristine, so this run cannot judge patches from clean — using in-place verdicts. Run 'make reapply-patches' to reset and judge from clean.$(RESET)"; \
