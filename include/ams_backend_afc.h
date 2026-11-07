@@ -499,6 +499,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// false lanes). See AmsBackend::printer_retains_spool_info().
     [[nodiscard]] bool printer_retains_spool_info() const override;
 
+    /// Every lane reports remember_spool, so AFC's setting decides.
+    [[nodiscard]] bool firmware_owns_spool_retention() const override;
+
+    /// AFC_SET_REMEMBER_SPOOL on every lane.
+    AmsError set_firmware_spool_retention(bool keep) override;
+
     /// [AFC] auto_home from AFC.cfg — true only once afc_config_ has landed
     /// (see AmsBackend::delegates_homing_to_printer()).
     [[nodiscard]] bool delegates_homing_to_printer() const override {
@@ -1519,6 +1525,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// across an eject instead of running clear_values(). Tells us whether the
     /// firmware or our own override store is the thing preserving identity.
     std::unordered_map<std::string, bool> lane_remember_spool_;
+
+    /// Every lane has reported remember_spool. Caller holds mutex_.
+    [[nodiscard]] bool every_lane_reports_remember_spool_locked() const;
+
+    /// Drop every HelixScreen record of an ejected lane's spool, on a lane
+    /// whose remember_spool is off. Caller holds mutex_.
+    void forget_lane_spool_locked(int slot_index, const std::string& lane_name);
 
     /// Firmware's own last-reported spool_id per lane, updated only when a
     /// status delta carries the key. Distinct from SlotInfo::spoolman_id,
