@@ -475,8 +475,9 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
                 spdlog::warn(
                     "[PrintPreparationManager] PRINT_START analysis failed (attempt {}): {}",
                     macro_analysis_retry_count_ + 1, error.message);
-                // Check if we should retry
-                if (macro_analysis_retry_count_ < kMaxMacroAnalysisRetries) {
+                // Only a lost connection can answer differently a second later.
+                if (error.is_transport_loss() &&
+                    macro_analysis_retry_count_ < kMaxMacroAnalysisRetries) {
                     macro_analysis_retry_count_++;
                     // Exponential backoff: 1s, 2s
                     int delay_ms = 1000 * (1 << (macro_analysis_retry_count_ - 1));
@@ -510,8 +511,8 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
 
                 // Final failure - notify user
                 spdlog::error(
-                    "[PrintPreparationManager] PRINT_START analysis failed after {} attempts",
-                    kMaxMacroAnalysisRetries + 1);
+                    "[PrintPreparationManager] PRINT_START analysis failed after {} attempt(s)",
+                    macro_analysis_retry_count_ + 1);
                 // A printer refusing our login says why in its own message.
                 if (!helix::moonraker_auth::unauthorized()) {
                     NOTIFY_ERROR(lv_tr("Could not analyze PRINT_START macro. Some print options "

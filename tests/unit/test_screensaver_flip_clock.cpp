@@ -549,6 +549,40 @@ TEST_CASE("a changed card folds over the flip duration while the others stay sti
     CHECK(bytes_differing(end, card_bytes(still, minutes)) == 0);
 }
 
+TEST_CASE("a folding flap shows its lit edge on the way up and on the way down",
+          "[screensaver][screensaver_flip_clock]") {
+    TestFrame frame(800, 480, PixelFormat::XRGB8888);
+    FlipClockSim sim;
+    sim.init(frame.target, 0, clock_face(hms(10, 8), true));
+    const DirtyRect card = sim.layout().cards[3];
+    const int32_t split = card.y1 + sim.layout().split_top;
+    // A column beside the digit, clear of the rounded corners.
+    const int32_t x = card.x1 + sim.layout().corner + 1;
+    const PixelWriter writer(frame.target);
+    const auto rim_rows = [&](int32_t y1, int32_t y2) {
+        size_t rows = 0;
+        for (int32_t y = y1; y <= y2; y++) {
+            rows += writer.get(x, y) == FlipClockSim::kFlapRim ? 1 : 0;
+        }
+        return rows;
+    };
+    CHECK(rim_rows(card.y1, card.y2) == 0);
+
+    std::vector<DirtyRect> dirty;
+    const FlipFace next = clock_face(hms(10, 9), true);
+    sim.step(0, frame.target, next, dirty);
+    sim.step(kFlipDurationMs / 3, frame.target, next, dirty);
+    CHECK(rim_rows(card.y1, split - 1) == 1);
+    CHECK(rim_rows(split, card.y2) == 0);
+
+    sim.step(kFlipDurationMs / 3, frame.target, next, dirty);
+    CHECK(rim_rows(card.y1, split - 1) == 0);
+    CHECK(rim_rows(split, card.y2) == 1);
+
+    sim.step(kFlipDurationMs, frame.target, next, dirty);
+    CHECK(rim_rows(card.y1, card.y2) == 0);
+}
+
 TEST_CASE("only the digits that change flip, each on its own card and all at once",
           "[screensaver][screensaver_flip_clock]") {
     struct Change {

@@ -98,8 +98,33 @@ MoonrakerFileAPIMock& MoonrakerAPIMock::files_mock() {
 }
 
 void MoonrakerAPIMock::set_config_files(std::map<std::string, std::string> files) {
+    config_files_injected_ = !files.empty();
     files_mock().set_config_files(files);
     transfers_mock().set_config_files(std::move(files));
+}
+
+void MoonrakerAPIMock::set_configfile_macros(json macros) {
+    configfile_macros_ = std::move(macros);
+}
+
+void MoonrakerAPIMock::query_configfile(JsonCallback on_success, ErrorCallback on_error) {
+    if (!configfile_macros_ && !config_files_injected_) {
+        MoonrakerAPI::query_configfile(std::move(on_success), std::move(on_error));
+        return;
+    }
+    const json macros = configfile_macros_.value_or(json::object());
+    MoonrakerAPI::query_configfile(
+        [on_success, macros](const json& config) {
+            json out = json::object();
+            for (const auto& [key, value] : config.items()) {
+                if (key.rfind("gcode_macro ", 0) != 0)
+                    out[key] = value;
+            }
+            out.merge_patch(macros);
+            if (on_success)
+                on_success(out);
+        },
+        std::move(on_error));
 }
 
 std::optional<std::string> MoonrakerAPIMock::get_uploaded_config(const std::string& path) const {
@@ -209,6 +234,11 @@ MoonrakerFileTransferAPIMock::get_uploaded_config(const std::string& path) const
 
 std::map<std::string, std::string> MoonrakerFileTransferAPIMock::get_config_files() const {
     return config_files_;
+}
+
+void MoonrakerFileTransferAPIMock::set_config_file_error(const std::string& path,
+                                                         MoonrakerError error) {
+    config_file_errors_[path] = std::move(error);
 }
 
 MoonrakerFileTransferAPIMock::ConfigRootFile
@@ -504,6 +534,15 @@ void MoonrakerFileTransferAPIMock::download_file(const std::string& root, const 
                                                  ErrorCallback on_error) {
     // Injected config root: resolve the FULL relative path, never the basename.
     // conf.d/options.cfg and macros/options.cfg are different files.
+    if (root == "config") {
+        config_downloads_.push_back(path);
+        auto err_it = config_file_errors_.find(path);
+        if (err_it != config_file_errors_.end()) {
+            if (on_error)
+                on_error(err_it->second);
+            return;
+        }
+    }
     if (root == "config" && !config_files_.empty()) {
         auto it = config_files_.find(path);
         if (it != config_files_.end()) {
