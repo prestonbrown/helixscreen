@@ -352,6 +352,14 @@ struct PendingIpv4Revert {
     /// new change may replace it.
     bool failed = false;
     std::string failure; ///< Why, for the screen and the log
+    /// A failed stub for a record that named no link it could be read for: its
+    /// failure is shown on every link.
+    bool any_link = false;
+
+    /// Whether the record is @p l's to restore or show.
+    bool concerns(Ipv4Link l) const {
+        return any_link || link == l;
+    }
 };
 
 /// A record file larger than this is not one this app wrote, and is not read.
@@ -373,6 +381,8 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
 /// <user config dir>/ipv4_pending_revert.json: beside settings.json but not in
 /// it, so a restored settings backup can never replay a stale revert.
 std::string pending_ipv4_revert_path();
+/// Why a record whose text does not decode can never restore anything.
+std::string pending_ipv4_undecodable_detail();
 bool save_pending_ipv4_revert(const PendingIpv4Revert& pending);
 
 /// A record file that exists but cannot be used is a failure to report, never
@@ -383,6 +393,8 @@ struct Ipv4RecordLoad {
     enum class Kind { None, Ok, ReadError, Unreadable };
     Kind kind = Kind::None;
     PendingIpv4Revert record;
+    /// Unreadable: the link its text still names, if it names one.
+    std::optional<Ipv4Link> unreadable_link;
 };
 Ipv4RecordLoad read_pending_ipv4_revert();
 /// The usable record, if any.

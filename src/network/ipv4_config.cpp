@@ -623,6 +623,7 @@ std::string encode_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     j["owner"] = pending.owner;
     j["failed"] = pending.failed;
     j["failure"] = pending.failure;
+    j["any_link"] = pending.any_link;
     j["store"] = pending.snapshot.store;
     j["iface"] = pending.snapshot.iface;
     j["profile"] = pending.snapshot.profile;
@@ -645,6 +646,7 @@ std::optional<PendingIpv4Revert> decode_pending_ipv4_revert(std::string_view tex
     p.owner = helix::json_util::safe_string(j, "owner");
     p.failed = helix::json_util::safe_bool(j, "failed");
     p.failure = helix::json_util::safe_string(j, "failure");
+    p.any_link = helix::json_util::safe_bool(j, "any_link");
     p.previous.dhcp = helix::json_util::safe_bool(j, "dhcp", true);
     p.previous.address = helix::json_util::safe_string(j, "address");
     p.previous.prefix = helix::json_util::safe_int(j, "prefix");
@@ -699,6 +701,10 @@ std::string pending_ipv4_revert_path() {
     return helix::get_user_config_dir() + "/" + kPendingRevertFile;
 }
 
+std::string pending_ipv4_undecodable_detail() {
+    return pending_ipv4_revert_path() + " cannot be decoded";
+}
+
 bool save_pending_ipv4_revert(const PendingIpv4Revert& pending) {
     const std::string path = pending_ipv4_revert_path();
     if (!helix::text_io::write_file_atomic(path, encode_pending_ipv4_revert(pending),
@@ -728,6 +734,13 @@ Ipv4RecordLoad read_pending_ipv4_revert() {
     if (!pending) {
         spdlog::error("[Ipv4] {} cannot be used to restore anything", path);
         out.kind = Ipv4RecordLoad::Kind::Unreadable;
+        if (text->size() <= kIpv4RecordMaxBytes) {
+            const nlohmann::json j =
+                nlohmann::json::parse(text->begin(), text->end(), nullptr, false);
+            if (!j.is_discarded() && j.is_object()) {
+                out.unreadable_link = ipv4_link_from_name(helix::json_util::safe_string(j, "link"));
+            }
+        }
         return out;
     }
     out.kind = Ipv4RecordLoad::Kind::Ok;

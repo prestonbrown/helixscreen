@@ -332,7 +332,7 @@ void Ipv4SettingsOverlay::load_current() {
         set_busy(false);
         // A revert the retry gave up on stays on show until a change replaces it.
         const auto pending = helix::net::load_pending_ipv4_revert();
-        if (pending && pending->failed && pending->link == link_) {
+        if (pending && pending->failed && pending->concerns(link_)) {
             set_error(fmt::format(fmt::runtime(lv_tr(
                                       "The previous IPv4 settings could not be restored: {}")),
                                   pending->failure)

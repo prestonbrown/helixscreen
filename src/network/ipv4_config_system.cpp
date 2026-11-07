@@ -395,7 +395,7 @@ Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own) {
         return {Kind::Retry, pending_ipv4_revert_path() + " could not be read"};
     }
     if (loaded.kind == Ipv4RecordLoad::Kind::Unreadable) {
-        return {Kind::Terminal, pending_ipv4_revert_path() + " cannot be decoded"};
+        return {Kind::Terminal, pending_ipv4_undecodable_detail()};
     }
     const PendingIpv4Revert& pending = loaded.record;
     if (pending.link != link || pending.failed ||
@@ -419,7 +419,7 @@ Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own) {
     return {Kind::Restored, {}};
 }
 
-bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why) {
+bool mark_pending_ipv4_failed(std::optional<Ipv4Link> link, const std::string& why) {
     std::lock_guard<std::mutex> lock(ipv4_change_mutex());
     Ipv4RecordLoad loaded = read_pending_ipv4_revert();
     PendingIpv4Revert& record = loaded.record;
@@ -431,8 +431,9 @@ bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why) {
             return false;
         }
         record = {};
-        record.link = link;
-    } else if (loaded.kind != Ipv4RecordLoad::Kind::Ok || record.link != link) {
+        record.link = loaded.unreadable_link.value_or(Ipv4Link::Wifi);
+        record.any_link = !loaded.unreadable_link;
+    } else if (loaded.kind != Ipv4RecordLoad::Kind::Ok || !link || record.link != *link) {
         return false;
     }
     record.failed = true;

@@ -24,8 +24,9 @@ namespace helix::settings {
  */
 void retry_ipv4_revert(helix::net::Ipv4Link link, bool include_own);
 
-/// Mark @p link's record failed and say why, once. LVGL thread.
-void give_up_ipv4_revert(helix::net::Ipv4Link link, const std::string& why);
+/// Mark @p link's record failed and say why, once. nullopt is a record that
+/// names no link it can be read for: every link is told. LVGL thread.
+void give_up_ipv4_revert(std::optional<helix::net::Ipv4Link> link, const std::string& why);
 
 /// How a revert the retry owned ended: the previous config is back, the
 /// record is marked failed on disk and a new change may replace it, or the

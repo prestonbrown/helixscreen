@@ -84,8 +84,10 @@ struct Ipv4RestoreOutcome {
 /// countdown owns. BLOCKING.
 Ipv4RestoreOutcome restore_pending_ipv4(Ipv4Link link, bool include_own);
 
-/// Mark @p link's record as given up: kept, with @p why, never retried. BLOCKING.
-bool mark_pending_ipv4_failed(Ipv4Link link, const std::string& why);
+/// Mark @p link's record as given up: kept, with @p why, never retried. One
+/// that cannot be decoded becomes a failed stub for the link its text names,
+/// or for every link when it names none; @p link is then unused. BLOCKING.
+bool mark_pending_ipv4_failed(std::optional<Ipv4Link> link, const std::string& why);
 
 /// Whether NetworkManager is the active network owner (nmcli + its runtime dir).
 bool network_manager_active();

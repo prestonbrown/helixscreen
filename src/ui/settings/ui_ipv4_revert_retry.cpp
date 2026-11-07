@@ -15,6 +15,8 @@
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
 
+#include <vector>
+
 namespace helix::settings {
 
 namespace {
@@ -143,26 +145,30 @@ void retry_ipv4_revert(net::Ipv4Link link, bool include_own) {
     tick();
 }
 
-void give_up_ipv4_revert(net::Ipv4Link link, const std::string& why) {
+void give_up_ipv4_revert(std::optional<net::Ipv4Link> link, const std::string& why) {
     state().timer.reset();
     spdlog::error("[Ipv4] Gave up restoring the previous IPv4 config on {}: {}",
-                  net::ipv4_link_name(link), why);
+                  link ? net::ipv4_link_name(*link) : "every link", why);
+    const std::vector<net::Ipv4Link> told =
+        link ? std::vector<net::Ipv4Link>{*link}
+             : std::vector<net::Ipv4Link>{net::Ipv4Link::Wifi, net::Ipv4Link::Ethernet};
     http::HttpExecutor::fast().start();
-    http::HttpExecutor::fast().submit([link, why]() {
+    http::HttpExecutor::fast().submit([link, told, why]() {
         const bool marked = net::mark_pending_ipv4_failed(link, why);
-        ui::queue_update("Ipv4RevertRetry::gave_up", [link, why, marked]() {
+        ui::queue_update("Ipv4RevertRetry::gave_up", [told, why, marked]() {
             if (marked) {
-                unrecorded_why(link).clear();
                 NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored: {}"), why);
-                announce(link, Ipv4RevertEnd::GaveUp);
-                return;
+            } else {
+                spdlog::error("[Ipv4] {} could not be marked failed",
+                              net::pending_ipv4_revert_path());
+                NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the "
+                                   "record of the change could not be updated: {}"),
+                             why);
             }
-            spdlog::error("[Ipv4] {} could not be marked failed", net::pending_ipv4_revert_path());
-            unrecorded_why(link) = why;
-            NOTIFY_ERROR(lv_tr("The previous IPv4 settings could not be restored, and the record "
-                               "of the change could not be updated: {}"),
-                         why);
-            announce(link, Ipv4RevertEnd::GaveUpUnrecorded);
+            for (const net::Ipv4Link l : told) {
+                unrecorded_why(l) = marked ? std::string() : why;
+                announce(l, marked ? Ipv4RevertEnd::GaveUp : Ipv4RevertEnd::GaveUpUnrecorded);
+            }
         });
     });
 }
@@ -188,8 +194,7 @@ bool act_on_startup_record(const net::Ipv4RecordLoad& loaded) {
         return false;
     }
     if (loaded.kind == RecordKind::Unreadable) {
-        give_up_ipv4_revert(net::Ipv4Link::Wifi,
-                            net::pending_ipv4_revert_path() + " cannot be read");
+        give_up_ipv4_revert(loaded.unreadable_link, net::pending_ipv4_undecodable_detail());
         return true;
     }
     const auto& pending = loaded.record;

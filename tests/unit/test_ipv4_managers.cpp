@@ -22,6 +22,7 @@
 #include <optional>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -300,6 +301,41 @@ TEST_CASE_METHOD(Ipv4ManagerFixture, "a give-up its record cannot hold says so a
     helix::settings::set_ipv4_revert_listener(nullptr);
     CHECK(told == Ipv4RevertEnd::GaveUp);
     CHECK_FALSE(helix::settings::ipv4_revert_unrecorded(Ipv4Link::Wifi));
+}
+
+TEST_CASE_METHOD(Ipv4ManagerFixture, "an undecodable startup record is given up on its own link",
+                 "[ipv4][ipv4_manager]") {
+    using helix::settings::Ipv4RevertEnd;
+    std::vector<Ipv4Link> told;
+    helix::settings::set_ipv4_revert_listener([&](Ipv4Link link, Ipv4RevertEnd end) {
+        CHECK(end == Ipv4RevertEnd::GaveUp);
+        told.push_back(link);
+    });
+
+    SECTION("the link its text names") {
+        REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(),
+                                                  R"({"link":"ethernet","store":"dhcpcd"})"));
+        helix::settings::start_ipv4_startup_revert();
+        REQUIRE(wait_until([&] { return !told.empty(); }));
+        CHECK(told == std::vector<Ipv4Link>{Ipv4Link::Ethernet});
+        const auto stub = load_pending_ipv4_revert();
+        REQUIRE(stub);
+        CHECK(stub->failed);
+        CHECK(stub->concerns(Ipv4Link::Ethernet));
+        CHECK_FALSE(stub->concerns(Ipv4Link::Wifi));
+        CHECK(stub->failure == pending_ipv4_undecodable_detail());
+    }
+    SECTION("every link, when it names none") {
+        REQUIRE(helix::text_io::write_file_atomic(pending_ipv4_revert_path(), "{not json"));
+        helix::settings::start_ipv4_startup_revert();
+        REQUIRE(wait_until([&] { return told.size() == 2; }));
+        CHECK(told == std::vector<Ipv4Link>{Ipv4Link::Wifi, Ipv4Link::Ethernet});
+        const auto stub = load_pending_ipv4_revert();
+        REQUIRE(stub);
+        CHECK(stub->concerns(Ipv4Link::Wifi));
+        CHECK(stub->concerns(Ipv4Link::Ethernet));
+    }
+    helix::settings::set_ipv4_revert_listener(nullptr);
 }
 
 TEST_CASE_METHOD(Ipv4ManagerFixture, "a startup record that fails to read is read again",
