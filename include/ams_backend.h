@@ -1845,6 +1845,22 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether this slot carries a latched fault that clear_fault() clears
+     *
+     * A fault can outlive both the operation that raised it and the error dialog
+     * whose dismissal clears it: a recovery action that closes the dialog leaves
+     * the firmware still reporting the error, with nothing else on screen able to
+     * reach clear_fault(). The lane menu offers "Clear error" on this.
+     *
+     * False while an operation that may clear the fault itself is still running.
+     * Default false.
+     */
+    [[nodiscard]] virtual bool has_clearable_fault(int slot_index) const {
+        (void)slot_index;
+        return false;
+    }
+
+    /**
      * @brief Whether this backend currently knows WHICH lane needs recovery
      *
      * Distinct from can_recover_lane_position(), which answers "is recovery

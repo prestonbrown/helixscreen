@@ -737,6 +737,7 @@ translations:
   Clear All: すべてクリア
   Clear All Events: すべてのイベントをクリア
   Clear Console?: コンソールをクリアしますか？
+  Clear Error: エラーをクリア
   Clear Spool: スプールを解除
   Clear every Endless Spool backup: エンドレススプールの予備をすべて消去
   Clear extruder only: 'エクストルーダーだけを空にする'

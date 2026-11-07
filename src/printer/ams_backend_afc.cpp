@@ -19,6 +19,7 @@
 #include "filament_variants.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -34,12 +35,14 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <initializer_list>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -5761,8 +5764,92 @@ AmsError AmsBackendAfc::recover_lane_position(int slot_index) {
         }
     }
 
+    // The success line precedes the script's reply on the same connection, so the
+    // watch has seen it by the time the completion runs. The handler touches only
+    // the shared flag, so it is safe on the WebSocket thread and after this
+    // backend is gone.
+    auto succeeded = std::make_shared<std::atomic<bool>>(false);
+    std::string handler;
+    if (client_) {
+        static std::atomic<int> s_lane_reset_watch_seq{0};
+        handler = "helix_afc_lane_reset_" + std::to_string(++s_lane_reset_watch_seq);
+        client_->register_method_callback(
+            "notify_gcode_response", handler, [succeeded, lane_name](const nlohmann::json& msg) {
+                const auto params = msg.find("params");
+                if (params == msg.end() || !params->is_array() || params->empty() ||
+                    !(*params)[0].is_string()) {
+                    return;
+                }
+                if (is_lane_reset_success_line((*params)[0].get<std::string>(), lane_name)) {
+                    succeeded->store(true);
+                }
+            });
+    }
+    auto unwatch = [client = client_, handler]() {
+        if (client && !handler.empty()) {
+            client->unregister_method_callback("notify_gcode_response", handler);
+        }
+    };
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        lane_reset_in_flight_ = lane_name;
+    }
     spdlog::info("[AMS AFC] Resetting lane {}", lane_name);
-    return execute_gcode("AFC_LANE_RESET LANE=" + lane_name);
+    AmsError sent = execute_gcode(
+        "AFC_LANE_RESET LANE=" + lane_name,
+        [this, lane_name, succeeded, unwatch]() {
+            unwatch();
+            finish_lane_reset(lane_name, succeeded->load());
+        },
+        [this, lane_name, unwatch](const MoonrakerError&) {
+            unwatch();
+            finish_lane_reset(lane_name, false);
+        },
+        /*silent=*/true);
+    return sent;
+}
+
+bool AmsBackendAfc::is_lane_reset_success_line(const std::string& line, const std::string& lane) {
+    static constexpr std::string_view kSuffix = " reset to hub";
+    return !lane.empty() && line.size() >= lane.size() + kSuffix.size() &&
+           line.compare(0, lane.size(), lane) == 0 &&
+           line.compare(lane.size(), kSuffix.size(), kSuffix) == 0;
+}
+
+void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_success) {
+    int slot_index = -1;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (lane_reset_in_flight_ == lane) {
+            lane_reset_in_flight_.clear();
+        }
+        if (!reported_success || !error_state_ || active_load_lane_ != lane) {
+            spdlog::debug("[AMS AFC] Lane reset of {} settled: success={} error_state={} "
+                          "current_lane='{}'",
+                          lane, reported_success, error_state_, active_load_lane_);
+            return;
+        }
+        slot_index = slots_.index_of(lane);
+    }
+    spdlog::info("[AMS AFC] Lane {} reset to hub; clearing the fault AFC still reports", lane);
+    clear_fault(slot_index);
+}
+
+bool AmsBackendAfc::has_clearable_fault(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!error_state_ || !lane_reset_in_flight_.empty()) {
+        return false;
+    }
+    const std::string lane = slots_.name_of(slot_index);
+    if (lane.empty()) {
+        return false;
+    }
+    if (lane == active_load_lane_) {
+        return true;
+    }
+    const auto* entry = slots_.get(slot_index);
+    return entry && entry->info.error.has_value();
 }
 
 AmsError AmsBackendAfc::eject_lane(int slot_index) {

@@ -724,6 +724,7 @@
   <translation tag="Clear All" de="Alles löschen"/>
   <translation tag="Clear All Events" de="Alle Ereignisse löschen"/>
   <translation tag="Clear Console?" de="Konsole leeren?"/>
+  <translation tag="Clear Error" de="Fehler löschen"/>
   <translation tag="Clear Spool" de="Spule entfernen"/>
   <translation tag="Clear every Endless Spool backup" de="Alle Endlosspulen-Reserven löschen"/>
   <translation tag="Clear extruder only" de="Nur Extruder leeren"/>

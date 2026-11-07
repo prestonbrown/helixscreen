@@ -78,7 +78,8 @@ class AmsContextMenu : public ContextMenu {
         PURGE,            ///< Purge the current filament through the nozzle
         TOGGLE_BYPASS,    ///< Engage or disengage bypass (external spool only)
         MOUNT,            ///< Mount the tool this slot feeds
-        PARK              ///< Put the mounted tool back in its dock
+        PARK,             ///< Put the mounted tool back in its dock
+        CLEAR_FAULT       ///< Clear a fault the firmware still latches on this slot
     };
 
     using ActionCallback = std::function<void(MenuAction action, int slot_index)>;
@@ -211,6 +212,9 @@ class AmsContextMenu : public ContextMenu {
     // 1 disabled, 2 enabled.
     static lv_subject_t slot_mount_subject_;
     static lv_subject_t slot_park_subject_;
+    // Clear error for a fault that outlived its dialog
+    // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
+    static lv_subject_t slot_clear_error_subject_;
     static bool subjects_initialized_;
 
     // === Backend the menu's actions are gated on ===
@@ -245,6 +249,7 @@ class AmsContextMenu : public ContextMenu {
     void handle_park();
     void handle_edit();
     void handle_clear_spool();
+    void handle_clear_fault();
     void handle_purge();
     void handle_bypass_toggle();
     void handle_spoolman();
@@ -384,6 +389,7 @@ class AmsContextMenu : public ContextMenu {
     static void on_park_cb(lv_event_t* e);
     static void on_edit_cb(lv_event_t* e);
     static void on_clear_spool_cb(lv_event_t* e);
+    static void on_clear_fault_cb(lv_event_t* e);
     static void on_purge_cb(lv_event_t* e);
     static void on_bypass_toggle_cb(lv_event_t* e);
     static void on_spoolman_cb(lv_event_t* e);
