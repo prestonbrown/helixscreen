@@ -482,7 +482,8 @@ def filter_scope(key, default_key, is_compiled):
 # file's tests, which is most of what a run costs. Each changed file gets its
 # own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
 # it (Catch2's [#<test file>] tags): those naming its stem, the header a source
-# implements, or that header's class (reach_names), else --tests. Hunks sharing a
+# implements, or that header's class (reach_names); a data file also by the tests
+# reaching the sources DATA_CONSUMERS_MAP says read it. Else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
@@ -494,6 +495,37 @@ AUTO_TESTS_MAX_FILES = 12
 AUTO_TESTS_MAX_REACHED = 40
 # The why of a filter auto_tests_filter chose.
 AUTO_TESTS_WHY = 'test files reaching it'
+# Data file glob -> the sources that read it, with the text proving they do.
+DATA_CONSUMERS_MAP = 'scripts/mutate_data_consumers.tsv'
+
+
+def parse_data_consumers(text):
+    """[(glob, source, evidence)] from the consumer map's text; ValueError on a
+    row without all three tab-separated fields."""
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        fields = [f.strip() for f in line.split('\t')]
+        if len(fields) != 3 or not all(fields):
+            raise ValueError(f'{DATA_CONSUMERS_MAP}:{n}: expected glob<TAB>source<TAB>evidence')
+        out.append(tuple(fields))
+    return out
+
+
+def load_data_consumers(root):
+    """The consumer map's rows, or [] when the repo has none."""
+    f = root / DATA_CONSUMERS_MAP
+    return parse_data_consumers(f.read_text(errors='replace')) if f.is_file() else []
+
+
+def data_consumers(path, rows):
+    """The sources the map says read `path`, in map order."""
+    out = []
+    for glob, source, _evidence in rows:
+        if fnmatch(path, glob) and source not in out:
+            out.append(source)
+    return out
 
 
 def parse_tests_for(specs):
@@ -505,6 +537,14 @@ def parse_tests_for(specs):
             raise ValueError(f'--tests-for {spec!r}: expected GLOB=FILTER')
         out.append((glob.strip(), filt.strip()))
     return out
+
+
+def read_or_empty(path):
+    """A file's text, or '' when it cannot be read."""
+    try:
+        return path.read_text(errors='replace')
+    except OSError:
+        return ''
 
 
 def _test_sources(root):
@@ -550,9 +590,10 @@ def reach_names(path, source_text=''):
     return names
 
 
-def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text=''):
+def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text='',
+                      consumers=()):
     """`[#test_a]~[.]~[slow],...` for the test files naming any of `path`'s
-    reach_names, or ''.
+    reach_names, or those of a `consumers` (source, text) pair that reads it, or ''.
 
     Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. Names under four characters
@@ -562,8 +603,11 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
     past that the answer is '' too: a filter missing some of the file's tests
     reports their kills as survivors, so the whole --tests judges it instead.
     """
+    names = reach_names(path, source_text)
+    for source, text in consumers:
+        names += [n for n in reach_names(source, text) if n not in names]
     hits = set()
-    for i, name in enumerate(reach_names(path, source_text)):
+    for i, name in enumerate(names):
         if len(name) < 4:
             continue
         word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
@@ -632,13 +676,14 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
 
 
 def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES,
-               source_text=''):
-    """(filter, why) for one changed file, whose text is `source_text`."""
+               source_text='', consumers=()):
+    """(filter, why) for one changed file, whose text is `source_text`, read by
+    the `consumers` (source, text) pairs."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources, max_files, source_text)
+        filt = auto_tests_filter(path, test_sources, max_files, source_text, consumers)
         if filt:
             return filt, AUTO_TESTS_WHY
     return default, '--tests'
@@ -3702,6 +3747,11 @@ def main():
     # What judges each file: (Catch2 filter, bats files, pytest files).
     auto = not args.no_auto_tests
     sources = _test_sources(root) if auto else {}
+    try:
+        consumer_rows = load_data_consumers(root) if auto else []
+    except ValueError as e:
+        print(f'mutate-diff: {e}', file=sys.stderr)
+        return 2
     shell_sources = _script_test_sources(root, 'tests/shell', '*.bats') if auto else {}
     python_sources = _script_test_sources(root, 'tests/python', 'test_*.py') if auto else {}
     # Each file's key is (Catch2 filter, bats files, pytest files): what judges it.
@@ -3711,12 +3761,11 @@ def main():
         if path in key_of:
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
-            try:
-                text = (root / path).read_text(errors='replace') if auto else ''
-            except OSError:
-                text = ''
+            text = read_or_empty(root / path) if auto else ''
+            consumers = [(c, read_or_empty(root / c))
+                         for c in data_consumers(path, consumer_rows)]
             filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
-                                            args.auto_tests_max, text)
+                                            args.auto_tests_max, text, consumers)
             # No script suite in the key: a C++ file sharing a group with a
             # script nothing names would pay the whole bats suite's baseline.
             key_of[path] = (filt, '', '')

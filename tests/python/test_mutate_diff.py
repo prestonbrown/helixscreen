@@ -1192,6 +1192,65 @@ def test_auto_filter_still_gives_up_on_a_common_stem_whatever_its_header():
     assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
 
 
+GIZMO_LOADER = (
+    '#include "gizmo_loader.h"\n'
+    'json GizmoLoader::load() { return read(find_readable("gizmo_db.json")); }\n'
+)
+DATA_SOURCES = {
+    "test_loader_user": "auto rules = GizmoLoader::load();\n",
+    "test_names_db": 'REQUIRE(path_of("gizmo_db") != "");\n',
+    "test_unrelated": "GizmoLoaderX and gizmo_dbx\n",
+}
+
+
+def test_a_data_file_is_judged_by_the_tests_reaching_its_declared_consumers():
+    filt = md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES,
+                                consumers=[("src/gizmo_loader.cpp", GIZMO_LOADER)])
+    assert filt == "[#test_loader_user]~[.]~[slow],[#test_names_db]~[.]~[slow]"
+    assert md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES) \
+        == "[#test_names_db]~[.]~[slow]"
+
+
+def test_data_consumers_follow_the_map_globs():
+    rows = md.parse_data_consumers(
+        "# comment\n\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_loader.cpp\tgizmo_db.json\n"
+        "assets/config/presets/*.json\tsrc/system/config.cpp\tpresets/\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_rules.cpp\tgizmo_rules(\n")
+    assert md.data_consumers("assets/config/gizmo_db.json", rows) \
+        == ["src/gizmo_loader.cpp", "src/gizmo_rules.cpp"]
+    assert md.data_consumers("assets/config/presets/k1.json", rows) == ["src/system/config.cpp"]
+    assert md.data_consumers("assets/config/other.json", rows) == []
+
+
+def test_parse_data_consumers_refuses_a_row_without_three_fields():
+    with pytest.raises(ValueError):
+        md.parse_data_consumers("assets/config/x.json\tsrc/x.cpp\n")
+
+
+def test_every_declared_data_consumer_still_reads_its_data():
+    # A consumer that no longer loads the file would silently narrow its filter.
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    assert rows
+    tracked = subprocess.run(["git", "ls-files", "assets"], cwd=REPO_ROOT, text=True,
+                             stdout=subprocess.PIPE).stdout.split()
+    for glob, source, evidence in rows:
+        assert any(md.fnmatch(t, glob) for t in tracked), f"{glob} matches no tracked file"
+        text = (REPO_ROOT / source).read_text()
+        assert evidence in text, f"{source} no longer contains {evidence!r} for {glob}"
+        assert md.classify(source, False) == ("mutate", "cxx"), source
+
+
+def test_the_printer_database_reaches_the_tests_reading_it_through_code():
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    path = "assets/config/printer_database.json"
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers)
+    # The whole --tests ('') also runs them; a narrow filter must name both.
+    assert filt == "" or ("[#test_probe_preparation]" in filt
+                          and "[#test_probe_sensor_manager]" in filt), filt
+
+
 def test_reach_names_are_the_stem_the_implemented_header_and_its_class():
     assert md.reach_names("src/gizmo_bar.cpp", SPLIT_TU) == ["gizmo_bar", "gizmo", "Gizmo"]
     assert md.reach_names("src/gizmo_bar.cpp", "") == ["gizmo_bar"]
