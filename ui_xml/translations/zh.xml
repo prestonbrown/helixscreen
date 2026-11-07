@@ -540,6 +540,7 @@
   <translation tag="Calibrate now" zh="立即校准"/>
   <translation tag="Calibrate part fan" zh="校准模型风扇"/>
   <translation tag="Calibrate tool offsets?" zh="校准工具偏移？"/>
+  <translation tag="Calibrate with this tool?" zh="用这个工具校准？"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
   <translation tag="Calibrated" zh="已校准"/>
   <translation tag="Calibrating Probe..." zh="正在校准探针..."/>
@@ -2235,7 +2236,6 @@
   <translation tag="Mount" zh="装上"/>
   <translation tag="Mount tool" zh="装上工具"/>
   <translation tag="Mount which tool?" zh="装上哪个工具？"/>
-  <translation tag="Mount {} before calibrating the Z offset" zh="校准 Z 偏移前请先安装 {}"/>
   <translation tag="Mount..." zh="装上..."/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move here" zh="移动到此处"/>
@@ -2402,6 +2402,7 @@
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
+  <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" zh="不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？"/>
   <translation tag="No tool is mounted" zh="未安装工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
@@ -4492,6 +4493,7 @@
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
   <translation tag="you have" zh="您有"/>
   <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
+  <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" zh="已安装 {0}。共用一个探针时，请用 {1} 校准。继续使用 {0}？"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>

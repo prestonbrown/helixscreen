@@ -597,6 +597,7 @@ translations:
   CONFIGURATION: КОНФИГУРАЦИЯ
   CONNECTION TYPE: ТИП ПОДКЛЮЧЕНИЯ
   CONTROLLABLE FANS: УПРАВЛЯЕМЫЕ ВЕНТИЛЯТОРЫ
+  Calibrate with this tool?: 'Калибровать с этим инструментом?'
   Could not turn the heaters off: 'Не удалось выключить нагреватели'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2485,7 +2486,6 @@ translations:
   Mount: Установить
   Mount tool: 'Установить инструмент'
   Mount which tool?: 'Какой инструмент установить?'
-  Mount {} before calibrating the Z offset: 'Установите {} перед калибровкой Z-смещения'
   Mount...: 'Установить...'
   Move: Двигать
   Move here: Переместить сюда
@@ -2666,6 +2666,7 @@ translations:
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
   No timelapse videos found: Таймлапс-видео не найдены
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?'
   No tool is mounted: 'Инструмент не установлен'
   No tool on the head: "На печатающей головке нет инструмента"
   No tools to calibrate: Нет инструментов для калибровки
@@ -5098,6 +5099,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: метка указывает катушку Spoolman #{}, которой не существует'
   '{}:{:02} elapsed': прошло {}:{:02}
   '{}% left': 'Осталось {}%'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': 'Установлен {0}. С общим датчиком калибруйте с {1}. Продолжить с {0}?'
   'Basic': 'Базовый'
   'Recycled': 'Переработанный'
   'Add to Spoolman + label': 'Добавить в Spoolman + этикетка'

@@ -557,6 +557,7 @@ translations:
   CONFIGURATION: KONFIGURATION
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
+  Calibrate with this tool?: 'Mit diesem Werkzeug kalibrieren?'
   Could not turn the heaters off: Die Heizungen konnten nicht ausgeschaltet werden
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2454,7 +2455,6 @@ translations:
   Mount: Montieren
   Mount tool: 'Werkzeug montieren'
   Mount which tool?: 'Welches Werkzeug montieren?'
-  Mount {} before calibrating the Z offset: '{} montieren, bevor der Z-Offset kalibriert wird'
   Mount...: 'Montieren...'
   Move: Bewegen
   Move here: Hierhin bewegen
@@ -2635,6 +2635,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?'
   No tool is mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
@@ -5043,6 +5044,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert'
   '{}:{:02} elapsed': '{}:{:02} vergangen'
   '{}% left': '{}% übrig'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} ist montiert. Mit einer gemeinsamen Sonde mit {1} kalibrieren. Mit {0} fortfahren?'
   'Basic': 'Standard'
   'Recycled': 'Recycelt'
   'Add to Spoolman + label': 'Zu Spoolman hinzufügen + Etikett'

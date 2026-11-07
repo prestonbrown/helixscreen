@@ -15,7 +15,7 @@ ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED || !reference_tool) {
         return ToolGate::Proceed;
     }
-    return active_tool == *reference_tool ? ToolGate::Proceed : ToolGate::MountReferenceFirst;
+    return active_tool == *reference_tool ? ToolGate::Proceed : ToolGate::ConfirmFirst;
 }
 
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,

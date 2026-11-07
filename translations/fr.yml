@@ -556,6 +556,7 @@ translations:
   CONFIGURATION: CONFIGURATION
   CONNECTION TYPE: TYPE DE CONNEXION
   CONTROLLABLE FANS: VENTILATEURS CONTRÔLABLES
+  Calibrate with this tool?: 'Calibrer avec cet outil ?'
   Could not turn the heaters off: Impossible de couper les chauffes
   CPU: CPU
   'CPU: ': 'CPU : '
@@ -2460,7 +2461,6 @@ translations:
   Mount: Monter
   Mount tool: 'Monter l''outil'
   Mount which tool?: 'Monter quel outil ?'
-  Mount {} before calibrating the Z offset: 'Montez {} avant de calibrer le Z-offset'
   Mount...: 'Monter...'
   Move: Déplacer
   Move here: Déplacer ici
@@ -2642,6 +2642,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Aucun outil n''est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?'
   No tool is mounted: 'Aucun outil n''est monté'
   No tool on the head: "Aucun outil sur la tête d'outil"
   No tools to calibrate: Aucun outil à calibrer
@@ -5069,6 +5070,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{} : l''étiquette indique la bobine Spoolman #{}, qui n''existe pas'
   '{}:{:02} elapsed': '{}:{:02} écoulé'
   '{}% left': '{} % restant'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} est monté. Avec une sonde partagée, calibrez avec {1}. Continuer avec {0} ?'
   'Basic': 'Basique'
   'Recycled': 'Recyclé'
   'Add to Spoolman + label': 'Ajouter à Spoolman + étiquette'

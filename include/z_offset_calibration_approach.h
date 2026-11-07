@@ -41,7 +41,7 @@ CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
 /// Whether a calibration may start with the tool on the carriage.
 enum class ToolGate {
     Proceed,
-    MountReferenceFirst, ///< Refuse: the reference tool is not known to be mounted
+    ConfirmFirst, ///< The reference tool is not known to be mounted: ask before starting
 };
 
 /**
@@ -49,8 +49,11 @@ enum class ToolGate {
  *
  * Where the probe's z_offset belongs to one tool (tool_offsets::
  * probe_reference_tool()), a calibrate command run with another tool mounted
- * measures the wrong nozzle. An unknown mounted tool (-1) is refused too.
- * FIRMWARE_MANAGED runs no calibrate command of ours and always proceeds.
+ * measures the wrong nozzle on a rig with one shared probe. A rig with a probe
+ * per tool, or a tool number remapped by ASSIGN_TOOL, calibrates correctly with
+ * any tool, so the answer is a question for the user, never a refusal. An
+ * unknown mounted tool (-1) asks too. FIRMWARE_MANAGED runs no calibrate command
+ * of ours and always proceeds.
  *
  * @param reference_tool the tool number the probe offset belongs to, or nullopt
  * @param active_tool    the mounted tool number, -1 when none or unknown

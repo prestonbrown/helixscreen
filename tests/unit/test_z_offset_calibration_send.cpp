@@ -17,9 +17,11 @@
  * the tune overlay's baby-step path.
  */
 
+#include "ui_modal.h"
 #include "ui_panel_calibration_zoffset.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -421,39 +423,108 @@ TEST_CASE_METHOD(CalibrationSendFixture,
 
 // --- reference tool --------------------------------------------------------
 
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration start: a toolchanger with another tool mounted refuses",
-                 "[zoffset][calibration][reference_tool]") {
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(
-        state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
-    helix::PrinterDiscovery hw;
-    hw.parse_objects(
-        json::array({"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
-    state().set_hardware(hw);
-    auto& tools = helix::ToolState::instance();
-    tools.init_tools(hw);
-    struct ToolReset {
-        ~ToolReset() {
-            helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+namespace {
+
+/// A klipper-toolchanger rig on the probe strategy, with the dialog layer up.
+class ToolGateFixture : public LVGLUITestFixture {
+  public:
+    ToolGateFixture() {
+        helix::ui::modal_init_subjects();
+        auto& ps = get_printer_state();
+        helix::PrinterStateTestAccess::reset(ps);
+        ps.init_subjects(false);
+        helix::PrinterStateTestAccess::pin_z_offset_strategy(
+            ps, ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+        ps.set_klippy_state_sync(helix::KlippyState::READY);
+        auto& probes = helix::sensors::ProbeSensorManager::instance();
+        probes.discover(helix::PrinterDiscovery{});
+        probes.set_probe_type_override(helix::sensors::ProbeSensorType::STANDARD);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(json::array(
+            {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
+        ps.set_hardware(hw);
+        helix::ToolState::instance().init_tools(hw);
+        panel.set_api(&api);
+    }
+
+    ~ToolGateFixture() override {
+        while (lv_obj_t* top = Modal::get_top()) {
+            Modal::hide(top);
         }
-    } tool_reset;
+        helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
 
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state());
+    void mount(int tool_number) {
+        helix::ToolState::instance().update_from_status(
+            json{{"toolchanger", json{{"tool_number", tool_number}}}});
+        REQUIRE(helix::ToolState::instance().active_tool_index() == tool_number);
+    }
+
+    void start() {
+        ZOffsetCalibrationTestAccess::start_calibration(panel);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        process_lvgl(50);
+    }
+
+    /// Press one of the open dialog's buttons by name.
+    void press(const char* button) {
+        lv_obj_t* dialog = Modal::get_top();
+        REQUIRE(dialog != nullptr);
+        lv_obj_t* btn = lv_obj_find_by_name(dialog, button);
+        REQUIRE(btn != nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        process_lvgl(50);
+    }
+
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    MoonrakerAPI api{client, get_printer_state()};
     ZOffsetCalibrationPanel panel;
-    panel.set_api(&api);
+};
 
-    tools.update_from_status(json{{"toolchanger", json{{"tool_number", 1}}}});
-    REQUIRE(tools.active_tool_index() == 1);
-    ZOffsetCalibrationTestAccess::start_calibration(panel);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
+} // namespace
+
+TEST_CASE_METHOD(ToolGateFixture, "Calibration start: another tool mounted asks, then continues",
+                 "[zoffset][calibration][reference_tool]") {
+    mount(1);
+    start();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
     CHECK(client.last_send_script().empty());
 
-    tools.update_from_status(json{{"toolchanger", json{{"tool_number", 0}}}});
-    ZOffsetCalibrationTestAccess::start_calibration(panel);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    // A second tap while the question is open asks nothing more.
+    start();
+    CHECK(Modal::get_top() == dialog);
+
+    press("btn_primary");
+    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
     CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::ERROR);
+    CHECK_FALSE(client.last_send_script().empty());
+}
+
+TEST_CASE_METHOD(ToolGateFixture, "Calibration start: declining the tool question starts nothing",
+                 "[zoffset][calibration][reference_tool]") {
+    mount(-1);
+    start();
+    REQUIRE(Modal::get_top() != nullptr);
+    press("btn_secondary");
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    CHECK(client.last_send_script().empty());
+
+    // Declined, Start asks again rather than staying latched shut.
+    start();
+    CHECK(Modal::get_top() != nullptr);
+}
+
+TEST_CASE_METHOD(ToolGateFixture, "Calibration start: the reference tool mounted asks nothing",
+                 "[zoffset][calibration][reference_tool]") {
+    mount(0);
+    start();
+    CHECK(Modal::get_top() == nullptr);
+    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
+    CHECK_FALSE(client.last_send_script().empty());
 }
 
 // --- per-head offsets -------------------------------------------------------
