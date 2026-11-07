@@ -47,6 +47,8 @@ void SaverBase::start() {
         return;
     }
 
+    start_print_card();
+
     const uint32_t period_ms = level_period_ms(level_);
     timer_.start(period_ms, [this](uint32_t dt_ms) { run_frame(dt_ms); });
     // The display refreshes as often as the saver draws.
@@ -62,6 +64,7 @@ void SaverBase::stop() {
     }
     spdlog::info("[Screensaver] Stopping type {}", static_cast<int>(type()));
     timer_.cancel();
+    stop_print_card();
     canvas_.release();
     overlay_.destroy();
     on_stop();
@@ -106,6 +109,82 @@ void SaverBase::run_frame(uint32_t dt_ms) {
     if (!dirty_.empty()) {
         canvas_.invalidate(dirty_);
     }
+    step_print_card(dt_ms);
+}
+
+void SaverBase::start_print_card() {
+    const ScreensaverInfo* info = find_screensaver(type());
+    card_.enabled = info && info->print_display == PrintDisplay::CARD;
+    if (!card_.enabled) {
+        return;
+    }
+    card_.layout = layout_print_card(screen_w_, screen_h_);
+    card_.home = print_card_home(screen_w_, screen_h_, card_.layout);
+    if (!card_.canvas.create(overlay_.obj(), card_.layout.w, card_.layout.h,
+                             kSaverBuildCanvasFormat)) {
+        card_.enabled = false;
+        return;
+    }
+    lv_obj_t* obj = card_.canvas.obj();
+    // DECLARATIVE_OK: a procedural canvas on a C++-built overlay; RGB565 has no alpha, so LVGL
+    // rounds the card's corners.
+    lv_obj_set_style_radius(obj, card_.layout.pad, 0);
+    lv_obj_set_style_clip_corner(obj, true, 0);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: shown by the print's state
+    card_.painter.init(card_.layout);
+    card_.drift.set_range(card_.home, screen_w_, screen_h_);
+    card_.shown = false;
+    card_.painted = false;
+    step_print_card(0);
+}
+
+void SaverBase::step_print_card(uint32_t dt_ms) {
+    if (!card_.enabled) {
+        return;
+    }
+    const ClockInput in = read_input();
+    card_.clock.step(dt_ms, in);
+    const ClockMode mode = card_.clock.reading().mode;
+    const bool visible = print_card_visible(PrintDisplay::CARD, in.show_print_progress, mode);
+    const bool moved = card_.drift.step(dt_ms);
+    lv_obj_t* obj = card_.canvas.obj();
+    if (!visible) {
+        if (card_.shown) {
+            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-frame print state
+            card_.shown = false;
+        }
+        return;
+    }
+    if (!card_.shown || moved) {
+        lv_obj_set_pos(obj, card_.home.x1 + card_.drift.dx, card_.home.y1 + card_.drift.dy);
+    }
+    const PrintCardFace face = helix::ui::print_card_face(card_.clock.reading());
+    if (!card_.painted || face != card_.face) {
+        card_.face = face;
+        FrameTarget frame = card_.canvas.frame();
+        card_.painter.draw(frame, face);
+        card_.painted = true;
+        lv_obj_invalidate(obj);
+    }
+    if (!card_.shown) {
+        // Above whatever the scene added to the overlay since it started.
+        lv_obj_move_foreground(obj);
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-frame print state
+        card_.shown = true;
+    }
+}
+
+void SaverBase::stop_print_card() {
+    if (card_.enabled) {
+        card_.canvas.release();
+        card_.painter.clear();
+    }
+    card_.enabled = false;
+    card_.shown = false;
+    card_.painted = false;
+    card_.clock.reset();
+    card_.drift.reset();
+    card_.face = {};
 }
 
 } // namespace helix::ui

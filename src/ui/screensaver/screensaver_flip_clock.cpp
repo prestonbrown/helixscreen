@@ -27,7 +27,9 @@ std::string FlipClockScreensaver::caption_text(const FlipFace& face) {
     }
     case FlipCaption::PAUSED:
     case FlipCaption::DONE:
-        // The print line's first half: PAUSED or DONE.
+    case FlipCaption::FAILED:
+    case FlipCaption::CANCELLED:
+        // The print line's first half: PAUSED, DONE, FAILED or CANCELLED.
         return clock_lines_now().first;
     case FlipCaption::NONE:
         break;

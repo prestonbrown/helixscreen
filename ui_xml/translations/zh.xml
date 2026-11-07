@@ -507,6 +507,7 @@
   <translation tag="Bypass toggle failed" zh="旁通切换失败"/>
   <translation tag="C" zh="腔"/>
   <translation tag="CALIBRATION" zh="校准"/>
+  <translation tag="CANCELED" zh="已取消"/>
   <translation tag="CAPABILITIES" zh="功能"/>
   <translation tag="CARTOGRAPHER" zh="CARTOGRAPHER"/>
   <translation tag="CFS is busy" zh="CFS 正忙"/>
@@ -3430,6 +3431,7 @@
   <translation tag="Share this code in Discord or support:" zh="请将此代码分享至 Discord 或支持渠道："/>
   <translation tag="Sheet Label Print" zh="标签纸打印"/>
   <translation tag="Shelf A" zh="货架A"/>
+  <translation tag="Show Print Progress" zh="显示打印进度"/>
   <translation tag="Show Printer Switcher" zh="显示打印机切换器"/>
   <translation tag="Show Sections" zh="显示区段"/>
   <translation tag="Show Touch Points" zh="显示触摸点"/>
@@ -3442,6 +3444,7 @@
   <translation tag="Show text labels on icon-only home screen widgets" zh="在仅图标的主屏小组件上显示文字标签"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" zh="在 Mainsail 和 Fluidd 中将此屏幕显示为网络摄像头"/>
   <translation tag="Show this screen in a web browser" zh="在网页浏览器中显示此屏幕"/>
+  <translation tag="Show time left on screensavers during a print" zh="打印时在屏幕保护程序上显示剩余时间"/>
   <translation tag="Show up/down buttons on long lists" zh="在长列表中显示上/下按钮"/>
   <translation tag="Show whatever curves you last had visible on the full graph." zh="显示您上次在完整图表上可见的曲线。"/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." zh="仅显示最新的 50 个文件。更多请在打印机网页界面查看。"/>

@@ -236,6 +236,8 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
     // The saved choice; glass shows only where the glass gate also passes.
     {"settings_glass_effects", "/display/glass_effects", Scope::Global, true, 0, 0, 1,
      "glass_effects"},
+    {"settings_screensaver_print_progress", "/display/screensaver_print_progress", Scope::Global,
+     true, 1, 0, 1, "screensaver_print_progress"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {

@@ -8,6 +8,7 @@
 #include "../test_helpers/screensaver_manager_test_access.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "printer_state.h"
 #include "screensaver_aqua.h"
 #include "screensaver_canvas.h"
 #include "screensaver_clock_reading.h"
@@ -46,7 +47,6 @@ using helix::ui::FlipLayout;
 using helix::ui::FlipShape;
 using helix::ui::FrameTarget;
 using helix::ui::kClockCountdownResyncS;
-using helix::ui::kClockDoneHoldMs;
 using helix::ui::kClockDriftStepMs;
 using helix::ui::kClockMaxCountdownS;
 using helix::ui::kFlipClockLevelCount;
@@ -119,13 +119,18 @@ bool inside(const DirtyRect& inner, const DirtyRect& outer) {
            inner.y2 <= outer.y2;
 }
 
-/// The clock mode of the saver the manager runs, which must be a `Saver` of `type`.
-template <typename Saver> ClockMode active_clock_mode(ScreensaverType type) {
+/// The clock reading of the saver the manager runs, which must be a `Saver` of `type`, after
+/// advancing it `advance_ms`.
+template <typename Saver>
+helix::ui::ClockReading active_clock_reading(ScreensaverType type, uint32_t advance_ms = 0) {
     helix::ui::SaverBase* saver =
         helix::ScreensaverManagerTestAccess::active(ScreensaverManager::instance());
     REQUIRE(saver != nullptr);
     REQUIRE(saver->type() == type);
-    return static_cast<Saver*>(saver)->clock().mode();
+    if (advance_ms > 0) {
+        advance_saver(*saver, advance_ms);
+    }
+    return static_cast<Saver*>(saver)->clock().reading();
 }
 
 } // namespace
@@ -179,7 +184,7 @@ TEST_CASE("the countdown face shows H:MM:SS under an hour, past ten hours and at
 // FlipClockState
 // ============================================================================
 
-TEST_CASE("the clock shows the time unless a print has a remaining-time estimate",
+TEST_CASE("the cards show the time unless a print has a remaining-time estimate",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in;
@@ -194,7 +199,8 @@ TEST_CASE("the clock shows the time unless a print has a remaining-time estimate
     SECTION("preparing without an estimate") {
         in.print.phase = ClockPrintPhase::PREPARING;
         state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
+        CHECK(state.mode() == ClockMode::PROGRESS);
+        CHECK(cards_text(state.face()) == "21:05");
     }
     SECTION("preparing once an estimate exists") {
         in.print.phase = ClockPrintPhase::PREPARING;
@@ -207,13 +213,8 @@ TEST_CASE("the clock shows the time unless a print has a remaining-time estimate
         in.print.phase = ClockPrintPhase::PRINTING;
         in.print.remaining_s = -1;
         state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
-    }
-    SECTION("a finished print the clock never saw running") {
-        in.print.phase = ClockPrintPhase::COMPLETE;
-        in.print.remaining_s = 0;
-        state.step(16, in);
-        CHECK(state.mode() == ClockMode::CLOCK);
+        CHECK(state.mode() == ClockMode::PROGRESS);
+        CHECK(cards_text(state.face()) == "21:05");
     }
 }
 
@@ -299,7 +300,7 @@ TEST_CASE("a paused print freezes the countdown under PAUSED until it resumes",
     CHECK(state.countdown_s() == hms(0, 29, 54));
 }
 
-TEST_CASE("a finished print holds 0:00:00 and DONE for a minute, then shows the clock",
+TEST_CASE("a finished print holds 0:00:00 and DONE until the print goes idle",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in = printing(30, 99);
@@ -314,38 +315,52 @@ TEST_CASE("a finished print holds 0:00:00 and DONE for a minute, then shows the 
     CHECK(cards_text(state.face()) == "0:00:00");
     CHECK(state.face().caption == FlipCaption::DONE);
 
-    state.step(kClockDoneHoldMs - 100, in);
+    state.step(3600 * 1000, in);
     CHECK(state.mode() == ClockMode::DONE);
-    state.step(100, in);
+
+    in.print.phase = ClockPrintPhase::NONE;
+    state.step(16, in);
     CHECK(state.mode() == ClockMode::CLOCK);
     CHECK(cards_text(state.face()) == "14:00");
-
-    // Still complete a while later: the hold does not come back.
-    state.step(kClockDoneHoldMs, in);
-    CHECK(state.mode() == ClockMode::CLOCK);
 }
 
-TEST_CASE("a cancelled print goes straight back to the clock",
+TEST_CASE("a failed or cancelled print holds its end until the print goes idle",
           "[screensaver][screensaver_flip_clock]") {
+    const ClockPrintPhase end = GENERATE(ClockPrintPhase::FAILED, ClockPrintPhase::CANCELLED);
     FlipClockState state;
     ClockInput in = printing(300);
     state.step(16, in);
+    in.print.phase = end;
+    state.step(16, in);
+    CHECK(state.mode() ==
+          (end == ClockPrintPhase::FAILED ? ClockMode::FAILED : ClockMode::CANCELLED));
     in.print.phase = ClockPrintPhase::NONE;
     in.print.remaining_s = -1;
     state.step(16, in);
     CHECK(state.mode() == ClockMode::CLOCK);
 }
 
-TEST_CASE("the flip clock reads the print lifecycle, with ended prints as no print",
+TEST_CASE("the flip clock reads every print lifecycle state, and an idle printer's last end",
           "[screensaver][screensaver_flip_clock]") {
+    using helix::PrintOutcome;
     using helix::ui::clock_print_phase;
-    CHECK(clock_print_phase(PrintState::Idle) == ClockPrintPhase::NONE);
-    CHECK(clock_print_phase(PrintState::Preparing) == ClockPrintPhase::PREPARING);
-    CHECK(clock_print_phase(PrintState::Printing) == ClockPrintPhase::PRINTING);
-    CHECK(clock_print_phase(PrintState::Paused) == ClockPrintPhase::PAUSED);
-    CHECK(clock_print_phase(PrintState::Complete) == ClockPrintPhase::COMPLETE);
-    CHECK(clock_print_phase(PrintState::Cancelled) == ClockPrintPhase::NONE);
-    CHECK(clock_print_phase(PrintState::Error) == ClockPrintPhase::NONE);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::NONE) == ClockPrintPhase::NONE);
+    CHECK(clock_print_phase(PrintState::Preparing, PrintOutcome::NONE) ==
+          ClockPrintPhase::PREPARING);
+    CHECK(clock_print_phase(PrintState::Printing, PrintOutcome::NONE) == ClockPrintPhase::PRINTING);
+    CHECK(clock_print_phase(PrintState::Paused, PrintOutcome::NONE) == ClockPrintPhase::PAUSED);
+    CHECK(clock_print_phase(PrintState::Complete, PrintOutcome::COMPLETE) ==
+          ClockPrintPhase::COMPLETE);
+    CHECK(clock_print_phase(PrintState::Cancelled, PrintOutcome::CANCELLED) ==
+          ClockPrintPhase::CANCELLED);
+    CHECK(clock_print_phase(PrintState::Error, PrintOutcome::ERROR) == ClockPrintPhase::FAILED);
+    // A printer back on standby after a print still reports how that print ended.
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::COMPLETE) == ClockPrintPhase::COMPLETE);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::CANCELLED) ==
+          ClockPrintPhase::CANCELLED);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::ERROR) == ClockPrintPhase::FAILED);
+    CHECK(clock_print_phase(PrintState::Printing, PrintOutcome::COMPLETE) ==
+          ClockPrintPhase::PRINTING);
 }
 
 // ============================================================================
@@ -796,9 +811,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(!ss.sim().layout().caption.empty());
     advance_saver(ss, 33);
     reported.print.phase = ClockPrintPhase::COMPLETE;
-    for (uint32_t ms = 0; ms <= kClockDoneHoldMs + 1000; ms += 500) {
-        advance_saver(ss, 500);
-    }
+    advance_saver(ss, 500);
+    REQUIRE(ss.clock().mode() == ClockMode::DONE);
+    reported.print.phase = ClockPrintPhase::NONE;
+    advance_saver(ss, 500);
     REQUIRE(ss.clock().mode() == ClockMode::CLOCK);
 
     // Every card pixel off the split line and clear of the rounded corners is card or digit,
@@ -835,14 +851,79 @@ TEST_CASE_METHOD(LVGLTestFixture, "the manager feeds every clock saver the print
     };
     mgr.set_host(host);
     mgr.start(ScreensaverType::FLIP_CLOCK);
-    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) ==
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
           ClockMode::COUNTDOWN);
     mgr.start(ScreensaverType::AQUA);
-    CHECK(active_clock_mode<helix::ui::AquaScreensaver>(ScreensaverType::AQUA) ==
+    CHECK(active_clock_reading<helix::ui::AquaScreensaver>(ScreensaverType::AQUA).mode ==
           ClockMode::COUNTDOWN);
     mgr.start(ScreensaverType::HIGHFLY);
-    CHECK(active_clock_mode<helix::ui::HighFlyScreensaver>(ScreensaverType::HIGHFLY) ==
+    CHECK(active_clock_reading<helix::ui::HighFlyScreensaver>(ScreensaverType::HIGHFLY).mode ==
           ClockMode::COUNTDOWN);
+    mgr.stop();
+    mgr.set_host({});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print that ends while no saver runs shows its end when a saver starts",
+                 "[screensaver][screensaver_flip_clock]") {
+    helix::ScopedGateEnv gate_env;
+    auto& mgr = ScreensaverManager::instance();
+    uint64_t wall_ns = 0;
+    helix::ScopedScriptedCpuClock clock(mgr,
+                                        [&wall_ns] { return helix::ui::CpuSample{0, wall_ns}; });
+    ClockPrintPhase phase = ClockPrintPhase::PRINTING;
+    uint32_t inactive_ms = 0;
+    helix::ui::SaverHost host;
+    host.print_status = [&phase] { return helix::ui::ClockPrint{phase, -1, 80}; };
+    host.inactive_ms = [&inactive_ms] { return inactive_ms; };
+    mgr.set_host(host);
+    const auto tick_minutes = [&](int minutes) {
+        for (int i = 0; i < minutes; i++) {
+            wall_ns += 60ULL * 1000 * 1000 * 1000;
+            inactive_ms += 60000;
+            lv_tick_inc(60000);
+            mgr.on_idle_check_tick();
+        }
+    };
+
+    tick_minutes(2);
+    phase = ClockPrintPhase::COMPLETE;
+    tick_minutes(10);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+          ClockMode::DONE);
+
+    // A touch after the end acknowledges it: the next saver shows the clock.
+    mgr.stop(helix::SaverRunEnd::TOUCH);
+    inactive_ms = 0;
+    tick_minutes(1);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+          ClockMode::CLOCK);
+    mgr.stop();
+    mgr.set_host({});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print's end reaches a running saver at once, with the progress it reached",
+                 "[screensaver][screensaver_flip_clock]") {
+    helix::ScopedGateEnv gate_env;
+    auto& mgr = ScreensaverManager::instance();
+    helix::ui::ClockPrint status{ClockPrintPhase::PRINTING, hms(0, 30), 64};
+    helix::ui::SaverHost host;
+    host.print_status = [&status] { return status; };
+    host.inactive_ms = [] { return 3600000u; };
+    mgr.set_host(host);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    REQUIRE(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+            ClockMode::COUNTDOWN);
+
+    // The host reports the end, its progress already reset; no idle-check tick has run.
+    status = {ClockPrintPhase::CANCELLED, -1, 0};
+    const helix::ui::ClockReading r =
+        active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK, 33);
+    CHECK(r.mode == ClockMode::CANCELLED);
+    CHECK(r.progress_pct == 64);
     mgr.stop();
     mgr.set_host({});
 }

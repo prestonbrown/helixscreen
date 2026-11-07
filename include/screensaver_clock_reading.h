@@ -16,8 +16,6 @@
 
 namespace helix::ui {
 
-/// How long a finished print stays on the readout before the clock returns.
-inline constexpr uint32_t kClockDoneHoldMs = 60000;
 /// A remaining-time estimate this far from the running countdown resets it; nearer ones are
 /// ignored, so estimator jitter never runs the seconds backwards.
 inline constexpr int32_t kClockCountdownResyncS = 10;
@@ -27,7 +25,15 @@ inline constexpr int32_t kClockMaxCountdownS = 999 * 3600 + 59 * 60 + 59;
 inline constexpr uint32_t kClockDriftStepMs = 60000;
 
 /// What the print is doing, as far as a clock cares.
-enum class ClockPrintPhase : uint8_t { NONE, PREPARING, PRINTING, PAUSED, COMPLETE };
+enum class ClockPrintPhase : uint8_t {
+    NONE,
+    PREPARING,
+    PRINTING,
+    PAUSED,
+    COMPLETE,
+    FAILED,
+    CANCELLED
+};
 
 /// The print, as a clock reads it.
 struct ClockPrint {
@@ -50,10 +56,19 @@ struct ClockInput {
     bool use_24h = false;
     ClockDate date;
     ClockPrint print;
+    /// The "Show Print Progress" setting: a running print's card on savers without their own
+    /// print display.
+    bool show_print_progress = true;
 };
 
-/// What the readout shows: the time, a running countdown, a paused one, or a finished print.
-enum class ClockMode : uint8_t { CLOCK, COUNTDOWN, PAUSED, DONE };
+/// What the readout shows: the time, a running print's progress (PROGRESS before a remaining-time
+/// estimate exists, COUNTDOWN after), a paused print, or how a print ended.
+enum class ClockMode : uint8_t { CLOCK, PROGRESS, COUNTDOWN, PAUSED, DONE, FAILED, CANCELLED };
+
+/// True for the modes that say how a print ended: DONE, FAILED and CANCELLED.
+constexpr bool clock_mode_is_end(ClockMode m) {
+    return m == ClockMode::DONE || m == ClockMode::FAILED || m == ClockMode::CANCELLED;
+}
 
 /// The 12-hour marker.
 enum class ClockMeridiem : uint8_t { NONE, AM, PM };
@@ -81,17 +96,22 @@ struct ClockReading {
     ClockDate date;
     bool use_24h = false;
     ClockMode mode = ClockMode::CLOCK;
-    int32_t countdown_s = 0;       ///< COUNTDOWN and PAUSED: seconds left; 0 otherwise
+    int32_t countdown_s = 0; ///< COUNTDOWN and PAUSED: seconds left; 0 otherwise
+    /// COUNTDOWN, and PAUSED once an estimate has been seen: countdown_s is a real time left
+    bool has_countdown = false;
     int32_t eta_minute_of_day = 0; ///< COUNTDOWN: local minute the print ends, 0 to 1439
-    int32_t progress_pct = 0;      ///< COUNTDOWN and PAUSED: 0 to 100; DONE: 100
+    /// PROGRESS, COUNTDOWN and PAUSED: 0 to 100; DONE: 100; FAILED and CANCELLED: the input's,
+    /// which the manager fills with the progress the print reached
+    int32_t progress_pct = 0;
 };
 
 /**
  * @brief Decides what a clock reads from the print's state over time
  *
- * Idle, preparing without an estimate, cancelled and failed prints read the time of day. A
- * print with an estimate counts down at wall-clock rate, frozen while paused. A print seen
- * finishing reads DONE for kClockDoneHoldMs, then the time of day again.
+ * No print reads the time of day. A running print reads PROGRESS until it has a remaining-time
+ * estimate, then counts down at wall-clock rate, frozen while paused. An ended print reads DONE,
+ * FAILED or CANCELLED for as long as the input reports it; how long that is the caller's
+ * decision (PrintEndLatch).
  */
 class ClockState {
   public:
@@ -114,7 +134,6 @@ class ClockState {
     bool anchored_ = false;
     int32_t anchor_s_ = 0;
     uint32_t since_anchor_ms_ = 0;
-    uint32_t done_ms_ = 0;
     ClockReading reading_;
 };
 

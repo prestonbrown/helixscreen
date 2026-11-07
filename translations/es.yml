@@ -543,6 +543,7 @@ translations:
   Bypass toggle failed: Error al alternar bypass
   C: C
   CALIBRATION: CALIBRACIÓN
+  CANCELED: CANCELADO
   CAPABILITIES: CAPACIDADES
   CARTOGRAPHER: CARTOGRAPHER
   CFS is busy: El CFS está ocupado
@@ -3739,6 +3740,7 @@ translations:
   'Share this code in Discord or support:': 'Comparte este código en Discord o soporte:'
   Sheet Label Print: Impresión de etiquetas en hoja
   Shelf A: Estante A
+  Show Print Progress: Mostrar progreso de impresión
   Show Printer Switcher: Mostrar selector de impresora
   Show Sections: Mostrar Secciones
   Show Touch Points: Mostrar puntos de toque
@@ -3753,6 +3755,7 @@ translations:
     widgets de solo icono
   Show this screen as a webcam in Mainsail and Fluidd: 'Mostrar esta pantalla como cámara web en Mainsail y Fluidd'
   Show this screen in a web browser: 'Mostrar esta pantalla en un navegador web'
+  Show time left on screensavers during a print: Mostrar el tiempo restante en los salvapantallas durante una impresión
   Show up/down buttons on long lists: Mostrar botones arriba/abajo en listas largas
   Show whatever curves you last had visible on the full graph.: Mostrar las curvas
     que tenías visibles por última vez en el gráfico completo.

@@ -10,6 +10,7 @@
 #include "screensaver_cpu_clock.h"
 #include "screensaver_gate.h"
 #include "screensaver_overlay.h"
+#include "screensaver_print_latch.h"
 #include "screensaver_usage.h"
 
 #include <cstddef>
@@ -69,7 +70,7 @@ class Screensaver {
     /** @brief Return the type identifier for this screensaver */
     virtual ScreensaverType type() const = 0;
 
-    /** @brief Where a clock saver reads the time and the print; nullptr for one without a clock */
+    /** @brief Where the saver reads the time and the print; nullptr for one that reads neither */
     virtual helix::ui::ClockInputSink* clock_input_sink() {
         return nullptr;
     }
@@ -85,6 +86,12 @@ struct SaverHost {
     std::string display_backend;
     /// The print's phase, time left and progress; unset reads as no print.
     std::function<ClockPrint()> print_status;
+    /// Changes on a reconnect or a switch to another printer; unset never changes.
+    std::function<uint64_t()> printer_epoch;
+    /// Milliseconds since the last user input; unset reads as 0 (input just now).
+    std::function<uint32_t()> inactive_ms;
+    /// The "Show Print Progress" setting; unset reads as on.
+    std::function<bool()> show_print_progress;
 };
 
 } // namespace helix::ui
@@ -190,6 +197,9 @@ class ScreensaverManager {
 
     /** @brief True while a screensaver or its black screen is up */
     bool is_active() const;
+    /// True while a saver is up that shows how a print ended; false for the black screen, which
+    /// shows nothing, and when no saver runs.
+    bool shows_print_end() const;
 
     /// The saver running now, the type its black screen stands in for, or OFF. Never RANDOM:
     /// a Random run reports the saver it drew.
@@ -198,7 +208,7 @@ class ScreensaverManager {
     /** @brief Read configured screensaver type from DisplaySettingsManager, clamped */
     static ScreensaverType configured_type();
 
-    /// Gives the gate the app's print state and display path.
+    /// Gives the gate and the savers the app's print state, input time and display path.
     void set_host(helix::ui::SaverHost host);
 
     /**
@@ -279,8 +289,10 @@ class ScreensaverManager {
     /** @brief Give back the hold taken by hold_refresh_period(), if one is out */
     void release_refresh_period();
 
-    /// The local time, date and the host's print, for the clock savers.
-    helix::ui::ClockInput clock_input() const;
+    /// The local time, date and the host's print as the latch shows it, for every saver.
+    helix::ui::ClockInput clock_input();
+    /// Steps print_latch_ from the host; returns the print as the savers show it.
+    helix::ui::ClockPrint step_print_latch();
 
     std::vector<std::unique_ptr<helix::ui::SaverBase>> screensavers_;
     helix::ui::SaverBase* active_ = nullptr;
@@ -294,6 +306,8 @@ class ScreensaverManager {
     bool holds_refresh_period_ = false;
 
     helix::ui::SaverHost host_;
+    /// How long an ended print stays on the savers; stepped on every sampled idle-check tick.
+    helix::ui::PrintEndLatch print_latch_;
     helix::ui::CpuClockFn cpu_clock_;
     helix::ui::IdleBaseline baseline_;
     helix::ui::SaverGateSession session_;

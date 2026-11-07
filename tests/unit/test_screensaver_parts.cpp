@@ -39,6 +39,7 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::ui::ClockPrintPhase;
 using helix::ui::DirtyRect;
 using helix::ui::kSaverMaxDirtyAreas;
 using helix::ui::PixelWriter;
@@ -966,6 +967,9 @@ class ProbeSimSaver : public helix::ui::SimSaver<ProbeSim> {
     ScreensaverType type() const override {
         return ScreensaverType::HYPERSPACE;
     }
+    helix::ui::ClockInput input() const {
+        return read_input();
+    }
 
   protected:
     std::optional<lv_color_format_t> canvas_format() const override {
@@ -1170,10 +1174,19 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(ss.resets == 2);
 }
 
-TEST_CASE("a saver with no clock has no clock input", "[screensaver][screensaver_parts]") {
+TEST_CASE("every saver reads the print from its source", "[screensaver][screensaver_parts]") {
     ProbeSimSaver ss;
     Screensaver& as_saver = ss;
-    CHECK(as_saver.clock_input_sink() == nullptr);
+    helix::ui::ClockInputSink* sink = as_saver.clock_input_sink();
+    REQUIRE(sink != nullptr);
+    CHECK(ss.input().print.phase == ClockPrintPhase::NONE);
+    sink->set_input_source([] {
+        helix::ui::ClockInput in;
+        in.print = {ClockPrintPhase::PAUSED, 600, 42};
+        return in;
+    });
+    CHECK(ss.input().print.phase == ClockPrintPhase::PAUSED);
+    CHECK(ss.input().print.progress_pct == 42);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a clock saver hands a face-drawing sim its state's face",

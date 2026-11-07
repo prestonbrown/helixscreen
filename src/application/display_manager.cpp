@@ -30,6 +30,7 @@
 #include "display_settings_manager.h"
 #include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "i_moonraker_client.h"
 #include "lvgl.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"        // not in the lvgl.h umbrella
 #include "lvgl/src/misc/cache/instance/lv_image_header_cache.h" // not in the lvgl.h umbrella
@@ -832,10 +833,25 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
     host.print_status = [] {
         helix::PrinterPrintState& print = get_printer_state().print_state();
         helix::ui::ClockPrint status;
-        status.phase = helix::ui::clock_print_phase(print.get_print_lifecycle());
+        status.phase = helix::ui::clock_print_phase(
+            print.get_print_lifecycle(), static_cast<helix::PrintOutcome>(lv_subject_get_int(
+                                             print.get_print_outcome_subject())));
         status.remaining_s = lv_subject_get_int(print.get_print_time_left_subject());
         status.progress_pct = lv_subject_get_int(print.get_print_progress_display_subject());
         return status;
+    };
+    // A reconnect bumps the generation; a printer switch changes the active id and rebuilds the
+    // client, whose generation starts over.
+    host.printer_epoch = [] {
+        const uint64_t id_hash =
+            std::hash<std::string>{}(helix::Config::get_instance()->get_active_printer_id());
+        const helix::IMoonrakerClient* client = get_moonraker_client();
+        const uint64_t generation = client ? client->connection_generation() : 0;
+        return id_hash ^ (generation * 0x9E3779B97F4A7C15ULL);
+    };
+    host.inactive_ms = [] { return lv_display_get_inactive_time(nullptr); };
+    host.show_print_progress = [] {
+        return helix::DisplaySettingsManager::instance().get_screensaver_print_progress();
     };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())

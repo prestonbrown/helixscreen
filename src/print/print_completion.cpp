@@ -23,7 +23,9 @@
 #include "heater_type.h"
 #include "moonraker_api.h"
 #include "moonraker_manager.h"
+#include "print_completion_alert.h"
 #include "printer_state.h"
+#include "screensaver.h"
 #include "sound_manager.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
@@ -397,18 +399,27 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
 
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 
-        spdlog::debug("[PrintComplete] Print {} - on_print_status={}, mode={}",
+#if HELIX_ENABLE_SCREENSAVER
+        const bool saver_running = ScreensaverManager::instance().shows_print_end();
+#else
+        const bool saver_running = false;
+#endif
+        const helix::PrintEnding ending =
+            (current == PrintJobState::COMPLETE)    ? helix::PrintEnding::COMPLETE
+            : (current == PrintJobState::CANCELLED) ? helix::PrintEnding::CANCELLED
+                                                    : helix::PrintEnding::ERROR;
+        const helix::CompletionAlertPlan plan =
+            helix::plan_completion_alert(ending, mode, on_print_status, saver_running);
+
+        spdlog::debug("[PrintComplete] Print {} - on_print_status={}, mode={}, saver={}, "
+                      "wake={}, modal={}, toast={}",
                       (current == PrintJobState::COMPLETE)    ? "complete"
                       : (current == PrintJobState::CANCELLED) ? "cancelled"
                                                               : "failed",
-                      on_print_status, static_cast<int>(mode));
+                      on_print_status, static_cast<int>(mode), saver_running, plan.wake, plan.modal,
+                      plan.toast);
 
-        // 1. Errors ALWAYS get a modal (high visibility needed)
-        if (current == PrintJobState::ERROR) {
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
-
+        if (ending == helix::PrintEnding::ERROR) {
             // Proactively turn off heaters on print error to prevent
             // indefinite heating (Klipper doesn't auto-off on error)
             if (auto* mgr = get_moonraker_manager()) {
@@ -417,27 +428,14 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                     client->gcode_script("TURN_OFF_HEATERS");
                 }
             }
-
-            show_rich_completion_modal(current, display_name.c_str());
-            return;
         }
 
-        // 2. On print status panel - no notification needed (panel shows state)
-        if (on_print_status) {
-            spdlog::debug("[PrintComplete] On print status panel - skipping notification");
-            return;
-        }
-
-        // 3. On other panels - respect the completion alert mode setting
-        switch (mode) {
-        case CompletionAlertMode::OFF:
-            spdlog::debug("[PrintComplete] Notification disabled by setting");
-            break;
-
-        case CompletionAlertMode::NOTIFICATION: {
+        if (plan.wake) {
             if (auto* dm = DisplayManager::instance()) {
                 dm->wake_display();
             }
+        }
+        if (plan.toast) {
             ToastSeverity severity = (current == PrintJobState::COMPLETE) ? ToastSeverity::SUCCESS
                                                                           : ToastSeverity::WARNING;
             std::string message = std::string("Print ") +
@@ -450,15 +448,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                 message += std::string(" - ") + reason;
             }
             ToastManager::instance().show(severity, message.c_str(), 5000);
-            break;
         }
-
-        case CompletionAlertMode::ALERT:
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
+        if (plan.modal) {
             show_rich_completion_modal(current, display_name.c_str());
-            break;
         }
     }
 }

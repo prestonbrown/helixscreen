@@ -532,6 +532,7 @@ translations:
   Bypass toggle failed: Bypass toggle failed
   C: C
   CALIBRATION: CALIBRATION
+  CANCELED: CANCELED
   CAPABILITIES: CAPABILITIES
   CARTOGRAPHER: CARTOGRAPHER
   CFS is busy: CFS is busy
@@ -3660,6 +3661,7 @@ translations:
   'Share this code in Discord or support:': 'Share this code in Discord or support:'
   Sheet Label Print: Sheet Label Print
   Shelf A: Shelf A
+  Show Print Progress: Show Print Progress
   Show Printer Switcher: Show Printer Switcher
   Show Sections: Show Sections
   Show Touch Points: Show Touch Points
@@ -3674,6 +3676,7 @@ translations:
     home screen widgets
   Show this screen as a webcam in Mainsail and Fluidd: Show this screen as a webcam in Mainsail and Fluidd
   Show this screen in a web browser: Show this screen in a web browser
+  Show time left on screensavers during a print: Show time left on screensavers during a print
   Show up/down buttons on long lists: Show up/down buttons on long lists
   Show whatever curves you last had visible on the full graph.: Show whatever curves
     you last had visible on the full graph.

@@ -6,21 +6,50 @@
 
 #include "screensaver.h"
 #include "screensaver_canvas.h"
+#include "screensaver_clock.h"
 #include "screensaver_frame.h"
 #include "screensaver_frame_timer.h"
 #include "screensaver_overlay.h"
+#include "screensaver_print_card.h"
 #include "screensaver_sim_contract.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <lvgl.h>
 #include <optional>
 #include <random>
+#include <utility>
 #include <vector>
 
 namespace helix::ui {
 
 class SaverTestAccess;
+
+/**
+ * @brief Where a saver reads the time and the print each frame
+ *
+ * Unset reads saver_clock_now(), the time of day with no print. The manager reaches it through
+ * Screensaver::clock_input_sink() and points it at the app's print.
+ */
+class ClockInputSink {
+  public:
+    using InputSource = std::function<ClockInput()>;
+
+    virtual ~ClockInputSink() = default;
+
+    void set_input_source(InputSource source) {
+        source_ = std::move(source);
+    }
+
+  protected:
+    ClockInput read_input() const {
+        return source_ ? source_() : saver_clock_now();
+    }
+
+  private:
+    InputSource source_;
+};
 
 /**
  * @brief Sequences the parts every screensaver runs on
@@ -34,8 +63,12 @@ class SaverTestAccess;
  * refresh while ScreensaverManager holds it (RefreshPeriodHold::follow). A saver that runs a
  * simulation derives from SimSaver (screensaver_sim_saver.h), which implements the hooks.
  */
-class SaverBase : public Screensaver {
+class SaverBase : public Screensaver, public ClockInputSink {
   public:
+    /// Every saver reads the time and the print, whether or not its scene shows them.
+    ClockInputSink* clock_input_sink() override {
+        return this;
+    }
     void start() final;
     void stop() final;
     bool is_active() const final {
@@ -59,6 +92,19 @@ class SaverBase : public Screensaver {
 
     /// Asks a running saver to run at `level`, clamped to the ladder. Ignored while stopped.
     void request_level(size_t level);
+
+    /// Whether the print progress card is on screen now.
+    bool print_card_shown() const {
+        return card_.shown;
+    }
+    /// What the card shows, or would show once visible.
+    const PrintCardFace& print_card_face() const {
+        return card_.face;
+    }
+    /// The card's canvas object, or nullptr for a saver with its own print display.
+    lv_obj_t* print_card_obj() const {
+        return card_.canvas.obj();
+    }
 
   protected:
     SaverBase() = default;
@@ -105,6 +151,25 @@ class SaverBase : public Screensaver {
     friend class SaverTestAccess;
 
     void run_frame(uint32_t dt_ms);
+    /// Creates the progress card above the scene for a saver the registry marks CARD.
+    void start_print_card();
+    /// Steps the card's reading and drift, then shows, moves or repaints it as they changed.
+    void step_print_card(uint32_t dt_ms);
+    void stop_print_card();
+
+    /// The progress card, for savers with no print display of their own.
+    struct PrintCard {
+        bool enabled = false;
+        bool shown = false;
+        bool painted = false;
+        PrintCardLayout layout;
+        DirtyRect home;
+        ClockState clock;
+        ClockDrift drift;
+        PrintCardFace face;
+        PrintCardPainter painter;
+        SaverCanvas canvas;
+    };
 
     bool active_ = false;
     size_t level_ = 0;
@@ -118,6 +183,7 @@ class SaverBase : public Screensaver {
     // Owned random sequence, seeded in start(); a fixed seed makes a run replay exactly.
     std::minstd_rand rng_;
     std::optional<uint32_t> fixed_seed_;
+    PrintCard card_;
 };
 
 } // namespace helix::ui

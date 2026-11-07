@@ -39,9 +39,6 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     if (mode_ == ClockMode::COUNTDOWN) {
         since_anchor_ms_ += dt_ms;
     }
-    if (mode_ == ClockMode::DONE) {
-        done_ms_ += dt_ms;
-    }
     const auto anchor = [this](int32_t seconds) {
         anchored_ = true;
         anchor_s_ = seconds;
@@ -49,6 +46,7 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     };
 
     const ClockPrint& print = in.print;
+    const int32_t progress = std::clamp(print.progress_pct, 0, 100);
     switch (print.phase) {
     case ClockPrintPhase::PREPARING:
     case ClockPrintPhase::PRINTING:
@@ -58,7 +56,7 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
                    std::abs(print.remaining_s - countdown_s()) > kClockCountdownResyncS) {
             anchor(print.remaining_s);
         }
-        mode_ = anchored_ ? ClockMode::COUNTDOWN : ClockMode::CLOCK;
+        mode_ = anchored_ ? ClockMode::COUNTDOWN : ClockMode::PROGRESS;
         break;
     case ClockPrintPhase::PAUSED:
         if (!anchored_ && print.remaining_s > 0) {
@@ -66,18 +64,19 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
         }
         if (anchored_) {
             anchor(countdown_s());
-            mode_ = ClockMode::PAUSED;
-        } else {
-            mode_ = ClockMode::CLOCK;
         }
+        mode_ = ClockMode::PAUSED;
         break;
     case ClockPrintPhase::COMPLETE:
-        if (mode_ == ClockMode::COUNTDOWN || mode_ == ClockMode::PAUSED) {
-            mode_ = ClockMode::DONE;
-            done_ms_ = 0;
-        } else if (mode_ == ClockMode::DONE && done_ms_ >= kClockDoneHoldMs) {
-            mode_ = ClockMode::CLOCK;
-        }
+        mode_ = ClockMode::DONE;
+        anchored_ = false;
+        break;
+    case ClockPrintPhase::FAILED:
+        mode_ = ClockMode::FAILED;
+        anchored_ = false;
+        break;
+    case ClockPrintPhase::CANCELLED:
+        mode_ = ClockMode::CANCELLED;
         anchored_ = false;
         break;
     case ClockPrintPhase::NONE:
@@ -94,20 +93,29 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     switch (mode_) {
     case ClockMode::CLOCK:
         break;
+    case ClockMode::PROGRESS:
+        reading_.progress_pct = progress;
+        break;
     case ClockMode::COUNTDOWN: {
         reading_.countdown_s = countdown_s();
+        reading_.has_countdown = true;
         const int32_t sod = screensaver::wrap_index(in.seconds_of_day, 86400);
         reading_.eta_minute_of_day =
             static_cast<int32_t>((static_cast<int64_t>(sod) + countdown_s()) / 60 % 1440);
-        reading_.progress_pct = std::clamp(print.progress_pct, 0, 100);
+        reading_.progress_pct = progress;
         break;
     }
     case ClockMode::PAUSED:
-        reading_.countdown_s = countdown_s();
-        reading_.progress_pct = std::clamp(print.progress_pct, 0, 100);
+        reading_.countdown_s = anchored_ ? countdown_s() : 0;
+        reading_.has_countdown = anchored_;
+        reading_.progress_pct = progress;
         break;
     case ClockMode::DONE:
         reading_.progress_pct = 100;
+        break;
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED:
+        reading_.progress_pct = progress;
         break;
     }
 }

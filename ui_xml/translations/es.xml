@@ -507,6 +507,7 @@
   <translation tag="Bypass toggle failed" es="Error al alternar bypass"/>
   <translation tag="C" es="C"/>
   <translation tag="CALIBRATION" es="CALIBRACIÓN"/>
+  <translation tag="CANCELED" es="CANCELADO"/>
   <translation tag="CAPABILITIES" es="CAPACIDADES"/>
   <translation tag="CARTOGRAPHER" es="CARTOGRAPHER"/>
   <translation tag="CFS is busy" es="El CFS está ocupado"/>
@@ -3430,6 +3431,7 @@
   <translation tag="Share this code in Discord or support:" es="Comparte este código en Discord o soporte:"/>
   <translation tag="Sheet Label Print" es="Impresión de etiquetas en hoja"/>
   <translation tag="Shelf A" es="Estante A"/>
+  <translation tag="Show Print Progress" es="Mostrar progreso de impresión"/>
   <translation tag="Show Printer Switcher" es="Mostrar selector de impresora"/>
   <translation tag="Show Sections" es="Mostrar Secciones"/>
   <translation tag="Show Touch Points" es="Mostrar puntos de toque"/>
@@ -3442,6 +3444,7 @@
   <translation tag="Show text labels on icon-only home screen widgets" es="Mostrar etiquetas de texto en widgets de solo icono"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" es="Mostrar esta pantalla como cámara web en Mainsail y Fluidd"/>
   <translation tag="Show this screen in a web browser" es="Mostrar esta pantalla en un navegador web"/>
+  <translation tag="Show time left on screensavers during a print" es="Mostrar el tiempo restante en los salvapantallas durante una impresión"/>
   <translation tag="Show up/down buttons on long lists" es="Mostrar botones arriba/abajo en listas largas"/>
   <translation tag="Show whatever curves you last had visible on the full graph." es="Mostrar las curvas que tenías visibles por última vez en el gráfico completo."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." es="Se muestran los 50 archivos más recientes. Consulta el resto en la interfaz web de la impresora."/>

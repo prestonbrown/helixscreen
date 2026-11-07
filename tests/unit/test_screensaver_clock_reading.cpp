@@ -20,6 +20,7 @@
 
 using helix::DisplaySettingsManager;
 using helix::TimeFormat;
+using helix::ui::clock_mode_is_end;
 using helix::ui::clock_time;
 using helix::ui::ClockDate;
 using helix::ui::ClockInput;
@@ -28,7 +29,6 @@ using helix::ui::ClockMode;
 using helix::ui::ClockPrintPhase;
 using helix::ui::ClockState;
 using helix::ui::ClockTime;
-using helix::ui::kClockDoneHoldMs;
 using helix::ui::StrokeDigitSet;
 
 using helix::test::hms;
@@ -122,7 +122,7 @@ TEST_CASE("a print with an estimate reads a countdown with its end time and prog
     CHECK(state.reading().countdown_s == 4000);
 }
 
-TEST_CASE("paused freezes, done holds then returns to the clock, cancelled clears",
+TEST_CASE("paused freezes the countdown and a print gone idle reads the clock",
           "[screensaver][clock_reading]") {
     ClockInput in;
     in.seconds_of_day = hms(10, 0);
@@ -140,26 +140,81 @@ TEST_CASE("paused freezes, done holds then returns to the clock, cancelled clear
     CHECK(state.countdown_s() == 600);
     CHECK(state.reading().progress_pct == 42);
 
-    in.print.phase = ClockPrintPhase::COMPLETE;
-    in.print.remaining_s = 0;
-    state.step(16, in);
-    CHECK(state.mode() == ClockMode::DONE);
-    CHECK(state.reading().progress_pct == 100);
-    state.step(kClockDoneHoldMs - 100, in);
-    CHECK(state.mode() == ClockMode::DONE);
-    state.step(200, in);
-    CHECK(state.mode() == ClockMode::CLOCK);
-
-    in.print.phase = ClockPrintPhase::PRINTING;
-    in.print.remaining_s = 300;
-    state.step(16, in);
-    REQUIRE(state.mode() == ClockMode::COUNTDOWN);
     in.print.phase = ClockPrintPhase::NONE;
     in.print.remaining_s = -1;
     state.step(16, in);
     CHECK(state.mode() == ClockMode::CLOCK);
     CHECK(state.reading().countdown_s == 0);
     CHECK(state.reading().progress_pct == 0);
+}
+
+TEST_CASE("a running print with no estimate reads its progress", "[screensaver][clock_reading]") {
+    ClockInput in;
+    in.seconds_of_day = hms(10, 0);
+    in.print.phase = ClockPrintPhase::PRINTING;
+    in.print.remaining_s = -1;
+    in.print.progress_pct = 37;
+    ClockState state;
+    state.step(0, in);
+    CHECK(state.mode() == ClockMode::PROGRESS);
+    CHECK(state.reading().progress_pct == 37);
+    CHECK_FALSE(clock_mode_is_end(state.mode()));
+
+    in.print.remaining_s = 600;
+    state.step(16, in);
+    CHECK(state.mode() == ClockMode::COUNTDOWN);
+    CHECK(state.reading().progress_pct == 37);
+}
+
+TEST_CASE("an ended print reads its end for as long as the input says so",
+          "[screensaver][clock_reading]") {
+    const auto run_to_end = [](ClockPrintPhase end) {
+        ClockInput in;
+        in.seconds_of_day = hms(10, 0);
+        in.print.phase = ClockPrintPhase::PRINTING;
+        in.print.remaining_s = 600;
+        in.print.progress_pct = 64;
+        ClockState state;
+        state.step(0, in);
+        in.print.phase = end;
+        in.print.remaining_s = 0;
+        for (int i = 0; i < 600; i++) {
+            state.step(1000, in);
+        }
+        return state;
+    };
+
+    const ClockState done = run_to_end(ClockPrintPhase::COMPLETE);
+    CHECK(done.mode() == ClockMode::DONE);
+    CHECK(done.reading().progress_pct == 100);
+    CHECK(clock_mode_is_end(done.mode()));
+
+    const ClockState failed = run_to_end(ClockPrintPhase::FAILED);
+    CHECK(failed.mode() == ClockMode::FAILED);
+    CHECK(failed.reading().progress_pct == 64);
+    CHECK(clock_mode_is_end(failed.mode()));
+
+    const ClockState cancelled = run_to_end(ClockPrintPhase::CANCELLED);
+    CHECK(cancelled.mode() == ClockMode::CANCELLED);
+    CHECK(cancelled.reading().progress_pct == 64);
+    CHECK(clock_mode_is_end(cancelled.mode()));
+
+    ClockState after = done;
+    ClockInput idle;
+    idle.seconds_of_day = hms(10, 30);
+    after.step(16, idle);
+    CHECK(after.mode() == ClockMode::CLOCK);
+}
+
+TEST_CASE("an end seen without a running print still reads as that end",
+          "[screensaver][clock_reading]") {
+    ClockInput in;
+    in.seconds_of_day = hms(10, 0);
+    in.print.phase = ClockPrintPhase::COMPLETE;
+    in.print.progress_pct = 100;
+    ClockState state;
+    state.step(0, in);
+    CHECK(state.mode() == ClockMode::DONE);
 }
 
 TEST_CASE("the drift range keeps a spare pixel and at most a 25th of the screen",
@@ -411,13 +466,27 @@ TEST_CASE_METHOD(LVGLTestFixture, "the print readout says when it ends and how l
     CHECK(text.left == "1h 12m left");
 
     reading.mode = ClockMode::PAUSED;
+    reading.has_countdown = true;
     text = helix::ui::clock_print_text(reading);
     CHECK(text.eta == "PAUSED");
     CHECK(text.left == "1h 12m left");
+    reading.has_countdown = false;
+    text = helix::ui::clock_print_text(reading);
+    CHECK(text.left.empty());
 
     reading.mode = ClockMode::DONE;
     text = helix::ui::clock_print_text(reading);
     CHECK(text.eta == "DONE");
+    CHECK(text.left.empty());
+
+    reading.mode = ClockMode::FAILED;
+    CHECK(helix::ui::clock_print_text(reading).eta == "FAILED");
+    reading.mode = ClockMode::CANCELLED;
+    CHECK(helix::ui::clock_print_text(reading).eta == "CANCELED");
+    reading.mode = ClockMode::PROGRESS;
+    reading.progress_pct = 37;
+    text = helix::ui::clock_print_text(reading);
+    CHECK(text.eta == "37%");
     CHECK(text.left.empty());
 
     reading.mode = ClockMode::CLOCK;

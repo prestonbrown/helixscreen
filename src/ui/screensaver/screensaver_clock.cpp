@@ -10,6 +10,7 @@
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "lvgl.h"
+#include "printer_state.h"
 #include "screensaver_motion.h"
 #include "theme_manager.h"
 
@@ -53,7 +54,7 @@ ClockInput saver_clock_now() {
     return in;
 }
 
-ClockPrintPhase clock_print_phase(PrintState state) {
+ClockPrintPhase clock_print_phase(PrintState state, PrintOutcome outcome) {
     switch (state) {
     case PrintState::Preparing:
         return ClockPrintPhase::PREPARING;
@@ -63,9 +64,21 @@ ClockPrintPhase clock_print_phase(PrintState state) {
         return ClockPrintPhase::PAUSED;
     case PrintState::Complete:
         return ClockPrintPhase::COMPLETE;
-    case PrintState::Idle:
     case PrintState::Cancelled:
+        return ClockPrintPhase::CANCELLED;
     case PrintState::Error:
+        return ClockPrintPhase::FAILED;
+    case PrintState::Idle:
+        break;
+    }
+    switch (outcome) {
+    case PrintOutcome::COMPLETE:
+        return ClockPrintPhase::COMPLETE;
+    case PrintOutcome::CANCELLED:
+        return ClockPrintPhase::CANCELLED;
+    case PrintOutcome::ERROR:
+        return ClockPrintPhase::FAILED;
+    case PrintOutcome::NONE:
         break;
     }
     return ClockPrintPhase::NONE;
@@ -83,6 +96,9 @@ ClockPrintText clock_print_text(const ClockReading& reading) {
                            helix::format::duration(reading.countdown_s));
     };
     switch (reading.mode) {
+    case ClockMode::PROGRESS:
+        text.eta = fmt::format("{}%", reading.progress_pct);
+        break;
     case ClockMode::COUNTDOWN:
         text.eta = fmt::format(fmt::runtime(lv_tr("ETA {}")),
                                clock_minute_text(reading.eta_minute_of_day));
@@ -90,10 +106,18 @@ ClockPrintText clock_print_text(const ClockReading& reading) {
         break;
     case ClockMode::PAUSED:
         text.eta = lv_tr("PAUSED");
-        text.left = left();
+        if (reading.has_countdown) {
+            text.left = left();
+        }
         break;
     case ClockMode::DONE:
         text.eta = lv_tr("DONE");
+        break;
+    case ClockMode::FAILED:
+        text.eta = lv_tr("FAILED");
+        break;
+    case ClockMode::CANCELLED:
+        text.eta = lv_tr("CANCELED");
         break;
     case ClockMode::CLOCK:
         break;
@@ -112,6 +136,7 @@ ClockDateText clock_date_text(const ClockDate& date) {
 
 bool clock_text_same(const ClockReading& a, const ClockReading& b) {
     return a.mode == b.mode && a.countdown_s == b.countdown_s &&
+           (a.mode != ClockMode::PROGRESS || a.progress_pct == b.progress_pct) &&
            a.eta_minute_of_day == b.eta_minute_of_day && a.use_24h == b.use_24h &&
            a.time.meridiem == b.time.meridiem && a.date.year == b.date.year &&
            a.date.month == b.date.month && a.date.day == b.date.day &&

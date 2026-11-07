@@ -43,7 +43,7 @@ inline constexpr size_t kFlipClockLevelCount = std::size(kFlipClockLevels);
 inline constexpr uint32_t kFlipDurationMs = 300;
 
 /// The line under the cards.
-enum class FlipCaption : uint8_t { NONE, DONE_AT, PAUSED, DONE };
+enum class FlipCaption : uint8_t { NONE, DONE_AT, PAUSED, DONE, FAILED, CANCELLED };
 
 /// One card: a single digit, or blank.
 struct FlipCard {
@@ -98,8 +98,8 @@ FlipFace clock_face(int32_t seconds_of_day, bool use_24h);
 /// for `seconds`, clamped to 0 and kClockMaxCountdownS.
 FlipFace countdown_face(int32_t seconds);
 
-/// The cards and caption for `reading`: the time of day, or the countdown with DONE_AT,
-/// PAUSED or DONE under it.
+/// The cards and caption for `reading`: the time of day (also while a print has no estimate),
+/// or the countdown with DONE_AT, PAUSED, DONE, FAILED or CANCELLED under it.
 FlipFace flip_face(const ClockReading& reading);
 
 /// ClockState read as cards: every decision is ClockState's, the cards are flip_face()'s.

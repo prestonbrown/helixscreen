@@ -91,14 +91,36 @@ ScreensaverManager::~ScreensaverManager() = default;
 
 void ScreensaverManager::set_host(helix::ui::SaverHost host) {
     host_ = std::move(host);
+    print_latch_.reset();
 }
 
-helix::ui::ClockInput ScreensaverManager::clock_input() const {
-    helix::ui::ClockInput in = helix::ui::saver_clock_now();
+helix::ui::ClockPrint ScreensaverManager::step_print_latch() {
+    helix::ui::PrintLatchInput in;
     if (host_.print_status) {
-        in.print = host_.print_status();
+        in.host = host_.print_status();
     }
+    in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
+    in.now_ms = lv_tick_get();
+    in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
+    helix::ui::ClockPrint shown = in.host;
+    shown.phase = print_latch_.step(in);
+    if (shown.phase == print_latch_.latched() && shown.phase != helix::ui::ClockPrintPhase::NONE) {
+        // The host may already report the next state's progress; the end keeps the print's own.
+        shown.progress_pct = print_latch_.latched_progress_pct();
+    }
+    return shown;
+}
+
+helix::ui::ClockInput ScreensaverManager::clock_input() {
+    helix::ui::ClockInput in = helix::ui::saver_clock_now();
+    // Stepped every frame a saver reads, so an end reaches it in the same frame.
+    in.print = step_print_latch();
+    in.show_print_progress = host_.show_print_progress ? host_.show_print_progress() : true;
     return in;
+}
+
+bool ScreensaverManager::shows_print_end() const {
+    return active_ != nullptr && active_->is_active();
 }
 
 void ScreensaverManager::start(ScreensaverType type, bool preview) {
@@ -359,6 +381,8 @@ void ScreensaverManager::on_idle_check_tick() {
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
 
+    step_print_latch();
+
     if (!active_ || !active_->is_active()) {
         if (black_screen_type_ == ScreensaverType::OFF) {
             baseline_.add(now);
@@ -442,9 +466,16 @@ void ScreensaverManager::on_idle_check_tick() {
         active_ = nullptr;
         active_info_ = nullptr;
         gate_enabled_ = false;
-        // Unmarked, the saver would resolve to itself again: a print blanks the rest of the run.
+        // Unmarked, the saver would resolve to itself again. During a print the flip clock
+        // takes over, since it shows the print and costs least; black only when it is the one
+        // that was too heavy.
         if (printing) {
-            run_black_screen(type);
+            const ScreensaverType fallback = helix::ui::kDefaultScreensaverType;
+            if (type != fallback && !too_heavy_for_identity(fallback)) {
+                launch(fallback);
+            } else {
+                run_black_screen(type);
+            }
         } else {
             launch(runnable_type_for_identity(type));
         }

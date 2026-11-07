@@ -12,7 +12,10 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/screensaver_setting.h` | Reading the persisted choice: a name in any case, or a legacy number |
 | `include/screensaver_base.h` | `SaverBase`: start, frame and stop sequence, levels, level requests; `ladder_period()` for a ladder table |
 | `include/screensaver_sim_contract.h`, `include/screensaver_sim_saver.h` | The calling shape of a sim (`init_sim`, `step_sim`, with or without an rng) and `SimSaver<Sim>`, which implements every `SaverBase` hook from it |
-| `include/screensaver_clock_saver.h` | `ClockSaver<Sim, State>`: a SimSaver whose sim draws a clock, with the input source (`ClockInputSink`, reached through `Screensaver::clock_input_sink()`), the clock state, the text cache and the redraw-over-what-changed step |
+| `include/screensaver_clock_saver.h` | `ClockSaver<Sim, State>`: a SimSaver whose sim draws a clock, with the clock state, the text cache and the redraw-over-what-changed step. The input source (`ClockInputSink`) is on `SaverBase`, so every saver reads the print |
+| `include/screensaver_print_latch.h` | `PrintEndLatch`: how long an ended print stays on the savers |
+| `include/screensaver_print_card.h`, `include/screensaver_print_colors.h` | The progress card savers without their own print display show, and the shared print state colours |
+| `include/print_completion_alert.h` | `plan_completion_alert`: wake, modal and toast at a print's end, none of the wake while a saver runs |
 | `include/screensaver_image.h` | Decoding a sprite or picture once into an owned draw buffer, reading an image header, and the printer picture a saver shows |
 | `include/screensaver_overlay.h` | `SaverOverlay`: the black, clickable overlay on `lv_layer_top()`, so nothing beneath it is ever the press target |
 | `include/screensaver_canvas.h` | `SaverCanvas`: stride-sized buffer, the two canvas formats (`kSaverBuildCanvasFormat`, `kLvDrawCanvasFormat`), hide-before-free, dirty areas reduced to `kSaverMaxDirtyAreas` or the whole canvas (`reduce_dirty`), the dirty-box layer session |
@@ -219,8 +222,9 @@ samples `CLOCK_PROCESS_CPUTIME_ID` (every thread, LVGL's draw thread included) a
 Each step down and each too-heavy mark is stored at `/display/screensaver_levels/<name>` as
 `{"level", "too_heavy", "version", "board"}`, except one taken while printing: the halved
 budget says nothing about the idle board, so that step down lasts for the run only, and a saver
-too heavy at its bottom level while printing shows the black screen for the rest of the run,
-unmarked. The next run of that saver starts there, unless
+too heavy at its bottom level while printing gives way, unmarked, to the flip clock
+(`kDefaultScreensaverType`), which shows the print and costs least; the black screen only when
+the flip clock itself is the one too heavy. The next run of that saver starts there, unless
 `helix_version_full()` or the board fingerprint (display path, cores, bogomips to the nearest
 100, resolution, color depth) differs, which starts again at level 0.
 
@@ -382,14 +386,15 @@ by `PrintEtaEstimator`) and the displayed progress; `saver_clock_now()` adds the
 the date and the Time Format setting. `ClockState` (shared with Aqua Surface and High Fly)
 decides what the clock reads, and `flip_face` turns that reading into cards:
 
-- Idle, cancelled, failed, or preparing with no estimate yet: the time of day, HH:MM, with
+- No print, or a running print with no estimate yet (PROGRESS): the time of day, HH:MM, with
   AM/PM on the first hour card in 12-hour mode, where that card is blank before 10.
 - A print with an estimate: H:MM:SS (as many hour cards as the hours need, up to
   `kClockMaxCountdownS`) counting down at wall-clock rate, with "done at
   <time> · <n>%" under the cards. An estimate within `kClockCountdownResyncS` of the running
   count is ignored, so estimator jitter never flips the seconds backwards.
-- Paused: the count freezes under PAUSED.
-- A print the clock saw finish: 0:00:00 and DONE for `kClockDoneHoldMs`, then the clock.
+- Paused: the count freezes under PAUSED (the time of day when no estimate was ever seen).
+- Ended: 0:00:00 over DONE, FAILED or CANCELED for as long as the latch holds the end (Print
+  progress, below).
 
 Every digit has its own card, grouped by a `FlipShape` (hours, minutes, seconds).
 `layout_flip_cards` puts every group in one row with a colon between groups, or, when that
@@ -413,9 +418,9 @@ turn and the wrinkle scroll to one table turn. Tests start both sims thirty days
 ## The shared clock face
 
 `ClockState::step` takes the time, the date and the print each frame and keeps one reading:
-the time of day, or a countdown anchored to the print's remaining time (jitter under
-`kClockCountdownResyncS` ignored), frozen while paused, and DONE for `kClockDoneHoldMs`
-after a print it saw finish. The flip clock replaces the time with the countdown; Aqua
+the time of day, PROGRESS for a running print before it has an estimate, or a countdown
+anchored to the print's remaining time (jitter under `kClockCountdownResyncS` ignored), frozen
+while paused, and DONE, FAILED or CANCELLED for as long as the input reports the end. The flip clock replaces the time with the countdown; Aqua
 Surface and High Fly keep the time as the main readout and show the print as secondary text
 from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". With no print they show
 `clock_date_text`, the long date and weekday from `locale_formats`
@@ -425,6 +430,42 @@ from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". With no print they sho
 Text on a canvas that repaints beneath it is a `SaverLabel`: it redraws its line when the text
 or box changes, or when a box the frame repainted crosses it. The scene puts the pixels back
 first; the label never erases.
+
+## Print progress
+
+Every saver reads the print: `SaverBase` is the `ClockInputSink`, and the manager points each
+one at `ScreensaverManager::clock_input`, which fills it from `SaverHost::print_status`. The
+host reports an idle printer's last end from the persisted print outcome
+(`clock_print_phase`), so a printer that drops to standby right after a print still reads it.
+How long an ended print stays is `PrintEndLatch`'s decision
+(`src/ui/screensaver/screensaver_print_latch.cpp#step`), stepped every time a saver reads its
+input and on every sampled idle-check tick, so it sees the end whether or not a saver runs:
+
+- The step from PREPARING, PRINTING or PAUSED to COMPLETE, FAILED or CANCELLED latches that
+  end, with the progress the print last reported while running. An end never seen running
+  reads as no print, so an app that connects to a finished printer shows nothing stale.
+- It clears on user input after the end (`SaverHost::inactive_ms` against the `lv_tick` stamp
+  it latched at), a new print, and a change of `SaverHost::printer_epoch` (the active
+  printer's id with the client's connection generation). Display sleep is not input: a print
+  finished overnight is still on the saver when the screen next dims. Any wake the app asks
+  for counts as input, since it shows the UI.
+
+While a saver that shows the end runs (`ScreensaverManager::shows_print_end`, never the black
+screen), the end of a print does not wake the display: `plan_completion_alert`
+(`src/print/print_completion_alert.cpp`) drops the wake and the toast and keeps the modal,
+which waits behind the saver. Sounds and the heater shutdown on an error are unchanged. With no
+saver running, completion behaves as it always did.
+
+Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
+(the flip clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
+creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in
+the state colour beside stroke-drawn text, 1h05 or 23m left, or 63% before an estimate, with a
+mark in the ring when paused or ended (`PrintCardPainter`). It drifts like the clocks and
+repaints only when `PrintCardFace` changes, which the text's whole minutes bound to once a
+minute. `print_card_visible` shows it for paused and ended prints always and for a running
+print with Settings > Display > Show Print Progress on (`settings_screensaver_print_progress`,
+on by default, reaching savers as `ClockInput::show_print_progress`). The state colours,
+amber paused, green done and red failed or cancelled, live in `screensaver_print_colors.h`.
 
 ## The heightfield renderer
 

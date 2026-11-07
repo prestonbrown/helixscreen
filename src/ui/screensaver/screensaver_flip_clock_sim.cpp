@@ -173,6 +173,7 @@ FlipFace countdown_face(int32_t seconds) {
 FlipFace flip_face(const ClockReading& reading) {
     switch (reading.mode) {
     case ClockMode::CLOCK:
+    case ClockMode::PROGRESS:
         break;
     case ClockMode::COUNTDOWN: {
         FlipFace face = countdown_face(reading.countdown_s);
@@ -182,13 +183,20 @@ FlipFace flip_face(const ClockReading& reading) {
         return face;
     }
     case ClockMode::PAUSED: {
+        if (!reading.has_countdown) {
+            break;
+        }
         FlipFace face = countdown_face(reading.countdown_s);
         face.caption = FlipCaption::PAUSED;
         return face;
     }
-    case ClockMode::DONE: {
+    case ClockMode::DONE:
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED: {
         FlipFace face = countdown_face(0);
-        face.caption = FlipCaption::DONE;
+        face.caption = reading.mode == ClockMode::DONE     ? FlipCaption::DONE
+                       : reading.mode == ClockMode::FAILED ? FlipCaption::FAILED
+                                                           : FlipCaption::CANCELLED;
         return face;
     }
     }

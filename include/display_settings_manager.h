@@ -30,6 +30,7 @@ enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
  * - brightness (0-100, clamped to 10-100)
  * - has_backlight (ephemeral, hardware detection)
  * - sleep_while_printing (allow sleep during prints)
+ * - screensaver_print_progress (progress card on savers without their own print display)
  * - animations_enabled (UI animation toggle)
  * - bed_mesh_render_mode (Auto/3D/2D)
  * - gcode_render_mode (Auto/3D/2D/Thumbnail Only)
@@ -160,6 +161,15 @@ class DisplaySettingsManager {
     }
     void set_sleep_while_printing(bool enabled) {
         settings_.set(Key::SleepWhilePrinting, enabled);
+    }
+
+    /// Whether savers with no print display of their own show the progress card for a running
+    /// print. Paused and ended prints show it regardless.
+    bool get_screensaver_print_progress() const {
+        return settings_.get_bool(Key::ScreensaverPrintProgress);
+    }
+    void set_screensaver_print_progress(bool enabled) {
+        settings_.set(Key::ScreensaverPrintProgress, enabled);
     }
 
     // =========================================================================
@@ -496,6 +506,9 @@ class DisplaySettingsManager {
     lv_subject_t* subject_sleep_while_printing() {
         return settings_.subject(Key::SleepWhilePrinting);
     }
+    lv_subject_t* subject_screensaver_print_progress() {
+        return settings_.subject(Key::ScreensaverPrintProgress);
+    }
 
     /** @brief Animations enabled subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_animations_enabled() {
@@ -638,6 +651,7 @@ class DisplaySettingsManager {
         GcodeRenderMode,
         TimeFormat,
         GlassEffects,
+        ScreensaverPrintProgress,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;

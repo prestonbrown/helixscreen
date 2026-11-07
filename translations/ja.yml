@@ -515,6 +515,7 @@ translations:
   Bypass toggle failed: バイパス切替に失敗しました
   C: C
   CALIBRATION: キャリブレーション
+  CANCELED: キャンセル済み
   CAPABILITIES: 機能
   CARTOGRAPHER: CARTOGRAPHER
   CFS is busy: CFS がビジー状態です
@@ -3553,6 +3554,7 @@ translations:
   'Share this code in Discord or support:': 'このコードをDiscordまたはサポートで共有してください:'
   Sheet Label Print: シートラベル印刷
   Shelf A: 棚A
+  Show Print Progress: 印刷の進捗を表示
   Show Printer Switcher: プリンター切替を表示
   Show Sections: セクションを表示
   Show Touch Points: タッチポイントを表示
@@ -3565,6 +3567,7 @@ translations:
   Show text labels on icon-only home screen widgets: アイコンのみのホーム画面ウィジェットにテキストラベルを表示
   Show this screen as a webcam in Mainsail and Fluidd: 'この画面をMainsailとFluiddでウェブカメラとして表示'
   Show this screen in a web browser: 'この画面をウェブブラウザで表示'
+  Show time left on screensavers during a print: 印刷中にスクリーンセーバーに残り時間を表示
   Show up/down buttons on long lists: 長いリストに上下ボタンを表示
   Show whatever curves you last had visible on the full graph.: フルグラフで最後に表示していた曲線を表示します。
   Showing the 50 newest files. See more in the printer's web UI.: '最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。'
