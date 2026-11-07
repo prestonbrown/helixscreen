@@ -322,6 +322,25 @@ TEST_CASE("HardwareValidator - Critical hardware detection", "[hardware][validat
     }
 }
 
+TEST_CASE("HardwareValidator - kinematics none skips the extruder check", "[hardware][validator]") {
+    MoonrakerClientMock client;
+    client.set_heaters({});
+    auto hw = client.hardware();
+
+    SECTION("kinematics: none reports no critical hardware") {
+        hw.set_kinematics("none");
+        auto result = HardwareValidator().validate(nullptr, hw);
+        REQUIRE_FALSE(result.has_critical());
+    }
+
+    SECTION("Any other kinematics still requires an extruder") {
+        hw.set_kinematics("corexy");
+        auto result = HardwareValidator().validate(nullptr, hw);
+        REQUIRE(result.critical_missing.size() == 1);
+        REQUIRE(result.critical_missing[0].hardware_name == "extruder");
+    }
+}
+
 TEST_CASE("HardwareValidator - New hardware discovery", "[hardware][validator]") {
     MoonrakerClientMock client;
 
@@ -1710,4 +1729,18 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
     auto result = validator.validate(&config, client.hardware());
 
     REQUIRE_FALSE(reports_filament_sensor_missing(result, "filament_switch_sensor here"));
+}
+
+TEST_CASE_METHOD(HardwareValidatorConfigFixture,
+                 "HardwareValidator - a missing extruder marked optional is not critical",
+                 "[hardware][validator][config]") {
+    setup_empty_hardware_config();
+    MoonrakerClientMock client;
+    client.set_heaters({"heater_bed"});
+    HardwareValidator validator;
+
+    REQUIRE(validator.validate(&config, client.hardware()).has_critical());
+
+    HardwareValidator::set_hardware_optional(&config, "extruder", true);
+    REQUIRE_FALSE(validator.validate(&config, client.hardware()).has_critical());
 }

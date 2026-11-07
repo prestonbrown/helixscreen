@@ -372,8 +372,11 @@ class HardwareValidator {
   private:
     /**
      * @brief Validate critical hardware exists (extruder, heater_bed)
+     *
+     * Skipped entirely for `kinematics: none`. A missing item the user marked
+     * optional is not reported.
      */
-    void validate_critical_hardware(const helix::PrinterDiscovery& hardware,
+    void validate_critical_hardware(helix::Config* config, const helix::PrinterDiscovery& hardware,
                                     HardwareValidationResult& result);
 
     /**

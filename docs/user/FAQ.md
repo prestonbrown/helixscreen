@@ -52,6 +52,10 @@ Yes. HelixScreen is a Moonraker client — it only needs network access to your 
 
 Point it at Moonraker (port `7125`), not the Mainsail/Fluidd web interface — you don't need Mainsail or Fluidd on the screen device at all. See [Remote Screen Setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) for step-by-step instructions.
 
+### Can I use HelixScreen on a Klipper machine that isn't a printer?
+
+Yes. If your `[printer]` section sets `kinematics: none`, HelixScreen knows the machine has no motion system and won't warn that the nozzle heater is missing. On any other machine without a nozzle heater, open the warning's **View** button (or **Settings → Devices → Hardware Health**) and tap **Ignore** on the extruder entry. It won't be reported again. See [Hardware Health](guide/settings/devices.md#hardware-health).
+
 ### Which displays are supported?
 
 **Tested and confirmed working:**
