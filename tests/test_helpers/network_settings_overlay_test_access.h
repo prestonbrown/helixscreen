@@ -142,4 +142,8 @@ class NetworkSettingsOverlayTestAccess {
                                       const std::vector<WiFiNetwork>& networks) {
         o.populate_network_list(networks);
     }
+    /// An Ethernet probe the overlay is waiting on.
+    static bool& eth_refresh_in_flight(NetworkSettingsOverlay& o) {
+        return o.eth_refresh_in_flight_;
+    }
 };
