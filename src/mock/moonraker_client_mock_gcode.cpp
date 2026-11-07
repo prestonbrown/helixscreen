@@ -922,8 +922,12 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tool_change(const st
         spdlog::info("[MoonrakerClientMock] Tool change {} -> active extruder: {}", gcode,
                      extruder_name);
 
-        // Dispatch toolhead.extruder update (same as real Klipper)
+        // Dispatch toolhead.extruder update (same as real Klipper). A
+        // klipper-toolchanger reports the mounted tool as tool_number beside it.
         json status = {{"toolhead", {{"extruder", extruder_name}}}};
+        if (is_mock_toolchanger()) {
+            status["toolchanger"] = {{"tool_number", tool_index}};
+        }
         dispatch_status_update(status);
     } catch (...) {
         spdlog::warn("[MoonrakerClientMock] Failed to parse tool index from: {}", gcode);

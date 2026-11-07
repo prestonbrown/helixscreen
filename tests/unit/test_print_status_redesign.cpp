@@ -1197,6 +1197,7 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip numbers configured names to
                             "tool CharlieToolheadWithAVeryLongName", "extruder", "extruder1",
                             "extruder2"});
     ToolState::instance().init_tools(hardware);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     REQUIRE(ToolState::instance().active_tool_index() == 0);
     state().update_from_status({{"extruder", {{"temperature", 220.0}, {"target", 220.0}}},
                                 {"extruder1", {{"temperature", 150.0}, {"target", 150.0}}},

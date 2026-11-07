@@ -243,7 +243,9 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: active_tool accessors", "[tool][t
         {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
     hw.parse_objects(objects);
     ts.init_tools(hw);
+    REQUIRE(ts.active_tool() == nullptr);
 
+    ts.update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     REQUIRE(ts.active_tool_index() == 0);
     REQUIRE(ts.active_tool() != nullptr);
     REQUIRE(ts.active_tool()->name == "T0");
@@ -470,28 +472,42 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: toolhead.extruder names the activ
     using nlohmann::json;
     const json changer = json::array(
         {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
+    const json two_extruders = json::array({"extruder", "extruder1", "heater_bed", "gcode_move"});
     struct Row {
         const char* name;
         json objects;
         json status;
+        int seeded;
         int active;
     };
     const Row rows[] = {
-        {"an extruder mapped to T1", changer, {{"toolhead", {{"extruder", "extruder1"}}}}, 1},
-        // toolhead.extruder is read after toolchanger.tool_number, so it wins;
-        // Klipper keeps the two consistent in practice.
-        {"read after toolchanger.tool_number",
-         changer,
-         {{"toolchanger", {{"tool_number", 0}}}, {"toolhead", {{"extruder", "extruder1"}}}},
+        {"an extruder mapped to T1",
+         two_extruders,
+         {{"toolhead", {{"extruder", "extruder1"}}}},
+         0,
          1},
         {"an extruder no tool owns",
-         changer,
+         two_extruders,
          {{"toolhead", {{"extruder", "extruder_unknown"}}}},
+         0,
          0},
         {"the implicit single tool",
          json::array({"extruder", "heater_bed", "fan", "gcode_move"}),
          {{"toolhead", {{"extruder", "extruder"}}}},
+         0,
          0},
+        // klipper-toolchanger's tool_number is the mount authority: toolhead.extruder
+        // keeps naming the last extruder used after the tool is parked.
+        {"a changer's tool_number over toolhead.extruder",
+         changer,
+         {{"toolchanger", {{"tool_number", 0}}}, {"toolhead", {{"extruder", "extruder1"}}}},
+         -1,
+         0},
+        {"a changer ignores toolhead.extruder alone",
+         changer,
+         {{"toolhead", {{"extruder", "extruder1"}}}},
+         -1,
+         -1},
     };
     lv_init_safe();
     ToolState& ts = ToolState::instance();
@@ -502,12 +518,87 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: toolhead.extruder names the activ
         helix::PrinterDiscovery hw;
         hw.parse_objects(row.objects);
         ts.init_tools(hw);
-        REQUIRE(ts.active_tool_index() == 0);
+        REQUIRE(ts.active_tool_index() == row.seeded);
 
         ts.update_from_status(row.status);
         CHECK(ts.active_tool_index() == row.active);
         CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == row.active);
     }
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolState: an empty klipper-toolchanger carriage mounts no tool (#2058)",
+                 "[tool][tool-state][active-extruder][empty-carriage]") {
+    using nlohmann::json;
+    lv_init_safe();
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1",
+                                  "heater_bed", "gcode_move"}));
+    ts.init_tools(hw);
+
+    // Nothing is known to be mounted until the first frame says so.
+    REQUIRE(ts.active_tool_index() == -1);
+    CHECK(ts.active_tool() == nullptr);
+    CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == -1);
+    for (const auto& tool : ts.tools()) {
+        CHECK_FALSE(tool.active);
+    }
+
+    // Klipper names "extruder" with nothing on the carriage.
+    ts.update_from_status(
+        {{"toolchanger", {{"tool_number", -1}}}, {"toolhead", {{"extruder", "extruder"}}}});
+    CHECK(ts.active_tool_index() == -1);
+    CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == -1);
+
+    ts.update_from_status(
+        {{"toolchanger", {{"tool_number", 1}}}, {"toolhead", {{"extruder", "extruder1"}}}});
+    CHECK(ts.active_tool_index() == 1);
+    CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == 1);
+
+    // A delta carrying only toolhead.extruder does not remount a tool.
+    ts.update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
+    CHECK(ts.active_tool_index() == 1);
+
+    ts.update_from_status(
+        {{"toolchanger", {{"tool_number", -1}}}, {"toolhead", {{"extruder", "extruder"}}}});
+    CHECK(ts.active_tool_index() == -1);
+    CHECK(ts.active_tool() == nullptr);
+
+    // A backend handing the carriage back leaves it empty: the changer reports
+    // an empty carriage itself.
+    ts.set_backend_active_tool(-1);
+    ts.clear_backend_active_tool();
+    CHECK(ts.active_tool_index() == -1);
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE_METHOD(ToolStateFixture, "ToolState: without klipper-toolchanger the head is never empty",
+                 "[tool][tool-state][active-extruder][empty-carriage]") {
+    using nlohmann::json;
+    lv_init_safe();
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "extruder1", "heater_bed", "gcode_move"}));
+    ts.init_tools(hw);
+    REQUIRE(ts.active_tool_index() == 0);
+    CHECK(ts.tools()[0].active);
+
+    ts.update_from_status({{"toolhead", {{"extruder", "extruder1"}}}});
+    CHECK(ts.active_tool_index() == 1);
+    ts.update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
+    CHECK(ts.active_tool_index() == 0);
+
+    ts.set_backend_active_tool(-1);
+    ts.clear_backend_active_tool();
+    CHECK(ts.active_tool_index() == 0);
+
     ts.deinit_subjects();
 }
 
@@ -648,7 +739,7 @@ TEST_CASE_METHOD(ToolStateFixture,
 
     SECTION("tool change to T1 goes through AMS backend") {
         // Verify T1 is not currently active
-        REQUIRE(ts.active_tool_index() == 0);
+        REQUIRE(ts.active_tool_index() != 1);
 
         bool success_called = false;
         // Pass nullptr for API — backend handles tool change without needing MoonrakerAPI.

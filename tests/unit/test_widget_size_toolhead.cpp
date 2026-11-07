@@ -459,6 +459,7 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead: a tool changer names its active too
         {"gcode_move", "toolhead", "extruder", "extruder1", "toolchanger", "tool T0", "tool T1"}));
     state().set_hardware(hw);
     ToolState::instance().init_tools(hw);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     drain();
     set_homed("xyz");
     set_print_active(true);
@@ -620,6 +621,7 @@ TEST_CASE_METHOD(ToolheadFixture,
         json::array({"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
     state().set_hardware(hw);
     ToolState::instance().init_tools(hw);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     drain();
     REQUIRE(ToolState::instance().is_multi_tool());
     REQUIRE_FALSE(ToolState::instance().has_multiple_extruders());
