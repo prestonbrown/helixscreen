@@ -496,7 +496,7 @@ class PIDCalibrationPanel : public OverlayBase {
     /// cools the heater being tuned when that heater is the active tool's.
     bool part_fan_reaches_heater() const;
     /// The Klipper fan object that cools the heater being tuned, or "" where
-    /// no part fan reaches it.
+    /// no part fan reaches it or discovery did not find that object.
     std::string mpc_cooling_fan() const;
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;

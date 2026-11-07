@@ -101,6 +101,7 @@ TEST_CASE("Migrating to PID sets control and removes every MPC key", "[mpc_migra
     REQUIRE(removes(edits, "sensor_responsiveness"));
     REQUIRE(removes(edits, "ambient_transfer"));
     REQUIRE(removes(edits, "fan_ambient_transfer"));
+    REQUIRE(removes(edits, "cooling_fan"));
 }
 
 TEST_CASE("Migrating to PID never adds heater_power", "[mpc_migration]") {
@@ -148,10 +149,11 @@ TEST_CASE("PID -> MPC -> PID round trip leaves no MPC keys active", "[mpc_migrat
     // Forward: the panel's migration.
     auto to_mpc = editor.apply_edits(
         original, "extruder",
-        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50));
+        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50, "fan"));
     REQUIRE(to_mpc.has_value());
     REQUIRE(to_mpc->find("control: mpc") != std::string::npos);
     REQUIRE(to_mpc->find("heater_power: 50") != std::string::npos);
+    REQUIRE(to_mpc->find("\ncooling_fan: fan") != std::string::npos);
 
     // A hand-written config carrying the thermal model in the section itself.
     auto calibrated = editor.apply_edits(
@@ -176,7 +178,7 @@ TEST_CASE("PID -> MPC -> PID round trip leaves no MPC keys active", "[mpc_migrat
     // REMOVE_KEY comments keys out rather than deleting the line, so assert on
     // the active form: no MPC key may survive at the start of a line.
     for (const char* key : {"heater_power", "block_heat_capacity", "sensor_responsiveness",
-                            "ambient_transfer", "fan_ambient_transfer"}) {
+                            "ambient_transfer", "fan_ambient_transfer", "cooling_fan"}) {
         const std::string active = "\n" + std::string(key) + ":";
         INFO("MPC key still active after reverse migration: " << key);
         REQUIRE(to_pid->find(active) == std::string::npos);

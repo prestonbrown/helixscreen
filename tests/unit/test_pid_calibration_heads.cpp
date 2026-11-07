@@ -151,10 +151,21 @@ TEST_CASE_METHOD(PidHeadsFixture, "MPC migration names the fan that cools the pi
 
     SECTION("single extruder: Klipper's [fan]") {
         load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        api.hardware().parse_objects(nlohmann::json::array({"extruder", "heater_bed", "fan"}));
         Access::activate(panel);
         CHECK(cooling_fan() == "fan");
     }
+    SECTION("single extruder with no [fan]: no cooling_fan to name") {
+        load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+        api.hardware().parse_objects(
+            nlohmann::json::array({"extruder", "heater_bed", "fan_generic part"}));
+        Access::activate(panel);
+        CHECK(cooling_fan().empty());
+    }
     SECTION("tool changer: the active head's own fan") {
+        api.hardware().parse_objects(
+            nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1",
+                                   "heater_bed", "fan_generic T1_partfan"}));
         toolchanger(1);
         helix::ToolState::instance().update_from_status(
             {{"tool T1", {{"fan", "fan_generic T1_partfan"}}}});
