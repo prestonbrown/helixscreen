@@ -385,7 +385,9 @@ TEST_CASE_METHOD(Ipv4ManagerFixture,
             if (lv_timer_t* t = helix::settings::ipv4_revert_retry_timer_for_test()) {
                 t->timer_cb(t);
             }
-            return !record_exists();
+            // The listener hears the outcome after the record is cleared, so
+            // wait for both.
+            return !record_exists() && told.has_value();
         }));
         CHECK(backend_config() == was);
         CHECK(told == Ipv4RevertEnd::Restored);
