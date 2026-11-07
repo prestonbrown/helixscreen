@@ -239,12 +239,17 @@ void HomePanel::apply_edit_swipe_policy() {
         return;
     }
     using helix::ui::CarouselSwipe;
-    // A gesture or the open widget catalog holds the page; otherwise the pages
-    // swipe by their count, in edit mode as out of it.
+    // A gesture or the open widget catalog holds the page. Outside edit mode,
+    // shown paging arrows are the only way to turn a page, so a press on a
+    // tile never drifts into a page change (prestonbrown/helixscreen#1978).
+    // Otherwise the pages swipe by their count.
     const bool edit_holds_page =
         grid_edit_mode_.owns_gesture() || grid_edit_mode_.is_catalog_open();
-    helix::ui::carousel_set_swipe(carousel_,
-                                  edit_holds_page ? CarouselSwipe::Disabled : CarouselSwipe::Auto);
+    const bool arrows_page = arrow_left_ != nullptr && pages_.size() > 1 &&
+                             !grid_edit_mode_.is_active();
+    helix::ui::carousel_set_swipe(carousel_, edit_holds_page || arrows_page
+                                                 ? CarouselSwipe::Disabled
+                                                 : CarouselSwipe::Auto);
     // The next-page slot carries the + that adds a page and stays a drag's drop
     // target, so its tile is within reach whenever the slot exists. A drop that
     // creates a page leaves the session scoped to it, and the carousel resting
@@ -256,6 +261,7 @@ void HomePanel::apply_edit_swipe_policy() {
 | State | Policy | Why |
 |-------|--------|-----|
 | Outside edit mode | `Auto` | Swipe when there is more than one page, or a next-page slot to swipe to |
+| Outside edit mode, the paging arrows shown (more than one page) | `Disabled` | The arrows turn the page, so a press on a tile cannot drift into a page change. `build_carousel()` creates them in test mode and on resistive panels (`DisplayManager::needs_touch_calibration()`) |
 | Edit mode, no gesture owns the pointer | `Auto` | As outside edit mode: the slot's tile is somewhere to swipe to even on a single-page home, since its + adds a page |
 | An edit gesture owns the pointer | `Disabled` | Otherwise the carousel adopts the drag as a scroll |
 | Edit mode, the widget catalog is open | `Disabled` | The session holds its page for the catalog |

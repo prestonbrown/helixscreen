@@ -239,8 +239,9 @@ class HomePanel : public PanelBase {
                             const std::string& resized_id);
 
     /// Apply the carousel swipe policy for the edit session: Disabled while an
-    /// edit gesture owns the pointer or the widget catalog is open, Auto (swipe
-    /// by page count) otherwise, in edit mode or out of it. The next-page slot
+    /// edit gesture owns the pointer or the widget catalog is open, and outside
+    /// edit mode while the paging arrows page several pages
+    /// (prestonbrown/helixscreen#1978); Auto (swipe by page count) otherwise. The next-page slot
     /// carries the + that adds a page and a drag's drop target, so its tile is
     /// within reach whenever the slot exists, drag or no drag
     /// (prestonbrown/helixscreen#1638). Flags only, so it is safe inside input
