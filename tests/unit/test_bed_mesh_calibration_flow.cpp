@@ -421,6 +421,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         {{"extruder", {{"temperature", 25.0}, {"target", 0.0}}}});
     set_bed(24.0, 0.0);
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
 
     client.defer_next("printer.gcode.script");
