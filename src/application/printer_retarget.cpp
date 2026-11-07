@@ -68,6 +68,18 @@ void forget_previous_printer() {
     }
 }
 
+/// Writes @p api_key to the printer entry at @p entry_path ("/printers/<id>/").
+void store_api_key(const std::string& entry_path, const std::string& api_key) {
+    Config* config = Config::get_instance();
+    const std::string_view key = text_io::trim(api_key);
+    // false, not "": the shape a printer with no key has from its defaults.
+    if (key.empty()) {
+        config->set(entry_path + "moonraker_api_key", false);
+    } else {
+        config->set(entry_path + "moonraker_api_key", std::string(key));
+    }
+}
+
 } // namespace
 
 std::string active_printer_ws_url(const std::string& default_host) {
@@ -92,15 +104,12 @@ moonraker_auth::Credential active_printer_credential(const std::string& default_
     return c;
 }
 
+void set_printer_api_key(const std::string& printer_id, const std::string& api_key) {
+    store_api_key("/printers/" + printer_id + "/", api_key);
+}
+
 void set_active_printer_api_key(const std::string& api_key) {
-    Config* config = Config::get_instance();
-    const std::string_view key = text_io::trim(api_key);
-    // false, not "": the shape a printer with no key has from its defaults.
-    if (key.empty()) {
-        config->set(config->df() + "moonraker_api_key", false);
-    } else {
-        config->set(config->df() + "moonraker_api_key", std::string(key));
-    }
+    store_api_key(Config::get_instance()->df(), api_key);
 }
 
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,

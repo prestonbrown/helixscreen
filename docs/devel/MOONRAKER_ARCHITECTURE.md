@@ -169,7 +169,7 @@ The submitted lambda runs on a worker thread — callbacks invoked from it are o
 
 ### Moonraker API Key
 
-A Moonraker with `force_logins` refuses every request without a credential, trusted address or not, and accepts the printer's API key in an `X-Api-Key` header. The key is the active printer's `moonraker_api_key` setting.
+A Moonraker with `force_logins` refuses every request without a credential, trusted address or not, and accepts the printer's API key in an `X-Api-Key` header. Each saved printer keeps its own key in its `moonraker_api_key` setting, and a connection uses the active printer's. Change Host edits the active printer's key; Add Printer stores the key entered with the address on the added printer (`src/application/printer_switch_flow.cpp#add_printer`).
 
 | Piece | Role |
 |-------|------|

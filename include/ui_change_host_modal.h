@@ -53,11 +53,12 @@ void show_change_host_modal(std::function<void(bool changed)> extra_on_complete 
 /**
  * @brief Show the same modal for adding a printer
  *
- * Starts from an empty host and writes nothing to the active printer's config: Save hands
- * the tested host and port to `on_add`, deferred past the modal's exit. Leaving any other way
- * reconnects the saved printer if Test Connection moved the client.
+ * Starts from an empty host and key and writes nothing to the active printer's config: Save
+ * hands the tested host, port and entered API key to `on_add`, deferred past the modal's exit.
+ * Leaving any other way reconnects the saved printer if Test Connection moved the client.
  */
-void show_add_printer_modal(std::function<bool(const std::string& host, int port)> on_add);
+void show_add_printer_modal(
+    std::function<bool(const std::string& host, int port, const std::string& api_key)> on_add);
 
 /// A printer chooser closed on a selection: the prompt it was holding belongs to the
 /// connection the user just moved away from, so it is dropped rather than shown.
@@ -105,7 +106,8 @@ class ChangeHostModal : public Modal {
   public:
     using CompletionCallback = std::function<void(bool changed)>;
     /// Returns whether it switched to a printer: a switch retargets the client itself.
-    using AddCallback = std::function<bool(const std::string& host, int port)>;
+    using AddCallback =
+        std::function<bool(const std::string& host, int port, const std::string& api_key)>;
 
     ChangeHostModal();
     ~ChangeHostModal() override;
@@ -189,7 +191,7 @@ class ChangeHostModal : public Modal {
     void handle_test_connection();
     void handle_save();
     void update_save_lock();
-    void commit_add(const std::string& host, int port);
+    void commit_add(const std::string& host, int port, const std::string& api_key);
     void handle_cancel();
     void set_status(const char* icon_name, const char* color_token, const char* text);
     /// Shows the reason and returns false when the host or port cannot be used.

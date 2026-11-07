@@ -26,6 +26,7 @@
 #include "core/update_queue.h"
 #include "platform_capabilities.h"
 #include "printer_cache_registry.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 
@@ -82,6 +83,9 @@ std::string switch_card() {
     };
     return text("switch_interstitial_title") + " / " + text("switch_interstitial_phase");
 }
+
+constexpr const char* kAddedKey = "0123456789abcdef0123456789abcdef";
+constexpr const char* kOtherKey = "ffffffffffffffffffffffffffffffff";
 
 class SwitchFlowFixture : public XMLTestFixture {
   public:
@@ -378,26 +382,37 @@ TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: a failed save stays on the cur
 }
 
 TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: adding a new address creates it and switches",
-                 "[multi-printer][switch_flow]") {
-    CHECK(flow_.add_printer("10.0.0.9", 7125));
+                 "[multi-printer][switch_flow][api-key]") {
+    cfg_->set<std::string>("/printers/alpha/moonraker_api_key", kOtherKey);
+    CHECK(flow_.add_printer("10.0.0.9", 7125, std::string(" ") + kAddedKey));
 
     const std::string id = cfg_->get_active_printer_id();
     CHECK(id != "alpha");
     CHECK(id != "beta");
     CHECK(cfg_->get<std::string>("/printers/" + id + "/moonraker_host") == "10.0.0.9");
     CHECK(cfg_->get<int>("/printers/" + id + "/moonraker_port") == 7125);
+    // The key entered with the address is the new printer's, and the old printer keeps its own.
+    CHECK(helix::active_printer_credential().api_key == kAddedKey);
+    CHECK(cfg_->get<std::string>("/printers/alpha/moonraker_api_key") == kOtherKey);
     CHECK(events_ == kFullRestart);
     CHECK(flow_.connected_printer_id() == id);
 }
 
 TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: adding a known address switches to that printer",
-                 "[multi-printer][switch_flow]") {
+                 "[multi-printer][switch_flow][api-key]") {
     nlohmann::json& data = helix::ConfigTestAccess::data(*cfg_);
     data["printers"]["beta"]["moonraker_host"] = "10.0.0.2";
     data["printers"]["beta"]["moonraker_port"] = 7125;
+    data["printers"]["beta"]["moonraker_api_key"] = kOtherKey;
 
-    CHECK(flow_.add_printer("10.0.0.2", 7125));
-
+    SECTION("an entered key replaces the printer's key") {
+        CHECK(flow_.add_printer("10.0.0.2", 7125, kAddedKey));
+        CHECK(helix::active_printer_credential().api_key == kAddedKey);
+    }
+    SECTION("a blank key leaves the printer's key alone") {
+        CHECK(flow_.add_printer("10.0.0.2", 7125));
+        CHECK(helix::active_printer_credential().api_key == kOtherKey);
+    }
     CHECK(cfg_->get_printer_ids().size() == 2);
     CHECK(cfg_->get_active_printer_id() == "beta");
     CHECK(events_ == kFullRestart);

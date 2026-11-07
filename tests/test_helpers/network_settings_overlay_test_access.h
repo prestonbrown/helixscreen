@@ -22,9 +22,6 @@ class NetworkSettingsOverlayTestAccess {
     static helix::ui::WidgetRef& password_modal(NetworkSettingsOverlay& o) {
         return o.password_modal_;
     }
-    static helix::ui::WidgetRef& hidden_network_modal(NetworkSettingsOverlay& o) {
-        return o.hidden_network_modal_;
-    }
     static helix::ui::WidgetRef& test_modal(NetworkSettingsOverlay& o) {
         return o.test_modal_;
     }
@@ -89,10 +86,6 @@ class NetworkSettingsOverlayTestAccess {
     /// button does.
     static void add_other_clicked(NetworkSettingsOverlay& o) {
         o.handle_add_other_clicked();
-    }
-    /// The production handler behind the hidden-network modal's Connect button.
-    static void hidden_connect_clicked(NetworkSettingsOverlay& o) {
-        o.handle_hidden_connect_clicked();
     }
     /// Build the scan rows synchronously, with no network connected — the click
     /// handler reads per-row data only this path attaches.

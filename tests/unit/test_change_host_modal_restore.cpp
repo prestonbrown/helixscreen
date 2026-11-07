@@ -123,6 +123,11 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
     int prev_port_ = 7125;
 };
 
+/// An Add callback that never switches.
+bool decline_add(const std::string&, int, const std::string&) {
+    return false;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture,
@@ -182,12 +187,15 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     std::string added_host;
     int added_port = 0;
     std::string url_when_added;
-    helix::ui::show_add_printer_modal([&](const std::string& host, int port) {
-        added_host = host;
-        added_port = port;
-        url_when_added = client_->get_last_url();
-        return false; // not switched
-    });
+    std::string added_key;
+    helix::ui::show_add_printer_modal(
+        [&](const std::string& host, int port, const std::string& key) {
+            added_host = host;
+            added_port = port;
+            added_key = key;
+            url_when_added = client_->get_last_url();
+            return false; // not switched
+        });
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
@@ -205,6 +213,8 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     net_.answer("10.9.9.9:7125");
     lv_subject_copy_string(ip, "10.9.9.9");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_api_key"),
+                           "0123456789abcdef0123456789abcdef");
     click(dialog, "btn_test_connection");
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
     click(dialog, "modal_save_btn");
@@ -212,6 +222,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     CHECK(added_host == "10.9.9.9");
     CHECK(added_port == 7125);
+    CHECK(added_key == "0123456789abcdef0123456789abcdef");
     // The test never moved the client, so a declined switch leaves it where config and UI
     // say it is, with nothing to hand back.
     CHECK(url_when_added.empty());
@@ -222,7 +233,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host after Add shows the saved host again",
                  "[change_host][connection][multi-printer]") {
-    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    helix::ui::show_add_printer_modal(decline_add);
     UpdateQueue::instance().drain();
     click(Modal::get_top(), "modal_cancel_btn");
 
@@ -290,7 +301,7 @@ struct AddResult {
 };
 
 lv_obj_t* open_add_modal(AddResult& result) {
-    helix::ui::show_add_printer_modal([&result](const std::string& host, int) {
+    helix::ui::show_add_printer_modal([&result](const std::string& host, int, const std::string&) {
         ++result.calls;
         result.host = host;
         return false;
@@ -483,7 +494,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     flow.set_connected_printer_id(cfg->get_active_printer_id());
 
     std::vector<bool> answers;
-    helix::ui::show_add_printer_modal([&](const std::string& host, int port) {
+    helix::ui::show_add_printer_modal([&](const std::string& host, int port, const std::string&) {
         answers.push_back(flow.add_printer(host, port));
         return answers.back();
     });
@@ -542,7 +553,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::set_printer_discovery_source(
         [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
 
-    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    helix::ui::show_add_printer_modal(decline_add);
     UpdateQueue::instance().drain();
     helix::set_printer_discovery_source(nullptr);
     lv_obj_t* dialog = Modal::get_top();
@@ -596,7 +607,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     mock->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
     helix::set_printer_discovery_source(
         [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
-    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    helix::ui::show_add_printer_modal(decline_add);
     UpdateQueue::instance().drain();
     helix::set_printer_discovery_source(nullptr);
     lv_obj_t* dialog = Modal::get_top();
@@ -777,17 +788,18 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125).empty());
 }
 
-TEST_CASE_METHOD(ChangeHostRestoreFixture, "Add printer: the active printer's key is not offered",
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: the key field starts empty, not the active printer's",
                  "[change_host][api-key][multi-printer]") {
     SavedKeyGuard guard;
     Config::get_instance()->set(Config::get_instance()->df() + "moonraker_api_key",
                                 std::string(kGoodKey));
-    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    helix::ui::show_add_printer_modal(decline_add);
     UpdateQueue::instance().drain();
 
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_api_key")))
               .empty());
     lv_obj_t* section = lv_obj_find_by_name(Modal::get_top(), "api_key_section");
     REQUIRE(section != nullptr);
-    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
 }

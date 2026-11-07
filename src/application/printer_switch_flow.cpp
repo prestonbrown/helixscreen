@@ -15,10 +15,12 @@
 #include "config.h"
 #include "connection_state.h"
 #include "core/observer_factory.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "home_layout_sync.h"
 #include "print_lifecycle_state.h"
 #include "printer_cache_registry.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -456,18 +458,28 @@ void PrinterSwitchFlow::restart_onto_restored_printer() {
     await_connection(title, connecting);
 }
 
-bool PrinterSwitchFlow::add_printer(const std::string& host, int port) {
-    if (deferred_out_of_drain("add_printer", [this, host, port] { add_printer(host, port); })) {
+bool PrinterSwitchFlow::add_printer(const std::string& host, int port, const std::string& api_key) {
+    if (deferred_out_of_drain("add_printer",
+                              [this, host, port, api_key] { add_printer(host, port, api_key); })) {
         return false;
     }
+    const bool has_key = !text_io::trim(api_key).empty();
     const std::string existing = m_config->find_printer_by_host(host, port);
     if (!existing.empty()) {
         spdlog::info("[PrinterSwitchFlow] {}:{} is already printer '{}'", host, port, existing);
+        // A blank field says nothing about the key the printer already has.
+        if (has_key) {
+            set_printer_api_key(existing, api_key);
+            if (!save_or_report()) {
+                return false;
+            }
+        }
         return request_switch(existing);
     }
 
     const std::string id = m_config->next_printer_id();
     m_config->add_printer(id, {{"moonraker_host", host}, {"moonraker_port", port}});
+    set_printer_api_key(id, api_key);
     spdlog::info("[PrinterSwitchFlow] Added printer '{}' at {}:{}", id, host, port);
     // Kept in the list unsaved rather than dropped, and not switched to.
     if (!save_or_report()) {

@@ -431,9 +431,10 @@ bool build_shell() {
     lv_obj_t* app_layout = helix::create_app_layout(
         screen, [](const std::string& printer_id) { switch_flow().request_switch(printer_id); },
         [] {
-            helix::ui::show_add_printer_modal([](const std::string& host, int port) {
-                return switch_flow().add_printer(host, port);
-            });
+            helix::ui::show_add_printer_modal(
+                [](const std::string& host, int port, const std::string& api_key) {
+                    return switch_flow().add_printer(host, port, api_key);
+                });
         });
     static helix::PanelFactory panels;
     if (!app_layout || !helix::setup_app_panels(app_layout, screen, panels)) {
