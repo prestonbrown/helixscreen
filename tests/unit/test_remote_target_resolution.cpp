@@ -6,9 +6,12 @@
 // widget in an overlay stacked *behind* the visible one and reported success,
 // and a path copied out of `ls` was rejected unless prefixed with '@'.
 
+#include "ui_overlay_open_trace.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
+#include "print_health_log.h"
 #include "remote_client.h"
 #include "remote_control_server.h"
 #include "widget_resolution.h"
@@ -1072,4 +1075,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_anim_get(spinner, nullptr) != nullptr);
 
     lv_obj_delete(box);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl perf reports drawn frames and overlay open times",
+                 "[remote][ctl][overlay_open_trace]") {
+    lv_display_t* display = lv_display_get_default();
+    helix::attach_print_health_counters(display);
+    lv_obj_t* probe = lv_obj_create(lv_screen_active());
+    helix::nav::overlay_open_requested(probe, "CtlPerfProbe", true,
+                                       std::chrono::steady_clock::now());
+    helix::nav::overlay_open_pushed(probe);
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(display);
+
+    CtlClickRig rig;
+    const nlohmann::json reply = rig.request("perf", nlohmann::json::object());
+    REQUIRE(reply.contains("result"));
+    const nlohmann::json& perf = reply["result"];
+    CHECK(perf["frames"]["drawn"].get<uint64_t>() > 0);
+    CHECK(perf.contains("peak_rss_kb"));
+    bool found = false;
+    for (const auto& o : perf["overlays"]) {
+        if (o["name"] == "CtlPerfProbe") {
+            found = true;
+            CHECK(o["opens"].get<int>() >= 1);
+            CHECK(o["builds"].get<int>() >= 1);
+        }
+    }
+    CHECK(found);
+    lv_obj_delete(probe);
 }

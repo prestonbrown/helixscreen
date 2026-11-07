@@ -20,6 +20,15 @@ in [`SCREENSAVERS.md`](SCREENSAVERS.md). They are linked here, not copied.
 | `scripts/telemetry-pull.sh`, `scripts/telemetry-analyze.py` | Field memory and frame-time data from opted-in installs |
 | `include/refresh_timing.h` | Main-loop sleep caps and the timer periods that change while the display sleeps |
 
+## Reading the UI's own counters
+
+`helix-screen ctl perf` and the debug bundle's `ui_perf` section report frames drawn,
+their mean render time and slow-frame count, peak RSS, and each overlay's open time
+(request to first drawn frame) and build count, all since start. During a print the
+`[PrintHealth]` line gives the same frame figures per minute. Render time runs from
+`LV_EVENT_RENDER_START` to `LV_EVENT_RENDER_READY`, so it tells more drawing (frames and
+flushed screens up) from slower drawing (render ms up). `src/application/ui_perf_report.cpp#ui_perf_to_json`.
+
 ## Units and method
 
 **Every CPU figure is percent of ONE core**, from `/proc/<pid>/stat` utime+stime over a

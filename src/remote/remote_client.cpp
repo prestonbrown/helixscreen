@@ -90,6 +90,9 @@ static const HelpEntry HELP[] = {
      "runtime dir. --target crops to a widget's bounds; --stable polls\n"
      "until pixels stop changing (see `freeze`)"},
     {nullptr, "status", "Show panel, connection state, printer status", nullptr},
+    {nullptr, "perf", "UI cost since start: frames, render time, peak RSS, overlay open times",
+     "overlays list slowest last open first; an open is timed from show()\n"
+     "to the end of the first frame drawn after its push"},
     {nullptr, "wake", "Reset idle timer / dismiss the screensaver", nullptr},
     {nullptr, "screensaver <name|off>", "Preview a screensaver by name, as Test Screensaver does",
      "toasters, starfield, pipes, bounce, fireworks, logo, maze,\n"
@@ -544,6 +547,8 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
         return build_request("list_components");
     } else if (cmd == "list_callbacks") {
         return build_request("list_callbacks");
+    } else if (cmd == "perf") {
+        return build_request("perf");
     } else if (cmd == "current" || cmd == "pwd") {
         return build_request("get_current");
     } else if (cmd == "screenshot") {
@@ -846,6 +851,7 @@ static const char* kReplCommands[] = {"ping",
                                       "resolve",
                                       "screenshot",
                                       "status",
+                                      "perf",
                                       "wake",
                                       "screensaver",
                                       "demo",

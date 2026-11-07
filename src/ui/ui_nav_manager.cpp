@@ -10,6 +10,7 @@
 #include "ui_nav_switch_trace.h"
 #include "ui_nav_transitions.h"
 #include "ui_next_tick.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_panel_base.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
@@ -1158,6 +1159,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
                          "push ran; skipping");
             return;
         }
+        helix::nav::overlay_open_pushed(overlay_panel);
 
         auto& mgr = NavigationManager::instance();
 

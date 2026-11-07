@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_perf_report.h"
+
 #include "board_identity.h"
 #include "json_fwd.h"
 #include "platform_table.h"
@@ -50,6 +52,8 @@ struct BundleOptions {
     /// PrinterState itself, so a caller that leaves this uncaptured gets empty
     /// printer and moonraker sections.
     PrinterSnapshot printer;
+    /// Filled by upload_async() on the main thread; uncaptured leaves out `ui_perf`.
+    UiPerfSnapshot ui_perf;
 };
 
 struct BundleResult {

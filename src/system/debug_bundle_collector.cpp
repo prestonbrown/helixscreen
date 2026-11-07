@@ -144,6 +144,10 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // BSSID or MAC may enter this section.
     bundle["network"] = helix::WifiLinkMonitor::instance().to_json();
 
+    if (options.ui_perf.captured) {
+        bundle["ui_perf"] = ui_perf_to_json(options.ui_perf);
+    }
+
     // log_meta records the active sink target, the persistent level, and whether
     // the log_tail came from the live ring buffer or the on-disk cascade — so a
     // future reader knows whether debug detail was even being captured.
@@ -2452,6 +2456,7 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
     // slow lane, where touching either is a data race (see PrinterSnapshot).
     BundleOptions opts = options;
     opts.printer = snapshot_printer_state();
+    opts.ui_perf = capture_ui_perf(lv_display_get_default());
 
     // Resolve the worker URL on the submitting thread, with the rest of the
     // caller-thread state: the slow lane can execute after the caller's
