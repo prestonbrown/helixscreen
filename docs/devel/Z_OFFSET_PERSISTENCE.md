@@ -244,6 +244,32 @@ no save to withhold, and the Motion row is hidden while `z_offset_can_save` is 0
 
 ---
 
+## The saved offset beside the adjustment
+
+Print Tune keeps Klipper's session offset as the big number, since that is what the
+buttons move, and shows the config's value as muted context beside it: "Saved 1.250 mm",
+or "Saved 1.250 mm, 1.230 mm after Save" once the session offset is non-zero
+(prestonbrown/helixscreen#1998). `helix::zoffset::saved_offset_line()`
+(`include/z_offset_utils.h`) decides it:
+
+- **The saved value** is `PrinterState::get_configured_z_offset_microns()`: the Z probe's
+  `z_offset` on a probe printer, `stepper_z.position_endstop` otherwise, both from
+  `configfile.settings`, so what Klipper loaded at startup.
+- **The projection** is saved minus the session offset on both kinds of printer:
+  `Z_OFFSET_APPLY_PROBE` stores `z_offset - homing_origin.z` and
+  `Z_OFFSET_APPLY_ENDSTOP` stores `position_endstop - homing_origin.z`. It moves
+  opposite to the buttons, which is why it is context and not the readout.
+- **No line** where it would mislead: a `FIRMWARE_MANAGED` printer (no manual save),
+  saving turned off, per-tool Z offsets (a machine-wide value says nothing about the
+  mounted tool), or no saved value read. A probe reading of 0 counts as not read:
+  Beacon and Cartographer keep their offset in their own models, not a `z_offset` key.
+- **Not read:** `configfile.save_config_pending_items`. The app's own save sends
+  `SAVE_CONFIG` straight after the apply, and the restart reseeds the value, so the
+  window only opens when someone applies from a console and does not save.
+- The home widget keeps its caption: the line does not fit the widget's smaller rungs.
+
+---
+
 ## Related
 
 - `z_offset_calibration_strategy` in the printer database (`docs/devel/PRINTER_MANAGER.md`)

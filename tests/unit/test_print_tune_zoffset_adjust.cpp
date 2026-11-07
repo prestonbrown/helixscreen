@@ -423,3 +423,28 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(tap("btn_speed_plus_5") == "M220 S90");
     CHECK(tap("btn_speed_plus_10") == "M220 S100");
 }
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the saved offset sits beside the adjustment, moving opposite to it",
+                 "[ui_integration][zoffset][1998]") {
+    // An endstop printer: the saved value is stepper_z's position_endstop, and
+    // Z_OFFSET_APPLY_ENDSTOP saves it minus the gcode offset.
+    state().capabilities_state().set_stepper_z_endstop_microns(235000);
+    lv_subject_set_int(state().profile_state().get_z_offset_can_save_subject(), 1);
+    set_live_offset(0.02);
+    set_printing(true);
+    set_homed(true);
+
+    auto& overlay = show_overlay();
+    lv_obj_t* line = lv_obj_find_by_name(overlay.get_root(), "z_offset_saved_line");
+    REQUIRE(line != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.980 mm after Save");
+
+    overlay.handle_z_step_select(2); // 0.010mm
+    overlay.handle_z_adjust(-1);     // closer to the bed: the saved value goes up
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
+
+    state().capabilities_state().set_stepper_z_endstop_microns(0);
+}

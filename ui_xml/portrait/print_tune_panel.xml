@@ -110,8 +110,13 @@
         <!-- Header Row -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                style_flex_main_place="space_between" style_flex_cross_place="center">
-          <text_body text="Z-Offset"/>
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_column="#space_sm">
+          <text_body text="Z-Offset" flex_grow="1"/>
+          <!-- The offset in the printer config and what a save turns it into:
+               context for the adjustment, which stays the big number. -->
+          <text_small name="z_offset_saved_line" bind_text="tune_z_offset_saved_text" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="tune_z_offset_saved_visible" flag="hidden" ref_value="0"/>
+          </text_small>
           <text_heading name="z_offset_display" bind_text="tune_z_offset_display"/>
         </lv_obj>
 
