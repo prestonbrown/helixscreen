@@ -186,8 +186,9 @@ std::chrono::system_clock::time_point parse_iso8601(const std::string& s) {
 // this cache file across two backends (e.g. IFS + ACE) can't interleave today.
 // If that threading model ever changes (per-request dispatch, multi-connection
 // fan-out), this read-modify-write becomes racy and needs a file lock.
-void write_cache_slot(const std::string& cache_path, const std::string& backend_id, int slot_index,
-                      const FilamentSlotOverride* ovr) {
+// The cache document to change and write back, with this backend's "slots"
+// object in place: the file's, or a fresh one when it is absent or unreadable.
+nlohmann::json cache_doc_for_update(const std::string& cache_path, const std::string& backend_id) {
     nlohmann::json doc = nlohmann::json::object();
     if (helix::fs::exists(cache_path)) {
         if (auto text = helix::text_io::read_file(cache_path)) {
@@ -210,6 +211,20 @@ void write_cache_slot(const std::string& cache_path, const std::string& backend_
     if (!doc[backend_id].contains("slots") || !doc[backend_id]["slots"].is_object()) {
         doc[backend_id]["slots"] = nlohmann::json::object();
     }
+    return doc;
+}
+
+// Atomic write: tmp file + rename. POSIX rename is atomic within a fs.
+void write_cache_doc(const std::string& cache_path, const nlohmann::json& doc) {
+    if (!helix::text_io::write_file_atomic(cache_path, helix::json_util::safe_dump(doc, 2))) {
+        spdlog::warn("[FilamentSlotOverrideStore] cache write failed ({}): {}", cache_path,
+                     std::strerror(errno));
+    }
+}
+
+void write_cache_slot(const std::string& cache_path, const std::string& backend_id, int slot_index,
+                      const FilamentSlotOverride* ovr) {
+    nlohmann::json doc = cache_doc_for_update(cache_path, backend_id);
 
     // The local cache is keyed by the slot_index string ("0", "1", ...),
     // independent of the DB key style (laneN vs T<n>). Key style is invisible
@@ -221,13 +236,33 @@ void write_cache_slot(const std::string& cache_path, const std::string& backend_
     } else {
         doc[backend_id]["slots"].erase(key);
     }
-
-    // Atomic write: tmp file + rename. POSIX rename is atomic within a fs.
-    if (!helix::text_io::write_file_atomic(cache_path, helix::json_util::safe_dump(doc, 2))) {
-        spdlog::warn("[FilamentSlotOverrideStore] cache write failed ({}): {}", cache_path,
-                     std::strerror(errno));
-    }
+    write_cache_doc(cache_path, doc);
 }
+
+// This backend's @p section of the cache file, or an empty object.
+nlohmann::json read_cache_section(const std::string& cache_path, const std::string& backend_id,
+                                  const char* section) {
+    if (!helix::fs::exists(cache_path)) {
+        return nlohmann::json::object();
+    }
+    const auto text = helix::text_io::read_file(cache_path);
+    if (!text) {
+        return nlohmann::json::object();
+    }
+    const nlohmann::json doc = nlohmann::json::parse(*text, nullptr, /*allow_exceptions=*/false);
+    if (!doc.is_object() || helix::json_util::safe_int(doc, "version", 0) != 1) {
+        return nlohmann::json::object();
+    }
+    const auto backend = doc.find(backend_id);
+    if (backend == doc.end() || !backend->is_object()) {
+        return nlohmann::json::object();
+    }
+    const auto found = backend->find(section);
+    return found != backend->end() && found->is_object() ? *found : nlohmann::json::object();
+}
+
+// The writes a store holds while its namespace is unread, beside its "slots".
+constexpr const char* kHeldCacheKey = "held";
 
 // Read the on-disk cache file and return this backend's slot overrides.
 //
@@ -1414,11 +1449,81 @@ FilamentSlotOverrideStore::adopt_namespace_read(std::unordered_map<int, LaneData
         writes.saves[slot] = parsed->second;
         records[slot] = LaneDataRecord{std::move(parsed->second), std::move(merged)};
     }
-    held_writes_.clear();
+    if (!held_writes_.empty()) {
+        held_writes_.clear();
+        persist_held_locked();
+    }
     unread_fallback_.clear();
     lane_data_records_ = std::move(records);
     namespace_unread_ = false;
     return writes;
+}
+
+void FilamentSlotOverrideStore::persist_held_locked() const {
+    const std::string path = cache_path();
+    nlohmann::json doc = cache_doc_for_update(path, backend_id_);
+    if (held_writes_.empty()) {
+        if (!doc[backend_id_].contains(kHeldCacheKey)) {
+            return;
+        }
+        doc[backend_id_].erase(kHeldCacheKey);
+    } else {
+        nlohmann::json held = nlohmann::json::object();
+        for (const auto& [slot, write] : held_writes_) {
+            nlohmann::json entry = {{"cleared", write.cleared}};
+            if (write.save) {
+                entry["save"] = to_json(*write.save);
+            }
+            held[std::to_string(slot)] = std::move(entry);
+        }
+        doc[backend_id_][kHeldCacheKey] = std::move(held);
+    }
+    write_cache_doc(path, doc);
+}
+
+void FilamentSlotOverrideStore::restore_held_locked() {
+    held_writes_.clear();
+    const nlohmann::json held = read_cache_section(cache_path(), backend_id_, kHeldCacheKey);
+    for (auto it = held.begin(); it != held.end(); ++it) {
+        const auto slot = helix::text_io::parse_leading<int>(it.key());
+        if (!slot || *slot < 0 || !it.value().is_object()) {
+            continue;
+        }
+        HeldWrite write;
+        write.cleared = helix::json_util::safe_bool(it.value(), "cleared", false);
+        if (const auto save = it.value().find("save");
+            save != it.value().end() && save->is_object()) {
+            write.save = from_json(*save);
+        }
+        if (write.cleared || write.save) {
+            held_writes_[*slot] = std::move(write);
+        }
+    }
+}
+
+void FilamentSlotOverrideStore::send_persisted_held_writes(
+    std::unordered_map<int, FilamentSlotOverride>& result) {
+    {
+        std::lock_guard<std::mutex> lock(held_mutex_);
+        restore_held_locked();
+        if (held_writes_.empty()) {
+            return;
+        }
+        // The cache file is unchanged while writes are held, so its records are
+        // what the held saves changed from.
+        unread_fallback_ = read_cache(cache_path(), backend_id_);
+    }
+    const HeldWrites writes = adopt_namespace_read(lane_data_records_);
+    spdlog::info("[FilamentSlotOverrideStore:{}] sending {} save(s), {} clear(s) held before "
+                 "a restart",
+                 backend_id_, writes.saves.size(), writes.clears.size());
+    for (const int slot : writes.clears) {
+        result.erase(slot);
+    }
+    for (const auto& [slot, save] : writes.saves) {
+        result[slot] = save;
+    }
+    send_held_writes(this, writes, fmt::format("[FilamentSlotOverrideStore:{}]", backend_id_));
 }
 
 std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_blocking() {
@@ -1428,6 +1533,9 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         spdlog::warn("[FilamentSlotOverrideStore:{}] continuing with no overrides", backend_id_);
         namespace_unread_ = true;
         return {};
+    }
+    if (!namespace_unread_) {
+        send_persisted_held_writes(result);
     }
     return result;
 }
@@ -1572,8 +1680,17 @@ std::unordered_map<int, FilamentSlotOverride> FilamentSlotOverrideStore::load_bl
         {
             std::lock_guard<std::mutex> lock(held_mutex_);
             unread_fallback_ = cached;
-            held_writes_.clear();
+            restore_held_locked();
             namespace_unread_ = true;
+            // Show the edits a previous run held, as that run did.
+            for (const auto& [slot, write] : held_writes_) {
+                if (write.cleared) {
+                    cached.erase(slot);
+                }
+                if (write.save) {
+                    cached[slot] = *write.save;
+                }
+            }
         }
         return cached;
     }
@@ -1757,6 +1874,7 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             spdlog::debug("[FilamentSlotOverrideStore:{}] slot {} save held: {} not read yet",
                           backend_id_, slot_index, namespace_);
             held_writes_[slot_index].save = ovr;
+            persist_held_locked();
             lock.unlock();
             if (cb)
                 cb(true, "");
@@ -1821,6 +1939,7 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
             HeldWrite& held = held_writes_[slot_index];
             held.cleared = true;
             held.save.reset();
+            persist_held_locked();
             lock.unlock();
             if (cb)
                 cb(true, "");
@@ -2462,6 +2581,23 @@ void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
             spdlog::warn("{} {} persist failed for slot {}: {}", tag, noun, slot_index, err);
         }
     });
+}
+
+void send_held_writes(FilamentSlotOverrideStore* store,
+                      const FilamentSlotOverrideStore::HeldWrites& writes, const std::string& tag) {
+    for (const int slot : writes.clears) {
+        // A slot saved again after its clear replaces the record instead.
+        if (writes.saves.count(slot) == 0) {
+            store->clear_async(slot, [tag, slot](bool ok, std::string err) {
+                if (!ok) {
+                    spdlog::warn("{} held clear failed for slot {}: {}", tag, slot, err);
+                }
+            });
+        }
+    }
+    for (const auto& [slot, held] : writes.saves) {
+        save_override_async(store, slot, held, tag, "Held edit");
+    }
 }
 
 void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,

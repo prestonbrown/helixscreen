@@ -182,7 +182,10 @@ class FilamentSlotOverrideStore {
 
     using SaveCallback = std::function<void(bool success, std::string error)>;
     /// While namespace_unread(), saves and clears are held rather than sent: a
-    /// record built without the live one would replace it wholesale.
+    /// record built without the live one would replace it wholesale. Held writes
+    /// are kept in the local cache file until they are adopted, so the
+    /// load_blocking() after a restart picks them up again: it holds them once more
+    /// when the read fails, and merges and sends them when it lands.
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
 
@@ -258,6 +261,14 @@ class FilamentSlotOverrideStore {
     // thin never-throws boundary that no caller has to remember to guard.
     std::unordered_map<int, FilamentSlotOverride> load_blocking_impl();
 
+    // A load that read the namespace sends the writes a previous run held and
+    // could not send, merged onto the records it read, and files them into
+    // @p result.
+    void send_persisted_held_writes(std::unordered_map<int, FilamentSlotOverride>& result);
+    // held_writes_ to and from the local cache file. Call with held_mutex_ held.
+    void persist_held_locked() const;
+    void restore_held_locked();
+
     IMoonrakerAPI* api_;
     std::string backend_id_;
     // Outer-key style for this backend's lane_data records (laneN vs T<n>). Set
@@ -328,6 +339,11 @@ class FilamentSlotOverrideStore {
 void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
                          const FilamentSlotOverride& record, const std::string& tag,
                          const char* noun);
+
+/// Send what adopt_namespace_read() returned: each clear not superseded by a
+/// save, then each save, warning under @p tag when one fails.
+void send_held_writes(FilamentSlotOverrideStore* store,
+                      const FilamentSlotOverrideStore::HeldWrites& writes, const std::string& tag);
 
 /// Snapshot @p overrides' record for @p slot_index under @p mutex and persist
 /// it. A slot with no staged record saves nothing. This is the tail every
