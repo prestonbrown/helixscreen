@@ -163,16 +163,6 @@ void begin_save_config(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watc
         });
 }
 
-/// Whether a printer.gcode.help reply (the full JSON-RPC envelope) lists
-/// @p command; nullopt when the reply carries no command list.
-std::optional<bool> gcode_help_lists(const nlohmann::json& response, const char* command) {
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
-        return std::nullopt;
-    }
-    return result->contains(command);
-}
-
 } // namespace
 
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
@@ -231,35 +221,16 @@ void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& s
                                std::function<void()> on_success,
                                std::function<void(const std::string& error)> on_error,
                                PrinterState* ps) {
-    if (!api || strategy != ZOffsetCalibrationStrategy::PROBE_CALIBRATE) {
+    if (!api || strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
         return;
     }
-
-    auto apply_then_save = [api, &save_watch, strategy, on_success, on_error, ps]() {
-        apply_and_save(api, save_watch, strategy, on_success, on_error, ps);
-    };
-    api->get_client().send_jsonrpc(
-        "printer.gcode.help", nlohmann::json::object(),
-        [api, &save_watch, on_success, on_error, ps,
-         apply_then_save](const nlohmann::json& response) {
-            if (gcode_help_lists(response, "Z_OFFSET_APPLY_PROBE") == false) {
-                spdlog::info("[ZOffsetUtils] Z_OFFSET_APPLY_PROBE not registered; saving the "
-                             "staged calibration with SAVE_CONFIG alone");
-                begin_save_config(api, save_watch, clearing_pending_delta(ps, on_success),
-                                  on_error);
-                return;
-            }
-            apply_then_save();
-        },
-        [apply_then_save](const MoonrakerError& err) {
-            spdlog::debug("[ZOffsetUtils] Could not list gcode commands ({}); applying as usual",
-                          err.message);
-            apply_then_save();
-        },
-        0,   // default timeout
-        true // silent: a probe; the save goes ahead either way
-    );
+    // ACCEPT has already staged the calibrated value. Z_OFFSET_APPLY_* would
+    // overwrite it with the value Klipper loaded at start minus any live gcode
+    // Z offset, so the save only commits.
+    spdlog::info("[ZOffsetUtils] Saving the accepted calibration with SAVE_CONFIG");
+    begin_save_config(api, save_watch, clearing_pending_delta(ps, std::move(on_success)),
+                      std::move(on_error));
 }
 
 int persisted_step_index() {

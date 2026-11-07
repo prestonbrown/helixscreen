@@ -34,7 +34,6 @@
 #include "tool_state.h"
 
 #include <algorithm>
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -143,9 +142,7 @@ namespace {
 
 /// Accept a probe calibration with saving set to @p mode and return every
 /// script that went on the wire.
-std::vector<std::string>
-probe_accept_scripts(helix::zoffset::SaveMode mode,
-                     const std::function<void(MoonrakerClientMock&)>& setup = {}) {
+std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
     settings.set_z_offset_save_mode(static_cast<int>(mode));
@@ -153,9 +150,6 @@ probe_accept_scripts(helix::zoffset::SaveMode mode,
         get_printer_state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    if (setup) {
-        setup(client);
-    }
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
@@ -197,43 +191,24 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     CHECK_FALSE(sent_any(sent, "SAVE_CONFIG"));
 }
 
+// ACCEPT has staged the result; Z_OFFSET_APPLY_PROBE would replace it with the
+// loaded z_offset minus the live gcode offset, so the save only commits (#1994).
 TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration accept: saving on applies and saves the result",
+                 "Calibration accept: a live gcode offset does not reach the saved result",
                  "[ui_integration][zoffset][save-toggle]") {
-    const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
-    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
-}
+    state().update_from_status(json{{"gcode_move", {{"homing_origin", {0.0, 0.0, -0.2, 0.0}}}}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(lv_subject_get_int(state().motion_state().get_gcode_z_offset_subject()) == -200);
 
-// After ACCEPT the calibrate command has staged its result in the config, so a
-// firmware that never registered Z_OFFSET_APPLY_PROBE (Creality's Klipper with
-// BTT's Eddy module) only needs the save (#1994).
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration accept: without Z_OFFSET_APPLY_PROBE the staged result is saved",
-                 "[ui_integration][zoffset][save-toggle][eddy]") {
-    discover_eddy();
-    const auto sent =
-        probe_accept_scripts(helix::zoffset::SaveMode::Show, [](MoonrakerClientMock& c) {
-            c.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
-        });
+    const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
     CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
 }
 
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration accept: an eddy probe with Z_OFFSET_APPLY_PROBE applies then saves",
+TEST_CASE_METHOD(CalibrationSendFixture, "Calibration accept: an eddy probe saves its sweep",
                  "[ui_integration][zoffset][save-toggle][eddy]") {
     discover_eddy();
     const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
-    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration accept: an unanswered command list keeps the apply",
-                 "[ui_integration][zoffset][save-toggle][eddy]") {
-    const auto sent =
-        probe_accept_scripts(helix::zoffset::SaveMode::Show, [](MoonrakerClientMock& c) {
-            c.fail_next("printer.gcode.help", MoonrakerError::timeout("printer.gcode.help", 0));
-        });
-    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
+    CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
 }
 
 // ============================================================================
