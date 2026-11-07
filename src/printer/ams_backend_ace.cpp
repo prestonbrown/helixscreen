@@ -2837,6 +2837,11 @@ void AmsBackendAce::clear_slot_override(int slot_index) {
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
+bool AmsBackendAce::lane_record_is_only_identity() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !instance_commands_;
+}
+
 void AmsBackendAce::file_hub_reading_locked(int slot_index, helix::ams::Observation& hub) {
     const helix::ams::LaneId lane = lane_id(slot_index);
     if (!instance_commands_) {

@@ -2,7 +2,7 @@
 
 Multi-filament support is one coordinator, many systems: `AmsState` (a `::instance()` singleton from chapter 05's census) owns a registry of `AmsBackend` objects, one concrete class per filament system, and never names a vendor. Backends subscribe to their own Moonraker objects and emit string events from background threads; `AmsState` marshals those to the main thread, reads backend state there, and writes change-gated LVGL subjects.
 
-Two neighbors complete the picture. Spool *identity* (which Spoolman spool sits on which tool) lives one door down in `ToolState`, persisted by identity rather than weight, so it survives restarts and works on printers with no filament-changer hardware at all. Spoolman itself is a separate manager, not a backend. Under all of it sits the lane model: every reading about a lane is filed as a per-source record and resolved on read.
+Two neighbors complete the picture. A tool holds no spool of its own: its spool is the spool of the lane that feeds it (`AmsState::lane_feeding_tool()`), so `ToolState` keeps only topology, offsets and the mounted tool. Spoolman itself is a separate manager, not a backend. Under all of it sits the lane model: every reading about a lane is filed as a per-source record and resolved on read.
 
 This chapter is the map: the contract, the event pipeline, the lane model and the persistence rules. Per-backend protocols, the filament-op dispatch ladder, endless spool, dryers and the add-a-backend recipe belong to [`../FILAMENT_MANAGEMENT.md`](../FILAMENT_MANAGEMENT.md) and the `FILAMENT_BACKEND_*.md` leaves. Chapter 02 owns the subject machinery and chapter 03 the threading contracts applied here.
 
@@ -23,8 +23,7 @@ flowchart TB
 
     LANE["Lane model: LaneSourceStore<br/>one record per source, resolve() on read"]
 
-    TS["ToolState - ::instance()<br/>assign_spool(): identity is the durable record,<br/>weights are a cache compared at whole grams"]
-    PERSIST[("user config dir / tool_spools.json<br/>+ Moonraker DB helix-screen /<br/>tool_spool_assignments")]
+    TS["ToolState - ::instance()<br/>tools, topology, offsets; a tool's spool<br/>is its lane's (lane_feeding_tool())"]
 
     SM["SpoolmanManager - works with no AMS present<br/>files fetched spools as lane Spoolman records"]
     SPOOL["Spoolman server via<br/>server.spoolman.proxy"]
@@ -41,8 +40,7 @@ flowchart TB
     SYNC --> B1
     B0 --> UI
     B1 --> UI
-    B0 -->|"slot with mapped_tool + spoolman_id"| TS
-    TS -->|"atomic write, DB POST only when dirty"| PERSIST
+    B0 -->|"tool topology"| TS
     SM -->|"Spoolman records"| LANE
     SPOOL --- SM
 ```
@@ -61,8 +59,7 @@ flowchart TB
 | [`include/ams_backend_registry.h`](../../../include/ams_backend_registry.h) | `AmsBackendRegistry`: the backend list, consumption sinks, and the queries safe off the main thread |
 | [`include/ams_runout_grace.h`](../../../include/ams_runout_grace.h) | `RunoutGrace`: post-unload and per-slot windows during which an empty sensor is not a runout |
 | [`include/ams_remap.h`](../../../include/ams_remap.h) | `can_remap()` / `remap_is_persistent()`: the remap questions generic code asks |
-| [`include/tool_state.h`](../../../include/tool_state.h) | `ToolInfo`, spool-assignment API (`assign_spool`, save/load, `SubjectLifetime`) |
-| [`src/printer/tool_state.cpp`](../../../src/printer/tool_state.cpp) | Identity-not-weight persistence, atomic JSON save, Moonraker DB round-trip |
+| [`include/tool_state.h`](../../../include/tool_state.h) | `ToolInfo` (topology, heaters, offsets; no spool), `SubjectLifetime` |
 | [`include/spoolman_manager.h`](../../../include/spoolman_manager.h) | `SpoolmanManager`: weight polling, circuit breaker, identity cache, lane filing - no AMS required |
 | [`include/ams_error.h`](../../../include/ams_error.h) | `AmsError`/`AmsResult`: the immediate refusal-or-accepted answer every backend op returns |
 | [`include/filament_op_dispatch.h`](../../../include/filament_op_dispatch.h) | The tier planner deciding which UI surface owns a filament operation |
@@ -110,8 +107,8 @@ A few capability questions shape generic code directly:
 |---------------------|----------|-------------------------------|
 | `manages_active_spool()` | AFC, AD5X IFS (always); Happy Hare when its Spoolman mode is not OFF | Skip the direct `set_active_spool` push: the firmware calls Spoolman itself (#644) |
 | `feed_slot_signals()` | INDX (`save_variables.variables.active_tool`) | Names the status field that says which slot feeds now, so the HelixPrint plugin can switch the active spool on a lane or tool change without knowing the backend (`HELIXPRINT_PLUGIN.md`, filament accounting) |
-| `supports_per_tool_spool_assignment()` | Tool changers | Each tool owns its spool, so ToolState is the source of truth and the spool sync runs ToolState -> slot |
-| `has_firmware_spool_persistence()` | Happy Hare (MMU_GATE_MAP SPOOLID), AFC (SET_SPOOL_ID) | Firmware remembers the spool id; for every other backend `AmsState` saves ToolState's assignments itself |
+| `supports_per_tool_spool_assignment()` | Tool changers | Each tool has a lane of its own, so Moonraker's active spool is linked to the lane feeding the mounted tool (`spoolman_active_spool_sync.cpp#try_assign_active_spool_to_tool`, through `AmsState::commit_slot_edit()`) |
+| `lane_record_is_only_identity()` | Tool changers (MedusaHC, INDX), OpenAMS without `[openams_spoolman]`, ACE without ACEPRO | HelixScreen's lane record is a lane's only identity, so Keep Spool Info on Eject applies there and its row is shown: `AmsState::sync_lanes_emptied()` calls `lane_emptied()` when a lane stops holding filament, which writes `loaded: false` and keeps or clears the record's identity |
 | `sensor_name_names_filament_system()` (static) | Every backend that lists `kSensorNameKeywords` in its header | The sensor filter asks whether a sensor's name carries any filament system's keyword (`ercf_gate`, `afc_hub`) without holding a vendor list of its own |
 | `publish_external_spool_lane()` (overridden) | CFS, AD5X IFS, AFC, Happy Hare | On the bypass-engage edge and every external-spool identity change, publish the extern spool as the lane one past the last slot in the shared `lane_data` namespace (OrcaSlicer picks it up as an extra tray) |
 
@@ -134,7 +131,7 @@ Routing is by captured index: `add_backend()` stamps the backend's index and han
 
 Event coarsening is deliberate: `STATE_CHANGED`, op completions, errors and attention trigger a full backend sync; `SLOT_CHANGED` parses a slot index for a one-slot update and falls back to a full sync when it cannot, so a backend that forgets the index still refreshes the UI (`src/printer/ams_state.cpp#"else if (event == AmsBackend::kEventSlotChanged) {"`).
 
-`sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp)) runs as named steps in a fixed order (`sync_system_subjects`, `sync_tool_topology`, `sync_filament_runout`, `sync_bypass`, `sync_tool_routing`, `sync_tool_spools`, `sync_unit_environment`, ...); the step declarations in `ams_state.h` document the order. Subject storage is two-shaped:
+`sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp)) runs as named steps in a fixed order (`sync_system_subjects`, `sync_tool_topology`, `sync_filament_runout`, `sync_bypass`, `sync_tool_routing`, `sync_lanes_emptied`, `sync_unit_environment`, ...); the step declarations in `ams_state.h` document the order. Subject storage is two-shaped:
 
 - **Backend 0** writes the flat arrays every single-backend XML binding knows (`slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families), per-slot change-gated in `write_slot_subjects()` (`src/printer/ams_state.cpp#write_slot_subjects`).
 - **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h#AmsState`](../../../include/ams_state.h)) allocated at `add_backend()` time: dynamic `colors`/`statuses`/`fills`/`lane_states`/`has_errors`/`severities`/`materials` vectors sized to the backend's slot count. `clear_backends()` destroys them, on rediscovery and inside `deinit_subjects()`, flipping the struct's own `SubjectLifetime` token first (`src/printer/ams_state_subjects.cpp#"void AmsState::BackendSlotSubjects::deinit() {"`).
@@ -183,13 +180,9 @@ Whether the user can *change* the routing is three separate questions, each with
 
 Every multi-filament overview is one or more chains `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit sharing a non-empty `AmsUnit::hub_id` (an OpenAMS lane); a unit without one is its own hub. Buffer and hub are 1:1, and a buffer box is what `ams_detail_buffer_box(info, unit)` gives the hub's first unit, so overview and unit view agree. `ams_draw::compute_system_tool_layout()` (`src/ui/ams_drawing_utils.cpp`) derives `hub_groups`; `src/ui/ui_system_path_plan.cpp` plans one hub box per group for several toolheads and one combiner for a single toolhead. Toolhead badges name the extruder, never a filament group.
 
-### Spool assignment: identity is durable, weight is cache
+### A tool's spool is its lane's
 
-Which spool is mounted where is *not* AMS state. `sync_tool_spools()` ([`src/printer/ams_state.cpp#sync_tool_spools`](../../../src/printer/ams_state.cpp)) bridges every slot with a `mapped_tool`: a slot with `spoolman_id > 0` calls `ToolState::assign_spool()`. A slot that lost its spool calls `clear_spool()` only when the lane owns the assignment, that is when the backend answers `supports_per_tool_spool_assignment()` false; on a tool changer the sync runs the other way, populating empty slots from ToolState so assignments loaded at startup reach the slot UI. Saving is a separate question: when the backend lacks `has_firmware_spool_persistence()`, nothing else will remember the assignment, so `AmsState` saves ToolState's dirty assignments itself. The one-slot path (`update_slot()`, `src/printer/ams_state.cpp#update_slot`) assigns and saves under the same rule, without the clear or reverse branches.
-
-`ToolState::assign_spool()` (`src/printer/tool_state.cpp#assign_spool`) splits the record in two. Identity (spool id + name) is the durable half: a change sets `spool_dirty_` and logs at info. Weights are a cache: firmware reports them as continuous floats, and an exact compare rewrote the JSON, POSTed to the DB and rebuilt panels on every report (`src/printer/tool_state.cpp#"L53W5PKG meant 590 rewrites of tool_spools.json,"`). `same_displayed_weight()` (`src/printer/tool_state.cpp#same_displayed_weight`) compares at whole grams against the last *stored* value, so a slow slide fires once per gram, and a weight-only change bumps `tools_version_` for UI refresh while never marking the record dirty.
-
-Persistence (`save_spool_assignments()`, `src/printer/tool_state.cpp#save_spool_assignments`) writes local JSON first (atomic tmp-file-plus-rename, after resolving the installer's symlink so the first save does not replace the link with a file, `src/printer/tool_state.cpp#save_spool_json`), then fire-and-forgets a DB POST to namespace `helix-screen`, key `tool_spool_assignments`. Loading prefers the DB and falls back to the local file, seeding the DB on the way; both callback arms marshal through `AsyncLifetimeGuard::bg_cb` (#1165) and re-sync `AmsState` (`src/printer/tool_state.cpp#load_spool_assignments`). The file is `<user-config-dir>/tool_spools.json`, holding one assignment set per printer under `printers.<printer id>`, so a printer whose DB is empty never loads another printer's spools; a file without `printers` is the single-printer layout, adopted by the first printer that loads it.
+Which spool a tool holds is not stored anywhere for the tool. `AmsState::lane_feeding_tool()` (`src/printer/ams_state.cpp#lane_feeding_tool`) answers it: the backend lane the tool is wired to (`ToolInfo::backend_slot`), else the primary backend's first lane whose `mapped_tool` names the tool. Pressure-advance auto-apply, filament accounting's per-tool feed, PA tuning's result spool and the spool picker's "in use elsewhere" check all ask the lanes. Linking Moonraker's active spool to a tool writes the lane's link through the backend's own link path (firmware, macro variable or lane record).
 
 ### Lane identity by source: one record per observer, resolved on read
 

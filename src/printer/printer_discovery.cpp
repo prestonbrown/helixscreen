@@ -82,9 +82,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // republishes only what changes afterwards.
     helix::ToolState::instance().query_tool_offsets(client, hardware);
 
-    // Restore persisted spool assignments (Moonraker DB primary, local JSON fallback)
-    helix::ToolState::instance().load_spool_assignments(api);
-
     // Sync printer name from Mainsail/Fluidd DB (seeds local config on first connect)
     helix::PrinterNameSync::resolve(api, hardware.hostname());
 

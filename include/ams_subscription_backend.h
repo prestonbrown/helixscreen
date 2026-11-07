@@ -529,6 +529,10 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// and never states a value the firmware has not taken. Caller holds mutex_.
     void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
 
+    /// loaded = false on @p slot_index's record, its identity cleared unless
+    /// @p keep_identity, saved. Nothing without a record. Takes mutex_.
+    void lane_emptied(int slot_index, bool keep_identity) override;
+
     /// Copy the firmware's colour and material for @p slot_index into its
     /// record and save it, for the lane_data readers (OrcaSlicer, another
     /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing

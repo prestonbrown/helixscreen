@@ -331,7 +331,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         t.supports_force_eject = true;
         // IFS firmware persists color + material type but NOT spoolman_id,
         // so ToolState must handle spool assignment persistence via Moonraker DB.
-        t.has_firmware_spool_persistence = false;
         // current_error() raises the unattended-runout detector's fault. It is NOT
         // raised during a job: the detector fires only while PAUSED and only after a
         // 30-180s confirm dwell, so at the sensor edge nothing has fired yet and

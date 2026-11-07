@@ -466,6 +466,31 @@ void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_inde
     }
 }
 
+void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = overrides_.find(slot_index);
+    if (it == overrides_.end()) {
+        return;
+    }
+    if (!keep_identity) {
+        // RFC 0001: an empty lane keeps its record, with nothing known. The
+        // lane's sources and the painted slot let go of the spool at once, as
+        // a clear does.
+        helix::ams::FilamentSlotOverride emptied;
+        emptied.fingerprint = it->second.fingerprint;
+        it->second = emptied;
+        helix::ams::reset_lane_to_machine_readings(lane_id(slot_index));
+        if (SlotInfo* slot = cached_slot_locked(slot_index)) {
+            clear_override_fields(*slot);
+        }
+    }
+    it->second.loaded = false;
+    if (override_store_) {
+        helix::ams::save_override_async(override_store_.get(), slot_index, it->second,
+                                        backend_log_tag(), "eject");
+    }
+}
+
 bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                                              const std::string& material) {
     if (lane_records_unread_) {

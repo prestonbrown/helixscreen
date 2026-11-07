@@ -813,10 +813,9 @@ void PaTuningOverlay::show_result() {
     }
     // The tuned tool's own spool when the printer assigns spools per tool;
     // Spoolman's single active spool otherwise.
-    const auto& tools = helix::ToolState::instance().tools();
-    if (tuned_tool_ >= 0 && tuned_tool_ < static_cast<int>(tools.size()) &&
-        tools[static_cast<size_t>(tuned_tool_)].spoolman_id > 0) {
-        fetch_result_spool(tools[static_cast<size_t>(tuned_tool_)].spoolman_id);
+    if (const auto lane = helix::AmsState::instance().lane_feeding_tool(tuned_tool_);
+        lane && lane->info.spoolman_id > 0) {
+        fetch_result_spool(lane->info.spoolman_id);
         return;
     }
     api_->spoolman().get_spoolman_status(

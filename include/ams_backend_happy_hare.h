@@ -155,7 +155,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         // Live temp/target read from heater_generic via Moonraker subscriptions
         t.has_environment_sensors = true;
         // Happy Hare persists via MMU_GATE_MAP SPOOLID
-        t.has_firmware_spool_persistence = true;
         // Happy Hare publishes gate spool_id in mmu status
         t.printer_reports_spool_ids = true;
         // mmu.action stays Idle until MMU_LOAD/MMU_UNLOAD starts, and through

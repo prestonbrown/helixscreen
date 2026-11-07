@@ -874,14 +874,18 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     helix::ui::safe_clean_children(spool_list);
 
     auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
-    // A lane's spool sits in ToolState under the tool the lane feeds, whose
-    // number need not match the lane's. The external spool feeds through no
-    // lane, so every lane's spool is taken.
-    int own_tool = -1;
-    if (AmsBackend* backend = slot_index_ >= 0 ? AmsState::instance().get_backend() : nullptr) {
-        own_tool = backend->get_slot_info(slot_index_).mapped_tool;
+    // Spools another lane links are taken. The external spool feeds through no
+    // lane, so every lane's spool is taken for it.
+    std::set<int> in_use;
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        const AmsSystemInfo info = backend->get_system_info();
+        for (int i = 0; i < info.total_slots; ++i) {
+            const SlotInfo* lane = info.get_slot_global(i);
+            if (lane && i != slot_index_ && lane->spoolman_id > 0) {
+                in_use.insert(lane->spoolman_id);
+            }
+        }
     }
-    auto in_use = ToolState::instance().assigned_spool_ids(own_tool);
 
     lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
     UiBreakpoint bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;

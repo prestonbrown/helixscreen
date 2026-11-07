@@ -189,6 +189,11 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// Ask the component for its status and adopt the answer. Main thread.
     void query_component_status();
 
+    /// Without [openams_spoolman] the lane record is a lane's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return !spoolman_component_;
+    }
+
     /// With the component loaded its lane_data is per tool, not per slot.
     [[nodiscard]] bool lane_records_describe_slots() const override {
         return !spoolman_component_;

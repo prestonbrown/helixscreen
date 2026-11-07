@@ -398,6 +398,7 @@ void AmsState::clear_backends() {
     // The runout edge state describes a specific backend's flag history. A new
     // backend's first sample must re-seed rather than read as a transition.
     prev_backend_runout_ = false;
+    lane_presence_seen_.clear();
     runout_edge_armed_ = false;
     runout_prev_paused_ = false;
     runout_level_seeded_ = false;
@@ -703,9 +704,7 @@ void AmsState::sync_from_backend() {
 
     sync_tool_routing(backend, info);
 
-    if (sync_tool_spools(backend, info)) {
-        any_slot_changed = true;
-    }
+    sync_lanes_emptied(backend, info);
 
     sync_unit_environment(backend, info);
 
@@ -1043,86 +1042,64 @@ void AmsState::sync_tool_routing(AmsBackend* backend, const AmsSystemInfo& info)
     }
 }
 
-bool AmsState::sync_tool_spools(AmsBackend* backend, const AmsSystemInfo& info) {
-    bool any_slot_changed = false;
-    // Sync spool assignments to ToolState for slots with mapped tools.
-    //
-    // The clear branch matters as much as the assign one: this only ever
-    // assigned, so a lane that lost its spool (eject, or an explicit unlink)
-    // left the old assignment behind in ToolState — and ToolState persists to
-    // tool_spools.json plus a Moonraker DB key, so the stale spool outlived
-    // restarts. Observed on the .112 BoxTurtle: "Assigned spool 86 () to tool 0"
-    // fired during an EJECT, and ToolState::clear_spool() had no callers at all.
+void AmsState::sync_lanes_emptied(AmsBackend* backend, const AmsSystemInfo& info) {
+    if (!backend->lane_record_is_only_identity()) {
+        lane_presence_seen_.clear();
+        return;
+    }
+    lane_presence_seen_.resize(static_cast<size_t>(std::max(info.total_slots, 0)));
+    const bool keep = helix::SettingsManager::instance().get_ams_keep_spool_info_on_eject();
     for (int i = 0; i < info.total_slots; ++i) {
         const SlotInfo* slot = info.get_slot_global(i);
-        if (!slot || slot->mapped_tool < 0) {
+        // An absent box's bays read empty without a spool leaving them.
+        if (!slot || info.slot_absent(i)) {
             continue;
         }
-        if (slot->spoolman_id > 0) {
-            ToolState::instance().assign_spool(slot->mapped_tool, slot->spoolman_id,
-                                               slot->spool_name, slot->remaining_weight_g,
-                                               slot->total_weight_g);
-        } else if (!backend->supports_per_tool_spool_assignment()) {
-            // Only clear when the SLOT is authoritative. On a tool changer the
-            // flow runs the other way — ToolState is the source of truth and
-            // slots start empty — so clearing here would destroy the assignment
-            // the reverse sync below is about to propagate.
-            //
-            // The question is "who owns the assignment", NOT "does firmware
-            // persist the spool id", which is what this used to ask. CFS and
-            // AD5X IFS answer no to the latter (they keep identity in OUR
-            // lane_data override store, not in firmware) yet their lanes are
-            // fully authoritative, so they fell into the tool-changer branch:
-            // clearing a lane left the old spool in ToolState, and the reverse
-            // pass below then copied it straight back onto the lane. The lane
-            // blinked empty and refilled itself on the next poll.
-            ToolState::instance().clear_spool(slot->mapped_tool);
+        const std::optional<bool> present = slot_status_reports_filament(slot->status);
+        if (!present) {
+            continue;
         }
+        auto& seen = lane_presence_seen_[static_cast<size_t>(i)];
+        if (seen == std::optional<bool>(true) && !*present) {
+            spdlog::info("[AMS State] lane {} emptied; {} its record's spool", i,
+                         keep ? "keeping" : "clearing");
+            backend->lane_emptied(i, keep);
+        }
+        seen = *present;
     }
+}
 
-    // Reverse sync: populate backend slots from ToolState on a tool changer,
-    // where each tool owns its own spool and the slot is the shadow. Without
-    // this, assignments made through Application's auto-assign-active-spool
-    // path (which writes ToolState directly) never reach the slot subjects.
-    //
-    // Gated on who OWNS the assignment. Gating it on
-    // has_firmware_spool_persistence() also caught every backend that keeps
-    // identity in our own override store rather than in firmware — CFS, AD5X
-    // IFS — and resurrected spools the user had just cleared from a lane. See
-    // the matching note on the clear branch above.
-    if (backend->supports_per_tool_spool_assignment()) {
-        auto& tool_state = ToolState::instance();
-        const auto& tools = tool_state.tools();
-        for (int i = 0; i < info.total_slots; ++i) {
-            const SlotInfo* slot = info.get_slot_global(i);
-            if (slot && slot->mapped_tool >= 0 && slot->spoolman_id == 0) {
-                int ti = slot->mapped_tool;
-                if (ti >= 0 && ti < static_cast<int>(tools.size()) && tools[ti].spoolman_id > 0) {
-                    SlotInfo updated = *slot;
-                    updated.spoolman_id = tools[ti].spoolman_id;
-                    updated.spool_name = tools[ti].spool_name;
-                    updated.remaining_weight_g = tools[ti].remaining_weight_g;
-                    updated.total_weight_g = tools[ti].total_weight_g;
-                    // The loop above published this slot from the snapshot taken
-                    // before the write, so publish it again from what the backend
-                    // now holds.
-                    if (backend->sync_external_identity(i, updated).success() &&
-                        write_slot_subjects(*backend, i, backend->get_slot_info(i))) {
-                        any_slot_changed = true;
-                    }
-                }
+std::optional<AmsState::ToolLane> AmsState::lane_feeding_tool(int tool) const {
+    if (tool < 0) {
+        return std::nullopt;
+    }
+    const auto& tools = ToolState::instance().tools();
+    if (tool < static_cast<int>(tools.size())) {
+        const ToolInfo& wired = tools[static_cast<size_t>(tool)];
+        if (wired.backend_index >= 0 && wired.backend_slot >= 0) {
+            if (AmsBackend* backend = get_backend(wired.backend_index)) {
+                return ToolLane{wired.backend_index, wired.backend_slot,
+                                backend->get_slot_info(wired.backend_slot)};
             }
         }
     }
-
-    // Flushing ToolState is about PERSISTENCE, not about which direction the
-    // sync ran, so it keeps its own question: firmware won't remember the
-    // assignment, therefore we have to. Narrowing the reverse-sync gate above
-    // would otherwise have silently stopped saving on CFS and AD5X IFS.
-    if (!backend->has_firmware_spool_persistence()) {
-        ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
+    AmsBackend* backend = get_backend(0);
+    if (!backend) {
+        return std::nullopt;
     }
-    return any_slot_changed;
+    const AmsSystemInfo info = backend->get_system_info();
+    int slot = -1;
+    for (int i = 0; slot < 0 && i < info.total_slots; ++i) {
+        const SlotInfo* candidate = info.get_slot_global(i);
+        if (candidate && candidate->mapped_tool == tool) {
+            slot = i;
+        }
+    }
+    const SlotInfo* fed = slot >= 0 ? info.get_slot_global(slot) : nullptr;
+    if (!fed) {
+        return std::nullopt;
+    }
+    return ToolLane{0, slot, *fed};
 }
 
 void AmsState::set_viewed_unit(int unit_index) {
@@ -1593,15 +1570,6 @@ void AmsState::update_slot(int slot_index) {
         // and nothing but a full sync re-reads them.
         if (backend->is_filament_loaded() && backend->get_current_slot() == slot_index) {
             sync_current_loaded_from_backend();
-        }
-
-        // Sync spool to ToolState if this slot maps to a tool
-        if (slot.mapped_tool >= 0 && slot.spoolman_id > 0) {
-            ToolState::instance().assign_spool(slot.mapped_tool, slot.spoolman_id, slot.spool_name,
-                                               slot.remaining_weight_g, slot.total_weight_g);
-            if (!backend->has_firmware_spool_persistence()) {
-                ToolState::instance().save_spool_assignments_if_dirty(get_moonraker_api());
-            }
         }
 
         if (const auto info = read_system_info(0); info && !info->slot_absent(slot_index)) {
@@ -2529,14 +2497,6 @@ AmsError AmsState::commit_slot_edit_unrecorded(int slot_index, const SlotInfo& o
     // error still returns below, so the caller's toast still shows.
     if (!err.success() && !err.partially_applied) {
         return err;
-    }
-
-    // Where each tool owns its spool, ToolState holds the assignment and the
-    // sync below copies it back onto a slot that names none, so an unlink has to
-    // reach ToolState before that sync runs.
-    if (original.spoolman_id > 0 && info.spoolman_id <= 0 && original.mapped_tool >= 0 &&
-        backend->supports_per_tool_spool_assignment()) {
-        ToolState::instance().clear_spool(original.mapped_tool);
     }
 
     // S4 + S7

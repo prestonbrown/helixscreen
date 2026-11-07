@@ -696,6 +696,22 @@ class AmsState {
      */
     [[nodiscard]] std::vector<uint32_t> routed_tool_colors() const;
 
+    /// The lane that feeds a tool, and so holds its spool: a tool has no spool
+    /// of its own.
+    struct ToolLane {
+        int backend_index = -1;
+        int slot = -1;
+        SlotInfo info;
+    };
+
+    /**
+     * @brief The lane feeding tool @p tool: the backend lane the tool is wired
+     *        to (ToolInfo::backend_slot), else the primary backend's first lane
+     *        whose mapped_tool names the tool. Nullopt when no lane feeds it.
+     *        Main thread.
+     */
+    [[nodiscard]] std::optional<ToolLane> lane_feeding_tool(int tool) const;
+
     /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
@@ -2371,9 +2387,10 @@ class AmsState {
     void sync_feeder(AmsBackend* backend);
     /// Bump tool_map_version when the physical or applied routing moved.
     void sync_tool_routing(AmsBackend* backend, const AmsSystemInfo& info);
-    /// The slot <-> ToolState spool bridge, both directions, and its save.
-    /// @return true when a slot subject changed
-    bool sync_tool_spools(AmsBackend* backend, const AmsSystemInfo& info);
+    /// On a backend whose lane record is a lane's only identity, tell it when
+    /// a lane goes from holding filament to empty, with the Keep Spool Info on
+    /// Eject setting (AmsBackend::lane_emptied()).
+    void sync_lanes_emptied(AmsBackend* backend, const AmsSystemInfo& info);
     /// Per-unit temperature, humidity and environment-indicator subjects.
     void sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& info);
     /// Link a primary-backend lane to the Spoolman spool its tag names, when
@@ -2609,6 +2626,9 @@ class AmsState {
     /// which moves independently of the physical map on a backend that publishes
     /// both. Change-detection only; never read as routing itself.
     std::vector<int> last_applied_routing_; ///< Cached for change detection in sync_from_backend
+    /// Per primary-backend lane, whether it last read as holding filament
+    /// (unset until a status states it): the edge sync_lanes_emptied() acts on.
+    std::vector<std::optional<bool>> lane_presence_seen_;
 
     /// Most recent backend-supplied operation detail (cached so the print-state
     /// observer can rerun the action-detail derivation without re-querying the

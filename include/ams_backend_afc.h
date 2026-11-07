@@ -279,7 +279,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         // heat, cut, unload (toolchange_phase_template() in ams_backend_afc.cpp).
         t.supports_auto_heat_on_unload = true;
         // AFC uses SET_SPOOL_ID gcode for persistence
-        t.has_firmware_spool_persistence = true;
         // AFC publishes a lane spool_id in its status
         t.printer_reports_spool_ids = true;
         // classify_error() + current_error() raise the runout, while a job runs too.

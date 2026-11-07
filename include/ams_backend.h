@@ -99,7 +99,6 @@ struct BackendTraits {
     bool requires_preprint_send = false;
     bool supports_auto_heat_on_load = false;
     bool supports_auto_heat_on_unload = false;
-    bool has_firmware_spool_persistence = false;
     bool printer_reports_spool_ids = false;
     bool recovers_filament_on_resume = false;
     bool has_environment_sensors = false;
@@ -3689,22 +3688,6 @@ class AmsBackend {
         return traits().unloads_stand_alone;
     }
 
-    /**
-     * @brief Whether this backend persists spool assignments via firmware
-     *
-     * Backends like Happy Hare (MMU_GATE_MAP/SPOOLID) and AFC (SET_SPOOL_ID)
-     * store spool-to-slot mappings in firmware gcode. For these, ToolState
-     * mirrors firmware state but doesn't need to persist separately.
-     *
-     * Backends without firmware persistence (tool changers, ACE) rely on
-     * ToolState's own persistence (Moonraker DB + local JSON).
-     *
-     * @return true if firmware handles spool persistence, false if ToolState should
-     */
-    [[nodiscard]] bool has_firmware_spool_persistence() const {
-        return traits().has_firmware_spool_persistence;
-    }
-
     /// Whether this backend's firmware reports a Spoolman spool id per slot
     /// while a spool is loaded (AFC and Happy Hare publish spool_id in their
     /// status).
@@ -3727,6 +3710,22 @@ class AmsBackend {
     /// set_firmware_spool_retention().
     [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
         return false;
+    }
+
+    /// Whether HelixScreen's lane record is the only identity a lane has: the
+    /// firmware holds no spool for it, so "Keep Spool Info on Eject" decides
+    /// whether the record keeps its identity when the lane empties (its
+    /// `loaded` turns false either way), and the setting is shown.
+    [[nodiscard]] virtual bool lane_record_is_only_identity() const {
+        return false;
+    }
+
+    /// The lane record's half of a lane emptying, on a backend whose record is
+    /// the lane's only identity: `loaded` turns false, and the identity stays
+    /// when @p keep_identity, else goes. Default does nothing.
+    virtual void lane_emptied(int slot_index, bool keep_identity) {
+        (void)slot_index;
+        (void)keep_identity;
     }
 
     /// Write the firmware's own spool-retention setting on every lane.

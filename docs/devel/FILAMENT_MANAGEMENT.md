@@ -1584,16 +1584,10 @@ component) on the summary and on every row whose shown value is the tag's
 restores every field the tag states through `ams::reset_to_tag()`.
 
 **Spools in use elsewhere.** The picker list disables (state `DISABLED`, not
-clickable) every spool in `ToolState::assigned_spool_ids(slot_index_)`
-(`src/ui/ui_ams_edit_overlay.cpp#render_spool_list`,
-`src/printer/tool_state.cpp#assigned_spool_ids`): the Spoolman ids assigned to
-any tool other than the one numbered like the slot being edited, because one
-physical spool cannot feed two places. ToolState's per-tool assignments are
-mirrored from lanes through each lane's `mapped_tool` (`AmsState` sync), so a
-spool linked to a lane with no mapped tool is not excluded. The exclusion
-compares a slot index against tool indices; on a lane remapped to another tool
-its own spool can read as "elsewhere". The external spool editor runs with
-`slot_index_ == -2`, which excludes no tool, so every lane-linked spool is
+clickable) every spool another lane of the primary backend links
+(`src/ui/ui_ams_edit_overlay.cpp#render_spool_list`), because one physical spool
+cannot feed two places; a tool holds no spool of its own. The external spool
+editor runs with `slot_index_ == -2`, which is no lane, so every lane-linked spool is
 disabled there. The Home Active Spool widget opens that editor whenever no lane
 is loaded (`src/ui/panel_widgets/active_spool_widget.cpp#handle_clicked`), and the
 loaded lane's editor otherwise. Which spool becomes Moonraker's active spool is
@@ -3599,7 +3593,8 @@ sidebar's legacy `AmsAction`-driven hardcoded step list, which is a valid choice
 only if your hardware model diverges:
 
 - `recovers_filament_on_resume` (`kTraits`) -- True when Resume itself re-feeds filament (Snapmaker U1 runs `AUTO_FEEDING` then `RESUME`). Such backends present Resume as the runout dialog's primary action and demote manual Load/Unload/Purge. Default false, which keeps Load prominent. That is correct for AFC, Happy Hare, and every basic runout sensor.
-- `supports_per_tool_spool_assignment()` -- Whether each tool owns its own spool assignment. Default is `is_tool_changer(get_type())`; no backend currently overrides it.
+- `supports_per_tool_spool_assignment()` -- Whether each tool has a lane of its own, so Moonraker's active spool links to the lane feeding the mounted tool. Default is `is_tool_changer(get_type())`; no backend currently overrides it.
+- `lane_record_is_only_identity()` -- Whether HelixScreen's lane record is a lane's only identity (tool changers incl. MedusaHC and INDX, OpenAMS without `[openams_spoolman]`, ACE without ACEPRO). Only there does **Keep Spool Info on Eject** apply and show: when a lane stops holding filament, `AmsState::sync_lanes_emptied()` calls `lane_emptied()`, which writes the record's `loaded: false` and keeps its identity (setting on) or clears it (off). Firmware that holds the spool decides an eject itself; AFC's `remember_spool` keeps its own switch.
 
 ### 4. Wire into the Factory
 

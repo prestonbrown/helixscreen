@@ -10,8 +10,10 @@
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_state.h"
 #include "lane_source_store.h"
 #include "printer_discovery.h"
+#include "settings_manager.h"
 #include "test_helpers/registered_backend.h"
 #include "toolchanger_addon.h"
 
@@ -199,4 +201,63 @@ TEST_CASE("Z-Mod lane truth: the record copies colour and material from the firm
     CHECK(rec["vendor_name"] == "Polymaker");
     CHECK_FALSE(ams::lane_sources(rig.reg.lane(1)).pending.has_value());
     CHECK(rig.reg->get_slot_info(1).color_rgb == 0xD584DEu);
+}
+
+namespace {
+
+/// A C5 frame whose head 0 reports @p has_filament.
+json head0_filament_frame(bool has_filament) {
+    json frame = zmod_color_frame("8C8C89");
+    frame["zmod_color"]["slots"][0]["hasFilament"] = has_filament;
+    return frame;
+}
+
+} // namespace
+
+TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Eject says",
+          "[toolchanger][zmod][keep_spool][lane_truth]") {
+    const bool keep = GENERATE(true, false);
+    auto& settings = SettingsManager::instance();
+    const bool previous = settings.get_ams_keep_spool_info_on_eject();
+    settings.set_ams_keep_spool_info_on_eject(keep);
+
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T0",
+                               json{{"lane", "0"},
+                                    {"material", "PLA"},
+                                    {"color", "#48358C"},
+                                    {"vendor_name", "Polymaker"},
+                                    {"spool_id", 42},
+                                    {"loaded", true}});
+    test::RegisteredBackend<StoreBackedChanger> reg(&printer.api, /*creator5=*/true);
+    ams::reset_lane_sources();
+    ToolChangerTestAccess::call_on_started(*reg);
+    Rig::settle();
+    auto feed = [&](const json& status) {
+        ToolChangerTestAccess::handle_status(
+            *reg, json{{"method", "notify_status_update"}, {"params", json::array({status, 0.0})}});
+        Rig::settle();
+    };
+    feed(head0_filament_frame(true));
+    AmsState::instance().sync_from_backend();
+    Rig::settle();
+    REQUIRE(reg->get_slot_info(0).spoolman_id == 42);
+
+    feed(head0_filament_frame(false));
+    AmsState::instance().sync_from_backend();
+    Rig::settle();
+
+    const json rec = printer.client.mock_db_get("lane_data", "T0");
+    REQUIRE(rec.is_object());
+    CHECK(rec["loaded"] == false);
+    if (keep) {
+        CHECK(rec["spool_id"] == 42);
+        CHECK(rec["vendor_name"] == "Polymaker");
+        CHECK(reg->get_slot_info(0).spoolman_id == 42);
+    } else {
+        CHECK(rec["spool_id"].is_null());
+        CHECK(rec["vendor_name"].is_null());
+        CHECK(reg->get_slot_info(0).spoolman_id == 0);
+    }
+    settings.set_ams_keep_spool_info_on_eject(previous);
 }

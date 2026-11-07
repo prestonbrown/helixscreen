@@ -3,7 +3,7 @@
 
 /**
  * @file test_ams_firmware_persistence.cpp
- * @brief Tests for has_firmware_spool_persistence() across AMS backends
+ * @brief Firmware spool capabilities across AMS backends
  */
 
 #include "../test_helpers/backend_user_edit.h"
@@ -16,41 +16,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::printer;
-
-// =============================================================================
-// has_firmware_spool_persistence() tests
-// =============================================================================
-
-TEST_CASE("AmsBackendMock: no firmware spool persistence by default",
-          "[ams][backend][spool-persistence]") {
-    auto mock = helix::AmsBackendMock::create_mock();
-    REQUIRE_FALSE(mock->has_firmware_spool_persistence());
-}
-
-TEST_CASE("AmsBackendHappyHare: has firmware spool persistence",
-          "[ams][backend][spool-persistence]") {
-    // Construct directly with nullptr — constructor sets capability flags
-    auto backend = std::make_unique<helix::AmsBackendHappyHare>(nullptr, nullptr);
-    REQUIRE(backend->has_firmware_spool_persistence());
-}
-
-TEST_CASE("AmsBackendAfc: has firmware spool persistence", "[ams][backend][spool-persistence]") {
-    auto backend = std::make_unique<helix::AmsBackendAfc>(nullptr, nullptr);
-    REQUIRE(backend->has_firmware_spool_persistence());
-}
-
-TEST_CASE("AmsBackendToolChanger: no firmware spool persistence",
-          "[ams][backend][spool-persistence]") {
-    auto backend = std::make_unique<helix::AmsBackendToolChanger>(nullptr, nullptr);
-    REQUIRE_FALSE(backend->has_firmware_spool_persistence());
-}
-
-TEST_CASE("AmsBackendAd5xIfs: no firmware spool persistence", "[ams][backend][spool-persistence]") {
-    // IFS firmware persists color + material type but NOT spoolman_id,
-    // so ToolState handles spool assignment persistence via Moonraker DB.
-    auto backend = std::make_unique<helix::AmsBackendAd5xIfs>(nullptr, nullptr);
-    REQUIRE_FALSE(backend->has_firmware_spool_persistence());
-}
 
 // =============================================================================
 // printer_reports_spool_ids() tests
@@ -151,4 +116,17 @@ TEST_CASE("AmsBackendToolChanger: apply_user_edit ignores default mapped_tool (-
         REQUIRE(g.rfind("ASSIGN_TOOL ", 0) != 0);
     }
     REQUIRE(backend.get_slot_info(1).mapped_tool == 1);
+}
+
+// =============================================================================
+// lane_record_is_only_identity(): where Keep Spool Info on Eject applies
+// =============================================================================
+
+TEST_CASE("Keep Spool Info on Eject applies where the lane record is the only identity",
+          "[ams][capabilities][keep_spool]") {
+    CHECK(helix::AmsBackendToolChanger(nullptr, nullptr).lane_record_is_only_identity());
+    // Firmware that holds the spool decides an eject itself.
+    CHECK_FALSE(helix::AmsBackendAfc(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendHappyHare(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendAd5xIfs(nullptr, nullptr).lane_record_is_only_identity());
 }

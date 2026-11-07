@@ -4062,22 +4062,16 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "picker greys spools other lanes hold, never the lane's own, on a remapped lane",
-                 "[ams_edit_overlay][picker][tool-state]") {
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-    PrinterDiscovery hw;
-    hw.parse_objects(nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"}));
-    ts.init_tools(hw);
-    REQUIRE(ts.tool_count() == 3);
-
-    // Lane 2 feeds T0, so its spool sits in ToolState under tool 0.
-    REQUIRE(backend->set_tool_mapping(0, 2).success());
-    UpdateQueue::instance().drain();
-    REQUIRE(backend->get_slot_info(2).mapped_tool == 0);
-    ts.assign_spool(0, 9001, "Lane 2 spool");
-    ts.assign_spool(2, 9002, "T2 spool");
+                 "picker greys spools other lanes link, never the lane's own",
+                 "[ams_edit_overlay][picker][lane_truth]") {
+    // A spool is in use when a lane links it; a tool holds no spool of its own.
+    const auto link = [this](int slot, int spool_id) {
+        SlotInfo info = backend->get_slot_info(slot);
+        info.spoolman_id = spool_id;
+        backend->sync_external_identity(slot, info);
+    };
+    link(2, 9001);
+    link(0, 9002);
 
     std::vector<SpoolInfo> spools(2);
     spools[0].id = 9001;
@@ -4126,12 +4120,11 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(disabled(list, 9002));
 
     close_editor_overlay();
-    ts.deinit_subjects();
 }
 
 // A box that owns its tool table (CFS, like the mock) feeds every lane through
 // one extruder, yet ToolState takes a tool per entry of that table from the
-// backend's topology, so a loaded lane on T2 holds its spool under tool 2.
+// backend's topology; the picker still asks the lanes which spools are taken.
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "picker on a one-extruder box greys every other lane's spool, never its own",
                  "[ams_edit_overlay][picker][tool-state]") {
@@ -4154,8 +4147,6 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     REQUIRE(backend->get_slot_info(2).mapped_tool == 2);
     REQUIRE(ts.tool_count() == 4);
-    REQUIRE(ts.tools()[0].spoolman_id == 9001);
-    REQUIRE(ts.tools()[2].spoolman_id == 9003);
 
     std::vector<SpoolInfo> spools(2);
     spools[0].id = 9001;

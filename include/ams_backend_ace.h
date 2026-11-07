@@ -150,6 +150,10 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
+    /// Without the ACEPRO driver no edit reaches the hub, so the lane record
+    /// is a lane's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override;
+
     /// A bay's last identified tag read (rfid true, or 2): material, colour and
     /// the temperatures the frame carried. Dropped when the bay empties or a
     /// finished read finds no tag.

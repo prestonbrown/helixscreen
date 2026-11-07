@@ -36,7 +36,7 @@ const char* const kDeviceOpsSubjects[] = {
     "ams_device_ops_supports_auto_heat",
     "ams_device_ops_has_backend",
     "ams_device_ops_bypass_is_virtual",
-    "ams_device_ops_reports_spool_ids",
+    "ams_device_ops_record_only_identity",
     "ams_device_ops_printer_retains_spool_info",
     "ams_device_ops_can_reset_endless_spool",
     "ams_device_ops_can_abort",

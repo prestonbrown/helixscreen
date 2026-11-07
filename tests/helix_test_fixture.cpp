@@ -53,7 +53,6 @@
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
-#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <chrono>
@@ -216,13 +215,6 @@ void reset_config_singleton() {
     std::error_code backup_ec;
     std::filesystem::remove_all(config_sandbox_dir() + "/state", backup_ec);
     std::filesystem::remove_all(config_sandbox_dir() + "/backup", backup_ec);
-
-    // ToolState persists tool_spools.json into helix::get_user_config_dir(),
-    // which defaults to the RELATIVE dir "config" — i.e. the repo's own
-    // config/ under the test binary's CWD. It really did write there during
-    // `make test-run`, which also means a later run could load another run's
-    // spool assignments. set_config_dir() is the supported override.
-    helix::ToolState::instance().set_config_dir(config_sandbox_dir());
 
     // A test that wrote the overlay leaves its types merged into the material
     // table; drop both so the next test sees only the shipped types.

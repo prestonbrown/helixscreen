@@ -461,6 +461,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     void clear_slot_override(int slot_index) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+
+    /// The T<n> record is a tool's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return true;
+    }
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;

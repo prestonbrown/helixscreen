@@ -896,7 +896,6 @@ BackendTraits AmsBackendMock::traits() const {
     t.tracks_consumption_natively = tracks_consumption_natively_;
     // No firmware stands behind the mock's slot table, so nothing it is told
     // survives a restart: ToolState has to save the assignments itself.
-    t.has_firmware_spool_persistence = false;
     // Environment data is faked for every persona (HELIX_MOCK_AMS_ENV) so the
     // environment UI is drivable in --test whatever the emulated firmware has.
     // An empty mode resolves to "dryer" or "passive", both of which have sensors.

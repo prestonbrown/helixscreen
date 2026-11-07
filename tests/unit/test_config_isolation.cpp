@@ -8,8 +8,7 @@
 // one left behind — and, worse, whatever path the previous one pointed it at.
 // Before the sandbox existed, `make test-run` deleted and rewrote the
 // developer's real $HOME/.helixscreen/settings.json.backup and
-// helixscreen.env.backup on every run, and dropped a tool_spools.json into the
-// repo's own config/ directory.
+// helixscreen.env.backup on every run.
 //
 // These assertions are the tripwire for that whole class of leak: they fail if
 // the sandbox stops being installed, if the per-test reset stops running, or if
@@ -19,7 +18,6 @@
 #include "app_constants.h"
 #include "config.h"
 #include "data_root_resolver.h"
-#include "tool_state.h"
 
 #include <string>
 
@@ -67,12 +65,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Config singleton is sandboxed and reset per 
         REQUIRE(under_sandbox(helix::app_constants::update::env_backup_fallback()));
         REQUIRE(under_sandbox(helix::app_constants::update::config_backup_primary()));
         REQUIRE(under_sandbox(helix::app_constants::update::env_backup_primary()));
-    }
-
-    SECTION("ToolState persists tool_spools.json inside the sandbox, not the repo") {
-        // helix::get_user_config_dir() defaults to the RELATIVE dir "config",
-        // so an un-redirected ToolState writes into the checkout itself.
-        REQUIRE(under_sandbox(helix::ToolState::instance().get_config_dir()));
     }
 
     // Catch2 re-runs the test body once per leaf section, in declaration order,

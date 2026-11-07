@@ -133,20 +133,16 @@ FilamentAccountingController::FilamentAccountingController() {
         tools.get_subjects_lifetime());
 }
 
-FeedEntry FilamentAccountingController::feed_for_tool(const ToolInfo& tool, int tool_index) {
-    if (tool.backend_index >= 0 && tool.backend_slot >= 0) {
-        if (const AmsBackend* backend = AmsState::instance().get_backend(tool.backend_index)) {
-            FeedEntry feed = feed_for_slot(*backend, tool.backend_slot);
+FeedEntry FilamentAccountingController::feed_for_tool(int tool_index) {
+    if (const auto lane = AmsState::instance().lane_feeding_tool(tool_index)) {
+        if (const AmsBackend* backend = AmsState::instance().get_backend(lane->backend_index)) {
+            FeedEntry feed = feed_for_slot(*backend, lane->slot);
             feed.tool = tool_index;
             return feed;
         }
     }
     FeedEntry feed;
     feed.tool = tool_index;
-    feed.spool_id = std::max(tool.spoolman_id, 0);
-    if (const auto identity = SpoolmanManager::find_identity(tool.spoolman_id)) {
-        feed.grams_per_mm = grams_per_mm(identity->material);
-    }
     return feed;
 }
 
@@ -175,7 +171,7 @@ std::vector<FeedSignal> FilamentAccountingController::signals_now() {
         std::vector<FeedEntry> feeds;
         for (size_t i = 0; i < tools.size(); ++i) {
             extruders.push_back(tools[i].extruder_name.value_or(""));
-            feeds.push_back(feed_for_tool(tools[i], static_cast<int>(i)));
+            feeds.push_back(feed_for_tool(static_cast<int>(i)));
         }
         if (auto sig = extruder_feed_signal(extruders, feeds)) {
             signals.push_back(std::move(*sig));
@@ -312,7 +308,7 @@ void FilamentAccountingController::on_active_tool_changed(int tool_index) {
         FilamentAccountingSender::App) {
         return;
     }
-    FeedEntry feed = feed_for_tool(tool, tool_index);
+    FeedEntry feed = feed_for_tool(tool_index);
     std::vector<int> mapped = mapped_spools(signals_now());
     resolve_fallback_sender_role(
         lifetime_.token(), [this, state, opted_in, owner, feed, mapped](FallbackSenderRole role) {

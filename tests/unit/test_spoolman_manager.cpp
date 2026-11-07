@@ -18,7 +18,6 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/seeded_override.h"
-#include "../test_helpers/tool_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -1104,76 +1103,6 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     REQUIRE(backend->get_slot_info(0).remaining_weight_g == 700.0F);
 
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 70);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: weight polls on a linked tool changer slot leave the saved "
-                 "spool assignments alone",
-                 "[spoolman][toolchanger][slot_refresh][tool-state]") {
-    // ToolState saves through the app-wide API. A mock of its own counts those
-    // saves and nothing the Spoolman fetches do.
-    MoonrakerAPIMock tool_api(client, get_printer_state());
-    struct AppApiScope {
-        helix::IMoonrakerAPI* previous = get_moonraker_api();
-        ~AppApiScope() {
-            set_moonraker_api(previous);
-        }
-    } app_api_scope;
-    set_moonraker_api(&tool_api);
-
-    // tool_spools.json lands in a directory this case owns.
-    struct SpoolJsonScope {
-        std::string previous_dir = helix::ToolState::instance().get_config_dir();
-        std::filesystem::path dir = std::filesystem::temp_directory_path() /
-                                    ("helix-spool-json-" + std::to_string(::getpid()));
-        ~SpoolJsonScope() {
-            helix::ToolState::instance().deinit_subjects();
-            helix::ToolState::instance().set_config_dir(previous_dir);
-            std::error_code ec;
-            std::filesystem::remove_all(dir, ec);
-        }
-    } spool_json;
-
-    auto& ts = helix::ToolState::instance();
-    ts.set_config_dir(spool_json.dir.string());
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-    helix::PrinterDiscovery hw;
-    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder",
-                                            "extruder1", "heater_bed", "gcode_move"}));
-    ts.init_tools(hw);
-    REQUIRE(ts.tool_count() == 2);
-
-    helix::test::RegisteredBackend<helix::AmsBackendToolChanger> backend(nullptr, nullptr);
-    backend->set_discovered_tools({"T0", "T1"});
-    AmsState& ams = AmsState::instance();
-    REQUIRE_FALSE(backend->has_firmware_spool_persistence());
-    REQUIRE(backend->get_slot_info(0).mapped_tool == 0);
-
-    // Link tool 0's slot and let the assignment reach ToolState and its store.
-    link(*backend, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
-    ams.sync_from_backend();
-    drain();
-    REQUIRE(ts.tools()[0].spoolman_id == 1);
-    REQUIRE_FALSE(helix::ToolStateTestAccess::spool_dirty(ts));
-    const int saves_after_link = client.call_count("server.database.post_item");
-    REQUIRE(saves_after_link > 0);
-
-    // A print draining the spool: each poll finds less on the server.
-    for (int tick = 1; tick <= 3; ++tick) {
-        const double remaining = 850.0 - 10.0 * tick;
-        server_spool(1).remaining_weight_g = remaining;
-        poll();
-        // No full sync runs in this loop, and only update_slot writes the
-        // fill subject outside one, so each poll reached update_slot.
-        REQUIRE(backend->get_slot_info(0).remaining_weight_g == static_cast<float>(remaining));
-        REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) ==
-                backend->get_slot_info(0).display_fill_pct());
-    }
-
-    CHECK(client.call_count("server.database.post_item") == saves_after_link);
 }
 
 // A Spoolman fetch that times out is an ordinary network failure: the error
