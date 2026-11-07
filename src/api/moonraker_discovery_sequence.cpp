@@ -524,6 +524,11 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
                 discover_power_devices();
                 discover_sensors();
 
+                // The gate also stops the subscription that would have carried
+                // Klippy's state and reason, so fetch them: a config error at
+                // connect has no other way to reach the recovery dialog.
+                client_.poll_klippy_state_until_settled();
+
                 // Deferred (retryable) — notify_klippy_ready/shutdown will retry.
                 client_.emit_event(MoonrakerEventType::DISCOVERY_DEFERRED, reason, true);
                 if (on_error_discovery_) {

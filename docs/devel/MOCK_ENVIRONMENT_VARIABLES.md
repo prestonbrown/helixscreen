@@ -282,6 +282,20 @@ Start the mock printer with a `display_status.message` (M117) already set, as a 
 HELIX_MOCK_DISPLAY_MESSAGE="Nozzle wiped, ready" ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_KLIPPY_ERROR`
+
+Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a config-style message gets the "Klipper Config Error" wording). Restart Klipper or Firmware Restart brings the mock up as usual.
+
+| Property | Value |
+|----------|-------|
+| **Values** | the `state_message` text; empty sets nothing |
+| **Default** | unset (Klippy ready) |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
+
+```bash
+HELIX_MOCK_KLIPPY_ERROR="Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0" ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_AUTO_PRINT`
 
 Boot the mock printer straight into an active print so print-gated features can be exercised under `--test` without manually driving a print-start flow.
