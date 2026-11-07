@@ -4645,6 +4645,39 @@ TEST_CASE_METHOD(SaveAckFixture, "a save refused before it is written keeps the 
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(SaveAckFixture, "an edit that only clears still reports a failed write",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    auto& overlay = get_ams_edit_overlay();
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 1, backend->get_slot_info(1), &api, [](const AmsEditOverlay::EditResult& r) {
+            if (!r.saved || r.slot_index < 0) {
+                return;
+            }
+            const SlotInfo original =
+                AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+            (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+        }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo cleared = backend->get_slot_info(1);
+    REQUIRE(cleared.material == "PLA");
+    cleared.material.clear();
+    access.set_working_info(cleared);
+    client.defer_next("server.database.post_item");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    REQUIRE(access.save_state() == 1);
+
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: database is read-only. Try again.");
+    close_editor_overlay();
+}
+
 TEST_CASE("a save that is not confirmed names the reason, or a generic one",
           "[ams_edit_overlay][save_ack]") {
     CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed,
