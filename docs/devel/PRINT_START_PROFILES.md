@@ -161,16 +161,17 @@ These are the `PrintStartPhase` enum values from `include/print_start_phase.h`. 
 | `INITIALIZING` | 1 | `INITIALIZING` | PRINT_START detected | - |
 | `HOMING` | 2 | `HOMING` | G28, Home All Axes | 10 |
 | `HEATING_BED` | 3 | `HEATING_BED` | M190, M140 S>0 | 20 |
-| `SOAKING` | 4 | `SOAKING` | Heat-soak dwell, chamber temperature wait | - |
-| `HEATING_NOZZLE` | 5 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
-| `QGL` | 6 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
-| `Z_TILT` | 7 | `Z_TILT` | Z_TILT_ADJUST | 15 |
-| `BED_MESH` | 8 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
-| `CLEANING` | 9 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
-| `PURGING` | 10 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
-| `COMPLETE` | 11 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
+| `SOAKING` | 4 | `SOAKING` | Heat-soak dwell: holding a temperature already reached | - |
+| `HEATING_CHAMBER` | 5 | `HEATING_CHAMBER` | M191, a TEMPERATURE_WAIT on the chamber heater, chamber-wait narration | - |
+| `HEATING_NOZZLE` | 6 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
+| `QGL` | 7 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
+| `Z_TILT` | 8 | `Z_TILT` | Z_TILT_ADJUST | 15 |
+| `BED_MESH` | 9 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
+| `CLEANING` | 10 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
+| `PURGING` | 11 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
+| `COMPLETE` | 12 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
 
-Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
+Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `CHAMBER_HEATING`/`HEAT_CHAMBER` (HEATING_CHAMBER), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
 
 Notes:
 - `IDLE` and `COMPLETE` are lifecycle states, not matchable phases in profiles.
@@ -453,7 +454,7 @@ Two more fields give a printer's first print a measured estimate instead of a ge
 }
 ```
 
-`print_start_default_phases` is seconds per phase the prediction history keeps a duration for (HOMING, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING, PURGING); any other name is ignored with a warning. Its HOMING value is also the homing time the print details estimate shows, never below 20s. The printer's own phase timings replace these from the next completed print on. `thermal_rates` is seconds per degree C per heater (`extruder` or `heater_bed`; any other name is ignored with a warning), used by `ThermalRateManager::apply_archetype_defaults()` in place of its guess from the bed size. The rate a print saves is its whole measured climb, seconds over degrees, with a hold between two climbs (a probing temperature, then the print temperature) left out, blended 70/30 with the saved rate loaded at startup. A completed pre-print, a timeout completion included, saves the rates it measured, but the app loads saved rates only at startup (`Application` calls `ThermalRateManager::load_from_config()`), so until the next restart the database rates stay in use.
+`print_start_default_phases` is seconds per phase the prediction history keeps a duration for (HOMING, SOAKING, HEATING_CHAMBER, QGL, Z_TILT, BED_MESH, CLEANING, PURGING); any other name is ignored with a warning. Its HOMING value is also the homing time the print details estimate shows, never below 20s. The printer's own phase timings replace these from the next completed print on. `thermal_rates` is seconds per degree C per heater (`extruder` or `heater_bed`; any other name is ignored with a warning), used by `ThermalRateManager::apply_archetype_defaults()` in place of its guess from the bed size. The rate a print saves is its whole measured climb, seconds over degrees, with a hold between two climbs (a probing temperature, then the print temperature) left out, blended 70/30 with the saved rate loaded at startup. A completed pre-print, a timeout completion included, saves the rates it measured, but the app loads saved rates only at startup (`Application` calls `ThermalRateManager::load_from_config()`), so until the next restart the database rates stay in use.
 
 If a printer has no `print_start_profile` field, or the profile fails to load, the system falls back to `default.json`. If that is unreadable too (a broken install), `load_default()` returns an empty profile: no text matching, but HELIX:PHASE, RESPOND, the macro ready-flags, heater inference and the timeouts still run. The ESP32 image ships `default.json` alone (`scripts/esp32_stage_assets.py#stage_config`), so every named profile falls back to it there.
 

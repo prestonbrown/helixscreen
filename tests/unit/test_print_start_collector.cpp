@@ -3357,13 +3357,13 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 
     SECTION("a chamber wait while the bed is still climbing") {
         send_gcode_response("// waiting for chamber");
-        REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
+        REQUIRE(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
 
         // Heater correction relabels only a heating phase, so the live bed
         // shortfall leaves the wait alone.
         set_bed_temps(600, 1050);
         tick_fallbacks();
-        CHECK(get_current_phase() == PrintStartPhase::SOAKING);
+        CHECK(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     }
 }
 
@@ -4217,7 +4217,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
     set_chamber(300, 600);
     feed_gcode("B:100.0 /100.0 T0:210.0 /210.0");
     tick();
-    REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     REQUIRE(get_current_message() == "Waiting for chamber 30 / 60°C");
     CHECK(chamber_wait_flag() == 1);
 
@@ -4263,7 +4263,7 @@ TEST_CASE_METHOD(
         feed_gcode("B:100.0 /100.0 T0:210.0 /210.0");
         tick();
     }
-    REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     CHECK(get_current_message() == "Waiting for chamber 28°C");
     CHECK(chamber_wait_flag() == 1);
 
@@ -4273,7 +4273,7 @@ TEST_CASE_METHOD(
         feed_gcode("B:100.0 /100.0 T0:210.0 /210.0");
         tick();
         CHECK(get_current_message() == "Waiting for chamber 29°C");
-        CHECK(get_current_phase() == PrintStartPhase::SOAKING);
+        CHECK(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     }
 
     SECTION("the reports stopping gives the announced phase back") {
@@ -4340,7 +4340,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
             collector(), helix::classify_wait_line(
                              "TEMPERATURE_WAIT SENSOR=\"heater_generic dragonbreath\" MINIMUM=35"));
         report_for(2);
-        CHECK(get_current_phase() == PrintStartPhase::SOAKING);
+        CHECK(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
         CHECK(get_current_message() == "Waiting for chamber 28°C");
         CHECK(chamber_wait_flag() == 1);
     }
@@ -4396,7 +4396,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
     report_for(6);
     REQUIRE(transfers.ranges == 1);
     report_for(2);
-    CHECK(get_current_phase() == PrintStartPhase::SOAKING);
+    CHECK(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     CHECK(chamber_wait_flag() == 1);
 }
 
@@ -4550,13 +4550,13 @@ TEST_CASE("the heater a wait command names", "[print][collector][wait_line]") {
     CHECK(named("M109 S210") == PrintStartPhase::HEATING_NOZZLE);
     CHECK(named("M109 S170 T2") == PrintStartPhase::HEATING_NOZZLE);
     CHECK(named("M190 S100") == PrintStartPhase::HEATING_BED);
-    CHECK(named("M191 S60") == PrintStartPhase::SOAKING);
+    CHECK(named("M191 S60") == PrintStartPhase::HEATING_CHAMBER);
     CHECK_FALSE(PrintStartCollector::heater_waited_on(classify_wait_line("M191 S60"), ""));
     CHECK(named("TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=95") == PrintStartPhase::HEATING_BED);
     CHECK(named("TEMPERATURE_WAIT SENSOR=extruder2 MINIMUM=200") ==
           PrintStartPhase::HEATING_NOZZLE);
     CHECK(named("TEMPERATURE_WAIT SENSOR=\"heater_generic dragonbreath\" MINIMUM=35") ==
-          PrintStartPhase::SOAKING);
+          PrintStartPhase::HEATING_CHAMBER);
     CHECK_FALSE(named("TEMPERATURE_WAIT SENSOR=\"temperature_sensor chamber\" MINIMUM=40"));
     CHECK_FALSE(named("TEMPERATURE_WAIT SENSOR=\"temperature_probe beacon_coil\" MINIMUM=40"));
     CHECK_FALSE(named("G4 P1000"));
@@ -4574,7 +4574,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
     state().temperature_state().update_from_status(
         {{"dragonbreath", {{"wait_active", true}, {"wait_target", 60.0}}}});
     report_for(2);
-    REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
     CHECK(get_current_message() == "Waiting for chamber 28 / 60°C");
     CHECK(chamber_wait_flag() == 1);
 
@@ -4610,7 +4610,7 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
         }
     }
     INFO("phase=" << static_cast<int>(get_current_phase()));
-    REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_CHAMBER);
 }
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,

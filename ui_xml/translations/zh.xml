@@ -1654,6 +1654,7 @@
   <translation tag="Heating bed" zh="加热热床"/>
   <translation tag="Heating bed to $1°C..." zh="正在加热热床至 $1°C..."/>
   <translation tag="Heating bed..." zh="正在加热热床..."/>
+  <translation tag="Heating chamber" zh="正在加热腔体"/>
   <translation tag="Heating chamber..." zh="正在加热腔体..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." zh="加热占了几乎全部等待时间。现在离开此页面会停止运行。"/>
   <translation tag="Heating nozzle" zh="喷嘴加热中"/>

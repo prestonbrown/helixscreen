@@ -1654,6 +1654,7 @@
   <translation tag="Heating bed" pt="Aquecendo mesa"/>
   <translation tag="Heating bed to $1°C..." pt="Aquecendo mesa a $1°C..."/>
   <translation tag="Heating bed..." pt="Aquecendo mesa..."/>
+  <translation tag="Heating chamber" pt="Aquecendo câmara"/>
   <translation tag="Heating chamber..." pt="Aquecendo câmara..."/>
   <translation tag="Heating is nearly the whole wait. Leaving the screen now stops the run." pt="O aquecimento é quase toda a espera. Sair da tela agora interrompe a execução."/>
   <translation tag="Heating nozzle" pt="Aquecendo bico"/>

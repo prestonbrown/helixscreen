@@ -64,6 +64,7 @@ struct OwningStep {
         case PrintStartPhase::IDLE:
         case PrintStartPhase::INITIALIZING:
         case PrintStartPhase::HEATING_BED:
+        case PrintStartPhase::HEATING_CHAMBER:
         case PrintStartPhase::SOAKING:
         case PrintStartPhase::HEATING_NOZZLE:
             return Verdict::Pass;
@@ -386,8 +387,8 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      *
      * M109 is the nozzle whichever way its temperature moves, M190 the bed,
      * and M191 or a TEMPERATURE_WAIT on @p chamber_heater itself the chamber
-     * (SOAKING), but only with a chamber heater configured. A TEMPERATURE_WAIT on heater_bed or an
-     * extruder is that heater. Anything else names no heater: nullopt.
+     * (HEATING_CHAMBER), but only with a chamber heater configured. A TEMPERATURE_WAIT on
+     * heater_bed or an extruder is that heater. Anything else names no heater: nullopt.
      */
     [[nodiscard]] static std::optional<helix::PrintStartPhase>
     heater_waited_on(const helix::WaitLine& line, const std::string& chamber_heater);
@@ -592,7 +593,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * relabel may displace any phase but IDLE, a heating one, SOAKING,
      * PURGING or COMPLETE, keeping it and its message for end_heater_wait(),
      * and afterwards moves
-     * only between the wait's own labels. `resolved` may then be SOAKING for a
+     * only between the wait's own labels. `resolved` may then be HEATING_CHAMBER for a
      * chamber. Main thread only, like everything that sets or clears a
      * wait's label.
      */
