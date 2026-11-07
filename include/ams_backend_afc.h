@@ -1241,10 +1241,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      * @param gcode The G-code command to execute
      * @param success_msg Toast message on success (empty = no toast)
      * @param error_prefix Toast prefix on error (shown as "prefix: error details")
+     * @param on_success Runs on the WebSocket thread once the firmware accepts the command
      * @return AmsError indicating success or failure to queue command
      */
     virtual AmsError execute_gcode_notify(const std::string& gcode, const std::string& success_msg,
-                                          const std::string& error_prefix);
+                                          const std::string& error_prefix,
+                                          helix::SharedCallback<void()> on_success = nullptr);
 
     // Unified slot registry -- single source of truth for all slot-indexed state
     helix::printer::SlotRegistry slots_;
@@ -1420,6 +1422,18 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
     [[nodiscard]] SlotError lane_error_locked() const;
+
+    /// Acknowledges the errors @p lanes still show, once AFC accepted the
+    /// RESET_FAILURE that cleared them. Main thread, mutex_ not held.
+    void acknowledge_lane_errors(const std::vector<std::string>& lanes);
+
+    /// Shows an acknowledged lane's error again: @p lane when it is one,
+    /// otherwise every acknowledged lane. Caller holds mutex_.
+    void rearm_acknowledged_lanes_locked(const std::string& lane);
+
+    /// The lane an AFC message names by its first token ("lane3 Current lane
+    /// not loaded ..."), or empty. Caller holds mutex_.
+    [[nodiscard]] std::string lane_named_by_locked(const std::string& message) const;
 
     /// Settles an AFC_LANE_RESET of @p lane: clears the fault when the console
     /// reported success and AFC still names @p lane in its error state. Main

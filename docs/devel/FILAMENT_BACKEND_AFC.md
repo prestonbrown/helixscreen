@@ -785,9 +785,12 @@ actually two unrelated operations that happened to share one name:
 - **RESET_FAILURE leaves the lane's `status: Error`.** Only a later load, unload or sensor
   change moves the lane off it. `error_state` alone cannot retire that status: a load that
   fails outside a print marks the lane Error without ever raising `error_state`, and that is
-  a live fault. So `clear_fault()` acknowledges every lane error it clears
-  (`acknowledged_lane_errors_`), and an acknowledged lane shows no error until AFC publishes
-  another status for it or `error_state` rises again.
+  a live fault. So once AFC accepts the `RESET_FAILURE`, `clear_fault()` acknowledges every
+  lane error it cleared (`acknowledged_lane_errors_`). An acknowledged lane shows no error
+  until AFC publishes another status for it, `error_state` rises again, or a new AFC error
+  message arrives: a lane that fails again outside a print stays at `Error` with no delta and
+  no `error_state`, so the message is its only trace. A message whose first token names a
+  lane brings back that lane; one naming no lane brings back every acknowledged lane.
 - **Clear Error on the lane menu.** `has_clearable_fault(slot_index)` is true while the
   lane shows an error, or `error_state` is set and `current_lane` names the lane, and no
   lane reset is in flight. The lane context menu then offers Clear Error, which calls

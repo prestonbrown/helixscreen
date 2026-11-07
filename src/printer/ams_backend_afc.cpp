@@ -518,6 +518,7 @@ AmsError AmsBackendAfc::clear_message_queue() {
 AmsError AmsBackendAfc::clear_fault(int slot_index) {
     // AFC has no per-lane fault clear; both commands are system-scoped.
     (void)slot_index;
+    std::vector<std::string> errored_lanes;
 
     // Drop any queued LANE_UNLOAD requests, exactly as cancel() does. Clearing a
     // fault means the user wants to stop, not to chain through a pile of pending
@@ -558,17 +559,13 @@ AmsError AmsBackendAfc::clear_fault(int slot_index) {
         }
         action_start_time_ = std::chrono::steady_clock::now();
 
-        // RESET_FAILURE leaves every lane's status alone, so the lane errors
-        // being cleared are retired here.
         for (int i = 0; i < slots_.slot_count(); ++i) {
-            auto* entry = slots_.get_mut(i);
+            const auto* entry = slots_.get(i);
             if (entry && entry->info.error.has_value()) {
-                acknowledged_lane_errors_.insert(slots_.name_of(i));
-                entry->info.error.reset();
+                errored_lanes.push_back(slots_.name_of(i));
             }
         }
     }
-    emit_event(EVENT_STATE_CHANGED);
 
     // Deliberately does NOT route through cancel(): cancel() returns early when
     // the action is IDLE, which is the common case for a queued message — AFC
@@ -578,8 +575,15 @@ AmsError AmsBackendAfc::clear_fault(int slot_index) {
                  kMessageDrainMaxClears);
     // execute_gcode_notify, matching cancel(): the user pressed a button, so a
     // failed RESET_FAILURE must surface rather than being logged silently.
+    // RESET_FAILURE leaves every lane's status alone, so the lane errors it
+    // clears are retired once AFC accepts it.
+    auto token = lifetime_.token();
     AmsError failure_reset = execute_gcode_notify(
-        "RESET_FAILURE", lv_tr("AFC failure reset complete"), lv_tr("AFC failure reset failed"));
+        "RESET_FAILURE", lv_tr("AFC failure reset complete"), lv_tr("AFC failure reset failed"),
+        [this, token, errored_lanes]() {
+            token.defer("AmsBackendAfc::fault_cleared",
+                        [this, errored_lanes]() { acknowledge_lane_errors(errored_lanes); });
+        });
     AmsError message_clear = clear_message_queue();
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -797,10 +801,7 @@ AmsBackendAfc::current_error_with_cause(const std::string& cause) const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::string lane = current_lane_name_;
     if (lane.empty()) {
-        const std::string first = cause.substr(0, cause.find_first_of(" ,:"));
-        if (slots_.index_of(first) >= 0) {
-            lane = first;
-        }
+        lane = lane_named_by_locked(cause);
     }
     return fault_event_locked(cause, lane);
 }
@@ -1914,6 +1915,10 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
                 !surfaced_by_previous_session) {
                 last_error_msg_ = msg_text;
                 deferred_error_event = msg_text;
+                // A lane failing outside a print (handle_lane_failure with
+                // pause=False) stays at status Error and never raises
+                // error_state; this message is its only trace.
+                rearm_acknowledged_lanes_locked(lane_named_by_locked(msg_text));
                 // Persist for the next session's dedup seed: this text has
                 // now been surfaced, and a restart must not re-toast it.
                 AfcMessageDedup::instance().record_error(msg_text);
@@ -2141,12 +2146,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
         if (error_state_ && !was_in_error) {
             // A new error: AFC publishes no status delta for a lane that fails
             // again while still marked Error, so an acknowledged lane shows again.
-            for (const auto& lane : acknowledged_lane_errors_) {
-                if (auto* entry = slots_.get_mut(slots_.index_of(lane))) {
-                    entry->info.error = lane_error_locked();
-                }
-            }
-            acknowledged_lane_errors_.clear();
+            rearm_acknowledged_lanes_locked(std::string());
         }
         if (error_state_) {
             // Use unlocked helper since we're already holding mutex_
@@ -4474,7 +4474,8 @@ void AmsBackendAfc::reorganize_slots() {
 
 AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
                                              const std::string& success_msg,
-                                             const std::string& error_prefix) {
+                                             const std::string& error_prefix,
+                                             helix::SharedCallback<void()> on_success) {
     if (!api_) {
         return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
     }
@@ -4484,9 +4485,12 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
     // Both callbacks run on the WebSocket thread; the toasts queue themselves to main.
     api_->execute_gcode(
         gcode,
-        [success_msg]() {
+        [success_msg, on_success]() {
             if (!success_msg.empty()) {
                 NOTIFY_SUCCESS("{}", success_msg);
+            }
+            if (on_success) {
+                on_success();
             }
         },
         [gcode, error_prefix](const MoonrakerError& err) {
@@ -5044,6 +5048,44 @@ void AmsBackendAfc::on_stopping() {
         client_->unregister_method_callback("notify_gcode_response", lane_reset_handler_);
         lane_reset_handler_.clear();
     }
+}
+
+void AmsBackendAfc::acknowledge_lane_errors(const std::vector<std::string>& lanes) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (const auto& lane : lanes) {
+            auto* entry = slots_.get_mut(slots_.index_of(lane));
+            if (entry && entry->info.error.has_value()) {
+                acknowledged_lane_errors_.insert(lane);
+                entry->info.error.reset();
+            }
+        }
+    }
+    emit_event(EVENT_STATE_CHANGED);
+}
+
+void AmsBackendAfc::rearm_acknowledged_lanes_locked(const std::string& lane) {
+    auto rearm = [this](const std::string& name) {
+        if (auto* entry = slots_.get_mut(slots_.index_of(name))) {
+            entry->info.error = lane_error_locked();
+        }
+    };
+    if (acknowledged_lane_errors_.count(lane) != 0) {
+        rearm(lane);
+        acknowledged_lane_errors_.erase(lane);
+        return;
+    }
+    if (lane.empty()) {
+        for (const auto& name : acknowledged_lane_errors_) {
+            rearm(name);
+        }
+        acknowledged_lane_errors_.clear();
+    }
+}
+
+std::string AmsBackendAfc::lane_named_by_locked(const std::string& message) const {
+    std::string first = message.substr(0, message.find_first_of(" ,:"));
+    return slots_.index_of(first) >= 0 ? first : std::string();
 }
 
 SlotError AmsBackendAfc::lane_error_locked() const {
