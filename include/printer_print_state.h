@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "gcode_pause_scan.h"
 #include "height_layer_dwell.h"
+#include "layer_line_z.h"
 #include "layer_pause.h"
 #include "print_eta_estimator.h"
 #include "print_job_ref.h"
@@ -977,6 +978,15 @@ class PrinterPrintState {
      */
     bool layer_is_accurate() const {
         return has_real_layer_data_ || layer_z_derived_;
+    }
+
+    /// The Z height the layer line shows next to @p layer, in centimillimeters
+    /// (0 = none): @p live_z_centimm while printing, else @p layer's height from
+    /// the slice geometry, never where the head parked (#2055). Main thread.
+    [[nodiscard]] int layer_line_z_centimm(int layer, int live_z_centimm) const {
+        return helix::layer_line_z_centimm(get_print_lifecycle() == PrintState::Printing,
+                                           live_z_centimm, layer, first_layer_height_,
+                                           layer_height_);
     }
 
     /**
