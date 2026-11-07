@@ -57,7 +57,7 @@ using namespace helix;
 struct AmsSlotData {
     int slot_index = -1;
     int total_count = 4; // Total slots being displayed (for stagger calculation)
-    AmsSlotHitBand hit_band;
+    helix::ui::AmsSlotHitBand hit_band;
 
     /// Backend whose subjects the observers below are bound to (captured at
     /// setup_slot_observers time from the active backend). Kept so later
@@ -1167,7 +1167,7 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
     return helix::ui::ams_lane_spool_get_fill_level(data->lane_spool);
 }
 
-void ui_ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset) {
+void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset) {
     auto* data = obj ? get_slot_data(obj) : nullptr;
     if (!data) {
         return;
