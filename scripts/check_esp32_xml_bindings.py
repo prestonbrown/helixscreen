@@ -24,10 +24,12 @@ binds to nothing on the device.
 
 Fix a finding by registering the name on the firmware: a stub with the
 platform's real value (0 hides a row bound hidden-if-0), or a callback that
-gives the tap feedback. A RATCHET keyed on names: --baseline lists accepted
-debt (bindings inside panels the firmware never opens).
+gives the tap feedback. --exempt names the screens the firmware never opens,
+one staged ui_xml/ path per line: a finding every one of whose bindings sits in
+a listed screen is exempt, and any binding elsewhere fails. A listed path the
+firmware does not ship fails too, so the list cannot outlive its screens.
 
-Also a hard failure, with no baseline: firmware-shipped XML (ui_xml/ less micro/,
+Also a hard failure, with no exemption: firmware-shipped XML (ui_xml/ less micro/,
 with ui_xml_overrides/ winning) using a widget tag whose LV_USE_* the firmware's
 lv_conf.h sets to 0. helix-xml registers each tag under its LV_USE_*, so the device
 would only log "Couldn't create widget" and leave the element out. The tag-to-option
@@ -35,8 +37,8 @@ map is read from helix-xml's own registration table.
 
 Usage:
   check_esp32_xml_bindings.py                    # count
-  check_esp32_xml_bindings.py --list             # every finding
-  check_esp32_xml_bindings.py --baseline FILE [--write-baseline]
+  check_esp32_xml_bindings.py --list             # every finding, with where it is bound
+  check_esp32_xml_bindings.py --exempt FILE      # fail on a finding outside the listed screens
 """
 
 from __future__ import annotations
@@ -77,25 +79,40 @@ def compiled_text_reader(root: Path):
     return read
 
 
-def findings(root: Path) -> dict[str, str]:
-    """'kind:name' -> where the desktop registers it."""
+def findings(root: Path) -> dict[str, tuple[str, set[str]]]:
+    """'kind:name' -> (where the desktop registers it, where the firmware binds it).
+
+    A binding site is a shipped XML file by staged path, or a firmware-compiled
+    C++ file naming a callback through a component prop."""
     fw = firmware_files(root)
+    fw_rel = {str(f.relative_to(root)) for f in fw}
     read = compiled_text_reader(root)
-    shipped = list(firmware_xml_files(root).values())
+    shipped = firmware_xml_files(root)
+    staged = {str(src.relative_to(root)): str(rel) for rel, src in shipped.items()}
     out = {}
 
     cb_all = callbacks.collect_registrations(root)
     cb_fw = callbacks.collect_registrations(root, fw, read)
-    for name in callbacks.collect_xml_refs(root, shipped):
-        if name in cb_all and name not in cb_fw:
-            out[f"callback:{name}"] = ", ".join(sorted(cb_all[name]))
+    for name, files in callbacks.collect_xml_refs(root, list(shipped.values())).items():
+        sites = {staged.get(f, f) for f in files if f in staged or f in fw_rel}
+        if sites and name in cb_all and name not in cb_fw:
+            out[f"callback:{name}"] = (", ".join(sorted(cb_all[name])), sites)
 
     subj_all = subjects.collect_registrations(root)[0]
     subj_fw = subjects.collect_registrations(root, fw, read)[0]
-    for name in subjects.collect_xml_refs(root, shipped):
+    subj_sites: dict[str, set[str]] = {}
+    for rel, src in shipped.items():
+        for name in subjects.collect_xml_refs(root, [src], ignore_attrs=("name",)):
+            subj_sites.setdefault(name, set()).add(str(rel))
+    for name, sites in subj_sites.items():
         if name in subj_all and name not in subj_fw:
-            out[f"subject:{name}"] = ", ".join(sorted(subj_all[name]))
+            out[f"subject:{name}"] = (", ".join(sorted(subj_all[name])), sites)
     return out
+
+
+def read_exempt(path: Path) -> set[str]:
+    return {ln.strip() for ln in path.read_text().splitlines()
+            if ln.strip() and not ln.lstrip().startswith("#")}
 
 
 def registered_widgets(lv_xml_c: str) -> dict[str, list[str]]:
@@ -156,8 +173,7 @@ def disabled_widget_uses(root: Path) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--list", action="store_true")
-    ap.add_argument("--baseline", type=Path)
-    ap.add_argument("--write-baseline", action="store_true")
+    ap.add_argument("--exempt", type=Path, help="screens the firmware never opens")
     ap.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parent.parent)
     args = ap.parse_args()
 
@@ -168,41 +184,39 @@ def main() -> int:
             print(f"     {use}")
         return 1
 
-    found = findings(args.repo_root.resolve())
+    root = args.repo_root.resolve()
+    found = findings(root)
     if args.list:
         for k in sorted(found):
-            print(f"{k}  ({found[k]})")
+            registered, sites = found[k]
+            print(f"{k}  (registered: {registered}; bound in: {', '.join(sorted(sites))})")
 
-    if args.write_baseline:
-        if not args.baseline:
-            print("--write-baseline needs --baseline PATH")
-            return 2
-        header = ("# XML bindings the desktop registers and the ESP32 firmware does not.\n"
-                  "# Accepted debt, shrink-only: register the name on the firmware, then\n"
-                  "# re-run scripts/check_esp32_xml_bindings.py with --write-baseline.\n")
-        args.baseline.write_text(header + "".join(k + "\n" for k in sorted(found)))
-        print(f"wrote {args.baseline}: {len(found)} findings")
-        return 0
-
-    if not args.baseline:
+    if not args.exempt:
         print(f"firmware-unregistered XML bindings: {len(found)}")
         return 0
 
-    accepted = callbacks.read_baseline(args.baseline)
-    new = sorted(set(found) - accepted)
-    if new:
-        print(f"❌ ESP32 XML bindings: {len(new)} registered only off-firmware, "
-              f"not in {args.baseline}:")
-        for k in new:
-            print(f"     {k}  ({found[k]})")
+    exempt = read_exempt(args.exempt)
+    shipped = {str(rel) for rel in firmware_xml_files(root)}
+    stale = sorted(exempt - shipped)
+    failed = False
+    if stale:
+        print(f"❌ ESP32 XML bindings: {len(stale)} screen(s) in {args.exempt} "
+              f"the firmware does not ship; remove them:")
+        for rel in stale:
+            print(f"     {rel}")
+        failed = True
+    live = {k: (reg, sites - exempt) for k, (reg, sites) in found.items() if sites - exempt}
+    if live:
+        print(f"❌ ESP32 XML bindings: {len(live)} registered only off-firmware, bound "
+              f"outside the screens {args.exempt} exempts:")
+        for k in sorted(live):
+            registered, sites = live[k]
+            print(f"     {k}  (registered: {registered}; bound in: {', '.join(sorted(sites))})")
+        failed = True
+    if failed:
         return 1
-    gone = sorted(accepted - set(found))
-    if gone:
-        print(f"✅ ESP32 XML bindings: {len(found)} accepted, {len(gone)} fewer than "
-              f"{args.baseline}; re-run with --write-baseline to hold the gain "
-              f"({', '.join(gone)}).")
-        return 0
-    print(f"✅ ESP32 XML bindings: {len(found)} findings, all accepted debt in {args.baseline}")
+    print(f"✅ ESP32 XML bindings: {len(found)} off-firmware, all inside the "
+          f"{len(exempt)} screens {args.exempt} exempts")
     return 0
 
 

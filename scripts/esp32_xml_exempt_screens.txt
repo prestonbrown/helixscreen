@@ -1,0 +1,60 @@
+# XML screens the ESP32 firmware never opens, one staged ui_xml/ path per line.
+# scripts/check_esp32_xml_bindings.py exempts the bindings inside these screens
+# from its rule that every XML binding is registered on the firmware. A binding
+# in any other shipped screen must be registered there. List a screen only when
+# nothing the firmware compiles opens it; a path the firmware stops shipping
+# must come off the list.
+barcode_scanner_settings.xml
+bed_mesh_calibrate_modal.xml
+bed_mesh_panel.xml
+bed_mesh_rename_modal.xml
+bed_mesh_save_config_modal.xml
+belt_names_modal.xml
+belt_retest_menu.xml
+calibration_pa_panel.xml
+calibration_pid_panel.xml
+calibration_tool_offset_panel.xml
+calibration_zoffset_panel.xml
+components/barcode_scanner_device_row.xml
+components/bed_check_modal.xml
+components/camera_config_modal.xml
+components/camera_fullscreen.xml
+components/panel_widget_camera.xml
+components/panel_widget_toolhead.xml
+components/spaghetti_detection_modal.xml
+components/upgrade_banner.xml
+crash_report_modal.xml
+input_shaper_panel.xml
+label_printer_settings.xml
+pa_tuning_overlay.xml
+panel_belt_tension.xml
+printer_image_tagger_overlay.xml
+qr_scanner_overlay.xml
+rotation_probe_screen.xml
+screws_tilt_panel.xml
+screws_tilt_share_modal.xml
+settings_safety_overlay.xml
+spoolman_context_menu.xml
+spoolman_edit_modal.xml
+spoolman_panel.xml
+spoolman_settings.xml
+spoolman_spool_row.xml
+telemetry_data_overlay.xml
+telemetry_info_modal.xml
+timelapse_install_overlay.xml
+timelapse_settings_overlay.xml
+timelapse_videos_overlay.xml
+toolhead_preset_config_modal.xml
+update_notify_modal.xml
+wizard_ams_identify.xml
+wizard_connection.xml
+wizard_fan_select.xml
+wizard_filament_sensor_select.xml
+wizard_heater_select.xml
+wizard_input_shaper.xml
+wizard_language_chooser.xml
+wizard_printer_identify.xml
+wizard_summary.xml
+wizard_telemetry.xml
+wizard_touch_calibration.xml
+wizard_wifi_setup.xml

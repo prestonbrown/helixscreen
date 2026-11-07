@@ -88,17 +88,90 @@ CPP
     lacks "row_available" "$output"
 }
 
-@test "the baseline fails a new finding and passes accepted debt" {
+# --- the exempt-screens list ---
+
+exempt_tree() {
     cat > "$ROOT/src/excluded.cpp" <<'CPP'
-void reg() { lv_xml_register_event_cb(nullptr, "on_row", on_row); }
+void reg() {
+    lv_xml_register_event_cb(nullptr, "on_row", on_row);
+    lv_xml_register_event_cb(nullptr, "on_tune", on_tune);
+}
 CPP
-    echo "callback:on_row" > "$ROOT/baseline.txt"
-    run python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    echo '<component><view><x callback="on_tune"/></view></component>' > "$ROOT/ui_xml/tuning.xml"
+    printf '# never opened\ntuning.xml\n' > "$ROOT/exempt.txt"
+}
+
+run_exempt() {
+    run python3 "$GATE" --repo-root "$ROOT" --exempt "$ROOT/exempt.txt"
+}
+
+@test "a binding in a listed screen passes, one in an unlisted screen fails" {
+    exempt_tree
+    printf '# never opened\ntuning.xml\ndemo.xml\n' > "$ROOT/exempt.txt"
+    run_exempt
     [ "$status" -eq 0 ]
-    echo 'void more() { lv_xml_register_subject(nullptr, "row_available", &s); }' >> "$ROOT/src/excluded.cpp"
-    run python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    printf '# never opened\ntuning.xml\n' > "$ROOT/exempt.txt"
+    run_exempt
     [ "$status" -eq 1 ]
-    contains "subject:row_available" "$output"
+    contains "callback:on_row" "$output"
+    contains "demo.xml" "$output"
+    lacks "on_tune" "$output"
+}
+
+@test "a new binding in a listed screen passes without editing the list" {
+    exempt_tree
+    echo '<component><view/></component>' > "$ROOT/ui_xml/demo.xml"
+    run_exempt
+    [ "$status" -eq 0 ]
+    echo 'void more() { lv_xml_register_event_cb(nullptr, "on_tune_more", cb); }' >> "$ROOT/src/excluded.cpp"
+    sed -i 's|<x callback="on_tune"/>|&<x callback="on_tune_more"/>|' "$ROOT/ui_xml/tuning.xml"
+    run_exempt
+    [ "$status" -eq 0 ]
+}
+
+@test "a name a listed and an unlisted screen both bind fails" {
+    exempt_tree
+    sed -i 's/on_row/on_tune/' "$ROOT/ui_xml/demo.xml"
+    run_exempt
+    [ "$status" -eq 1 ]
+    contains "callback:on_tune" "$output"
+    contains "demo.xml" "$output"
+}
+
+@test "a listed screen the firmware does not ship fails as stale" {
+    exempt_tree
+    echo '<component><view/></component>' > "$ROOT/ui_xml/demo.xml"
+    echo 'gone_panel.xml' >> "$ROOT/exempt.txt"
+    run_exempt
+    [ "$status" -eq 1 ]
+    contains "gone_panel.xml" "$output"
+}
+
+@test "a C++ callback reference counts only from a file the firmware compiles" {
+    echo '<component><view/></component>' > "$ROOT/ui_xml/demo.xml"
+    : > "$ROOT/exempt.txt"
+    cat > "$ROOT/src/excluded.cpp" <<'CPP'
+void reg() { lv_xml_register_event_cb(nullptr, "on_item", on_item); }
+void make() { lv_xml_create(p, "row", {"click_callback", "on_item", nullptr}); }
+CPP
+    run_exempt
+    [ "$status" -eq 0 ]
+    echo 'void make() { lv_xml_create(p, "row", {"click_callback", "on_item", nullptr}); }' > "$ROOT/src/kept.cpp"
+    run_exempt
+    [ "$status" -eq 1 ]
+    contains "callback:on_item" "$output"
+    contains "src/kept.cpp" "$output"
+}
+
+@test "a widget name= that matches a subject is not a binding" {
+    cat > "$ROOT/src/excluded.cpp" <<'CPP'
+void reg() { lv_xml_register_subject(nullptr, "printer_name", &s); }
+CPP
+    echo '<component><view><text_body name="printer_name"/></view></component>' > "$ROOT/ui_xml/demo.xml"
+    : > "$ROOT/exempt.txt"
+    run_exempt
+    [ "$status" -eq 0 ]
+    lacks "printer_name" "$output"
 }
 
 # Runs qc_esp32_bindings_touched against what is staged in $1.
@@ -196,11 +269,4 @@ C
     run python3 "$GATE" --repo-root "$ROOT"
     [ "$status" -eq 1 ]
     contains "cannot judge" "$output"
-}
-
-# The list is accepted debt, shrink-only: a new binding is registered on the firmware,
-# not added here. Lower the number when the list shrinks.
-@test "the accepted-debt list does not grow" {
-    run bash -c "grep -cv '^\\(#\\|\$\\)' scripts/esp32_xml_binding_baseline.txt"
-    [ "$output" -le 545 ] || fail "$output entries: register the names on the firmware instead"
 }

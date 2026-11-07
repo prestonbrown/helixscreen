@@ -22,7 +22,8 @@ firmware. Before you commit:
 - **New call from a compiled file into an excluded one:** guard it, stub it, or inline it in the header. The land gate
   fails on the symbol; a stub for another member of the same class does not cover it.
 - **New XML subject or callback:** its registration must be in a file and an `#if` branch the firmware compiles, or
-  on the device the binding resolves to nothing. `scripts/check_esp32_xml_bindings.py` ratchets it.
+  on the device the binding resolves to nothing. `scripts/check_esp32_xml_bindings.py` fails it, unless every binding
+  sits in a screen `scripts/esp32_xml_exempt_screens.txt` lists as one the firmware never opens.
 - **Exceptions:** no `try`/`catch`/`throw`, and none of the calls that compile and then abort (`j.value("k", d)`,
   `j.at("k")`, one-argument `json::parse`, `std::sto*`, value-form `std::any_cast`). Use `json_util`'s readers,
   `text_io::parse_leading` and `include/exception_policy.h`.
@@ -151,7 +152,7 @@ diagnostics); the boot heap gates print as `heap before pthread` and `internal h
 | Tool | When | What |
 |------|------|------|
 | `scripts/check_esp32_app_srcs.py` | push and land gate (`scripts/qc/esp32_app_srcs.sh`) | Manifest coverage, stale lines, locale-pulling includes, exception sites. `--link` reads native objects for a kept file calling a symbol only an excluded file defines, ratcheted by `scripts/esp32_link_baseline.txt`. It has a verdict only on Linux, with objects newer than their inputs; the land gate fails without one |
-| `scripts/check_esp32_xml_bindings.py` | commit (`scripts/qc/esp32_xml_bindings.sh`) | XML bindings the firmware does not register; baseline `scripts/esp32_xml_binding_baseline.txt` |
+| `scripts/check_esp32_xml_bindings.py` | commit (`scripts/qc/esp32_xml_bindings.sh`) | XML bindings the firmware does not register, outside the screens `scripts/esp32_xml_exempt_screens.txt` exempts |
 | `scripts/esp32_syntax_check.py` | pre-push | Xtensa `-fsyntax-only` on touched firmware units |
 | `scripts/check_esp32_size.py` | `esp32-build.yml` | App image vs `app_max_bytes`, `.dram0.bss`/`.data` vs their ceilings, exception support or `std::locale` linked. A breach prints the eight largest inputs of the section (size, input section, object file) so the offending static is named; read that list before raising a ceiling |
 | `tests/python/test_esp32_pack_assets.py` | `esp32-build.yml` | The frogfs packer round trip |

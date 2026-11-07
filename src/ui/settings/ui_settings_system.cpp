@@ -45,6 +45,8 @@ void SystemSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              get_telemetry_data_overlay().show(get_system_settings_overlay().parent_screen_);
          }},
+#else
+        {"on_telemetry_view_data", [](lv_event_t*) {}},
 #endif
         {"on_telemetry_changed",
          [](lv_event_t* e) {
