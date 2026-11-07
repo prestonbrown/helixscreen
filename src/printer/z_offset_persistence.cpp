@@ -354,6 +354,12 @@ std::optional<bool> persistence_already_enabled(const PrinterDiscovery& hw,
 
 std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
+    // Where the offset is kept per head the same variable feeds every pickup's
+    // absolute offset and the per-head save base, so zeroing it moves the next
+    // head instead of clearing a leftover.
+    if (p && p->offset_per_head && p->offset_per_head(hw)) {
+        return {};
+    }
     if (p && p->stale_delta_clear_gcode) {
         return p->stale_delta_clear_gcode;
     }

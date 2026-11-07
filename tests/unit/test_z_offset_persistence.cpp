@@ -254,6 +254,16 @@ TEST_CASE("z-offset persistence: no stale-delta clear without the mechanism",
     CHECK(helix::zoffset::stale_probe_delta_clear_gcode(printer_with_macros({})).empty());
 }
 
+TEST_CASE("z-offset persistence: a per-head firmware gets no stale-delta clear",
+          "[zoffset][persistence][per_head]") {
+    // On the Creator 5 the probe-delta variable feeds every pickup's absolute
+    // offset and the per-head save base, so zeroing it moves the next head.
+    PrinterDiscovery c5 =
+        printer_with({"zmod_color", "gcode_button extruder_grab1"}, {"SAVE_ZMOD_DATA"});
+    REQUIRE(helix::zoffset::firmware_applies_z_offset_per_head(c5));
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(c5).empty());
+}
+
 // ============================================================================
 // Reading the stored value
 // ============================================================================

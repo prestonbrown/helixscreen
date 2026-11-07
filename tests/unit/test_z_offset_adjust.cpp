@@ -219,16 +219,16 @@ TEST_CASE_METHOD(ZOffsetFixture,
     auto r = helix::zoffset::adjust(api.get(), &state, shown / 1000.0, shown / 1000.0, -0.01);
 
     REQUIRE(r.sent);
-    CHECK(last_sent().find("SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1") != std::string::npos);
-    CHECK(last_sent().find("SET_GCODE_OFFSET Z=") == std::string::npos);
+    // Only the step: the probe-delta variable a global ZMOD clears first feeds
+    // this firmware's pickup offset and its per-head save base.
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     CHECK(lv_subject_get_int(state.motion_state().get_persisted_z_offset_subject()) == -150);
 
     // A surface still holding the stored value as its current offset steps
     // relatively all the same, and leaves the stored value alone.
     auto stale = helix::zoffset::adjust(api.get(), &state, -0.15, -0.15, -0.01);
     REQUIRE(stale.sent);
-    CHECK(last_sent().find("SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1") != std::string::npos);
-    CHECK(last_sent().find("SET_GCODE_OFFSET Z=") == std::string::npos);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     CHECK(lv_subject_get_int(state.motion_state().get_persisted_z_offset_subject()) == -150);
 }
 
