@@ -264,3 +264,38 @@ TEST_CASE("control view: a cancel in flight disables Stop", "[print_control_view
     taken.cancel_requested = true;
     CHECK_FALSE(compute_control_button_view(taken).stop_enabled);
 }
+
+// ============================================================================
+// A start the printer announced itself (#2054)
+//
+// Another app started the print: no preparing job of ours, and print_stats
+// still reports the previous job until the file opens. The start is on the
+// printer, so only a cancel sent there stops it.
+// ============================================================================
+
+TEST_CASE("control view: Stop during a printer-announced start cancels on the printer",
+          "[print_control_view][preparing][2054]") {
+    ControlButtonInputs in;
+    in.job_state = helix::PrintJobState::CANCELLED;
+    in.lifecycle = PrintState::Preparing;
+    in.printer_announced_start = true;
+    in.cancel_available = false;
+    auto v = compute_control_button_view(in);
+    CHECK(v.stop_enabled);
+    CHECK(v.stop_route == StopRoute::CancelSentStart);
+
+    in.cancel_requested = true;
+    CHECK_FALSE(compute_control_button_view(in).stop_enabled);
+}
+
+TEST_CASE("control view: a printer-announced start that holds its job aborts as usual",
+          "[print_control_view][preparing][2054]") {
+    ControlButtonInputs in;
+    in.job_state = helix::PrintJobState::PRINTING;
+    in.lifecycle = PrintState::Preparing;
+    in.printer_announced_start = true;
+    in.cancel_available = true;
+    auto v = compute_control_button_view(in);
+    CHECK(v.stop_enabled);
+    CHECK(v.stop_route == StopRoute::Abort);
+}

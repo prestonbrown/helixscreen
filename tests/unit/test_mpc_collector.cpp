@@ -274,8 +274,8 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector reports progr
     REQUIRE(progress_phases_.size() == 4);
     REQUIRE(progress_phases_[0] == 1);
     REQUIRE(progress_phases_[1] == 2);
-    REQUIRE(progress_phases_[2] == 3);
-    REQUIRE(progress_phases_[3] == 3);
+    REQUIRE(progress_phases_[2] == 4);
+    REQUIRE(progress_phases_[3] == 4);
     REQUIRE(progress_descriptions_[0] == "Waiting for heater to settle");
     REQUIRE(progress_descriptions_[1] == "Performing heatup test");
     REQUIRE(progress_descriptions_[2].find("50%") != std::string::npos);

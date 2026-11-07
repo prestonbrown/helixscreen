@@ -671,10 +671,12 @@ void MotionPanel::observe_bed_occupancy() {
 void MotionPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
-    // The base invalidates lifetime_ on the way out of this hook, dropping any
-    // in-flight ack callback — fully reset the coalescer so it can't get stuck
-    // in_flight forever.
-    move_sender_.reset();
+    // Leaving for real, the base invalidates lifetime_ on the way out of this
+    // hook and drops any in-flight ack callback, so the coalescer is reset or it
+    // would stay in_flight forever. Behind the screensaver the ack still lands.
+    if (reason != DeactivateReason::Suspended) {
+        move_sender_.reset();
+    }
     stop_hold_repeat();
     // A release arriving after the panel comes back belongs to no gesture.
     end_bed_gesture();

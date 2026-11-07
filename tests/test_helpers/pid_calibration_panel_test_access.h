@@ -36,10 +36,13 @@ struct PIDCalibrationPanelTestAccess {
         p.turn_off_fan();
     }
     static void navigate_away(PIDCalibrationPanel& p) {
-        p.on_deactivating(DeactivateReason::NavigateAway);
+        p.on_deactivate(DeactivateReason::NavigateAway);
     }
     static std::vector<helix::system::ConfigEdit> mpc_migration_edits(PIDCalibrationPanel& p) {
         return p.control_migration_edits(PIDCalibrationPanel::CalibMethod::MPC);
+    }
+    static void suspend(PIDCalibrationPanel& p) {
+        p.on_deactivate(DeactivateReason::Suspended);
     }
 };
 

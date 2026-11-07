@@ -445,10 +445,11 @@ class PrinterPrintState {
      * reports no job until the file opens. Its pre-print phases are accepted
      * while this holds, as a preparing job's are. Set and cleared by
      * PrintStartCollector. Main thread only.
+     *
+     * Until print_stats reports the job, the print's identity is unknown: the
+     * name print_stats still holds is the previous job's.
      */
-    void set_printer_side_pre_start(bool live) {
-        printer_side_pre_start_ = live;
-    }
+    void set_printer_side_pre_start(bool live);
     [[nodiscard]] bool printer_side_pre_start() const {
         return printer_side_pre_start_;
     }

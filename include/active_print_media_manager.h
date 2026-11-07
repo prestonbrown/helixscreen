@@ -126,6 +126,8 @@ class ActivePrintMediaManager {
     void publish_thumbnail(const std::string& for_file, const std::string& path);
 
     void process_filename(const char* raw_filename);
+    /// Show a print whose file has no name yet: no display name, the placeholder.
+    void publish_unknown_identity();
     void load_thumbnail_for_file(const std::string& filename);
     void clear_print_info();
 
@@ -210,6 +212,9 @@ class ActivePrintMediaManager {
     IMoonrakerAPI* api_ = nullptr;
     ObserverGuard print_filename_observer_;
     ObserverGuard preparing_epoch_observer_;
+    ObserverGuard print_identity_observer_;
+    /// The last identity acted on was a printer-announced start's unknown one.
+    bool identity_unknown_ = false;
     std::string last_effective_filename_;
     /// The filename print_stats last reported, before identity resolution: a
     /// plate extracted from a .3mf names its plate only there.

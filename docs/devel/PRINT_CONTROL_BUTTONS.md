@@ -161,7 +161,7 @@ applies:
 | Route | When | What Stop does |
 |---|---|---|
 | `RetirePreparing` | preparing, no start in flight or accepted | `retire_preparing(Cancelled)`; every start send first checks its preparing epoch, so nothing reaches the printer |
-| `CancelSentStart` | preparing, a start in flight or accepted, printer not reporting the job | Requests a cancel and disables Stop; the state table below decides when `printer.print.cancel` goes out and what settles it |
+| `CancelSentStart` | preparing, a start in flight or accepted, printer not reporting the job; or a start the printer announced itself with no preparing job of ours (`printer_side_pre_start()`, #2054), whose cancel goes out at once | Requests a cancel and disables Stop; the state table below decides when `printer.print.cancel` goes out and what settles it |
 | `Abort` | the printer reports the job | `AbortManager` |
 
 `CANCEL_PRINT` sent to an idle printer is worse than useless: it is answered at

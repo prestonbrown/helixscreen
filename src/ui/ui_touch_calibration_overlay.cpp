@@ -379,13 +379,19 @@ void TouchCalibrationOverlay::on_activate() {
     update_crosshair_position();
 }
 
-void TouchCalibrationOverlay::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void TouchCalibrationOverlay::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
     // Reparent the capture surface + Cancel chip back into the overlay subtree
     // BEFORE the slide-out, so a live full-screen touch target doesn't linger on
     // the screen behind the dismissed overlay. (crosshair too.)
     restore_reparented_widgets();
+
+    // A suspended session stays open: the wake re-lifts the widgets in
+    // on_activate() and the user carries on from the same crosshair.
+    if (reason == DeactivateReason::Suspended) {
+        return;
+    }
 
     // Cancel any in-progress calibration
     if (controller_.panel()) {

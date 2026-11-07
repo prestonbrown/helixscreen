@@ -195,6 +195,16 @@ void ScrewsTiltPanel::setup_widgets() {
 void ScrewsTiltPanel::on_activate() {
     OverlayBase::on_activate();
 
+    // A wake from the screensaver keeps the session: the probe ran on behind
+    // it, and on_deactivating() only took down the drawn results.
+    if (take_wake()) {
+        if (state_ == State::RESULTS) {
+            populate_results(screw_results_);
+            create_tilt_surface();
+        }
+        return;
+    }
+
     // Reset for fresh session
     probe_count_ = 0;
     lv_subject_set_int(&results_is_leveled_subject_, 0);
@@ -233,7 +243,8 @@ void ScrewsTiltPanel::on_deactivating(DeactivateReason reason) {
         }
     }
 
-    // Clean up dynamic indicators
+    // Clean up dynamic indicators. On a suspend this is what stops their
+    // rotations; screw_results_ stays, and the wake draws it again.
     clear_results();
     spdlog::debug("[ScrewsTilt] Deactivated");
 }
@@ -362,7 +373,11 @@ void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>&
     spdlog::info("[ScrewsTilt] Spread {} min vs {} min tolerance (pitch {:.1f}mm/turn)",
                  level_report_.spread_minutes, level_report_.tolerance_minutes, screw_pitch_mm_);
 
-    populate_results(results);
+    // Behind the screensaver nothing is drawn (the indicators spin forever);
+    // the wake draws screw_results_.
+    if (!suspended()) {
+        populate_results(results);
+    }
 
     // Always show RESULTS state — success banner shown via results_is_leveled subject
     bool all_level = level_report_.is_level();
@@ -379,7 +394,9 @@ void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>&
 
     set_state(State::RESULTS);
     // Only once the results view is shown does the diagram have a size to render at.
-    create_tilt_surface();
+    if (!suspended()) {
+        create_tilt_surface();
+    }
 }
 
 void ScrewsTiltPanel::on_screws_tilt_error(const std::string& message) {

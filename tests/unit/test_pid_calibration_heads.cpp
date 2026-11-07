@@ -293,3 +293,102 @@ TEST_CASE_METHOD(
         helix::ui::UpdateQueue::instance().drain();
     }
 }
+
+namespace {
+std::string progress_text() {
+    lv_subject_t* s = lv_xml_get_subject(nullptr, "pid_progress_text");
+    REQUIRE(s != nullptr);
+    return lv_subject_get_string(s);
+}
+void discover_extruder() {
+    helix::PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
+    get_printer_state().set_hardware(hw);
+    get_printer_state().temperature_state().init_extruders(hw.heaters());
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+}
+void nozzle_at(double c) {
+    get_printer_state().update_from_status({{"extruder", {{"temperature", c}}}});
+    helix::ui::UpdateQueue::instance().drain();
+}
+} // namespace
+
+// The screensaver suspends the panel mid-run; the printer keeps calibrating,
+// so on waking the progress has to follow the heater again.
+TEST_CASE_METHOD(PidHeadsFixture, "A calibration's progress follows the heater after a wake",
+                 "[pid][pid_progress]") {
+    discover_extruder();
+    Access::activate(panel);
+    start();
+    nozzle_at(100.0);
+    REQUIRE(progress_text().find("100") != std::string::npos);
+
+    Access::suspend(panel);
+    nozzle_at(140.0);
+    Access::activate(panel);
+    nozzle_at(160.0);
+    CHECK(progress_text().find("160") != std::string::npos);
+}
+
+// MPC_CALIBRATE narrates its own phases; the PID heat-up wording must not
+// replace them on every temperature report.
+TEST_CASE_METHOD(PidHeadsFixture, "An MPC run shows the firmware's phase, not PID heat-up text",
+                 "[pid][pid_progress]") {
+    discover_extruder();
+    Access::activate(panel);
+    Access::use_mpc(panel);
+    start();
+    REQUIRE(sent("MPC_CALIBRATE HEATER=extruder "));
+
+    const auto phase_after = [&](const char* line) {
+        client.dispatch_gcode_response(line);
+        helix::ui::UpdateQueue::instance().drain();
+        nozzle_at(150.0);
+        return std::pair{progress_text(), subject_int("pid_cal_progress")};
+    };
+    // Kalico's control_mpc.py wording, as Klipper's respond_info marks it.
+    const auto settle = phase_after("// Waiting for heater to drop below 45.0 degrees Celsius");
+    const auto heatup = phase_after("// Performing heatup test, target is 220.0 degrees");
+    const auto transfer =
+        phase_after("// Performing ambient transfer tests, target is 236.0 degrees");
+    CHECK(settle.first == "Waiting for heater to drop below 45.0 degrees Celsius");
+    CHECK(heatup.first == "Performing heatup test, target is 220.0 degrees");
+    CHECK(transfer.first == "Performing ambient transfer tests, target is 236.0 degrees");
+    CHECK(settle.second > 0);
+    CHECK(heatup.second > settle.second);
+    CHECK(transfer.second > heatup.second);
+}
+
+// A run that finishes behind the screensaver still saves, and the wake shows
+// its result rather than resetting the panel.
+TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensaver is kept",
+                 "[pid][pid_progress]") {
+    discover_extruder();
+    Access::activate(panel);
+    Access::use_mpc(panel);
+    start();
+    REQUIRE(subject_int("pid_cal_state") == 1); // CALIBRATING
+    client.clear_gcode_script_history();
+
+    Access::suspend(panel);
+    client.dispatch_gcode_response("// Finished MPC calibration of heater 'extruder'\n"
+                                   "// Measured:\n"
+                                   "// block_heat_capacity=17.9784 [J/K]\n"
+                                   "// sensor_responsiveness=0.0971234 [K/s/K]\n"
+                                   "// ambient_transfer=0.0892993 [W/K]\n"
+                                   "// fan_ambient_transfer=0.0892993, 0.0940654 [W/K]");
+    REQUIRE(wait_until([&] {
+        helix::ui::UpdateQueue::instance().drain();
+        return sent("SAVE_CONFIG");
+    }));
+    Access::activate(panel);
+    CHECK(subject_int("pid_cal_state") >= 2); // SAVING or COMPLETE, not reset to IDLE
+
+    // Leaving for real after a later suspend: the next visit starts fresh.
+    Access::suspend(panel);
+    Access::navigate_away(panel);
+    Access::activate(panel);
+    CHECK(subject_int("pid_cal_state") == 0);
+}
