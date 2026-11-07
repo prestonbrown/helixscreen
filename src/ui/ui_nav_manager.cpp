@@ -231,6 +231,7 @@ void NavigationManager::activate_restored_target() {
             spdlog::trace("[NavigationManager] Activating main panel {} after overlay closed",
                           static_cast<int>(active_panel_));
             panels_.instance(static_cast<int>(active_panel_))->on_activate();
+            keep_suspended(panels_.instance(static_cast<int>(active_panel_)));
         }
     } else if (panel_stack_.size() > 1) {
         // Back to previous overlay - activate it
@@ -240,6 +241,7 @@ void NavigationManager::activate_restored_target() {
             spdlog::trace("[NavigationManager] Activating previous overlay {}",
                           overlay_it->second->get_name());
             overlay_it->second->on_activate();
+            keep_suspended(overlay_it->second);
         }
     }
 }
@@ -701,6 +703,7 @@ void NavigationManager::set_active(PanelId panel_id) {
         spdlog::trace("[NavigationManager] Calling on_activate() for panel {}",
                       static_cast<int>(panel_id));
         panels_.instance(static_cast<int>(panel_id))->on_activate();
+        keep_suspended(panels_.instance(static_cast<int>(panel_id)));
     }
     SwitchTrace::mark("activate");
 
@@ -762,6 +765,9 @@ void NavigationManager::register_panel_instance(PanelId id, PanelBase* panel) {
         spdlog::error("[NavigationManager] Invalid panel ID for registration: {}",
                       static_cast<int>(id));
         return;
+    }
+    if (panels_.instance(static_cast<int>(id)) != panel) {
+        forget_suspended_view(panels_.instance(static_cast<int>(id)));
     }
     panels_.set_instance(static_cast<int>(id), panel);
     spdlog::trace("[NavigationManager] Registered panel instance for ID {}", static_cast<int>(id));
@@ -943,6 +949,9 @@ void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
     // Does NOT free anything — LVGL is mid-deletion and owns the memory. We only
     // drop the (now-dangling) references so the next push_overlay() can't deref
     // panel_stack_.back() after the memory is freed (bundle ZW6ATWSL).
+    if (auto it = overlay_instances_.find(widget); it != overlay_instances_.end()) {
+        forget_suspended_view(it->second);
+    }
     overlay_instances_.erase(widget);
     persistent_overlay_instances_.erase(widget);
     // Drop the backdrop map entry only — out of scope to delete the backdrop here.
@@ -1041,23 +1050,43 @@ void NavigationManager::activate_initial_panel() {
     }
 }
 
+IPanelLifecycle* NavigationManager::visible_lifecycle() {
+    if (panel_stack_.size() > 1) {
+        auto it = overlay_instances_.find(panel_stack_.back());
+        return it != overlay_instances_.end() ? it->second : nullptr;
+    }
+    return panels_.instance(static_cast<int>(active_panel_));
+}
+
+void NavigationManager::keep_suspended(IPanelLifecycle* view) {
+    // An on_activate() that navigated on has already put its successor here.
+    if (!suspended_ || !view || view != visible_lifecycle()) {
+        return;
+    }
+    spdlog::debug("[NavigationManager] {} came on screen while suspended; suspending it",
+                  view->get_name());
+    view->on_deactivate(suspend_reason_);
+    suspended_view_ = view;
+}
+
+void NavigationManager::forget_suspended_view(const IPanelLifecycle* view) {
+    if (view && view == suspended_view_) {
+        suspended_view_ = nullptr;
+    }
+}
+
 void NavigationManager::suspend_active(DeactivateReason reason) {
     if (suspended_) {
         return;
     }
     suspended_ = true;
+    suspend_reason_ = reason;
 
     // Deactivate whatever is currently visible — topmost overlay or main panel
-    if (panel_stack_.size() > 1) {
-        lv_obj_t* top_overlay = panel_stack_.back();
-        auto it = overlay_instances_.find(top_overlay);
-        if (it != overlay_instances_.end() && it->second) {
-            spdlog::debug("[NavigationManager] Suspending overlay {}", it->second->get_name());
-            it->second->on_deactivate(reason);
-        }
-    } else if (panels_.instance(static_cast<int>(active_panel_))) {
-        spdlog::debug("[NavigationManager] Suspending panel {}", static_cast<int>(active_panel_));
-        panels_.instance(static_cast<int>(active_panel_))->on_deactivate(reason);
+    suspended_view_ = visible_lifecycle();
+    if (suspended_view_) {
+        spdlog::debug("[NavigationManager] Suspending {}", suspended_view_->get_name());
+        suspended_view_->on_deactivate(reason);
     }
 }
 
@@ -1066,18 +1095,14 @@ void NavigationManager::resume_active() {
         return;
     }
     suspended_ = false;
+    IPanelLifecycle* view = std::exchange(suspended_view_, nullptr);
 
-    // Re-activate whatever is currently visible
-    if (panel_stack_.size() > 1) {
-        lv_obj_t* top_overlay = panel_stack_.back();
-        auto it = overlay_instances_.find(top_overlay);
-        if (it != overlay_instances_.end() && it->second) {
-            spdlog::debug("[NavigationManager] Resuming overlay {}", it->second->get_name());
-            it->second->on_activate();
-        }
-    } else if (panels_.instance(static_cast<int>(active_panel_))) {
-        spdlog::debug("[NavigationManager] Resuming panel {}", static_cast<int>(active_panel_));
-        panels_.instance(static_cast<int>(active_panel_))->on_activate();
+    // Wake only the view the suspend put to sleep. Anything else on screen was
+    // brought there by a navigation that already activated it; activating it
+    // again would double-start whatever its on_activate() starts (#2062).
+    if (view && view == visible_lifecycle()) {
+        spdlog::debug("[NavigationManager] Resuming {}", view->get_name());
+        view->on_activate();
     }
 }
 
@@ -1107,6 +1132,7 @@ void NavigationManager::unregister_overlay_instance(lv_obj_t* widget) {
     if (it != overlay_instances_.end()) {
         spdlog::trace("[NavigationManager] Unregistered overlay instance for widget {}",
                       (void*)widget);
+        forget_suspended_view(it->second);
         overlay_instances_.erase(it);
     }
     persistent_overlay_instances_.erase(widget);
@@ -1287,6 +1313,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
         } else {
             spdlog::trace("[NavigationManager] Activating overlay {}", lifecycle->get_name());
             lifecycle->on_activate();
+            mgr.keep_suspended(lifecycle);
         }
 
         helix::ui::PageScrollAutoInject::instance().on_root_shown(overlay_panel);
@@ -1580,6 +1607,7 @@ void NavigationManager::shutdown() {
     // we just clear our tracking references here
     overlay_instances_.clear();
     persistent_overlay_instances_.clear();
+    suspended_view_ = nullptr;
 
     panels_.clear_instances();
 
