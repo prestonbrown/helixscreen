@@ -91,6 +91,21 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
 std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index, ToolLabelForm form);
 
 /**
+ * @brief A tool that draws from a lane into the one head every tool shares.
+ *
+ * Behind a hub (a CFS, an ACE, a Box Turtle feeding one extruder) a tool is
+ * not a thing on the machine; it is the slicer's name for a lane. Full names
+ * the lane in the backend's own noun beside the G-code name, "Slot 1 (T0)",
+ * so a remapped tool reads "Slot 3 (T0)". Code is the G-code name alone.
+ *
+ * @param lane_noun what the backend calls a position (active_lane_noun())
+ * @param slot      global index of the lane the tool feeds
+ * @param tool      0-based G-code tool
+ * @return empty when @p slot or @p tool is negative
+ */
+std::string fed_lane_tool_label(LaneNoun lane_noun, int slot, int tool, ToolLabelForm form);
+
+/**
  * @brief The most informative form @p fits accepts.
  *
  * Callers measure differently (a pill grid, a list row), so each supplies its

@@ -2047,13 +2047,20 @@ void FilamentPanel::populate_extruder_dropdown() {
 
     // Build options string ("Tool 1 (T0)\nTool 2 (T1)\n..."). The open list
     // sizes itself to its widest option, so it always has room for the full
-    // form; the closed control shows only the G-code name.
+    // form; the closed control shows only the G-code name. With one head, every
+    // tool is a lane the hub feeds into it, so each is named by its lane
+    // ("Slot 1 (T0)"): "Tool 2" would name a toolhead the printer does not have.
+    const bool tools_are_lanes = !ts.has_multiple_toolheads();
+    const auto lane_noun = helix::ui::active_lane_noun();
     std::string options;
     for (const auto& tool : ts.tools()) {
         if (!options.empty())
             options += '\n';
-        options +=
-            helix::ui::active_tool_label(tool.name, tool.index, helix::ui::ToolLabelForm::Full);
+        options += tools_are_lanes && tool.backend_slot >= 0
+                       ? helix::ui::fed_lane_tool_label(lane_noun, tool.backend_slot, tool.index,
+                                                        helix::ui::ToolLabelForm::Full)
+                       : helix::ui::active_tool_label(tool.name, tool.index,
+                                                      helix::ui::ToolLabelForm::Full);
     }
     lv_dropdown_set_options(extruder_dropdown_, options.c_str());
 

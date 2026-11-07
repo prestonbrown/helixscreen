@@ -75,6 +75,15 @@ std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index,
     return fmt::format(lv_tr("{} ({})"), tool_name_label(noun, name, index), code);
 }
 
+std::string fed_lane_tool_label(LaneNoun lane_noun, int slot, int tool, ToolLabelForm form) {
+    if (slot < 0 || tool < 0)
+        return {};
+    const std::string code = tool_label(tool);
+    if (form == ToolLabelForm::Code)
+        return code;
+    return fmt::format(lv_tr("{} ({})"), lane_label(lane_noun, slot), code);
+}
+
 ToolLabelForm pick_tool_label_form(const std::function<bool(ToolLabelForm)>& fits) {
     for (ToolLabelForm form : kToolLabelForms) {
         if (fits(form))
