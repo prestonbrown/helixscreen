@@ -801,6 +801,21 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
+          "[printer][detector][mismatch]") {
+    // The Neptune 4 line shares one image across four sizes. A Max tied with
+    // another machine is no evidence that a saved Pro is really a Max.
+    PrinterDetectionResult tied{"Elegoo Neptune 4 Max", 95, "tied"};
+    tied.runner_up_type_name = "Voron 2.4";
+    tied.runner_up_confidence = 95;
+    tied.contenders = {"Elegoo Neptune 4 Max", "Voron 2.4"};
+    REQUIRE(tied.ambiguous());
+
+    CHECK(PrinterDetector::mismatch_subject("Elegoo Neptune 4 Pro", tied) == tied.type_name);
+    CHECK(PrinterDetector::classify_type_mismatch("Elegoo Neptune 4 Pro", tied, "") ==
+          PrinterDetector::MismatchDecision::Ambiguous);
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build
