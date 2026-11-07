@@ -16,11 +16,14 @@
 #include "ams_backend_ace.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
+#include "app_globals.h"
+#include "capability_overrides.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "standard_macros.h"
 #include "test_helpers/backend_harness.h"
 #include "tool_state.h"
@@ -107,6 +110,24 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
     helix::init_subsystems_from_hardware(discovery_of({"extruder"}), nullptr, &client);
     REQUIRE(fsm.sensor_count() == 0);
     REQUIRE(wsm.sensor_count() == 0);
+}
+
+TEST_CASE_METHOD(DiscoverySubsystemsFixture,
+                 "discovery leaves a light the user turned off uncontrollable",
+                 "[discovery][led]") {
+    auto& ps = get_printer_state();
+    lv_subject_t* controllable =
+        helix::led::LedController::instance().get_led_controllable_subject();
+
+    helix::init_subsystems_from_hardware(discovery_of({"extruder", "led chamber_light"}), nullptr,
+                                         &client);
+    REQUIRE(lv_subject_get_int(controllable) == 1);
+
+    ps.set_led_override(OverrideState::DISABLE);
+    helix::init_subsystems_from_hardware(discovery_of({"extruder", "led chamber_light"}), nullptr,
+                                         &client);
+    CHECK(lv_subject_get_int(controllable) == 0);
+    ps.set_led_override(OverrideState::AUTO);
 }
 
 // init_tools() rebuilds the tools with T0 mounted, but a backend that already

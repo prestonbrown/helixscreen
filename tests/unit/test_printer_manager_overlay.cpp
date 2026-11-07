@@ -493,6 +493,16 @@ TEST_CASE_METHOD(
 }
 
 TEST_CASE_METHOD(CapabilityChipsFixture,
+                 "PrinterManagerOverlay: lights the user turned on say so on their chip",
+                 "[printer_manager]") {
+    state().set_led_override(OverrideState::ENABLE);
+    discover(nlohmann::json{"fan"});
+    REQUIRE(show() != nullptr);
+    CHECK(text_of("pm_chip_text_leds") == "LEDs · set manually");
+    state().set_led_override(OverrideState::AUTO);
+}
+
+TEST_CASE_METHOD(CapabilityChipsFixture,
                  "PrinterManagerOverlay: a chip with no screen opens its info popup",
                  "[printer_manager]") {
     REQUIRE(show() != nullptr);
