@@ -355,7 +355,8 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     overlay.handle_z_target_select(1); // the heading follows the tool's own Z
 
-    ts.update_from_status(json{{"tool T0", json{{"gcode_z_offset", 0.10}}}});
+    ts.update_from_status(json{{"toolchanger", json{{"tool_number", 0}}},
+                               {"tool T0", json{{"gcode_z_offset", 0.10}}}});
     helix::ui::UpdateQueue::instance().drain();
 
     lv_subject_t* display = lv_xml_get_subject(nullptr, "tune_z_offset_display");

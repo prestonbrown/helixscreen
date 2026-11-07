@@ -66,6 +66,8 @@ struct ManageRowHarness {
         helix::PrinterDiscovery hw;
         hw.parse_objects(objects);
         ToolState::instance().init_tools(hw);
+        // A changer's first status frame: T0 is on the carriage.
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
 
         lv_subject_set_int(AmsState::instance().get_ams_type_subject(), static_cast<int>(ams_type));
 
