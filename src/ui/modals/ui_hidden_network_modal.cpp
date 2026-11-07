@@ -153,7 +153,9 @@ void HiddenNetworkModal::on_ok() {
 bool show_hidden_network_modal(std::shared_ptr<helix::WiFiManager> wifi,
                                HiddenJoinCallback on_event) {
     auto& modal = helix::lazy_global<HiddenNetworkModal>("HiddenNetworkModal");
-    if (modal.is_visible()) {
+    // A backdrop the modal stack no longer tracks was torn down behind the modal
+    // (a screen rebuild, a stack clear), so showing again replaces it.
+    if (modal.is_visible() && ModalStack::instance().backdrop_for_backdrop(modal.backdrop())) {
         return true;
     }
     if (!modal.show_modal(std::move(wifi), std::move(on_event))) {

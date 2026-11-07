@@ -5,7 +5,7 @@
  * @file test_network_settings_modal_lifetime.cpp
  * @brief #1341 — cached modal pointers must not outlive their modal.
  *
- * NetworkSettingsOverlay caches its three modals and the network test's step
+ * NetworkSettingsOverlay caches its password and network-test modals and the network test's step
  * widget, and its async WiFi callbacks null-check them before walking them
  * with lv_obj_find_by_name(). A modal closed by the modal system (back gesture,
  * ModalStack unwinding) rather than by the overlay must still leave a null
@@ -57,17 +57,6 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture,
 }
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
-                 "Deleting the hidden-network modal clears its cached pointer",
-                 "[network_settings][modal_lifetime][1341]") {
-    lv_obj_t* modal = make_watched_modal();
-    Access::hidden_network_modal(overlay()) = modal;
-
-    lv_obj_delete(modal);
-
-    REQUIRE(Access::hidden_network_modal(overlay()) == nullptr);
-}
-
-TEST_CASE_METHOD(NetworkModalLifetimeFixture,
                  "Deleting the network-test modal clears its cached pointer",
                  "[network_settings][modal_lifetime][1341]") {
     lv_obj_t* modal = make_watched_modal();
@@ -111,17 +100,17 @@ TEST_CASE_METHOD(NetworkModalLifetimeFixture, "A dying modal clears only its own
                  "[network_settings][modal_lifetime][1341]") {
     // Each handle must clear only when its own modal dies.
     lv_obj_t* password = make_watched_modal();
-    lv_obj_t* hidden = make_watched_modal();
+    lv_obj_t* test = make_watched_modal();
     Access::password_modal(overlay()) = password;
-    Access::hidden_network_modal(overlay()) = hidden;
+    Access::test_modal(overlay()) = test;
 
     lv_obj_delete(password);
 
     REQUIRE(Access::password_modal(overlay()) == nullptr);
-    REQUIRE(Access::hidden_network_modal(overlay()) == hidden);
+    REQUIRE(Access::test_modal(overlay()) == test);
 
-    lv_obj_delete(hidden);
-    REQUIRE(Access::hidden_network_modal(overlay()) == nullptr);
+    lv_obj_delete(test);
+    REQUIRE(Access::test_modal(overlay()) == nullptr);
 }
 
 TEST_CASE_METHOD(NetworkModalLifetimeFixture,
