@@ -434,20 +434,24 @@ first; the label never erases.
 ## Print progress
 
 Every saver reads the print: `SaverBase` is the `ClockInputSink`, and the manager points each
-one at `ScreensaverManager::clock_input`, which fills it from `SaverHost::print_status`. A
-running print reads live from the host. How long an ended print stays is
-`PrintEndLatch`'s decision (`src/ui/screensaver/screensaver_print_latch.cpp#step`), stepped on
-every sampled idle-check tick whether or not a saver runs:
+one at `ScreensaverManager::clock_input`, which fills it from `SaverHost::print_status`. The
+host reports an idle printer's last end from the persisted print outcome
+(`clock_print_phase`), so a printer that drops to standby right after a print still reads it.
+How long an ended print stays is `PrintEndLatch`'s decision
+(`src/ui/screensaver/screensaver_print_latch.cpp#step`), stepped every time a saver reads its
+input and on every sampled idle-check tick, so it sees the end whether or not a saver runs:
 
 - The step from PREPARING, PRINTING or PAUSED to COMPLETE, FAILED or CANCELLED latches that
-  end. An end never seen running reads as no print, so an app that connects to a finished
-  printer shows nothing stale.
-- It clears on user input after the end (`SaverHost::inactive_ms`), a new print, the printer
-  going idle, and a change of `SaverHost::printer_epoch` (the active printer's id with the
-  client's connection generation). Display sleep is not input: a print finished overnight is
-  still on the saver when the screen next dims.
+  end, with the progress the print last reported while running. An end never seen running
+  reads as no print, so an app that connects to a finished printer shows nothing stale.
+- It clears on user input after the end (`SaverHost::inactive_ms` against the `lv_tick` stamp
+  it latched at), a new print, and a change of `SaverHost::printer_epoch` (the active
+  printer's id with the client's connection generation). Display sleep is not input: a print
+  finished overnight is still on the saver when the screen next dims. Any wake the app asks
+  for counts as input, since it shows the UI.
 
-While a saver runs, the end of a print does not wake the display: `plan_completion_alert`
+While a saver that shows the end runs (`ScreensaverManager::shows_print_end`, never the black
+screen), the end of a print does not wake the display: `plan_completion_alert`
 (`src/print/print_completion_alert.cpp`) drops the wake and the toast and keeps the modal,
 which waits behind the saver. Sounds and the heater shutdown on an error are unchanged. With no
 saver running, completion behaves as it always did.

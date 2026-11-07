@@ -4,6 +4,8 @@
 
 #include "screensaver_print_latch.h"
 
+#include <algorithm>
+
 namespace helix::ui {
 
 namespace {
@@ -24,7 +26,7 @@ void PrintEndLatch::reset() {
     *this = PrintEndLatch{};
 }
 
-ClockPrintPhase PrintEndLatch::step(uint32_t dt_ms, const PrintLatchInput& in) {
+ClockPrintPhase PrintEndLatch::step(const PrintLatchInput& in) {
     if (has_epoch_ && in.printer_epoch != epoch_) {
         // Another connection or another printer: nothing seen before applies to it.
         latched_ = ClockPrintPhase::NONE;
@@ -33,12 +35,14 @@ ClockPrintPhase PrintEndLatch::step(uint32_t dt_ms, const PrintLatchInput& in) {
     has_epoch_ = true;
     epoch_ = in.printer_epoch;
 
-    if (running(in.host_phase)) {
+    const ClockPrintPhase phase = in.host.phase;
+    if (running(phase)) {
         latched_ = ClockPrintPhase::NONE;
         saw_running_ = true;
-        return in.host_phase;
+        progress_pct_ = std::clamp(in.host.progress_pct, 0, 100);
+        return phase;
     }
-    if (!ended(in.host_phase)) {
+    if (!ended(phase)) {
         latched_ = ClockPrintPhase::NONE;
         saw_running_ = false;
         return ClockPrintPhase::NONE;
@@ -46,17 +50,15 @@ ClockPrintPhase PrintEndLatch::step(uint32_t dt_ms, const PrintLatchInput& in) {
 
     if (saw_running_) {
         // The step from running to ended: this end is what the savers show.
-        latched_ = in.host_phase;
-        latched_ms_ = 0;
+        latched_ = phase;
+        latched_at_ms_ = in.now_ms;
         saw_running_ = false;
         return latched_;
     }
-    if (latched_ != ClockPrintPhase::NONE) {
-        latched_ms_ += dt_ms;
-        if (static_cast<uint64_t>(in.inactive_ms) < latched_ms_) {
-            // Input arrived after the end: someone has seen it.
-            latched_ = ClockPrintPhase::NONE;
-        }
+    // Input after the end means someone has seen it. Unsigned differences survive the clock
+    // wrapping.
+    if (latched_ != ClockPrintPhase::NONE && in.inactive_ms < in.now_ms - latched_at_ms_) {
+        latched_ = ClockPrintPhase::NONE;
     }
     return latched_;
 }

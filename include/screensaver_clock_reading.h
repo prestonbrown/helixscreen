@@ -100,8 +100,8 @@ struct ClockReading {
     /// COUNTDOWN, and PAUSED once an estimate has been seen: countdown_s is a real time left
     bool has_countdown = false;
     int32_t eta_minute_of_day = 0; ///< COUNTDOWN: local minute the print ends, 0 to 1439
-    /// PROGRESS, COUNTDOWN and PAUSED: 0 to 100; DONE: 100; FAILED and CANCELLED: the last
-    /// running value
+    /// PROGRESS, COUNTDOWN and PAUSED: 0 to 100; DONE: 100; FAILED and CANCELLED: the input's,
+    /// which the manager fills with the progress the print reached
     int32_t progress_pct = 0;
 };
 
@@ -134,7 +134,6 @@ class ClockState {
     bool anchored_ = false;
     int32_t anchor_s_ = 0;
     uint32_t since_anchor_ms_ = 0;
-    int32_t last_progress_pct_ = 0;
     ClockReading reading_;
 };
 

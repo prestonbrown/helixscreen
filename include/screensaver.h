@@ -197,6 +197,9 @@ class ScreensaverManager {
 
     /** @brief True while a screensaver or its black screen is up */
     bool is_active() const;
+    /// True while a saver is up that shows how a print ended; false for the black screen, which
+    /// shows nothing, and when no saver runs.
+    bool shows_print_end() const;
 
     /// The saver running now, the type its black screen stands in for, or OFF. Never RANDOM:
     /// a Random run reports the saver it drew.
@@ -287,7 +290,9 @@ class ScreensaverManager {
     void release_refresh_period();
 
     /// The local time, date and the host's print as the latch shows it, for every saver.
-    helix::ui::ClockInput clock_input() const;
+    helix::ui::ClockInput clock_input();
+    /// Steps print_latch_ from the host; returns the print as the savers show it.
+    helix::ui::ClockPrint step_print_latch();
 
     std::vector<std::unique_ptr<helix::ui::SaverBase>> screensavers_;
     helix::ui::SaverBase* active_ = nullptr;

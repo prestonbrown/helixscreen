@@ -833,7 +833,9 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
     host.print_status = [] {
         helix::PrinterPrintState& print = get_printer_state().print_state();
         helix::ui::ClockPrint status;
-        status.phase = helix::ui::clock_print_phase(print.get_print_lifecycle());
+        status.phase = helix::ui::clock_print_phase(
+            print.get_print_lifecycle(), static_cast<helix::PrintOutcome>(lv_subject_get_int(
+                                             print.get_print_outcome_subject())));
         status.remaining_s = lv_subject_get_int(print.get_print_time_left_subject());
         status.progress_pct = lv_subject_get_int(print.get_print_progress_display_subject());
         return status;

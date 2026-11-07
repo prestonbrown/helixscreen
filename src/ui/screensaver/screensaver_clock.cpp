@@ -10,6 +10,7 @@
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "lvgl.h"
+#include "printer_state.h"
 #include "screensaver_motion.h"
 #include "theme_manager.h"
 
@@ -53,7 +54,7 @@ ClockInput saver_clock_now() {
     return in;
 }
 
-ClockPrintPhase clock_print_phase(PrintState state) {
+ClockPrintPhase clock_print_phase(PrintState state, PrintOutcome outcome) {
     switch (state) {
     case PrintState::Preparing:
         return ClockPrintPhase::PREPARING;
@@ -68,6 +69,16 @@ ClockPrintPhase clock_print_phase(PrintState state) {
     case PrintState::Error:
         return ClockPrintPhase::FAILED;
     case PrintState::Idle:
+        break;
+    }
+    switch (outcome) {
+    case PrintOutcome::COMPLETE:
+        return ClockPrintPhase::COMPLETE;
+    case PrintOutcome::CANCELLED:
+        return ClockPrintPhase::CANCELLED;
+    case PrintOutcome::ERROR:
+        return ClockPrintPhase::FAILED;
+    case PrintOutcome::NONE:
         break;
     }
     return ClockPrintPhase::NONE;

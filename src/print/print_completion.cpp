@@ -400,7 +400,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 
 #if HELIX_ENABLE_SCREENSAVER
-        const bool saver_running = ScreensaverManager::instance().is_active();
+        const bool saver_running = ScreensaverManager::instance().shows_print_end();
 #else
         const bool saver_running = false;
 #endif

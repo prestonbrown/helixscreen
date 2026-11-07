@@ -46,12 +46,7 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     };
 
     const ClockPrint& print = in.print;
-    const bool running = print.phase == ClockPrintPhase::PREPARING ||
-                         print.phase == ClockPrintPhase::PRINTING ||
-                         print.phase == ClockPrintPhase::PAUSED;
-    if (running) {
-        last_progress_pct_ = std::clamp(print.progress_pct, 0, 100);
-    }
+    const int32_t progress = std::clamp(print.progress_pct, 0, 100);
     switch (print.phase) {
     case ClockPrintPhase::PREPARING:
     case ClockPrintPhase::PRINTING:
@@ -87,7 +82,6 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     case ClockPrintPhase::NONE:
         mode_ = ClockMode::CLOCK;
         anchored_ = false;
-        last_progress_pct_ = 0;
         break;
     }
 
@@ -100,7 +94,7 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     case ClockMode::CLOCK:
         break;
     case ClockMode::PROGRESS:
-        reading_.progress_pct = last_progress_pct_;
+        reading_.progress_pct = progress;
         break;
     case ClockMode::COUNTDOWN: {
         reading_.countdown_s = countdown_s();
@@ -108,20 +102,20 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
         const int32_t sod = screensaver::wrap_index(in.seconds_of_day, 86400);
         reading_.eta_minute_of_day =
             static_cast<int32_t>((static_cast<int64_t>(sod) + countdown_s()) / 60 % 1440);
-        reading_.progress_pct = last_progress_pct_;
+        reading_.progress_pct = progress;
         break;
     }
     case ClockMode::PAUSED:
         reading_.countdown_s = anchored_ ? countdown_s() : 0;
         reading_.has_countdown = anchored_;
-        reading_.progress_pct = last_progress_pct_;
+        reading_.progress_pct = progress;
         break;
     case ClockMode::DONE:
         reading_.progress_pct = 100;
         break;
     case ClockMode::FAILED:
     case ClockMode::CANCELLED:
-        reading_.progress_pct = last_progress_pct_;
+        reading_.progress_pct = progress;
         break;
     }
 }

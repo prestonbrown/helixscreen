@@ -94,20 +94,33 @@ void ScreensaverManager::set_host(helix::ui::SaverHost host) {
     print_latch_.reset();
 }
 
-helix::ui::ClockInput ScreensaverManager::clock_input() const {
-    helix::ui::ClockInput in = helix::ui::saver_clock_now();
+helix::ui::ClockPrint ScreensaverManager::step_print_latch() {
+    helix::ui::PrintLatchInput in;
     if (host_.print_status) {
-        in.print = host_.print_status();
+        in.host = host_.print_status();
     }
+    in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
+    in.now_ms = lv_tick_get();
+    in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
+    helix::ui::ClockPrint shown = in.host;
+    shown.phase = print_latch_.step(in);
+    if (shown.phase == print_latch_.latched() && shown.phase != helix::ui::ClockPrintPhase::NONE) {
+        // The host may already report the next state's progress; the end keeps the print's own.
+        shown.progress_pct = print_latch_.latched_progress_pct();
+    }
+    return shown;
+}
+
+helix::ui::ClockInput ScreensaverManager::clock_input() {
+    helix::ui::ClockInput in = helix::ui::saver_clock_now();
+    // Stepped every frame a saver reads, so an end reaches it in the same frame.
+    in.print = step_print_latch();
     in.show_print_progress = host_.show_print_progress ? host_.show_print_progress() : true;
-    // A running print reads live; an ended one reads what the latch still holds.
-    using helix::ui::ClockPrintPhase;
-    const ClockPrintPhase p = in.print.phase;
-    if (p != ClockPrintPhase::PREPARING && p != ClockPrintPhase::PRINTING &&
-        p != ClockPrintPhase::PAUSED) {
-        in.print.phase = print_latch_.latched();
-    }
     return in;
+}
+
+bool ScreensaverManager::shows_print_end() const {
+    return active_ != nullptr && active_->is_active();
 }
 
 void ScreensaverManager::start(ScreensaverType type, bool preview) {
@@ -356,16 +369,8 @@ void ScreensaverManager::begin_gate(const StartPlan& plan) {
     comfort_.reset();
     const CpuSample now = cpu_clock_();
     session_.begin(now, baseline_.rate());
-    const uint64_t since_ns = sampled_ ? now.wall_ns - last_sample_ns_ : 0;
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
-
-    helix::ui::PrintLatchInput latch_in;
-    latch_in.host_phase =
-        host_.print_status ? host_.print_status().phase : helix::ui::ClockPrintPhase::NONE;
-    latch_in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
-    latch_in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
-    print_latch_.step(static_cast<uint32_t>(since_ns / 1000000), latch_in);
 }
 
 void ScreensaverManager::on_idle_check_tick() {
@@ -373,16 +378,10 @@ void ScreensaverManager::on_idle_check_tick() {
     if (sampled_ && now.wall_ns - last_sample_ns_ < kSampleIntervalNs) {
         return;
     }
-    const uint64_t since_ns = sampled_ ? now.wall_ns - last_sample_ns_ : 0;
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
 
-    helix::ui::PrintLatchInput latch_in;
-    latch_in.host_phase =
-        host_.print_status ? host_.print_status().phase : helix::ui::ClockPrintPhase::NONE;
-    latch_in.printer_epoch = host_.printer_epoch ? host_.printer_epoch() : 0;
-    latch_in.inactive_ms = host_.inactive_ms ? host_.inactive_ms() : 0;
-    print_latch_.step(static_cast<uint32_t>(since_ns / 1000000), latch_in);
+    step_print_latch();
 
     if (!active_ || !active_->is_active()) {
         if (black_screen_type_ == ScreensaverType::OFF) {

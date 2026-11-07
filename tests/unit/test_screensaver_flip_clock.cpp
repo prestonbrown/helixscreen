@@ -8,6 +8,7 @@
 #include "../test_helpers/screensaver_manager_test_access.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "printer_state.h"
 #include "screensaver_aqua.h"
 #include "screensaver_canvas.h"
 #include "screensaver_clock_reading.h"
@@ -118,13 +119,18 @@ bool inside(const DirtyRect& inner, const DirtyRect& outer) {
            inner.y2 <= outer.y2;
 }
 
-/// The clock mode of the saver the manager runs, which must be a `Saver` of `type`.
-template <typename Saver> ClockMode active_clock_mode(ScreensaverType type) {
+/// The clock reading of the saver the manager runs, which must be a `Saver` of `type`, after
+/// advancing it `advance_ms`.
+template <typename Saver>
+helix::ui::ClockReading active_clock_reading(ScreensaverType type, uint32_t advance_ms = 0) {
     helix::ui::SaverBase* saver =
         helix::ScreensaverManagerTestAccess::active(ScreensaverManager::instance());
     REQUIRE(saver != nullptr);
     REQUIRE(saver->type() == type);
-    return static_cast<Saver*>(saver)->clock().mode();
+    if (advance_ms > 0) {
+        advance_saver(*saver, advance_ms);
+    }
+    return static_cast<Saver*>(saver)->clock().reading();
 }
 
 } // namespace
@@ -334,16 +340,27 @@ TEST_CASE("a failed or cancelled print holds its end until the print goes idle",
     CHECK(state.mode() == ClockMode::CLOCK);
 }
 
-TEST_CASE("the flip clock reads every print lifecycle state",
+TEST_CASE("the flip clock reads every print lifecycle state, and an idle printer's last end",
           "[screensaver][screensaver_flip_clock]") {
+    using helix::PrintOutcome;
     using helix::ui::clock_print_phase;
-    CHECK(clock_print_phase(PrintState::Idle) == ClockPrintPhase::NONE);
-    CHECK(clock_print_phase(PrintState::Preparing) == ClockPrintPhase::PREPARING);
-    CHECK(clock_print_phase(PrintState::Printing) == ClockPrintPhase::PRINTING);
-    CHECK(clock_print_phase(PrintState::Paused) == ClockPrintPhase::PAUSED);
-    CHECK(clock_print_phase(PrintState::Complete) == ClockPrintPhase::COMPLETE);
-    CHECK(clock_print_phase(PrintState::Cancelled) == ClockPrintPhase::CANCELLED);
-    CHECK(clock_print_phase(PrintState::Error) == ClockPrintPhase::FAILED);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::NONE) == ClockPrintPhase::NONE);
+    CHECK(clock_print_phase(PrintState::Preparing, PrintOutcome::NONE) ==
+          ClockPrintPhase::PREPARING);
+    CHECK(clock_print_phase(PrintState::Printing, PrintOutcome::NONE) == ClockPrintPhase::PRINTING);
+    CHECK(clock_print_phase(PrintState::Paused, PrintOutcome::NONE) == ClockPrintPhase::PAUSED);
+    CHECK(clock_print_phase(PrintState::Complete, PrintOutcome::COMPLETE) ==
+          ClockPrintPhase::COMPLETE);
+    CHECK(clock_print_phase(PrintState::Cancelled, PrintOutcome::CANCELLED) ==
+          ClockPrintPhase::CANCELLED);
+    CHECK(clock_print_phase(PrintState::Error, PrintOutcome::ERROR) == ClockPrintPhase::FAILED);
+    // A printer back on standby after a print still reports how that print ended.
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::COMPLETE) == ClockPrintPhase::COMPLETE);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::CANCELLED) ==
+          ClockPrintPhase::CANCELLED);
+    CHECK(clock_print_phase(PrintState::Idle, PrintOutcome::ERROR) == ClockPrintPhase::FAILED);
+    CHECK(clock_print_phase(PrintState::Printing, PrintOutcome::COMPLETE) ==
+          ClockPrintPhase::PRINTING);
 }
 
 // ============================================================================
@@ -834,13 +851,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "the manager feeds every clock saver the print
     };
     mgr.set_host(host);
     mgr.start(ScreensaverType::FLIP_CLOCK);
-    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) ==
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
           ClockMode::COUNTDOWN);
     mgr.start(ScreensaverType::AQUA);
-    CHECK(active_clock_mode<helix::ui::AquaScreensaver>(ScreensaverType::AQUA) ==
+    CHECK(active_clock_reading<helix::ui::AquaScreensaver>(ScreensaverType::AQUA).mode ==
           ClockMode::COUNTDOWN);
     mgr.start(ScreensaverType::HIGHFLY);
-    CHECK(active_clock_mode<helix::ui::HighFlyScreensaver>(ScreensaverType::HIGHFLY) ==
+    CHECK(active_clock_reading<helix::ui::HighFlyScreensaver>(ScreensaverType::HIGHFLY).mode ==
           ClockMode::COUNTDOWN);
     mgr.stop();
     mgr.set_host({});
@@ -864,6 +881,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         for (int i = 0; i < minutes; i++) {
             wall_ns += 60ULL * 1000 * 1000 * 1000;
             inactive_ms += 60000;
+            lv_tick_inc(60000);
             mgr.on_idle_check_tick();
         }
     };
@@ -872,14 +890,40 @@ TEST_CASE_METHOD(LVGLTestFixture,
     phase = ClockPrintPhase::COMPLETE;
     tick_minutes(10);
     mgr.start(ScreensaverType::FLIP_CLOCK);
-    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) == ClockMode::DONE);
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+          ClockMode::DONE);
 
     // A touch after the end acknowledges it: the next saver shows the clock.
     mgr.stop(helix::SaverRunEnd::TOUCH);
     inactive_ms = 0;
     tick_minutes(1);
     mgr.start(ScreensaverType::FLIP_CLOCK);
-    CHECK(active_clock_mode<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK) == ClockMode::CLOCK);
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+          ClockMode::CLOCK);
+    mgr.stop();
+    mgr.set_host({});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a print's end reaches a running saver at once, with the progress it reached",
+                 "[screensaver][screensaver_flip_clock]") {
+    helix::ScopedGateEnv gate_env;
+    auto& mgr = ScreensaverManager::instance();
+    helix::ui::ClockPrint status{ClockPrintPhase::PRINTING, hms(0, 30), 64};
+    helix::ui::SaverHost host;
+    host.print_status = [&status] { return status; };
+    host.inactive_ms = [] { return 3600000u; };
+    mgr.set_host(host);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    REQUIRE(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
+            ClockMode::COUNTDOWN);
+
+    // The host reports the end, its progress already reset; no idle-check tick has run.
+    status = {ClockPrintPhase::CANCELLED, -1, 0};
+    const helix::ui::ClockReading r =
+        active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK, 33);
+    CHECK(r.mode == ClockMode::CANCELLED);
+    CHECK(r.progress_pct == 64);
     mgr.stop();
     mgr.set_host({});
 }

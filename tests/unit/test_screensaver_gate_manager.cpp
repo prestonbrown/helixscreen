@@ -489,6 +489,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(gate.running() != nullptr);
     CHECK(gate.running()->type() == ScreensaverType::FLIP_CLOCK);
     CHECK_FALSE(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    CHECK(gate.mgr.shows_print_end());
     CHECK(helix::active_screen_hide_hold().is_held());
     CHECK_FALSE(gate.stored("maze").has_value());
     CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::MAZE_3D));
@@ -519,6 +520,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "the flip clock too heavy during a print shows
     CHECK(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
     CHECK_FALSE(helix::active_refresh_period_hold().is_held());
     CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::FLIP_CLOCK));
+    // The black screen shows no print: the end of one must still wake the display.
+    CHECK(gate.mgr.is_active());
+    CHECK_FALSE(gate.mgr.shows_print_end());
     gate.mgr.stop();
 }
 
