@@ -34,6 +34,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -142,7 +143,9 @@ namespace {
 
 /// Accept a probe calibration with saving set to @p mode and return every
 /// script that went on the wire.
-std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
+std::vector<std::string>
+probe_accept_scripts(helix::zoffset::SaveMode mode,
+                     const std::function<void(MoonrakerClientMock&)>& setup = {}) {
     auto& settings = helix::SettingsManager::instance();
     settings.init_subjects();
     settings.set_z_offset_save_mode(static_cast<int>(mode));
@@ -150,6 +153,9 @@ std::vector<std::string> probe_accept_scripts(helix::zoffset::SaveMode mode) {
         get_printer_state(), ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    if (setup) {
+        setup(client);
+    }
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
@@ -167,6 +173,19 @@ bool sent_any(const std::vector<std::string>& scripts, const std::string& needle
                        [&](const std::string& s) { return s.find(needle) != std::string::npos; });
 }
 
+/// The scripts after ACCEPT: what the save wrote.
+std::vector<std::string> after_accept(const std::vector<std::string>& scripts) {
+    auto it = std::find(scripts.begin(), scripts.end(), "ACCEPT");
+    return it == scripts.end() ? std::vector<std::string>{}
+                               : std::vector<std::string>(std::next(it), scripts.end());
+}
+
+void discover_eddy() {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe_eddy_current btt_eddy"}));
+    helix::sensors::ProbeSensorManager::instance().discover(hw);
+}
+
 } // namespace
 
 TEST_CASE_METHOD(CalibrationSendFixture,
@@ -182,8 +201,39 @@ TEST_CASE_METHOD(CalibrationSendFixture,
                  "Calibration accept: saving on applies and saves the result",
                  "[ui_integration][zoffset][save-toggle]") {
     const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
-    CHECK(sent_any(sent, "ACCEPT"));
-    CHECK(sent_any(sent, "Z_OFFSET_APPLY_PROBE"));
+    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
+}
+
+// After ACCEPT the calibrate command has staged its result in the config, so a
+// firmware that never registered Z_OFFSET_APPLY_PROBE (Creality's Klipper with
+// BTT's Eddy module) only needs the save (#1994).
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: without Z_OFFSET_APPLY_PROBE the staged result is saved",
+                 "[ui_integration][zoffset][save-toggle][eddy]") {
+    discover_eddy();
+    const auto sent =
+        probe_accept_scripts(helix::zoffset::SaveMode::Show, [](MoonrakerClientMock& c) {
+            c.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
+        });
+    CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: an eddy probe with Z_OFFSET_APPLY_PROBE applies then saves",
+                 "[ui_integration][zoffset][save-toggle][eddy]") {
+    discover_eddy();
+    const auto sent = probe_accept_scripts(helix::zoffset::SaveMode::Show);
+    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: an unanswered command list keeps the apply",
+                 "[ui_integration][zoffset][save-toggle][eddy]") {
+    const auto sent =
+        probe_accept_scripts(helix::zoffset::SaveMode::Show, [](MoonrakerClientMock& c) {
+            c.fail_next("printer.gcode.help", MoonrakerError::timeout("printer.gcode.help", 0));
+        });
+    CHECK(after_accept(sent) == std::vector<std::string>{"Z_OFFSET_APPLY_PROBE", "SAVE_CONFIG"});
 }
 
 // ============================================================================
@@ -431,6 +481,20 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     CHECK(start_script(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, "PROBE_CALIBRATE",
                        std::move(hw)) ==
           "G90\nG1 Z5.0 F600\nG1 X215.0 Y165.0 F6000\nPROBE_CALIBRATE");
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration start: an eddy probe calibrates its discovered chip",
+                 "[ui_integration][zoffset][zoffset_center][eddy]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe_eddy_current btt_eddy"}));
+    helix::sensors::ProbeSensorManager::instance().discover(hw);
+    // The paper test reads at the nozzle, so the probe offset moves nothing.
+    hw.parse_probe_xy_offset(
+        json{{"probe_eddy_current btt_eddy", {{"x_offset", -40.0}, {"y_offset", 10.0}}}});
+    CHECK(start_script(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, "PROBE_EDDY_CURRENT_CALIBRATE",
+                       std::move(hw)) ==
+          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nPROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy");
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,
