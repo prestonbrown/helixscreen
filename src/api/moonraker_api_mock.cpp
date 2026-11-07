@@ -382,11 +382,12 @@ void helix::MoonrakerJobAPIMock::start_modified_print(const std::string& origina
                                                       const std::string& temp_file_path,
                                                       const std::vector<std::string>& modifications,
                                                       ModifiedPrintCallback on_success,
-                                                      ErrorCallback on_error) {
+                                                      ErrorCallback on_error,
+                                                      const helix::PrintStartParams& extra_params) {
     if (refused_by_spool_latch("server.helix.print_modified", on_error)) {
         return;
     }
-    modified_prints_.push_back({original_filename, temp_file_path, modifications});
+    modified_prints_.push_back({original_filename, temp_file_path, modifications, extra_params});
 
     spdlog::info("[MoonrakerAPIMock] Mock start_modified_print: original='{}', temp='{}', "
                  "{} modification(s)",
@@ -419,11 +420,13 @@ void helix::MoonrakerJobAPIMock::start_modified_print(const std::string& origina
 void helix::MoonrakerJobAPIMock::start_edited_print(
     const std::string& original_filename, const std::string& temp_file_path, const json& edits,
     const std::vector<std::string>& modifications, uint64_t file_size,
-    ModifiedPrintCallback on_success, ErrorCallback on_error) {
+    ModifiedPrintCallback on_success, ErrorCallback on_error,
+    const helix::PrintStartParams& extra_params) {
     if (refused_by_spool_latch("server.helix.print_edited", on_error)) {
         return;
     }
-    edited_prints_.push_back({original_filename, temp_file_path, edits, modifications, file_size});
+    edited_prints_.push_back(
+        {original_filename, temp_file_path, edits, modifications, file_size, extra_params});
 
     spdlog::info("[MoonrakerAPIMock] Mock start_edited_print: original='{}', temp='{}', "
                  "{} edit(s)",

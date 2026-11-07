@@ -131,6 +131,38 @@ TEST_CASE("printer.print.start carries the extra parameters beside the filename"
     }
 }
 
+TEST_CASE("the HelixPrint plugin's starts carry the extra parameters beside the copy",
+          "[print_start_params][2038]") {
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerJobAPI job(client);
+    const std::string method = GENERATE(std::string("server.helix.print_modified"),
+                                        std::string("server.helix.print_edited"));
+    CAPTURE(method);
+    const bool with_tools = GENERATE(true, false);
+    CAPTURE(with_tools);
+    const helix::PrintStartParams extra =
+        with_tools ? helix::PrintStartParams{{"tools", "2,,1"}} : helix::PrintStartParams{};
+
+    if (method == "server.helix.print_modified") {
+        job.start_modified_print(
+            "part.gcode", ".helix_temp/part.gcode", {}, nullptr, [](const MoonrakerError&) {},
+            extra);
+    } else {
+        job.start_edited_print(
+            "part.gcode", ".helix_temp/part.gcode", nlohmann::json::array(), {}, 0, nullptr,
+            [](const MoonrakerError&) {}, extra);
+    }
+    const auto it = std::find_if(client.rpc_calls.begin(), client.rpc_calls.end(),
+                                 [&](const auto& c) { return c.method == method; });
+    REQUIRE(it != client.rpc_calls.end());
+    CHECK(it->params["original_filename"] == "part.gcode");
+    if (with_tools) {
+        CHECK(it->params["tools"] == "2,,1");
+    } else {
+        CHECK_FALSE(it->params.contains("tools"));
+    }
+}
+
 namespace {
 helix::ToolMapping mapping(int tool, int slot, int backend = 0, bool is_auto = false) {
     helix::ToolMapping m;

@@ -142,6 +142,7 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
         if (method == "printer.print.start") {
             ++print_start_calls;
             print_start_filename = params.value("filename", std::string{});
+            print_start_params = params;
             if (success_cb) {
                 success_cb(json::object());
             }
@@ -158,6 +159,7 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
     int print_modified_calls = 0;
     int print_start_calls = 0;
     std::string print_start_filename;
+    json print_start_params;
 };
 } // namespace
 
@@ -281,6 +283,21 @@ TEST_CASE("HelixPrint API - falls back to printer.print.start when plugin print_
     REQUIRE(result.status == "printing");
     REQUIRE(result.original_filename == "benchy.gcode");
     REQUIRE(result.print_filename == temp_path);
+}
+
+TEST_CASE("HelixPrint API - the fallback start keeps the print's tool map", "[print][api][2038]") {
+    FallbackScriptedClient client;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/modified_1_benchy.gcode", {},
+        [](const ModifiedPrintResult&) {}, [](const MoonrakerError&) {}, {{"tools", "2,,1"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(client.print_start_calls == 1);
+    CHECK(client.print_start_params.value("tools", std::string{}) == "2,,1");
 }
 
 // ============================================================================

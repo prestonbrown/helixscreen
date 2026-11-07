@@ -589,6 +589,7 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
         std::string original_filename;
         std::string temp_file_path;
         std::vector<std::string> modifications;
+        helix::PrintStartParams extra_params;
     };
 
     void start_print(const std::string& filename, SuccessCallback on_success,
@@ -598,7 +599,8 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
     void start_modified_print(const std::string& original_filename,
                               const std::string& temp_file_path,
                               const std::vector<std::string>& modifications,
-                              ModifiedPrintCallback on_success, ErrorCallback on_error) override;
+                              ModifiedPrintCallback on_success, ErrorCallback on_error,
+                              const helix::PrintStartParams& extra_params = {}) override;
 
     /// One recorded start_edited_print() call
     struct EditedPrintRecord {
@@ -607,12 +609,14 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
         json edits;
         std::vector<std::string> modifications;
         uint64_t file_size = 0;
+        helix::PrintStartParams extra_params;
     };
 
     void start_edited_print(const std::string& original_filename, const std::string& temp_file_path,
                             const json& edits, const std::vector<std::string>& modifications,
                             uint64_t file_size, ModifiedPrintCallback on_success,
-                            ErrorCallback on_error) override;
+                            ErrorCallback on_error,
+                            const helix::PrintStartParams& extra_params = {}) override;
 
     /// Recorded start_edited_print() calls, in call order
     [[nodiscard]] const std::vector<EditedPrintRecord>& edited_prints() const {

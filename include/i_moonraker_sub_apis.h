@@ -128,16 +128,20 @@ class IJobAPI {
                              ErrorCallback on_error,
                              const helix::PrintStartParams& extra_params = {}) = 0;
 
+    /// @p extra_params go to the plugin beside the copy, which starts it with the
+    /// ones its Moonraker's start takes (the tool map; HELIXPRINT_PLUGIN.md).
     virtual void start_modified_print(const std::string& original_filename,
                                       const std::string& temp_file_path,
                                       const std::vector<std::string>& modifications,
-                                      ModifiedPrintCallback on_success, ErrorCallback on_error) = 0;
+                                      ModifiedPrintCallback on_success, ErrorCallback on_error,
+                                      const helix::PrintStartParams& extra_params = {}) = 0;
 
     virtual void start_edited_print(const std::string& original_filename,
                                     const std::string& temp_file_path, const json& edits,
                                     const std::vector<std::string>& modifications,
                                     uint64_t file_size, ModifiedPrintCallback on_success,
-                                    ErrorCallback on_error) = 0;
+                                    ErrorCallback on_error,
+                                    const helix::PrintStartParams& extra_params = {}) = 0;
 
     using PluginInfoCallback = std::function<void(const HelixPluginInfo&)>;
 
