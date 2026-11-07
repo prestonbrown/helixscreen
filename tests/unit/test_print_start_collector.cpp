@@ -3334,7 +3334,9 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
     report_for(6);
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
 
-    SECTION("the line names the chamber heater") {
+    SECTION("the line names the chamber heater, and the wait takes over a soak") {
+        feed_gcode("// Success: Set action code BED_PREHEATING");
+        REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
         PrintStartCollectorTestAccess::answer_wait_line(
             collector(), helix::classify_wait_line(
                              "TEMPERATURE_WAIT SENSOR=\"heater_generic dragonbreath\" MINIMUM=35"));

@@ -590,7 +590,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * never regressed back to heating. The label is derived from `resolved`.
      *
      * With `heater_wait`, a heater wait is blocking the queue instead: the
-     * relabel may displace any phase but IDLE, a heating one, SOAKING,
+     * relabel may displace any phase but IDLE, a heating one (chamber included),
      * PURGING or COMPLETE, keeping it and its message for end_heater_wait(),
      * and afterwards moves
      * only between the wait's own labels. `resolved` may then be HEATING_CHAMBER for a
