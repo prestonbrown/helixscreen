@@ -124,6 +124,7 @@ struct ZOffsetFixture : public LVGLUITestFixture {
             {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
         state().set_hardware(hw);
         ToolState::instance().init_tools(hw);
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
         lv_subject_set_int(ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z), 1);
         ToolState::instance().set_tool_offset_local(0, Axis::Z, microns);
         drain();
