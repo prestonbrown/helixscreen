@@ -11,6 +11,7 @@
 
 #include <algorithm> // for std::find
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -1086,4 +1087,124 @@ TEST_CASE("PrintStartAnalyzer::analyze stops at a printer teardown mid-walk",
 
     CHECK_FALSE(completed);
     CHECK(error.find("disconnected") != std::string::npos);
+}
+
+// ============================================================================
+// analyze(api): Klipper's configfile object first, readable files as fallback
+// (prestonbrown/helixscreen#2061)
+// ============================================================================
+
+namespace {
+
+struct ApiAnalysis {
+    bool completed = false;
+    helix::PrintStartAnalysis result;
+    std::optional<MoonrakerError> error;
+};
+
+ApiAnalysis run_api_analysis(MoonrakerAPIMock& api) {
+    ApiAnalysis out;
+    PrintStartAnalyzer analyzer;
+    analyzer.analyze(
+        &api,
+        [&out](const helix::PrintStartAnalysis& analysis) {
+            out.completed = true;
+            out.result = analysis;
+        },
+        [&out](const MoonrakerError& err) { out.error = err; });
+    for (int i = 0; i < 20 && !out.completed && !out.error; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    return out;
+}
+
+MoonrakerError http_error(MoonrakerErrorType type, int status, const char* text) {
+    MoonrakerError err;
+    err.type = type;
+    err.code = status;
+    err.method = "download_file";
+    err.message = std::string("HTTP ") + std::to_string(status) + ": " + text;
+    return err;
+}
+
+} // namespace
+
+TEST_CASE("PrintStartAnalyzer::analyze reads the macro from Klipper's configfile object",
+          "[print_start][configfile][2061]") {
+    helix::PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    // Klipper's value for a multi-line option starts with the newline after "gcode:".
+    api.set_configfile_macros(
+        {{"gcode_macro START_PRINT",
+          {{"gcode", "\n{% if params.SKIP_MESH|default(0)|int == 0 %}\nBED_MESH_CALIBRATE\n"
+                     "{% endif %}\nG28\nHEAD_PREP\n"}}},
+         {"gcode_macro HEAD_PREP", {{"gcode", "\nCLEAN_NOZZLE\n"}}}});
+
+    const ApiAnalysis run = run_api_analysis(api);
+
+    REQUIRE(run.completed);
+    REQUIRE(run.result.found);
+    CHECK(run.result.macro_name == "START_PRINT");
+    CHECK(run.result.macro_chain == std::vector<std::string>{"START_PRINT", "HEAD_PREP"});
+    const auto* mesh = run.result.get_operation(helix::PrintStartOpCategory::BED_MESH);
+    REQUIRE(mesh != nullptr);
+    CHECK(mesh->has_skip_param);
+    CHECK(mesh->skip_param_name == "SKIP_MESH");
+    CHECK(run.result.has_operation(helix::PrintStartOpCategory::NOZZLE_CLEAN));
+    CHECK(api.transfers_mock().config_downloads().empty());
+}
+
+TEST_CASE("PrintStartAnalyzer::parse_macro takes a configfile body's leading newline",
+          "[print_start][configfile][2061]") {
+    const std::string body = "{% if params.SKIP_QGL|default(0)|int == 0 %}\n"
+                             "QUAD_GANTRY_LEVEL\n{% endif %}\nG28\n";
+    const auto from_file = PrintStartAnalyzer::parse_macro("START_PRINT", body);
+    const auto from_object = PrintStartAnalyzer::parse_macro("START_PRINT", "\n" + body);
+
+    REQUIRE(from_object.operations.size() == from_file.operations.size());
+    const auto* qgl = from_object.get_operation(helix::PrintStartOpCategory::QGL);
+    REQUIRE(qgl != nullptr);
+    CHECK(qgl->has_skip_param);
+    CHECK(qgl->skip_param_name == "SKIP_QGL");
+    CHECK(from_object.has_operation(helix::PrintStartOpCategory::HOMING));
+}
+
+TEST_CASE("PrintStartAnalyzer::analyze reads past a config file Moonraker forbids",
+          "[print_start][configfile][2061]") {
+    helix::PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", "[include printer.base.cfg]\n[include macros.cfg]\n"},
+                          {"printer.base.cfg", "[printer]\n"},
+                          {"macros.cfg", "[gcode_macro START_PRINT]\ngcode:\n  G28\n"
+                                         "  BED_MESH_CALIBRATE\n"}});
+    api.transfers_mock().set_config_file_error(
+        "printer.base.cfg", http_error(MoonrakerErrorType::PERMISSION_DENIED, 403, "Forbidden"));
+
+    const ApiAnalysis run = run_api_analysis(api);
+
+    REQUIRE_FALSE(run.error.has_value());
+    REQUIRE(run.completed);
+    REQUIRE(run.result.found);
+    CHECK(run.result.source_file == "macros.cfg");
+    CHECK(run.result.has_operation(helix::PrintStartOpCategory::BED_MESH));
+    const auto& asked = api.transfers_mock().config_downloads();
+    CHECK(std::count(asked.begin(), asked.end(), "printer.base.cfg") == 1);
+}
+
+TEST_CASE("PrintStartAnalyzer::analyze fails on a refused login with its own error type",
+          "[print_start][configfile][2061]") {
+    helix::PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files({{"printer.cfg", "[gcode_macro START_PRINT]\ngcode:\n  G28\n"}});
+    api.transfers_mock().set_config_file_error(
+        "printer.cfg", http_error(MoonrakerErrorType::PERMISSION_DENIED, 401, "Unauthorized"));
+
+    const ApiAnalysis run = run_api_analysis(api);
+
+    REQUIRE(run.error.has_value());
+    CHECK(run.error->type == MoonrakerErrorType::PERMISSION_DENIED);
+    CHECK_FALSE(run.error->is_transport_loss());
 }
