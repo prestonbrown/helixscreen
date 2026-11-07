@@ -51,7 +51,7 @@ sync listing text.
 
 `android/app/build.gradle` sets `compileSdkVersion 36` / `targetSdkVersion 36` (AGP 8.9.1,
 Gradle 8.11.1), which Play has required for new submissions and updates since 2026-08-31.
-`minSdkVersion` stays 28. API 36 behaviour changes that touch this app:
+`minSdkVersion` is 24 (Android 7.0), the oldest bionic that has every libc call the native code makes. `aligned_alloc` arrived only at 28, so LVGL's SDL draw buffers use `posix_memalign` on Android (`patches/lvgl_sdl_sw_android_debug.patch`). API 36 behaviour changes that touch this app:
 
 - **Predictive back.** Targeting 36 stops `KEYCODE_BACK` reaching SDL by default, so the
   activity sets `android:enableOnBackInvokedCallback="false"` to keep the back key popping
@@ -202,7 +202,7 @@ A release build now refuses to produce an artifact it cannot sign properly, at t
 2. **Gradle** fails any release-signing task (`assembleRelease`, `bundleRelease`, `packageRelease`, …) when no keystore is configured, listing the four env vars it needs. The check hangs off `gradle.taskGraph.whenReady` rather than firing at configuration time — configuration is shared with the debug variant, and `.github/workflows/build.yml` runs `assembleDebug` on every PR, which must keep working. `assembleDebug` and `lintRelease` are deliberately unaffected.
 3. **`release.yml` → "Verify release artifacts are signed with the upload key"** runs after `bundleRelease` and before anything is renamed or uploaded. It reads the signature actually on the bytes — `apksigner verify --print-certs` for the APKs, `keytool -printcert -jarfile` for the AAB, since apksigner cannot read a bundle — and fails on the debug keystore's `CN=Android Debug`.
 
-   **The two tools are not interchangeable, in either direction.** `minSdk` is 28, so apksigner signs the APKs with v2/v3 only and skips the v1 JAR signature entirely; `keytool -printcert -jarfile` on one of our APKs answers `Not a signed jar file`. The AAB goes the other way — AGP jar-signs bundles, so keytool reads it fine and apksigner cannot. Worse, keytool prints that refusal and **exits 0**, so a check that merely looks for the absence of `CN=Android Debug` would pass on an artifact it never actually read. The step therefore requires *positive* evidence: a SHA-256 fingerprint with hex after it must be present, or the artifact fails. Absence of the debug DN is not proof of a good signature. It also prints each artifact's SHA-256 signer fingerprint, which is what Play Console and Android developer verification want for package-name registration; read it off any release run rather than recomputing it from the keystore.
+   **The two tools are not interchangeable, in either direction.** `minSdk` is 24, where APK Signature Scheme v2 begins, so apksigner signs the APKs with v2/v3 only and skips the v1 JAR signature entirely; `keytool -printcert -jarfile` on one of our APKs answers `Not a signed jar file`. The AAB goes the other way — AGP jar-signs bundles, so keytool reads it fine and apksigner cannot. Worse, keytool prints that refusal and **exits 0**, so a check that merely looks for the absence of `CN=Android Debug` would pass on an artifact it never actually read. The step therefore requires *positive* evidence: a SHA-256 fingerprint with hex after it must be present, or the artifact fails. Absence of the debug DN is not proof of a good signature. It also prints each artifact's SHA-256 signer fingerprint, which is what Play Console and Android developer verification want for package-name registration; read it off any release run rather than recomputing it from the keystore.
 
 **Local escape hatch:** `./gradlew assembleRelease -PallowDebugSigning` builds a debug-signed release variant for a local smoke test. It exists so a developer without the keystore can still build; anything produced with it must never leave the machine.
 
@@ -219,7 +219,7 @@ Google is phasing in a requirement that the developer behind a package name be a
   2. Build a throwaway Gradle project with `applicationId "org.helixscreen.app"`, no code, and the snippet in `app/src/main/assets/adi-registration.properties`.
   3. Build `assembleRelease` unsigned, then sign by hand so the keystore password never enters a file or env var:
      `apksigner sign --ks ~/.android-keystore/helixscreen-upload.jks --ks-key-alias helixscreen-upload --out signed.apk app-release-unsigned.apk`
-  4. Confirm before uploading: `apksigner verify --print-certs signed.apk` must report the registered fingerprint. Add `--min-sdk-version 21` if you want to see the v1/v2 rows — at the APK's own `minSdk 28` apksigner reports them `false` because it does not evaluate them in that range, which looks like a signing failure and is not one.
+  4. Confirm before uploading: `apksigner verify --print-certs signed.apk` must report the registered fingerprint. Add `--min-sdk-version 21` if you want to see the v1/v2 rows — at the APK's own `minSdk 24` apksigner reports them `false` because it does not evaluate them in that range, which looks like a signing failure and is not one.
   5. Upload it in the Verify flow.
 
   Keep the stub out of the repo. It is account-specific, single-use, and never distributed — Google only reads its signature.

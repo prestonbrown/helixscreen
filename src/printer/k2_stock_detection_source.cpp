@@ -71,7 +71,14 @@ int run_detection_with_deadline(const std::vector<std::string>& argv, std::strin
                                 int deadline_s) {
     if (argv.empty())
         return -1;
-
+#ifdef __ANDROID__
+    // The stock detector lives on a K2's own rootfs, never on a phone, and
+    // bionic below API 28 has no posix_spawn.
+    spdlog::debug("[K2StockSource] {} does not exist on Android", argv[0]);
+    (void)stdout_out;
+    (void)deadline_s;
+    return -1;
+#else
     int out_pipe[2];
     if (pipe(out_pipe) != 0) {
         spdlog::warn("[K2StockSource] pipe() failed: {}", strerror(errno));
@@ -123,6 +130,7 @@ int run_detection_with_deadline(const std::vector<std::string>& argv, std::strin
         spdlog::warn("[K2StockSource] detection still running after {} s, killed", deadline_s);
     }
     return wait.outcome == ChildWaitOutcome::Exited ? wait.exit_code() : -1;
+#endif // __ANDROID__
 }
 
 std::optional<float> max_spaghetti_probability(const std::string& detection_stdout) {
