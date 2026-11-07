@@ -552,6 +552,19 @@ bool PIDCalibrationPanel::part_fan_reaches_heater() const {
     return selected_heater_ == Heater::EXTRUDER && heads_.selected_holds_active_tool();
 }
 
+std::string PIDCalibrationPanel::mpc_cooling_fan() const {
+    if (!part_fan_reaches_heater()) {
+        return "";
+    }
+    const auto& tool_state = helix::ToolState::instance();
+    const auto& tools = tool_state.tools();
+    const int tool = tool_state.active_tool_index();
+    if (tool < 0 || tool >= static_cast<int>(tools.size())) {
+        return "";
+    }
+    return tools[static_cast<size_t>(tool)].fan_name.value_or("");
+}
+
 void PIDCalibrationPanel::update_fan_section_visibility() {
     bool is_extruder = (selected_heater_ == Heater::EXTRUDER);
     bool is_mpc = (selected_method_ == CalibMethod::MPC);
@@ -1348,7 +1361,8 @@ bool PIDCalibrationPanel::needs_control_migration(ControlType current, CalibMeth
 }
 
 std::vector<helix::system::ConfigEdit>
-PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heater_wattage) {
+PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heater_wattage,
+                                                   const std::string& cooling_fan) {
     using helix::system::ConfigEdit;
 
     // ADD_KEY, not SET_VALUE: SAVE_CONFIG writes `control` into the autosave
@@ -1356,10 +1370,16 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
     // on an absent key fails the whole edit list. ADD_KEY sets it where it
     // exists and adds it where it does not.
     if (target == CalibMethod::MPC) {
-        return {
+        std::vector<ConfigEdit> edits = {
             {ConfigEdit::Type::ADD_KEY, "control", "mpc"},
             {ConfigEdit::Type::ADD_KEY, "heater_power", std::to_string(heater_wattage)},
         };
+        // Without cooling_fan, MPC_CALIBRATE measures no fan_ambient_transfer and
+        // the model ignores the part fan. A fan the user already named stays.
+        if (!cooling_fan.empty()) {
+            edits.push_back({ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", cooling_fan});
+        }
+        return edits;
     }
 
     // heater_power is ours, written by the forward migration. MPC_CALIBRATE's
@@ -1375,6 +1395,11 @@ PIDCalibrationPanel::build_control_migration_edits(CalibMethod target, int heate
         {ConfigEdit::Type::REMOVE_KEY, "ambient_transfer", ""},
         {ConfigEdit::Type::REMOVE_KEY, "fan_ambient_transfer", ""},
     };
+}
+
+std::vector<helix::system::ConfigEdit>
+PIDCalibrationPanel::control_migration_edits(CalibMethod target) const {
+    return build_control_migration_edits(target, heater_wattage_, mpc_cooling_fan());
 }
 
 void PIDCalibrationPanel::update_migration_notice() {
@@ -1443,12 +1468,12 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
 
     const std::string section = heater_name();
     const bool to_mpc = target == CalibMethod::MPC;
-    std::vector<helix::system::ConfigEdit> edits =
-        build_control_migration_edits(target, heater_wattage_);
+    std::vector<helix::system::ConfigEdit> edits = control_migration_edits(target);
 
     if (to_mpc) {
-        spdlog::info("[PIDCal] Starting PID->MPC migration for '{}' with heater_power={}W", section,
-                     heater_wattage_);
+        spdlog::info("[PIDCal] Starting PID->MPC migration for '{}' with heater_power={}W, "
+                     "cooling_fan='{}'",
+                     section, heater_wattage_, mpc_cooling_fan());
     } else {
         spdlog::info("[PIDCal] Starting MPC->PID migration for '{}'", section);
     }
