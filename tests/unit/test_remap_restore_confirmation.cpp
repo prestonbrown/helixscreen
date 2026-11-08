@@ -172,8 +172,10 @@ struct Harness {
     Harness() {
         ps.init_subjects(false);
     }
+    // A start's answer reaches ps through the queue; run it before ps goes.
     // A restart builds the process-wide print-select panel around this api.
     ~Harness() {
+        helix::ui::UpdateQueue::instance().drain();
         StaticPanelRegistry::instance().destroy_all();
     }
 
