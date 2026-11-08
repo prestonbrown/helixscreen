@@ -10,13 +10,11 @@ void MainLoopHandler::init(const Config& config, uint32_t start_tick_ms) {
     m_start_tick = start_tick_ms;
     m_current_tick = start_tick_ms;
 
-    // Calculate screenshot trigger time
     if (config.screenshot_enabled) {
         m_screenshot_time = start_tick_ms + config.screenshot_delay_ms;
     }
     m_screenshot_taken = false;
 
-    // Initialize benchmark state
     m_benchmark_frame_count = 0;
     m_benchmark_last_report = start_tick_ms;
 }
@@ -24,7 +22,6 @@ void MainLoopHandler::init(const Config& config, uint32_t start_tick_ms) {
 void MainLoopHandler::on_frame(uint32_t current_tick_ms) {
     m_current_tick = current_tick_ms;
 
-    // Track benchmark frames
     if (m_config.benchmark_mode) {
         m_benchmark_frame_count++;
     }

@@ -17,10 +17,9 @@
  * footprint moved but not which buffer moved, and every decision worth making
  * here is about a specific buffer.
  *
- * GCodeGLESRenderer already had a get_memory_usage() returning a bare size_t.
- * It had no callers, in any file, ever. Both renderers report through this now
- * so the two are comparable and so the 2D path (the only renderer the
- * constrained printers can run) stops being the one with no accounting at all.
+ * Both renderers report through this, so the two are comparable and the 2D
+ * path (the only renderer the constrained printers can run) is accounted for
+ * as well as the GLES one.
  */
 
 #include <cstddef>

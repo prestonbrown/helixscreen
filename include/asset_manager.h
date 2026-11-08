@@ -9,8 +9,7 @@
  * @brief Manages font and image registration with LVGL XML system
  *
  * Provides static methods for registering fonts and images that can be
- * referenced by name in XML layout files. Extracted from main.cpp
- * register_fonts_and_images() to enable isolated testing.
+ * referenced by name in XML layout files.
  *
  * All methods are static since assets are registered globally with LVGL.
  * Registration is idempotent - calling multiple times is safe.

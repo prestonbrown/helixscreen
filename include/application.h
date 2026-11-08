@@ -28,7 +28,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class Config;
 }
@@ -75,7 +74,6 @@ class Application {
     Application();
     ~Application();
 
-    // Non-copyable, non-movable
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
     Application(Application&&) = delete;
@@ -108,16 +106,13 @@ class Application {
     void apply_startup_cli_actions();
     bool run_wizard();
 
-    // Main loop
     int main_loop();
     void handle_keyboard_shortcuts();
     void process_notifications();
     void check_timeouts();
 
-    // Shutdown
     void shutdown();
 
-    // Helper functions
     void ensure_project_root_cwd();
 #if HELIX_ENABLE_SCREENSAVER
     void show_screensaver_migration_notice_if_pending();
@@ -140,14 +135,12 @@ class Application {
     /// only expired via its own destructor would still read as live while those
     /// members were being torn down. Application is a stack local in main() with
     /// no deinit_subjects(), so shutdown()/destruction is the only teardown
-    /// point — this is debt migrated to the sanctioned form, not a live
-    /// use-after-free (#1165).
+    /// point (#1165).
     helix::AsyncLifetimeGuard m_async_lifetime;
 
     std::unique_ptr<DisplayManager> m_display;
     std::unique_ptr<helix::XmlHotReloader> m_hot_reloader;
 
-    // Configuration
     helix::Config* m_config = nullptr; // Singleton, not owned
     helix::CliArgs m_args;
 
@@ -168,9 +161,6 @@ class Application {
     // Screen (not owned, managed by LVGL); the session reads it through a reference
     lv_obj_t* m_screen = nullptr;
 
-    // NOTE: Print start collector and observers are kept in main.cpp
-    // until the observer pattern is refactored to support capturing lambdas.
-
     // Periodic timeout checking (Moonraker connection health)
     uint32_t m_last_timeout_check = 0;
     uint32_t m_timeout_check_interval = 2000;
@@ -178,7 +168,6 @@ class Application {
     // Main loop timing handler (screenshot, auto-quit, benchmark)
     helix::application::MainLoopHandler m_loop_handler;
 
-    // Single-instance lock
     bool acquire_instance_lock();
     void release_instance_lock();
     int m_lock_fd = -1;

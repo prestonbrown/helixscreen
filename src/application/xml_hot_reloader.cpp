@@ -391,7 +391,6 @@ void XmlHotReloader::scan_and_reload() {
                     // nothing.
                     auto borrowed = snapshot_borrowed_subjects(reload_name.c_str());
 
-                    // Unregister old component definition
                     auto result = lv_xml_component_unregister(reload_name.c_str());
                     if (result != LV_RESULT_OK) {
                         spdlog::warn("[HotReload] Failed to unregister '{}' — registering fresh",

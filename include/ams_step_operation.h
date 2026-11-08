@@ -9,8 +9,8 @@
  * @file ams_step_operation.h
  * @brief Step progress operation type detection for AMS load/unload/swap operations
  *
- * Pure logic for determining which step progress to display, extracted
- * from AmsPanel for testability. No LVGL or UI dependencies.
+ * Pure logic for determining which step progress to display, kept out of
+ * AmsPanel for testability. No LVGL or UI dependencies.
  */
 
 namespace helix {
