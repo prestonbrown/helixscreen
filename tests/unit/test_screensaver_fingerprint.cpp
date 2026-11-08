@@ -127,9 +127,13 @@ uint64_t pipes_run(uint32_t seed) {
     return saver_run(ss, seed, 120, 20, kSteadyMs);
 }
 
-uint64_t starfield_run(uint32_t seed) {
+uint64_t starfield_run(uint32_t seed, bool printing = false) {
     StarfieldScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t fireworks_run(uint32_t seed) {
@@ -137,9 +141,13 @@ uint64_t fireworks_run(uint32_t seed) {
     return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
 }
 
-uint64_t hyperspace_run(uint32_t seed) {
+uint64_t hyperspace_run(uint32_t seed, bool printing = false) {
     HyperspaceScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 120, 20, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t fireflies_run(uint32_t seed) {
@@ -281,8 +289,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
     SECTION("starfield") {
         const uint64_t other = starfield_run(6);
         const uint64_t run = starfield_run(5);
+        const uint64_t print = starfield_run(5, true);
         check_replay("starfield", run, [] { return starfield_run(5); });
+        check_replay("starfield_print", print, [] { return starfield_run(5, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireworks") {
         const uint64_t other = fireworks_run(8);
@@ -293,8 +304,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
     SECTION("hyperspace") {
         const uint64_t other = hyperspace_run(12);
         const uint64_t run = hyperspace_run(11);
+        const uint64_t print = hyperspace_run(11, true);
         check_replay("hyperspace", run, [] { return hyperspace_run(11); });
+        check_replay("hyperspace_print", print, [] { return hyperspace_run(11, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireflies") {
         const uint64_t other = fireflies_run(14);
