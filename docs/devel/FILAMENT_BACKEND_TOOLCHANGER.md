@@ -67,6 +67,17 @@ slot 0 ahead of `[tool Left]` numbered 1. Tools with no `tool_number` follow the
 ones. Numbers with gaps (0, 1, 5) still map slot by position: slot 2 mounts the third tool,
 but is labelled `T2`.
 
+**Tool number style.** A rig whose `[tool]` sections are all named `T<n>` is labeled that way
+on its docks, so the backend answers `ToolNumberStyle::Gcode` and the nozzle badge, the
+other-tools chip and "Nozzle T1" spell the tool "T0", "T1" instead of "1", "2"
+(`helix::toolchanger_addon::tool_number_style()`, stored by `set_discovery()` into
+`traits().tool_number_style`). It takes `has_tool_changer()`: discovery invents `T<n>` names
+for a multi-extruder printer with no `[tool]` sections, and those say nothing about the
+machine. One configured name (`[tool Left]`) keeps the whole rig 1-based, as does any machine
+a provider in `toolchanger_addon.cpp` claims (MedusaHC, the Z-Mod Creator 5), whose labeling
+is not known to be `T<n>`. The per-printer Tool Numbers setting overrides the answer
+(`docs/devel/TOOL_ABSTRACTION.md` § "Names and labels").
+
 **Per-tool** (`tool T{n}`):
 
 | Variable | Type | Description |

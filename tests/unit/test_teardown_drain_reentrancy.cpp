@@ -129,14 +129,14 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome teardown runs no queued callb
     auto em = std::make_unique<GridEditMode>();
     em->enter(container, &config, 1);
     em->select_widget(widget);
-    REQUIRE(GridEditModeTestAccess::remove_button(*em) != nullptr);
+    REQUIRE(GridEditModeTestAccess::selection_overlay(*em) != nullptr);
     bool ran = false;
 
     SECTION("selection chrome") {
         queue_canary(ran, [&em]() { em.reset(); });
         GridEditModeTestAccess::destroy_selection_chrome(*em);
         REQUIRE_FALSE(ran);
-        CHECK(GridEditModeTestAccess::remove_button(*em) == nullptr);
+        CHECK(GridEditModeTestAccess::selection_overlay(*em) == nullptr);
     }
 
     SECTION("snap preview") {

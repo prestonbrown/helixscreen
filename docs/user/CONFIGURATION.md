@@ -612,6 +612,7 @@ Located in the `appearance` section:
 {
   "appearance": {
     "toolhead_style": 0,
+    "tool_number_style": 0,
     "show_widget_labels": false
   }
 }
@@ -622,6 +623,12 @@ Located in the `appearance` section:
 **Default:** `0`
 **Values:** `0` (Default), `1` (Creality K1), `2` (Creality K2)
 **Description:** Which toolhead illustration is drawn on the temperature panel. Normally auto-detected from your printer type, so you rarely need to set it by hand. Override only if the wrong toolhead graphic is shown.
+
+### `tool_number_style`
+**Type:** integer
+**Default:** `0`
+**Values:** `0` (Auto), `1` (1, 2, 3), `2` (T0, T1, T2)
+**Description:** How tool numbers are written on a printer with more than one nozzle. Auto shows "T0, T1" on a tool changer whose Klipper tools are all named `T<n>` and "1, 2" everywhere else. Set per printer; adjustable in Settings > Appearance > Tool Numbers.
 
 ### `show_widget_labels`
 **Type:** boolean
@@ -937,7 +944,7 @@ Located in the `printer` section:
 
 ## LED Settings
 
-Located in the `printer.leds` section. Startup and Automatic LED Control are configured via **Settings > Devices > LED Settings**; which light each Home Panel Light button controls is set from that button's own gear icon in Edit Mode (see [Panel Widget Settings](#panel-widget-settings) below and [Home Panel > LED Controls](guide/home-panel.md#led-controls)).
+Located in the `printer.leds` section. Startup and Automatic LED Control are configured via **Settings > Devices > LED Settings**; which light each Home Panel Light button controls is set from that button's own Configure in its Edit Mode menu (see [Panel Widget Settings](#panel-widget-settings) below and [Home Panel > LED Controls](guide/home-panel.md#led-controls)).
 
 ### `leds.strip`
 **Type:** string
@@ -1390,7 +1397,7 @@ Each widget object has:
 - `rowspan` — Height in half cells (`2` = one cell tall)
 > **What `col: -1` / `row: -1` means.** The widget is switched on but has nowhere to sit right now, usually because the grid was full when HelixScreen last laid out the page. It is *not* disabled: as soon as a cell frees up - you remove another widget, unplug the hardware another widget needed, or view the same layout on a screen with a bigger grid - it places itself again automatically. You do not need to re-add it from the catalog.
 
-- `config` — (optional) Per-widget settings object, written by the gear button in Edit Mode. Which keys apply depends on the widget:
+- `config` — (optional) Per-widget settings object, written by a widget's Configure in Edit Mode. Which keys apply depends on the widget:
 
 | Key | Widgets | Values |
 |-----|---------|--------|

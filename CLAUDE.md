@@ -194,7 +194,7 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating, n
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite one that exists: `fix(scope): thing (prestonbrown/helixscreen#123)`; otherwise `fix(scope): thing` |
 | **Unproven tests** | "Tests pass" as evidence | A hand break while writing the test, then `make mutate-diff` after landing. `tests/CLAUDE.md` § "Proving a test can fail" |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph |
-| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas` | A present-tense constraint: `// Invalidating here freezes a fullscreen view the user is watching`. Bare issue cites are fine (global CLAUDE.md; `scripts/check_comment_archaeology.py`) |
+| **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas` | A present-tense constraint: `// Invalidating here freezes a fullscreen view the user is watching`. Bare issue cites are fine (global CLAUDE.md; `scripts/check_comment_archaeology.py`). Escape hatch `ARCHAEOLOGY_OK: <reason>` |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly |
 
 **ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.

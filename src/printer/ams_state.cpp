@@ -2138,9 +2138,10 @@ void AmsState::set_current_slot_header(AmsBackend& backend, const AmsSystemInfo&
                                        int slot_index) {
     char tmp[64];
     if (is_tool_changer(sys.type) && sys.units.empty()) {
-        // Pure tool changer with no AMS units: show the physical toolhead position
-        snprintf(tmp, sizeof(tmp), "%s",
-                 helix::ui::lane_label(helix::ui::active_tool_noun(), slot_index).c_str());
+        // Pure tool changer with no AMS units: name the toolhead as its badge does
+        snprintf(
+            tmp, sizeof(tmp), "%s",
+            helix::ui::active_tool_lane_label(helix::ui::active_tool_noun(), slot_index).c_str());
     } else {
         std::string unit_display;
         for (const auto& unit : sys.units) {
@@ -2152,7 +2153,8 @@ void AmsState::set_current_slot_header(AmsBackend& backend, const AmsSystemInfo&
                 break;
             }
         }
-        const std::string slot_label = helix::ui::lane_label(backend.lane_noun(), slot_index);
+        const std::string slot_label =
+            helix::ui::active_tool_lane_label(backend.lane_noun(), slot_index);
         if (!unit_display.empty() && sys.units.size() > 1) {
             // Multi-unit: show unit name + slot label on one line
             snprintf(tmp, sizeof(tmp), "%s · %s", unit_display.c_str(), slot_label.c_str());
@@ -2588,7 +2590,7 @@ void AmsState::finish_tag_spool_link(int slot_index, int spool_id,
     if (!backend) {
         return;
     }
-    const std::string lane = helix::ui::lane_label(backend->lane_noun(), slot_index);
+    const std::string lane = helix::ui::active_tool_lane_label(backend->lane_noun(), slot_index);
     if (!spool) {
         // A spool seated across a restart warned when it was put in.
         if (!inserted) {

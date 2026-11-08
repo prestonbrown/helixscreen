@@ -35,6 +35,7 @@
 #include "helix_version.h"
 #include "logging_init.h"
 #include "system/crash_record.h"
+#include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
 
 #include <spdlog/spdlog.h>
@@ -946,11 +947,12 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
 }
 
 /**
- * @brief Show crash dialog and wait for user choice
- * @return User's choice
+ * @brief Body of the dialog process: draws the dialog and exits with the choice.
+ *
+ * Runs only in the child forked by show_crash_dialog().
  */
-static DialogChoice show_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
-                                      bool crash_loop_detected) {
+static DialogChoice run_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
+                                     bool crash_loop_detected) {
     int auto_restart_sec = read_auto_restart_timeout();
 
     spdlog::info("[Watchdog] Showing crash dialog (auto_restart={}s)", auto_restart_sec);
@@ -1033,15 +1035,59 @@ static DialogChoice show_crash_dialog(int width, int height, int rotation, const
         }
     }
 
-    DialogChoice result = g_dialog_choice;
-
-    // Cleanup LVGL
-    lv_deinit();
+    const DialogChoice result =
+        g_dialog_choice == DialogChoice::NONE ? DialogChoice::RESTART_APP : g_dialog_choice;
 
     spdlog::info("[Watchdog] User choice: {}",
                  result == DialogChoice::RESTART_SYSTEM ? "restart system" : "restart app");
+    spdlog::default_logger()->flush();
 
-    return result == DialogChoice::NONE ? DialogChoice::RESTART_APP : result;
+    // The process ends here and the kernel releases the framebuffer and touch
+    // device. Tearing LVGL down first would only add a way to strand the
+    // supervisor behind a screen that no longer responds.
+    _exit(static_cast<int>(result));
+}
+
+/**
+ * @brief Show the recovery dialog in its own process and return the choice.
+ *
+ * A dialog that cannot start, crashes or is interrupted ends in RESTART_APP, so
+ * the supervisor goes on to relaunch helix-screen. The wait has no deadline: the
+ * user may cancel the countdown and read the dialog for as long as they like.
+ */
+static DialogChoice show_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
+                                      bool crash_loop_detected) {
+    using helix::watchdog::IsolatedDialogOutcome;
+
+    const auto result = helix::watchdog::run_isolated_dialog(
+        [&] {
+            return static_cast<int>(
+                run_crash_dialog(width, height, rotation, crash, crash_loop_detected));
+        },
+        g_quit);
+
+    switch (result.outcome) {
+    case IsolatedDialogOutcome::COMPLETED:
+        switch (static_cast<DialogChoice>(result.exit_code)) {
+        case DialogChoice::RESTART_SYSTEM:
+            return DialogChoice::RESTART_SYSTEM;
+        case DialogChoice::RESTART_SAFE_MODE:
+            return DialogChoice::RESTART_SAFE_MODE;
+        default:
+            return DialogChoice::RESTART_APP;
+        }
+    case IsolatedDialogOutcome::FORK_FAILED:
+        spdlog::error("[Watchdog] Could not fork the crash dialog: {}", strerror(result.os_errno));
+        break;
+    case IsolatedDialogOutcome::CHILD_DIED:
+        spdlog::error("[Watchdog] Crash dialog died (signal {}, errno {})", result.term_signal,
+                      result.os_errno);
+        break;
+    case IsolatedDialogOutcome::INTERRUPTED:
+        spdlog::info("[Watchdog] Crash dialog stopped for shutdown");
+        break;
+    }
+    return DialogChoice::RESTART_APP;
 }
 
 // =============================================================================

@@ -34,11 +34,14 @@ void SoundSequencer::play(const SoundDefinition& sound, SoundPriority priority) 
 }
 
 void SoundSequencer::stop() {
+    // Under the lock: the idle wait checks its predicate there, so the flag
+    // cannot land between that check and the sleep and go unseen.
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     stop_requested_.store(true);
     queue_cv_.notify_one();
 }
 
-void SoundSequencer::set_external_tick(std::function<void(float dt_ms)> fn) {
+void SoundSequencer::set_external_tick(std::function<bool(float dt_ms)> fn) {
     // From inside the callback this would wait on the call it is part of.
     if (std::this_thread::get_id() == loop_thread_id_.load()) {
         spdlog::error(
@@ -77,8 +80,11 @@ void SoundSequencer::start() {
 void SoundSequencer::shutdown() {
     if (!running_.load())
         return;
-    running_.store(false);
-    queue_cv_.notify_one();
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        running_.store(false);
+        queue_cv_.notify_one();
+    }
     if (sequencer_thread_.joinable()) {
         sequencer_thread_.join();
     }
@@ -134,7 +140,12 @@ void SoundSequencer::sequencer_loop() {
                     device_active_ = false;
                 }
                 was_playing = false;
-                queue_cv_.wait_for(lock, std::chrono::milliseconds(10));
+                // Every producer notifies under queue_mutex_, so this sleeps until
+                // there is work instead of waking the thread on a timeout.
+                queue_cv_.wait(lock, [this] {
+                    return !running_.load() || stop_requested_.load() || !request_queue_.empty() ||
+                           has_external_tick();
+                });
                 last_tick = std::chrono::steady_clock::now();
                 continue;
             }
@@ -186,8 +197,8 @@ void SoundSequencer::sequencer_loop() {
                 // Held across the call so set_external_tick() cannot return, and
                 // its caller free what the callback points at, mid-tick.
                 std::lock_guard<std::mutex> lock(external_tick_mutex_);
-                if (external_tick_) {
-                    external_tick_(dt_ms);
+                if (external_tick_ && !external_tick_(dt_ms)) {
+                    external_tick_ = nullptr;
                 }
             }
             if (playing_.load()) {

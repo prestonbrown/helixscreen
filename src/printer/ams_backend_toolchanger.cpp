@@ -73,6 +73,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     set_tool_commands(addon::resolve_tool_commands(discovery));
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
+    tool_number_style_ = addon::tool_number_style(discovery);
     set_resume_rule(addon::resume_rule(discovery));
     set_clean_nozzle_gcode(addon::clean_nozzle_gcode(discovery));
     {
@@ -545,10 +546,8 @@ OperationStepModel AmsBackendToolChanger::get_operation_step_model(StepOperation
             if (run_heads.size() < 2 || tool < 0 || static_cast<size_t>(tool) >= run_heads.size()) {
                 return std::string();
             }
-            return fmt::format(
-                "{} ({}/{}): ",
-                helix::ui::lane_label(lane_noun(), run_heads[static_cast<size_t>(tool)]), tool + 1,
-                run_heads.size());
+            return fmt::format("{} ({}/{}): ", head_label(run_heads[static_cast<size_t>(tool)]),
+                               tool + 1, run_heads.size());
         };
         int index = 0;
         for (const auto& row : helix::mount_feed::bar_rows(load, run_tools)) {
@@ -845,8 +844,9 @@ int AmsBackendToolChanger::recovery_target_locked() const {
 }
 
 std::string AmsBackendToolChanger::target_tool_label_locked(int target) const {
-    return helix::ui::tool_label_in_form(lane_noun(), tool_names_[static_cast<size_t>(target)],
-                                         target, helix::ui::ToolLabelForm::Full);
+    return helix::ui::tool_label_in_form(lane_noun(), display_tool_number_style(),
+                                         tool_names_[static_cast<size_t>(target)], target,
+                                         helix::ui::ToolLabelForm::Full);
 }
 
 void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCallback on_ready) {
@@ -2393,7 +2393,7 @@ void AmsBackendToolChanger::toast_partial_run(FeedStopReason why, const std::vec
             req.restore_head >= 0
                 ? fmt::format(fmt::runtime(lv_tr("The tool change under way finished, and {} "
                                                  "was not put back on the carriage")),
-                              helix::ui::lane_label(lane_noun(), req.restore_head))
+                              head_label(req.restore_head))
                 : std::string(lv_tr("The tool change under way finished, and the tool was not "
                                     "parked")));
     }
@@ -2447,9 +2447,13 @@ std::string AmsBackendToolChanger::feed_lane_list(const std::vector<int>& heads)
         if (!list.empty()) {
             list += ", ";
         }
-        list += helix::ui::lane_label(lane_noun(), head);
+        list += head_label(head);
     }
     return list;
+}
+
+std::string AmsBackendToolChanger::head_label(int head) const {
+    return helix::ui::tool_lane_label(lane_noun(), display_tool_number_style(), head);
 }
 
 void AmsBackendToolChanger::show_feed_toast(const std::string& message, NoticeSeverity severity) {

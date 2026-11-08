@@ -1116,8 +1116,9 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
             if (on_ready) {
                 on_ready(
                     AmsError(AmsResult::COMMAND_FAILED, "runout: refeed left to the user",
-                             helix::ui::tool_label_in_form(tool_noun(), helix::ui::tool_label(slot),
-                                                           slot, helix::ui::ToolLabelForm::Full) +
+                             helix::ui::tool_label_in_form(tool_noun(), display_tool_number_style(),
+                                                           helix::ui::tool_label(slot), slot,
+                                                           helix::ui::ToolLabelForm::Full) +
                                  ": " + lv_tr("Filament runout"),
                              lv_tr("Load it in the filament panel, then tap Resume.")));
             }
@@ -1361,8 +1362,9 @@ void AmsBackendSnapmaker::settle_refeed(int slot, ResumeReadyCallback on_ready) 
 
 AmsError AmsBackendSnapmaker::unconfirmed_load_error(int head, std::string technical,
                                                      bool retry_on_resume) const {
-    const std::string tool = helix::ui::tool_label_in_form(tool_noun(), helix::ui::tool_label(head),
-                                                           head, helix::ui::ToolLabelForm::Full);
+    const std::string tool = helix::ui::tool_label_in_form(tool_noun(), display_tool_number_style(),
+                                                           helix::ui::tool_label(head), head,
+                                                           helix::ui::ToolLabelForm::Full);
     return AmsError(
         AmsResult::COMMAND_FAILED, std::move(technical),
         fmt::format(fmt::runtime(lv_tr("{} didn't load. Check that its hotend is seated and do a "
@@ -1462,7 +1464,8 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
         }
         for (int head : unloaded) {
             const std::string tool = helix::ui::tool_label_in_form(
-                tool_noun(), helix::ui::tool_label(head), head, helix::ui::ToolLabelForm::Full);
+                tool_noun(), display_tool_number_style(), helix::ui::tool_label(head), head,
+                helix::ui::ToolLabelForm::Full);
             spdlog::warn("{} '{}' uses tool {}, whose feeder reports it not loaded",
                          backend_log_tag(), filename, head);
             ui_notification_warning(

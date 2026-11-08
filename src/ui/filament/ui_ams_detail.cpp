@@ -1341,7 +1341,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         }
         if (error.success()) {
             NOTIFY_INFO(lv_tr("{} spool cleared"),
-                        helix::ui::lane_label(backend->lane_noun(), slot));
+                        helix::ui::active_tool_lane_label(backend->lane_noun(), slot));
         } else {
             notify_ams_error(error, lv_tr("Clear failed"));
         }
@@ -1461,7 +1461,7 @@ void offer_clear_after_unverified_insert(int slot) {
     offers[slot] = {snapshot, now};
     const std::string message =
         fmt::format(lv_tr("Same spool in {}? Tap Clear if it is a new one."),
-                    lane_label(backend->lane_noun(), slot));
+                    active_tool_lane_label(backend->lane_noun(), slot));
     // The slot rides in user_data by value: the toast can outlive any object
     // that could own it, and the dispatch re-checks every guard at tap time.
     ToastManager::instance().show_with_action(

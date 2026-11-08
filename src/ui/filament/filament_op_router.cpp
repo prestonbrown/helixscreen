@@ -142,7 +142,11 @@ std::string filament_unload_fallback_gcode() {
 std::string filament_purge_fallback_gcode() {
     constexpr int kPurgeFallbackMm = 50;
     constexpr int kPurgeFallbackSpeedMmMin = 10 * 60; // 10 mm/s → 600 mm/min
-    return fmt::format("M83\nG1 E{} F{}", kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
+    return extrude_gcode(kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
+}
+
+std::string extrude_gcode(int mm, int speed_mm_min) {
+    return fmt::format("M83\nG1 E{} F{}", mm, speed_mm_min);
 }
 
 } // namespace helix::ui

@@ -885,8 +885,8 @@ LaneNoun AmsContextMenu::menu_lane_noun() const {
 }
 
 std::string AmsContextMenu::menu_lane_label(int slot_index) const {
-    return backend_ ? helix::ui::backend_lane_label(*backend_, slot_index)
-                    : helix::ui::active_lane_label(slot_index);
+    const std::string name = backend_ ? backend_->lane_name(slot_index) : std::string{};
+    return name.empty() ? helix::ui::active_tool_lane_label(menu_lane_noun(), slot_index) : name;
 }
 
 void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_index,

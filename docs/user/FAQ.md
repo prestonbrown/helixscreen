@@ -312,7 +312,7 @@ To customize:
 1. **Long-press the widget grid** to enter Edit Mode
 2. **Tap** a widget to select it, then press it again and **drag** it to move it, or drag its edges to resize it. Drag a widget across the page border to move it to another page
 3. **Long-press an empty area** — or tap **+** on the navigation bar — to open the Widget Catalog and add something
-4. Select a widget and tap the **trash icon** to remove it, or the **gear icon** to configure it
+4. Tap a selected widget again, or long-press a widget and lift without moving, to open its menu. Choose **Remove** to take it off the grid, or **Configure** to change its settings
 5. Tap **Done** when you are finished
 
 How many widgets fit depends on your screen - the grid is sized from it, so a bigger screen gives you more cells rather than bigger ones. Widgets that need hardware you don't have still show up in the Widget Catalog, but they are dimmed, can't be tapped, and carry the reason in parentheses - for example "Humidity (No humidity sensor detected)" or "Chamber Temperature (No chamber temperature sensor detected)". They become available on their own once the hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.

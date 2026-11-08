@@ -23,6 +23,7 @@
 #include "helix/ui/text_metrics.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "spool_latch_gate.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -1445,4 +1446,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(face_band != nullptr);
     CHECK(ui::swatch_paint_colors(face_band).size() == 3);
     CHECK(ui::swatch_paint_finish(face_band) == ui::SwatchFinish::Silk);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "tool_switcher: a G-code-style tool says its name once, not over itself",
+                 "[tool_switcher][tool_style]") {
+    using helix::ui::ToolNumberStyleSetting;
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    const auto seg = [](const char* part) {
+        return std::string(lv_subject_get_string(
+            lv_xml_get_subject(nullptr, (std::string("tool_switcher_seg_0") + part).c_str())));
+    };
+    const auto rail = [&](ToolNumberStyleSetting style) {
+        settings.set_tool_number_style_setting(style);
+        ToolChangerRig rig(4);
+        PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
+        process_lvgl(30);
+        resize_content(h, 600, 60);
+        process_lvgl(30);
+        return std::pair<std::string, std::string>{seg("_label"), seg("_sub")};
+    };
+    const auto physical = rail(ToolNumberStyleSetting::Physical);
+    REQUIRE(physical.first == "Tool 1"); // the rail chose the two-line form
+    CHECK(physical.second == "T0");
+    const auto gcode = rail(ToolNumberStyleSetting::Gcode);
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
+    CHECK(gcode.first == "T0");
+    CHECK(gcode.second != "T0");
 }

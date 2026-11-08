@@ -723,6 +723,23 @@ TEST_CASE("Every filament-unload dispatch stops at the notice on a manual-unload
     CHECK(tc.sent().size() == sent_before);
 }
 
+TEST_CASE("A configured Unload macro outranks a manual-unload backend",
+          "[toolchanger][zmod][manual_unload][2067]") {
+    InfoToasts toasts;
+    ToolChangerHelper tc(4);
+    wire_zmod(tc);
+    tc.feed(json{{"zmod_color", {{"active_tool_id", 2}}}});
+    REQUIRE(helix::ui::notify_if_filament_op_unavailable(&tc, -1, /*load=*/false));
+    toasts.seen.clear();
+
+    StandardMacros::instance().set_macro(StandardMacroSlot::UnloadFilament, "MY_UNLOAD");
+    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::UnloadFilament).get_source() ==
+            MacroSource::CONFIGURED);
+    CHECK_FALSE(helix::ui::notify_if_filament_op_unavailable(&tc, -1, /*load=*/false));
+    CHECK(toasts.seen.empty());
+    StandardMacros::instance().set_macro(StandardMacroSlot::UnloadFilament, "");
+}
+
 TEST_CASE("An explicit park still unmounts on Z-Mod, and Unload never does",
           "[toolchanger][zmod][manual_unload]") {
     // Park calls the backend directly and is not swallowed by the

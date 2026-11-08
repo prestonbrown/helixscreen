@@ -140,17 +140,10 @@ struct GridEditModeTestAccess {
         return em.selected_widget_id();
     }
 
-    /// The selection chrome: the outline overlay and its remove and configure
-    /// buttons (the configure button exists only for a widget that offers
-    /// configuration). All three are children of the scoped container.
+    /// The selection chrome: the outline overlay, a child of the scoped
+    /// container.
     static lv_obj_t* selection_overlay(const GridEditMode& em) {
         return em.selection_overlay_;
-    }
-    static lv_obj_t* remove_button(const GridEditMode& em) {
-        return em.remove_btn_;
-    }
-    static lv_obj_t* configure_button(const GridEditMode& em) {
-        return em.configure_btn_;
     }
 
     /// The live drag's grid-snapped drop preview, or nullptr when none is drawn.

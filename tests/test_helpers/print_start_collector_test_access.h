@@ -46,6 +46,10 @@ class PrintStartCollectorTestAccess {
         return PrintStartCollector::is_respond_completion(line);
     }
 
+    static void on_gcode_response(PrintStartCollector& collector, const nlohmann::json& msg) {
+        collector.on_gcode_response(msg);
+    }
+
     /// Wind back the start time to simulate elapsed seconds.
     ///
     /// Also winds back both activity stamps, so this models "N seconds passed

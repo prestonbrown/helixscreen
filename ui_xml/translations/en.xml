@@ -97,6 +97,7 @@
   <translation tag="1 print" en="1 print"/>
   <translation tag="1 profile" en="1 profile"/>
   <translation tag="1 unit" en="1 unit"/>
+  <translation tag="1, 2, 3" en="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" en="1. Each nozzle is heated, wiped and parked at the front for you to brush clean"/>
   <translation tag="1. Printer homes all axes (~1 minute)" en="1. Printer homes all axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" en="1. Printer homes and probes the bed"/>
@@ -153,8 +154,10 @@
   <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." en="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." en="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." en="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print."/>
+  <translation tag="A cold pull is already running." en="A cold pull is already running."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." en="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." en="A few minutes, nearly all of it heating. You judge nothing by eye."/>
+  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." en="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." en="A folder name in moonraker.conf is unsafe, so cleanup is off."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." en="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." en="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen."/>
@@ -167,12 +170,15 @@
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" en="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
   <translation tag="A newer version of the helper macros is available" en="A newer version of the helper macros is available"/>
   <translation tag="A picture of your printer" en="A picture of your printer"/>
+  <translation tag="A print holds the printer." en="A print holds the printer."/>
   <translation tag="A print is already running." en="A print is already running."/>
   <translation tag="A print is in progress - restart still pending" en="A print is in progress - restart still pending"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." en="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes."/>
   <translation tag="A print is running. Apply the result after it ends." en="A print is running. Apply the result after it ends."/>
   <translation tag="A print started" en="A print started"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
+  <translation tag="A print took the printer." en="A print took the printer."/>
+  <translation tag="A printer command failed." en="A printer command failed."/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." en="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen."/>
@@ -315,6 +321,7 @@
   <translation tag="Anonymous data to help improve HelixScreen" en="Anonymous data to help improve HelixScreen"/>
   <translation tag="Anonymous stats — no personal data, ever." en="Anonymous stats — no personal data, ever."/>
   <translation tag="Anonymous usage statistics" en="Anonymous usage statistics"/>
+  <translation tag="Another filament operation is heating the nozzle." en="Another filament operation is heating the nozzle."/>
   <translation tag="Any notes..." en="Any notes..."/>
   <translation tag="App Background" en="App Background"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." en="App startup encountered an error. Some features may be unavailable."/>
@@ -469,6 +476,7 @@
   <translation tag="Bowden Length" en="Bowden Length"/>
   <translation tag="Bowden tube length from hub to toolhead" en="Bowden tube length from hub to toolhead"/>
   <translation tag="Bowden tube length to this tool" en="Bowden tube length to this tool"/>
+  <translation tag="Bowden: pull the tube from the extruder end, then pull the filament." en="Bowden: pull the tube from the extruder end, then pull the filament."/>
   <translation tag="Box" en="Box"/>
   <translation tag="Brand" en="Brand"/>
   <translation tag="Brand and material come from Spoolman" en="Brand and material come from Spoolman"/>
@@ -727,9 +735,11 @@
   <translation tag="Clean Brush" en="Clean Brush"/>
   <translation tag="Clean Nozzle" en="Clean Nozzle"/>
   <translation tag="Clean Up Storage" en="Clean Up Storage"/>
+  <translation tag="Clean a clogged nozzle, step by step" en="Clean a clogged nozzle, step by step"/>
   <translation tag="Clean nozzle" en="Clean nozzle"/>
   <translation tag="Clean up" en="Clean up"/>
   <translation tag="Clean {}" en="Clean {}"/>
+  <translation tag="Cleaning" en="Cleaning"/>
   <translation tag="Cleaning Nozzle..." en="Cleaning Nozzle..."/>
   <translation tag="Cleaning nozzle" en="Cleaning nozzle"/>
   <translation tag="Cleaning nozzle..." en="Cleaning nozzle..."/>
@@ -765,6 +775,10 @@
   <translation tag="Coarse Outer" en="Coarse Outer"/>
   <translation tag="Code" en="Code"/>
   <translation tag="Coil Temperature" en="Coil Temperature"/>
+  <translation tag="Cold Pull" en="Cold Pull"/>
+  <translation tag="Cold pull cancelled" en="Cold pull cancelled"/>
+  <translation tag="Cold pull finished" en="Cold pull finished"/>
+  <translation tag="Cold pull stopped" en="Cold pull stopped"/>
   <translation tag="Collect logs and system info for support" en="Collect logs and system info for support"/>
   <translation tag="Collecting data..." en="Collecting data..."/>
   <translation tag="Collecting debug info..." en="Collecting debug info..."/>
@@ -885,7 +899,9 @@
   <translation tag="Cooling Tube Length" en="Cooling Tube Length"/>
   <translation tag="Cooling Tube Retraction" en="Cooling Tube Retraction"/>
   <translation tag="Cooling for probing..." en="Cooling for probing..."/>
+  <translation tag="Cooling the nozzle" en="Cooling the nozzle"/>
   <translation tag="Cooling the nozzle to standby while you check the print" en="Cooling the nozzle to standby while you check the print"/>
+  <translation tag="Cooling without a fan; this takes longer." en="Cooling without a fan; this takes longer."/>
   <translation tag="Cooling {}..." en="Cooling {}..."/>
   <translation tag="Copied to clipboard!" en="Copied to clipboard!"/>
   <translation tag="Copy" en="Copy"/>
@@ -1061,6 +1077,7 @@
   <translation tag="Different filament?" en="Different filament?"/>
   <translation tag="Digital Clock" en="Digital Clock"/>
   <translation tag="Direct drive" en="Direct drive"/>
+  <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." en="Direct drive: release the extruder tension and pull the filament out in one firm motion."/>
   <translation tag="Disable" en="Disable"/>
   <translation tag="Disable Bypass" en="Disable Bypass"/>
   <translation tag="Disable Motors?" en="Disable Motors?"/>
@@ -1086,13 +1103,16 @@
   <translation tag="Distance from toolhead sensor to nozzle tip" en="Distance from toolhead sensor to nozzle tip"/>
   <translation tag="Distance moved per jog button tap" en="Distance moved per jog button tap"/>
   <translation tag="Distance moved per jog button tap. The arrow layouts offer every distance as a step." en="Distance moved per jog button tap. The arrow layouts offer every distance as a step."/>
+  <translation tag="Do not cold pull a coated nozzle. The cold pull runs on the active tool." en="Do not cold pull a coated nozzle. The cold pull runs on the active tool."/>
   <translation tag="Do not power off your printer." en="Do not power off your printer."/>
+  <translation tag="Do not touch the filament yet." en="Do not touch the filament yet."/>
   <translation tag="Do not touch the printer during calibration" en="Do not touch the printer during calibration"/>
   <translation tag="Dock" en="Dock"/>
   <translation tag="Dock sensors cannot tell which tool is mounted" en="Dock sensors cannot tell which tool is mounted"/>
   <translation tag="Dock sensors disagree" en="Dock sensors disagree"/>
   <translation tag="Dock tool" en="Dock tool"/>
   <translation tag="Docking tool" en="Docking tool"/>
+  <translation tag="Does clean filament come out of the nozzle?" en="Does clean filament come out of the nozzle?"/>
   <translation tag="Don&apos;t Save" en="Don&apos;t Save"/>
   <translation tag="Don&apos;t ask again" en="Don&apos;t ask again"/>
   <translation tag="Done" en="Done"/>
@@ -1446,6 +1466,7 @@
   <translation tag="Feed filament directly to extruder" en="Feed filament directly to extruder"/>
   <translation tag="Feed filament from current slot" en="Feed filament from current slot"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" en="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload"/>
+  <translation tag="Feed the cleaning filament" en="Feed the cleaning filament"/>
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
@@ -1741,6 +1762,7 @@
   <translation tag="Home All" en="Home All"/>
   <translation tag="Home Selector" en="Home Selector"/>
   <translation tag="Home all axes to use the map" en="Home all axes to use the map"/>
+  <translation tag="Home and park" en="Home and park"/>
   <translation tag="Home and sweep the cutter to re-find its position" en="Home and sweep the cutter to re-find its position"/>
   <translation tag="Home failed" en="Home failed"/>
   <translation tag="Home layout copied from the printer&apos;s screen" en="Home layout copied from the printer&apos;s screen"/>
@@ -1788,6 +1810,7 @@
   <translation tag="How the Jog tab arranges its buttons" en="How the Jog tab arranges its buttons"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." en="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply."/>
   <translation tag="How the toolhead icon appears" en="How the toolhead icon appears"/>
+  <translation tag="How tools are numbered on badges and labels" en="How tools are numbered on badges and labels"/>
   <translation tag="Hub" en="Hub"/>
   <translation tag="Hub &amp; Cutter" en="Hub &amp; Cutter"/>
   <translation tag="Hub Bowden Length" en="Hub Bowden Length"/>
@@ -1815,6 +1838,7 @@
   <translation tag="Identify failed: {}" en="Identify failed: {}"/>
   <translation tag="Idle" en="Idle"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" en="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically"/>
+  <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." en="If the extruder has no tension lever, see your printer&apos;s manual."/>
   <translation tag="Ignore" en="Ignore"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" en="Ignore the click that fires when you lift after scrolling"/>
   <translation tag="Import failed: {}" en="Import failed: {}"/>
@@ -1934,6 +1958,7 @@
   <translation tag="Keep hands clear except when asked. The printer moves on its own." en="Keep hands clear except when asked. The printer moves on its own."/>
   <translation tag="Keep hands clear. The printer moves on its own." en="Keep hands clear. The printer moves on its own."/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." en="Keep its own data on this screen (up to 256 KB)."/>
+  <translation tag="Keep pushing filament while it cools" en="Keep pushing filament while it cools"/>
   <translation tag="Keep the bypass spool visible when bypass is off" en="Keep the bypass spool visible when bypass is off"/>
   <translation tag="Keep waiting" en="Keep waiting"/>
   <translation tag="Kept {}: a print started." en="Kept {}: a print started."/>
@@ -2108,6 +2133,7 @@
   <translation tag="Lost connection during print — try again" en="Lost connection during print — try again"/>
   <translation tag="Lost connection to CFS unit" en="Lost connection to CFS unit"/>
   <translation tag="Lost the connection to the printer." en="Lost the connection to the printer."/>
+  <translation tag="Lost the printer." en="Lost the printer."/>
   <translation tag="Lot # (optional)" en="Lot # (optional)"/>
   <translation tag="Lot/Batch Nr" en="Lot/Batch Nr"/>
   <translation tag="Low Memory" en="Low Memory"/>
@@ -2542,6 +2568,7 @@
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>
   <translation tag="Number Pad Layout" en="Number Pad Layout"/>
+  <translation tag="Nylon" en="Nylon"/>
   <translation tag="OD" en="OD"/>
   <translation tag="OFF" en="OFF"/>
   <translation tag="OK" en="OK"/>
@@ -2656,6 +2683,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." en="Part of the plugin failed to load. Reinstall the plugin."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." en="Part of the plugin is missing. Reinstall the plugin."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" en="Part, hotend, and auxiliary fan speeds"/>
+  <translation tag="Pass" en="Pass"/>
   <translation tag="Password" en="Password"/>
   <translation tag="Password cannot be empty" en="Password cannot be empty"/>
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
@@ -2756,6 +2784,7 @@
   <translation tag="Preheating and homing..." en="Preheating and homing..."/>
   <translation tag="Preload" en="Preload"/>
   <translation tag="Preload failed" en="Preload failed"/>
+  <translation tag="Prepare the toolhead" en="Prepare the toolhead"/>
   <translation tag="Prepared" en="Prepared"/>
   <translation tag="Preparing" en="Preparing"/>
   <translation tag="Preparing Print" en="Preparing Print"/>
@@ -2939,6 +2968,9 @@
   <translation tag="Provide a {}" en="Provide a {}"/>
   <translation tag="Provide an on/off value" en="Provide an on/off value"/>
   <translation tag="Provide {}" en="Provide {}"/>
+  <translation tag="Pull" en="Pull"/>
+  <translation tag="Pull now" en="Pull now"/>
+  <translation tag="Pulled" en="Pulled"/>
   <translation tag="Pulling filament back" en="Pulling filament back"/>
   <translation tag="Purge" en="Purge"/>
   <translation tag="Purge &amp; Wipe" en="Purge &amp; Wipe"/>
@@ -2954,6 +2986,7 @@
   <translation tag="Purging" en="Purging"/>
   <translation tag="Purging nozzle" en="Purging nozzle"/>
   <translation tag="Purging..." en="Purging..."/>
+  <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." en="Push the cleaning filament into the extruder until it stops, then tap Extrude."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
   <translation tag="QGL" en="QGL"/>
   <translation tag="QGL failed: {}" en="QGL failed: {}"/>
@@ -3092,6 +3125,7 @@
   <translation tag="Rename failed at remove step" en="Rename failed at remove step"/>
   <translation tag="Render Now" en="Render Now"/>
   <translation tag="Rendering timelapse..." en="Rendering timelapse..."/>
+  <translation tag="Repeat" en="Repeat"/>
   <translation tag="Replace" en="Replace"/>
   <translation tag="Replace Profile?" en="Replace Profile?"/>
   <translation tag="Replay Welcome Tour" en="Replay Welcome Tour"/>
@@ -3507,6 +3541,8 @@
   <translation tag="Snapmaker SnapSwap" en="Snapmaker SnapSwap"/>
   <translation tag="Snapmaker U1" en="Snapmaker U1"/>
   <translation tag="Snapshot only" en="Snapshot only"/>
+  <translation tag="Soak" en="Soak"/>
+  <translation tag="Soaking hot enough to melt what is left in the nozzle." en="Soaking hot enough to melt what is left in the nozzle."/>
   <translation tag="Soft" en="Soft"/>
   <translation tag="Soft filament is never unloaded" en="Soft filament is never unloaded"/>
   <translation tag="Software Updates" en="Software Updates"/>
@@ -3649,6 +3685,7 @@
   <translation tag="Storage" en="Storage"/>
   <translation tag="Storage report" en="Storage report"/>
   <translation tag="Stow" en="Stow"/>
+  <translation tag="Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step." en="Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step."/>
   <translation tag="Subnet mask" en="Subnet mask"/>
   <translation tag="Subtle" en="Subtle"/>
   <translation tag="Success" en="Success"/>
@@ -3693,6 +3730,7 @@
   <translation tag="System default" en="System default"/>
   <translation tag="System detected" en="System detected"/>
   <translation tag="System is {}" en="System is {}"/>
+  <translation tag="T0, T1, T2" en="T0, T1, T2"/>
   <translation tag="TANGLE" en="TANGLE"/>
   <translation tag="TD-1 filament color detection" en="TD-1 filament color detection"/>
   <translation tag="TEMPERATURE SENSORS" en="TEMPERATURE SENSORS"/>
@@ -3794,6 +3832,7 @@
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." en="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings."/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." en="The PEI sheet is still on the bed. Take it off, then tap Next."/>
   <translation tag="The Spoolman spool currently loaded" en="The Spoolman spool currently loaded"/>
+  <translation tag="The active tool has no nozzle heater." en="The active tool has no nozzle heater."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." en="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display."/>
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." en="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." en="The bed has cooled. Take the spools off the plate, then confirm."/>
@@ -3854,6 +3893,8 @@
   <translation tag="The nozzle is clear of the print" en="The nozzle is clear of the print"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." en="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." en="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at."/>
+  <translation tag="The nozzle target never arrived." en="The nozzle target never arrived."/>
+  <translation tag="The nozzle waited too long; start again." en="The nozzle waited too long; start again."/>
   <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." en="The part on the bed is too tall to clear. Remove it, then tap Cleared."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." en="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." en="The peak of {} moved out of the zone. Widening it."/>
@@ -3898,6 +3939,7 @@
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." en="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
   <translation tag="The printer homes, then probes each screw position." en="The printer homes, then probes each screw position."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
+  <translation tag="The printer is not ready." en="The printer is not ready."/>
   <translation tag="The printer is shut down." en="The printer is shut down."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." en="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" en="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?"/>
@@ -3927,6 +3969,7 @@
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" en="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service"/>
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." en="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24."/>
+  <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
   <translation tag="The tool change under way finished, and the tool was not parked" en="The tool change under way finished, and the tool was not parked"/>
@@ -3940,6 +3983,7 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" en="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" en="The unit reported a fault with no further detail. Restart the printer if it repeats"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
+  <translation tag="The unload did not finish. Try again, or cancel." en="The unload did not finish. Try again, or cancel."/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
   <translation tag="Theme" en="Theme"/>
@@ -4088,6 +4132,7 @@
   <translation tag="Tool" en="Tool"/>
   <translation tag="Tool Change Failed" en="Tool Change Failed"/>
   <translation tag="Tool Changer" en="Tool Changer"/>
+  <translation tag="Tool Numbers" en="Tool Numbers"/>
   <translation tag="Tool Offsets" en="Tool Offsets"/>
   <translation tag="Tool Switcher" en="Tool Switcher"/>
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
@@ -4211,9 +4256,11 @@
   <translation tag="Unload filament" en="Unload filament"/>
   <translation tag="Unload filament?" en="Unload filament?"/>
   <translation tag="Unload from toolhead first" en="Unload from toolhead first"/>
+  <translation tag="Unload lane" en="Unload lane"/>
   <translation tag="Unload macro not configured" en="Unload macro not configured"/>
   <translation tag="Unload stopped" en="Unload stopped"/>
   <translation tag="Unload the CFS filament before enabling bypass" en="Unload the CFS filament before enabling bypass"/>
+  <translation tag="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand." en="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand."/>
   <translation tag="Unload the toolhead when a print ends" en="Unload the toolhead when a print ends"/>
   <translation tag="Unload this unit first" en="Unload this unit first"/>
   <translation tag="Unload which tool?" en="Unload which tool?"/>

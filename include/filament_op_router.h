@@ -136,4 +136,10 @@ nozzle_temp_prefill(FilamentMacroOp op, int extruder_target_c, std::optional<int
  */
 [[nodiscard]] std::string filament_purge_fallback_gcode();
 
+/**
+ * @brief Relative extrusion of @p mm at @p speed_mm_min: `M83` then `G1 E.. F..`.
+ *        A negative @p mm retracts.
+ */
+[[nodiscard]] std::string extrude_gcode(int mm, int speed_mm_min);
+
 } // namespace helix::ui

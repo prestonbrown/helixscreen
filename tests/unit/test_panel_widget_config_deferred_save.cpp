@@ -14,6 +14,7 @@
 #include "grid_edit_mode.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
+#include "tap_lockout.h"
 
 #include <string>
 
@@ -200,10 +201,14 @@ TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: every edit asks for a save once 
     SECTION("removing a widget") {
         em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
         scene.config->flush_pending_save();
+        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/tile_edit_callout.xml") ==
+                LV_RESULT_OK);
         em.select_widget(scene.widget);
-        lv_obj_t* remove = GridEditModeTestAccess::remove_button(em);
+        em.open_tile_callout();
+        lv_obj_t* remove =
+            lv_obj_find_by_name(lv_obj_get_screen(scene.container), "tile_callout_remove");
         REQUIRE(remove != nullptr);
-        lv_tick_inc(GridEditMode::kPillLockoutMs);
+        lv_tick_inc(helix::ui::TapLockout::kDefaultMs);
         lv_obj_send_event(remove, LV_EVENT_CLICKED, nullptr);
         REQUIRE_FALSE(scene.config->is_placed("temperature"));
         CHECK(scene.config->save_pending());
