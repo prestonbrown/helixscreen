@@ -14,10 +14,12 @@
 #include "../test_helpers/config_dir_guard.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
+#include "first_run_tour.h"
 #include "http_request_epoch.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
@@ -167,6 +169,20 @@ TEST_CASE_METHOD(SessionWiringFixture, "a reconnect with the same hardware is no
     drain();
 
     CHECK(passes == std::vector<bool>{true, false, true});
+}
+
+TEST_CASE_METHOD(SessionWiringFixture, "a finished discovery tells the first-run tour",
+                 "[session_wiring][tour]") {
+    auto* cfg = helix::Config::get_instance();
+    cfg->set<bool>("/tour/completed", true);
+    cfg->set<int>("/tour/last_seen_version", helix::tour::kTourVersion);
+    auto& tour = helix::tour::FirstRunTour::instance();
+    tour.set_printer_ready(false);
+
+    fire(discovery_of({"extruder", "heater_bed"}));
+    drain();
+
+    CHECK(tour.is_printer_ready());
 }
 
 TEST_CASE_METHOD(SessionWiringFixture, "a pass queued for the previous printer is dropped",
