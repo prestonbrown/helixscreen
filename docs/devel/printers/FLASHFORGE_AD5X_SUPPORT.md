@@ -105,6 +105,58 @@ ZMOD's own docs describe the idle reading as "for reference only". Note also tha
 the native-screen and screenless offsets are stored separately — `LOAD_ZOFFSET_NATIVE`
 copies one to the other, and HelixScreen does not call it.
 
+### Z-Mod 1.7.5: native .3mf and the print-start tool map
+
+This section applies to every Z-Mod printer (AD5M, AD5X, Creator 5 Pro), because the
+behaviour lives in Z-Mod's Moonraker fork,
+[ghzserg/zmod_moonraker](https://github.com/ghzserg/zmod_moonraker), which all three run.
+The AD5M and Creator 5 pages link here.
+
+**A .3mf prints as itself.** Z-Mod 1.7.5 (released 28.10.2026) lists "3MF support" in its
+[changelog](https://wiki.zmod.link/Changelog/). Its Moonraker parses the archive
+([components/file_manager/parse_3mf.py](https://github.com/ghzserg/zmod_moonraker/blob/main/components/file_manager/parse_3mf.py)): a plate counts as sliced when the archive holds a
+non-empty `Metadata/plate_N.gcode`, and plate numbers are that `N`. The file's metadata
+reports the list as `sliced_plates` and the plate it describes as `plate_index`
+([components/file_manager/metadata.py](https://github.com/ghzserg/zmod_moonraker/blob/main/components/file_manager/metadata.py)). HelixScreen reads `sliced_plates` as a printer that
+starts plates by number (`include/print_3mf.h#printer_reads`), offers only the plates listed
+there, and starts the chosen plate natively instead of extracting it
+(`src/print/print_3mf.cpp#classify`).
+
+**`printer.print.start` takes `plateindex` and `tools`.** The handler reads both beside
+`filename` and passes them to `klippy_apis.start_print()` ([components/klippy_apis.py](https://github.com/ghzserg/zmod_moonraker/blob/main/components/klippy_apis.py)). For
+a .3mf, a missing `plateindex`, or one that is not among `sliced_plates`, falls back to the
+metadata's `plate_index`. The start becomes `_ZSDCARD_PRINT_FILE FILENAME="..."` when
+`printer.cfg` includes `display_off.cfg` (no stock screen) and `_PRINT_FILE FILENAME="..."`
+otherwise, followed by `PLATE=<n>` when a plate is known. A non-empty `tools` appends
+`SILENT=1 AUTO_ASSIGN=0` and one `T<i>=<slot>` for each numeric entry, where the index is the
+G-code tool and the value the 1-based physical slot (`"2,,1"` gives `T0=2 T2=1`). `SILENT=1`
+suppresses Z-Mod's colour prompt, and `AUTO_ASSIGN=0` stops its auto-assign from overriding
+the map ([#2033](https://github.com/prestonbrown/helixscreen/issues/2033)). Plugins reach
+the same path through `klippy_apis.start_print(filename, tools=...)`, which is how the
+HelixPrint plugin can carry the map for a rewritten file
+([#2038](https://github.com/prestonbrown/helixscreen/issues/2038)).
+
+**`server.info` advertises `tools`.** Z-Mod's Moonraker adds `"zmod": {"features":
+["print_start_tools"]}` to `server.info` (zmod_moonraker commit
+[db13157a](https://github.com/ghzserg/zmod_moonraker/commit/db13157a13963b0ce0c427092508f4bc7f2e82b2)).
+The author notes that if the flag is present but the printer's macros are older, the `T*`
+values are not forwarded and the user sees Z-Mod's prompt, so a mismatch never prints with a
+wrong map (#2033). HelixScreen reads the flag at discovery
+(`src/printer/print_start_params.cpp#server_takes_tool_slots`) and sends a map wherever it or
+the built-in AFC emulation is present (`src/printer/print_start_params.cpp#takes_tool_slots`).
+Every print start builds its extra parameters, the plate and the map, in one place
+(`src/printer/print_start_params.cpp#start_request_params`). The Creator 5 narrows this
+further; see that page's tool changer section.
+
+**The preprocessor is G-code only.** Z-Mod's slicer post-processing script
+(the `zmod_preprocess` binaries, or the zmod-preprocess Python and shell scripts) is not needed for a .3mf: the
+[Global settings page](https://wiki.zmod.link/Global/) says scanning and colour mapping are
+instant for 3MF, and that `FORCE_MD5` "only applies when sending G-code. Not required for
+3MF."
+
+**New macros.** 1.7.5 adds `_USER_PREPARE_PRINT`, called before the file is sent to print,
+and `PLUGINS`, a plugin management menu (changelog). HelixScreen calls neither.
+
 ### Moonraker Update Manager
 
 ZMOD configures Moonraker to check for HelixScreen updates. The release_info.json file tells Moonraker which release asset to download:
