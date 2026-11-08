@@ -386,6 +386,11 @@ class EmergencyStopOverlay {
     /// caller sends nothing. Main thread only.
     bool refuse_restart_in_flight();
     void restart_klipper();
+    /// True, after toasting why, when a Moonraker restart cannot be sent now:
+    /// no connection to carry it, a job holding the machine, or a Klipper
+    /// restart still in flight. Main thread only.
+    bool refuse_moonraker_restart();
+    void restart_moonraker();
 
   public:
     /// Restart Klipper firmware: the platform-correct sequence (a plain
@@ -408,6 +413,7 @@ class EmergencyStopOverlay {
     static void advanced_estop_clicked(lv_event_t* e);
     static void advanced_restart_klipper_clicked(lv_event_t* e);
     static void advanced_firmware_restart_clicked(lv_event_t* e);
+    static void advanced_restart_moonraker_clicked(lv_event_t* e);
     static void home_firmware_restart_clicked(lv_event_t* e);
 };
 

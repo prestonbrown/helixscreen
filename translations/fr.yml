@@ -660,6 +660,7 @@ translations:
   Cannot perform this action now: Impossible d'effectuer cette action maintenant
   'Cannot reprint: not connected to printer': 'Impossible de réimprimer : non connecté
     à l''imprimante'
+  Cannot restart Moonraker while printing: "Impossible de redémarrer Moonraker pendant l'impression"
   Cannot restart — no filename: Impossible de redémarrer — pas de nom de fichier
   Cannot run filament operation while printing: Impossible d'effectuer une opération de filament pendant l'impression
   'Cannot schedule a pause: printer not connected': 'Impossible de prévoir une pause : imprimante non connectée'
@@ -3401,6 +3402,7 @@ translations:
   Restart Klipper?: 'Redémarrer Klipper ?'
   Restart Moonraker: Redémarrer Moonraker
   Restart Moonraker to finish the plugin change: Redémarrez Moonraker pour terminer la modification du plugin
+  Restart Moonraker?: "Redémarrer Moonraker ?"
   Restart Now: Redémarrer maintenant
   Restart Required: Redémarrage requis
   'Restart failed: not connected': 'Échec du redémarrage : non connecté'
@@ -4255,6 +4257,7 @@ translations:
     de fin de filament indique qu'aucun filament n'est chargé. Démarrer l'impression
     quand même ?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La position enregistrée est conservée. Reconnectez ou redémarrez l'écran pour que la reprise soit à nouveau proposée.
+  The screen will lose its connection to the printer for a few seconds.: "L'écran perdra la connexion à l'imprimante pendant quelques secondes."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Le capteur de cette unité CFS ne peut pas être lu. Vérifiez son raccordement, sinon l'unité nécessite une intervention
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The time, date, and system uptime: Heure, date et temps de fonctionnement
