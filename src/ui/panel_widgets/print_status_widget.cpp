@@ -500,6 +500,7 @@ void PrintStatusWidget::detach() {
     // Clear widget references
     print_card_thumb_ = nullptr;
     print_card_active_thumb_ = nullptr;
+    detailed_thumb_ = nullptr;
     print_card_layout_ = nullptr;
     print_card_thumb_wrap_ = nullptr;
     print_card_info_ = nullptr;
@@ -717,6 +718,7 @@ void PrintStatusWidget::update_view_subject() {
 
 void PrintStatusWidget::bind_active_branch() {
     print_card_active_thumb_ = nullptr;
+    detailed_thumb_ = nullptr;
     print_card_layout_ = nullptr;
     print_card_thumb_wrap_ = nullptr;
     print_card_info_ = nullptr;
@@ -729,6 +731,7 @@ void PrintStatusWidget::bind_active_branch() {
     }
     // Present only while the active branch is built (print_status_view 3 or 4).
     print_card_active_thumb_ = lv_obj_find_by_name(widget_obj_, "print_card_active_thumb");
+    detailed_thumb_ = lv_obj_find_by_name(widget_obj_, "detailed_thumb");
     print_card_layout_ = lv_obj_find_by_name(widget_obj_, "print_card_layout");
     print_card_thumb_wrap_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb_wrap");
     print_card_info_ = lv_obj_find_by_name(widget_obj_, "print_card_info");
@@ -922,12 +925,16 @@ void PrintStatusWidget::apply_esp_psram_thumbnail() {
         unpoint_thumbs_from(previous->dsc());
     }
     lv_image_set_src(print_card_active_thumb_, esp_thumbnail_->dsc());
+    // The detailed layout binds the path, which here is always the placeholder.
+    if (detailed_thumb_) {
+        lv_image_set_src(detailed_thumb_, esp_thumbnail_->dsc());
+    }
     spdlog::info("[PrintStatusWidget] Active print PSRAM thumbnail applied");
 }
 
 void PrintStatusWidget::unpoint_thumbs_from(const void* dsc) {
-    lv_obj_t* thumbs[] = {print_card_active_thumb_, print_card_thumb_, print_card_thumb_compact_,
-                          idle_hero_thumb()};
+    lv_obj_t* thumbs[] = {print_card_active_thumb_, detailed_thumb_, print_card_thumb_,
+                          print_card_thumb_compact_, idle_hero_thumb()};
     for (auto* img : thumbs) {
         if (img && lv_image_get_src(img) == dsc) {
             lv_image_set_src(img, helix::PrinterPrintState::no_thumbnail_placeholder());

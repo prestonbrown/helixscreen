@@ -188,3 +188,34 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(after_detach != kThumbA);
     CHECK(after_detach != kThumbB);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "print_status shows no picture for a print without a thumbnail (#2057)",
+                 "[print_status][panel_widget][thumbnail]") {
+    PrintStatusWidget widget;
+    widget.set_config({{"layout_style", "library"}});
+    lv_obj_t* comp = make_print_status(test_screen());
+    REQUIRE(comp != nullptr);
+    widget.attach(comp, test_screen());
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    process_lvgl(10);
+
+    const auto hidden = [comp](const char* name) {
+        lv_obj_t* img = lv_obj_find_by_name(comp, name);
+        REQUIRE(img != nullptr);
+        return lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN);
+    };
+    auto& ps = get_printer_state().print_state();
+    ps.set_print_thumbnail("plain.gcode", PrinterPrintState::no_thumbnail_placeholder());
+    process_lvgl(30);
+    CHECK(hidden("print_card_active_thumb"));
+    CHECK(hidden("detailed_thumb"));
+
+    ps.set_print_thumbnail("a.gcode", kThumbA);
+    process_lvgl(30);
+    CHECK_FALSE(hidden("print_card_active_thumb"));
+    CHECK_FALSE(hidden("detailed_thumb"));
+
+    widget.detach();
+    PrintStatusWidget::destroy_formatter_for_test();
+}

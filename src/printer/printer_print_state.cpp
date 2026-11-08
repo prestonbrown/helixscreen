@@ -89,6 +89,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // an empty initial value would be delivered to every consumer before the
     // first print. See no_thumbnail_placeholder() for why "" is unsafe there.
     INIT_SUBJECT_STRING(print_thumbnail_path, no_thumbnail_placeholder(), subjects_, register_xml);
+    INIT_SUBJECT_INT(print_has_thumbnail, 0, subjects_, register_xml);
 #if defined(HELIX_PLATFORM_ESP32)
     INIT_SUBJECT_INT(print_psram_thumb_gen, 0, subjects_, register_xml);
 #endif
@@ -1288,6 +1289,26 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     if (strcmp(lv_subject_get_string(&print_thumbnail_path_), path.c_str()) != 0) {
         lv_subject_copy_string(&print_thumbnail_path_, path.c_str());
     }
+    update_has_thumbnail();
+}
+
+bool PrinterPrintState::has_own_thumbnail(const char* path, bool psram_thumbnail) {
+    if (psram_thumbnail) {
+        return true;
+    }
+    return path != nullptr && path[0] != '\0' && strcmp(path, no_thumbnail_placeholder()) != 0;
+}
+
+void PrinterPrintState::update_has_thumbnail() {
+#if defined(HELIX_PLATFORM_ESP32)
+    const bool psram = print_psram_thumbnail_ != nullptr;
+#else
+    const bool psram = false;
+#endif
+    const int has = has_own_thumbnail(lv_subject_get_string(&print_thumbnail_path_), psram) ? 1 : 0;
+    if (lv_subject_get_int(&print_has_thumbnail_) != has) {
+        lv_subject_set_int(&print_has_thumbnail_, has);
+    }
 }
 
 #if defined(HELIX_PLATFORM_ESP32)
@@ -1299,6 +1320,7 @@ void PrinterPrintState::set_print_psram_thumbnail(
     spdlog::debug("[PrinterPrintState] PSRAM thumbnail {}",
                   print_psram_thumbnail_ ? "installed" : "cleared");
     lv_subject_set_int(&print_psram_thumb_gen_, lv_subject_get_int(&print_psram_thumb_gen_) + 1);
+    update_has_thumbnail();
 }
 #endif
 
