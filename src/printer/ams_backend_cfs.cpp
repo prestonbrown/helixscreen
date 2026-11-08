@@ -3830,8 +3830,8 @@ std::string AmsBackendCfs::chute_purge_gcode(int length_mm, int feedrate_mm_min)
 }
 
 std::string AmsBackendCfs::manual_purge_gcode(int length_mm, int feedrate_mm_min) const {
-    // The Fork's box.py owns its own positioning and publishes no
-    // has_extrude_pos; only the stock dialect has this envelope.
+    // The envelope is built from the stock dialect's BOX_* commands; the Fork
+    // is not known to register them.
     if (macro_variant_ == CfsMacroVariant::Fork) {
         return {};
     }
