@@ -28,13 +28,13 @@
  * name + speed horizontally (panel_widget_fan_stack.xml), so a resolved name
  * ("Hotend" instead of "H") only ever competes for room along the width
  * axis; extra height just centers the same three rows, it never widens one.
- * Height used to also drive "bigger" (an OR), but Large/XLarge's single-row
- * cell height alone already clears h_tall() (141px, 169px) — wider than
- * h_tall()'s own calibration point (Micro's genuinely-2-row 131px) — so a
- * plain 1x1 widget on those two tiers read as "bigger" and squeezed resolved
- * names into a ~107-134px row. Three cases cover this: sub-threshold on both
+ * Height must not also drive "bigger" (an OR): Large/XLarge's single-row
+ * cell height alone already clears h_tall() (141px, 169px), wider than
+ * h_tall()'s own calibration point (Micro's genuinely-2-row 131px), so a
+ * plain 1x1 widget on those two tiers would read as "bigger" and squeeze
+ * resolved names into a ~107-134px row. Three cases cover this: sub-threshold on both
  * axes (compact), width alone (bigger), and height alone at a Large/XLarge-
- * shaped extent, which must stay compact now that height no longer counts.
+ * shaped extent, which must stay compact because height does not count.
  *
  * Row geometry (`fan_stack_{part,hotend,aux}_row` width/flex alignment,
  * `fan_stack_widget.cpp`) is no longer branch-dependent: both tiers run the

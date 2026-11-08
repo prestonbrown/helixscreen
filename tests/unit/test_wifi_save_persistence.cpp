@@ -128,9 +128,7 @@ TEST_CASE("wpa_config_has_network matches whole SSID tokens", "[network][wpa][pe
 
 // wpa_string_is_valid() is the injection barrier between untrusted SSID/PSK
 // input and wpa_supplicant's quoted `SET_NETWORK <id> ssid "<value>"` command
-// protocol. It and validate_wpa_string() used to be byte-identical, separately
-// maintained rule sets with static (file-only) linkage — never reachable from
-// a test. validate_wpa_string() is now a thin wrapper over this predicate, so
+// protocol. validate_wpa_string() is a thin wrapper over this predicate, so
 // pinning the predicate here covers both.
 TEST_CASE("wpa_string_is_valid rejects command-injection characters",
           "[network][wpa][validation]") {

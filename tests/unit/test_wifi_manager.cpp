@@ -914,12 +914,12 @@ TEST_CASE_METHOD(WiFiManagerTestFixture,
 #endif
 }
 
-// helixscreen: set_enabled(false) used to call backend_->stop(), which tore
-// down the control connection to wpa_supplicant entirely — the radio stayed
-// associated and routed (UI reported "off" while the printer was still on
-// WiFi), and every later STATUS logged "send_command called but not
-// connected to wpa_supplicant" because there was nothing left to query.
-// set_enabled must now drive the radio directly and leave the backend
+// helixscreen: set_enabled(false) must not call backend_->stop(), which tears
+// down the control connection to wpa_supplicant entirely: the radio stays
+// associated and routed (UI reports "off" while the printer is still on
+// WiFi), and every later STATUS logs "send_command called but not
+// connected to wpa_supplicant" because there is nothing left to query.
+// set_enabled must drive the radio directly and leave the backend
 // running so the connection survives a toggle.
 // init_self_reference() exists so async callbacks can check whether the
 // manager is still alive - ScanCallbackData and ConnectCallbackData both hold

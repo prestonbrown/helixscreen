@@ -462,10 +462,10 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
 
 TEST_CASE("build_completion_stats renders layers through the canonical formatter",
           "[print_completion][format]") {
-    // The completion modal used to hand-roll snprintf("%d %s", n, lv_tr("layers")),
-    // which renders "0 layers" where the shared helper returns UNAVAILABLE and
-    // "1 layers" where it returns the singular. It also used a second, separate
-    // translation key for the same word. Asserting equality with the helper
+    // A hand-rolled snprintf("%d %s", n, lv_tr("layers")) renders "0 layers"
+    // where the shared helper returns UNAVAILABLE and "1 layers" where it
+    // returns the singular, and needs a second translation key for the same
+    // word. Asserting equality with the helper
     // states the contract directly and survives translation.
     SECTION("zero layers matches the helper's unavailable form") {
         auto stats = helix::build_completion_stats(60, 0, 0, 0);

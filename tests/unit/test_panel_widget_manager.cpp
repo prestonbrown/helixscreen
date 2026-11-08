@@ -527,10 +527,10 @@ struct ThrowingConfigWidget : helix::PanelWidget {
 
 } // namespace
 
-// Regression: a widget whose factory/set_config throws during the populate_widgets
-// COLLECTION loop used to let the exception escape the Home Panel dashboard
+// A widget whose factory/set_config throws during the populate_widgets
+// COLLECTION loop must not let the exception escape the Home Panel dashboard
 // rebuild -> std::terminate -> SIGABRT, taking every OTHER widget on the page down
-// with it. The collection loop now guards each iteration: a throwing widget is
+// with it. The collection loop guards each iteration: a throwing widget is
 // logged and skipped, and well-formed siblings on the same page still build.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager skips a widget whose config throws and keeps the rest",
