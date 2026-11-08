@@ -110,11 +110,14 @@ class MoonrakerJobAPI : public helix::IJobAPI {
      * @param modifications List of modification identifiers (e.g., "bed_leveling_disabled")
      * @param on_success Callback with print result
      * @param on_error Error callback
+     * @param extra_params Sent beside the copy (the tool map), and with the
+     *        fallback printer.print.start when the plugin refuses
      */
     void start_modified_print(const std::string& original_filename,
                               const std::string& temp_file_path,
                               const std::vector<std::string>& modifications,
-                              ModifiedPrintCallback on_success, ErrorCallback on_error) override;
+                              ModifiedPrintCallback on_success, ErrorCallback on_error,
+                              const helix::PrintStartParams& extra_params = {}) override;
 
     /**
      * @brief Have the helix_print plugin apply @p edits to the original and start the result
@@ -131,7 +134,8 @@ class MoonrakerJobAPI : public helix::IJobAPI {
     void start_edited_print(const std::string& original_filename, const std::string& temp_file_path,
                             const json& edits, const std::vector<std::string>& modifications,
                             uint64_t file_size, ModifiedPrintCallback on_success,
-                            ErrorCallback on_error) override;
+                            ErrorCallback on_error,
+                            const helix::PrintStartParams& extra_params = {}) override;
 
     /**
      * @brief Check if helix_print plugin is available

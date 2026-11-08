@@ -886,6 +886,9 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                            {"registered_directories", json::array({"gcodes", "config", "logs"})},
                            {"warnings", json::array()},
                            {"websocket_count", 1}}}};
+        for (const auto& [key, value] : self->mock_server_info_extra().items()) {
+            response["result"][key] = value;
+        }
 
         if (success_cb) {
             success_cb(response);

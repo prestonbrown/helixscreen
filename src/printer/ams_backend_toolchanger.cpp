@@ -71,7 +71,10 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     }
     set_material_source(addon::resolve_material_source(discovery));
     tinfo_macro_present_ = discovery.has_macro("T_INFO");
-    print_start_takes_tool_slots_ = helix::print_start::takes_tool_slots(discovery);
+    // Only the built-in AFC is known to read the map as heads on a Creator 5;
+    // with the flag alone (AFC off) the job rewrite stays until a hardware check.
+    print_start_takes_tool_slots_ =
+        discovery.has_zmod_afc() && helix::print_start::takes_tool_slots(discovery);
 }
 
 helix::PrintStartParams
