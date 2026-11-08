@@ -2552,6 +2552,7 @@
   <translation tag="Nozzle:" ru="Сопло:"/>
   <translation tag="Nozzles still heating: {}" ru="Сопла всё ещё нагреваются: {}"/>
   <translation tag="Number Pad Layout" ru="Раскладка цифровой клавиатуры"/>
+  <translation tag="Number slots from 0" ru="Нумеровать слоты с 0"/>
   <translation tag="OD" ru="OD"/>
   <translation tag="OFF" ru="ВЫКЛ"/>
   <translation tag="OK" ru="OK"/>
@@ -3378,7 +3379,7 @@
   <translation tag="Select Spool" ru="Выбрать катушку"/>
   <translation tag="Select a filament slot to load" ru="Выберите слот филамента для загрузки"/>
   <translation tag="Select a valid number" ru="Выберите корректный номер"/>
-  <translation tag="Select a valid number (1-{})" ru="Выберите корректный номер (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" ru="Выберите корректный номер ({}-{})"/>
   <translation tag="Select a valid tool" ru="Выберите корректный инструмент"/>
   <translation tag="Select a valid {}" ru="Выберите допустимое значение для {}"/>
   <translation tag="Select a {}" ru="Выберите {}"/>
@@ -3470,6 +3471,7 @@
   <translation tag="Show light controls for a light connected to this printer" ru="Показывать управление подсветкой, подключённой к этому принтеру"/>
   <translation tag="Show printer icon in navigation bar" ru="Показывать значок принтера в панели навигации"/>
   <translation tag="Show sliced colors" ru="Показать цвета из слайсера"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" ru="Считать слоты, каналы, шлюзы и инструменты с 0, как T0 в G-коде"/>
   <translation tag="Show temp for" ru="Показывать темп. для"/>
   <translation tag="Show text labels on icon-only home screen widgets" ru="Показывать текстовые подписи на виджетах главного экрана"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ru="Показывать этот экран как веб-камеру в Mainsail и Fluidd"/>

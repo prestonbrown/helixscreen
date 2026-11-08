@@ -2507,6 +2507,7 @@
   <translation tag="Nozzle:" ja="ノズル:"/>
   <translation tag="Nozzles still heating: {}" ja="加熱中のノズル: {}"/>
   <translation tag="Number Pad Layout" ja="テンキーの配列"/>
+  <translation tag="Number slots from 0" ja="スロット番号を0から始める"/>
   <translation tag="OD" ja="OD"/>
   <translation tag="OFF" ja="OFF"/>
   <translation tag="OK" ja="OK"/>
@@ -3324,7 +3325,7 @@
   <translation tag="Select Spool" ja="スプールを選択"/>
   <translation tag="Select a filament slot to load" ja="装填するフィラメントスロットを選択"/>
   <translation tag="Select a valid number" ja="有効な番号を選択してください"/>
-  <translation tag="Select a valid number (1-{})" ja="有効な番号を選択してください（1-{}）"/>
+  <translation tag="Select a valid number ({}-{})" ja="有効な番号を選択してください（{}-{}）"/>
   <translation tag="Select a valid tool" ja="有効なツールを選択してください"/>
   <translation tag="Select a valid {}" ja="有効な{}を選択してください"/>
   <translation tag="Select a {}" ja="{}を選択してください"/>
@@ -3416,6 +3417,7 @@
   <translation tag="Show light controls for a light connected to this printer" ja="このプリンターに接続したライトの操作を表示"/>
   <translation tag="Show printer icon in navigation bar" ja="ナビゲーションバーにプリンターアイコンを表示"/>
   <translation tag="Show sliced colors" ja="スライスした色を表示"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" ja="スロット、レーン、ゲート、ツールを0から数えます（G-codeのT0と一致）"/>
   <translation tag="Show temp for" ja="温度表示対象"/>
   <translation tag="Show text labels on icon-only home screen widgets" ja="アイコンのみのホーム画面ウィジェットにテキストラベルを表示"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ja="この画面をMainsailとFluiddでウェブカメラとして表示"/>

@@ -149,7 +149,7 @@ constexpr int kQidiMaxBoxes = 4;
 AmsUnit make_qidi_unit(int unit_index) {
     AmsUnit unit;
     unit.unit_index = unit_index;
-    unit.name = fmt::format("QIDI Box {}", helix::ui::lane_number(unit_index));
+    unit.name = fmt::format("QIDI Box {}", helix::ui::display_ordinal(unit_index));
     unit.display_name = unit.name;
     unit.slot_count = kQidiSlotsPerBox;
     unit.first_slot_global_index = unit_index * kQidiSlotsPerBox;

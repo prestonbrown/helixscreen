@@ -105,7 +105,7 @@ std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
     } else if (!unit.name.empty()) {
         raw = unit.name;
     } else {
-        return "Unit " + std::to_string(helix::ui::lane_number(unit_index));
+        return "Unit " + std::to_string(helix::ui::display_ordinal(unit_index));
     }
 
     // Replace underscores with spaces for readability

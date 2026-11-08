@@ -67,7 +67,7 @@ int chip_unit_number(const AvailableSlot& slot, const std::vector<AvailableSlot>
     }
     const auto it = std::find(units.begin(), units.end(),
                               std::pair<int, int>{slot.backend_index, slot.unit_index});
-    return helix::ui::lane_number(static_cast<int>(it - units.begin()));
+    return helix::ui::display_ordinal(static_cast<int>(it - units.begin()));
 }
 
 std::string chip_slot_label(const AvailableSlot& slot,

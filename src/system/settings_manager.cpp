@@ -11,6 +11,7 @@
 #include "audio_settings_manager.h"
 #include "belt_tension_types.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
@@ -180,6 +181,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // Off: positions count from 1. See helix::ui::lane_number().
+    {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
+     "number_lanes_from_zero"},
     {"console_filter_temps", "/console/filter_temps", Scope::Global, true, 1, 0, 1,
      "console_filter_temps"},
     {"console_filter_firmware_noise", "/console/filter_firmware_noise", Scope::Global, true, 1, 0,
@@ -236,6 +240,7 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -315,11 +320,18 @@ void SettingsManager::load_jog_distances() {
     }
 }
 
+void SettingsManager::set_number_lanes_from_zero(bool enabled) {
+    // The labels are read while the subject notifies, so the base changes first.
+    helix::ui::set_lane_numbering_from_zero(enabled);
+    settings_.set(Key::NumberLanesFromZero, enabled);
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
     load_jog_distances();
 }
 

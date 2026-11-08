@@ -2752,6 +2752,7 @@ translations:
   'Nozzle:': 'Buse :'
   'Nozzles still heating: {}': 'Buses encore en chauffe : {}'
   Number Pad Layout: Disposition du pavé numérique
+  Number slots from 0: Numéroter les slots à partir de 0
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -3641,7 +3642,7 @@ translations:
   Select Spool: Sélectionner une bobine
   Select a filament slot to load: Sélectionnez un emplacement de filament à charger
   Select a valid number: Sélectionnez un numéro valide
-  Select a valid number (1-{}): Sélectionnez un numéro valide (1-{})
+  Select a valid number ({}-{}): Sélectionnez un numéro valide ({}-{})
   Select a valid tool: Sélectionnez un outil valide
   Select a valid {}: 'Sélectionnez une valeur valide pour {}'
   Select a {}: 'Sélectionnez {}'
@@ -3748,6 +3749,7 @@ translations:
   Show printer icon in navigation bar: Afficher l'icône de l'imprimante dans la barre
     de navigation
   Show sliced colors: Afficher les couleurs tranchées
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Compter les slots, voies, gates et outils à partir de 0, comme T0 dans le G-code
   Show temp for: Afficher la température de
   Show text labels on icon-only home screen widgets: Afficher les libellés sur les
     widgets de l'écran d'accueil
