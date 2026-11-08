@@ -880,9 +880,7 @@ size_t char_under(const std::string& text, float px, float py) {
         const float gx =
             (px - lay.x0 - static_cast<float>(i) * lay.advance_px) / lay.unit_px - half;
         const float gy = (py - lay.y0) / lay.unit_px - half;
-        const float d = text[i] == helix::ui::kFirefliesCheckMark
-                            ? helix::ui::fireflies_text_distance(text[i], gx, gy)
-                            : helix::ui::stroke_glyph_distance(text[i], gx, gy);
+        const float d = helix::ui::stroke_glyph_distance(text[i], gx, gy);
         if (std::max(0.0f, d - half) * lay.unit_px <= 3.0f) {
             return i;
         }
@@ -982,21 +980,15 @@ TEST_CASE("a finished print holds DONE", "[screensaver][fireflies_sim]") {
 }
 
 TEST_CASE("a finished print outside English holds a check mark", "[screensaver][fireflies_sim]") {
-    const std::string check = helix::ui::fireflies_done_text(false);
-    REQUIRE(check.size() == 1);
-    CHECK(check[0] == helix::ui::kFirefliesCheckMark);
-    CHECK(std::string(helix::ui::fireflies_done_text(true)) == "DONE");
-    // The two strokes meet at the bottom of the tick.
-    CHECK(helix::ui::fireflies_text_distance(check[0], 0.4f, 1.2f) < 1e-4f);
-    CHECK(helix::ui::fireflies_text_distance(check[0], 0.9f, 0.3f) < 1e-4f);
-    CHECK(helix::ui::fireflies_text_distance(check[0], 0.2f, 0.2f) > 0.3f);
-
-    Swarm s = printing_swarm(64, print_reading_for(ClockMode::COUNTDOWN, 50));
-    s.sim.set_spell_english(false);
+    const std::string check(1, helix::ui::kGlyphCheck);
+    ClockReading counting = print_reading_for(ClockMode::COUNTDOWN, 50);
+    counting.spell_states = false;
+    Swarm s = printing_swarm(64, counting);
     s.run_for(5000);
     // The percent reads the same in every language.
     CHECK(std::string(s.sim.gather_text()) == "50%");
     s.reading = print_reading_for(ClockMode::DONE, 100);
+    s.reading.spell_states = false;
     s.run_for(5000);
     REQUIRE(s.sim.gathering());
     CHECK(std::string(s.sim.gather_text()) == check);

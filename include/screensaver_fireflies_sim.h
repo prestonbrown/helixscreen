@@ -128,16 +128,6 @@ inline constexpr uint32_t kFirefliesGatherMs = 6000;
 inline constexpr float kFirefliesTextStroke = 0.15f;
 /// Most characters the gathered text holds: "100%" and "DONE".
 inline constexpr size_t kFirefliesTextMaxChars = 4;
-/// Stands in the done text for a check mark, the glyph a finished print holds outside English.
-inline constexpr char kFirefliesCheckMark = '\x01';
-
-/// What a finished print holds: "DONE" in English, a check mark (kFirefliesCheckMark) otherwise.
-const char* fireflies_done_text(bool english);
-
-/// Distance, in glyph units, from (px, py) to `c`'s centre line in the digits' box: a stroke
-/// glyph's (stroke_glyph_distance), or the check mark's two strokes for kFirefliesCheckMark.
-float fireflies_text_distance(char c, float px, float py);
-
 /// Where a gathered text of `chars` characters sits on a `w` x `h` frame: glyph boxes `unit_px`
 /// per glyph unit, the first box's top left at (x0, y0), each next box `advance_px` to the right.
 /// The text spans 70% of the width, or less where 60% of the height bounds it, centred.
@@ -192,11 +182,6 @@ class FirefliesSim {
     void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng, const ClockReading& print,
               std::vector<DirtyRect>& dirty);
 
-    /// Whether a finished print spells "DONE" (true, the default) or holds a check mark; read
-    /// when the done text is gathered.
-    void set_spell_english(bool english) {
-        spell_english_ = english;
-    }
     /// True while the flies steer for their places in the gathered text.
     bool gathering() const {
         return gathering_;
@@ -329,7 +314,8 @@ class FirefliesSim {
     int32_t print_pct_ = 0;
     /// Sim time the print was first read running; the gathers count from it.
     uint64_t print_start_ms_ = 0;
-    bool spell_english_ = true;
+    /// The print's spell_states: a finished print gathers "DONE", or kGlyphCheck where false.
+    bool spell_states_ = true;
     bool gathering_ = false;
     bool gather_done_ = false; ///< the gathered text is the done text
     char gather_text_[kFirefliesTextMaxChars + 1]{};

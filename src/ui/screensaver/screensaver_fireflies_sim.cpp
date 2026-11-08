@@ -110,29 +110,7 @@ bool print_running(ClockMode m) {
     return m == ClockMode::PROGRESS || m == ClockMode::COUNTDOWN || m == ClockMode::PAUSED;
 }
 
-float segment_distance(float px, float py, float ax, float ay, float bx, float by) {
-    const float dx = bx - ax;
-    const float dy = by - ay;
-    const float t = std::clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy), 0.0f, 1.0f);
-    const float ex = px - (ax + dx * t);
-    const float ey = py - (ay + dy * t);
-    return std::sqrt(ex * ex + ey * ey);
-}
-
 } // namespace
-
-const char* fireflies_done_text(bool english) {
-    static constexpr char kCheck[] = {kFirefliesCheckMark, '\0'};
-    return english ? "DONE" : kCheck;
-}
-
-float fireflies_text_distance(char c, float px, float py) {
-    if (c == kFirefliesCheckMark) {
-        return std::min(segment_distance(px, py, 0.15f, 0.85f, 0.4f, 1.2f),
-                        segment_distance(px, py, 0.4f, 1.2f, 0.9f, 0.3f));
-    }
-    return stroke_glyph_distance(c, px, py);
-}
 
 FirefliesTextLayout fireflies_text_layout(int32_t w, int32_t h, size_t chars) {
     const auto n = static_cast<float>(std::max<size_t>(chars, 1));
@@ -260,6 +238,7 @@ void FirefliesSim::read_print(const ClockReading& print, std::minstd_rand& rng, 
     const ClockMode was = print_mode_;
     print_mode_ = print.mode;
     print_pct_ = std::clamp(print.progress_pct, 0, 100);
+    spell_states_ = print.spell_states;
     if (print_running(print_mode_) && (at_init || !print_running(was))) {
         print_start_ms_ = elapsed_ms_;
     }
@@ -292,7 +271,8 @@ void FirefliesSim::update_gather() {
     }
     char text[sizeof(gather_text_)];
     if (done) {
-        std::snprintf(text, sizeof(text), "%s", fireflies_done_text(spell_english_));
+        static constexpr char kCheck[] = {kGlyphCheck, '\0'};
+        std::snprintf(text, sizeof(text), "%s", spell_states_ ? "DONE" : kCheck);
     } else {
         std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(print_pct_));
     }
@@ -313,7 +293,7 @@ void FirefliesSim::place_targets(const char* text) {
             const float py = (static_cast<float>(gy) + 0.5f) / kTextGridUnit - half;
             for (int32_t gx = 0; gx < kTextGridW; gx++) {
                 const float px = (static_cast<float>(gx) + 0.5f) / kTextGridUnit - half;
-                if (fireflies_text_distance(text[c], px, py) <= half) {
+                if (stroke_glyph_distance(text[c], px, py) <= half) {
                     text_cells_[covered++] =
                         static_cast<uint16_t>((c * kTextGridH + gy) * kTextGridW + gx);
                 }
