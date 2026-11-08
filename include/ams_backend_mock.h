@@ -239,6 +239,12 @@ class AmsBackendMock : public AmsBackend,
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
     // Dryer
+    /// Rename a unit, so screens that key on hardware names see a different unit.
+    void rename_unit(int unit_index, const std::string& name);
+
+    /// Report as an Anycubic ACE, so screens that draw that unit can be exercised.
+    void set_ace_identity();
+
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     /// Runs the same simulated cycle as start_drying(); the target is logged, not simulated.

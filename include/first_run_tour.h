@@ -41,6 +41,9 @@ class FirstRunTour {
     void set_printer_ready(bool ready) {
         printer_ready_ = ready;
     }
+    bool is_printer_ready() const {
+        return printer_ready_;
+    }
 
     /// Replay entry point — bypasses gate, starts immediately.
     void start();

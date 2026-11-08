@@ -30,6 +30,50 @@ float box_rise(float depth) {
     return std::round(kDepthRise * depth);
 }
 
+float cap_width(const UnitShell& shell, float spool_size, float pitch) {
+    return std::min(spool_size * kSpoolWidth / 2.0f +
+                        shell.cap_clearance_px * spool_size / kShellReferenceSpool,
+                    pitch / 2.0f);
+}
+
+PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i) {
+    const ProfilePoint& p = shell.cheek[i];
+    return proj(b, x, b.ft - p.height_px * spool_size / kShellReferenceSpool,
+                p.depth_frac * b.depth);
+}
+
+PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                   PointF upper) {
+    const float z = std::clamp((upper.x - x) / kDepthSkew, 0.0f, b.depth);
+    const float frac = b.depth > 0 ? z / b.depth : 0.0f;
+    float height = shell.cheek[shell.cheek_n - 1].height_px;
+    for (int i = 0; i + 1 < shell.cheek_n; ++i) {
+        const ProfilePoint& p0 = shell.cheek[i];
+        const ProfilePoint& p1 = shell.cheek[i + 1];
+        if (frac <= p1.depth_frac) {
+            const float t = (frac - p0.depth_frac) / (p1.depth_frac - p0.depth_frac);
+            height = p0.height_px + (p1.height_px - p0.height_px) * t;
+            break;
+        }
+    }
+    return proj(b, x, b.ft - height * spool_size / kShellReferenceSpool, z);
+}
+
+void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                        PointF* out, int n) {
+    const float scale = spool_size / kShellReferenceSpool;
+    for (int i = 0; i < n; ++i) {
+        const float at = n > 1 ? (float)i * (float)(shell.dome_n - 1) / (float)(n - 1) : 0.0f;
+        const int lo = std::min((int)at, shell.dome_n - 2);
+        const float t = at - (float)lo;
+        const ProfilePoint& p0 = shell.dome[lo];
+        const ProfilePoint& p1 = shell.dome[lo + 1];
+        const float z = (p0.depth_frac + (p1.depth_frac - p0.depth_frac) * t) * b.depth;
+        const float h = (p0.height_px + (p1.height_px - p0.height_px) * t) * scale;
+        out[i] = proj(b, x, b.ft - h, z);
+    }
+}
+
 float spool_pitch(float spool_size) {
     // The spool canvas's own integer geometry: width between flanges plus a
     // flange ellipse each side.

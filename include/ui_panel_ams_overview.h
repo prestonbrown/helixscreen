@@ -218,6 +218,8 @@ class AmsOverviewPanel : public PanelBase {
     void create_unit_cards(const helix::AmsSystemInfo& info, helix::ui::LaneNoun noun);
     // The mini bars take no current_slot: the active-lane outline comes from the
     // per-slot active-loaded subject, not from comparing against current_slot.
+    void apply_card_art(UnitCard& card, const helix::AmsUnit& unit,
+                        const helix::AmsSystemInfo& info);
     void update_unit_card(UnitCard& card, const helix::AmsUnit& unit, helix::ui::LaneNoun noun);
     void create_mini_bars(UnitCard& card, const helix::AmsUnit& unit);
     void refresh_system_path(const helix::AmsSystemInfo& info, int current_slot);

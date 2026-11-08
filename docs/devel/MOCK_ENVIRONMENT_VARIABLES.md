@@ -723,6 +723,7 @@ Select the mock AMS topology/type.
 |-------|-------|-------------------|
 | *(unset)* | 1 | The persona's default AMS (see **Default**); Happy Hare, LINEAR, 4 slots where the persona has none |
 | `none` | - | No mock AMS at all |
+| `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
 | `afc` | 1 | AFC Box Turtle, HUB, 4 slots. Aliases: `box_turtle`, `boxturtle` |
 | `toolchanger` / `tc` | 1 | Tool Changer, PARALLEL topology. Alias: `tool_changer` |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
