@@ -57,8 +57,11 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::QIDI_BOX, "Box 1") == "qidi_box");
     CHECK(id(AmsType::AFC, "ViViD_1") == "btt_vivid");
     CHECK(id(AmsType::AFC, "KMS_1") == "kms");
-    // An OpenAMS hub may sit on several kinds of Bambu unit, so it draws none of them.
-    CHECK(unit_shell_for(one_unit(AmsType::OPENAMS, "oams1"), 0) == nullptr);
+    CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
+    AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
+    single.units[0].slot_count = 1;
+    REQUIRE(unit_shell_for(single, 0) != nullptr);
+    CHECK(std::string(unit_shell_for(single, 0)->id) == "ams_ht");
 }
 
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
