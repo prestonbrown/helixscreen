@@ -32,11 +32,12 @@ struct UnitArtLane {
 UnitArtLane unit_art_lane(const SlotInfo& slot);
 
 /// Whether the unit has art for exactly the bays it reports.
-bool unit_art_available(const AmsSystemInfo& info, int unit_index);
+bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
 
 void register_unit_art_widget();
 lv_obj_t* unit_art_create(lv_obj_t* parent, UnitArtTier tier);
-void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index);
+void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
+                       bool has_dryer = false);
 
 /// The tinted image of @p lane, or nullptr before the widget has art.
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane);

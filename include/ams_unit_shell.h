@@ -43,12 +43,14 @@ struct UnitShell {
     uint32_t panel;
     uint32_t rail;
     uint32_t accent;
+    uint32_t corner; ///< Corner block colour; 0 when the unit has none.
 };
 
 /// The generated shell named @p id, or nullptr.
 const UnitShell* unit_shell_by_id(const char* id);
 
-/// The shell for one unit, or nullptr to keep the generic tray.
-const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index);
+/// The shell for one unit, or nullptr to keep the generic tray. @p has_dryer joins the unit's
+/// own climate readings as evidence that an optionally enclosed unit has its enclosure.
+const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
 
 } // namespace helix::ui::tray

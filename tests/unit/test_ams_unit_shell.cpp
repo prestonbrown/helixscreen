@@ -37,6 +37,16 @@ TEST_CASE("unit shell: a Box Turtle is found by its unit's name", "[ams][unit-ar
     CHECK(unit_shell_for(one_unit(AmsType::AFC, "Night_Owl Owl_1"), 0) == nullptr);
 }
 
+TEST_CASE("unit shell: climate data means the enclosed Box Turtle", "[ams][unit-art]") {
+    AmsSystemInfo info = one_unit(AmsType::AFC, "Box_Turtle Turtle_1");
+    CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle");
+    CHECK(std::string(unit_shell_for(info, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
+    info.units[0].environment = EnvironmentData{};
+    CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle_enclosed");
+    // The ACE has one body whatever it reports.
+    CHECK(std::string(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 0, true)->id) == "ace_pro");
+}
+
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);

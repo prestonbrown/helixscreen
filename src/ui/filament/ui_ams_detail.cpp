@@ -297,6 +297,13 @@ void draw_shell_front(lv_layer_t* layer, lv_point_t o) {
         fill_box(layer, o, x - tab, b.ft - 3.0f * scale, x + tab, b.ft, shell.accent);
         fill_box(layer, o, x - 1, b.ft + rail * 0.35f, x + 1, b.ft + rail * 0.85f, 0xf7f7f2);
     }
+    if (shell.corner) {
+        const float block = 8.0f * scale;
+        const float back_x = b.fr + tray::kDepthSkew * b.depth;
+        fill_box(layer, o, back_x - block, b.ft - b.rise, back_x, b.fb - b.rise, shell.corner);
+        fill_box(layer, o, b.fl, b.ft - 1.0f, b.fl + block, b.fb, shell.corner);
+        fill_box(layer, o, b.fr - block, b.ft - 1.0f, b.fr, b.fb, shell.corner);
+    }
     if (shell.has_latch) {
         // Below the rail, so it never lands on a lane's tick.
         const float mid = (b.fl + b.fr) / 2.0f;
@@ -457,14 +464,14 @@ void clear_translate(lv_obj_t* obj) {
 
 // Tool changers have no housing around their spools.
 /// The shell for a view; the whole-backend view of a one-unit system counts as that unit.
-const tray::UnitShell* view_shell(int unit_index) {
+const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
     auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend)
         return nullptr;
     const helix::AmsSystemInfo info = backend->get_system_info();
     if (unit_index < 0 && info.units.size() == 1)
         unit_index = 0;
-    return tray::unit_shell_for(info, unit_index);
+    return tray::unit_shell_for(info, unit_index, has_dryer);
 }
 
 bool unit_has_physical_tray() {
@@ -850,11 +857,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         return;
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
-    const tray::UnitShell* shell = view_shell(unit_index);
     const tray::LidMode climate_lid = unit_lid_mode(unit_index);
-    // Climate readings mean a closed unit, which an open shell does not depict.
-    if (shell && shell->dome_n == 0 && climate_lid != tray::LidMode::None)
-        shell = nullptr;
+    const tray::UnitShell* shell = view_shell(unit_index, climate_lid != tray::LidMode::None);
     const tray::LidMode lid = !shell               ? climate_lid
                               : shell->dome_n == 0 ? tray::LidMode::None
                                                    : tray::LidMode::Unit;

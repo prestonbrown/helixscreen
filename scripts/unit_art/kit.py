@@ -101,6 +101,7 @@ class TrayShellDef:
     panel: int
     rail: int
     accent: int
+    corner: int = 0
 
 
 @dataclass

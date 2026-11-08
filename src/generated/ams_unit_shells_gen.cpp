@@ -16,9 +16,9 @@ constexpr ProfilePoint k_box_turtle_enclosed_cheek[] = {{0.0000f, 0.00f}, {1.000
 constexpr ProfilePoint k_box_turtle_enclosed_dome[] = {{0.0000f, 0.00f}, {0.0000f, 150.15f}, {1.0000f, 150.15f}, {1.0000f, 0.00f}};
 
 const UnitShell kShells[] = {
-    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 18, 4, 31.42f, 44.0f, 13.0f, 7.0f, true, true, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f},
-    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 43.9f, 8.0f, 9.0f, false, false, 0x8c6f2e, 0x1f5a3e, 0xb99a4a, 0xb7a06e},
-    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 4, 4, 0.00f, 43.9f, 8.0f, 9.0f, true, false, 0x8c6f2e, 0x1f5a3e, 0xb99a4a, 0xb7a06e},
+    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 18, 4, 31.42f, 44.0f, 13.0f, 7.0f, true, true, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f, 0x000000},
+    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 43.9f, 8.0f, 9.0f, false, false, 0x8c6f2e, 0x1f5a3e, 0xb99a4a, 0xb7a06e, 0x1f6a4a},
+    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 4, 4, 0.00f, 43.9f, 8.0f, 9.0f, true, false, 0x8c6f2e, 0x1f5a3e, 0xb99a4a, 0xb7a06e, 0x1f6a4a},
 };
 } // namespace
 

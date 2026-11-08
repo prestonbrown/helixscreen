@@ -130,6 +130,7 @@ def _shell(**over):
         panel=int(PANEL[1:], 16),
         rail=0xb99a4a,
         accent=int(HUB[1:], 16),
+        corner=int(CORNER[1:], 16),
     )
     base.update(over)
     return TrayShellDef(**base)

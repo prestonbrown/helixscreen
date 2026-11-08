@@ -110,8 +110,8 @@ UnitArtLane unit_art_lane(const SlotInfo& slot) {
     return {filled, slot.color_rgb};
 }
 
-bool unit_art_available(const AmsSystemInfo& info, int unit_index) {
-    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index);
+bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
+    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
     return shell && info.units[static_cast<size_t>(unit_index)].slot_count == shell->art_lanes;
 }
 
@@ -123,15 +123,15 @@ lv_obj_t* unit_art_create(lv_obj_t* parent, UnitArtTier tier) {
     return make_widget(parent, tier);
 }
 
-void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index) {
+void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index, bool has_dryer) {
     ArtData* data = art ? data_of(art) : nullptr;
     if (!data)
         return;
-    if (!unit_art_available(info, unit_index)) {
+    if (!unit_art_available(info, unit_index, has_dryer)) {
         lv_obj_set_hidden(art, true);
         return;
     }
-    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index);
+    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
     if (data->built_id != shell->id)
         build_layers(art, data, shell);
     lv_obj_set_hidden(art, false);
