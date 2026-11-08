@@ -340,7 +340,7 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
     IMoonrakerAPI* api = get_moonraker_api();
     send_heater_and_fan(p.heater, p.part_fan, a);
     if (!a.gcode.empty()) {
-        send_gcode(a.gcode, /*report=*/true);
+        send_gcode(a.gcode, a.command_id);
     }
     if (a.run_park && api) {
         spdlog::info("{} Parking", kLogTag);
@@ -391,25 +391,25 @@ void ColdPullRunner::send_heater_and_fan(const std::string& heater, const std::s
     if (a.fan_percent && !part_fan.empty()) {
         const std::string g = fan_gcode(part_fan, *a.fan_percent);
         spdlog::info("{} Part fan {} -> {}%", kLogTag, part_fan, *a.fan_percent);
-        send_gcode(g, /*report=*/false);
+        send_gcode(g, /*command_id=*/0);
     }
 }
 
-void ColdPullRunner::send_gcode(const std::string& gcode, bool report) {
+void ColdPullRunner::send_gcode(const std::string& gcode, uint32_t command_id) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (gcode.empty()) {
         return;
     }
     if (!api) {
-        if (report && flow_) {
-            apply(flow_->command_finished(false, now()));
+        if (command_id != 0 && flow_) {
+            apply(flow_->command_finished(command_id, false, now()));
             after_event();
         }
         return;
     }
-    auto finished = [this, report, gen = flow_gen_](bool ok) {
-        if (report && flow_ && gen == flow_gen_) {
-            apply(flow_->command_finished(ok, now()));
+    auto finished = [this, command_id, gen = flow_gen_](bool ok) {
+        if (command_id != 0 && flow_ && gen == flow_gen_) {
+            apply(flow_->command_finished(command_id, ok, now()));
             after_event();
         }
     };

@@ -40,6 +40,23 @@ bool ColdPullFlow::ended() const {
            stage_ == ColdPullStage::Abandoned;
 }
 
+void ColdPullFlow::track_command(ColdPullActions& a, InFlight kind) {
+    in_flight_ = kind;
+    in_flight_command_ = ++last_command_;
+    a.command_id = in_flight_command_;
+}
+
+void ColdPullFlow::clear_in_flight() {
+    in_flight_ = InFlight::None;
+    in_flight_command_ = 0;
+}
+
+GuidedLoadFlow ColdPullFlow::new_feed() const {
+    // Filament already in the nozzle has nothing to push: only the purge is left.
+    return GuidedLoadFlow(feed_steps(),
+                          /*waits_for_push=*/feed_mode() != ColdPullFeedMode::Loaded);
+}
+
 bool ColdPullFlow::live() const {
     return stage_ != ColdPullStage::Setup && !ended();
 }
@@ -101,7 +118,7 @@ ColdPullActions ColdPullFlow::end(ColdPullStage stage, ColdPullEndReason reason,
     sent_target_c_.reset();
     prev_target_c_.reset();
     fan_changed_ = false;
-    in_flight_ = InFlight::None;
+    clear_in_flight();
     return a;
 }
 
@@ -188,7 +205,7 @@ ColdPullActions ColdPullFlow::extrude(TimePoint now) {
     ColdPullActions a;
     a.gcode = feed_->extrude();
     if (!a.gcode.empty()) {
-        in_flight_ = InFlight::Feed;
+        track_command(a, InFlight::Feed);
     }
     return a;
 }
@@ -200,7 +217,7 @@ ColdPullActions ColdPullFlow::filament_detected(TimePoint now) {
     ColdPullActions a;
     a.gcode = feed_->filament_detected();
     if (!a.gcode.empty()) {
-        in_flight_ = InFlight::Feed;
+        track_command(a, InFlight::Feed);
         last_tap_ = now;
     }
     return a;
@@ -213,14 +230,17 @@ ColdPullActions ColdPullFlow::fed(TimePoint now) {
         return {};
     }
     feed_.reset();
-    in_flight_ = InFlight::None;
+    clear_in_flight();
     return enter_cooling(now);
 }
 
-ColdPullActions ColdPullFlow::command_finished(bool ok, TimePoint now) {
+ColdPullActions ColdPullFlow::command_finished(uint32_t command_id, bool ok, TimePoint now) {
+    if (command_id == 0 || command_id != in_flight_command_) {
+        return {};
+    }
     const InFlight was = in_flight_;
+    clear_in_flight();
     if (was == InFlight::Hold) {
-        in_flight_ = InFlight::None;
         // A refused hold extrusion is not worth stopping the pull for; it stops holding.
         if (!ok) {
             hold_stopped_ = true;
@@ -230,11 +250,10 @@ ColdPullActions ColdPullFlow::command_finished(bool ok, TimePoint now) {
     if (was != InFlight::Feed || !feed_) {
         return {};
     }
-    in_flight_ = InFlight::None;
     last_tap_ = now;
     // A refused extrusion is what a clog looks like; the pull does not need it.
     if (!ok) {
-        feed_.emplace(feed_steps(), /*waits_for_push=*/false);
+        feed_ = new_feed();
         return {};
     }
     (void)feed_->command_finished(true);
@@ -334,9 +353,7 @@ ColdPullActions ColdPullFlow::temperature(int current_c, int target_c, TimePoint
             stage_ = ColdPullStage::Feed;
             stage_started_ = now;
             last_tap_ = now;
-            // Filament already in the nozzle has nothing to push: only the purge is left.
-            feed_.emplace(feed_steps(),
-                          /*waits_for_push=*/feed_mode() != ColdPullFeedMode::Loaded);
+            feed_ = new_feed();
         }
         return {};
     }
@@ -390,9 +407,9 @@ ColdPullActions ColdPullFlow::tick(TimePoint now) {
             return {};
         }
         next_hold_at_ = now + kHoldPressureInterval;
-        in_flight_ = InFlight::Hold;
         ColdPullActions a;
         a.gcode = ui::extrude_gcode(kHoldPressureMm, kHoldPressureSpeedMmMin);
+        track_command(a, InFlight::Hold);
         return a;
     }
     case ColdPullStage::Pull:

@@ -123,7 +123,8 @@ class ColdPullRunner {
     void on_lifecycle();
     void on_connection();
     void on_sensor(int value);
-    void send_gcode(const std::string& gcode, bool report);
+    /// @param command_id The flow's name for this send; 0 expects no reply.
+    void send_gcode(const std::string& gcode, uint32_t command_id);
     void settle_owed();
     /// The owed cleanup, once the printer has answered with @p target_c, its heater's
     /// live target (nullopt when it did not say).
