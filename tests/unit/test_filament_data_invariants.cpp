@@ -206,10 +206,10 @@ TEST_CASE("MATERIALS - every compat group is served by a drying preset or is who
 
 TEST_CASE("MATERIALS - a group's drying preset never under-dries any of its members",
           "[filament][database][invariant][drying]") {
-    // get_drying_presets_by_group() emits ONE preset per compat group. It used to
-    // take the FIRST hygroscopic row's values, which silently under-dried 8
-    // materials (PET/PET-CF/PET-GF wanted 65 °C but got PETG's 55; PA66/PA6-CF/
-    // PPA/PPA-CF/PPA-GF wanted 80 °C but got PA's 70). It now takes the group MAX.
+    // get_drying_presets_by_group() emits ONE preset per compat group, taking the
+    // group MAX. The FIRST hygroscopic row's values would silently under-dry 8
+    // materials (PET/PET-CF/PET-GF want 65 °C, not PETG's 55; PA66/PA6-CF/
+    // PPA/PPA-CF/PPA-GF want 80 °C, not PA's 70).
     //
     // Under-drying is the harm; over-drying inside a compat group is not, because
     // group members are chemically interchangeable by construction. So this

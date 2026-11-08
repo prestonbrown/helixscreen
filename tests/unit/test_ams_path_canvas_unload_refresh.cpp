@@ -65,8 +65,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     // 2. Build the real AmsPanel exactly as production does:
     //    register widgets/XML → create ams_panel XML → init_subjects → setup.
     // ------------------------------------------------------------------
-    // The production registration itself. A copy of its list used to live here
-    // and had drifted from it — see test_ams_error_modal_autodismiss.cpp.
+    // The production registration itself: a copy of its list here would drift
+    // from it (see test_ams_error_modal_autodismiss.cpp).
     ensure_ams_widgets_registered();
 
     AmsPanel panel(state(), &api());
