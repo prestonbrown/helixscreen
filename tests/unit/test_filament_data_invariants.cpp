@@ -287,15 +287,12 @@ TEST_CASE("drying data has exactly ONE source, and every consumer derives from i
           "[filament][database][invariant][drying]") {
     // THE anti-regression gate for this whole file.
     //
-    // There are THREE places a drying opinion can live:
-    //   (a) `types` dry_temp / dry_time                      <- the real one
-    //   (b) get_drying_presets_by_group()                  <- first-member, under-dried 8
-    //   (c) get_comfort_range()'s own hardcoded 10-row list <- contradicted (a) outright:
-    //                                                          PLA 55 vs 45, PETG 65 vs 55,
-    //                                                          ABS 80 vs 60
-    // (b) and (c) are both derived from (a). This test fails if anyone
-    // reintroduces an independent opinion in either place, because the moment a
-    // hardcoded number reappears it stops matching the derivation below.
+    // Three places report a drying temperature and time, and only one owns it:
+    //   (a) `types` dry_temp / dry_time   <- the source
+    //   (b) get_drying_presets_by_group() <- derived from (a): the group MAX
+    //   (c) get_comfort_range()           <- reports (b)'s preset for the material
+    // This test fails if anyone gives (b) or (c) an independent opinion, because
+    // the moment a hardcoded number appears it stops matching the derivation below.
     for (const auto& mat : *shipped_materials()) {
         INFO("material: " << mat.name << " (group " << mat.compat_group << ")");
         const auto comfort = get_comfort_range(mat.name);
