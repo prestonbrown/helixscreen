@@ -221,7 +221,7 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
     const json box = make_unit_box_explicit(
         {"199999", "199999", "199999", "-1"}, {"0FFFFFF", "0FFFFFF", "0FFFFFF", "-1"},
         {"BB5250276A21999990FFFFFF0165000001000000", "BB5251234A21999990FFFFFF0165000001000000",
-         "Sunlu", "none"},
+         "Sunlu", "1234567890"},
         {"-1", "-1", "-1", "-1"});
     auto info = cfs::parse_stock_box(box);
     REQUIRE(info.units.size() == 1);
@@ -239,6 +239,13 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
 
     SECTION("a vendor name the box reports is the brand") {
         REQUIRE(slots[2].brand == "Sunlu");
+    }
+
+    SECTION("a third-party tag's raw UID is no brand, and the bay stays present") {
+        REQUIRE(slots[3].status == SlotStatus::AVAILABLE);
+        REQUIRE(slots[3].brand.empty());
+        CHECK(cfs::brand_from_vender("04A1B2C3D4E5F6").empty());
+        CHECK(cfs::brand_from_vender("ACE") == "ACE");
     }
 }
 

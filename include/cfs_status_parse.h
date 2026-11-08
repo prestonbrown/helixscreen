@@ -127,9 +127,16 @@ parse_chute_wiper(const nlohmann::json& configfile_settings);
 /// whole 40-character record, which names its supplier rather than being
 /// a brand: Creality's code reads as Creality and any other as no brand.
 /// `"unknown"` (a seated spool the reader did not resolve) reads as
-/// Creality, a sentinel as no brand, and anything else is the box's own
-/// vendor name.
+/// Creality, a sentinel or a third-party tag's raw UID as no brand, and
+/// anything else is the box's own vendor name.
 [[nodiscard]] std::string brand_from_vender(const std::string& vender);
+
+/// True when @p v is a bare tag UID rather than a name: a third-party tag the
+/// reader could not decode (an Anycubic spool, say) reports its 4, 7 or
+/// 10-byte UID as hex or decimal. Requiring a digit keeps an all-letter brand
+/// like "ACE" a name. A 40-character tag record also matches; callers that
+/// read records check for one first.
+[[nodiscard]] bool is_raw_tag_uid(const std::string& v);
 
 /// The Spoolman spool a stock bay's `vender` tag record names, or nullopt.
 /// Tag writers such as CFTag put the id in the record's serial field

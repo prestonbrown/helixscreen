@@ -2085,16 +2085,16 @@ TEST_CASE("CFS identity writeback echoes do not self-wipe the override",
     }
 }
 
-// Capture harness whose dispatch failure is toggleable: one push lands and a
-// later one never reaches the box, so the first push's in-flight echo
-// expectation must survive the second's failed dispatch.
+// One push lands and a later one never reaches the box, so the first push's
+// in-flight echo expectation must survive the second's failed dispatch.
 class FailToggleCfsRemap : public CfsRemapHelper {
   public:
     using CfsRemapHelper::CfsRemapHelper;
-    AmsError execute_gcode(const std::string& gcode) override {
-        if (fail_dispatch)
-            return AmsErrorHelper::not_supported("fixture dispatch failure");
-        return CfsRemapHelper::execute_gcode(gcode);
+    using CfsRemapHelper::execute_gcode;
+    AmsError execute_gcode(const std::string& g, helix::SharedCallback<void()> done,
+                           helix::SharedCallback<void(const MoonrakerError&)> err, bool) override {
+        return fail_dispatch ? AmsErrorHelper::not_supported("fixture dispatch failure")
+                             : CfsRemapHelper::execute_gcode(g, done, err, true);
     }
 
     bool fail_dispatch = false;

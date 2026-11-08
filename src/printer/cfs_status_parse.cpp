@@ -199,6 +199,13 @@ bool is_material_code_sentinel(const std::string& v) {
     return v.empty() || v == "none" || v == "None" || v == "-1" || v == "unknown";
 }
 
+bool is_raw_tag_uid(const std::string& v) {
+    constexpr size_t kMinUidChars = 8;
+    return v.size() >= kMinUidChars &&
+           std::all_of(v.begin(), v.end(), [](unsigned char c) { return std::isxdigit(c) != 0; }) &&
+           std::any_of(v.begin(), v.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+}
+
 std::string brand_from_vender(const std::string& vender) {
     if (is_vender_sentinel(vender)) {
         return {};
@@ -211,7 +218,7 @@ std::string brand_from_vender(const std::string& vender) {
     if (creality) {
         return "Creality"; // i18n: do not translate - brand name
     }
-    return record ? std::string{} : vender;
+    return (record || is_raw_tag_uid(vender)) ? std::string{} : vender;
 }
 
 std::optional<int> tag_record_spoolman_id(std::string_view vender) {

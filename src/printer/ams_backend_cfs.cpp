@@ -2516,6 +2516,11 @@ void AmsBackendCfs::persist_slot_weight(int slot_index, float remaining_weight_g
                                         remaining_weight_g, total_weight_g, tag);
 }
 
+void AmsBackendCfs::notify_slot_daemon(const helix::cfs::DaemonMaterial& material) {
+    helix::cfs::post_daemon_frame(daemon_endpoint_, {material.box_id, material.slot_id},
+                                  helix::cfs::encode_modify_material(material));
+}
+
 void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::string& material,
                                                    const std::string& brand,
                                                    const std::string& catalog_id,
@@ -2660,6 +2665,7 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
     std::string expected_material_half;
     std::vector<std::string> staged_echoes;
     std::uint64_t echo_sequence = 0;
+    std::optional<helix::cfs::DaemonMaterial> daemon_record;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto base = rfid_tracker_.baseline(global_index);
@@ -2772,6 +2778,12 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
             }
             own_write_echoes_.arm(global_index, std::string{});
         }
+
+        // On a color-only write expected_material_half is still the code the
+        // box reported before it, which the write leaves in place.
+        daemon_record = helix::cfs::daemon_material_for(
+            global_index, system_info_.get_slot_global(global_index), material, brand, catalog_id,
+            mat_code, expected_material_half, color_rgb);
     }
 
     if (!mat_code.empty()) {
@@ -2790,7 +2802,14 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
     gcode += "BOX_MODIFY_TN_DATA ADDR=" + std::to_string(unit) + " NUM=" + slot_letter +
              " PART=color_value DATA=" + color_data;
 
-    auto err = execute_gcode(gcode);
+    // The daemon hears about the edit only once Klipper has acknowledged the
+    // write that is the source of truth; a rejected or failed write sends
+    // nothing.
+    helix::SharedCallback<void()> on_written;
+    if (daemon_record) {
+        on_written = [this, record = *daemon_record]() { notify_slot_daemon(record); };
+    }
+    auto err = execute_gcode(gcode, std::move(on_written), nullptr, /*silent=*/true);
     if (err.result != AmsResult::SUCCESS) {
         // Non-fatal — the override is already in lane_data so user data isn't
         // lost; only the firmware-side LCD won't reflect this edit.
