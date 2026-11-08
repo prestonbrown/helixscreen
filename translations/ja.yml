@@ -159,6 +159,8 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
+  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
+  : ''
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
@@ -171,12 +173,15 @@ translations:
   A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
   A picture of your printer: プリンターの画像
+  A print holds the printer.: ''
   A print is already running.: すでに印刷中です。
   A print is in progress - restart still pending: '印刷中です - 再起動は保留中'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: このゲートで印刷中です。HelixScreen 側のコピーはクリアしました。印刷終了後に再度クリアしてください。
   A print is running. Apply the result after it ends.: 印刷中です。終了後に結果を適用してください。
   A print started: '印刷が開始されました'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"
+  A print took the printer.: ''
+  A printer command failed.: ''
   A restart is already in progress: 再起動はすでに進行中です
   A right, B left: "A右・B左"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -319,6 +324,7 @@ translations:
   Anonymous data to help improve HelixScreen: HelixScreen改善のための匿名データ
   Anonymous stats — no personal data, ever.: 匿名の統計情報 — 個人データは一切収集しません。
   Anonymous usage statistics: 匿名の使用統計
+  Another filament operation is heating the nozzle.: ''
   Any notes...: メモ...
   App Background: アプリ背景
   App startup encountered an error. Some features may be unavailable.: アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。
@@ -471,6 +477,7 @@ translations:
   Bowden Length: 'ボーデン長'
   Bowden tube length from hub to toolhead: 'ハブからツールヘッドまでのボーデンチューブ長'
   Bowden tube length to this tool: "このツールまでのボーデンチューブ長"
+  'Bowden: pull the tube from the extruder end, then pull the filament.': ''
   Box: ボックス
   Brand: ブランド
   Brand and material come from Spoolman: ブランドと素材は Spoolman から取得されます
@@ -734,9 +741,11 @@ translations:
   Clean Brush: 'ブラシを清掃'
   Clean Nozzle: ノズル清掃
   Clean Up Storage: 'ストレージのクリーンアップ'
+  Clean a clogged nozzle, step by step: ''
   Clean nozzle: 'ノズル清掃'
   Clean up: 'クリーンアップ'
   Clean {}: '{}を清掃'
+  Cleaning: ''
   Cleaning Nozzle...: ノズル清掃中...
   Cleaning nozzle: ノズル清掃
   Cleaning nozzle...: ノズル清掃中...
@@ -776,6 +785,10 @@ translations:
   Coarse Outer: 粗動・外側
   Code: コード
   Coil Temperature: コイル温度
+  Cold Pull: ''
+  Cold pull cancelled: ''
+  Cold pull finished: ''
+  Cold pull stopped: ''
   Collect logs and system info for support: サポート用にログとシステム情報を収集
   Collecting data...: データを収集中...
   Collecting debug info...: デバッグ情報を収集中...
@@ -898,7 +911,9 @@ translations:
   Cooling Tube Length: '冷却チューブ長'
   Cooling Tube Retraction: '冷却チューブの引き戻し'
   Cooling for probing...: プローブのため冷却中...
+  Cooling the nozzle: ''
   "Cooling the nozzle to standby while you check the print": "印刷物を確認している間、ノズルを待機温度まで冷却しています"
+  Cooling without a fan; this takes longer.: ''
   Cooling {}...: '{}を冷却中...'
   Copied to clipboard!: クリップボードにコピーしました！
   Copy: "コピー"
@@ -1095,6 +1110,7 @@ translations:
   Different filament?: 別のフィラメント？
   Digital Clock: 'デジタル時計'
   Direct drive: ダイレクトドライブ
+  'Direct drive: release the extruder tension and pull the filament out in one firm motion.': ''
   Disable: 無効化
   Disable Bypass: バイパスを無効化
   Disable Motors?: モーターを無効にしますか？
@@ -1123,13 +1139,16 @@ translations:
   Distance from toolhead sensor to nozzle tip: 'ツールヘッドセンサーからノズル先端までの距離'
   Distance moved per jog button tap: ジョグボタン1回あたりの移動距離
   Distance moved per jog button tap. The arrow layouts offer every distance as a step.: 'ジョグボタン1回あたりの移動距離。方向キーレイアウトでは各距離をステップとして選べます。'
+  Do not cold pull a coated nozzle. The cold pull runs on the active tool.: ''
   Do not power off your printer.: プリンターの電源を切らないでください。
+  Do not touch the filament yet.: ''
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Dock: ドック
   Dock sensors cannot tell which tool is mounted: ドックのセンサーでは、どのツールが装着されているか判別できません
   Dock sensors disagree: ドックセンサーが不一致
   Dock tool: ツールを格納
   Docking tool: ツールを格納中
+  Does clean filament come out of the nozzle?: ''
   Don't Save: 保存しない
   Don't ask again: 今後表示しない
   Done: 完了
@@ -1494,6 +1513,7 @@ translations:
   Feed filament directly to extruder: フィラメントをエクストルーダーに直接供給
   Feed filament from current slot: '現在のスロットからフィラメントを送る'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: フィラメントを手でセンサー先まで挿入して「再開」を押してください。または印刷をキャンセルして「装填」「排出」を使用してください
+  Feed the cleaning filament: ''
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
@@ -1798,6 +1818,7 @@ translations:
   Home & Continue: ホーミングして続行
   Home All: "全軸ホーミング"
   Home all axes to use the map: マップを使うには全軸をホーミングしてください
+  Home and park: ''
   Home and sweep the cutter to re-find its position: 原点復帰後にカッターを走査して位置を再検出します
   Home failed: ホーミング失敗
   Home layout copied from the printer's screen: "プリンターの画面からホーム画面のレイアウトをコピーしました"
@@ -1877,6 +1898,7 @@ translations:
   Idle: アイドル
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Moonraker
     がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します
+  If the extruder has no tension lever, see your printer's manual.: ''
   Ignore: 無視
   Ignore the click that fires when you lift after scrolling: スクロール後に指を離したときに発生するクリックを無視
   'Import failed: {}': 'インポートに失敗しました: {}'
@@ -2000,6 +2022,7 @@ translations:
   Keep hands clear. The printer moves on its own.: 手を近づけないでください。プリンターは自動で動きます。
 
   Keep its own data on this screen (up to 256 KB).: 'この画面に独自のデータを保存します（最大256 KB）。'
+  Keep pushing filament while it cools: ''
   Keep the bypass spool visible when bypass is off: バイパスオフ時もバイパススプールの表示を維持
   Keep Tuning: "調整を続ける"
   Keep waiting: '待ち続ける'
@@ -2179,6 +2202,7 @@ translations:
   Lost connection during print — try again: 印刷中に接続が切断されました — もう一度お試しください
   Lost connection to CFS unit: CFS ユニットとの接続が切断されました
   Lost the connection to the printer.: プリンターとの接続が切れました。
+  Lost the printer.: ''
   'Lot # (optional)': ロット番号（オプション）
   Lot/Batch Nr: ロット/バッチ番号
   Low Memory: メモリ不足
@@ -2625,6 +2649,7 @@ translations:
   'Nozzle:': 'ノズル:'
   'Nozzles still heating: {}': '加熱中のノズル: {}'
   Number Pad Layout: テンキーの配列
+  Nylon: ''
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -2743,6 +2768,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "プラグインの一部を読み込めませんでした。プラグインを再インストールしてください。"
   Part of the plugin is missing. Reinstall the plugin.: "プラグインの一部が見つかりません。プラグインを再インストールしてください。"
   Part, hotend, and auxiliary fan speeds: 'パーツ・ホットエンド・補助ファンの速度'
+  Pass: ''
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
   Password is required for secured networks: セキュリティ保護されたネットワークにはパスワードが必要です
@@ -2849,6 +2875,7 @@ translations:
   Preheating and homing...: 予熱とホーミング中...
   Preload: '事前装填'
   Preload failed: 事前装填に失敗しました
+  Prepare the toolhead: ''
   Prepared: 準備済み
   Preparing: 準備中
   Preparing Print: 印刷準備中
@@ -3032,6 +3059,9 @@ translations:
   Provide a {}: '{} を入力してください'
   Provide an on/off value: 'オン/オフの値を入力してください'
   Provide {}: '{} を入力してください'
+  Pull: ''
+  Pull now: ''
+  Pulled: ''
   Pulling filament back: フィラメントを引き戻し中
   Purge: パージ
   Purge & Wipe: 'パージとワイプ'
@@ -3048,6 +3078,7 @@ translations:
   Purging: パージ中
   Purging nozzle: ノズルをパージ中
   Purging...: パージ中...
+  Push the cleaning filament into the extruder until it stops, then tap Extrude.: ''
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
   QGL: QGL
   'QGL failed: {}': 'QGL に失敗しました: {}'
@@ -3189,6 +3220,7 @@ translations:
   Rename failed at remove step: 名前変更が削除ステップで失敗しました
   Render Now: 今すぐレンダリング
   Rendering timelapse...: タイムラプスをレンダリング中...
+  Repeat: ''
   Replace: "置き換え"
   Replace Profile?: "プロファイルを置き換えますか？"
   Replay Welcome Tour: ウェルカムツアーを再生
@@ -3612,6 +3644,8 @@ translations:
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
   Snapshot only: スナップショットのみ
+  Soak: ''
+  Soaking hot enough to melt what is left in the nozzle.: ''
   Soft: ソフト
   Soft filament is never unloaded: "ソフトフィラメントは排出されません"
   Software Updates: ソフトウェア更新
@@ -3760,6 +3794,7 @@ translations:
   Storage: 'ストレージ'
   Storage report: 'ストレージレポート'
   Stow: 格納
+  'Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step.': ''
   Subnet mask: 'サブネットマスク'
   Subtle: サトル
   Success: 成功
@@ -3981,6 +4016,8 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "ノズルは印刷物から持ち上げられ、XとYはホーミング済みです。再開すると、停止した高さまで再び下がります。"
+  The nozzle target never arrived.: ''
+  The nozzle waited too long; start again.: ''
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'ベッド上の造形物が高すぎて越えられません。取り除いてから「クリア済み」をタップしてください。'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "{0}のピークがゾーンから外れました。{1}のテンショナーだけを回したか確認してください。どれがどれか分からない場合は、ペンのアイコンをタップしてベルトを識別してください。"
@@ -4030,6 +4067,7 @@ translations:
 
   The printer homes, then probes each screw position.: "プリンターは原点復帰してから各ネジ位置を測定します。"
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
+  The printer is not ready.: ''
   The printer is shut down.: 'プリンターはシャットダウンしています。'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。'
@@ -4058,6 +4096,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   The speed of one fan you choose: 選んだファン1つの速度
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
+  The temperature was changed elsewhere.: ''
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
@@ -4072,6 +4111,7 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
+  The unload did not finish. Try again, or cancel.: ''
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
   Theme: テーマ
@@ -4368,8 +4408,10 @@ translations:
   Unload filament?: フィラメントを排出しますか?
 
   Unload from toolhead first: '先にツールヘッドから取り出してください'
+  Unload lane: ''
   Unload macro not configured: アンロードマクロが未設定です
   Unload the CFS filament before enabling bypass: 'バイパスを有効にする前に CFS のフィラメントを取り出してください'
+  Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: ''
   Unload the toolhead when a print ends: '印刷終了時にツールヘッドからアンロード'
   Unload this unit first: '先にこのユニットを排出してください'
   Unload which tool?: 'どのツールをアンロードしますか？'

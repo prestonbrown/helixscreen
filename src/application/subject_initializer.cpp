@@ -47,6 +47,7 @@
 #include "bed_drying_controller.h"
 #include "bed_mesh_state.h"
 #include "chamber_stall_prompt.h"
+#include "cold_pull_runner.h"
 #include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "filament_catalog.h"
@@ -94,12 +95,18 @@ SubjectInitializer::SubjectInitializer() = default;
 // their shared resources before that printer's SubjectInitializer registers its own, so a
 // slot left naming an object freed here is dereferenced on every printer switch.
 SubjectInitializer::~SubjectInitializer() {
+    // A pull still live at exit turns its heater off while the controller and the
+    // API are still reachable.
+    if (m_cold_pull_runner) {
+        m_cold_pull_runner->cancel();
+    }
     auto& widgets = helix::PanelWidgetManager::instance();
     widgets.unregister_shared_resource<helix::IMoonrakerAPI>(m_registered_api);
     widgets.unregister_shared_resource<TemperatureService>(m_temp_control_panel.get());
     widgets.unregister_shared_resource<helix::BedDryingController>(m_bed_drying.get());
     widgets.unregister_shared_resource<helix::TemperatureController>(m_temp_controller.get());
     widgets.unregister_shared_resource<helix::ui::FilamentOpHeater>(m_filament_op_heater.get());
+    widgets.unregister_shared_resource<helix::ui::ColdPullRunner>(m_cold_pull_runner.get());
 }
 
 void SubjectInitializer::init_core_and_state() {
@@ -391,6 +398,14 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
     m_filament_op_heater = std::make_unique<helix::ui::FilamentOpHeater>(get_printer_state());
     helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::FilamentOpHeater>(
         m_filament_op_heater.get());
+
+    // The guided cold pull: here for the same reason, the overlay can close while
+    // the nozzle is hot.
+    m_cold_pull_runner = std::make_unique<helix::ui::ColdPullRunner>(get_printer_state());
+    m_cold_pull_runner->init_subjects();
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::ColdPullRunner>(
+        m_cold_pull_runner.get());
+    helix::ui::register_cold_pull_flow();
 
     // Drying on the heated bed (prestonbrown/helixscreen#1730). restore() brings
     // back a persisted spools-on-the-bed latch before any panel can move the

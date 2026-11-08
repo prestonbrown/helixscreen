@@ -165,6 +165,8 @@ translations:
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
+  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
+  : ''
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Un nom de dossier dans moonraker.conf n'est pas sûr, le nettoyage est donc désactivé."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Une macro de heat soak est configurée sur l''imprimante. HelixScreen la détecte mais ne l''exécute pas.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un chauffage qui réchauffe l''air de l''enceinte. Réglez sa température sur l''écran de température de l''enceinte.'
@@ -177,12 +179,15 @@ translations:
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Les paramètres d'un moteur n'ont pas pu être écrits. Éteignez et rallumez l'imprimante pour réessayer
   A newer version of the helper macros is available: 'Une version plus récente des macros d''aide est disponible'
   A picture of your printer: Une photo de votre imprimante
+  A print holds the printer.: ''
   A print is already running.: Une impression est déjà en cours.
   A print is in progress - restart still pending: 'Une impression est en cours - redémarrage en attente'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Une impression est en cours sur ce gate. HelixScreen a effacé sa propre copie ; effacez-le à nouveau une fois l'impression terminée.
   A print is running. Apply the result after it ends.: Une impression est en cours. Appliquez le résultat quand elle sera terminée.
   A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
+  A print took the printer.: ''
+  A printer command failed.: ''
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -340,6 +345,7 @@ translations:
   Anonymous stats — no personal data, ever.: Statistiques anonymes — jamais de données
     personnelles.
   Anonymous usage statistics: Statistiques d'utilisation anonymes
+  Another filament operation is heating the nozzle.: ''
   Any notes...: Des notes...
   App Background: Arrière-plan de l'application
   App startup encountered an error. Some features may be unavailable.: Le démarrage
@@ -503,6 +509,7 @@ translations:
   Bowden Length: 'Longueur du bowden'
   Bowden tube length from hub to toolhead: 'Longueur du tube bowden du hub à la tête d''outil'
   Bowden tube length to this tool: "Longueur du tube Bowden jusqu'à cet outil"
+  'Bowden: pull the tube from the extruder end, then pull the filament.': ''
   Box: Boîte
   Brand: Marque
   Brand and material come from Spoolman: La marque et le matériau proviennent de Spoolman
@@ -793,9 +800,11 @@ translations:
   Clean Brush: 'Nettoyer la brosse'
   Clean Nozzle: Nettoyer la buse
   Clean Up Storage: 'Nettoyer le stockage'
+  Clean a clogged nozzle, step by step: ''
   Clean nozzle: 'Nettoyer la buse'
   Clean up: 'Nettoyer'
   Clean {}: Nettoyer {}
+  Cleaning: ''
   Cleaning Nozzle...: Nettoyage de la buse...
   Cleaning nozzle: Nettoyage de la buse
   Cleaning nozzle...: Nettoyage de la buse...
@@ -836,6 +845,10 @@ translations:
   Coarse Outer: Gros extérieur
   Code: Code
   Coil Temperature: Température de la bobine
+  Cold Pull: ''
+  Cold pull cancelled: ''
+  Cold pull finished: ''
+  Cold pull stopped: ''
   Collect logs and system info for support: Collecter les journaux et infos système
     pour le support
   Collecting data...: Collecte des données...
@@ -970,7 +983,9 @@ translations:
   Cooling Tube Length: 'Longueur du tube de refroidissement'
   Cooling Tube Retraction: 'Rétraction du tube de refroidissement'
   Cooling for probing...: Refroidissement avant palpage...
+  Cooling the nozzle: ''
   "Cooling the nozzle to standby while you check the print": "Refroidissement de la buse en veille pendant que vous vérifiez l'impression"
+  Cooling without a fan; this takes longer.: ''
   Cooling {}...: Refroidissement de {}...
   Copied to clipboard!: Copié dans le presse-papiers !
   Copy: "Copier"
@@ -1168,6 +1183,7 @@ translations:
   Different filament?: Filament différent ?
   Digital Clock: 'Horloge numérique'
   Direct drive: Direct drive
+  'Direct drive: release the extruder tension and pull the filament out in one firm motion.': ''
   Disable: Désactiver
   Disable Bypass: Désactiver le bypass
   Disable Motors?: Désactiver les moteurs ?
@@ -1197,7 +1213,9 @@ translations:
   Distance from toolhead sensor to nozzle tip: 'Distance du capteur de tête d''outil à la pointe de la buse'
   Distance moved per jog button tap: Distance parcourue par appui sur un bouton de déplacement
   Distance moved per jog button tap. The arrow layouts offer every distance as a step.: 'Distance parcourue par appui sur un bouton de déplacement. Les dispositions à flèches proposent chaque distance comme pas.'
+  Do not cold pull a coated nozzle. The cold pull runs on the active tool.: ''
   Do not power off your printer.: N'éteignez pas votre imprimante.
+  Do not touch the filament yet.: ''
   Do not touch the printer during calibration: Ne touchez pas l'imprimante pendant
     la calibration
   Dock: Ranger
@@ -1205,6 +1223,7 @@ translations:
   Dock sensors disagree: Capteurs du dock incohérents
   Dock tool: Ranger l'outil
   Docking tool: Rangement de l'outil
+  Does clean filament come out of the nozzle?: ''
   Don't Save: Ne pas enregistrer
   Don't ask again: Ne plus demander
   Done: Terminé
@@ -1592,6 +1611,7 @@ translations:
   Feed filament directly to extruder: Alimenter le filament directement vers l'extrudeur
   Feed filament from current slot: 'Alimenter le filament depuis le slot actuel'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Insérez le filament à la main jusqu'après le capteur, puis appuyez sur Reprendre — ou annulez l'impression pour utiliser Charger/Décharger
+  Feed the cleaning filament: ''
   Feeder: Alimentateur
   Feeders: Alimentateurs
   Feeding filament forward: Avancement du filament
@@ -1906,6 +1926,7 @@ translations:
   Home & Continue: Référencer et continuer
   Home All: "Tout référencer"
   Home all axes to use the map: Référencez tous les axes pour utiliser la carte
+  Home and park: ''
   Home and sweep the cutter to re-find its position: Prend l'origine et balaie le coupeur pour retrouver sa position
   Home failed: Échec de la référence
   Home layout copied from the printer's screen: "Disposition de l'écran d'accueil copiée depuis l'écran de l'imprimante"
@@ -1990,6 +2011,7 @@ translations:
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Si
     Moonraker est local ou si votre écran est connecté directement à l'imprimante,
     la connexion sera automatique
+  If the extruder has no tension lever, see your printer's manual.: ''
   Ignore: Ignorer
   Ignore the click that fires when you lift after scrolling: Ignorer le clic déclenché
     au relâchement après un défilement
@@ -2124,6 +2146,7 @@ translations:
   Keep hands clear. The printer moves on its own.: Tenez vos mains à distance. L'imprimante bouge seule.
 
   Keep its own data on this screen (up to 256 KB).: 'Conserve ses propres données sur cet écran (jusqu''à 256 Ko).'
+  Keep pushing filament while it cools: ''
   Keep the bypass spool visible when bypass is off: Garder la bobine de bypass visible lorsque le bypass est désactivé
   Keep Tuning: Continuer
   Keep waiting: 'Continuer d''attendre'
@@ -2313,6 +2336,7 @@ translations:
     — réessayez
   Lost connection to CFS unit: Connexion perdue avec l'unité CFS
   Lost the connection to the printer.: Connexion à l'imprimante perdue.
+  Lost the printer.: ''
   'Lot # (optional)': 'Lot # (facultatif)'
   Lot/Batch Nr: N° de lot
   Low Memory: Mémoire faible
@@ -2774,6 +2798,7 @@ translations:
   'Nozzle:': 'Buse :'
   'Nozzles still heating: {}': 'Buses encore en chauffe : {}'
   Number Pad Layout: Disposition du pavé numérique
+  Nylon: ''
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -2895,6 +2920,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Une partie du plugin n'a pas pu se charger. Réinstallez le plugin."
   Part of the plugin is missing. Reinstall the plugin.: "Une partie du plugin est manquante. Réinstallez le plugin."
   Part, hotend, and auxiliary fan speeds: 'Vitesses des ventilateurs de pièce, de hotend et auxiliaire'
+  Pass: ''
   Password: Mot de passe
   Password cannot be empty: Le mot de passe ne peut pas être vide
   Password is required for secured networks: Un mot de passe est requis pour les réseaux
@@ -3007,6 +3033,7 @@ translations:
   Preheating and homing...: Préchauffage et mise à l'origine...
   Preload: 'Précharger'
   Preload failed: Échec du préchargement
+  Prepare the toolhead: ''
   Prepared: Préparé
   Preparing: Préparation
   Preparing Print: Préparation de l'impression
@@ -3200,6 +3227,9 @@ translations:
   Provide a {}: 'Indiquez {}'
   Provide an on/off value: 'Indiquez une valeur marche/arrêt'
   Provide {}: 'Indiquez {}'
+  Pull: ''
+  Pull now: ''
+  Pulled: ''
   Pulling filament back: Rétraction du filament
   Purge: Purger
   Purge & Wipe: 'Purge et essuyage'
@@ -3217,6 +3247,7 @@ translations:
   Purging: Purge en cours
   Purging nozzle: Purge de la buse
   Purging...: Purge...
+  Push the cleaning filament into the extruder until it stops, then tap Extrude.: ''
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Poussez le filament dans l'extrudeur jusqu'en butée. Il est saisi automatiquement, ou appuyez sur Extruder."
   QGL: QGL
   'QGL failed: {}': 'Échec du QGL : {}'
@@ -3366,6 +3397,7 @@ translations:
   Rename failed at remove step: Échec du renommage à l'étape de suppression
   Render Now: Rendre maintenant
   Rendering timelapse...: Rendu du timelapse...
+  Repeat: ''
   Replace: "Remplacer"
   Replace Profile?: "Remplacer le profil ?"
   Replay Welcome Tour: Rejouer la visite de bienvenue
@@ -3827,6 +3859,8 @@ translations:
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
   Snapshot only: Instantané seulement
+  Soak: ''
+  Soaking hot enough to melt what is left in the nozzle.: ''
   Soft: Doux
   Soft filament is never unloaded: "Le filament souple n'est jamais déchargé"
   Software Updates: Mises à jour logicielles
@@ -3983,6 +4017,7 @@ translations:
   Storage: 'Stockage'
   Storage report: 'Rapport de stockage'
   Stow: Ranger
+  'Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step.': ''
   Subnet mask: 'Masque de sous-réseau'
   Subtle: Subtil
   Success: Succès
@@ -4215,6 +4250,8 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : La buse est chaude. Brossez-la avec la brosse métallique fournie, gardez la position d'ancrage propre, puis appuyez sur Suivant.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "La buse est levée au-dessus de l'impression et X et Y sont mis à l'origine. La reprise la redescend à la hauteur où elle s'est arrêtée."
+  The nozzle target never arrived.: ''
+  The nozzle waited too long; start again.: ''
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'La pièce sur le plateau est trop haute pour être survolée. Retirez-la, puis touchez « Dégagé ».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Le pic de {0} a quitté la zone. Vérifiez que seul le tendeur de {1} a été tourné. Vous ne savez pas laquelle est laquelle ? Touchez le crayon pour identifier les courroies."
@@ -4266,6 +4303,7 @@ translations:
 
   The printer homes, then probes each screw position.: "L'imprimante se met à l'origine, puis palpe chaque position de vis."
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: L'imprimante n'est pas référencée. Continuer référencera tous les axes et déplacera la tête d'outil. Assurez-vous que le plateau est dégagé.
+  The printer is not ready.: ''
   The printer is shut down.: 'L''imprimante est arrêtée.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'L''imprimante attend que la chambre atteigne une température, et seuls un arrêt d''urgence et un redémarrage du firmware mettent fin à cette attente. L''impression s''arrête immédiatement et ne peut pas être reprise.'
@@ -4301,6 +4339,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Le capteur de cette unité CFS ne peut pas être lu. Vérifiez son raccordement, sinon l'unité nécessite une intervention
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Le masque de sous-réseau n''est pas valide. Utilisez une forme comme 255.255.255.0 ou 24.'
+  The temperature was changed elsewhere.: ''
   The time, date, and system uptime: Heure, date et temps de fonctionnement
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
   The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
@@ -4319,6 +4358,7 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: L'unité exécute déjà une autre opération. Attendez la fin, ou réinitialisez le CFS s'il reste bloqué
   The unit reported a fault with no further detail. Restart the printer if it repeats: L'unité a signalé une panne sans plus de détails. Redémarrez l'imprimante si cela se reproduit
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La mémoire interne de l'unité est défaillante. La carte mère du CFS doit être remplacée
+  The unload did not finish. Try again, or cancel.: ''
   'The unload did not start: unload by hand, then start again': 'Le déchargement n''a pas démarré : déchargez à la main, puis recommencez'
   The unload finishes on its own, but the plate will not move.: 'Le déchargement se termine de lui-même, mais le plateau ne bougera pas.'
   Theme: Thème
@@ -4641,8 +4681,10 @@ translations:
   Unload filament?: Décharger le filament ?
 
   Unload from toolhead first: 'Déchargez d''abord depuis la tête d''outil'
+  Unload lane: ''
   Unload macro not configured: Macro de déchargement non configurée
   Unload the CFS filament before enabling bypass: 'Déchargez le filament du CFS avant d''activer le bypass'
+  Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: ''
   Unload the toolhead when a print ends: 'Décharger la tête d''outil à la fin d''une impression'
   Unload this unit first: 'Déchargez d''abord cette unité'
   Unload which tool?: 'Décharger quel outil ?'

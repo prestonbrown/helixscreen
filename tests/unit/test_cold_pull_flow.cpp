@@ -9,7 +9,10 @@
  */
 
 #include "cold_pull_flow.h"
+#include "cold_pull_runner.h"
+#include "config.h"
 #include "filament_op_router.h"
+#include "material_settings_manager.h"
 
 #include <chrono>
 
@@ -420,4 +423,48 @@ TEST_CASE("cold pull: the feed runs once per push and a failed feed cleans up", 
     const auto a = f.command_finished(false, t0 + 3s);
     CHECK(f.end_reason() == ColdPullEndReason::CommandFailed);
     CHECK(a.heater_target_c == 0);
+}
+
+TEST_CASE("cold pull: edits persist per material; unset and corrupt read as defaults",
+          "[cold_pull][material_settings]") {
+    auto& msm = MaterialSettingsManager::instance();
+    Config* config = Config::get_instance();
+    REQUIRE(config);
+    for (int i = 0; i < kColdPullMaterialCount; ++i) {
+        msm.reset_cold_pull_temps(static_cast<ColdPullMaterial>(i));
+    }
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Nylon) == ColdPullTemps{250, 140});
+
+    msm.set_cold_pull_temps(ColdPullMaterial::Nylon, {255, 150});
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Nylon) == ColdPullTemps{255, 150});
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Pla) == ColdPullTemps{230, 90});
+
+    msm.set_cold_pull_material(ColdPullMaterial::Cleaning);
+    CHECK(msm.get_cold_pull_material() == ColdPullMaterial::Cleaning);
+
+    config->get_json("/cold_pull")["pla"] = {{"soak", 100}, {"pull", 90}};
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Pla) == ColdPullTemps{230, 90});
+    config->get_json("/cold_pull")["material"] = 7;
+    CHECK(msm.get_cold_pull_material() == ColdPullMaterial::Pla);
+
+    msm.reset_cold_pull_temps(ColdPullMaterial::Nylon);
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Nylon) == ColdPullTemps{250, 140});
+    config->get_json("/cold_pull") = nlohmann::json::object();
+}
+
+TEST_CASE("cold pull: Start is refused while anything else owns the printer", "[cold_pull]") {
+    using ui::cold_pull_refusal;
+    using ui::ColdPullRefusal;
+    for (const PrintState job : {PrintState::Printing, PrintState::Paused, PrintState::Preparing}) {
+        CHECK(cold_pull_refusal(job, false, true, true, false) == ColdPullRefusal::JobHoldsMachine);
+    }
+    CHECK(cold_pull_refusal(PrintState::Idle, true, true, true, false) ==
+          ColdPullRefusal::PreheatPending);
+    CHECK(cold_pull_refusal(PrintState::Idle, false, false, true, false) ==
+          ColdPullRefusal::NotReady);
+    CHECK(cold_pull_refusal(PrintState::Idle, false, true, false, false) ==
+          ColdPullRefusal::NoHeater);
+    CHECK(cold_pull_refusal(PrintState::Complete, false, true, true, true) ==
+          ColdPullRefusal::Running);
+    CHECK(cold_pull_refusal(PrintState::Complete, false, true, true, false) == ColdPullRefusal::Ok);
 }
