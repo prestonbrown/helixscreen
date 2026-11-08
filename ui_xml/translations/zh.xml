@@ -3696,6 +3696,8 @@
   <translation tag="Tap anywhere if this text is right-side up" zh="如果文字方向正确请点击任意位置"/>
   <translation tag="Tap anywhere to begin" zh="点击任意位置开始"/>
   <translation tag="Tap anywhere to begin calibration" zh="点击任意位置开始校准"/>
+  <translation tag="Tap the bed&apos;s back-left corner" zh="点击热床的左后角"/>
+  <translation tag="Tap the bed&apos;s back-right corner" zh="点击热床的右后角"/>
   <translation tag="Tap the bed&apos;s front-left corner" zh="点击热床的左前角"/>
   <translation tag="Tap the bed&apos;s front-right corner" zh="点击热床的右前角"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" zh="点击十字准星（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>

@@ -4032,6 +4032,8 @@ translations:
   Tap anywhere if this text is right-side up: Tocca ovunque se questo testo è dritto
   Tap anywhere to begin: Tocca ovunque per iniziare
   Tap anywhere to begin calibration: Tocca ovunque per avviare la calibrazione
+  Tap the bed's back-left corner: 'Tocca l''angolo posteriore sinistro del piano'
+  Tap the bed's back-right corner: 'Tocca l''angolo posteriore destro del piano'
   Tap the bed's front-left corner: 'Tocca l''angolo anteriore sinistro del piano'
   Tap the bed's front-right corner: 'Tocca l''angolo anteriore destro del piano'
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Tocca il mirino

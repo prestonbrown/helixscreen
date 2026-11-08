@@ -3696,6 +3696,8 @@
   <translation tag="Tap anywhere if this text is right-side up" pt="Toque em qualquer lugar se este texto estiver correto"/>
   <translation tag="Tap anywhere to begin" pt="Toque em qualquer lugar para começar"/>
   <translation tag="Tap anywhere to begin calibration" pt="Toque em qualquer lugar para iniciar a calibração"/>
+  <translation tag="Tap the bed&apos;s back-left corner" pt="Toque no canto traseiro esquerdo da mesa"/>
+  <translation tag="Tap the bed&apos;s back-right corner" pt="Toque no canto traseiro direito da mesa"/>
   <translation tag="Tap the bed&apos;s front-left corner" pt="Toque no canto frontal esquerdo da mesa"/>
   <translation tag="Tap the bed&apos;s front-right corner" pt="Toque no canto frontal direito da mesa"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" pt="Toque na mira (ponto %1$d de 3) — toque %2$d de %3$d"/>

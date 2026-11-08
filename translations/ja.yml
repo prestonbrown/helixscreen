@@ -3828,6 +3828,8 @@ translations:
   Tap anywhere if this text is right-side up: この文字が正しい向きならどこかをタップ
   Tap anywhere to begin: どこかをタップして開始
   Tap anywhere to begin calibration: どこかをタップしてキャリブレーション開始
+  Tap the bed's back-left corner: ベッドの奥左の角をタップ
+  Tap the bed's back-right corner: ベッドの奥右の角をタップ
   Tap the bed's front-left corner: ベッドの手前左の角をタップ
   Tap the bed's front-right corner: ベッドの手前右の角をタップ
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: 十字をタップ（ポイント
