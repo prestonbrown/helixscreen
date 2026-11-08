@@ -139,9 +139,6 @@ class InputShaperCalibrator {
      */
     explicit InputShaperCalibrator(IMoonrakerAPI* api);
 
-    /**
-     * @brief Destructor
-     */
     ~InputShaperCalibrator() = default;
 
     // Non-copyable, movable
@@ -164,8 +161,8 @@ class InputShaperCalibrator {
      * Klipper "Internal error on command" / shutdown faults halt the printer
      * mid-command. A real-world example is the Creality K2 `record_z_pos`
      * crash on a unit with a missing `z_pos.json`, which aborts any Z move
-     * (including the one inside G28) and shuts Klipper down (#1021, bundle
-     * 5LSSSKPX). These are printer firmware/config problems, not HelixScreen
+     * (including the one inside G28) and shuts Klipper down (#1021). These
+     * are printer firmware/config problems, not HelixScreen
      * issues; the user must restart the firmware — which the global
      * EmergencyStopOverlay recovery dialog already offers — before any
      * calibration can proceed.
