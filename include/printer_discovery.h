@@ -135,9 +135,11 @@ class PrinterDiscovery {
     /**
      * @brief Reset all discovered hardware to initial state
      *
-     * @note This clears ALL fields including printer info (hostname, versions, etc).
-     *       When using parse_objects(), call printer info setters AFTER parse_objects()
-     *       since it calls clear() internally.
+     * @note This clears ALL fields including printer info (hostname, versions, etc),
+     *       except server_takes_print_start_tools(), which discovery reads from
+     *       server.info before the object list. When using parse_objects(), call
+     *       the other printer info setters AFTER parse_objects(), since it calls
+     *       clear() internally.
      */
     void clear();
 

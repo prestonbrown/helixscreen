@@ -300,6 +300,27 @@ TEST_CASE("HelixPrint API - the fallback start keeps the print's tool map", "[pr
     CHECK(client.print_start_params.value("tools", std::string{}) == "2,,1");
 }
 
+TEST_CASE("HelixPrint API - a print_modified refused as invalid is final", "[print][api][2038]") {
+    FallbackScriptedClient client;
+    client.print_modified_code = 400;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    bool succeeded = false;
+    int error_code = 0;
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/modified_1_benchy.gcode", {},
+        [&](const ModifiedPrintResult&) { succeeded = true; },
+        [&](const MoonrakerError& err) { error_code = err.code; }, {{"tools", "2,,1"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(client.print_modified_calls == 1);
+    CHECK(client.print_start_calls == 0);
+    CHECK_FALSE(succeeded);
+    CHECK(error_code == 400);
+}
+
 // ============================================================================
 // print_modified's own RPC ceiling, and what the fallback may act on
 // ============================================================================
