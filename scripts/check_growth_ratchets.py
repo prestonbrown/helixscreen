@@ -34,6 +34,13 @@ lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or
 freed address; hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h), and
 in a test use helix::test::widget_in_tree() (prestonbrown/helixscreen#1983).
 
+Also on the whole tree at HEAD, app code only: no call to the bare static
+Modal::show("component") factory (a string literal or a .c_str() as the component), nor
+to a helix::ui::modal_show() wrapper around it.
+Its dialog has no owner, so nothing hears it close; show it through
+helix::ui::ComponentModal::show_owned(), modal_confirm(), or a Modal subclass
+(prestonbrown/helixscreen#1958). Tests may still call it.
+
 Also on the whole tree at HEAD: inside an LV_EVENT_DELETE callback, a WidgetRef is never
 compared with the event's target. Its own hook can run first, so it already reads nullptr
 and the comparison is silently false; the callback asks names_dying() instead.
@@ -311,6 +318,22 @@ def banned_validity_calls(root: Path) -> list[str]:
     return sorted(hits)
 
 
+_FACTORY_RE = re.compile(r"\b(Modal::show|modal_show)\s*\(")
+_FACTORY_ARG_RE = re.compile(r'\s*(?:"|[\w.>\-]+\.c_str\(\s*\)\s*[,)])')
+
+
+def bare_modal_factory_calls(root: Path) -> list[str]:
+    """`path:line` for every Modal::show("component") call in app code at HEAD."""
+    hits = []
+    paths = {**tree_with(root, "HEAD", "Modal::show"), **tree_with(root, "HEAD", "modal_show")}
+    for path, text in paths.items():
+        code = strip_code(text)
+        for m in _FACTORY_RE.finditer(code):
+            if m.group(1) == "modal_show" or _FACTORY_ARG_RE.match(text, m.end()):
+                hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}")
+    return sorted(hits)
+
+
 _EVENT_TARGET = r"(?:static_cast<[^<>]*>\s*\(\s*)?lv_event_get_(?:current_)?target(?:_obj)?\s*\(\s*\w+\s*\)\s*\)?"
 _DELETE_CB_RE = re.compile(r"lv_obj_add_event_cb\(\s*[^,;]+,\s*&?(?:\w+::)*(\w+)\s*,\s*LV_EVENT_DELETE\b")
 _DELETE_LAMBDA_RE = re.compile(r"lv_obj_add_event_cb\(\s*[^,;]+,\s*\[[^\]]*\]\s*\([^)]*\)\s*(?=\{)")
@@ -484,6 +507,10 @@ def report(root: Path) -> int:
     print(f"banned widget validity calls: {len(banned)}")
     for hit in banned:
         print(f"  {hit}")
+    factory = bare_modal_factory_calls(root)
+    print(f"bare Modal::show factory calls: {len(factory)}")
+    for hit in factory:
+        print(f"  {hit}")
     return 0
 
 
@@ -502,6 +529,14 @@ def main(argv=None) -> int:
             print(f"❌ {hit}: banned, it cannot tell a live widget from a new one at a freed "
                   f"address. Hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h); "
                   f"a test uses helix::test::widget_in_tree()")
+        return 1
+    factory = bare_modal_factory_calls(root)
+    if factory:
+        for hit in factory:
+            print(f"❌ {hit}: the bare Modal::show(\"component\") factory leaves the dialog "
+                  f"with no owner, so nothing hears it close. Use "
+                  f"helix::ui::ComponentModal::show_owned(), modal_confirm() or a Modal "
+                  f"subclass (prestonbrown/helixscreen#1958)")
         return 1
     compares = delete_callback_ref_compares(root)
     if compares:

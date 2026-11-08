@@ -711,10 +711,6 @@ class ComponentModal : public Modal {
     std::string component_name_;
 };
 
-inline lv_obj_t* modal_show(const char* name, const char** attrs = nullptr) {
-    return Modal::show(name, attrs);
-}
-
 inline void modal_hide(lv_obj_t* dialog) {
     Modal::hide(dialog);
 }
