@@ -22,8 +22,9 @@ struct ShellRow {
 };
 
 constexpr ShellRow kShellRows[] = {
-    {"ace", nullptr, "ace_pro", nullptr},
-    {"afc", "turtle", "box_turtle", "box_turtle_enclosed"},
+    {"ace", nullptr, "ace_pro", nullptr},   {"afc", "turtle", "box_turtle", "box_turtle_enclosed"},
+    {"afc", "vivid", "btt_vivid", nullptr}, {"afc", "kms", "kms", nullptr},
+    {"cfs", nullptr, "cfs", nullptr},       {"qidi_box", nullptr, "qidi_box", nullptr},
 };
 
 /// Climate readings or a dryer mean the unit is closed up.

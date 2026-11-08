@@ -126,6 +126,21 @@ def lid_front(scene, profile, x0, x1, color, cap_op, strip_op):
     scene.poly([(x1, y, z) for y, z in profile], color, cap_op)
 
 
+def arch_profile(y0, y1, z0, z1, flat=0.0, riser=0.0, steps=20):
+    """An arched lid's (y, z) side profile, front foot to rear foot.
+
+    flat is the crown's share of the width; riser is the straight wall below each shoulder.
+    """
+    mid, half_flat = (y0 + y1) / 2, (y1 - y0) * flat / 2
+    a, b = (y1 - y0) / 2 - half_flat, z1 - z0 - riser
+    base = z0 + riser
+    angles = [math.pi / 2 * i / steps for i in range(steps + 1)]
+    front = [(mid - half_flat - a * math.cos(t), base + b * math.sin(t)) for t in angles]
+    rear = [(mid + half_flat + a * math.sin(t), base + b * math.cos(t)) for t in angles]
+    pts = front + rear
+    return [(y0, z0)] + pts + [(y1, z0)] if riser else pts
+
+
 def tray_profile(profile, base_z, px_per_unit):
     """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
     y0, y1 = profile[0][0], profile[-1][0]
@@ -251,7 +266,7 @@ class Scene:
             self.poly(
                 [(x0, a[0], a[1]), (x1, a[0], a[1]), (x1, b[0], b[1]), (x0, b[0], b[1])],
                 hexc(tuple(c + 90 * k for c in rgb(color))),
-                min(0.9, opacity + 0.16 * k),
+                min(max(0.9, opacity), opacity + 0.16 * k),
                 stroke=None,
             )
 

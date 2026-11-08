@@ -47,6 +47,20 @@ TEST_CASE("unit shell: climate data means the enclosed Box Turtle", "[ams][unit-
     CHECK(std::string(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 0, true)->id) == "ace_pro");
 }
 
+TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-art]") {
+    const auto id = [](AmsType type, const char* name) {
+        const UnitShell* shell = unit_shell_for(one_unit(type, name), 0);
+        REQUIRE(shell != nullptr);
+        return std::string(shell->id);
+    };
+    CHECK(id(AmsType::CFS, "CFS 1") == "cfs");
+    CHECK(id(AmsType::QIDI_BOX, "Box 1") == "qidi_box");
+    CHECK(id(AmsType::AFC, "ViViD_1") == "btt_vivid");
+    CHECK(id(AmsType::AFC, "KMS_1") == "kms");
+    // An OpenAMS hub may sit on several kinds of Bambu unit, so it draws none of them.
+    CHECK(unit_shell_for(one_unit(AmsType::OPENAMS, "oams1"), 0) == nullptr);
+}
+
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
