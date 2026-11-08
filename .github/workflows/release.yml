@@ -42,7 +42,10 @@ jobs:
   validate-shell:
     name: Validate Shell Scripts
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    # The same suite build.yml's test-shell job runs, on the same 4-core
+    # runner, so the same budget: every build job waits on this one, and a
+    # timeout here cancels the whole release.
+    timeout-minutes: 45
 
     steps:
     - name: Checkout repository
@@ -92,8 +95,10 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm ci --no-audit --no-fund
 
+    # BATS_REQUIRED=1 fails rather than run the files serially when GNU
+    # parallel is missing.
     - name: Run shell tests
-      run: make test-shell
+      run: make test-shell BATS_REQUIRED=1
 
   # ============================================================================
   # Resolve the release mode, version, R2 prefix and platform matrix once
