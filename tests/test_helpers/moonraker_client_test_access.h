@@ -19,6 +19,13 @@ class MoonrakerClientTestAccess {
         return c.ws_callbacks_installed_;
     }
 
+    // Install the three WebSocket trampolines without opening a socket, so a
+    // test can drive onmessage with nothing else able to change the connection.
+    static void install_ws_callbacks(MoonrakerClient& c) {
+        c.install_ws_callbacks();
+        c.ws_callbacks_installed_ = true;
+    }
+
     // Force connection_state_ without a socket, so tests can exercise gates that
     // read get_connection_state() (e.g. MoonrakerAPI::execute_gcode's klippy-halt
     // gate, which may only speak for a printer we are actually connected to).
