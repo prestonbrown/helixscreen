@@ -99,7 +99,7 @@ TEST_CASE("ams_endless_status hides healthy state only when asked", "[ams][xml]"
 
         // The honest degraded state (#1391) must NOT hide with the healthy
         // line: it is an attention kind, and hiding it here is exactly the
-        // silence the fix exists to remove.
+        // silence this must not produce.
         set_endless_state(EndlessSpoolStatusKind::OnWithoutBackup);
         REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
 

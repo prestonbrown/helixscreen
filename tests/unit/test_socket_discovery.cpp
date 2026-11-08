@@ -5,13 +5,13 @@
  * @file test_socket_discovery.cpp
  * @brief Control-socket liveness detection and multi-instance discovery
  *
- * The remote-control server used to unlink its socket path unconditionally before
- * binding, to clear a file left by an unclean exit. That cannot tell a stale file
- * from one a running instance is serving, so a second instance silently stole the
- * path: the first kept its listener open but became unreachable, and every later
- * client talked to the newest process instead.
+ * Unlinking the socket path unconditionally before binding, to clear a file
+ * left by an unclean exit, cannot tell a stale file from one a running instance
+ * is serving: a second instance would silently steal the path, the first would
+ * keep its listener open but become unreachable, and every later client would
+ * talk to the newest process instead.
  *
- * These cover the two functions that replaced it. Real AF_UNIX sockets are created
+ * These cover the two functions that decide instead. Real AF_UNIX sockets are created
  * on disk, because the entire distinction under test — live listener versus
  * leftover file — is invisible to stat() and cannot be faked.
  */

@@ -161,9 +161,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     process_lvgl(20);
     REQUIRE(lv_obj_get_width(w) == 0); // confirms the async outran layout
 
-    // Now layout assigns the real size, firing LV_EVENT_SIZE_CHANGED. The fix
-    // re-schedules the refresh here; the next pump must render. (Pre-fix: no
-    // re-schedule, nothing repaints, overlay stays empty.)
+    // Now layout assigns the real size, firing LV_EVENT_SIZE_CHANGED. The widget
+    // re-schedules the refresh here; the next pump must render. (Without the
+    // re-schedule nothing repaints and the overlay stays empty.)
     lv_obj_update_layout(test_screen());
     process_lvgl(120);
 

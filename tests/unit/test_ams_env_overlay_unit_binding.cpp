@@ -13,7 +13,7 @@
  * second box has a sensor and whose first does not showed "42%" with the row
  * hidden, and the reverse pairing showed an empty row for a box with no sensor.
  *
- * The fix gives the overlay its own ams_env_overlay_humidity_visible subject,
+ * The overlay has its own ams_env_overlay_humidity_visible subject,
  * set from the shown unit's environment, matching how every other value in that
  * overlay is produced.
  */
@@ -169,8 +169,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(subject_int("ams_env_ind_0_humidity_visible") == 0);
     REQUIRE(subject_int("ams_env_ind_1_humidity_visible") == 1);
 
-    // THE REGRESSION ASSERTION. Pre-fix both widgets were bound to
-    // ams_env_ind_0_humidity_visible, so unit 1's overlay hid a row whose
+    // THE REGRESSION ASSERTION. Binding both widgets to
+    // ams_env_ind_0_humidity_visible would make unit 1's overlay hide a row whose
     // reading ("42%") was right there next to it.
     const HumidityRowState state = humidity_state_for_unit(*this, 1);
     CHECK(state.subject == 1);

@@ -29,7 +29,6 @@ BackgroundGhostBuilder::~BackgroundGhostBuilder() {
 
 void BackgroundGhostBuilder::start(GCodeStreamingController* controller,
                                    RenderCallback render_callback) {
-    // Cancel any existing build
     cancel();
 
     if (!controller || !controller->is_open()) {
@@ -53,7 +52,6 @@ void BackgroundGhostBuilder::start(GCodeStreamingController* controller,
 }
 
 void BackgroundGhostBuilder::cancel() {
-    // Signal cancellation
     cancelled_.store(true);
 
     // Always join if joinable - even if not running (thread may have completed)
@@ -143,7 +141,6 @@ void BackgroundGhostBuilder::worker_thread() {
     }
 }
 
-// Static member initialization
 const LayerIndexStats GCodeStreamingController::empty_stats_{};
 
 // =============================================================================
@@ -259,7 +256,6 @@ bool GCodeStreamingController::open_file(const std::string& filepath) {
 
     spdlog::info("[StreamingController] Opening file: {}", filepath);
 
-    // Create file data source
     auto source = std::make_unique<FileDataSource>(filepath);
     if (!source->is_valid()) {
         spdlog::error("[StreamingController] Failed to open file: {}", filepath);
@@ -291,7 +287,6 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
 
     spdlog::info("[StreamingController] Opening file async: {}", filepath);
 
-    // Create file data source
     auto source = std::make_unique<FileDataSource>(filepath);
     if (!source->is_valid()) {
         spdlog::error("[StreamingController] Failed to open file: {}", filepath);
@@ -744,7 +739,6 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
         return segments;
     }
 
-    // Read layer bytes from source
     auto bytes = data_source_->read_range(entry.file_offset, entry.byte_length);
     if (bytes.empty()) {
         spdlog::warn("[StreamingController] Failed to read bytes for layer {} "
@@ -758,12 +752,11 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
     // Seed with the tool active at THIS layer's byte offset. Layer chunks don't
     // include the file prologue — nor the `Tn` that ends the previous chunk — so
     // a fresh parser would default to T0 and tag every segment with the wrong
-    // tool index. Seeding every layer with the file's FIRST tool fixed the
-    // single-tool case (a T3-only print rendering in T0's color) but still
-    // flattened a real tool changer to one color for the whole model.
-    // start_tool is -1 for layers that precede the file's first tool change, and
-    // on any entry built before the field existed; initial_tool_index is the
-    // fallback there, which reproduces the old behaviour exactly.
+    // tool index. Seeding every layer with the file's FIRST tool would flatten a
+    // real tool changer to one color for the whole model.
+    // start_tool is -1 for layers that precede the file's first tool change;
+    // initial_tool_index is the fallback there, so a T3-only print still renders
+    // in T3's color.
     const int seed_tool = entry.start_tool >= 0 ? static_cast<int>(entry.start_tool)
                                                 : index_.get_stats().initial_tool_index;
     parser.set_active_tool_index(seed_tool);
@@ -784,8 +777,8 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
     parser.set_initial_extrusion_mode(entry.is_absolute_extrusion(), entry.start_e);
     // Seed layer-marker mode. `;LAYER_CHANGE` lives at the end of the *previous*
     // layer's byte range, so a chunk parse never sees one and would fall back to
-    // legacy "every Z change starts a layer" splitting — one Layer object per
-    // move for vase-mode G-code.
+    // "every Z change starts a layer" splitting: one Layer object per move for
+    // vase-mode G-code.
     parser.set_use_layer_markers(index_.uses_layer_markers());
 
     // Hand the parser views straight into the byte buffer: no copy per line.
@@ -803,7 +796,6 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
         pos = nl ? line_end + 1 : byte_count;
     }
 
-    // Get parsed result
     auto result = parser.finalize();
 
     // Collect all segments from all parsed layers
@@ -854,10 +846,9 @@ bool GCodeStreamingController::build_index() {
 
     if (!file_path.empty()) {
         const int64_t cpu_start = helix::thread_cpu_ns();
-        // Publish real indexing progress. Before this the atomic went 0.0 to
-        // 1.0 with nothing in between, so get_index_progress() could only ever
-        // drive an indeterminate spinner — on a 133MB print that is 69 seconds
-        // of a UI that looks hung. Storing an atomic from the scan thread is
+        // Publish real indexing progress so get_index_progress() can drive a
+        // determinate bar: indexing a 133MB print takes about 69 seconds, which
+        // looks hung behind a spinner. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
         float scanned_fraction = 0.0f;
         const bool built =
@@ -938,7 +929,6 @@ void GCodeStreamingController::remap_object_name_indices(
         }
     }
 
-    // Remap all segment indices
     for (auto& seg : segments) {
         if (seg.object_name_index >= 0 &&
             static_cast<size_t>(seg.object_name_index) < local_to_merged.size()) {

@@ -321,7 +321,7 @@ TEST_CASE("pick_object_at returns the named object under the tap, and nothing el
 
 // Verifies the breadcrumb added to GCodeLayerRenderer::render_layers_to_cache
 // actually fires on the real render path. A SIGBUS was seen inside that path on
-// AD5X (bundle YZQ47HQ6); the crumb gives the crash handler the gcode subsystem
+// AD5X; the crumb gives the crash handler the gcode subsystem
 // + target layer even when the stack is too corrupt to scan. render() reaches
 // render_layers_to_cache only in FRONT view after warmup, so we drive several
 // frames against an offscreen canvas layer with ghost mode off (deterministic,
@@ -1620,8 +1620,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     frame();
 
     // The pending pre-invalidate build must be gone: one frame after
-    // invalidation there is no ghost output. (Before the fix, this frame
-    // copied the stale buffer and reported output.) Whether the replacement
+    // invalidation there is no ghost output (not the stale buffer copied
+    // and reported as output). Whether the replacement
     // build is still running at this instant is timing - a 120-layer ghost
     // finishes in well under a frame - so the invariant is "no stale output",
     // not "mid-build".

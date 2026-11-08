@@ -10,7 +10,7 @@
  * several samples, auto-completing a point and cascading the state machine —
  * "one tap jumps to the next screen" with a garbage matrix.
  *
- * The fix: capture the press point on on_press(), commit it on on_release() (or
+ * The panel captures the press point on on_press(), commits it on on_release() (or
  * a stall-timeout fallback), gated by a release-IMMUNE time refractory. A second
  * commit within kRefractoryMs of the last committed sample is bounce and is
  * dropped. The behavior is ON by default; HELIX_TOUCH_CAL_DEBOUNCE=0 opts out to
@@ -159,7 +159,7 @@ TEST_CASE_METHOD(DebounceFixture,
     tap(Point{250, 150});
 
     REQUIRE(failed);
-    REQUIRE(count_seen_in_failure == 0); // reset BEFORE the callback (was 3 pre-fix)
+    REQUIRE(count_seen_in_failure == 0); // reset BEFORE the callback, not 3
     REQUIRE(panel_->get_state() == TouchCalibrationPanel::State::POINT_1);
 }
 
@@ -248,7 +248,7 @@ TEST_CASE_METHOD(DebounceFixture, "Debounce OFF: legacy sample-on-press reproduc
 
     // One physical contact = three PRESSED edges. With debounce OFF each one
     // samples immediately; release is a no-op. Three samples complete POINT_1
-    // and cascade to POINT_2 — the exact pre-fix failure.
+    // and cascade to POINT_2, the failure debounce prevents.
     panel_->on_press(Point{100, 120});
     panel_->on_release(); // no-op when debounce disabled
     panel_->on_press(Point{100, 120});

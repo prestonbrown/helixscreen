@@ -609,10 +609,9 @@ TEST_CASE("Crash: elapsed_ms computes wrap-safe monotonic deltas", "[telemetry][
     }
 }
 
-// heap_snapshot_age_ms must be an AGE. It previously emitted the snapshot's raw
-// monotonic timestamp under an "age" label, so a snapshot taken 17 ms before the
-// crash was reported as "snapshot age 144712ms" in the auto-filed issue (bundle
-// VP623KVU) — reading as a badly stale snapshot when it was in fact fresh.
+// heap_snapshot_age_ms must be an AGE. The snapshot's raw monotonic timestamp
+// under an "age" label reports a snapshot taken 17 ms before the crash as
+// "snapshot age 144712ms", which reads as badly stale when it is fresh.
 #if defined(__linux__)
 TEST_CASE_METHOD(CrashTestFixture, "Crash: heap_snapshot_age_ms is an age, not a timestamp",
                  "[telemetry][crash][subprocess]") {
@@ -649,7 +648,7 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: heap_snapshot_age_ms is an age, not a
     REQUIRE(age < 1000);
 }
 
-// The age alone is undiagnosable when it comes out wrong (bundle ED2YC336
+// The age alone is undiagnosable when it comes out wrong (one debug bundle
 // reported an age exceeding the process uptime, which is impossible). Both raw
 // stamps now ship with it, and they must agree with the age exactly — they are
 // derived from a single clock read, so any drift means the handler took two.

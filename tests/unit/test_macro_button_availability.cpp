@@ -7,9 +7,9 @@
  *
  * Printer presets seed /standard_macros/<slot> from a template machine, so a
  * printer set up from someone else's preset can carry macro names its Klipper
- * has never heard of. Those names used to be taken at face value: the button
- * rendered as working, and the only feedback on a tap was an "Unknown command"
- * rejection from the printer.
+ * has never heard of. Taken at face value, such a button renders as working,
+ * and the only feedback on a tap is an "Unknown command" rejection from the
+ * printer.
  */
 
 #include "ui_panel_controls.h"

@@ -138,7 +138,6 @@ void GCodeFileModifier::apply_single_modification(std::vector<std::string>& line
     }
 
     case ModificationType::INJECT_BEFORE: {
-        // Split the gcode to inject into lines
         std::vector<std::string> new_lines = split_lines(mod.gcode);
 
         // Insert before idx
@@ -150,7 +149,6 @@ void GCodeFileModifier::apply_single_modification(std::vector<std::string>& line
     }
 
     case ModificationType::INJECT_AFTER: {
-        // Split the gcode to inject into lines
         std::vector<std::string> new_lines = split_lines(mod.gcode);
 
         // Insert after idx (at idx+1)
@@ -166,14 +164,11 @@ void GCodeFileModifier::apply_single_modification(std::vector<std::string>& line
         // Replace lines from idx to end_idx with new gcode
         size_t count = end_idx - idx + 1;
 
-        // Split the replacement gcode into lines
         std::vector<std::string> new_lines = split_lines(mod.gcode);
 
-        // Erase old lines
         lines.erase(lines.begin() + static_cast<long>(idx),
                     lines.begin() + static_cast<long>(end_idx + 1));
 
-        // Insert new lines
         lines.insert(lines.begin() + static_cast<long>(idx), new_lines.begin(), new_lines.end());
 
         result.lines_removed += count;
@@ -191,19 +186,16 @@ std::string GCodeFileModifier::apply_to_content(const std::string& content) {
         return content;
     }
 
-    // Split content into lines
     std::vector<std::string> lines = split_lines(content);
 
     // Sort modifications by line number (descending)
     sort_modifications();
 
-    // Apply each modification
     ModificationResult result;
     for (const auto& mod : modifications_) {
         apply_single_modification(lines, mod, result);
     }
 
-    // Join lines back together
     std::string out;
     for (size_t i = 0; i < lines.size(); ++i) {
         out += lines[i];
@@ -239,7 +231,6 @@ ModificationResult GCodeFileModifier::apply(const std::string& filepath) {
 ModificationResult GCodeFileModifier::apply_buffered(const std::string& filepath) {
     ModificationResult result;
 
-    // Read original file
     helix::text_io::LineReader infile(filepath);
     if (!infile) {
         result.success = false;
@@ -248,7 +239,6 @@ ModificationResult GCodeFileModifier::apply_buffered(const std::string& filepath
         return result;
     }
 
-    // Read all lines
     std::vector<std::string> lines;
     std::string line;
     bool ended_with_newline = false;
@@ -289,7 +279,6 @@ ModificationResult GCodeFileModifier::apply_buffered(const std::string& filepath
     spdlog::info("[GCodeFileModifier] Applying {} modifications (buffered mode)",
                  modifications_.size());
 
-    // Apply each modification
     for (const auto& mod : modifications_) {
         apply_single_modification(lines, mod, result);
     }
@@ -300,10 +289,8 @@ ModificationResult GCodeFileModifier::apply_buffered(const std::string& filepath
         return result;
     }
 
-    // Generate temp file path
     result.modified_path = generate_temp_path(filepath);
 
-    // Write modified file
     auto outfile = helix::text_io::open_file(result.modified_path, "wb");
     if (!outfile) {
         result.success = false;
@@ -361,7 +348,6 @@ std::unordered_map<size_t, Modification> GCodeFileModifier::build_streaming_look
 ModificationResult GCodeFileModifier::apply_streaming(const std::string& filepath) {
     ModificationResult result;
 
-    // Open input file
     helix::text_io::LineReader infile(filepath);
     if (!infile) {
         result.success = false;
@@ -370,10 +356,8 @@ ModificationResult GCodeFileModifier::apply_streaming(const std::string& filepat
         return result;
     }
 
-    // Generate output path
     result.modified_path = generate_temp_path(filepath);
 
-    // Open output file
     auto outfile = helix::text_io::open_file(result.modified_path, "wb");
     if (!outfile) {
         result.success = false;
@@ -388,7 +372,6 @@ ModificationResult GCodeFileModifier::apply_streaming(const std::string& filepat
     spdlog::info("[GCodeFileModifier] Processing file in streaming mode ({} modifications)",
                  modifications_.size());
 
-    // Process line by line
     std::string line;
     size_t line_number = 0;
     bool first_line = true;
@@ -399,7 +382,6 @@ ModificationResult GCodeFileModifier::apply_streaming(const std::string& filepat
         result.original_size += line.size() + 1;
         ended_with_newline = infile.last_had_delimiter();
 
-        // Check if this line has a modification
         auto it = lookup.find(line_number);
         if (it != lookup.end()) {
             const auto& mod = it->second;
@@ -536,7 +518,6 @@ bool GCodeFileModifier::disable_operation(const DetectedOperation& op) {
         return disable_macro_parameter(op);
 
     case OperationEmbedding::NOT_FOUND:
-        // Nothing to disable
         return false;
     }
 
@@ -559,7 +540,6 @@ bool GCodeFileModifier::disable_macro_parameter(const DetectedOperation& op) {
     std::string pattern = op.param_name + R"(=\S+)";
     helix::Regex re(pattern, helix::Regex::ICase);
 
-    // Determine replacement value
     std::string replacement = op.param_name + "=0";
 
     // Check if original value was boolean-like
@@ -569,10 +549,8 @@ bool GCodeFileModifier::disable_macro_parameter(const DetectedOperation& op) {
         replacement = op.param_name + "=FALSE";
     }
 
-    // Build the modified line
     std::string modified_line = helix::regex_replace(op.raw_line, re, replacement);
 
-    // Add a replacement modification
     add_modification(
         Modification::replace(op.line_number, modified_line, "Disabled " + op.param_name)
             .expecting(op.raw_line));
@@ -629,7 +607,6 @@ std::string GCodeFileModifier::generate_temp_path(const std::string& original_pa
 
     std::string filename = std::string(helix::fs::filename(original_path));
 
-    // Generate random suffix
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(100000, 999999);
@@ -665,7 +642,6 @@ size_t GCodeFileModifier::cleanup_temp_files(int max_age_seconds) {
             continue; // Not our file
         }
 
-        // Check file age
         const auto mtime = helix::fs::mtime_ns(entry.path);
         if (!mtime) {
             continue; // Removed since the listing

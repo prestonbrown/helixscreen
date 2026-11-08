@@ -73,13 +73,13 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
 //
 // SubjectManager::deinit_all() withdraws each subject's XML-scope name before
 // freeing the subject, but it can only do that for names it was told about.
-// The INIT_SUBJECT_* macros used to register the name in the XML scope while
-// calling register_subject() WITHOUT it — and the parameter is defaulted, so
-// the omission was silent. Every managed subject therefore kept resolving by
-// name after lv_subject_deinit().
+// The INIT_SUBJECT_* macros register the name in the XML scope, so they must
+// pass it to register_subject() too. The parameter is defaulted, so omitting it
+// is silent, and every managed subject would keep resolving by name after
+// lv_subject_deinit().
 //
-// The consequence was a live crash, not a leak: an owner that does not outlive
-// the process (a PrinterState held by a stack-allocated XMLTestFixture) left
+// The consequence is a live crash, not a leak: an owner that does not outlive
+// the process (a PrinterState held by a stack-allocated XMLTestFixture) leaves
 // "klippy_state" pointing at a destroyed fixture member, and
 // PanelWidgetManager::setup_gate_observers null-checks its lookup — the check
 // passed, and lv_subject_add_observer walked a garbage subs_ll.

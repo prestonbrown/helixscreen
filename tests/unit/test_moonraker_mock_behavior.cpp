@@ -2892,12 +2892,12 @@ TEST_CASE("MoonrakerClientMock fan control", "[slow][mock][fan]") {
 namespace {
 /// True when `n` is a gcode_move notification whose Z homing_origin equals `want`.
 ///
-/// These sections used to call wait_for_callback(), which returns on the FIRST
-/// notification of any kind, and then scanned for the first notification carrying
-/// homing_origin and broke on it. The mock emits more than one notification per
-/// command and the gcode_move snapshot is not necessarily the one that woke the
-/// wait, so a pre-update snapshot could be the first match and the assertion read
-/// 0.0 against the expected offset — roughly 3 runs in 40. Waiting on the VALUE
+/// wait_for_callback() returns on the FIRST notification of any kind, and
+/// scanning for the first notification carrying homing_origin is not enough:
+/// the mock emits more than one notification per command and the gcode_move
+/// snapshot is not necessarily the one that woke the wait, so a pre-update
+/// snapshot can be the first match and the assertion reads 0.0 against the
+/// expected offset (roughly 3 runs in 40). Waiting on the VALUE
 /// removes the race instead of widening a timeout.
 bool has_z_offset(const nlohmann::json& n, double want) {
     if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
@@ -3566,9 +3566,9 @@ TEST_CASE("MoonrakerClientMock: M117 sets display_status.message", "[mock][displ
         REQUIRE(captured["message"].get<std::string>() == "Hello World");
     }
 
-    // Regression: the M117 branch used to fall through the rest of
-    // gcode_script() instead of returning, so message TEXT containing other
-    // command substrings ("G28", "G1"/"G0") re-triggered those handlers. A
+    // The M117 branch must return rather than fall through the rest of
+    // gcode_script(), or message TEXT containing other command substrings
+    // ("G28", "G1"/"G0") re-triggers those handlers. A
     // user M117 message that merely mentions "G28" must not home the axes.
     SECTION("M117 text containing G28 does not trigger homing") {
         json toolhead_captured;

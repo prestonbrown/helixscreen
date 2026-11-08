@@ -20,8 +20,8 @@
  * bound temp subject reflects A, then changes the backend to temperature B,
  * runs the production state-change path (sync_from_backend() updates the
  * env_ind_temp_text subject the overlay observes) + drains UpdateQueue, and
- * asserts the overlay now reflects B. Pre-fix the readout stays at A and the
- * final assertion fails.
+ * asserts the overlay reflects B. Without the observer the readout stays at
+ * A and the final assertion fails.
  */
 
 #include "ui_ams_environment_overlay.h"
@@ -139,8 +139,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(10);
 
     // ------------------------------------------------------------------
-    // 4. THE REGRESSION ASSERTION. Pre-fix (no observer) the readout stays at
-    //    "30" and this fails. Post-fix the observer re-pulled and shows "45".
+    // 4. THE REGRESSION ASSERTION. Without the observer the readout stays at
+    //    "30" and this fails; the observer re-pulls and shows "45".
     // ------------------------------------------------------------------
     REQUIRE(subject_string("ams_env_overlay_temp_text").rfind("45", 0) == 0);
 

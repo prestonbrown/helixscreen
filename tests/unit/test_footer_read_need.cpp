@@ -8,18 +8,16 @@
  *
  * The footer answers three independent questions: which tools the file uses,
  * what colors they print in, and how many grams each costs. ToolsUsedCache
- * persists only the first. Before this decision existed, the read was gated on
- * that one cached answer, so a cache hit skipped it wholesale and the other two
- * questions went permanently unanswered for the life of that open.
+ * persists only the first. Gating the read on that one cached answer would make
+ * a cache hit skip it wholesale, leaving the other two questions unanswered for
+ * the life of that open.
  *
- * That is the regression these pin. On a K2 Plus, Moonraker reports
- * filament_type for an OrcaSlicer file and no filament_colors at all, so the
- * footer is the only source of the palette. First open: cache miss, read runs,
- * real colors. Second open: cache hit, read skipped, every tool falls back to
- * the neutral stand-in and the chips render "grey dot -> black dot". The
- * viewer parse used to paper over it by backfilling the palette itself, but
- * that path only exists in full-load mode and the large-file streaming fix
- * (64d0997de) moved big files off it.
+ * On a K2 Plus, Moonraker reports filament_type for an OrcaSlicer file and no
+ * filament_colors at all, so the footer is the only source of the palette.
+ * First open: cache miss, read runs, real colors. Second open with the read
+ * skipped: every tool falls back to the neutral stand-in and the chips render
+ * "grey dot -> black dot". The viewer parse backfills the palette only in
+ * full-load mode, and large files stream instead.
  */
 
 #include "gcode_footer_summary.h"

@@ -753,9 +753,9 @@ TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
         // init_wpa() (fails — nobody answers on the dummy socket).
         WiFiError result = backend.start();
 
-        // The init attempt must NOT be reported as a usable backend. Pre-fix,
-        // is_running() returned init_complete_ (true after any finished attempt),
-        // so this REQUIRE_FALSE caught the bug.
+        // The init attempt must NOT be reported as a usable backend:
+        // is_running() must not return init_complete_ (true after any finished
+        // attempt).
         REQUIRE_FALSE(result.success());
         REQUIRE_FALSE(backend.is_running());
 

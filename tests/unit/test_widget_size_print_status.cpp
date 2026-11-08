@@ -13,10 +13,9 @@
  *
  * `:450` publishes the band itself as `print_status_width_band` — a renamed,
  * *derived* subject. The XML consumer (`panel_widget_print_status.xml`'s two
- * `library_body_gap_*` `bind_style` entries) used to compare the raw colspan
- * against `ref_value="2"`/`"3"`; both the C++ publisher and the XML
- * `ref_value`s were updated together (now `1`=normal/`2`=wide) so producer
- * and consumer never disagree about what the subject means. The test below
+ * `library_body_gap_*` `bind_style` entries) compare against the band
+ * (`1`=normal/`2`=wide), not the raw colspan, so producer and consumer never
+ * disagree about what the subject means. The test below
  * asserts the subject transitions directly rather than the resulting
  * `pad_row` pixel value on `library_body`: at this binary's active theme
  * tier, `#space_md` (the wide gap) happens to equal the tier's *other*
@@ -237,10 +236,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 // --- Idle detailed hero: the filename spans the card, not the data column ---
 //
-// The active card got this in e779c972d; the idle twin kept its filename inside
-// idle_data_col, beside a 45%-wide thumbnail, so a long name scrolled through
-// roughly half the width it had available. Both cards now hoist it to a
-// full-width header above the thumb/data row.
+// Both the active and idle cards hoist the filename to a full-width header above
+// the thumb/data row. Inside idle_data_col, beside a 45%-wide thumbnail, a long
+// name scrolls through roughly half the width available.
 
 TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans the whole card",
                  "[widget_size][print_status]") {

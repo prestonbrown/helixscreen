@@ -6,7 +6,7 @@
  * @brief header_bar's action_button_disabled_cond prop, and the calibration
  *        panels that depend on it to gate Start while the printer is offline.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the WebSocket to Moonraker
+ * Context (K2 Plus, v0.99.98): the WebSocket to Moonraker
  * never opened. The PID panel greyed out its *content* — the gate lives on
  * `overlay_content` — but the Start button sits in the header bar, a sibling of
  * that container, so it stayed live. The reporter pressed it and got a failure
@@ -14,7 +14,7 @@
  *
  * header_bar's action button supports exactly one disabled binding, and two
  * bind_state_* on one LVGL state clobber each other (each observer asserts BOTH
- * polarities on every fire), so the fix is a single expression-driven binding.
+ * polarities on every fire), so it is a single expression-driven binding.
  *
  * The second test reads the real panel XML and drives header_bar with the exact
  * expression each panel ships. That is deliberate: a cond naming a subject that

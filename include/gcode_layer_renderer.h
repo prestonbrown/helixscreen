@@ -747,9 +747,8 @@ class GCodeLayerRenderer {
 
     /// What the SSAO pass changed, so it can be taken back.
     ///
-    /// This replaced a full-canvas ARGB8888 second buffer whose only job was to
-    /// keep an untouched copy of the source. The pass darkens the silhouette
-    /// edge, and the edge is a perimeter: measured across a whole 218-layer
+    /// Cheaper than keeping a full-canvas ARGB8888 copy of the source. The pass
+    /// darkens the silhouette edge, and the edge is a perimeter: measured across a whole 218-layer
     /// three-object print it peaked at 713 pixels, 4.3% of the filled pixels and
     /// falling as the model densified. 713 entries is 6KB against the buffer's
     /// 427KB.

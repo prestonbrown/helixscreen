@@ -123,7 +123,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "pending action set then cleared on stat
 // gcode.script RPC still answers `ok`, so dispatch_prepared_resume's error path
 // never runs and the optimistic spinner is left to the 150s backstop. For 150s
 // the button reads "Resuming..." AND is disabled, so the user cannot retry even
-// after clearing the runout (bundle JX2FVRB9: RESUME at 07:33:29 rejected for
+// after clearing the runout (one AD5X log: RESUME at 07:33:29 rejected for
 // filament-out, pending finally cleared at 07:35:59).
 //
 // Mutation check: make notify_printer_error() a no-op and the first REQUIRE in
@@ -200,11 +200,11 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
 // lv_observer_t*; the next teardown that walks it calls lv_observer_remove() on
 // freed memory.
 //
-// The fix: reset_all() (run at every test boundary, while subjects are still
+// reset_all() (run at every test boundary, while subjects are still
 // alive) detaches the controller's observer. This test asserts that invariant.
 // Deliberately does NOT use ControlButtonsFixture — it drives the lifecycle by
-// hand so the assertion targets reset_all() directly. Pre-fix, has_observer()
-// stays true after reset_all() and the REQUIRE_FALSE fails (and the follow-on
+// hand so the assertion targets reset_all() directly. If has_observer()
+// stays true after reset_all(), the REQUIRE_FALSE fails (and the follow-on
 // deinit_subjects() walks freed memory).
 TEST_CASE_METHOD(LVGLTestFixture,
                  "reset_all detaches PrintControlButtons observer before subject teardown",
@@ -224,7 +224,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE_FALSE(PrintControlButtonsTestAccess::has_observer());
 
     // With the observer detached, tearing the subject down (what a later test or
-    // process exit does) no longer walks a dangling lv_observer_t*. Pre-fix this
-    // is where the SIGSEGV / heap corruption happened.
+    // process exit does) never walks a dangling lv_observer_t*. A
+    // leftover observer makes this the SIGSEGV / heap corruption site.
     REQUIRE_NOTHROW(get_printer_state().deinit_subjects());
 }

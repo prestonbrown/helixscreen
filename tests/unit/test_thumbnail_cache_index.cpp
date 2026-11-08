@@ -9,7 +9,7 @@
  * and save_raw_png(), and each call walks the whole cache directory with a stat
  * per file. Scrolling Print Select over 850 files x 3 thumbnails made that a
  * per-scroll-tick cost on the main thread. Serializing eviction behind a mutex
- * (b0db2b957) removed the duplicate work but not the walk.
+ * removes duplicate work but not the walk.
  *
  * Nothing measured the walk, which is why it stayed invisible — so these tests
  * assert on ThumbnailCache::get_full_scan_count() / get_stat_count() directly.
@@ -20,8 +20,7 @@
  *   - files appear behind the cache's back. ThumbnailProcessor writes the
  *     pre-scaled `.bin` files into ThumbnailCache's own directory and reports to
  *     nobody. An index that only sees ThumbnailCache's writes under-counts, and
- *     an under-counting cache silently stops evicting — the exact failure mode
- *     b0db2b957 fixed for a different reason.
+ *     an under-counting cache silently stops evicting.
  *   - files vanish behind the cache's back. Over-counting is the safe direction
  *     (it evicts too eagerly) but it must still resynchronise.
  *   - a populated directory at startup, which the index has never observed.
@@ -332,7 +331,7 @@ TEST_CASE("An external delete never makes the cache under-report",
 
     // Over-counting is the survivable direction — it evicts too eagerly.
     // Under-counting is not: it reads as "well under the limit" and disables
-    // eviction, which is the failure b0db2b957 fixed via a different route.
+    // eviction.
     REQUIRE(cache.get_cache_size() >= true_dir_size(dir));
 
     // And it must not stay wrong forever. Any reconciliation period the

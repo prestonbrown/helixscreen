@@ -17,9 +17,8 @@
  * @brief Unit tests for ui_text_input.cpp - Custom text input widget
  *
  * These drive the shipped widget: src/ui/components/ui_text_input.cpp is linked into the test
- * binary and registers <text_input> through its own ui_text_input_init(). It used to
- * be excluded from the link while ui_test_utils.cpp registered a hand-written copy,
- * so every assertion here described the copy rather than the widget that ships.
+ * binary and registers <text_input> through its own ui_text_input_init(), so
+ * every assertion here describes the widget that ships, not a hand-written copy.
  *
  * Tests cover:
  * - placeholder attribute (shorthand for placeholder_text)
