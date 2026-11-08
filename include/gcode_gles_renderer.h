@@ -291,8 +291,9 @@ class GCodeGLESRenderer {
 
     void free_vbos(std::vector<LayerVBO>& vbos);
 
-    /// Free every uploaded VBO and fall back to 2D for the session.
-    void abandon_upload();
+    /// Free every uploaded VBO and fall back to 2D for the session, after a fatal GL error
+    /// during the step `during` names.
+    void abandon_gpu(const char* during);
 
     // ====== Internal Rendering ======
 
