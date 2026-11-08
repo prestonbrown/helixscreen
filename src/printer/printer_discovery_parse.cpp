@@ -1039,6 +1039,7 @@ void PrinterDiscovery::clear() {
     afc_buffer_names_.clear();
     afc_extruder_names_.clear();
     tool_names_.clear();
+    tool_numbers_.clear();
     filament_sensor_names_.clear();
     width_sensor_objects_.clear();
     mmu_encoder_names_.clear();
@@ -1218,9 +1219,16 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
 
     // klipper-toolchanger names each tool by its config section, "tool Left".
     static constexpr std::string_view kSectionPrefix = "tool ";
+    // tool_numbers[i] is the number of tool_names[i] (klipper/extras/toolchanger.py).
+    const auto numbers = toolchanger_status.find("tool_numbers");
+    const bool has_numbers = numbers != toolchanger_status.end() && numbers->is_array() &&
+                             numbers->size() == listed->size();
+
     std::vector<std::string> ordered;
+    std::vector<int> ordered_numbers;
     ordered.reserve(tool_names_.size());
-    for (const auto& entry : *listed) {
+    for (size_t i = 0; i < listed->size(); ++i) {
+        const auto& entry = (*listed)[i];
         if (!entry.is_string()) {
             continue;
         }
@@ -1232,12 +1240,23 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
             std::find(tool_names_.begin(), tool_names_.end(), name) != tool_names_.end();
         if (discovered && std::find(ordered.begin(), ordered.end(), name) == ordered.end()) {
             ordered.push_back(std::move(name));
+            int number = -1;
+            if (has_numbers && (*numbers)[i].is_number_integer()) {
+                number = (*numbers)[i].get<int>();
+            }
+            ordered_numbers.push_back(number);
         }
     }
     for (const auto& name : tool_names_) {
         if (std::find(ordered.begin(), ordered.end(), name) == ordered.end()) {
             ordered.push_back(name);
+            ordered_numbers.push_back(-1);
         }
+    }
+    if (has_numbers) {
+        tool_numbers_ = std::move(ordered_numbers);
+    } else {
+        tool_numbers_.clear();
     }
 
     if (ordered != tool_names_) {

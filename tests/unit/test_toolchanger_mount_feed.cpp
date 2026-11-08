@@ -2119,3 +2119,77 @@ TEST_CASE_METHOD(LVGLTestFixture,
     AmsState::instance().set_backend(nullptr);
     set_connection(ConnectionState::CONNECTED);
 }
+
+TEST_CASE("mount-to-feed: a tool number that skips seats the tool Klipper numbers it",
+          "[toolchanger][mount_feed][tool-number]") {
+    // Tools T0, T2 and T3: Klipper's tool 2 is the second head, slot 1.
+    AckingChanger tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 2}}}});
+
+    REQUIRE(tc.get_system_info().current_slot == 1);
+
+    // Unloading the mounted head works T2's head, never T3's.
+    REQUIRE(tc.unload_filament(-1).success());
+    for (int i = 0; i < 4; ++i) {
+        const size_t sent = tc.sent_.size();
+        tc.ack();
+        if (tc.sent_.size() == sent)
+            break;
+    }
+    INFO("sent: " << [&] {
+        std::string all;
+        for (const auto& g : tc.sent_)
+            all += "[" + g + "] ";
+        return all;
+    }());
+    const auto names = [&](const std::string& needle) {
+        return std::any_of(tc.sent_.begin(), tc.sent_.end(), [&](const std::string& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+    CHECK(names("HEATER=extruder1 "));
+    CHECK_FALSE(names("extruder2"));
+    CHECK_FALSE(names("tool T3"));
+
+    SECTION("a number no tool carries seats none") {
+        tc.feed(json{{"toolchanger", {{"tool_number", 1}}}});
+        CHECK(tc.get_system_info().current_slot == -1);
+    }
+}
+
+TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carriage tool",
+          "[toolchanger][tool-number]") {
+    // Moonraker sends only changed fields: tool_numbers, tool_names each alone.
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 2, 3})}}}});
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T2", "tool T3"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+    CHECK(tc.get_system_info().current_tool == 2);
+
+    // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+}
+
+TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 0}}}});
+
+    REQUIRE(tc.change_tool(2).success());
+    REQUIRE_FALSE(tc.sent_.empty());
+    CHECK(tc.sent_.back() == "SELECT_TOOL TOOL=\"tool T3\"");
+}

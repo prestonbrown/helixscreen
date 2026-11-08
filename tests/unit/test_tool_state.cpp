@@ -397,6 +397,108 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: update_from_status tool_number -1
     REQUIRE(ts.active_tool() == nullptr);
 }
 
+namespace {
+
+// A klipper-toolchanger printer with the given tools, numbered as its first
+// status frame reports them.
+void init_numbered_changer(ToolState& ts, const std::vector<std::pair<int, std::string>>& tools) {
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"toolchanger", "gcode_move"});
+    nlohmann::json numbers = nlohmann::json::array();
+    nlohmann::json names = nlohmann::json::array();
+    for (size_t i = 0; i < tools.size(); ++i) {
+        objects.push_back("tool " + tools[i].second);
+        objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
+        numbers.push_back(tools[i].first);
+        names.push_back("tool " + tools[i].second);
+    }
+    hw.parse_objects(objects);
+    hw.order_tools_by_number({{"tool_numbers", numbers}, {"tool_names", names}});
+    ts.init_tools(hw);
+    REQUIRE(ts.tool_count() == static_cast<int>(tools.size()));
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolState: tool_number maps through klipper-toolchanger's tool numbers",
+                 "[tool][tool-state][tool-number]") {
+    lv_init_safe();
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    SECTION("numbers that skip: T0 and T2 only") {
+        init_numbered_changer(ts, {{0, "T0"}, {2, "T2"}});
+
+        ts.update_from_status({{"toolchanger", {{"tool_number", 2}}}});
+        REQUIRE(ts.active_tool_index() == 1);
+        REQUIRE(lv_subject_get_int(ts.get_active_tool_subject()) == 1);
+        REQUIRE(ts.active_tool() != nullptr);
+        REQUIRE(ts.active_tool()->name == "T2");
+
+        ts.update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+        REQUIRE(ts.active_tool_index() == 0);
+        REQUIRE(ts.active_tool()->name == "T0");
+
+        ts.update_from_status({{"toolchanger", {{"tool_number", -1}}}});
+        REQUIRE(ts.active_tool_index() == -1);
+        REQUIRE(ts.active_tool() == nullptr);
+    }
+
+    SECTION("a number the changer does not list mounts no known tool") {
+        init_numbered_changer(ts, {{0, "T0"}, {2, "T2"}});
+        ts.update_from_status({{"toolchanger", {{"tool_number", 2}}}});
+        REQUIRE(ts.active_tool_index() == 1);
+
+        // 1 is inside the list's range but numbers no tool; 5 is past it.
+        for (int unknown : {1, 5}) {
+            ts.update_from_status({{"toolchanger", {{"tool_number", 2}}}});
+            ts.update_from_status({{"toolchanger", {{"tool_number", unknown}}}});
+            CHECK(ts.active_tool_index() == -1);
+            CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == -1);
+            CHECK(ts.active_tool() == nullptr);
+        }
+    }
+
+    SECTION("contiguous numbering is unchanged") {
+        init_numbered_changer(ts, {{0, "T0"}, {1, "T1"}, {2, "T2"}});
+        for (int n : {2, 0, 1}) {
+            ts.update_from_status({{"toolchanger", {{"tool_number", n}}}});
+            CHECK(ts.active_tool_index() == n);
+        }
+    }
+
+    SECTION("names out of number order: the number picks the tool, not the position") {
+        // [tool Right] numbered 0 sorts after [tool Left] by name.
+        init_numbered_changer(ts, {{0, "Right"}, {1, "Left"}});
+        ts.update_from_status({{"toolchanger", {{"tool_number", 1}}}});
+        REQUIRE(ts.active_tool() != nullptr);
+        CHECK(ts.active_tool()->name == "Left");
+    }
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "ToolState: without a numbers list, tool_number is the tool's position",
+                 "[tool][tool-state][tool-number]") {
+    lv_init_safe();
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "gcode_move"}));
+    ts.init_tools(hw);
+
+    ts.update_from_status({{"toolchanger", {{"tool_number", 1}}}});
+    REQUIRE(ts.active_tool_index() == 1);
+
+    ts.update_from_status({{"toolchanger", {{"tool_number", 7}}}});
+    CHECK(ts.active_tool_index() == -1);
+    CHECK(ts.active_tool() == nullptr);
+}
+
 // ============================================================================
 // Lifecycle edge case tests
 // ============================================================================
