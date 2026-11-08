@@ -76,6 +76,18 @@ namespace helix {
 [[nodiscard]] int get_splash_3d_target_height(const char* size_name);
 
 /**
+ * @brief Composited width of a 3D splash size class
+ *
+ * Every canvas is landscape, while the class is chosen from the panel's narrow
+ * axis, so on a portrait panel the canvas can fit the height and still run past
+ * the sides. Callers compare this against the real screen width.
+ *
+ * @param size_name Class name from get_splash_3d_size_name()
+ * @return Width in pixels, or 0 if the name is unknown
+ */
+[[nodiscard]] int get_splash_3d_target_width(const char* size_name);
+
+/**
  * @brief Pre-rendered printer image size for a screen width
  *
  * Keyed on width rather than the narrow axis: this sizes a widget's artwork
