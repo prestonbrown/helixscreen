@@ -278,6 +278,13 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
         CHECK(n.max_temp_c >= n.min_temp_c);
     }
 
+    SECTION("a write emptying the material or the colour sends no notice") {
+        cfs.push_edit(0, "", "", 0xFF0000);
+        cfs.push_edit(0, "PETG", "Generic", helix::kAmsDefaultSlotColor);
+        CHECK(cfs.captured.size() >= 2);
+        CHECK(cfs.notices.empty());
+    }
+
     SECTION("a color-only write names the material the box still holds, never the pick") {
         cfs.push_edit(1, "Unobtanium", "ACME", 0x00FF00);
         REQUIRE(cfs.captured[0].find("PART=material_type") == std::string::npos);
