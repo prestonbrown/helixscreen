@@ -235,9 +235,11 @@ has seen, and nothing is held to send later, so editing waits:
 - The context menu's **Edit Spool** button binds its disabled state to it
   (`ui_xml/ams_context_menu.xml`), and both the menu and the spool editor show an
   inline "Loading lane details…" line while it is 0.
-- The editor's Save binds to `ams_edit_save_blocked`, a `subject_expr` in
+- The editor's Save is disabled by an `action_button_disabled_cond` in
   `ui_xml/ams_edit_overlay.xml` over the editor's own dirty gate
-  (`ams_edit_save_disabled`) and the ready subject.
+  (`ams_edit_save_disabled`) and the ready subject. It is a view-time `cond`
+  because both subjects come from `init_subjects()`, after the component
+  registers (`docs/devel/LVGL9_XML_GUIDE.md` § "Which phase registers the subject").
 - `AmsState::commit_slot_edit()` (`src/printer/ams_state.cpp#commit_slot_edit`)
   refuses an edit that reaches it another way: with no printer connection it
   answers `AmsErrorHelper::not_connected()`, and before the read a
