@@ -221,9 +221,8 @@ void TempGraphWidget::refresh_series_names() {
         return;
     }
     for (const auto& entry : config_["sensors"]) {
-        if (entry.contains("name") && entry["name"].is_string()) {
-            const std::string name = entry["name"].get<std::string>();
-            controller_->set_series_name(name, TempGraphConfigModal::sensor_display_name(name));
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name")) {
+            controller_->set_series_name(*name, TempGraphConfigModal::sensor_display_name(*name));
         }
     }
 }
@@ -340,10 +339,11 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
 
     int color_idx = 0;
     for (const auto& entry : config_["sensors"]) {
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
-        const std::string klipper_name = entry["name"].get<std::string>();
+        const std::string klipper_name = std::move(*name);
         bool enabled;
         if (use_snapshot) {
             enabled =
@@ -357,8 +357,8 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
         TempGraphSeriesSpec spec;
         spec.klipper_name = klipper_name;
         spec.display_name = TempGraphConfigModal::sensor_display_name(klipper_name);
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            spec.color = lv_color_hex(entry["color"].get<uint32_t>());
+        if (auto hex = helix::json_util::read_integer_field(entry, "color")) {
+            spec.color = lv_color_hex(static_cast<uint32_t>(*hex));
         } else {
             spec.color = kTempGraphSeriesColors[color_idx % kTempGraphPaletteSize];
         }
@@ -465,8 +465,8 @@ bool TempGraphWidget::merge_discovered_extruders(nlohmann::json& config, bool en
     auto& arr = config["sensors"];
     std::set<std::string> existing;
     for (const auto& entry : arr) {
-        if (entry.contains("name") && entry["name"].is_string())
-            existing.insert(entry["name"].get<std::string>());
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name"))
+            existing.insert(std::move(*name));
     }
 
     bool added = false;
@@ -634,8 +634,8 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     {
         auto& arr = config_["sensors"];
         auto entry_is_extruder = [](const nlohmann::json& entry) {
-            return entry.contains("name") && entry["name"].is_string() &&
-                   is_extruder_name(entry["name"].get<std::string>());
+            auto name = helix::json_util::read_field<std::string>(entry, "name");
+            return name && is_extruder_name(*name);
         };
         auto split = std::stable_partition(arr.begin(), arr.end(), entry_is_extruder);
         helix::sort_small(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
@@ -647,16 +647,17 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     const auto& sensors = config_["sensors"];
     for (size_t i = 0; i < sensors.size(); ++i) {
         const auto& entry = sensors[i];
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
         SensorRow row;
-        row.name = entry["name"].get<std::string>();
+        row.name = std::move(*name);
         row.display = sensor_display_name(row.name);
 
         // Find the matching color index from the palette
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            uint32_t cfg_hex = entry["color"].get<uint32_t>();
+        if (auto color = helix::json_util::read_integer_field(entry, "color")) {
+            uint32_t cfg_hex = static_cast<uint32_t>(*color);
             lv_color_t cfg_color = lv_color_hex(cfg_hex);
             row.color_idx = static_cast<int>(i) % kTempGraphPaletteSize; // default
             for (int ci = 0; ci < kTempGraphPaletteSize; ++ci) {

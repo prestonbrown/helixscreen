@@ -516,6 +516,22 @@ TEST_CASE("TempGraphWidget: build_series tolerates malformed name/color JSON typ
     REQUIRE(std::find(names.begin(), names.end(), "extruder") != names.end());
 }
 
+TEST_CASE("TempGraphWidget: build_series takes only a JSON integer as a color",
+          "[temp_graph][panel_widget][config]") {
+    TempGraphWidget widget("test_color_types");
+    widget.set_config({{"sensors",
+                        {
+                            {{"name", "extruder"}, {"enabled", true}, {"color", 0x88C0D0}},
+                            {{"name", "heater_bed"}, {"enabled", true}, {"color", 1234.0}},
+                        }}});
+
+    auto specs = TempGraphWidgetTestAccess::build_series(widget);
+    REQUIRE(specs.size() == 2);
+    CHECK(lv_color_eq(specs[0].color, lv_color_hex(0x88C0D0)));
+    // A float is not a color: the entry falls back to its palette slot.
+    CHECK(lv_color_eq(specs[1].color, kTempGraphSeriesColors[1]));
+}
+
 // ============================================================================
 // Generation counter rejects stale callbacks
 // ============================================================================
