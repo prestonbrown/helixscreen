@@ -683,7 +683,6 @@ void game_logic_tick() {
         return;
     }
 
-    // Move snake
     g_game.snake.push_back(new_head);
     g_grid.remove_cell(new_head);
 
@@ -728,7 +727,6 @@ void render_tick(lv_timer_t* /*timer*/) {
         g_render.food_pulse_phase -= 6.28318f;
     }
 
-    // Update particles
     update_particles(dt);
 
     // Update death animation state
@@ -759,7 +757,6 @@ void render_tick(lv_timer_t* /*timer*/) {
         }
     }
 
-    // Trigger redraw
     if (g_game_area) {
         lv_obj_invalidate(g_game_area);
     }
@@ -1377,7 +1374,6 @@ void create_overlay() {
     spdlog::debug("[SnakeGame] Grid: {}x{} cells, offset: ({}, {})", g_grid.cols, g_grid.rows,
                   g_grid.offset_x, g_grid.offset_y);
 
-    // Register custom draw callback
     lv_obj_add_event_cb(g_game_area, draw_cb, LV_EVENT_DRAW_MAIN, nullptr);
 
     // Register touch input
@@ -1411,10 +1407,8 @@ void create_overlay() {
         create_dpad(g_game_area);
     }
 
-    // Bring overlay to front
     helix::ui::bring_to_front(g_overlay);
 
-    // Initialize game state
     init_game();
 
     // Start render timer
@@ -1439,7 +1433,6 @@ void destroy_overlay() {
         }
     }
 
-    // Clean up overlay
     helix::ui::safe_delete(g_overlay);
     g_game_area = nullptr;
     g_score_label = nullptr;

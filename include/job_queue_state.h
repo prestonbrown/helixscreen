@@ -66,7 +66,6 @@ class JobQueueState {
     JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~JobQueueState();
 
-    // Non-copyable
     JobQueueState(const JobQueueState&) = delete;
     JobQueueState& operator=(const JobQueueState&) = delete;
 
@@ -91,7 +90,6 @@ class JobQueueState {
     /// the next consumer to ask re-fetches. See observe_connection_staleness().
     void invalidate();
 
-    /// Get cached jobs
     const std::vector<helix::JobQueueEntry>& get_jobs() const {
         return cached_jobs_;
     }

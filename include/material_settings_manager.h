@@ -48,7 +48,6 @@ class MaterialSettingsManager {
   public:
     static MaterialSettingsManager& instance();
 
-    // Non-copyable
     MaterialSettingsManager(const MaterialSettingsManager&) = delete;
     MaterialSettingsManager& operator=(const MaterialSettingsManager&) = delete;
 

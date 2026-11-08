@@ -838,7 +838,6 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     // button hasn't been freed and its address reused (#1111).
     live_ui_buttons().insert(btn);
 
-    // Register event handlers
     lv_obj_add_event_cb(btn, button_style_changed_cb, LV_EVENT_STYLE_CHANGED, nullptr);
     lv_obj_add_event_cb(btn, button_style_changed_cb, LV_EVENT_STATE_CHANGED, nullptr);
     lv_obj_add_event_cb(btn, button_clicked_sound_cb, LV_EVENT_CLICKED, nullptr);

@@ -27,7 +27,6 @@
 #include <string_view>
 #include <vector>
 
-// Forward declaration
 class Modal;
 
 /**
@@ -498,7 +497,6 @@ class ModalStack {
     /// No-op if the backdrop is not tracked.
     void reassign_owner(lv_obj_t* backdrop, Modal* new_owner);
 
-    // Get topmost dialog
     lv_obj_t* top_dialog() const;
 
     /// Return the component name of the top (most recent non-exiting) modal, or "" if empty.
@@ -508,7 +506,6 @@ class ModalStack {
     /// wherever it sits in the stack; nullptr when none is.
     lv_obj_t* dialog_for_component(const std::string& component_name) const;
 
-    // Get backdrop for a dialog
     lv_obj_t* backdrop_for(lv_obj_t* dialog) const;
 
     /// Component name a dialog was shown from, or "" if it is untracked.

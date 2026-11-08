@@ -472,7 +472,6 @@ static bool init_gpu_blur(EGLDisplay current_display) {
         s_gpu = {};
     };
 
-    // Compile shaders
     GLuint vs = compile_shader(GL_VERTEX_SHADER, kBlurVertexShader);
     GLuint fs = compile_shader(GL_FRAGMENT_SHADER, kBlurFragmentShader);
     if (!vs || !fs) {

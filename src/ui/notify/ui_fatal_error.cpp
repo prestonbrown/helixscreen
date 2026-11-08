@@ -90,14 +90,12 @@ void ui_show_fatal_error(const char* title, const char* message, const char* con
     lv_obj_set_style_text_font(icon, &mdi_icons_32, 0);
     lv_obj_set_style_text_color(icon, lv_color_hex(kBootstrapDanger), 0);
 
-    // Title
     lv_obj_t* title_label = lv_label_create(container);
     lv_label_set_text(title_label, title);
     lv_obj_set_style_text_font(title_label, &noto_sans_24, 0);
     lv_obj_set_style_text_color(title_label, lv_color_hex(kBootstrapText), 0);
     lv_obj_set_style_pad_top(title_label, 10, 0);
 
-    // Message
     lv_obj_t* msg_label = lv_label_create(container);
     lv_label_set_text(msg_label, message);
     lv_obj_set_style_text_font(msg_label, &noto_sans_16, 0);

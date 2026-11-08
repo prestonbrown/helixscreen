@@ -162,11 +162,9 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
         }
     }
 
-    // Toggle selection
     data->selected = !data->selected;
     data->owner->update_checkbox_visual(data);
 
-    // Fire callback
     if (data->owner->on_change_) {
         data->owner->on_change_(data->key, data->selected);
     }

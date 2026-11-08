@@ -242,13 +242,11 @@ bool is_subject_type_mismatch(const char* buf) {
  * @return Pointer if found, nullptr otherwise
  */
 lv_subject_t* extract_subject_pointer(const char* buf) {
-    // Look for "(ptr=0x"
     const char* ptr_start = std::strstr(buf, "(ptr=0x");
     if (ptr_start == nullptr) {
         return nullptr;
     }
 
-    // Move past "(ptr="
     ptr_start += 5; // Skip "(ptr="
 
     return static_cast<lv_subject_t*>(parse_pointer(ptr_start));
@@ -384,7 +382,6 @@ void lvgl_log_callback(lv_log_level_t level, const char* buf) {
         !suppressed_translation && (level == LV_LOG_LEVEL_WARN || level == LV_LOG_LEVEL_ERROR) &&
         (is_high_frequency_retry(msg) || is_translation_warning) && seen_before(msg);
 
-    // Route to appropriate spdlog level
     switch (level) {
     case LV_LOG_LEVEL_TRACE:
         spdlog::trace("[LVGL] {}", msg);

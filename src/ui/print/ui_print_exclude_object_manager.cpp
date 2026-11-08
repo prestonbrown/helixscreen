@@ -92,13 +92,11 @@ void PrintExcludeObjectManager::deinit() {
         return;
     }
 
-    // Clean up timer
     if (exclude_undo_timer_ && lv_is_initialized()) {
         lv_timer_delete(exclude_undo_timer_);
         exclude_undo_timer_ = nullptr;
     }
 
-    // Unregister long-press callback
     if (gcode_viewer_ && lv_is_initialized()) {
         helix::ui::gcode_viewer_set_object_long_press_callback(gcode_viewer_, nullptr, nullptr);
     }
@@ -156,7 +154,6 @@ void PrintExcludeObjectManager::handle_object_long_press(const char* object_name
         return;
     }
 
-    // Check if already excluded
     if (excluded_objects_.count(object_name) > 0) {
         spdlog::info("[PrintExcludeObjectManager] Object '{}' already excluded - ignoring",
                      object_name);
@@ -277,7 +274,6 @@ void PrintExcludeObjectManager::handle_exclude_undo() {
     spdlog::info("[PrintExcludeObjectManager] Undo pressed - cancelling exclusion of '{}'",
                  pending_exclude_object_);
 
-    // Cancel the timer
     if (exclude_undo_timer_) {
         lv_timer_delete(exclude_undo_timer_);
         exclude_undo_timer_ = nullptr;
@@ -359,8 +355,6 @@ void PrintExcludeObjectManager::exclude_undo_timer_cb(lv_timer_t* timer) {
 // ============================================================================
 // Observer Callback
 // ============================================================================
-
-// excluded_objects_observer_cb migrated to lambda in init()
 
 void PrintExcludeObjectManager::on_excluded_objects_changed() {
     // Sync excluded objects from PrinterState (Klipper/Moonraker)
