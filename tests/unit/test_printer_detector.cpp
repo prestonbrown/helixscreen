@@ -1395,6 +1395,36 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CHECK(full.confidence > without.confidence);
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a Centauri Carbon 2 hostname identifies that model",
+                 "[printer][real_world][elegoo][cc2]") {
+    PrinterHardwareData hw;
+    hw.objects_reported = true;
+    hw.hostname = GENERATE(as<std::string>{}, "centauri-carbon-2", "elegoo_centauri_carbon_2",
+                           "CentauriCarbon2");
+
+    const auto result = PrinterDetector::detect(hw);
+
+    CAPTURE(hw.hostname, result.type_name, result.confidence, result.runner_up_type_name);
+    CHECK(result.type_name == "Elegoo Centauri Carbon 2");
+    CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: an original Centauri Carbon is never scored as a CC2",
+                 "[printer][real_world][elegoo][cc2]") {
+    // The hostname is user-editable: the second CC1 on a farm can be named this.
+    auto hw = elegoo_centauri_carbon_hardware();
+    hw.hostname = "centauri-carbon-2";
+
+    const auto result = PrinterDetector::detect(hw);
+
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence);
+    CHECK(result.type_name == "Elegoo Centauri Carbon");
+    CHECK(result.runner_up_type_name != "Elegoo Centauri Carbon 2");
+}
+
 // ============================================================================
 // A real FLSUN T1 Pro on stock FLSUN OS
 // ============================================================================
