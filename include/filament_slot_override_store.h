@@ -82,6 +82,9 @@ struct ExtrasFields {
 /// record with no writer is legacy and replaceable.
 [[nodiscard]] bool written_by_another_producer(const nlohmann::json& wire);
 
+/// The namespace HelixScreen's own plain keys live in (save_key_async()).
+inline constexpr const char* kHelixKeysNamespace = "helix-screen";
+
 /// One parsed record plus the JSON it came from.
 struct LaneDataRecord {
     FilamentSlotOverride record;
@@ -146,10 +149,7 @@ class FilamentSlotOverrideStore {
     /// records (narrowed by extras_only() on an extras namespace) on the
     /// requesting thread's callback; an absent namespace is an empty read. A
     /// failed read calls @p on_failure. Callbacks capture nothing of the store.
-    /// The callback's second argument holds the namespace's keys that are not
-    /// lane records (save_key_async()), each with its value.
-    using ReloadCallback =
-        std::function<void(std::unordered_map<int, LaneDataRecord>, nlohmann::json keys)>;
+    using ReloadCallback = std::function<void(std::unordered_map<int, LaneDataRecord>)>;
     void reload_async(ReloadCallback cb, std::function<void()> on_failure = nullptr);
 
     /// Called, on whatever thread the reply lands on, after each write or clear
@@ -182,15 +182,20 @@ class FilamentSlotOverrideStore {
     /// Delete slot @p slot_index's record, under the same writer rule.
     void clear_async(int slot_index, SaveCallback cb);
 
-    /// Write @p key, a namespace key beside the lane records holding one plain
-    /// value rather than a record. reload_async() hands it back with the
-    /// records, so every client reads it on the same poll.
+    /// Write @p key in kHelixKeysNamespace: one plain value of HelixScreen's
+    /// own (not a lane record), shared by every client on the printer. Kept out
+    /// of the lane namespace, whose every value other readers (OrcaSlicer)
+    /// take for a record.
     void save_key_async(const std::string& key, nlohmann::json value, SaveCallback cb);
-    /// Delete @p key (see save_key_async()).
+    /// Delete @p key (see save_key_async()); a key already gone is success.
     void clear_key_async(const std::string& key, SaveCallback cb);
+    /// Read @p key (see save_key_async()). @p cb receives the value, or null
+    /// when the key is absent; a failed read calls nothing.
+    void load_key_async(const std::string& key, std::function<void(nlohmann::json)> cb);
 
-    // The "seated" sibling key: the 0-based index of the lane loaded to the
-    // toolhead (AD5X IFS). A plain integer, not a lane record.
+    // The seated key, `<backend_id>_seated` (save_key_async()): the 0-based
+    // index of the lane loaded to the toolhead (AD5X IFS). A seated index a
+    // build kept in the lane namespace as `seated` moves there on load.
     void save_seated_slot_async(int slot_index, SaveCallback cb);
     void clear_seated_slot_async(SaveCallback cb);
     std::optional<int> load_seated_slot_blocking();
@@ -201,6 +206,10 @@ class FilamentSlotOverrideStore {
 
   private:
     friend class ::FilamentSlotOverrideStoreTestAccess;
+
+    /// One database get, waited for up to load_timeout_. nullopt when the key
+    /// is absent or the read failed.
+    std::optional<nlohmann::json> get_item_blocking(const std::string& ns, const std::string& key);
 
     /// Why a write to @p slot_index is refused, or empty when it may go.
     [[nodiscard]] std::string writer_refusal(int slot_index) const;

@@ -309,14 +309,19 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// lane record states stand over the hub's memory. Caller holds mutex_.
     void file_hub_reading_locked(int slot_index, helix::ams::Observation& hub);
 
+    /// Put an edit that went through onto the live slot, marking its
+    /// temperatures the user's when it moved them. Takes mutex_.
+    void apply_edit_to_slot(int slot_index, const SlotInfo& info);
+
     /// The ACE_SET_SLOT command writing @p info to @p slot_index's ACEPRO
     /// inventory entry (EMPTY=1 for an edit naming no material and no colour),
     /// or "" when the edit lacks the material or nozzle temperature the
     /// command requires. Takes mutex_ (slot_command()); call without it.
     [[nodiscard]] std::string set_slot_gcode(int slot_index, const SlotInfo& info) const;
 
-    /// Lay the REST bridge's temp_min / temp_max onto @p slot, unless a user
-    /// edit moved the slot's temperatures this session. Caller holds mutex_.
+    /// Lay the hub's temperatures (temp_min / temp_max, or the ACEPRO
+    /// driver's single `temp`) onto @p slot, unless a user edit moved the
+    /// slot's temperatures this session. Caller holds mutex_.
     void apply_hub_temps_locked(int slot_index, SlotInfo& slot,
                                 const nlohmann::json& slot_json) const;
 

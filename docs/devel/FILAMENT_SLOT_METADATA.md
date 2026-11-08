@@ -95,7 +95,7 @@ and the inner field is deliberate for `laneN` and absent for `T<n>`. Records are
 matched to slots by the inner `lane` field, never the key (RFC 0001 §3):
 `parse_namespace_document()` (`src/printer/filament_slot_override_store.cpp#parse_namespace_document`)
 parses a whole namespace, and when two records name one slot the one under the
-store's canonical key wins. Non-object siblings (the AD5X `seated` scalar) are
+store's canonical key wins. Non-object siblings (an AD5X `seated` scalar an older build wrote) are
 skipped.
 
 ---
@@ -117,7 +117,8 @@ reads and writes one backend's records:
 | `reload_async(cb, on_failure)` | One `server.database.get_item` for the whole namespace. `cb` receives the parsed records (narrowed by `extras_only()` on an extras namespace); a namespace nothing has written yet is an empty read. A failed read calls `on_failure`. Callbacks capture nothing of the store |
 | `adopt_read(records)` | Remember each slot's `writer` from the last read, for the writer rule. Main thread |
 | `save_async(slot, record, cb)` / `clear_async(slot, cb)` | Write or delete one slot's record. Refused with an error under the writer rule. On success the store calls the owner's `set_on_written()` callback, which re-reads |
-| `save_seated_slot_async` / `clear_seated_slot_async` / `load_seated_slot_blocking` | AD5X IFS's `seated` scalar: the 0-based lane loaded to the toolhead, not a lane record |
+| `save_key_async` / `clear_key_async` / `load_key_async` | HelixScreen's own plain values, in the `helix-screen` namespace rather than among the lane records (whose every value OrcaSlicer reads as a record): the CFS bypass declaration (`cfs_bypass_declared`) |
+| `save_seated_slot_async` / `clear_seated_slot_async` / `load_seated_slot_blocking` | AD5X IFS's seated lane (`<backend>_seated` through the key calls above): the 0-based lane loaded to the toolhead; a `seated` scalar left in `lane_data` moves there on load |
 
 **The writer rule** (RFC 0001 §2). A record whose `writer` names another producer
 is never overwritten or deleted: `writer_refusal()` checks the writer the last

@@ -52,11 +52,10 @@ FilamentSlotOverride polymaker_pla() {
 std::unordered_map<int, helix::ams::LaneDataRecord> read_back(FilamentSlotOverrideStore& store) {
     std::unordered_map<int, helix::ams::LaneDataRecord> out;
     bool called = false;
-    store.reload_async(
-        [&](std::unordered_map<int, helix::ams::LaneDataRecord> records, nlohmann::json /*keys*/) {
-            out = std::move(records);
-            called = true;
-        });
+    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        out = std::move(records);
+        called = true;
+    });
     REQUIRE(called);
     return out;
 }
@@ -292,9 +291,8 @@ TEST_CASE("a read the database refuses calls the failure path", "[filament_slot_
     printer.client.fail_next("server.database.get_item");
     int read = 0;
     int failed = 0;
-    store.reload_async(
-        [&](std::unordered_map<int, helix::ams::LaneDataRecord>, nlohmann::json) { ++read; },
-        [&]() { ++failed; });
+    store.reload_async([&](std::unordered_map<int, helix::ams::LaneDataRecord>) { ++read; },
+                       [&]() { ++failed; });
     CHECK(read == 0);
     CHECK(failed == 1);
 }
@@ -660,7 +658,8 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     bool ok = false;
     store.save_seated_slot_async(2, [&](bool success, std::string) { ok = success; });
     REQUIRE(ok);
-    CHECK(mock_printer.client.mock_db_get("lane_data", "seated") == 2);
+    CHECK(mock_printer.client.mock_db_get("helix-screen", "ifs_seated") == 2);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "seated").is_null());
     store.save_async(0, polymaker_pla(), nullptr);
     CHECK(store.load_seated_slot_blocking() == 2);
     // The sibling key is not a lane.
@@ -674,30 +673,38 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     CHECK_FALSE(store.load_seated_slot_blocking().has_value());
 }
 
-TEST_CASE("a namespace key beside the records comes back with every read",
+TEST_CASE("HelixScreen's own keys live outside the lane records' namespace",
           "[filament_slot_override][seated]") {
     MockPrinter mock_printer;
     FilamentSlotOverrideStore store(&mock_printer.api, "cfs");
-    store.save_async(0, polymaker_pla(), nullptr);
 
     bool saved = false;
     store.save_key_async("helix_flag", true, [&](bool ok, std::string) { saved = ok; });
     REQUIRE(saved);
+    CHECK(mock_printer.client.mock_db_get("helix-screen", "helix_flag") == true);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "helix_flag").is_null());
 
-    nlohmann::json keys;
-    std::size_t records = 0;
-    store.reload_async(
-        [&](std::unordered_map<int, helix::ams::LaneDataRecord> read, nlohmann::json read_keys) {
-            records = read.size();
-            keys = std::move(read_keys);
-        });
-    CHECK(records == 1);
-    CHECK(keys == nlohmann::json{{"helix_flag", true}});
+    nlohmann::json read;
+    store.load_key_async("helix_flag", [&](nlohmann::json value) { read = std::move(value); });
+    CHECK(read == true);
 
     bool cleared = false;
     store.clear_key_async("helix_flag", [&](bool ok, std::string) { cleared = ok; });
     CHECK(cleared);
-    CHECK(mock_printer.client.mock_db_get("lane_data", "helix_flag").is_null());
+    read = "unread";
+    store.load_key_async("helix_flag", [&](nlohmann::json value) { read = std::move(value); });
+    CHECK(read.is_null());
+}
+
+TEST_CASE("a seated index kept among the lane records moves to HelixScreen's key",
+          "[filament_slot_override][seated]") {
+    MockPrinter mock_printer;
+    mock_printer.client.mock_db_set("lane_data", "seated", json(3));
+    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+
+    CHECK(store.load_seated_slot_blocking() == 3);
+    CHECK(mock_printer.client.mock_db_get("helix-screen", "ifs_seated") == 3);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "seated").is_null());
 }
 
 TEST_CASE("a store with no API reports failure for the seated slot and never blocks",

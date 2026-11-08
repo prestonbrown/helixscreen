@@ -4931,6 +4931,7 @@ translations:
   target {}%: 'objetivo {}%'
   target {}°: 'objetivo {}°'
   the ACE needs a material and its nozzle temperature: "el ACE necesita un material y su temperatura de boquilla"
+  "the CFS can't change a slot while a print is running": "el CFS no puede cambiar una ranura mientras se imprime"
   the QIDI Box filament list has not loaded: "la lista de filamentos de la QIDI Box no se ha cargado"
   the QIDI Box has no {} in its filament list: "la QIDI Box no tiene {} en su lista de filamentos"
   the extruder: el extrusor

@@ -3954,9 +3954,51 @@ TEST_CASE("ACE on the ACEPRO driver writes an edit and a clear to the hub's inve
     CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
     CHECK(b.get_slot_info(0).material == "PETG");
 
+    // Clear Spool as the menu runs it: the cleared edit, then the lane half.
     b.captured_gcodes.clear();
-    b.clear_slot_override(0);
+    SlotInfo cleared = b.get_slot_info(0);
+    cleared.material.clear();
+    cleared.color_rgb = helix::kAmsDefaultSlotColor;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), cleared).success());
+    static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
     CHECK(b.captured_gcodes == std::vector<std::string>{"ACE_SET_SLOT INSTANCE=0 INDEX=0 EMPTY=1"});
+}
+
+TEST_CASE("ACE on the ACEPRO driver keeps a write the hub rejects out of the record",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.pending_error);
+    MoonrakerError err;
+    err.message = "ACE_SET_SLOT error";
+    b.pending_error(err);
+
+    CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+    CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
+    CHECK(b.get_slot_info(0).material == "PLA");
+}
+
+TEST_CASE("ACE on the ACEPRO driver re-sends the temperature the hub holds",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    json slots = slot_reading("PLA", "#FF5500");
+    slots[0]["temp"] = 215;
+    b.test_handle_status_update(status_notification("ace_instance_0", json{{"slots", slots}}));
+
+    // A colour-only edit keeps the hub's own temperature.
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.captured_gcodes.size() == 1);
+    CHECK(b.captured_gcodes[0].find("TEMP=215") != std::string::npos);
 }
 
 TEST_CASE("ACE on the ACEPRO driver shows the hub's colour over a record from another client",

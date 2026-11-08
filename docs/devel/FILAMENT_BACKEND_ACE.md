@@ -376,9 +376,12 @@ Where an edit goes depends on the driver:
   (all three required by the driver; TEMP is the edit's nozzle midpoint, else the material's
   default, 1-300), and the lane shows the edit as Pending until the hub restates it. An edit
   naming no material is refused through the editor's inline error, except one that also clears
-  the colour, which is `ACE_SET_SLOT ... EMPTY=1`. Clear Spool sends `EMPTY=1` too; the slot's
-  presence comes back from the hardware on the next heartbeat. The hub's colour and material
-  outrank the lane record. Parameters read from the driver source
+  the colour, which is `ACE_SET_SLOT ... EMPTY=1`: Clear Spool's cleared edit sends that, once
+  (`clear_slot_override()` is the lane half); the slot's presence comes back from the hardware
+  on the next heartbeat. The lane record is saved once the driver has run the write, and one it
+  rejects saves nothing. The driver's single per-slot `temp` is read as the slot's
+  temperature, so an edit that does not move it re-sends what the hub holds. The hub's colour
+  and material outrank the lane record. Parameters read from the driver source
   (Kobra-S1/ACEPRO, `cmd_ACE_SET_SLOT` in its ace commands module, commit 92ecc1ca); not run on hardware.
 - **Every other driver** (GoKlipper's `filament_hub`, ValgACE/BunnyACE `ace`, the REST bridge
   without `ace_manager`): nothing writes a slot, so the lane record is the edit. The colour,

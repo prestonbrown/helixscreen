@@ -509,14 +509,11 @@ class AmsSubscriptionBackend : public AmsBackend {
         return true;
     }
 
-    /// The same read's namespace keys that are not lane records
-    /// (FilamentSlotOverrideStore::save_key_async()), each with its value; a
-    /// key nobody has written is absent. Return true when what they say
-    /// changed something shown. Runs under mutex_, beside
-    /// on_lane_records_read_locked().
-    virtual bool on_lane_record_keys_locked(const nlohmann::json& keys) {
-        (void)keys;
-        return false;
+    /// Read the backend's own plain keys (FilamentSlotOverrideStore::
+    /// load_key_async()) beside the lane records, on every refresh and poll.
+    /// Main thread, without mutex_.
+    virtual void refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) {
+        (void)store;
     }
 
     /// Take off a lane record's reading the fields this backend's firmware
@@ -559,6 +556,16 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// a field the pending edit holds, and holds differently, is restated.
     void restate_pending_as_stored(int slot_index, std::optional<uint32_t> color,
                                    const std::string& material);
+    /// The two answers to a firmware write of a person's edit, for
+    /// execute_gcode(): once Klipper has run it, @p recorded is saved as
+    /// @p slot_index's lane record; if Klipper rejects it, nothing is saved,
+    /// the lane's pending edit is withdrawn with Klipper's message (the editor
+    /// reports it) and the slot is repainted. Both run on the main thread
+    /// without mutex_, as execute_gcode() delivers them.
+    [[nodiscard]] helix::SharedCallback<void()> record_once_written(int slot_index,
+                                                                    SlotInfo recorded);
+    [[nodiscard]] helix::SharedCallback<void(const MoonrakerError&)>
+    withdraw_edit_if_rejected(int slot_index);
 
     /// Save @p slot_index's staged record. A failure is reported to the user
     /// and withdraws the lane's pending edit. Takes mutex_; call without it.
@@ -638,8 +645,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// gone, repaint, and announce a change. Main thread.
     void adopt_lane_records(helix::ams::FilamentSlotOverrideStore* store,
                             helix::ams::FilamentSlotOverrideStore::ReadTicket ticket,
-                            std::unordered_map<int, helix::ams::LaneDataRecord> records,
-                            const nlohmann::json& keys);
+                            std::unordered_map<int, helix::ams::LaneDataRecord> records);
 
     /// Each slot's record as last read, so an unchanged read announces nothing.
     /// Main thread.

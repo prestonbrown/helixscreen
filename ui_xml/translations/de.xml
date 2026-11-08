@@ -4490,6 +4490,7 @@
   <translation tag="target {}%" de="Ziel {}%"/>
   <translation tag="target {}°" de="Ziel {}°"/>
   <translation tag="the ACE needs a material and its nozzle temperature" de="der ACE braucht ein Material und dessen Düsentemperatur"/>
+  <translation tag="the CFS can&apos;t change a slot while a print is running" de="das CFS kann während eines Drucks keinen Slot ändern"/>
   <translation tag="the QIDI Box filament list has not loaded" de="die Filamentliste der QIDI Box ist nicht geladen"/>
   <translation tag="the QIDI Box has no {} in its filament list" de="die QIDI Box hat kein {} in ihrer Filamentliste"/>
   <translation tag="the extruder" de="den Extruder"/>

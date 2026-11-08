@@ -117,15 +117,25 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     // The completion form (the Endless Spool switch) captures into the same list.
+    // `reject` answers as Klipper does when a command raises: after the send.
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured.push_back(gcode);
-        if (on_complete) {
+        if (reject) {
+            if (on_error) {
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+                err.message = "Unknown command";
+                on_error(err);
+            }
+        } else if (on_complete) {
             on_complete();
         }
         return AmsErrorHelper::success();
     }
+
+    bool reject = false;
 
     // Expose protected firmware-writeback helper for direct test calls.
     // push_slot_identity_to_firmware is protected (called from apply_user_edit
@@ -2773,6 +2783,8 @@ TEST_CASE("CFS apply_user_edit writes to store", "[ams][cfs][filament_slot_overr
 
     auto err = helix::test::apply_edit(backend, 0, edit);
     REQUIRE(err.success());
+    // Klipper's answer to the box write lands through the update queue.
+    helix::ui::UpdateQueue::instance().drain();
 
     // In-memory map carries the override.
     auto staged = CfsTestAccess::get_override(backend, 0);
@@ -3114,17 +3126,41 @@ json make_flat_box(const std::string& material, const std::string& brand, const 
 // Backend + store + tmp cache wired together — every override test repeats this.
 // Flat-schema rig backend whose every gcode dispatch fails: an edit the box
 // never receives.
-class FlatFailDispatchCfs : public AmsBackendCfs {
+class SyncCfs : public AmsBackendCfs {
+  public:
+    using AmsBackendCfs::AmsBackendCfs;
+    using AmsBackendCfs::execute_gcode;
+    // Klipper's answer, given at once: the send itself is the 1-arg form,
+    // which the mock API runs.
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                           bool /*silent*/) override {
+        AmsError err = execute_gcode(gcode);
+        if (err.success()) {
+            if (on_complete) {
+                on_complete();
+            }
+        } else if (on_error) {
+            MoonrakerError failed;
+            failed.message = err.technical_msg;
+            on_error(failed);
+        }
+        return err;
+    }
+};
+
+class FlatFailDispatchCfs : public SyncCfs {
   public:
     FlatFailDispatchCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
-        : AmsBackendCfs(api, client) {}
+        : SyncCfs(api, client) {}
 
+    using SyncCfs::execute_gcode;
     AmsError execute_gcode(const std::string&) override {
         return AmsErrorHelper::not_supported("fixture dispatch failure");
     }
 };
 
-template <typename BackendT = AmsBackendCfs> struct CfsOverrideRig {
+template <typename BackendT = SyncCfs> struct CfsOverrideRig {
     CfsTmpCacheDir tmp;
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
@@ -3161,6 +3197,99 @@ template <typename BackendT = AmsBackendCfs> struct CfsOverrideRig {
 };
 
 } // namespace
+
+TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    CfsTestAccess::handle_status(
+        b, make_cfs_notification(
+               make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+    b.reject = true;
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF00;
+    edit.brand = "Sunlu";
+    (void)b.commit_user_edit(0, b.get_slot_info(0), edit);
+
+    // The record, if the box's own reading was mirrored into one, carries
+    // none of the rejected edit.
+    const auto record = CfsTestAccess::get_override(b, 0);
+    CHECK((!record.has_value() || (record->brand != "Sunlu" && record->color_rgb != 0x00FF00u)));
+    CHECK_FALSE(helix::ams::lane_sources(reg.lane(0)).pending.has_value());
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("CFS refuses a box write while a print holds the printer",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    struct PrintingCfs : CfsRemapHelper {
+        [[nodiscard]] bool print_holds_printer() const override {
+            return true;
+        }
+    };
+    helix::test::RegisteredBackend<PrintingCfs> reg;
+    PrintingCfs& b = *reg;
+    CfsTestAccess::handle_status(
+        b, make_cfs_notification(
+               make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF00;
+    const auto err = b.commit_user_edit(0, b.get_slot_info(0), edit);
+    CHECK_FALSE(err.success());
+    CHECK_FALSE(err.user_msg.empty());
+    CHECK(b.captured.empty());
+}
+
+TEST_CASE("CFS Clear Spool writes the box's clear once",
+          "[ams][cfs][filament_slot_override][firmware_writeback]") {
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    const auto clear_as_the_menu_does = [&b] {
+        SlotInfo cleared = b.get_slot_info(0);
+        cleared.material.clear();
+        cleared.color_rgb = kAmsDefaultSlotColor;
+        cleared.brand.clear();
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), cleared).success());
+        static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
+    };
+    const auto count = [&b](const std::string& needle) {
+        return std::count_if(b.captured.begin(), b.captured.end(), [&needle](const auto& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+
+    SECTION("stock, with a tag seated: material, colour and remaining length") {
+        CfsTestAccess::handle_status(
+            b, make_cfs_notification(make_single_unit_box({"101001", "-1", "-1", "-1"},
+                                                          {"0FF5500", "-1", "-1", "-1"})));
+        clear_as_the_menu_does();
+        CHECK(count("PART=material_type DATA=-1") == 1);
+        CHECK(count("PART=color_value DATA=-1") == 1);
+        CHECK(count("PART=remain_len DATA=-1") == 1);
+    }
+    SECTION("Fork") {
+        CfsTestAccess::handle_status(b, make_cfs_notification(make_flat_fork_box()));
+        clear_as_the_menu_does();
+        CHECK(count("_BOX_SLOT_CLEAR SLOT=0") == 1);
+    }
+}
+
+TEST_CASE("CFS Fork: an edit naming no colour keeps the colour the box holds",
+          "[ams][cfs][fork][firmware_writeback]") {
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    CfsTestAccess::handle_status(
+        b, make_cfs_notification(make_flat_box("PLA", "Polymaker", "PolyLite", "#1A1A1A")));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = kAmsDefaultSlotColor;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.captured.size() == 1);
+    CHECK(b.captured[0].find("COLOR=\"#1A1A1A\"") != std::string::npos);
+    CHECK(b.captured[0].find("808080") == std::string::npos);
+}
 
 TEST_CASE("CFS a material the box has no code for shows from the lane record",
           "[ams][cfs][filament_slot_override][firmware_writeback]") {
@@ -3224,19 +3353,21 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
 
     SECTION("enable writes the key and disable deletes it") {
         REQUIRE(rig.backend->enable_bypass().success());
-        CHECK(rig.client.mock_db_get("lane_data", "helix_bypass_declared") == true);
-        REQUIRE(rig.backend->disable_bypass().success());
+        CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared") == true);
+        // Nothing of the declaration's lands among the lane records.
         CHECK(rig.client.mock_db_get("lane_data", "helix_bypass_declared").is_null());
+        REQUIRE(rig.backend->disable_bypass().success());
+        CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
     }
 
     SECTION("another client's declaration is picked up by the poll") {
-        rig.client.mock_db_set("lane_data", "helix_bypass_declared", true);
+        rig.client.mock_db_set("helix-screen", "cfs_bypass_declared", true);
         rig.backend->refresh_lane_records();
         helix::ui::UpdateQueue::instance().drain();
         CHECK(rig.backend->is_bypass_active());
 
         // And its withdrawal.
-        rig.client.mock_db()["lane_data"].erase("helix_bypass_declared");
+        rig.client.mock_db()["helix-screen"].erase("cfs_bypass_declared");
         rig.backend->refresh_lane_records();
         helix::ui::UpdateQueue::instance().drain();
         CHECK_FALSE(rig.backend->is_bypass_active());
@@ -3244,13 +3375,13 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
 
     SECTION("a read older than our own write does not flip the toggle back") {
         REQUIRE(rig.backend->enable_bypass().success());
-        CHECK_FALSE(CfsTestAccess::adopt_lane_keys(*rig.backend, json::object()));
+        CHECK_FALSE(CfsTestAccess::adopt_bypass_declaration(*rig.backend, false));
         CHECK(rig.backend->is_bypass_active());
 
         // The read that returns the write confirms it; after that a read
         // without the key is another client's withdrawal.
-        CfsTestAccess::adopt_lane_keys(*rig.backend, json{{"helix_bypass_declared", true}});
-        CfsTestAccess::adopt_lane_keys(*rig.backend, json::object());
+        CfsTestAccess::adopt_bypass_declaration(*rig.backend, true);
+        CfsTestAccess::adopt_bypass_declaration(*rig.backend, false);
         CHECK_FALSE(rig.backend->is_bypass_active());
     }
 
@@ -3258,7 +3389,7 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
         rig.client.fail_next("server.database.post_item");
         REQUIRE(rig.backend->enable_bypass().success());
         helix::ui::UpdateQueue::instance().drain();
-        CfsTestAccess::adopt_lane_keys(*rig.backend, json::object());
+        CfsTestAccess::adopt_bypass_declaration(*rig.backend, false);
         CHECK_FALSE(rig.backend->is_bypass_active());
     }
 }
@@ -3538,6 +3669,31 @@ TEST_CASE("CFS flat-schema two edits in one poll window both survive their echoe
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
 }
 
+TEST_CASE("CFS writes no lane record before the first read of them lands",
+          "[ams][cfs][filament_slot_override]") {
+    MockPrinter mock_printer;
+    helix::ams::FilamentSlotOverride saved;
+    saved.brand = "Polymaker";
+    saved.spoolman_id = 42;
+    saved.material = "PLA";
+    saved.color_rgb = 0xFF5500;
+    saved.color_set = true;
+    mock_printer.client.mock_db_set("lane_data", "lane1",
+                                    helix::ams::to_lane_data_record(0, saved));
+
+    helix::test::RegisteredBackend<AmsBackendCfs> backend(&mock_printer.api, nullptr);
+    CfsTestAccess::call_on_started_unread(*backend);
+    // A box frame beats the read: the bay is loaded and states a colour.
+    CfsTestAccess::handle_status(
+        *backend, make_cfs_notification(make_single_unit_box({"101001", "-1", "-1", "-1"},
+                                                             {"0FF5500", "-1", "-1", "-1"})));
+
+    const auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(!stored.is_null());
+    CHECK(stored.value("spool_id", 0) == 42);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
 TEST_CASE("CFS restart compares against the fingerprint the record carried",
           "[ams][cfs][flat][filament_slot_override]") {
     MockPrinter mock_printer;
@@ -3619,6 +3775,9 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         REQUIRE(stored.contains("helix_fingerprint"));
         CHECK(stored.at("helix_fingerprint") == "PETG|00FF00");
     }
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 
 TEST_CASE("CFS fingerprint shape names its schema only when unambiguous",
@@ -3804,6 +3963,9 @@ TEST_CASE("CFS persisted fingerprint from the other schema is no baseline after 
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK_FALSE(CfsTestAccess::get_override(*session, 0).has_value());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 // =============================================================================
 // Presence: `remain_len` LATCHES after a tagged spool is pulled, so it cannot
@@ -6426,8 +6588,7 @@ TEST_CASE("CFS fork: commands name the firmware slot, not the bay position",
     }
 
     SECTION("slot clear") {
-        helix::AmsBackend& base = backend;
-        base.clear_slot_override(6);
+        backend.push(6, "", "", "", kAmsDefaultSlotColor);
         CHECK(backend.captured == std::vector<std::string>{"_BOX_SLOT_CLEAR SLOT=6"});
     }
 }
@@ -7646,29 +7807,25 @@ TEST_CASE("CFS flat fingerprint upgrade folds stored composites (#1710)", "[ams]
     // The write it made re-reads the records through the update queue.
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK_FALSE(CfsTestAccess::get_override(backend, 0).has_value());
+    // The last session's poll reads (records and the bypass key) answer
+    // through the queue after its backend is gone; settle them here.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 }
 
-TEST_CASE("CFS clear_slot_override resets the box's own record of the bay", "[ams][cfs][fork]") {
+TEST_CASE("CFS clear_slot_override writes nothing to the box", "[ams][cfs][fork]") {
+    // The lane half of Clear Spool: the box's own clear goes out with the
+    // cleared edit before it ("Clear Spool writes the box's clear once").
     CfsRemapHelper backend;
     CfsTestAccess::handle_status(backend, make_cfs_notification(make_single_unit_box(
                                               {"101001", "101001", "101001", "101001"},
                                               {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"})));
     helix::AmsBackend& base = backend;
-
-    // Stock: the box's unset value for both fields, and the remaining length
-    // with a tag seated, so the pulled spool cannot read present on it.
     base.clear_slot_override(2);
-    REQUIRE(backend.captured ==
-            std::vector<std::string>{"BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=material_type DATA=-1\n"
-                                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=color_value DATA=-1\n"
-                                     "BOX_MODIFY_TN_DATA ADDR=1 NUM=C PART=remain_len DATA=-1",
-                                     "BOX_UPDATE_SAME_MATERIAL_LIST"});
-    backend.captured.clear();
+    CHECK(backend.captured.empty());
 
     CfsTestAccess::handle_status(backend, make_cfs_notification(make_flat_fork_box()));
     base.clear_slot_override(2);
-
-    REQUIRE(backend.captured == std::vector<std::string>{"_BOX_SLOT_CLEAR SLOT=2"});
+    CHECK(backend.captured.empty());
 }
 
 TEST_CASE("CFS tool-table remap is the routing an unremapped print runs with",

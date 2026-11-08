@@ -402,18 +402,12 @@ void FilamentSlotOverrideStore::reload_async(ReloadCallback cb, std::function<vo
                 }
                 return;
             }
-            nlohmann::json keys = nlohmann::json::object();
-            for (auto it = value.begin(); it != value.end(); ++it) {
-                if (!it.value().is_object()) {
-                    keys[it.key()] = it.value();
-                }
-            }
-            cb(narrowed(parse_namespace_document(value, style, id)), std::move(keys));
+            cb(narrowed(parse_namespace_document(value, style, id)));
         },
         [id, ns, cb, on_failure](const MoonrakerError& err) {
             // A namespace nothing has written yet is empty, not unreachable.
             if (err.is_not_found()) {
-                cb({}, nlohmann::json::object());
+                cb({});
                 return;
             }
             spdlog::debug("[FilamentSlotOverrideStore:{}] read of {} failed: {}", id, ns,
@@ -582,10 +576,8 @@ void FilamentSlotOverrideStore::save_key_async(const std::string& key, nlohmann:
     // been destroyed. Value-capture only; no `this`.
     const std::string backend_id_copy = backend_id_;
     api_->database_post_item(
-        namespace_, key, std::move(value),
-        [cb, on_written = on_written_]() {
-            if (on_written)
-                on_written();
+        kHelixKeysNamespace, key, std::move(value),
+        [cb]() {
             if (cb)
                 cb(true, "");
         },
@@ -606,10 +598,8 @@ void FilamentSlotOverrideStore::clear_key_async(const std::string& key, SaveCall
     // Value-capture only; no `this` (see save_key_async).
     const std::string backend_id_copy = backend_id_;
     api_->database_delete_item(
-        namespace_, key,
-        [cb, on_written = on_written_]() {
-            if (on_written)
-                on_written();
+        kHelixKeysNamespace, key,
+        [cb]() {
             if (cb)
                 cb(true, "");
         },
@@ -636,17 +626,33 @@ void FilamentSlotOverrideStore::save_seated_slot_async(int slot_index, SaveCallb
             cb(false, "invalid slot_index");
         return;
     }
-    save_key_async("seated", nlohmann::json(slot_index), std::move(cb));
+    save_key_async(backend_id_ + "_seated", nlohmann::json(slot_index), std::move(cb));
 }
 
 void FilamentSlotOverrideStore::clear_seated_slot_async(SaveCallback cb) {
-    clear_key_async("seated", std::move(cb));
+    clear_key_async(backend_id_ + "_seated", std::move(cb));
 }
 
-std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
-    if (!api_)
-        return std::nullopt;
+void FilamentSlotOverrideStore::load_key_async(const std::string& key,
+                                               std::function<void(nlohmann::json)> cb) {
+    if (!api_ || !cb) {
+        return;
+    }
+    const std::string backend_id_copy = backend_id_;
+    api_->database_get_item(
+        kHelixKeysNamespace, key, [cb](const nlohmann::json& value) { cb(value); },
+        [cb, backend_id_copy, key](const MoonrakerError& err) {
+            if (err.is_not_found()) {
+                cb(nullptr);
+                return;
+            }
+            spdlog::debug("[FilamentSlotOverrideStore:{}] read of {} failed: {}", backend_id_copy,
+                          key, err.message);
+        });
+}
 
+std::optional<nlohmann::json> FilamentSlotOverrideStore::get_item_blocking(const std::string& ns,
+                                                                           const std::string& key) {
     // A callback firing after our local timeout must not touch a freed stack
     // frame, so the state is heap-owned and captured by value into the lambdas.
     struct SyncState {
@@ -658,10 +664,9 @@ std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
     };
     auto state = std::make_shared<SyncState>();
     const std::string backend_id_copy = backend_id_;
-    const std::string namespace_copy = namespace_;
 
     api_->database_get_item(
-        namespace_, "seated",
+        ns, key,
         [state](const nlohmann::json& value) {
             std::lock_guard<std::mutex> lk(state->m);
             state->received = value;
@@ -669,33 +674,44 @@ std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
             state->done = true;
             state->cv.notify_one();
         },
-        [state, backend_id_copy, namespace_copy](const MoonrakerError& err) {
-            // Missing key is the common case (nothing seated yet) — not an error
-            // worth more than a debug line.
-            spdlog::debug("[FilamentSlotOverrideStore:{}] database_get_item({}:seated) failed: {}",
-                          backend_id_copy, namespace_copy, err.message);
+        [state, backend_id_copy, ns, key](const MoonrakerError& err) {
+            // A missing key is the common case (nothing seated yet), not an
+            // error worth more than a debug line.
+            spdlog::debug("[FilamentSlotOverrideStore:{}] database_get_item({}:{}) failed: {}",
+                          backend_id_copy, ns, key, err.message);
             std::lock_guard<std::mutex> lk(state->m);
             state->done = true;
             state->cv.notify_one();
         });
 
-    bool got_copy;
-    nlohmann::json received_copy;
-    {
-        std::unique_lock<std::mutex> lk(state->m);
-        state->cv.wait_for(lk, load_timeout_, [state] { return state->done; });
-        got_copy = state->got;
-        if (got_copy)
-            received_copy = state->received;
-    }
-
-    if (!got_copy)
+    std::unique_lock<std::mutex> lk(state->m);
+    state->cv.wait_for(lk, load_timeout_, [state] { return state->done; });
+    if (!state->got) {
         return std::nullopt;
+    }
+    return state->received;
+}
+
+std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
+    if (!api_)
+        return std::nullopt;
+
+    std::optional<nlohmann::json> received =
+        get_item_blocking(kHelixKeysNamespace, backend_id_ + "_seated");
+    if (!received) {
+        // Where a build kept it: a plain value in the lane namespace, which
+        // OrcaSlicer reads as a record. It moves to the HelixScreen key.
+        received = get_item_blocking(namespace_, "seated");
+        if (received) {
+            save_key_async(backend_id_ + "_seated", *received, nullptr);
+            api_->database_delete_item(namespace_, "seated", []() {}, [](const MoonrakerError&) {});
+        }
+    }
     // Must be a plain non-negative integer. The store doesn't know kNumPorts,
     // so the caller is responsible for the upper-bound range check.
-    if (!received_copy.is_number_integer())
+    if (!received || !received->is_number_integer())
         return std::nullopt;
-    int idx = received_copy.get<int>();
+    int idx = received->get<int>();
     if (idx < 0)
         return std::nullopt;
     return idx;

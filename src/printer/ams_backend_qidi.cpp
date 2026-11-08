@@ -1822,7 +1822,18 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         // a product name ("ABS Rapido") OR a bare material ("ABS") in .material.
         // Pass it as BOTH the material and the name hint so the resolver tries
         // an exact-name match first, then the type fallback.
-        const int fila_id = resolve_fila_id(fila_profiles_, info.material, info.material);
+        const size_t idx = static_cast<size_t>(slot_index);
+        // The row the Box holds now. An edit whose material still names it
+        // (its type, as the lane shows it, or its product name) keeps the row,
+        // which may be one of several of that type with its own profile.
+        const auto held = idx < slot_rfid_.size() && slot_rfid_[idx].filament_code.empty()
+                              ? fila_profiles_.find(slot_rfid_[idx].filament_id)
+                              : fila_profiles_.end();
+        const bool keeps_row = held != fila_profiles_.end() && !info.material.empty() &&
+                               (tio::equals_ignore_case(held->second.type, info.material) ||
+                                tio::equals_ignore_case(held->second.name, info.material));
+        const int fila_id =
+            keeps_row ? held->first : resolve_fila_id(fila_profiles_, info.material, info.material);
         if (!info.material.empty() && fila_id == 0) {
             // The Box holds a material only as a row of its filament list, so a
             // material with no row cannot be saved.
@@ -1836,7 +1847,6 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
                             fmt::format("no filament list row for '{}'", info.material), why, "",
                             slot_index);
         }
-        const size_t idx = static_cast<size_t>(slot_index);
         const std::string old_fila =
             idx < slot_rfid_.size() ? slot_rfid_[idx].filament_token() : std::string("0");
         const std::string old_color =
@@ -1847,7 +1857,7 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         // all. Skipping the zero would leave the Box restating the old id
         // forever, so the clear never reaches the variables the Box reads back.
         if (fila_id > 0) {
-            fila_write = fila_id;
+            fila_write = keeps_row ? -1 : fila_id;
             // The Box shows a row as its type: a product name ("PETG Basic")
             // picks the row, the type is what the Box then holds, and the
             // name the user picked becomes the spool's name in the record.
@@ -1879,21 +1889,18 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         }
     }
 
-    const std::string suffix = std::to_string(slot_index);
-    bool dispatched = true;
-    const auto save = [&](const char* variable, int value) {
+    // One script, so the record is saved once Klipper has run all of it, and
+    // a SAVE_VARIABLE it rejects saves nothing.
+    std::string gcode;
+    const auto save = [&gcode, slot_index](const char* variable, int value) {
         if (value >= 0) {
-            dispatched &= execute_gcode(fmt::format("SAVE_VARIABLE VARIABLE={}{} VALUE={}",
-                                                    variable, suffix, value))
-                              .success();
+            gcode += fmt::format("{}SAVE_VARIABLE VARIABLE={}{} VALUE={}",
+                                 gcode.empty() ? "" : "\n", variable, slot_index, value);
         }
     };
     save("filament_slot", fila_write);
     save("color_slot", color_write);
     save("vendor_slot", vendor_write);
-    if (!dispatched) {
-        return AmsErrorHelper::not_connected("QIDI Box SAVE_VARIABLE");
-    }
 
     // The lane shows what the Box and the record will hold, never the exact
     // pick beside it.
@@ -1901,11 +1908,13 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
         helix::ams::file_pending(lane_id(slot_index),
                                  helix::ams::user_edit_observation(info, recorded));
     }
-    {
+    if (gcode.empty()) {
         std::lock_guard<std::mutex> lock(mutex_);
         persist_user_record_locked(slot_index, recorded);
+        return AmsErrorHelper::success();
     }
-    return AmsErrorHelper::success();
+    return execute_gcode(gcode, record_once_written(slot_index, recorded),
+                         withdraw_edit_if_rejected(slot_index), /*silent=*/false);
 }
 
 void AmsBackendQidi::update_slot_weight_impl(int /*slot_index*/, float /*remaining_weight_g*/,
@@ -1929,13 +1938,19 @@ AmsError AmsBackendQidi::set_tool_mapping_impl(int tool_number, int slot_index) 
         return err;
     }
     // box_extras.py stores `value_t<N> = "slot<M>"` — same shape we parse on
-    // the read-path. Quote the value to match Klipper's SAVE_VARIABLE syntax
-    // for string values.
+    // the read-path. Klipper shell-splits the parameters, which strips one
+    // layer of quotes, and SAVE_VARIABLE then literal_evals what is left, so
+    // the value has to arrive as a quoted Python string: '"slot<M>"'. A bare
+    // "slot<M>" reaches literal_eval as `slot<M>` and is rejected.
     return execute_gcode("SAVE_VARIABLE VARIABLE=value_t" + std::to_string(tool_number) +
-                         " VALUE=\"slot" + std::to_string(slot_index) + "\"");
+                         " VALUE='\"slot" + std::to_string(slot_index) + "\"'");
 }
 
 void AmsBackendQidi::clear_slot_override(int slot_index) {
+    // The lane half of Clear Spool. The Box's own clear (filament, colour and
+    // vendor ids back to 0, which names no row and reads as no identity) went
+    // out with the cleared edit that precedes this, so nothing is written to
+    // the Box here.
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.get_slot_global(slot_index);
@@ -1947,19 +1962,6 @@ void AmsBackendQidi::clear_slot_override(int slot_index) {
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
     }
-
-    // The Box has no clear command, so erasing what the firmware remembers is
-    // three bare-int writes. The table row ids start at 1, so 0 names no row
-    // and the slot reads as no identity. A tagged spool re-populates the slot
-    // at the next insert, boot or RFID read - the clear erases what the slot
-    // remembers, not what the hardware can read. SAVE_VARIABLE moves nothing,
-    // so a print does not gate it: skipping it would leave the ids the next
-    // poll repaints straight back over the clear.
-    const std::string suffix = std::to_string(slot_index);
-    for (const std::string_view field : {"filament_slot", "color_slot", "vendor_slot"}) {
-        execute_gcode("SAVE_VARIABLE VARIABLE=" + std::string(field) + suffix + " VALUE=0");
-    }
-
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 

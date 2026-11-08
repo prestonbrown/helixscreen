@@ -63,7 +63,7 @@ All control runs through Klipper gcode macros and `SAVE_VARIABLE` — **no dedic
 | `M603 S<temp>` + `ENABLE_ALL_SENSOR` | Unload without the controller (verified stock on Q2 1.1.1). `M603` switches the filament sensor off and nothing else turns it back on before `PRINT_START`, so the backend re-enables it (`filament_macros::restore_after`); falls back to `M109` + `EXTRUDER_UNLOAD SLOT=…` |
 | `FORCE_MOVE STEPPER="box_stepper slot<N>" VELOCITY=… DISTANCE=…` | Lane eject on Q2/Plus 4 (#1041), gated on `[force_move] enable_force_move`; distance/velocity user-tunable (defaults 878 mm / 100 mm/s) |
 | `MULTI_COLOR_BOX_UNLOAD SLOT=slot<N>` | Lane eject on the controller dialect (#1083): the multi_color_controller rejects FORCE_MOVE |
-| `SAVE_VARIABLE VARIABLE=value_t<N> VALUE="slot<M>"` | Tool remap (`RemapStrategy::Native`, the unified remap path) |
+| `SAVE_VARIABLE VARIABLE=value_t<N> VALUE='"slot<M>"'` | Tool remap (`RemapStrategy::Native`, the unified remap path). Klipper shell-splits the parameters, stripping one layer of quotes, and `SAVE_VARIABLE` literal_evals the rest, so the value goes as a quoted Python string; `VALUE="slot<M>"` arrives as `slot<M>` and is rejected |
 | `SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N>` | Persisting slot metadata back to the Box's RFID indices, and the metadata clear (`VALUE=0` x3, see Slot Metadata below) |
 | `ENABLE_BOX_DRY` / `DISABLE_BOX_DRY BOX=<n>` | Dryer start/stop when the box_extras timer is present |
 | `SET_HEATER_TEMPERATURE HEATER=heater_box<N>` | Dryer start/stop fallback |
@@ -105,7 +105,9 @@ brand as `SAVE_VARIABLE`s, and the lane shows what the Box holds:
 - The material must name a `[fila<N>]` row. One with no row is refused through the
   editor's inline error ("Not saved: the QIDI Box has no <material> in its filament
   list"), and nothing is written; so is any material before the list has loaded. An
-  emptied material writes `filament_slot<N> = 0`. A product name ("ABS Rapido") picks its
+  emptied material writes `filament_slot<N> = 0`, and a material that still names the row the
+  Box holds (its type or product name) writes no `filament_slot`, so a brand-only edit keeps a
+  row that is one of several of its type. A product name ("ABS Rapido") picks its
   row; the material line then shows the row's type, what the Box holds, and the name becomes
   the spool's name in the lane record unless the edit named one.
 - The colour is snapped to the nearest `[colordict]` row before it is saved, and that row's
@@ -114,7 +116,9 @@ brand as `SAVE_VARIABLE`s, and the lane shows what the Box holds:
   colour anywhere.
 - The brand is written as its `[vendor_list]` row, or `Generic` (row 0) for a brand the
   table lacks. Row 0 states no brand, so the brand the lane record holds stands there.
-- A write that does not reach the printer refuses the edit and saves nothing.
+- The writes go as one script, and the lane record is saved once Klipper has run it; a write
+  that does not reach the printer, or that Klipper rejects, saves nothing and withdraws the
+  pending edit.
 
 The lane record (`lane_data`, `backend_id` `qidi`) carries the rest: spool, name,
 weights, temperatures, colour name, catalog pick, and a copy of the material and snapped
@@ -142,10 +146,10 @@ clears nothing. The record's persisted
 fingerprint is the baseline at startup, so a swap made while HelixScreen was
 down clears the stale override on the first frame.
 
-`clear_slot_override()` clears locally (erase + `clear_async` against the
-shared `lane_data` namespace) and then erases what the firmware remembers:
-three `SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N> VALUE=0` writes,
-sent mid-print too because `SAVE_VARIABLE` moves nothing. Table row ids start
+Clear Spool's cleared edit erases what the firmware remembers, once:
+`SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N> VALUE=0` (each where the Box holds
+an id), sent mid-print too because `SAVE_VARIABLE` moves nothing. `clear_slot_override()`
+is the lane half: erase + `clear_async` against the shared `lane_data` namespace. Table row ids start
 at 1, so 0 names no row and the slot reads as no identity - the clear erases what the slot remembers,
 not what the hardware can read, and a tagged spool re-populates the ids on its
 next insert, boot or RFID read. Vendor is the one field where 0 is a real row

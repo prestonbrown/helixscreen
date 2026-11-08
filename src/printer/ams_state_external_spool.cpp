@@ -177,8 +177,7 @@ void AmsState::refresh_bypass_record() {
     helix::ams::FilamentSlotOverrideStore* store = bypass_store_.get();
     const uint64_t generation = bypass_write_generation_;
     store->reload_async(
-        [token, store, generation](std::unordered_map<int, helix::ams::LaneDataRecord> records,
-                                   const nlohmann::json&) {
+        [token, store, generation](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
             token.defer("AmsState::adopt_bypass_records",
                         [store, generation, records = std::move(records)]() {
                             AmsState& self = AmsState::instance();

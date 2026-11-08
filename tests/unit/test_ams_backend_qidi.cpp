@@ -22,6 +22,7 @@
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
 #include "test_helpers/update_queue_test_access.h"
+#include "text_io.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
@@ -61,11 +62,47 @@ class RecordingQidiBackend : public AmsBackendQidi {
         sent.push_back(gcode);
         return helix::AmsErrorHelper::success();
     }
+    // The completion form records each line of the script; `reject` answers
+    // as Klipper does when a command raises, after the send.
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                                  bool /*silent*/) override {
+        if (fail_dispatch) {
+            return helix::AmsErrorHelper::not_supported("fixture dispatch failure");
+        }
+        for (const auto line : helix::text_io::lines(gcode)) {
+            sent.emplace_back(line);
+        }
+        if (reject) {
+            if (on_error) {
+                MoonrakerError err;
+                err.message = "rejected";
+                on_error(err);
+            }
+        } else if (on_complete) {
+            on_complete();
+        }
+        return helix::AmsErrorHelper::success();
+    }
+    bool reject = false;
     // While set, every dispatch fails - for the writes whose echo can never
     // arrive because the command never reached the box.
     bool fail_dispatch = false;
     std::vector<std::string> sent;
 };
+
+// Clear Spool as the slot menu runs it: the cleared edit, which writes the
+// Box's own clear, then the lane half.
+static void clear_as_the_menu_does(helix::AmsBackend& backend, int slot) {
+    SlotInfo cleared = backend.get_slot_info(slot);
+    cleared.material.clear();
+    cleared.color_rgb = kAmsDefaultSlotColor;
+    cleared.brand.clear();
+    cleared.clear_spoolman_link();
+    (void)backend.commit_user_edit(slot, backend.get_slot_info(slot), cleared);
+    backend.clear_slot_override(slot);
+}
 
 // Build a Moonraker-shaped status notification carrying save_variables.
 static json make_save_variables_notification(const json& variables) {
@@ -749,7 +786,7 @@ TEST_CASE("QIDI Box set_tool_mapping emits SAVE_VARIABLE for value_t<N>",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot3\"");
+    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE='\"slot3\"'");
 }
 
 TEST_CASE("QIDI Box set_tool_mapping accepts global slots from later boxes",
@@ -761,7 +798,7 @@ TEST_CASE("QIDI Box set_tool_mapping accepts global slots from later boxes",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE=\"slot5\"");
+    REQUIRE(backend.sent[0] == "SAVE_VARIABLE VARIABLE=value_t1 VALUE='\"slot5\"'");
 }
 
 TEST_CASE("QIDI Box lane eject is unsupported until force_move is enabled",
@@ -1752,6 +1789,66 @@ TEST_CASE("QIDI Box shows and records the palette colour the Box holds, not the 
     CHECK(backend.get_slot_info(0).color_rgb == 0x060606u);
 }
 
+TEST_CASE("QIDI Box an edit that keeps the material leaves the Box's filament row",
+          "[ams][qidi_box][write_path]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(
+        backend, "[fila1]\nfilament = PLA Basic\ntype = PLA\n[fila7]\nfilament = PLA Rapido\n"
+                 "type = PLA\n[colordict]\n18 = #FF362D\n[vendor_list]\n0 = Generic\n"
+                 "1 = QIDI\n2 = eSUN\n");
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 7}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+
+    // Only the brand moves; row 7 is still the product the Box holds.
+    SlotInfo info = backend.get_slot_info(0);
+    info.brand = "eSUN";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), info).success());
+    for (const auto& g : backend.sent) {
+        CHECK(g.find("filament_slot0") == std::string::npos);
+    }
+    CHECK(std::find(backend.sent.begin(), backend.sent.end(),
+                    "SAVE_VARIABLE VARIABLE=vendor_slot0 VALUE=2") != backend.sent.end());
+}
+
+TEST_CASE("QIDI Box a SAVE_VARIABLE Klipper rejects saves nothing", "[ams][qidi_box]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+    backend.reject = true;
+
+    SlotInfo info = backend.get_slot_info(0);
+    info.material = "ABS";
+    (void)backend.commit_user_edit(0, backend.get_slot_info(0), info);
+    CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
+    CHECK(backend.get_slot_info(0).material == "PLA");
+}
+
+TEST_CASE("QIDI Box Clear Spool zeroes each variable once", "[ams][qidi_box]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+
+    SlotInfo cleared = backend.get_slot_info(0);
+    cleared.material.clear();
+    cleared.color_rgb = kAmsDefaultSlotColor;
+    cleared.brand.clear();
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), cleared).success());
+    static_cast<helix::AmsBackend&>(backend).clear_slot_override(0);
+    for (const char* variable : {"filament_slot0", "color_slot0", "vendor_slot0"}) {
+        CAPTURE(variable);
+        CHECK(std::count_if(backend.sent.begin(), backend.sent.end(), [variable](const auto& g) {
+                  return g.find(variable) != std::string::npos;
+              }) == 1);
+    }
+}
+
 TEST_CASE("QIDI Box a product name picks the row and becomes the spool's name",
           "[ams][qidi_box][write_path]") {
     helix::test::RegisteredBackend<RecordingQidiBackend> harness;
@@ -1923,8 +2020,8 @@ TEST_CASE("QIDI Box apply_user_edit carries an explicit zero for a cleared field
 
         helix::test::edit_slot_as_user(backend, 0, info);
         REQUIRE(sent_color() == "SAVE_VARIABLE VARIABLE=color_slot0 VALUE=0");
-        // The untouched material still resolves to its row.
-        REQUIRE(sent_fila() == "SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=11");
+        // The untouched material keeps the row the Box holds: no rewrite.
+        REQUIRE(sent_fila().empty());
 
         QidiBoxTestAccess::parse_vars(backend, json{{"box_count", 1},
                                                     {"filament_slot0", 11},
@@ -2431,6 +2528,8 @@ TEST_CASE("QIDI Box a user edit persists its override to the lane_data record", 
     info.brand = "eSUN";
     info.color_rgb = 0x060606u;
     helix::test::edit_slot_as_user(backend, 0, info);
+    // Klipper's answer to the SAVE_VARIABLEs lands through the update queue.
+    helix::ui::UpdateQueue::instance().drain();
 
     // Round-trip through the wire format rather than asserting field spellings.
     const auto rec = mock_printer.client.mock_db_get("lane_data", "lane1");
@@ -2539,7 +2638,7 @@ TEST_CASE("QIDI Box clearing a spool writes the three identity zeros", "[ams][qi
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
     REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
-    backend.clear_slot_override(0);
+    clear_as_the_menu_does(backend, 0);
 
     for (const char* gcode : {"SAVE_VARIABLE VARIABLE=filament_slot0 VALUE=0",
                               "SAVE_VARIABLE VARIABLE=color_slot0 VALUE=0",
@@ -2562,7 +2661,7 @@ TEST_CASE("QIDI Box a cleared slot reads as no identity once the zero echo lands
     REQUIRE(backend.get_slot_info(0).brand == "QIDI");
     REQUIRE(backend.get_slot_info(0).color_rgb == 0xFF362Du);
 
-    backend.clear_slot_override(0);
+    clear_as_the_menu_does(backend, 0);
     // The request blanks the slot immediately; the Box still remembers until
     // the zero writes land.
     CHECK(backend.get_slot_info(0).material.empty());
@@ -2594,7 +2693,7 @@ TEST_CASE("QIDI Box an edit racing the clear's zero echoes survives them", "[ams
         backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
     REQUIRE(QidiBoxTestAccess::last_fingerprint(backend, 0) == "1|18");
 
-    backend.clear_slot_override(0);
+    clear_as_the_menu_does(backend, 0);
 
     // The user re-edits before the zero writes land: the edit stages a fresh
     // override and queues its own SAVE_VARIABLEs behind the clear's.
@@ -2636,7 +2735,7 @@ TEST_CASE("QIDI Box clear writes the firmware zeros while a print is active", "[
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     REQUIRE(state.print_state().get_print_lifecycle() == PrintState::Printing);
 
-    backend.clear_slot_override(0);
+    clear_as_the_menu_does(backend, 0);
 
     // SAVE_VARIABLE moves nothing, so the print does not hold the writes back;
     // without them the next poll repaints the old ids over the clear.

@@ -45,7 +45,7 @@ unchanged. `ifs_loaded` overwrites `seated_chan_` directly, and once the module 
 published it, it stays the seated lane on every module frame (`active_channel` included),
 unless a lessWaste/bambufy plugin runs beside the module: its swaps need not run
 `IFS_LOAD`, so that rig keeps following `active_channel`.
-The remembered seated lane (the `lane_data` DB `seated` key) mirrors it instead of
+The remembered seated lane (the `ifs_seated` key in the `helix-screen` namespace) mirrors it instead of
 feeding the cold-boot floor: on the module, `active_channel=0` with a loaded head is the
 normal idle state, not a firmware that forgot its lane (#1897).
 
@@ -386,7 +386,7 @@ sensor; `unload_lane_decision_locked()` feeds it the live state. Top-down:
 
 | # | State | Verdict | What happens |
 |---|---|---|---|
-| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `lane_data` DB `seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
+| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `helix-screen` `ifs_seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
 | 2 | Module only: `ifs_at_hub = n` and port n reads present | `UnloadLane` | `IFS_UNLOAD SLOT=n`, no question. Only one lane fits in the shared path, and `IFS_LOAD` claims it before the feed, so a load that failed after the feed leaves exactly this record |
 | 3 | Exactly one lane reads present | `ConfirmLane` | The lane picker with that one lane. Never dispatched on the inference alone: a runout tail or filament fed from outside the IFS breaks it |
 | 4 | Several lanes read present | `PickLane` | The lane picker |

@@ -92,6 +92,15 @@ class SentCfs : public AmsBackendCfs {
     helix::AmsError execute_gcode(const std::string& /*gcode*/) override {
         return helix::AmsErrorHelper::success();
     }
+    helix::AmsError execute_gcode(const std::string& /*gcode*/,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+                                  bool /*silent*/) override {
+        if (on_complete) {
+            on_complete();
+        }
+        return helix::AmsErrorHelper::success();
+    }
 };
 using CfsHarness = RegisteredBackend<SentCfs>;
 using AceHarness = RegisteredBackend<AmsBackendAce>;
@@ -102,6 +111,15 @@ class SentQidi : public AmsBackendQidi {
   public:
     using AmsBackendQidi::AmsBackendQidi;
     helix::AmsError execute_gcode(const std::string& /*gcode*/) override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError execute_gcode(const std::string& /*gcode*/,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+                                  bool /*silent*/) override {
+        if (on_complete) {
+            on_complete();
+        }
         return helix::AmsErrorHelper::success();
     }
 };
