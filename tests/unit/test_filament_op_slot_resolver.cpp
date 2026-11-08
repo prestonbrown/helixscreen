@@ -216,7 +216,7 @@ TEST_CASE("Panel op-target contract: Load follows the dropdown, Unload gated on 
 }
 
 // ---------------------------------------------------------------------------
-// Print-state gating (bundle JX2FVRB9, bundle XWPBR2DX)
+// Print-state gating
 // ---------------------------------------------------------------------------
 //
 // Load/Unload both run through AmsSubscriptionBackend::check_preconditions(true)

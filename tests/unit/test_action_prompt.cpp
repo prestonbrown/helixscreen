@@ -162,7 +162,7 @@ TEST_CASE("parse_action_line: Whitespace handling", "[action_prompt][parser]") {
 // The parser used to hand "prompt_beginResumption" to the dispatcher, which fell
 // through to `unknown command` — so prompt_begin never ran, the state machine
 // never opened, and the following prompt_text/prompt_show landed on nothing
-// (bundle JX2FVRB9, AD5X v0.99.103).
+// (AD5X v0.99.103).
 //
 // Mutation check: delete the glued_command_length() call in parse_action_line and
 // the first SECTION fails with command == "prompt_beginResumption".

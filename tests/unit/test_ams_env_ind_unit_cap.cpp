@@ -5,7 +5,7 @@
  * @file test_ams_env_ind_unit_cap.cpp
  * @brief Regression tests — per-unit environment subjects must cover real rigs
  *
- * Debug bundle XGVDYEB5 (a five-unit AFC rig) logged seven LVGL parser warnings
+ * A debug bundle from a five-unit AFC rig logged seven LVGL parser warnings
  * per AMS overview rebuild, one per environment-indicator binding on the fifth
  * card:
  *
@@ -75,7 +75,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-unit environment subjects exist for a fiv
                  "[ams][regression]") {
     reinit_ams_subjects_for_xml();
 
-    // Unit index 4 is the fifth unit of the AFC rig in bundle XGVDYEB5 — the one
+    // Unit index 4 is the fifth unit of that AFC rig — the one
     // whose badge went dark. Index 15 is the sixteenth, the widest rig the
     // overview supports; the path canvas and the badge subjects share one cap
     // or the path renders a unit the badge cannot.

@@ -181,7 +181,7 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
     CHECK(cr.generate_github_url(report).find("watchdog") != std::string::npos);
 }
 
-// Regression: bundle CHUQCNAE (2026-05-05, AD5X v0.99.53) shipped a crash.txt
+// An AD5X debug bundle (v0.99.53) shipped a crash.txt
 // containing only "signal:\n" — the signal handler was killed mid-write before
 // the signum or any other field landed. Application::run still showed the
 // crash dialog, the user clicked Send, and the resulting bundle had no
@@ -924,7 +924,7 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
 // ============================================================================
 //
 // The snapshot is taken by the running process, so its age can never exceed the
-// process uptime. Bundle ED2YC336 reported 120036989ms (33.3h) against a 9.8h
+// process uptime. One debug bundle reported 120036989ms (33.3h) against a 9.8h
 // uptime and those heap figures were read as real data. The age alone cannot be
 // diagnosed, so the raw stamps it was derived from now ship alongside it.
 

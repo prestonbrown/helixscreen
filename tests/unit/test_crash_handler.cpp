@@ -649,7 +649,7 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: heap_snapshot_age_ms is an age, not a
     REQUIRE(age < 1000);
 }
 
-// The age alone is undiagnosable when it comes out wrong (bundle ED2YC336
+// The age alone is undiagnosable when it comes out wrong (one debug bundle
 // reported an age exceeding the process uptime, which is impossible). Both raw
 // stamps now ship with it, and they must agree with the age exactly — they are
 // derived from a single clock read, so any drift means the handler took two.

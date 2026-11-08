@@ -744,7 +744,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // a panel that is already open — which is how the failure reached the user. The
 // AD5X reporter was sitting on the filament screen when the runout pause fired,
 // tapped a still-lit Load, and got "Cannot run filament operation while
-// printing" from the backend guard (bundle JX2FVRB9).
+// printing" from the backend guard.
 //
 // The panel watches print_lifecycle. It needs PRINTING -> PAUSED as a gating edge
 // (a pause UNGATES the buttons on every backend but AD5X, and print_active reads 1

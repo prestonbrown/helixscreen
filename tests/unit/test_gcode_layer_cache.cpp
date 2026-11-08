@@ -383,7 +383,7 @@ TEST_CASE("GCodeLayerCache thread safety", "[gcode][cache][thread][slow]") {
 }
 
 // =============================================================================
-// Main-thread stall regression (bundle C2CP6ZAW)
+// Main-thread stall regression
 //
 // get_or_load() used to hold mutex_ across the loader() call, which does a file
 // seek plus a G-code parse. The background ghost builder walks every layer

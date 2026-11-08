@@ -8,7 +8,7 @@
 // The fans overlay and its row render their fan marks through the <icon>
 // widget (an MDI font glyph). "fan" is not a raster image, so an <lv_image
 // src="fan"> spelling resolves against the image map, misses, and leaves a
-// blank slot behind a warning - the shape seen in bundle CSLYH92R.
+// blank slot behind a warning - the shape seen in a field report.
 
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"

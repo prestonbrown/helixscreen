@@ -13,7 +13,7 @@
  * refusal raises, and — the reason the refusal enum exists — that the
  * already-mounted refusal arms neither the operation guard nor the on-button
  * spinner. Dispatching that no-op (SELECT_TOOL on the carriage tool) is what
- * left the Load button spinning for the full guard timeout in bundle 9KRXZ62P.
+ * left the Load button spinning for the full guard timeout.
  *
  * The branching itself is shipped code: helix::ui::panel_load_outcome() and
  * panel_unload_outcome() (ui_panel_filament.h) ARE execute_load()/execute_unload()
