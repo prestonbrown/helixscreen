@@ -444,6 +444,19 @@ TEST_CASE("FillUnsetOnly fills a blank record and leaves a set one",
     CHECK(overrides[0].material == "PLA");
 }
 
+TEST_CASE("a firmware reading of no colour never becomes a record's colour",
+          "[filament_slot_override][mirror]") {
+    // A cleared CFS bay reads "-1", which parses to kAmsDefaultSlotColor.
+    for (const auto policy :
+         {helix::ams::MirrorPolicy::FillUnsetOnly, helix::ams::MirrorPolicy::OverwriteAlways}) {
+        std::unordered_map<int, FilamentSlotOverride> overrides;
+        (void)helix::ams::mirror_firmware_to_lane_data(
+            nullptr, overrides, 0, helix::kAmsDefaultSlotColor, "PLA", true, policy, "[test]");
+        CHECK_FALSE(overrides[0].color_set);
+        CHECK(overrides[0].material == "PLA");
+    }
+}
+
 TEST_CASE("OverwriteAlways follows firmware, and an empty slot is no signal",
           "[filament_slot_override][mirror]") {
     MockPrinter printer;
