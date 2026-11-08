@@ -43,6 +43,9 @@
 
 namespace helix::ui {
 
+constexpr int kDefaultDryerTempC = 55;
+constexpr int kDefaultDryerDurationMin = 240;
+
 // ============================================================================
 // DESTRUCTOR
 // ============================================================================
@@ -265,25 +268,20 @@ void AmsEnvironmentOverlay::show_zone(lv_obj_t* parent_screen,
 void AmsEnvironmentOverlay::before_show() {
     rebuild_tabs();
     publish_selected_zone();
-    restore_remembered_dryer_inputs();
+    reset_dryer_inputs();
 }
 
-void AmsEnvironmentOverlay::restore_remembered_dryer_inputs() {
+void AmsEnvironmentOverlay::reset_dryer_inputs() {
     dryer_inputs_edited_ = false;
-    // Restore the temp/duration the user last started a dry with (per-printer),
-    // so the inputs default to remembered values rather than the XML constants.
-    Config* config = Config::get_instance();
+    // What shows when no loaded material picks a preset.
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d",
-                 config->get<int>(config->df() + "ams/dryer_last_temp", 55));
+        snprintf(buf, sizeof(buf), "%d", kDefaultDryerTempC);
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
-        lv_textarea_set_text(
-            duration_input_,
-            format_duration_hours(config->get<int>(config->df() + "ams/dryer_last_duration", 240))
-                .c_str());
+        lv_textarea_set_text(duration_input_,
+                             format_duration_hours(kDefaultDryerDurationMin).c_str());
     }
     // Blank leaves the target to the printer's own default; a chosen target applies to
     // one start only.
@@ -840,7 +838,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_copy_string(&drying_text_subject_, drying_text_buf_);
 
         int progress = dryer.get_progress_pct();
-        lv_subject_set_int(&drying_progress_subject_, progress >= 0 ? progress : 0);
+        // Negative when the cycle's length is unknown; the bar hides on it.
+        lv_subject_set_int(&drying_progress_subject_, progress);
 
         // Button text when drying
         snprintf(start_stop_text_buf_, sizeof(start_stop_text_buf_), "%s", lv_tr("Stop Drying"));
@@ -1166,12 +1165,8 @@ void AmsEnvironmentOverlay::handle_start_stop() {
         } else {
             // Start drying with textarea values, clamped to backend limits.
             // The duration field shows hours; every backend takes minutes.
-            // Defaults remember the last values the user started a dry with
-            // (per-printer); fall back to 55°C / 240 min on first use.
-            Config* config = Config::get_instance();
-            float temp_c =
-                static_cast<float>(config->get<int>(config->df() + "ams/dryer_last_temp", 55));
-            int duration_min = config->get<int>(config->df() + "ams/dryer_last_duration", 240);
+            float temp_c = static_cast<float>(kDefaultDryerTempC);
+            int duration_min = kDefaultDryerDurationMin;
 
             if (temp_input_) {
                 const char* text = lv_textarea_get_text(temp_input_);
@@ -1224,11 +1219,6 @@ void AmsEnvironmentOverlay::handle_start_stop() {
                 AmsError result = drier ? drier->start_drying_request(request)
                                         : AmsErrorHelper::not_supported("Dryer");
                 if (result.success()) {
-                    // Remember the chosen values so the next open restores them.
-                    config->set<int>(config->df() + "ams/dryer_last_temp",
-                                     static_cast<int>(temp_c));
-                    config->set<int>(config->df() + "ams/dryer_last_duration", duration_min);
-                    config->save();
                     NOTIFY_INFO("{}", lv_tr("Drying started"));
                 } else {
                     helix::ui::notify_ams_error(result, lv_tr("Start failed"));

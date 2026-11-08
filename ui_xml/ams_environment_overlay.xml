@@ -28,7 +28,8 @@
     <style name="comfort_list_wide" layout="flex" flex_flow="column" flex_grow="0"/>
     <!-- Stop while a cycle runs: a quiet button with danger text, so the running cycle,
          not the way to end it, is what the page leads with. Start stays primary. -->
-    <style name="dryer_stop_quiet" bg_color="#elevated_bg" bg_opa="255" text_color="#danger"/>
+    <style name="dryer_stop_quiet"
+           bg_opa="0" border_width="#border_width" border_color="#border" border_opa="255" text_color="#text"/>
     <!-- The picture steps back while drying, so the airflow drawn over it reads against
          art of any colour. -->
     <style name="dryer_picture_drying" opa="90"/>
@@ -231,6 +232,7 @@
                         max_value="100" style_radius="#border_radius" style_radius-indicator="#border_radius"
                         style_bg_color="#screen_bg" style_bg_opa="255">
                   <bind_flag_if_eq subject="env_zone_state" flag="hidden" ref_value="1"/>
+                  <bind_flag_if_lt subject="ams_env_overlay_drying_progress" flag="hidden" ref_value="0"/>
                 </lv_bar>
               </lv_obj>
             </lv_obj>

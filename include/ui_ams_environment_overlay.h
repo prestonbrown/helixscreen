@@ -180,7 +180,7 @@ class AmsEnvironmentOverlay : public OverlayBase {
     /// Fill the tab pools and publish the count, populate-before-count.
     void rebuild_tabs();
     /// Restore the dryer temp/duration inputs from the last remembered values.
-    void restore_remembered_dryer_inputs();
+    void reset_dryer_inputs();
     /// The unit the on-screen zone belongs to, for the dryer-control call sites that
     /// command a specific box. -1 when no zone is shown, or the shown zone spans
     /// several units and cannot be attributed to one (HappyHare can report this for a

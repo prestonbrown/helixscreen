@@ -102,7 +102,7 @@ void draw_cb(lv_event_t* e) {
     const int32_t head_top = at_zero.top + nozzle_y;
 
     // The filament column runs from the top of the box into the toolhead.
-    const int32_t gauge = std::max<int32_t>(4, w / 5);
+    const int32_t gauge = pg::centered_gauge(std::max<int32_t>(4, w / 5));
     const float column_top = static_cast<float>(box.y1) + gauge * 0.5f;
     pg::FilamentPath column;
     column.add_line(static_cast<float>(cx), column_top, static_cast<float>(cx),
@@ -125,7 +125,8 @@ void draw_cb(lv_event_t* e) {
     pg::FilamentPath visible;
     visible.add_line(static_cast<float>(cx), column_top, static_cast<float>(cx),
                      static_cast<float>(head_top));
-    pg::ChevronSize size = pg::chevron_size_for_gauge(static_cast<float>(gauge));
+    pg::ChevronSize size =
+        pg::pixel_centered(pg::chevron_size_for_gauge(static_cast<float>(gauge)));
     size.spacing = size.depth * 2.5f;
     const float phase = size.spacing * static_cast<float>(d->phase) / kPhaseSteps;
     draw_flow_chevrons(layer, visible, size, phase, d->motion == FilamentMotion::Retract,
