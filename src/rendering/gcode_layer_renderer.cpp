@@ -2392,6 +2392,30 @@ void GCodeLayerRenderer::load_config() {
     }
 }
 
+int next_adaptive_layers_per_frame(int lpf, uint32_t frame_ms, int target_ms, float growth_cap,
+                                   int max_lpf) {
+    constexpr int kMinLpf = 1;
+    if (frame_ms == 0 || target_ms <= 0) {
+        return std::clamp(lpf, kMinLpf, std::max(kMinLpf, max_lpf));
+    }
+    const auto target = static_cast<uint32_t>(target_ms);
+    int next = lpf;
+    if (frame_ms < target) {
+        float ratio =
+            std::min(static_cast<float>(target_ms) / static_cast<float>(frame_ms), growth_cap);
+        int scaled = static_cast<int>(static_cast<float>(lpf) * ratio);
+        // Averaging smooths the climb; the +1 floor keeps it moving at small values,
+        // where both the scaling and the average round back to lpf.
+        next = std::max(lpf + 1, (lpf + scaled) / 2);
+    } else if (frame_ms > target * 2) {
+        float ratio = static_cast<float>(target_ms) / static_cast<float>(frame_ms);
+        next = static_cast<int>(static_cast<float>(lpf) * ratio);
+    } else if (frame_ms > target) {
+        next = lpf * 3 / 4;
+    }
+    return std::clamp(next, kMinLpf, std::max(kMinLpf, max_lpf));
+}
+
 void GCodeLayerRenderer::adapt_layers_per_frame() {
     // Only adapt when in adaptive mode (config value == 0)
     if (config_layers_per_frame_ != 0) {
@@ -2403,33 +2427,10 @@ void GCodeLayerRenderer::adapt_layers_per_frame() {
         return;
     }
 
-    // Adaptive algorithm:
-    // - If render time < target: increase layers_per_frame to cache faster
-    // - If render time > target: decrease layers_per_frame to avoid UI stutter
-    // - Use exponential moving average to smooth adjustments
-
     int old_lpf = layers_per_frame_;
-
-    if (last_frame_render_ms_ < static_cast<uint32_t>(adaptive_target_ms_)) {
-        // Under budget - can render more layers
-        // Scale up proportionally but cap growth (conservative on constrained devices)
-        float ratio = static_cast<float>(adaptive_target_ms_) / std::max(1u, last_frame_render_ms_);
-        float max_growth = is_constrained_device_ ? kConstrainedGrowthCap : 2.0f;
-        ratio = std::min(ratio, max_growth);
-        int new_lpf = static_cast<int>(layers_per_frame_ * ratio);
-        // Smooth increase (take average of current and target)
-        layers_per_frame_ = (layers_per_frame_ + new_lpf) / 2;
-    } else if (last_frame_render_ms_ > static_cast<uint32_t>(adaptive_target_ms_ * 2)) {
-        // Significantly over budget - reduce aggressively
-        float ratio = static_cast<float>(adaptive_target_ms_) / std::max(1u, last_frame_render_ms_);
-        layers_per_frame_ = static_cast<int>(layers_per_frame_ * ratio);
-    } else if (last_frame_render_ms_ > static_cast<uint32_t>(adaptive_target_ms_)) {
-        // Slightly over budget - reduce gradually
-        layers_per_frame_ = layers_per_frame_ * 3 / 4; // 75% of current
-    }
-
-    // Clamp to valid range (using device-aware max)
-    layers_per_frame_ = std::clamp(layers_per_frame_, kMinLayersPerFrame, max_layers_per_frame_);
+    layers_per_frame_ = next_adaptive_layers_per_frame(
+        layers_per_frame_, last_frame_render_ms_, adaptive_target_ms_,
+        is_constrained_device_ ? kConstrainedGrowthCap : kGrowthCap, max_layers_per_frame_);
 
     // Log significant changes
     if (layers_per_frame_ != old_lpf) {
