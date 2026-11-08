@@ -744,6 +744,15 @@ class PrinterDetector {
      * reason is the only thing a debug bundle can use to tell "detection scored
      * 68" apart from "detection returned nothing at all".
      */
+    /// The saved-vs-detected pair the user last answered the mismatch warning
+    /// for. An answer covers exactly that pair: a later detection of a
+    /// different type, such as a database entry added by an update, or a
+    /// different saved type, is a new question (prestonbrown/helixscreen#2075).
+    struct MismatchAnswer {
+        std::string saved;
+        std::string detected;
+    };
+
     enum class MismatchDecision {
         Warn,                 ///< Offer the prompt.
         NoDetection,          ///< Detection produced no type name.
@@ -751,7 +760,7 @@ class PrinterDetector {
         Ambiguous,            ///< Scored well, but a rival outcome scored within kDetectMinMargin.
         MatchesSavedType,     ///< Detected type equals the saved one.
         SavedTypeNotSpecific, ///< Saved type is empty, Custom/Other, or Unknown.
-        AlreadyDismissed      ///< The user already answered for this saved type.
+        AlreadyDismissed      ///< The user already answered for this saved and detected pair.
     };
 
     /// Human-readable tag for a MismatchDecision, for logs.
@@ -762,9 +771,9 @@ class PrinterDetector {
      *
      * Warn iff detection is high-confidence (>= kMismatchMinConfidence), leads
      * its nearest rival outcome by kDetectMinMargin, contradicts a meaningful
-     * saved type (not Custom/Other, Unknown, or empty), and the per-printer
-     * flag does not already equal the current saved type (changing the type
-     * re-arms the warning once).
+     * saved type (not Custom/Other, Unknown, or empty), and @p answered is not
+     * this same saved and detected pair (changing either re-arms the warning
+     * once).
      *
      * @param detected_margin PrinterDetectionResult::margin() for the detection
      *        being classified. Every caller states it: a margin left implicit
@@ -777,7 +786,7 @@ class PrinterDetector {
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const std::string& detected_type,
                                                    int detected_confidence,
-                                                   const std::string& flag_value,
+                                                   const MismatchAnswer& answered,
                                                    int detected_margin);
 
     /**
@@ -797,7 +806,7 @@ class PrinterDetector {
      */
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const PrinterDetectionResult& detected,
-                                                   const std::string& flag_value);
+                                                   const MismatchAnswer& answered);
 
     /**
      * @brief The detected type a saved-vs-detected comparison is about.

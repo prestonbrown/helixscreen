@@ -189,6 +189,7 @@ class TypeMismatchFixture : public LVGLUITestFixture {
         saved_data_ = helix::ConfigTestAccess::data(*cfg_);
         set_config(helix::wizard::PRINTER_TYPE, SAVED);
         set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "");
+        set_config(helix::wizard::kTypeMismatchShownForDetected, "");
 
         helix::ui::set_test_toast_hook([this](ToastSeverity sev, const std::string& msg,
                                               uint32_t ms) { toast_ = ToastSeen{sev, msg, ms}; });
@@ -218,6 +219,10 @@ class TypeMismatchFixture : public LVGLUITestFixture {
     }
     std::string dismissed_for() const {
         return cfg_->get<std::string>(cfg_->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "");
+    }
+    std::string dismissed_for_detected() const {
+        return cfg_->get<std::string>(cfg_->df() + helix::wizard::kTypeMismatchShownForDetected,
+                                      "");
     }
 
     void warn() {
@@ -341,6 +346,8 @@ TEST_CASE_METHOD(TypeMismatchFixture,
 
     CHECK(Modal::get_top() == nullptr);
     CHECK(dismissed_for() == SAVED);
+    // The answer is for this pair only (prestonbrown/helixscreen#2075).
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(writes_.writes() > 0);
     // Answered, so the sticky toast goes too.
     CHECK(helix::ui::last_action_toast_dismissed());
@@ -359,6 +366,7 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     click(dialog, "btn_primary");
 
     CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(helix::ui::last_action_toast_dismissed());
 }
 
@@ -409,6 +417,7 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps th
     drain();
 
     CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(writes_.writes() > 0);
     CHECK(helix::ui::last_action_toast_dismissed());
 }
@@ -501,8 +510,9 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
         // The type was changed some other way since the warning.
         set_config(helix::wizard::PRINTER_TYPE, "Creality K1");
     } else if (stale == 1) {
-        // Already answered for this saved type.
+        // Already answered for this saved and detected pair.
         set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, SAVED);
+        set_config(helix::wizard::kTypeMismatchShownForDetected, DETECTED);
     } else {
         // Switched to another printer.
         prompter_->reset_for_new_connection();
@@ -513,6 +523,23 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
     REQUIRE(helix::ui::fire_last_toast_action());
     drain();
     CHECK(Modal::get_top() == nullptr);
+}
+
+// An answer for the saved type against an earlier detection does not spend a
+// warning about a different detected type (prestonbrown/helixscreen#2075).
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: an answer for another detection leaves the Review live",
+                 "[type-mismatch][hardware_setup][2075]") {
+    set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, SAVED);
+    set_config(helix::wizard::kTypeMismatchShownForDetected, "Prusa MK4");
+    warn();
+
+    tap_history_entry();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    click(dialog, "btn_secondary");
+    CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
 }
 
 TEST_CASE_METHOD(TypeMismatchFixture,
