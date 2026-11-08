@@ -813,6 +813,12 @@ class PrinterDetector {
     static std::string mismatch_subject(const std::string& saved_type,
                                         const PrinterDetectionResult& detected);
 
+    /// The contender mismatch_subject() settles an ambiguous @p detected on,
+    /// or empty when the result separated or no tied candidate is the saved
+    /// machine. For a caller that must tell a settled tie from an open one.
+    static std::string saved_type_contender(const std::string& saved_type,
+                                            const PrinterDetectionResult& detected);
+
     /// The variant fields of one database entry. An entry with "variant_of"
     /// is the same machine as the entry with that id, differing only by a
     /// firmware mod or an add-on that "variant_label" names.
