@@ -20,6 +20,9 @@ using helix::test::count_pixels;
 using helix::test::diff_against;
 using helix::test::FrameDiff;
 using helix::test::non_opaque_pixels;
+using helix::test::print_reading_for;
+using helix::ui::ClockMode;
+using helix::ui::ClockReading;
 using helix::ui::DirtyRect;
 using helix::ui::FireworksPacing;
 using helix::ui::FireworksSim;
@@ -34,6 +37,9 @@ namespace {
 
 constexpr uint32_t W = 320;
 constexpr uint32_t H = 200;
+
+/// The reading of a frame with no print.
+const ClockReading kNoPrint{};
 
 /// A frame of the size every fireworks sim test draws.
 struct SimFrame : helix::test::TestFrame {
@@ -149,7 +155,7 @@ TEST_CASE("a fireworks show replays exactly from a seed, and another seed differ
         std::vector<DirtyRect> dirty;
         constexpr uint32_t kFrameMs[] = {16, 33, 50, 7, 100};
         for (int i = 0; i < 400; i++) {
-            sim.step(kFrameMs[i % 5], frame.target, rng, dirty);
+            sim.step(kFrameMs[i % 5], frame.target, rng, kNoPrint, dirty);
             boxes.push_back(dirty);
         }
         return std::make_pair(frame.bytes, boxes);
@@ -178,7 +184,7 @@ TEST_CASE("every pixel a fireworks frame changes lies in one of its dirty boxes"
     size_t most_lit = 0;
     for (int i = 0; i < 700; i++) {
         const std::vector<uint8_t> before = frame.snapshot();
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         const FrameDiff diff = diff_against(before, frame, dirty);
         changed += diff.changed;
         uncovered += diff.uncovered;
@@ -208,7 +214,7 @@ TEST_CASE("each crossette star splits into a cross of four fragments",
     size_t stars = 0;
     size_t most = 0;
     for (int i = 0; i < 300; i++) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         if (stars == 0) {
             stars = sim.sparks_in_use();
         }
@@ -233,13 +239,13 @@ TEST_CASE("burnt-out crossette fragments return to the spark pool",
     // Three minutes of shells: far more fragments than the pool holds have lived and died.
     std::vector<DirtyRect> dirty;
     for (uint32_t ms = 0; ms < 180000; ms += 16) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
     }
 
     // The shells launched over the next ten seconds still burst.
     size_t most = 0;
     for (uint32_t ms = 0; ms < 10000; ms += 16) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         most = std::max(most, sim.sparks_in_use());
     }
     CHECK(most >= kFireworksLevels[0].sparks_per_burst / 8);
@@ -258,7 +264,7 @@ TEST_CASE("a palm throws a few comets with long tails", "[screensaver][fireworks
     size_t comets = 0;
     int frames_since_burst = 0;
     for (int i = 0; i < 2000 && frames_since_burst < 20; i++) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         if (comets == 0) {
             comets = sim.sparks_in_use();
         } else {
@@ -286,7 +292,7 @@ TEST_CASE("palm comets arc over inside the top of a short frame", "[screensaver]
     size_t most = 0;
     size_t top_row_hits = 0;
     for (uint32_t ms = 0; ms < 60000; ms += 16) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         most = std::max(most, sim.sparks_in_use());
         for (int32_t x = 0; x < 480; x++) {
             const Rgb c = reader.get(x, 0);
@@ -312,7 +318,7 @@ TEST_CASE("strobe stars hang and blink white", "[screensaver][fireworks_sim]") {
     size_t sparks_at_start = 0;
     size_t fewest_sparks = SIZE_MAX;
     for (int i = 0; i < 400; i++) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         if (burst_frame < 0 && sim.sparks_in_use() > 0) {
             burst_frame = i;
         }
@@ -363,7 +369,7 @@ TEST_CASE("the spark pool is sized at start, never grows, and a full pool drops 
     size_t most = 0;
     size_t capacity_changes = 0;
     for (int i = 0; i < 1200; i++) {
-        sim.step(16, frame.target, rng, dirty);
+        sim.step(16, frame.target, rng, kNoPrint, dirty);
         capacity_changes += sim.spark_capacity() != capacity ? 1 : 0;
         most = std::max(most, sim.sparks_in_use());
     }
@@ -387,7 +393,7 @@ TEST_CASE("a fireworks level request waits for the next shell launch",
     std::vector<DirtyRect> dirty;
     const auto run_ms = [&](uint32_t ms) {
         for (uint32_t t = 0; t < ms; t += 20) {
-            sim.step(20, frame.target, rng, dirty);
+            sim.step(20, frame.target, rng, kNoPrint, dirty);
         }
     };
 
@@ -404,6 +410,135 @@ TEST_CASE("a fireworks level request waits for the next shell launch",
     CHECK(sim.level() == 2);
     run_ms(200); // 2400 ms
     CHECK(sim.level() == kFireworksLevelCount - 1);
+}
+
+// ============================================================================
+// The print
+// ============================================================================
+
+namespace {
+
+/// Steps `sim` in 20 ms frames for `ms` on `print`; the shells launched meanwhile.
+uint32_t run_show(FireworksSim& sim, SimFrame& frame, std::minstd_rand& rng,
+                  const ClockReading& print, uint32_t ms) {
+    const uint32_t before = sim.shells_launched();
+    std::vector<DirtyRect> dirty;
+    for (uint32_t t = 0; t < ms; t += 20) {
+        sim.step(20, frame.target, rng, print, dirty);
+    }
+    return sim.shells_launched() - before;
+}
+
+} // namespace
+
+TEST_CASE("launches come faster and bigger as the print goes", "[screensaver][fireworks_sim]") {
+    // One peony: half the level's sparks at the start of a print, all of them at the end.
+    for (const int32_t pct : {0, 100}) {
+        CAPTURE(pct);
+        std::minstd_rand rng(4);
+        FireworksSim sim;
+        SimFrame frame(PixelFormat::XRGB8888);
+        sim.init(frame.target, rng, 0, single_shell_pacing());
+        sim.set_kinds(only(FireworksSim::BurstKind::PEONY));
+        const ClockReading print = print_reading_for(ClockMode::COUNTDOWN, pct);
+        std::vector<DirtyRect> dirty;
+        size_t most = 0;
+        for (int i = 0; i < 300; i++) {
+            sim.step(16, frame.target, rng, print, dirty);
+            most = std::max(most, sim.sparks_in_use());
+        }
+        const size_t full = kFireworksLevels[0].sparks_per_burst;
+        CHECK(most == (pct == 0 ? full / 2 : full));
+    }
+
+    // Two minutes of the show's own pacing at either end of a print.
+    const auto launches_at = [](int32_t pct) {
+        std::minstd_rand rng(6);
+        FireworksSim sim;
+        SimFrame frame(PixelFormat::RGB565);
+        sim.init(frame.target, rng, 0);
+        return run_show(sim, frame, rng, print_reading_for(ClockMode::COUNTDOWN, pct), 120000);
+    };
+    const uint32_t slow = launches_at(0);
+    const uint32_t fast = launches_at(100);
+    CAPTURE(slow, fast);
+    CHECK(slow > 0);
+    CHECK(fast * 2 > slow * 3);
+}
+
+TEST_CASE("a finished print loops the finale", "[screensaver][fireworks_sim]") {
+    std::minstd_rand rng(9);
+    FireworksSim sim;
+    SimFrame frame(PixelFormat::XRGB8888);
+    sim.init(frame.target, rng, kFireworksLevelCount - 1);
+    const ClockReading done = print_reading_for(ClockMode::DONE, 100);
+    std::vector<DirtyRect> dirty;
+    // Every ten seconds of a minute, finale shells are still going up.
+    for (int window = 0; window < 6; window++) {
+        CAPTURE(window);
+        bool finale = false;
+        const uint32_t before = sim.shells_launched();
+        for (uint32_t t = 0; t < 10000; t += 20) {
+            sim.step(20, frame.target, rng, done, dirty);
+            finale = finale || sim.finale_running();
+        }
+        CHECK(finale);
+        CHECK(sim.shells_launched() - before >= 3);
+    }
+    // A new print stops the finale at once.
+    for (int i = 0; i < 1000 && !sim.finale_running(); i++) {
+        sim.step(20, frame.target, rng, done, dirty);
+    }
+    REQUIRE(sim.finale_running());
+    sim.step(20, frame.target, rng, print_reading_for(ClockMode::PROGRESS, 0), dirty);
+    CHECK_FALSE(sim.finale_running());
+}
+
+TEST_CASE("a failed print fizzles once in red and goes quiet", "[screensaver][fireworks_sim]") {
+    const auto mode = GENERATE(ClockMode::FAILED, ClockMode::CANCELLED);
+    CAPTURE(static_cast<int>(mode));
+    std::minstd_rand rng(13);
+    FireworksSim sim;
+    SimFrame frame(PixelFormat::XRGB8888);
+    sim.init(frame.target, rng, 0, busy_pacing());
+    const ClockReading ended = print_reading_for(mode, 40);
+    std::vector<DirtyRect> dirty;
+    size_t most = 0;
+    size_t red = 0;
+    for (uint32_t t = 0; t < 20000; t += 16) {
+        sim.step(16, frame.target, rng, ended, dirty);
+        most = std::max(most, sim.sparks_in_use());
+        red = std::max(red, count_pixels(frame.target, [](Rgb c) {
+                           return c.r > 180 && c.g < 100 && c.b < 100;
+                       }));
+    }
+    CHECK(sim.shells_launched() == 1);
+    CHECK(most > 0);
+    CHECK(most <= kFireworksLevels[0].sparks_per_burst / 4);
+    CHECK(red > 0);
+    CHECK(sim.sparks_in_use() == 0);
+}
+
+TEST_CASE("a paused print launches nothing for an hour", "[screensaver][fireworks_sim]") {
+    std::minstd_rand rng(15);
+    FireworksSim sim;
+    SimFrame frame(PixelFormat::RGB565);
+    sim.init(frame.target, rng, 0, busy_pacing());
+    const ClockReading running = print_reading_for(ClockMode::COUNTDOWN, 40);
+    REQUIRE(run_show(sim, frame, rng, running, 5000) > 0);
+
+    std::vector<DirtyRect> dirty;
+    const ClockReading paused = print_reading_for(ClockMode::PAUSED, 40);
+    const uint32_t before = sim.shells_launched();
+    for (uint32_t t = 0; t < 3600u * 1000u; t += 100) {
+        sim.step(100, frame.target, rng, paused, dirty);
+    }
+    CHECK(sim.shells_launched() == before);
+    CHECK(sim.sparks_in_use() == 0);
+    CHECK_FALSE(sim.finale_running());
+    // Resuming owes nothing: at most the one shell that was due.
+    CHECK(run_show(sim, frame, rng, running, 100) <= 1);
+    CHECK_FALSE(sim.finale_running());
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER
