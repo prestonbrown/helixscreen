@@ -295,7 +295,7 @@ TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker asks first and then 
                  "[recovery][restart_moonraker]") {
     REQUIRE(lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked") != nullptr);
 
-    EmergencyStopOverlayTestAccess::advanced_restart_moonraker_clicked();
+    lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked")(nullptr);
     settle();
     CHECK(counting_api.moonraker_restarts == 0);
     REQUIRE(helix::test::top_modal_text().find("Restart Moonraker?") != std::string::npos);
@@ -335,7 +335,7 @@ TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker is refused without o
     }
     settle();
 
-    EmergencyStopOverlayTestAccess::advanced_restart_moonraker_clicked();
+    lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked")(nullptr);
     settle();
 
     CHECK(helix::test::top_modal_text().empty());
@@ -348,7 +348,7 @@ TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker is refused without o
 TEST_CASE_METHOD(RestartInFlightFixture,
                  "A print that starts behind the Restart Moonraker dialog cancels the restart",
                  "[recovery][restart_moonraker]") {
-    EmergencyStopOverlayTestAccess::advanced_restart_moonraker_clicked();
+    lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked")(nullptr);
     settle();
     helix::test::set_wire_state(state(), helix::PrintJobState::PRINTING);
     settle();
@@ -383,7 +383,7 @@ TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker toasts only a real f
         expect_toast = true;
     }
 
-    EmergencyStopOverlayTestAccess::advanced_restart_moonraker_clicked();
+    lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked")(nullptr);
     settle();
     helix::test::answer_top_modal("btn_primary");
     settle();

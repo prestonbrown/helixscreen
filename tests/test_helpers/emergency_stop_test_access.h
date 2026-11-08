@@ -91,9 +91,6 @@ class EmergencyStopOverlayTestAccess {
     }
 
     /// The Advanced panel's Restart Moonraker button.
-    static void advanced_restart_moonraker_clicked() {
-        EmergencyStopOverlay::advanced_restart_moonraker_clicked(nullptr);
-    }
 
     /// Drop the dependency pointers init() installed. Same singleton problem as
     /// reset_suppression(), but it outlives memory rather than a deadline: tests
