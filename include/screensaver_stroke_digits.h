@@ -26,9 +26,20 @@ inline constexpr float kStrokeDigitPathH = 1.6f;
 /// (0 to 9). Box-relative coordinates: (0, 0) is the path box's top left.
 float stroke_digit_distance(int digit, float px, float py);
 
-/// Every character a stroke glyph exists for: the digits, the percent sign and the capitals
-/// the clocks spell print states with.
-inline constexpr char kStrokeGlyphChars[] = "0123456789%ACDEFILNOPSTU";
+/// Symbols the flip clock shows for a print's state where it does not spell it: a check mark
+/// (done), a cross (failed), a solid square (cancelled) and two bars (paused). Non-printing
+/// characters, so they never collide with text.
+inline constexpr char kGlyphCheck = '\x01';
+inline constexpr char kGlyphCross = '\x02';
+inline constexpr char kGlyphSquare = '\x03';
+inline constexpr char kGlyphPause = '\x04';
+
+/// Every character a stroke glyph exists for: the digits, the percent sign, the capitals the
+/// clocks spell print states with and the print-state symbols.
+inline constexpr char kStrokeGlyphChars[] = "0123456789%ACDEFILNOPSTU\x01\x02\x03\x04";
+static_assert(kStrokeGlyphChars[24] == kGlyphCheck && kStrokeGlyphChars[25] == kGlyphCross &&
+                  kStrokeGlyphChars[26] == kGlyphSquare && kStrokeGlyphChars[27] == kGlyphPause,
+              "the symbols are stroke glyphs");
 inline constexpr size_t kStrokeGlyphCount = sizeof(kStrokeGlyphChars) - 1;
 
 /// Distance, in glyph units, from (px, py) to `c`'s centre line, in the digits' box; digits as

@@ -289,6 +289,59 @@ TEST_CASE("the cards spell how the print stands, with its details on the small r
     CHECK(sub_text(state.face()) == "20:40");
 }
 
+TEST_CASE("outside English the cards show one symbol for how the print stands",
+          "[screensaver][screensaver_flip_clock]") {
+    const auto face_for = [](ClockPrintPhase phase, int32_t pct, bool spell) {
+        FlipClockState state;
+        ClockInput in = printing(hms(1, 12), pct);
+        in.seconds_of_day = hms(20, 40, 0);
+        in.use_24h = true;
+        in.spell_states = spell;
+        state.step(16, in);
+        in.print.phase = phase;
+        state.step(16, in);
+        return state.face();
+    };
+    struct Row {
+        const char* name;
+        ClockPrintPhase phase;
+        int32_t pct;
+        const char* word;
+        char symbol;
+        const char* sub;
+    };
+    const Row rows[] = {
+        {"paused", ClockPrintPhase::PAUSED, 63, "PAUSE", helix::ui::kGlyphPause, "1:12 63%"},
+        {"done", ClockPrintPhase::COMPLETE, 100, "DONE", helix::ui::kGlyphCheck, "100%"},
+        {"failed", ClockPrintPhase::FAILED, 41, "FAIL", helix::ui::kGlyphCross, "41%"},
+        {"cancelled", ClockPrintPhase::CANCELLED, 72, "STOP", helix::ui::kGlyphSquare, "72%"},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(r.name);
+        const FlipFace words = face_for(r.phase, r.pct, true);
+        const FlipFace symbol = face_for(r.phase, r.pct, false);
+        CHECK(cards_text(words) == r.word);
+        CHECK(cards_text(symbol) == std::string(1, r.symbol));
+        CHECK(sub_text(words) == r.sub);
+        CHECK(sub_text(symbol) == r.sub);
+        CHECK(symbol.sub_colons == words.sub_colons);
+        CHECK(symbol.mode == words.mode);
+    }
+
+    // A running print and the time of day are digits in every language.
+    const FlipFace countdown = face_for(ClockPrintPhase::PRINTING, 63, false);
+    CHECK(cards_text(countdown) == "1:12:00");
+    CHECK(sub_text(countdown) == "21:52 63%");
+    FlipClockState idle;
+    ClockInput in;
+    in.seconds_of_day = hms(20, 40, 0);
+    in.use_24h = true;
+    in.spell_states = false;
+    idle.step(16, in);
+    CHECK(cards_text(idle.face()) == "20:40");
+    CHECK_FALSE(idle.face().has_sub());
+}
+
 TEST_CASE("letter faces carry no AM/PM marker", "[screensaver][screensaver_flip_clock]") {
     for (const ClockPrintPhase end :
          {ClockPrintPhase::PAUSED, ClockPrintPhase::COMPLETE, ClockPrintPhase::FAILED}) {
@@ -1013,10 +1066,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "the manager feeds every clock saver the print
     host.print_status = [] {
         return helix::ui::ClockPrint{ClockPrintPhase::PRINTING, hms(1, 0, 0), 50};
     };
+    // A host that does not say reads as spelling the states.
     mgr.set_host(host);
     mgr.start(ScreensaverType::FLIP_CLOCK);
-    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).mode ==
-          ClockMode::COUNTDOWN);
+    CHECK(active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK).spell_states);
+    mgr.stop();
+
+    host.spell_states = [] { return false; };
+    mgr.set_host(host);
+    mgr.start(ScreensaverType::FLIP_CLOCK);
+    const helix::ui::ClockReading flip =
+        active_clock_reading<FlipClockScreensaver>(ScreensaverType::FLIP_CLOCK);
+    CHECK(flip.mode == ClockMode::COUNTDOWN);
+    CHECK_FALSE(flip.spell_states);
     mgr.start(ScreensaverType::AQUA);
     CHECK(active_clock_reading<helix::ui::AquaScreensaver>(ScreensaverType::AQUA).mode ==
           ClockMode::COUNTDOWN);

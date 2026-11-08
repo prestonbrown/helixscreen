@@ -108,7 +108,8 @@ FlipFace countdown_face(int32_t seconds);
  * No print: the time of day. A print shows its state on the cards and its details on the small
  * row: before an estimate the percent over the time of day; counting down, the time left over
  * the finish time and percent; paused PAUSE over the time left and percent; ended DONE, FAIL
- * or STOP over the percent reached.
+ * or STOP over the percent reached. Where the reading does not spell states, one card shows
+ * the state's symbol instead of the word (kGlyphPause, kGlyphCheck, kGlyphCross, kGlyphSquare).
  */
 FlipFace flip_face(const ClockReading& reading);
 

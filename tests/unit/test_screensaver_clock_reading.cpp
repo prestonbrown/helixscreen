@@ -13,7 +13,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <string>
 #include <utility>
@@ -92,6 +94,25 @@ TEST_CASE("a reading carries the date it was given", "[screensaver][clock_readin
     CHECK(date.month == 10);
     CHECK(date.day == 21);
     CHECK(date.weekday == 1);
+}
+
+TEST_CASE("a reading carries whether the clock spells print states, in every mode",
+          "[screensaver][clock_reading]") {
+    ClockInput in;
+    CHECK(in.spell_states);
+    for (const ClockPrintPhase phase :
+         {ClockPrintPhase::NONE, ClockPrintPhase::PRINTING, ClockPrintPhase::PAUSED,
+          ClockPrintPhase::COMPLETE, ClockPrintPhase::FAILED, ClockPrintPhase::CANCELLED}) {
+        CAPTURE(static_cast<int>(phase));
+        for (const bool spell : {true, false}) {
+            in.print.phase = phase;
+            in.print.remaining_s = 600;
+            in.spell_states = spell;
+            ClockState state;
+            state.step(16, in);
+            CHECK(state.reading().spell_states == spell);
+        }
+    }
 }
 
 TEST_CASE("a print with an estimate reads a countdown with its end time and progress",
@@ -389,6 +410,33 @@ TEST_CASE("every stroke glyph has a centre line and only its own strokes",
             CAPTURE(y);
             CHECK(stroke_glyph_distance(c, 1.0f, y) < 0.01f);
         }
+    }
+
+    // The print-state symbols are glyphs too, each centred in the box so one card reads alone.
+    for (const char c : {helix::ui::kGlyphCheck, helix::ui::kGlyphCross, helix::ui::kGlyphSquare,
+                         helix::ui::kGlyphPause}) {
+        CAPTURE(static_cast<int>(c));
+        CHECK(std::strchr(kStrokeGlyphChars, c) != nullptr);
+        float left = 1e9f;
+        float right = -1e9f;
+        float top = 1e9f;
+        float bottom = -1e9f;
+        for (int yi = 0; yi <= 160; yi++) {
+            for (int xi = 0; xi <= 100; xi++) {
+                const float x = xi / 100.0f;
+                const float y = yi / 100.0f;
+                if (stroke_glyph_distance(c, x, y) < 0.01f) {
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                    top = std::min(top, y);
+                    bottom = std::max(bottom, y);
+                }
+            }
+        }
+        REQUIRE(right > left);
+        CHECK(std::fabs((left + right) / 2.0f - 0.5f) < 0.05f);
+        CHECK(std::fabs((top + bottom) / 2.0f - helix::ui::kStrokeDigitPathH / 2.0f) < 0.05f);
+        CHECK(right - left > 0.6f);
     }
 
     // Digits are the same glyphs as stroke_digit_distance draws.
