@@ -1754,6 +1754,31 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 Details: [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
+### A lane shows different details than Mainsail, Fluidd or the spool in Spoolman
+
+HelixScreen shows what the printer holds for the lane, in this order: what your filament
+system remembers (AFC, Happy Hare, the CFS, the AD5X's color menu and so on), then the
+lane record stored on the printer, then Spoolman for the linked spool. So when a lane
+looks wrong, the printer itself holds the wrong value, and that is where to fix it:
+
+- **Edit it in HelixScreen** (tap the lane, **Edit Spool**). The change is written to the
+  printer and every screen shows it.
+- **Or fix it on the printer's side**: AFC's or Happy Hare's own commands and panels, the
+  printer's color menu, or Mainsail's lane editor. HelixScreen picks up the change within
+  about ten seconds.
+- **Spoolman details showing for the wrong spool?** Spoolman only fills in details for the
+  spool the printer says the lane is linked to. Link the right spool, and the details
+  follow.
+
+If a save shows **Not saved** under the Save button, the printer refused the change and
+the lane still shows what it held before; the line says why. On an OpenAMS with
+openams_spoolman, or a Happy Hare that fills its gates from Spoolman, some changes can
+only be made in Spoolman, and the editor says so.
+
+On an AFC lane with **remember spool** on, unlinking a spool may not stick: AFC keeps the
+spool id through an unlink, and after a moment the lane shows it again. Turn remember
+spool off for that lane, or clear the id from AFC.
+
 ### Only some spools showing in Spoolman lists
 
 **Symptoms:**

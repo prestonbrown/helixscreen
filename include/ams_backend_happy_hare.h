@@ -382,6 +382,25 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
+    /// The gate map holds the name on every version and the vendor on v4,
+    /// and no remaining weight: the extras record keeps the rest.
+    void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override {
+        store.set_extras_fields(extras_fields_locked());
+    }
+    [[nodiscard]] helix::ams::ExtrasFields extras_fields_locked() const {
+        helix::ams::ExtrasFields fields;
+        fields.remaining_weight = true;
+        fields.spool_name = false;
+        fields.brand = !is_v4_locked();
+        return fields;
+    }
+    /// Re-point the store's extras fields once the layout names the version.
+    /// Caller holds mutex_.
+    void sync_extras_fields_locked() {
+        if (override_store_) {
+            override_store_->set_extras_fields(extras_fields_locked());
+        }
+    }
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS HappyHare]";
@@ -761,7 +780,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     };
     ConfigDefaults config_defaults_;
 
-    /// User overrides (set via UI, persisted to Config)
+    /// Tunables Happy Hare does not report: a change goes to the MMU with
+    /// MMU_TEST_CONFIG, which lasts until Klipper restarts, so the value is
+    /// kept in Moonraker (kHhTuningNamespace / kHhTuningKey, one object of
+    /// key: {value, config_default}) where every screen on the printer reads
+    /// it, and re-applied at connect. Clog detection is not here: the mmu
+    /// status reports its mode.
     struct UserOverrides {
         std::optional<float> gear_from_buffer_speed;
         std::optional<float> gear_from_spool_speed;
@@ -774,7 +798,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         std::optional<float> toolhead_entry_to_extruder;
         std::optional<float> toolhead_ooze_reduction;
         std::optional<int> sync_to_extruder;
-        std::optional<int> clog_detection;
     };
     UserOverrides user_overrides_;
 
@@ -786,7 +809,20 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     std::vector<std::string> espooler_per_gate_;
     int flowguard_encoder_mode_ = -1; ///< -1 = not yet received from Moonraker
 
+    static constexpr const char* kHhTuningNamespace = "helix-screen";
+    static constexpr const char* kHhTuningKey = "hh_tuning";
+    /// The tuning document as last read or written. Main thread.
+    nlohmann::json hh_tuning_ = nlohmann::json::object();
+
+    /// Read the tuning document from Moonraker, then adopt it. Main thread.
     void load_persisted_overrides();
+    /// Load @p doc into user_overrides_ (dropping an entry whose
+    /// config_default no longer matches the configfile), move a leftover
+    /// local /hh_overrides record into it when Moonraker holds none, write it
+    /// back when either changed it (@p writable: the read succeeded), and
+    /// re-apply. Main thread.
+    void adopt_hh_tuning(nlohmann::json doc, bool writable);
+    void write_hh_tuning();
     void save_override(const std::string& key, float value);
     void save_override(const std::string& key, int value);
     void reapply_overrides();

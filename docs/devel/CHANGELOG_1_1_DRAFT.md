@@ -49,6 +49,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   own grid's units, so when you return to 1.1 the home screen comes back rearranged, or,
   from some 1.0 builds, reset to its defaults. Arrange it again in edit mode. Everything
   else survives the round trip.
+- **Lane details come from the printer.** HelixScreen keeps no lane details of its own any
+  more: everything a lane shows is read from the printer, where 1.0 already wrote it. A detail
+  that only ever lived on the screen, never sent to the printer, does not carry over; set it
+  again. On AFC, AFC's own remember-spool setting decides what a lane keeps when its spool comes
+  out.
 - **Your 1.0 settings are kept** (#1305). The first start of 1.1 saves your old
   `settings.json` beside the new one as `settings.json.pre-migration`, before converting it.
   HelixScreen never reads that copy back; it is there if you want your 1.0 settings.
@@ -371,18 +376,30 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Filament systems**
 
-- **Your edits, the printer and Spoolman stop overwriting each other** (#1649, #1653) - every
-  piece of lane information now has a known source, and the more trustworthy source wins
-  instead of whichever wrote last. A colour you pick for a lane beats the linked spool's and
-  keeps its colour name. A spool linked from Spoolman owns its brand, material and name
-  (read-only while Spoolman is unreachable), and its remaining weight comes from the server.
-  Your edits on AFC, Happy Hare and ACE are marked as yours in the printer's shared lane
-  record, so Mainsail or Orca refreshing it does not wipe them, and on AFC a lane record from
-  an older plugin build does not replace them either. A reading from one source that leaves
-  a field out no longer blanks what another source knows. When a printer repeats an edit you
-  made back to the screen, it is still read as your edit, not as the printer's own data, so
-  clearing it brings back what the printer really reports (#1633). When another tool writes
-  a lane after you did, the newer edit wins, whichever side made it (#1632).
+- **A lane shows what the printer holds** (#1649, #1653) - HelixScreen no longer keeps its own
+  copy of your lanes. Each lane shows what your filament system holds first (AFC, Happy Hare, the
+  CFS, the AD5X's color menu and so on), then the lane record stored on the printer, then
+  Spoolman's details for the spool the lane is linked to, and nothing else. A second screen,
+  Mainsail, Fluidd and OrcaSlicer all see the same lane, and a change made on any of them shows
+  here within about ten seconds.
+- **Edits are written where the printer keeps them** - on AFC an edit goes to AFC itself
+  (spool, color, material, weight and tool commands), on Happy Hare to its gate map, now
+  including the spool's name and temperature, and on the CFS, AD5X, QIDI Box, Snapmaker U1,
+  ACE and tool changers to the printer's own commands plus the shared lane record. HelixScreen
+  never overwrites a lane record another program writes. On an OpenAMS with openams_spoolman,
+  edits go through openams_spoolman, each bay shows what it reports, and Clear Spool is greyed
+  out with the reason. On a Happy Hare that fills its gates from Spoolman, a change Spoolman owns
+  is refused and the editor says to make it in Spoolman.
+- **Saving says whether it worked** - the spool editor shows Saving... until the printer has
+  the change, then closes. If the printer refuses it, or Spoolman is offline, the editor stays
+  open with a line under Save saying why and keeps what you typed. These problems no longer
+  appear as pop-up messages.
+- **Editing waits for the printer** - while HelixScreen is connecting or reading the lanes for
+  the first time, Edit Spool is unavailable and the editor shows Loading lane details. While the
+  printer is disconnected, edits are refused instead of being kept to send later.
+- **Happy Hare tuning lives on the printer** - gear and extruder speeds, toolhead distances and
+  the sync setting set from HelixScreen are stored on the printer, so every screen shows the
+  same values, and clog detection shows what the MMU reports.
 - **A new spool is judged by what the hardware read** (#1710) - when a spool goes into a
   slot, a different tag, or a different material or colour read off the spool, clears the
   old spool's details; a matching read keeps them, and a spool inserted while the box is busy

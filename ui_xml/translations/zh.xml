@@ -192,6 +192,7 @@
   <translation tag="AFC buffer" zh="AFC 缓冲区"/>
   <translation tag="AFC failure reset complete" zh="AFC故障重置完成"/>
   <translation tag="AFC failure reset failed" zh="AFC故障重置失败"/>
+  <translation tag="AFC has no Spoolman configured" zh="AFC 未设置 Spoolman"/>
   <translation tag="AFC recovery complete" zh="AFC恢复完成"/>
   <translation tag="AFC recovery failed" zh="AFC恢复失败"/>
   <translation tag="AFC reset complete" zh="AFC重置完成"/>

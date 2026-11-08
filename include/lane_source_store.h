@@ -11,6 +11,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -179,13 +180,12 @@ using PendingSettled = std::function<void(PendingOutcome, const std::string& rea
 /// lane all run.
 void await_pending(LaneId lane, std::uint64_t since, PendingSettled settled);
 
-/// await_pending() for the record the lane holds now.
-void await_pending(LaneId lane, PendingSettled settled);
-
-/// Withdraw every Pending record whose window closed before @p now, logging
-/// each at warn. Returns the lanes withdrawn so a caller can repaint them.
-/// lane_sources() applies the same expiry to the lane it reads.
-std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now);
+/// Withdraw the Pending record of each of @p lanes whose window closed before
+/// @p now, logging each at warn. Returns every one of @p lanes whose Pending
+/// ended that way since the last call that named it, including one
+/// lane_sources() expired on read, so the lanes' owner can repaint them.
+std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now,
+                                   const std::vector<LaneId>& lanes);
 
 /// Take off @p pending every field @p reading states with the same value.
 /// A cleared Pending field (an unlink, an emptied colour name) is echoed by a
@@ -208,8 +208,14 @@ void reset_lane_to_machine_readings(LaneId lane);
 
 /// Retract part of what a lane's Pending and Spoolman records say, leaving the
 /// rest of each standing. @p trim is handed each record in turn and resets the
-/// fields being retracted; a record left stating nothing is dropped.
+/// fields being retracted; a record left stating nothing is dropped. A
+/// Pending record that keeps a field keeps its window and its waiters.
 void retract_lane_declarations(LaneId lane, const std::function<void(Observation&)>& trim);
+
+/// A newer metered weight was written over the lane's record: the edit's
+/// pending remaining weight is superseded, not failed. The rest of the edit
+/// keeps waiting for its echo; an edit that stated only the weight ends Echoed.
+void supersede_pending_weight(LaneId lane);
 
 /// This lane's records, by value. An unwritten lane reads as nothing observed.
 [[nodiscard]] LaneSources lane_sources(LaneId lane);
@@ -246,7 +252,10 @@ class LaneSourceStore {
     void clear();
     void drop_source(LaneId lane, ObservationSource source, const std::string& reason = {},
                      PendingOutcome outcome = PendingOutcome::Failed);
-    std::vector<LaneId> expire(std::chrono::steady_clock::time_point now);
+    std::vector<LaneId> expire(std::chrono::steady_clock::time_point now,
+                               const std::vector<LaneId>& lanes);
+    void trim_pending(LaneId lane, const std::function<void(Observation&)>& trim,
+                      PendingOutcome emptied);
     void await(LaneId lane, std::optional<std::uint64_t> since, PendingSettled settled);
     [[nodiscard]] std::uint64_t filings(LaneId lane) const;
 
@@ -297,6 +306,8 @@ class LaneSourceStore {
     };
     std::map<LaneId, Ended> last_ended_;
     std::optional<LaneId> warned_drop_;
+    /// Lanes whose Pending timed out and whose owner has not been told.
+    std::set<LaneId> expired_untold_;
 };
 
 } // namespace helix::ams

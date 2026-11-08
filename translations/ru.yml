@@ -2823,6 +2823,7 @@ translations:
   Open the slot editor when you load a new spool: 'Открывать редактор слота при установке новой катушки'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS хранит эту катушку в Spoolman, который здесь принимает только материал, цвет, бренд и вес"
   OpenAMS manages this spool's link: "Привязкой этой катушки управляет OpenAMS"
+  AFC has no Spoolman configured: "В AFC не настроен Spoolman"
   Opened: Открыта
   Operation already in progress: Операция уже выполняется
   Operation timed out: Время ожидания операции истекло

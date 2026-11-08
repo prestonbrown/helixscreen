@@ -8,6 +8,7 @@
 #include "lane_apply.h"
 #include "lane_resolver.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 
 #include <chrono>
 #include <cstdint>
@@ -188,10 +189,10 @@ TEST_CASE_METHOD(LaneFixture, "an edit nothing echoes is withdrawn after the tim
                  "[lane][pending]") {
     edit(pending_material("PETG"));
     const auto now = std::chrono::steady_clock::now();
-    CHECK(helix::ams::expire_pending(now).empty());
+    CHECK(helix::ams::expire_pending(now, {lane}).empty());
     CHECK(pending().has_value());
-    const auto expired = helix::ams::expire_pending(now + helix::ams::kPendingWriteTimeout +
-                                                    std::chrono::seconds(1));
+    const auto expired = helix::ams::expire_pending(
+        now + helix::ams::kPendingWriteTimeout + std::chrono::seconds(1), {lane});
     REQUIRE(expired.size() == 1);
     CHECK(expired.front() == lane);
     CHECK_FALSE(pending().has_value());
@@ -231,7 +232,7 @@ TEST_CASE_METHOD(LaneFixture, "a clear drops the record, the edit, Spoolman and 
 TEST_CASE_METHOD(LaneFixture, "a waiter on a lane with nothing pending hears Echoed at once",
                  "[lane][pending][save_ack]") {
     std::optional<helix::ams::PendingOutcome> heard;
-    helix::ams::await_pending(lane,
+    helix::ams::await_pending(lane, helix::ams::pending_filings(lane),
                               [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
     CHECK(heard == helix::ams::PendingOutcome::Echoed);
 }
@@ -247,7 +248,7 @@ TEST_CASE_METHOD(LaneFixture, "a waiter hears how the pending edit ended",
     edit(pending_material("PETG"));
 
     SECTION("the echo") {
-        helix::ams::await_pending(lane, listen);
+        helix::ams::await_pending(lane, helix::ams::pending_filings(lane), listen);
         REQUIRE_FALSE(heard.has_value());
         Observation record(ObservationSource::Record);
         record.material = "PETG";
@@ -255,22 +256,23 @@ TEST_CASE_METHOD(LaneFixture, "a waiter hears how the pending edit ended",
         CHECK(heard == helix::ams::PendingOutcome::Echoed);
     }
     SECTION("a failed write") {
-        helix::ams::await_pending(lane, listen);
+        helix::ams::await_pending(lane, helix::ams::pending_filings(lane), listen);
         helix::ams::withdraw_pending(lane, "database is read-only");
         CHECK(heard == helix::ams::PendingOutcome::Failed);
         CHECK(why == "database is read-only");
     }
     SECTION("the timeout") {
-        helix::ams::await_pending(lane, listen);
+        helix::ams::await_pending(lane, helix::ams::pending_filings(lane), listen);
         helix::ams::expire_pending(std::chrono::steady_clock::now() +
-                                   helix::ams::kPendingWriteTimeout + std::chrono::seconds(1));
+                                       helix::ams::kPendingWriteTimeout + std::chrono::seconds(1),
+                                   {lane});
         CHECK(heard == helix::ams::PendingOutcome::TimedOut);
     }
     SECTION("a partial echo leaves the waiter waiting") {
         Observation colour(ObservationSource::Pending);
         colour.color_rgb = 0x00FF00;
         edit(colour);
-        helix::ams::await_pending(lane, listen);
+        helix::ams::await_pending(lane, helix::ams::pending_filings(lane), listen);
         Observation record(ObservationSource::Record);
         record.material = "PETG";
         helix::ams::ingest(lane, record);
@@ -339,4 +341,46 @@ TEST_CASE_METHOD(LaneFixture,
         CHECK(heard == helix::ams::PendingOutcome::Failed);
         CHECK(why == "database is read-only");
     }
+}
+
+TEST_CASE("linking a spool files no vendor id as an edit, since Spoolman states it",
+          "[lane][pending][review]") {
+    helix::SlotInfo original;
+    helix::SlotInfo linked = original;
+    linked.spoolman_id = 42;
+    linked.spoolman_vendor_id = 7;
+    linked.brand = "Polymaker";
+    const Observation obs = helix::ams::user_edit_observation(original, linked);
+    CHECK(obs.spoolman_id == 42);
+    CHECK_FALSE(obs.spoolman_vendor_id.has_value());
+}
+
+TEST_CASE_METHOD(LaneFixture, "a backend's poll expires only its own lanes' edits",
+                 "[lane][pending][review]") {
+    const LaneId other = helix::ams::lane_id_for(1, 0);
+    edit(pending_material("PETG"));
+    helix::ams::file_pending(other, pending_material("ABS"));
+    const auto later = std::chrono::steady_clock::now() + helix::ams::kPendingWriteTimeout +
+                       std::chrono::seconds(1);
+    const auto expired = helix::ams::expire_pending(later, {other});
+    REQUIRE(expired.size() == 1);
+    CHECK(expired.front() == other);
+    CHECK(pending().has_value());
+    helix::ams::reset_lane_sources();
+}
+
+TEST_CASE_METHOD(LaneFixture, "trimming a lane's edits keeps a waiter waiting",
+                 "[lane][pending][review]") {
+    Observation both(ObservationSource::Pending);
+    both.material = "PETG";
+    both.color_rgb = 0x00FF00;
+    edit(both);
+    std::optional<helix::ams::PendingOutcome> heard;
+    helix::ams::await_pending(lane, helix::ams::pending_filings(lane),
+                              [&](helix::ams::PendingOutcome o, const std::string&) { heard = o; });
+    helix::ams::retract_lane_declarations(lane, [](Observation& o) { o.material.reset(); });
+    CHECK_FALSE(heard.has_value());
+    REQUIRE(pending().has_value());
+    CHECK(pending()->color_rgb == 0x00FF00u);
+    CHECK_FALSE(pending()->material.has_value());
 }

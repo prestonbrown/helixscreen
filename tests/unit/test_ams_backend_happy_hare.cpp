@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
+#include "../test_helpers/mock_printer.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_backend_happy_hare.h"
@@ -505,7 +506,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with color", "[ams][happy_hare][
 
     // Should send: MMU_GATE_MAP GATE=0 COLOR=FF0000
     // Color: uppercase hex, no # prefix
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP color uppercase no prefix",
@@ -520,7 +521,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP color uppercase no prefix",
     helix::test::apply_edit(helper, 1, info);
 
     // Should send: MMU_GATE_MAP GATE=1 COLOR=00FF00 (uppercase, no #)
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR=00FF00"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR=00FF00 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with material", "[ams][happy_hare][persistence]") {
@@ -534,7 +535,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with material", "[ams][happy_har
     helix::test::apply_edit(helper, 1, info);
 
     // Should send: MMU_GATE_MAP GATE=1 MATERIAL=PLA
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 MATERIAL=PLA TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with Spoolman ID",
@@ -595,13 +596,13 @@ TEST_CASE("Happy Hare persistence: clearing one field names it empty",
     SlotInfo cleared_material = *slot;
     cleared_material.material.clear();
     helix::test::apply_edit(helper, 0, cleared_material);
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=ED2C2C MATERIAL="));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=ED2C2C MATERIAL= TEMP=0"));
 
     // The same edit on the colour, keeping the material.
     SlotInfo cleared_color = *second;
     cleared_color.color_rgb = helix::kAmsDefaultSlotColor;
     helix::test::apply_edit(helper, 1, cleared_color);
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR= MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR= MATERIAL=PLA TEMP=0"));
 
     // Neither took the full wipe: a single-field clear keeps every other
     // field the gate map holds.
@@ -658,8 +659,9 @@ TEST_CASE("Happy Hare clear: the wipe names every gate-map field", "[ams][happy_
     // echo out of the printer console.
     REQUIRE(
         helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1"));
-    // RESET ignores GATE on v2/v3 and wipes every gate; TEMP=0 is "keep the
-    // current value"; AVAILABLE=0 marks the gate EMPTY, not unknown.
+    // RESET ignores GATE on v2/v3 and wipes every gate; an omitted TEMP
+    // returns the gate to default_extruder_temp; AVAILABLE=0 marks the gate
+    // EMPTY, not unknown.
     REQUIRE_FALSE(helper.has_gcode_containing("RESET="));
     REQUIRE_FALSE(helper.has_gcode_containing("TEMP="));
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
@@ -678,7 +680,7 @@ TEST_CASE("Happy Hare clear: a material edit does not take the wipe path",
 
     // An editor commit carries the whole slot, so a kept material arrives
     // non-empty and stays on the incremental path.
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA TEMP=0"));
     REQUIRE_FALSE(helper.has_gcode_containing("SPOOLID=-1"));
     REQUIRE_FALSE(helper.has_gcode_containing("QUIET=1"));
 }
@@ -732,14 +734,14 @@ TEST_CASE("Happy Hare writes the name and temperature to the gate map", "[ams][h
     CHECK(helper.has_gcode_containing("NAME=PolyTerra"));
     CHECK(helper.has_gcode_containing("TEMP=210"));
 
-    // A cleared name is an explicit empty; an unchanged temperature is not
-    // restated, and no temperature is never TEMP=0.
+    // A cleared name is an explicit empty, and an unchanged temperature is
+    // TEMP=0: an omitted TEMP is Happy Hare's default_extruder_temp, which
+    // would overwrite the gate's 210.
     helper.clear_captured_gcodes();
     SlotInfo cleared = *helper.get_mutable_slot(0);
     cleared.spool_name.clear();
     REQUIRE(helix::test::apply_edit(helper, 0, cleared).success());
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME="));
-    CHECK_FALSE(helper.has_gcode_containing("TEMP="));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME= TEMP=0"));
 }
 
 TEST_CASE("Happy Hare clear: slot stays blank across the status echo", "[ams][happy_hare][clear]") {
@@ -856,8 +858,8 @@ TEST_CASE("Happy Hare persistence: full slot info generates complete command",
 
     helix::test::apply_edit(helper, 0, info);
 
-    // Should send: MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99"));
+    // Should send: MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99 TEMP=0
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: skips COLOR for default grey",
@@ -891,7 +893,7 @@ TEST_CASE("Happy Hare persistence: dispatches COLOR for pure black",
 
     helix::test::apply_edit(helper, 0, info);
 
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
@@ -4143,8 +4145,8 @@ TEST_CASE("execute_device_action calibrate_servo is not a valid action",
     REQUIRE_FALSE(result.success());
 }
 
-TEST_CASE("execute_device_action clog_detection saves override",
-          "[ams][happy_hare][device_actions]") {
+TEST_CASE("clog detection is written to the MMU and read back from its status, never kept here",
+          "[ams][happy_hare][device_actions][hh_overrides]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(4);
@@ -4153,6 +4155,17 @@ TEST_CASE("execute_device_action clog_detection saves override",
     auto result = helper.execute_device_action("clog_detection", std::any(std::string("Auto")));
     REQUIRE(result.success());
     REQUIRE(helper.has_gcode_containing("CLOG_DETECTION=2"));
+
+    // Until the status reports the encoder's mode, the configfile's stands.
+    const auto mode = [&helper]() {
+        for (const auto& a : helper.get_device_actions()) {
+            if (a.id == "clog_detection") {
+                return std::any_cast<std::string>(a.current_value);
+            }
+        }
+        return std::string();
+    };
+    CHECK(mode() == "Off");
 }
 
 // ============================================================================
@@ -6303,7 +6316,6 @@ TEST_CASE("Happy Hare v4 reapplies persisted overrides under the v4 names",
     // all three, so they are left out rather than sinking the rest.
     overrides.sync_to_extruder = 0;
     overrides.gear_from_buffer_speed = 160.0f;
-    overrides.clog_detection = 2;
     helper.clear_captured_gcodes();
 
     helper.test_reapply_overrides();
@@ -6825,59 +6837,148 @@ class ScopedConfig {
 
 } // namespace
 
-TEST_CASE("Happy Hare keeps an override saved against the built-in default",
-          "[ams][happy_hare][hh_v4]") {
-    ScopedConfig config;
-    // Saved while the printer's own default could not be read: the record names
-    // the built-in 60, the printer's real default is 80.
-    config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
-    config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 60.0f);
-    // Saved against a real default the printer has since changed: stale.
-    config->set<float>("/hh_overrides/gear_unload_speed/value", 99.0f);
-    config->set<float>("/hh_overrides/gear_unload_speed/config_default", 111.0f);
+namespace {
 
+/// A Happy Hare on a mock Moonraker whose database holds @p tuning (or
+/// nothing), connected through the v4 fixture.
+struct TuningRig {
+    MockPrinter printer;
     QueryCapturingClient client;
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    connect_with_fixture(helper, client,
-                         helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json"));
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> reg;
+    explicit TuningRig(const nlohmann::json& tuning = nullptr) : reg(&printer.api, &client) {
+        if (!tuning.is_null()) {
+            printer.client.mock_db_set("helix-screen", "hh_tuning", tuning);
+        }
+        reg->initialize_test_gates(4);
+    }
+    void connect(const nlohmann::json& fx =
+                     helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json")) {
+        connect_with_fixture(*reg, client, fx);
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    }
+    [[nodiscard]] nlohmann::json stored() {
+        return printer.client.mock_db_get("helix-screen", "hh_tuning");
+    }
+};
 
-    const auto& o = HappyHareTestAccess::user_overrides(helper);
+/// A v3 Happy Hare with a moving selector, which takes every tunable.
+nlohmann::json v3_linear_fixture() {
+    return {{"configfile_settings",
+             {{"mmu", {{"happy_hare_version", 3.42}, {"selector_move_speed", 200.0}}},
+              {"mmu_machine", {{"selector_type", "LinearSelector"}}}}}};
+}
+
+} // namespace
+
+TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has outgrown",
+          "[ams][happy_hare][hh_v4][hh_overrides]") {
+    // One saved against the built-in 60 while the printer's own default could
+    // not be read (the printer's real default is 80); one saved against a real
+    // default the printer has since changed, which is stale.
+    TuningRig rig({{"gear_from_spool_speed", {{"value", 95.0}, {"config_default", 60.0}}},
+                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}}});
+    rig.connect();
+
+    const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
     REQUIRE(o.gear_from_spool_speed);
     CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
-    CHECK(config->get<float>("/hh_overrides/gear_from_spool_speed/config_default", 0.0f) ==
-          Catch::Approx(80.0f));
     CHECK_FALSE(o.gear_unload_speed);
-    CHECK(config->get_path().empty()); // the migration's save() wrote no file
+    // The built-in-default record is re-pointed at the printer's, in Moonraker.
+    CHECK(rig.stored()["gear_from_spool_speed"]["config_default"] == Catch::Approx(80.0));
+    CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
+}
+
+TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes",
+          "[ams][happy_hare][review]") {
+    TuningRig rig;
+    rig.connect(v3_linear_fixture());
+    const SlotInfo original = rig.reg->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.remaining_weight_g = 500.0f;
+    REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    const nlohmann::json kept =
+        rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
+    REQUIRE(kept.is_object());
+    CHECK(kept["remaining_weight_g"] == Catch::Approx(500.0));
+    CHECK_FALSE(helix::ams::lane_sources(rig.reg->lane_id(0)).pending.has_value());
+}
+
+TEST_CASE("a gate name another client clears shows as cleared", "[ams][happy_hare][review]") {
+    TuningRig rig;
+    rig.printer.client.mock_db_set(
+        "helix-screen-hh-overrides", "lane1",
+        {{"lane", "0"}, {"writer", "helixscreen"}, {"name", "PolyTerra Charcoal"}});
+    rig.connect(v3_linear_fixture());
+    // The extras record is read and filed on the lane.
+    REQUIRE(helix::ams::lane_sources(rig.reg->lane_id(0)).record.has_value());
+    rig.reg->feed_mmu_status(
+        {{"gate_name", nlohmann::json::array({"PolyTerra Charcoal", "", "", ""})}});
+    REQUIRE(rig.reg->get_slot_info(0).spool_name == "PolyTerra Charcoal");
+
+    // Mainsail's MMU_GATE_MAP GATE=0 NAME= empties the gate map's name.
+    rig.reg->feed_mmu_status({{"gate_name", nlohmann::json::array({"", "", "", ""})}});
+    CHECK(rig.reg->get_slot_info(0).spool_name.empty());
+}
+
+TEST_CASE("a Happy Hare tuning change is written to Moonraker, not the local config",
+          "[ams][happy_hare][hh_overrides]") {
+    ScopedConfig config;
+    TuningRig rig;
+    rig.connect(v3_linear_fixture());
+    REQUIRE(rig.reg->execute_device_action("gear_from_spool_speed", std::any(70.0)).success());
+    CHECK(rig.stored()["gear_from_spool_speed"]["value"] == Catch::Approx(70.0));
+    // Clog detection is the MMU's to report, so it is never stored.
+    REQUIRE(
+        rig.reg->execute_device_action("clog_detection", std::any(std::string("Auto"))).success());
+    CHECK_FALSE(rig.stored().contains("clog_detection"));
+    CHECK_FALSE(config->exists("/hh_overrides"));
+    CHECK_FALSE(config->exists(config->df() + "hh_overrides"));
+}
+
+TEST_CASE("a local Happy Hare tuning record moves to Moonraker once",
+          "[ams][happy_hare][hh_overrides]") {
+    ScopedConfig config;
+    config->set<float>("/hh_overrides/gear_from_spool_speed/value", 95.0f);
+    config->set<float>("/hh_overrides/gear_from_spool_speed/config_default", 80.0f);
+
+    SECTION("Moonraker holds none: it moves") {
+        TuningRig rig;
+        rig.connect();
+        CHECK_FALSE(config->exists("/hh_overrides"));
+        CHECK(rig.stored()["gear_from_spool_speed"]["value"] == Catch::Approx(95.0));
+        const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
+        REQUIRE(o.gear_from_spool_speed);
+        CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
+    }
+    SECTION("Moonraker already holds a document: it wins") {
+        TuningRig rig({{"gear_unload_speed", {{"value", 90.0}, {"config_default", 80.0}}}});
+        rig.connect();
+        CHECK_FALSE(rig.stored().contains("gear_from_spool_speed"));
+        CHECK_FALSE(HappyHareTestAccess::user_overrides(*rig.reg).gear_from_spool_speed);
+    }
 }
 
 TEST_CASE("Happy Hare selector speed override survives a restart under either key",
           "[ams][happy_hare][hh_v4]") {
-    ScopedConfig config;
+    nlohmann::json tuning;
     SECTION("saved by the slider") {
-        {
-            helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
-            AmsBackendHappyHareTestHelper& helper = *helper_reg;
-            helper.initialize_test_gates(4);
-            helper.set_config_defaults_for_test();
-            REQUIRE(helper.execute_device_action("selector_speed", std::any(180.0)).success());
-        }
-        CHECK(config->exists("/hh_overrides/selector_move_speed/value"));
+        TuningRig first;
+        first.connect(v3_linear_fixture());
+        REQUIRE(first.reg->execute_device_action("selector_speed", std::any(180.0)).success());
+        tuning = first.stored();
+        CHECK(tuning.contains("selector_move_speed"));
     }
     SECTION("an older record under the action id") {
-        config->set<float>("/hh_overrides/selector_speed/value", 180.0f);
-        config->set<float>("/hh_overrides/selector_speed/config_default", 200.0f);
+        tuning = {{"selector_speed", {{"value", 180.0}, {"config_default", 200.0}}}};
     }
-    QueryCapturingClient client;
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(nullptr, &client);
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(4);
-    connect_with_fixture(helper, client,
-                         {{"configfile_settings",
-                           {{"mmu", {{"happy_hare_version", 3.42}, {"selector_move_speed", 200.0}}},
-                            {"mmu_machine", {{"selector_type", "LinearSelector"}}}}}});
-    const auto& o = HappyHareTestAccess::user_overrides(helper);
+    TuningRig rig(tuning);
+    rig.connect(v3_linear_fixture());
+    const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
     REQUIRE(o.selector_move_speed);
     CHECK(*o.selector_move_speed == Catch::Approx(180.0f));
 }
@@ -6981,7 +7082,6 @@ TEST_CASE("Happy Hare reapplies each override alone, under its version's name",
         o.gear_from_spool_speed = 70.0f;
         o.gear_unload_speed = 90.0f;
         o.selector_move_speed = 180.0f;
-        o.clog_detection = 2;
         helper.clear_captured_gcodes();
         helper.test_reapply_overrides();
         return helper.captured_gcodes;
@@ -6991,15 +7091,13 @@ TEST_CASE("Happy Hare reapplies each override alone, under its version's name",
         connect_with_fixture(helper, client, v3_fixture(3.01));
         CHECK(set_overrides() ==
               std::vector<std::string>{"MMU_TEST_CONFIG GEAR_FROM_SPOOL_SPEED=70",
-                                       "MMU_TEST_CONFIG SELECTOR_MOVE_SPEED=180",
-                                       "MMU_TEST_CONFIG ENABLE_CLOG_DETECTION=2"});
+                                       "MMU_TEST_CONFIG SELECTOR_MOVE_SPEED=180"});
     }
     SECTION("3.42 on a selector with no moving carriage") {
         connect_with_fixture(helper, client, v3_fixture(3.42, "VirtualSelector"));
         CHECK(set_overrides() ==
               std::vector<std::string>{"MMU_TEST_CONFIG GEAR_FROM_SPOOL_SPEED=70",
-                                       "MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90",
-                                       "MMU_TEST_CONFIG FLOWGUARD_ENCODER_MODE=2"});
+                                       "MMU_TEST_CONFIG GEAR_UNLOAD_SPEED=90"});
     }
 }
 
@@ -7133,7 +7231,7 @@ TEST_CASE("Happy Hare v4 slot edit writes VENDOR to the gate map", "[ams][happy_
     info.brand = "Prusament";
     helix::test::apply_edit(helper, 0, info);
 
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 VENDOR=Prusament"));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 VENDOR=Prusament TEMP=0"));
 }
 
 TEST_CASE("Happy Hare v3 slot edit never sends VENDOR", "[ams][happy_hare][hh_v4]") {
@@ -7146,7 +7244,7 @@ TEST_CASE("Happy Hare v3 slot edit never sends VENDOR", "[ams][happy_hare][hh_v4
     info.brand = "Prusament";
     helix::test::apply_edit(helper, 0, info);
 
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000"));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 TEMP=0"));
     CHECK_FALSE(helper.has_gcode_containing("VENDOR"));
 }
 

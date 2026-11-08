@@ -25,6 +25,10 @@ class AmsStateTestAccess {
     /// Arm the grace directly, as if an unload had just completed. For tests
     /// about what CONSUMES the grace; the arming logic itself is driven through
     /// sync_from_backend() so it stays covered by real code.
+    /// Leave a commit result for @p slot that nobody took.
+    static void leave_slot_edit_result(AmsState& ams, int slot, AmsError err) {
+        ams.last_slot_edit_ = std::make_pair(slot, std::move(err));
+    }
     static void arm_post_unload_runout_grace(AmsState& ams) {
         auto& g = ams.runout_grace_;
         std::lock_guard<std::mutex> lock(g.mutex_);

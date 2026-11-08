@@ -1318,6 +1318,9 @@ void AmsBackendOpenAms::query_component_status() {
     if (!client_) {
         return;
     }
+    if (!spoolman_component_) {
+        component_probe_out_ = true;
+    }
     auto token = lifetime_.token();
     client_->send_jsonrpc(
         "server.openams_spoolman.status", json::object(),
@@ -1326,11 +1329,21 @@ void AmsBackendOpenAms::query_component_status() {
             token.defer("AmsBackendOpenAms::component_status",
                         [this, status]() { adopt_component_status(status); });
         },
-        [](const MoonrakerError&) {}, 0, /*silent=*/true);
+        [this, token](const MoonrakerError&) {
+            // No component: the records are per slot, read before this knew.
+            token.defer("AmsBackendOpenAms::no_component", [this]() {
+                if (component_probe_out_.exchange(false) && !spoolman_component_) {
+                    reread_lane_records();
+                    emit_event(EVENT_STATE_CHANGED);
+                }
+            });
+        },
+        0, /*silent=*/true);
 }
 
 void AmsBackendOpenAms::adopt_component_status(const json& status) {
     const bool first = !spoolman_component_.exchange(true);
+    component_probe_out_ = false;
     const json* bays = object_member(status, "bays");
     std::vector<std::pair<int, std::string>> slots;
     {

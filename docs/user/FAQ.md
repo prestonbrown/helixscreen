@@ -259,6 +259,14 @@ This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x 
 - **Settings** → **Devices** → **Spoolman** for weight sync settings
 - Assign spools to AMS slots and track filament usage
 
+### Where are my lanes' spool details stored?
+
+On the printer, not on the screen. Your filament system keeps what it can (color and material at
+least), and the rest goes into a lane record on the printer that OrcaSlicer, Mainsail and any
+other screen read too, so every screen shows the same thing. When you save an edit, HelixScreen
+writes it there and waits for the printer to take it; if it can't, the editor stays open and says
+why. See [Where a lane's details come from](guide/filament-tracking.md#where-a-lanes-details-come-from).
+
 ### Why didn't Spoolman deduct my print from the spool?
 
 Spoolman only records usage against its **active spool**. On a multi-filament system (CFS, AFC, Happy Hare and others), HelixScreen makes a slot's linked spool active when that slot loads, so the slot has to be linked to the spool *before* the print starts. Matching is by the linked spool only, never by material name. See [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).

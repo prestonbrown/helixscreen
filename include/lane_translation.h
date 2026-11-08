@@ -37,10 +37,6 @@ namespace helix::ams {
 /// record actually carries are observed: unknown is unset.
 [[nodiscard]] Observation record_observation(const FilamentSlotOverride& record);
 
-/// Write every field @p obs carries onto @p record, leaving the rest standing:
-/// record_observation() run backwards.
-void amend_record(FilamentSlotOverride& record, const Observation& obs);
-
 /// @p edited with every field a linked spool owns taken from the spool.
 ///
 /// Applies to an edit that keeps the same positive spool id. Material, brand,

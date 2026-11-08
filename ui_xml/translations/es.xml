@@ -192,6 +192,7 @@
   <translation tag="AFC buffer" es="Búfer AFC"/>
   <translation tag="AFC failure reset complete" es="Reinicio de fallo AFC completado"/>
   <translation tag="AFC failure reset failed" es="Error al reiniciar fallo AFC"/>
+  <translation tag="AFC has no Spoolman configured" es="AFC no tiene Spoolman configurado"/>
   <translation tag="AFC recovery complete" es="Recuperación AFC completada"/>
   <translation tag="AFC recovery failed" es="Error en recuperación AFC"/>
   <translation tag="AFC reset complete" es="Reinicio AFC completado"/>

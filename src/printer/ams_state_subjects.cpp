@@ -694,8 +694,9 @@ void AmsState::install_connection_state_observer() {
             constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
             const int prev = self->last_connection_state_;
             self->last_connection_state_ = state;
-            if (state == kConnected) {
+            if (state == kConnected && self->connection_lost_) {
                 self->connection_lost_ = false;
+                self->sync_lane_records_ready();
             }
             if (prev != kConnected || state == kConnected) {
                 return;

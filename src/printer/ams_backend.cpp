@@ -363,6 +363,11 @@ void AmsBackend::update_slot_weight(int slot_index, float remaining_weight_g, fl
     if (metered.remaining_weight_g.has_value() || metered.total_weight_g.has_value()) {
         helix::ams::ingest(lane_id(slot_index), metered);
     }
+    // The meter's write is newer than an edit's weight still waiting to echo,
+    // so that weight would never echo: it is superseded, not failed.
+    if (persist && metered.remaining_weight_g.has_value()) {
+        helix::ams::supersede_pending_weight(lane_id(slot_index));
+    }
 
     update_slot_weight_impl(slot_index, remaining_weight_g, total_weight_g, persist);
 }
@@ -396,10 +401,8 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     }
 
     // The lane shows the edit from the moment it is written until its echo
-    // lands. A changed binding first drops what described the previous spool.
-    if (binding_changed) {
-        helix::ams::drop_previous_spool_declarations(lane);
-    }
+    // lands. The edit states the new binding, so an earlier Pending it amends
+    // names the new spool too.
     helix::ams::file_pending(lane, helix::ams::user_edit_observation(original, applied));
 
     AmsError err = apply_user_edit(slot_index, applied);
@@ -408,6 +411,14 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
         helix::ams::withdraw_pending(lane, err.user_msg);
         repaint_slot_from_lane(slot_index);
         return err;
+    }
+    // The previous spool's details go once the new binding is written; a
+    // refused relink keeps the spool still bound described.
+    if (binding_changed) {
+        const auto spoolman = helix::ams::lane_sources(lane).spoolman;
+        if (spoolman.has_value() && spoolman->spoolman_id != info.spoolman_id) {
+            helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
+        }
     }
     repaint_slot_from_lane(slot_index);
 

@@ -225,6 +225,7 @@
   <translation tag="AFC buffer" ru="Буфер AFC"/>
   <translation tag="AFC failure reset complete" ru="Сброс ошибки AFC завершён"/>
   <translation tag="AFC failure reset failed" ru="Ошибка сброса ошибки AFC"/>
+  <translation tag="AFC has no Spoolman configured" ru="В AFC не настроен Spoolman"/>
   <translation tag="AFC recovery complete" ru="Восстановление AFC завершено"/>
   <translation tag="AFC recovery failed" ru="Восстановление AFC не удалось"/>
   <translation tag="AFC reset complete" ru="Сброс AFC завершён"/>

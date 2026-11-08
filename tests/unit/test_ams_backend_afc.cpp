@@ -1638,6 +1638,33 @@ TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
     REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
 }
 
+TEST_CASE("an AFC with no Spoolman refuses a spool link before writing it",
+          "[ams][afc][persistence][review]") {
+    AmsBackendAfcTestHelper helper;
+    helper.set_afc_version("1.0.20");
+    helper.initialize_test_lanes_with_slots(4);
+
+    SlotInfo linked;
+    linked.material = "PLA";
+    linked.spoolman_id = 7;
+
+    SECTION("Spoolman off: refused, nothing sent") {
+        // AFC publishes false for its Spoolman URL when none is configured.
+        helper.feed_afc_state({{"spoolman", false}});
+        helper.clear_captured_gcodes();
+        const AmsError err = helix::test::apply_edit(helper, 0, linked);
+        CHECK_FALSE(err.success());
+        CHECK(err.user_msg == "AFC has no Spoolman configured");
+        CHECK(helper.captured_gcodes.empty());
+        CHECK(helper.get_slot_info(0).spoolman_id == 0);
+    }
+    SECTION("Spoolman on: the link is sent") {
+        helper.feed_afc_state({{"spoolman", "http://192.0.2.1:7912"}});
+        REQUIRE(helix::test::apply_edit(helper, 0, linked).success());
+        CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
+    }
+}
+
 // ============================================================================
 // reset_tool_mappings() Tests
 // ============================================================================

@@ -3564,6 +3564,8 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         // The record on the wire loaded as this session's override.
         REQUIRE(CfsTestAccess::get_override(*session1, 0).has_value());
         CfsTestAccess::handle_status(*session1, make_cfs_notification(box_f1));
+        // The write it made re-reads the records through the update queue.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
         REQUIRE(!stored.is_null());
         REQUIRE(stored.contains("helix_fingerprint"));
@@ -3577,6 +3579,8 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         // after restart is a comparison, not a first observation.
         REQUIRE(CfsTestAccess::get_override(*session2, 0).has_value());
         CfsTestAccess::handle_status(*session2, make_cfs_notification(box_f2));
+        // The write it made re-reads the records through the update queue.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         CHECK(CfsTestAccess::last_rfid_uid(*session2, 0) == "PETG|00FF00");
         CHECK_FALSE(CfsTestAccess::get_override(*session2, 0).has_value());
         CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
@@ -3586,6 +3590,8 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         helix::test::RegisteredBackend<AmsBackendCfs> session2(&api, nullptr);
         CfsTestAccess::call_on_started(*session2);
         CfsTestAccess::handle_status(*session2, make_cfs_notification(box_f1));
+        // The write it made re-reads the records through the update queue.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         auto ovr = CfsTestAccess::get_override(*session2, 0);
         REQUIRE(ovr.has_value());
         CHECK(ovr->brand == "Polymaker");
@@ -3599,6 +3605,8 @@ TEST_CASE("CFS restart compares against the fingerprint the record carried",
         helix::test::RegisteredBackend<AmsBackendCfs> session2(&api, nullptr);
         CfsTestAccess::call_on_started(*session2);
         CfsTestAccess::handle_status(*session2, make_cfs_notification(box_f2));
+        // The write it made re-reads the records through the update queue.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         // Baseline, not Changed: the identity differs from the record's data,
         // but with no stored fingerprint there is nothing to compare against.
         auto ovr = CfsTestAccess::get_override(*session2, 0);
@@ -3774,6 +3782,10 @@ TEST_CASE("CFS persisted fingerprint from the other schema is no baseline after 
 
     CfsTestAccess::handle_status(*session, make_cfs_notification(make_flat_box(
                                                "PLA", "Polymaker", "PolyLite Orange", "#FF5500")));
+
+    // The write it made re-reads the records through the update queue.
+
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     REQUIRE(CfsTestAccess::get_override(*session, 0).has_value());
     CHECK(CfsTestAccess::get_override(*session, 0)->brand == "Polymaker");
 
@@ -3786,6 +3798,10 @@ TEST_CASE("CFS persisted fingerprint from the other schema is no baseline after 
 
     CfsTestAccess::handle_status(
         *session, make_cfs_notification(make_flat_box("PETG", "Bambu", "Basic Green", "#00FF00")));
+
+    // The write it made re-reads the records through the update queue.
+
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK_FALSE(CfsTestAccess::get_override(*session, 0).has_value());
     CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
@@ -7619,12 +7635,16 @@ TEST_CASE("CFS flat fingerprint upgrade folds stored composites (#1710)", "[ams]
     same_spool["slots"][0]["brand"] = "Polymaker";
     same_spool["slots"][0]["name"] = "PolyLite PLA";
     CfsTestAccess::handle_status(backend, make_cfs_notification(same_spool));
+    // The write it made re-reads the records through the update queue.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK(CfsTestAccess::get_override(backend, 0).has_value());
 
     // A colour change is a different spool under the two-field composite.
     json swapped = json(same_spool);
     swapped["slots"][0]["color"] = "#0A2989";
     CfsTestAccess::handle_status(backend, make_cfs_notification(swapped));
+    // The write it made re-reads the records through the update queue.
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     CHECK_FALSE(CfsTestAccess::get_override(backend, 0).has_value());
 }
 

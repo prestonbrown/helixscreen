@@ -2306,6 +2306,9 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 
     // Spoolman base URL the firmware is configured against. AFC publishes false
     // (not null) when Spoolman is off, so only a string is meaningful.
+    if (afc_data.contains("spoolman")) {
+        afc_spoolman_configured_ = afc_data["spoolman"].is_string();
+    }
     if (auto v = ams::read_field<std::string>(afc_data, "spoolman")) {
         system_info_.spoolman_url = std::move(*v);
     }
@@ -5886,6 +5889,14 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         // Capture old spoolman_id before updating for clear detection
         const int old_spoolman_id = entry->info.spoolman_id;
         const int old_mapped_tool = entry->info.mapped_tool;
+        // Without Spoolman, AFC drops SET_SPOOL_ID and answers OK, so the link
+        // would only time out. Refused before anything is written.
+        if (info.spoolman_id > 0 && info.spoolman_id != old_spoolman_id &&
+            afc_spoolman_configured_ == false) {
+            return AmsError(AmsResult::COMMAND_FAILED,
+                            "AFC has no Spoolman configured; SET_SPOOL_ID would be ignored",
+                            lv_tr("AFC has no Spoolman configured"), "");
+        }
         if (slots_.write_edit(slot_index, info)) {
             spdlog::info("[AMS AFC] Updated slot {} info: {} {}", slot_index, info.material,
                          info.color_name);

@@ -14,6 +14,7 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "connection_state.h"
 #include "filament_slot_override_store.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
@@ -313,6 +314,125 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ToolChangerTestAccess::poll_lane_records(*reg);
     settle();
     CHECK(reg->get_slot_info(1).material == "ABS");
+}
+
+// ============================================================================
+// Review findings: writes before the first read, stale reads, refused clears,
+// a reopened store, reconnecting
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "a meter flush before the first read never replaces a record",
+                 "[lane][refresh][toolchanger][review]") {
+    MockPrinter printer;
+    nlohmann::json held = record("PLA", "#FFFFFF");
+    held["vendor_name"] = "Polymaker";
+    printer.client.mock_db_set("lane_data", "T1", held);
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    printer.client.fail_next("server.database.get_item");
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE_FALSE(reg->lane_records_ready());
+
+    reg->update_slot_weight(1, 300.0f, 1000.0f, /*persist=*/true);
+    settle();
+    const nlohmann::json stored = printer.client.mock_db_get("lane_data", "T1");
+    CHECK(stored["material"] == "PLA");
+    CHECK(stored["vendor_name"] == "Polymaker");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a read sent before our write lands is not adopted",
+                 "[lane][refresh][toolchanger][review]") {
+    MockPrinter printer;
+    nlohmann::json old_record = record("PLA", "#FFFFFF");
+    old_record["vendor_name"] = "Polymaker";
+    printer.client.mock_db_set("lane_data", "T1", old_record);
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE(reg->get_slot_info(1).material == "PLA");
+
+    // A poll's read goes out; the user's edit is written while it is.
+    printer.client.defer_next("server.database.get_item");
+    helix::ToolChangerTestAccess::refresh_lane_records(*reg);
+    const helix::SlotInfo original = reg->get_slot_info(1);
+    helix::SlotInfo edited = original;
+    edited.material = "PETG";
+    edited.brand = "Sunlu";
+    REQUIRE(reg->commit_user_edit(1, original, edited).success());
+    REQUIRE(printer.client.mock_db_get("lane_data", "T1")["filament_type"] == "PETG");
+
+    // The read answers with what it saw before the write.
+    const nlohmann::json written = printer.client.mock_db_get("lane_data", "T1");
+    printer.client.mock_db_set("lane_data", "T1", old_record);
+    printer.client.fire_deferred("server.database.get_item");
+    printer.client.mock_db_set("lane_data", "T1", written);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // A meter flush stages from what the backend holds now.
+    reg->update_slot_weight(1, 300.0f, 1000.0f, /*persist=*/true);
+    settle();
+    const nlohmann::json stored = printer.client.mock_db_get("lane_data", "T1");
+    CHECK(stored["filament_type"] == "PETG");
+    CHECK(stored["vendor_name"] == "Sunlu");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a clear the writer rule refuses leaves the lane showing its record",
+                 "[lane][refresh][toolchanger][writer_rule][review]") {
+    MockPrinter printer;
+    nlohmann::json theirs = record("PLA", "#FFFFFF");
+    theirs["writer"] = "spoolman-lane-sync";
+    printer.client.mock_db_set("lane_data", "T1", theirs);
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE(reg->get_slot_info(1).material == "PLA");
+
+    reg->clear_slot_override(1);
+    settle();
+    CHECK(printer.client.mock_db_get("lane_data", "T1") == theirs);
+    CHECK(reg->get_slot_info(1).material == "PLA");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a store reopened while a read is out still gets read",
+                 "[lane][refresh][toolchanger][review]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    printer.client.defer_next("server.database.get_item");
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    // A reconnect reopens the store while the first read is still out.
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    printer.client.fire_deferred("server.database.get_item");
+    settle();
+    CHECK(reg->lane_records_ready());
+    CHECK(reg->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "reconnecting reopens editing once the lanes are read",
+                 "[lane][refresh][toolchanger][ready][review]") {
+    ScopedAmsSubjects subjects;
+    auto& ams = helix::AmsState::instance();
+    MockPrinter printer;
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    const int connected = static_cast<int>(helix::ConnectionState::CONNECTED);
+    const int lost = static_cast<int>(helix::ConnectionState::DISCONNECTED);
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       connected);
+    settle();
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
+
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       lost);
+    settle();
+    REQUIRE(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 0);
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       connected);
+    settle();
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

@@ -184,6 +184,7 @@ bool LaneSourceStore::expire_locked(LaneId lane, std::chrono::steady_clock::time
         return false;
     }
     it->second.pending.reset();
+    expired_untold_.insert(lane);
     spdlog::warn("[LaneSourceStore] lane {}: edit not echoed within {}s; showing what Moonraker "
                  "holds",
                  lane, kPendingWriteTimeout.count());
@@ -206,17 +207,15 @@ LaneSources LaneSourceStore::get(LaneId lane) {
     return out;
 }
 
-std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_point now) {
+std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_point now,
+                                            const std::vector<LaneId>& lanes) {
     Settlements settled;
     std::vector<LaneId> expired;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<LaneId> lanes;
-        for (const auto& entry : pending_deadline_) {
-            lanes.push_back(entry.first);
-        }
         for (LaneId lane : lanes) {
-            if (expire_locked(lane, now, settled)) {
+            expire_locked(lane, now, settled);
+            if (expired_untold_.erase(lane) > 0) {
                 expired.push_back(lane);
             }
         }
@@ -225,12 +224,36 @@ std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_poin
     return expired;
 }
 
+void LaneSourceStore::trim_pending(LaneId lane, const std::function<void(Observation&)>& trim,
+                                   PendingOutcome emptied) {
+    Settlements settled;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = lanes_.find(lane);
+        if (it == lanes_.end() || !it->second.pending.has_value()) {
+            return;
+        }
+        Observation& pending = *it->second.pending;
+        const bool stated = any_observed(pending);
+        trim(pending);
+        // The write and its waiters stand for what is left; an edit trimmed
+        // to nothing has nothing left to echo.
+        if (stated && !any_observed(pending)) {
+            it->second.pending.reset();
+            pending_deadline_.erase(lane);
+            settle_locked(lane, emptied, {}, settled);
+        }
+    }
+    run(settled);
+}
+
 void LaneSourceStore::clear() {
     Settlements settled;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         lanes_.clear();
         pending_deadline_.clear();
+        expired_untold_.clear();
         warned_drop_.reset();
         std::vector<LaneId> waiting;
         for (const auto& entry : waiters_) {
@@ -374,18 +397,9 @@ void await_pending(LaneId lane, std::uint64_t since, PendingSettled settled) {
     LaneSourceStore::instance().await(lane, since, std::move(settled));
 }
 
-void await_pending(LaneId lane, PendingSettled settled) {
-    if (!is_lane_id(lane)) {
-        if (settled) {
-            settled(PendingOutcome::Echoed, {});
-        }
-        return;
-    }
-    LaneSourceStore::instance().await(lane, std::nullopt, std::move(settled));
-}
-
-std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now) {
-    return LaneSourceStore::instance().expire(now);
+std::vector<LaneId> expire_pending(std::chrono::steady_clock::time_point now,
+                                   const std::vector<LaneId>& lanes) {
+    return LaneSourceStore::instance().expire(now, lanes);
 }
 
 void drop_lane_source(LaneId lane, ObservationSource source) {
@@ -403,18 +417,25 @@ void reset_lane_to_machine_readings(LaneId lane) {
 }
 
 void retract_lane_declarations(LaneId lane, const std::function<void(Observation&)>& trim) {
-    const LaneSources sources = lane_sources(lane);
-    if (sources.pending.has_value()) {
-        Observation kept = *sources.pending;
-        trim(kept);
-        withdraw_pending(lane);
-        file_pending(lane, kept);
+    if (!is_lane_id(lane)) {
+        return;
     }
+    LaneSourceStore::instance().trim_pending(lane, trim, PendingOutcome::Failed);
+    const LaneSources sources = lane_sources(lane);
     if (sources.spoolman.has_value()) {
         Observation kept = *sources.spoolman;
         trim(kept);
         ingest(lane, kept);
     }
+}
+
+void supersede_pending_weight(LaneId lane) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().trim_pending(
+        lane, [](Observation& pending) { pending.remaining_weight_g.reset(); },
+        PendingOutcome::Echoed);
 }
 
 LaneSources lane_sources(LaneId lane) {

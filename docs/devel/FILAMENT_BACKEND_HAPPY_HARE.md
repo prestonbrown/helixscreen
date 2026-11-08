@@ -147,11 +147,15 @@ and Happy Hare writes `lane_data` itself, so HelixScreen never writes `lane_data
 lane shows the gate map, filed as the lane's `Firmware` source.
 
 - **Edits** (`AmsBackendHappyHare::apply_user_edit`) are one `MMU_GATE_MAP` naming each moved
-  field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `TEMP`, `SPOOLID`), plus `MMU_TTG_MAP`
-  for a tool remap.
-- **Fields the gate map cannot hold** (brand before v4, total weight, colour name, catalog
-  pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the same
-  10 s poll as every lane record.
+  field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `SPOOLID`), plus `MMU_TTG_MAP` for a tool
+  remap. Every edit names `TEMP`: the new value when it moved, else `TEMP=0`. Happy Hare reads an
+  omitted `TEMP` as `default_extruder_temp` and overwrites the gate's own, and reads `TEMP=0` as
+  "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py cmd_MMU_GATE_MAP). Clear Spool omits
+  it, so a cleared gate returns to the default temperature.
+- **Fields the gate map cannot hold** (brand before v4, total and remaining weight, colour name,
+  catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the
+  same 10 s poll as every lane record. The name, and the vendor on v4, are the gate map's alone,
+  so another client clearing them shows as cleared.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
   vendor and spool id, and only logs the refusal. An edit that moves any of those is refused
@@ -201,6 +205,22 @@ sensor need it fitted and enabled (its key in `printer.mmu.sensors`, not null). 
 only names, so there only `selector_move_speed` is filtered, by selector. A device action no
 unit takes is disabled, and the override reapply sends one `MMU_TEST_CONFIG` per parameter on
 every version, leaving out any no unit takes, so one refusal cannot sink the rest.
+
+**Tuning values.** The Device settings sliders and toggles write the MMU with
+`MMU_TEST_CONFIG`, which lasts until Klipper restarts; the configfile holds the value the MMU
+starts with. Where `printer.mmu` reports a value, that is what the row shows and nothing is
+kept here: clog detection reads the encoder's mode (`flowguard_encoder_mode` /
+`clog_detection_enabled`), falling back to the configfile before the first frame. Happy Hare
+reports none of the others, so their last setting is kept in Moonraker, where every screen on
+the printer reads the same values: namespace `helix-screen`, key `hh_tuning`, one object of
+`<key>: {value, config_default}`. It is read at connect (`load_persisted_overrides()`, then
+`adopt_hh_tuning()`), written when a value changes, and re-applied (`reapply_overrides()`); an
+entry whose saved `config_default` no longer matches the printer's configfile is dropped, and
+one saved against the built-in default is re-pointed at the printer's. The kept keys: `gear_from_buffer_speed`,
+`gear_from_spool_speed`, `gear_unload_speed`, `selector_move_speed`, `extruder_load_speed`,
+`extruder_unload_speed`, `toolhead_sensor_to_nozzle`, `toolhead_extruder_to_nozzle`,
+`toolhead_entry_to_extruder`, `toolhead_ooze_reduction`, `sync_to_extruder`. A record left in the
+local config's `/hh_overrides` moves to Moonraker once, when Moonraker holds none.
 
 **Units.** `happy_hare::read_machine_units()` returns every `mmu_machine.unit_N` (v3.4 and v4
 both publish them; an older v3 falls back to configfile's `[mmu_machine]` as one unit). Each

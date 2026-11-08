@@ -192,6 +192,7 @@
   <translation tag="AFC buffer" ja="AFCバッファー"/>
   <translation tag="AFC failure reset complete" ja="AFCエラーリセット完了"/>
   <translation tag="AFC failure reset failed" ja="AFCエラーリセット失敗"/>
+  <translation tag="AFC has no Spoolman configured" ja="AFC に Spoolman が設定されていません"/>
   <translation tag="AFC recovery complete" ja="AFC復旧完了"/>
   <translation tag="AFC recovery failed" ja="AFC復旧失敗"/>
   <translation tag="AFC reset complete" ja="AFCリセット完了"/>

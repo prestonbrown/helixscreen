@@ -2650,6 +2650,7 @@ translations:
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS はこのスプールを Spoolman で管理しており、ここでは素材、色、ブランド、重量のみ変更できます"
   OpenAMS manages this spool's link: "このスプールのリンクは OpenAMS が管理しています"
+  AFC has no Spoolman configured: "AFC に Spoolman が設定されていません"
   Opened: 開
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました

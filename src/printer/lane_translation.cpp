@@ -117,9 +117,12 @@ constexpr auto kFieldRoster = std::make_tuple(
     field<FieldKind::PositiveId>("spoolman_filament_id", nullptr,
                                  &FilamentSlotOverride::spoolman_filament_id,
                                  &Observation::spoolman_filament_id),
-    field<FieldKind::PositiveId, Owner::SpoolWhenLinked>(
-        "spoolman_vendor_id", &SlotInfo::spoolman_vendor_id,
-        &FilamentSlotOverride::spoolman_vendor_id, &Observation::spoolman_vendor_id),
+    // The spool's vendor, which the Spoolman fetch states while the spool is
+    // linked. No edit declares it: a store that cannot hold it (AFC's and
+    // Happy Hare's extras) would never echo it.
+    field<FieldKind::PositiveId>("spoolman_vendor_id", nullptr,
+                                 &FilamentSlotOverride::spoolman_vendor_id,
+                                 &Observation::spoolman_vendor_id),
     // The OrcaSlicer preset id the spool's filament names. Like the definition
     // id, only the Spoolman fetch states it and no editor writes it, and it
     // goes with the binding.
@@ -263,21 +266,6 @@ Observation record_observation(const FilamentSlotOverride& record) {
         }
     });
     return obs;
-}
-
-void amend_record(FilamentSlotOverride& record, const Observation& obs) {
-    for_each_field([&](const auto& f) {
-        using Row = std::decay_t<decltype(f)>;
-        if constexpr (!skipped<decltype(f.record)>) {
-            const auto& value = obs.*(f.obs);
-            if (!value.has_value())
-                return;
-            record.*(f.record) = *value;
-            if constexpr (Row::kind == FieldKind::Color) {
-                record.color_set = true;
-            }
-        }
-    });
 }
 
 bool is_declarable_color(uint32_t rgb) {

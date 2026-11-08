@@ -484,11 +484,22 @@ class AmsSubscriptionBackend : public AmsBackend {
     void open_lane_record_store(std::string backend_id,
                                 std::string ns = helix::ams::kLaneDataNamespace);
 
+    /// Set up a freshly built lane record store before its first read, for a
+    /// backend whose store holds more than the default. Caller holds mutex_.
+    virtual void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) {
+        (void)store;
+    }
+
     /// A read of the lane records landed, and overrides_ now holds it. Runs
     /// under mutex_, before the lanes are filed and the slots repainted, for a
     /// backend that keeps state derived from the records (a fingerprint
     /// baseline, a seated lane).
     virtual void on_lane_records_read_locked() {}
+
+    /// Read the lane records again and repaint every slot from the reply,
+    /// for a backend whose reading of the records changed (it learned what
+    /// they describe). Main thread.
+    void reread_lane_records();
 
     /// False while another source states this backend's per-slot identity and
     /// its lane records describe something else (OpenAMS with openams_spoolman,
@@ -626,6 +637,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// record as the lane's Record source, drop it from a lane whose record is
     /// gone, repaint, and announce a change. Main thread.
     void adopt_lane_records(helix::ams::FilamentSlotOverrideStore* store,
+                            helix::ams::FilamentSlotOverrideStore::ReadTicket ticket,
                             std::unordered_map<int, helix::ams::LaneDataRecord> records,
                             const nlohmann::json& keys);
 
