@@ -384,28 +384,34 @@ The clock savers (the flip clock, Aqua Surface and High Fly) are the ones that r
 `SaverHost::print_status` hands them the print lifecycle, the remaining time the print status panel shows (`print_time_left`, smoothed
 by `PrintEtaEstimator`) and the displayed progress; `saver_clock_now()` adds the local time,
 the date and the Time Format setting. `ClockState` (shared with Aqua Surface and High Fly)
-decides what the clock reads, and `flip_face` turns that reading into cards:
+decides what the clock reads, and `flip_face` turns that reading into a row of cards and, while
+a print runs, a row of small cards under them (`kSubCardScale` of the main size):
 
-- No print, or a running print with no estimate yet (PROGRESS): the time of day, HH:MM, with
-  AM/PM on the first hour card in 12-hour mode, where that card is blank before 10.
-- A print with an estimate: H:MM:SS (as many hour cards as the hours need, up to
-  `kClockMaxCountdownS`) counting down at wall-clock rate, with "done at
-  <time> · <n>%" under the cards. An estimate within `kClockCountdownResyncS` of the running
-  count is ignored, so estimator jitter never flips the seconds backwards.
-- Paused: the count freezes under PAUSED (the time of day when no estimate was ever seen).
-- Ended: 0:00:00 over DONE, FAILED or CANCELED for as long as the latch holds the end (Print
-  progress, below).
+| Reading | Cards | Small cards |
+|---|---|---|
+| No print | HH:MM, AM/PM on the first hour card in 12-hour mode (blank before 10) | none |
+| Running, no estimate yet (PROGRESS) | the percent, `63%` | the time of day |
+| Counting down | H:MM:SS (as many hour cards as the hours need, up to `kClockMaxCountdownS`) | the finish time, then the percent |
+| Paused | `PAUSE` | the time left as H:MM when there is an estimate, then the percent |
+| Done, failed, cancelled | `DONE`, `FAIL`, `STOP` | the percent the print reached |
+
+The cards draw in the state colour (`print_state_color`): white while running, amber paused,
+green done, red failed or cancelled. Letters and `%` are stroke glyphs like the digits
+(`stroke_glyph_distance`); `StrokeGlyphSet` rasterises each character the first time a face
+shows it. An estimate within `kClockCountdownResyncS` of the running count is ignored, so
+estimator jitter never flips the seconds backwards. An ended print holds for as long as the
+latch holds the end (Print progress, below).
 
 Every digit has its own card, grouped by a `FlipShape` (hours, minutes, seconds).
 `layout_flip_cards` puts every group in one row with a colon between groups, or, when that
 gives larger cards (portrait), one group per row. `FlipClockSim` draws the digits from
 strokes (lines and arcs, `build_stroke_digits` at a stroke of 0.2) into a coverage cache
-sized to the layout, so they scale to any screen and draw at both depths. Only the cards whose digit changes flip, each with its own
+sized to the layout, so they scale to any screen and draw at both depths. Only the cards (small ones too) whose character changes flip, each with its own
 fold and dirty box, all at once when several change (09:59 to 10:00 flips four, 10:59 to
 11:00 three); nothing is written between changes. A new shape (the clock becoming a
 countdown, the hours gaining a digit) and the drift every `kClockDriftStepMs` repaint the
-layout whole. The caption and AM/PM marker are `lv_draw_label` text on the canvas
-(`SaverLabel`), which is why its canvas uses `kLvDrawCanvasFormat`.
+layout whole. The AM/PM marker is `lv_draw_label` text on the canvas (`SaverLabel`), which is
+why its canvas uses `kLvDrawCanvasFormat`.
 
 
 ## Long runs
@@ -519,6 +525,18 @@ and one octave of wrinkle; then a near-neutral cool tint.
   clock, from a copy of the pixels under it; a drift step puts back the old place and copies
   the new one, without rendering the water again.
 
+### Aqua Surface during a print
+
+The water stands higher as the print goes: `aqua_level_target` rises from today's rest level
+to `kAquaBrimRise` at 100% and at DONE, and falls back to rest for a failed or cancelled print,
+eased at `kAquaLevelRate`. The level lowers the camera (`AquaSim::cam_h`) rather than lifting
+the heights, so crest scoring and splashing are unchanged; with no print the level is 0 and the
+water is exactly the idle scene. Paused water calms: the waves, the slosh and the wrinkle
+texture scale toward `kAquaCalm`, and sim time and the bubbles slow by the same factor (flatter
+water alone only sharpens the reflections sliding across it); no crest throws spray. The step
+into DONE sends `kAquaDoneBurst` of the existing bubbles up from the bottom. The still rung
+paints the water again only when the level crosses a `kAquaStillLevelStep`.
+
 ## High Fly
 
 A flight just above sunlit cloud tops (`HighFlySim`). Back to front: a static sky with a sun
@@ -548,6 +566,15 @@ white haze over the bottom rows.
 - A frame repaints the band of rows from the far billows or the deck down, plus boxes above it
   for the clock, towers and the approaching cloud; a fly-through repaints the whole screen. The
   last rung keeps the scene still and redraws only the clock.
+- During a print (`highfly_numerals`, `highfly_palette`): the big numerals count the time left
+  (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the
+  finish time and the time of day, AM/PM blank, in the state colour. The sky, the deck's light
+  and the haze blend from the day palette toward golden hour with progress in
+  `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer (the cloud textures
+  are not recoloured). The step into DONE flies through a cloud and comes out into the sunset
+  palette; a failed or cancelled print turns overcast. A pause slows flight time to 25% and
+  sways the view sideways in a slow holding pattern. With no print every one of these is the
+  idle scene exactly.
 - Its per-pixel work is fixed point: the deck is stored as 16-bit heights and byte shades (half
   the floats' cache footprint), billboards sample with two channels per multiply and depth-test
   through a per-slice visibility table, and the renderer's span gradient and feather step in

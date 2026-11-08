@@ -1,6 +1,6 @@
 # Screensaver print progress: design
 
-Status: approved 2026-11-07. Phase 1 (shared groundwork) is built on this branch; Phases 2 and 3 are still to plan. Deleted in the change that ships Phase 3. Ships on main (1.2). Deleted in the change that ships the
+Status: approved 2026-11-07. Phase 1 shipped (origin/main 76b83226c5); Phase 2 (flip clock, Aqua, High Fly) is built on feature/screensaver-progress-p2; Phase 3 is still to plan. Deleted in the change that ships Phase 3. Ships on main (1.2). Deleted in the change that ships the
 last phase (`docs/CLAUDE.md`).
 
 ## Why
