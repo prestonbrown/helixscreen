@@ -2242,6 +2242,26 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         CHECK(tc->sent_.empty());
     }
 
+    SECTION("each head is badged with its tool's number") {
+        auto tc = numbered_changer({0, 2, 3});
+        CHECK(tc->get_slot_info(0).mapped_tool == 0);
+        CHECK(tc->get_slot_info(1).mapped_tool == 2);
+        CHECK(tc->get_slot_info(2).mapped_tool == 3);
+        const auto map = tc->get_tool_mapping();
+        REQUIRE(map.size() == 4);
+        CHECK(map[1] == -1);
+        CHECK(map[2] == 1);
+        CHECK(map[3] == 2);
+    }
+
+    SECTION("a remap moves the badge with the listing") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        CHECK(tc->get_slot_info(2).mapped_tool == 0);
+        CHECK(tc->get_slot_info(0).mapped_tool == 2);
+        CHECK(tc->get_slot_info(1).mapped_tool == 3);
+    }
+
     SECTION("a reassigned number follows its tool when only the names change") {
         // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
         // Moonraker's delta carries tool_names alone.

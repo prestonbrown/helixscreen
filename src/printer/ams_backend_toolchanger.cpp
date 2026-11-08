@@ -1452,7 +1452,33 @@ bool AmsBackendToolChanger::parse_tool_listing_locked(const nlohmann::json& tc_d
             home_tool_numbers_.emplace((*listed_tool_names_)[i], (*listed_tool_numbers_)[i]);
         }
     }
+    if (changed) {
+        apply_listing_to_tool_map_locked();
+    }
     return changed;
+}
+
+bool AmsBackendToolChanger::apply_listing_to_tool_map_locked() {
+    if (!listed_tool_numbers_ || !listed_tool_names_ ||
+        listed_tool_numbers_->size() != listed_tool_names_->size() || tool_names_.empty()) {
+        return false;
+    }
+    std::vector<int> forward;
+    for (size_t i = 0; i < listed_tool_numbers_->size(); ++i) {
+        const int number = (*listed_tool_numbers_)[i];
+        const int slot = find_slot_for_tool((*listed_tool_names_)[i]);
+        if (number < 0 || slot < 0) {
+            continue;
+        }
+        if (number >= static_cast<int>(forward.size())) {
+            forward.resize(static_cast<size_t>(number) + 1, -1);
+        }
+        forward[static_cast<size_t>(number)] = slot;
+    }
+    system_info_.tool_to_slot_map = std::move(forward);
+    // The listing is the whole truth: a tool it gives no number has no badge.
+    helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/false);
+    return true;
 }
 
 int AmsBackendToolChanger::listed_number_for_slot_locked(int slot_index) const {
@@ -1675,7 +1701,9 @@ void AmsBackendToolChanger::initialize_tools() {
     // the badge (mapped_tool) and the op-button lane (tool_to_slot_map) have to
     // move together or they name different toolheads.
     system_info_.tool_to_slot_map.clear();
-    helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/true);
+    if (!apply_listing_to_tool_map_locked()) {
+        helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/true);
+    }
 
     // A toolchanger frame may already have named the carriage tool before the
     // tool list arrived; re-derive so the fresh slots match it.

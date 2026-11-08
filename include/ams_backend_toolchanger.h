@@ -996,6 +996,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// tool, -1 when the listing names no number for it. Caller holds mutex_.
     [[nodiscard]] int listed_number_for_slot_locked(int slot_index) const;
 
+    /// Restate the tool map (badges and op-button lanes) from the printer's
+    /// listing, so each slot is badged with its tool's G-code number. False,
+    /// and the map untouched, when no complete listing has arrived. Caller
+    /// holds mutex_.
+    bool apply_listing_to_tool_map_locked();
+
     /// Latch one firmware material reading: the types and palette it carried,
     /// and each slot's material and colour filed as vendor-cache observations.
     /// Caller holds mutex_.
