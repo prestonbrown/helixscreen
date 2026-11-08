@@ -2204,7 +2204,8 @@ EOF
     printf '{"a": 2}\n' | put android/app/src/main/assets/assets/filaments.json
     run lint_filaments_android_mirror
     [ "$status" -eq 1 ]
-    contains "make regen-filaments" "$output"
+    contains "rm -rf android/app/src/main/assets" "$output"
+    lacks "regen-filaments" "$output"
 }
 
 # --- The driver and its wiring into quality-checks.sh ---

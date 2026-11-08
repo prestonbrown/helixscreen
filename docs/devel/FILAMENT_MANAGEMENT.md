@@ -1082,11 +1082,13 @@ types already in its own library).
 ### Regenerating the catalog
 
 ```bash
-make regen-filaments ORCA_TAG=v2.4.1     # ORCA_TAG defaults to a pinned tag in mk/filaments.mk
+make regen-filaments                     # ORCA_TAG and ORCA_ID_TAG default to pinned tags in mk/filaments.mk
+make regen-filaments ORCA_TAG=v2.4.1 ORCA_ID_TAG=v2.5.0-beta
 ```
 
-This shallow-clones OrcaSlicer's `resources/profiles` at the pinned tag into
-`build/orca-profiles` (sparse checkout, blob-filtered), runs
+This shallow-clones OrcaSlicer's `resources/profiles` at `ORCA_TAG` into
+`build/orca-profiles` and at `ORCA_ID_TAG` into `build/orca-id-profiles` (sparse
+checkouts, blob-filtered), runs
 `scripts/import_orca_filaments.py` to resolve `inherits` chains, extract
 facts, and union them with the preserved CFS-code seed
 (`scripts/fixtures/filament_seed.json`), carries the hand-maintained `types` table
@@ -1108,8 +1110,18 @@ inherits from a template when no other product inherits that same id. A
 template shared by several products (Elegoo's `PLA @base` under fourteen PLA
 variants) names none of them, so those products carry no `orca_id` and Orca
 matches them by material type. The shipped catalog takes its temps from v2.4.1
-and its `orca_id`s from v2.5.0-beta (`_attribution` says so); a single-tag
-`make regen-filaments` does not reproduce that split.
+and its `orca_id`s from v2.5.0-beta (`_attribution` says so): `ORCA_TAG` gives
+the products and temps, and `ORCA_ID_TAG` replaces every product's `orca_id` with
+the one the same (brand, name) carries at that tag
+(`scripts/import_orca_filaments.py#overlay_orca_ids`). A product the ids tag has
+no id for carries none. The importer refuses to overwrite a catalog whose
+`_attribution` names a different ids tag than the one passed; moving to a new ids
+tag is `make regen-filaments ORCA_ID_TAG=<tag> ALLOW_ID_TAG_CHANGE=1`.
+
+Products that Orca does not profile live in `scripts/fixtures/filament_seed.json`
+(`source` `cfs-seed`, `helix-seed`, `vendor-spec`), never only in
+`assets/filaments.json`: a regen rebuilds every row from Orca plus the seed, so a
+row added to the catalog by hand is gone after the next one.
 
 `assets/filaments.json` is **generated but committed** (same pattern as fonts
 and translations) — cross-compiled targets need the file present without
