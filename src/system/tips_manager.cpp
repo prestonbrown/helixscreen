@@ -106,7 +106,6 @@ void TipsManager::build_tips_cache() {
         return;
     }
 
-    // Iterate through all categories
     for (auto& [category_key, category_obj] : data["categories"].items()) {
         if (!category_obj.contains("tips") || !category_obj["tips"].is_array()) {
             spdlog::warn("[TipsManager] Category '{}' has no tips array", category_key);
@@ -145,7 +144,6 @@ PrintingTip TipsManager::json_to_tip(const json& tip_json, const std::string& ca
     tip.priority = helix::json_util::safe_string(tip_json, "priority");
     tip.category = category;
 
-    // Parse tags array
     if (tip_json.contains("tags") && tip_json["tags"].is_array()) {
         for (const auto& tag : tip_json["tags"]) {
             if (tag.is_string()) {
@@ -154,7 +152,6 @@ PrintingTip TipsManager::json_to_tip(const json& tip_json, const std::string& ca
         }
     }
 
-    // Parse related_settings array
     if (tip_json.contains("related_settings") && tip_json["related_settings"].is_array()) {
         for (const auto& setting : tip_json["related_settings"]) {
             if (setting.is_string()) {
@@ -239,7 +236,6 @@ PrintingTip TipsManager::get_random_unique_tip() {
     std::uniform_int_distribution<size_t> dist(0, unviewed_indices.size() - 1);
     const PrintingTip& selected = tips_cache[unviewed_indices[dist(random_generator)]];
 
-    // Mark as viewed
     viewed_tip_ids_.push_back(selected.id);
 
     spdlog::trace("[TipsManager] Selected unique tip '{}' ({}/{})", selected.id,
@@ -267,11 +263,9 @@ std::vector<PrintingTip> TipsManager::search_by_keyword(const std::string& keywo
     keyword_lower = helix::text_io::to_lower(keyword_lower);
 
     for (const auto& tip : tips_cache) {
-        // Search in title
         std::string title_lower = tip.title;
         title_lower = helix::text_io::to_lower(title_lower);
 
-        // Search in content
         std::string content_lower = tip.content;
         content_lower = helix::text_io::to_lower(content_lower);
 
@@ -282,7 +276,6 @@ std::vector<PrintingTip> TipsManager::search_by_keyword(const std::string& keywo
             content_lower.find(keyword_lower) != std::string::npos) {
             found = true;
         } else {
-            // Search in tags
             for (const auto& tag : tip.tags) {
                 std::string tag_lower = tag;
                 tag_lower = helix::text_io::to_lower(tag_lower);
@@ -410,7 +403,6 @@ std::vector<std::string> TipsManager::get_all_tags() {
         }
     }
 
-    // Sort alphabetically
     std::sort(all_tags.begin(), all_tags.end());
 
     return all_tags;

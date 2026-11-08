@@ -452,13 +452,11 @@ PrinterImageManager::ValidationResult
 PrinterImageManager::validate_image(const std::string& path) const {
     ValidationResult result;
 
-    // Check file exists
     if (!hfs::exists(path)) {
         result.error = "File not found: " + path;
         return result;
     }
 
-    // Check file size
     auto file_size = helix::text_io::file_size(path);
     if (!file_size) {
         result.error = "File not found: " + path;
@@ -560,7 +558,6 @@ PrinterImageManager::ImportResult
 PrinterImageManager::import_image(const std::string& source_path) {
     ImportResult result;
 
-    // Validate
     auto validation = validate_image(source_path);
     if (!validation.valid) {
         result.error = validation.error;

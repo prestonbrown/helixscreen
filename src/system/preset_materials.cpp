@@ -122,8 +122,8 @@ void init_subjects() {
         return; // idempotent
     }
 
-    // Slot-indexed names on purpose. The old material-named subjects
-    // ("filament_preset_pla_name") implied slot 0 was always PLA, which is
+    // Slot-indexed names on purpose. A material-named subject
+    // ("filament_preset_pla_name") would imply slot 0 is always PLA, which is
     // exactly the assumption this module exists to remove.
     static constexpr const char* kNameSubjects[kPresetCount] = {
         "preset_material_0_name", "preset_material_1_name", "preset_material_2_name",

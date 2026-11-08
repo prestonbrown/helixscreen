@@ -127,10 +127,9 @@ static volatile sig_atomic_t s_crash_file_written = 0;
 /// Application start time, low 32 bits of CLOCK_MONOTONIC ms, captured at
 /// install(). MUST NOT be wall-clock: RTC-less devices (every Pi, the AD5M,
 /// the CC1) boot with a stale fake-hwclock time and NTP steps the clock
-/// forward minutes later, so a wall-clock delta reports whatever the step was.
-/// Bundle VP623KVU claimed `uptime:5035` for a process that had been alive
-/// ~128 seconds — an 82-minute NTP correction, not an 84-minute session. That
-/// sends triage looking for a slow leak when the real crash was 2 minutes in.
+/// forward minutes later, so a wall-clock delta reports whatever the step was:
+/// an 82-minute NTP correction reads as an 84-minute session and sends triage
+/// looking for a slow leak when the real crash was 2 minutes in.
 static uint32_t s_start_mono_ms = 0;
 
 /// Async-signal-safe monotonic milliseconds (low 32 bits, wraps ~49.7 days).
@@ -292,11 +291,8 @@ static struct sigaction s_old_actions[kCrashSignalCount] = {};
 /// The text therefore starts at `offsetof(msg)`, not at the pointer itself.
 /// Reading `__abort_msg` as a plain `char*` lands on `size` — which is the mmap
 /// length rounded up to a page, so its low byte is always 0x00 on little-endian
-/// — and every real abort reason reads back as an empty string. That shipped
-/// from v0.99.71 through v0.99.104: bundle VP623KVU (v0.99.100) was a glibc
-/// heap-corruption SIGABRT whose reason existed in memory and was reported as
-/// `abort_msg_state:empty`, leaving issue #960 with the exact diagnostic it had
-/// been closed waiting for.
+/// — and every real abort reason reads back as an empty string, reported as
+/// `abort_msg_state:empty` while the reason sits in memory (#960).
 struct GlibcAbortMsg {
     unsigned int size; ///< mmap length, page-rounded (NOT a string length)
     char msg[1];       ///< NUL-terminated reason; real allocation is `size` bytes
@@ -1043,16 +1039,13 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // Acquire pairs with the release-store of ts_ms in refresh_heap_snapshot().
     if (__atomic_load_n(&s_heap_snapshot.ts_ms, __ATOMIC_ACQUIRE) != 0) {
         const HeapSnapshot& h = s_heap_snapshot;
-        // AGE, not the raw capture timestamp. Emitting ts_ms here meant a
-        // snapshot taken 17ms before the crash was reported as "snapshot age
-        // 144712ms" (bundle VP623KVU) — it was the monotonic-since-boot stamp,
-        // and every consumer (crash_reporter's `age_ms`, the issue body, the
-        // text summary) renders it as an age.
+        // AGE, not the raw capture timestamp: ts_ms is a monotonic-since-boot
+        // stamp, and every consumer (crash_reporter's `age_ms`, the issue body,
+        // the text summary) renders this value as an age.
         //
         // Both raw stamps go out alongside the derived age, because the age
-        // alone cannot be diagnosed when it comes out wrong: bundle ED2YC336
-        // reported 120036989ms (33h) against a 9.8h uptime, which is impossible
-        // — the snapshot cannot predate the process. Two causes produce that,
+        // alone cannot be diagnosed when it comes out wrong, e.g. an age longer
+        // than the process uptime, which is impossible. Two causes produce that,
         // and only the raw pair distinguishes them: ts > now means the 32-bit
         // monotonic counter folded (49.7 days of uptime), ts << now means the
         // 10s refresh from the main loop genuinely stalled.
@@ -1106,9 +1099,9 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
             }
             write_kv_long(fd, "event_code:", static_cast<long>(s_current_event_code), num_buf,
                           sizeof(num_buf));
-            // Widget identity (paired hook from patched event_send_core).
-            // Bundle 3XNZQB2R: bare hex pointer wasn't enough to ID the click;
-            // these two lines turn "0x23042e0" into "lv_button (recovery_dismiss_btn)".
+            // Widget identity (paired hook from patched event_send_core). A bare
+            // hex pointer cannot identify the click; these two lines turn
+            // "0x23042e0" into "lv_button (recovery_dismiss_btn)".
             const char* cls = const_cast<const char*>(s_current_event_target_class);
             if (cls != nullptr) {
                 safe_write(fd, "event_target_class:");
@@ -1327,8 +1320,8 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 #endif
 
     // backtrace() runs LAST because libgcc's DWARF unwinder can itself crash
-    // when the heap is corrupted (we've seen signal handlers truncated at this
-    // point on Pi v0.99.36 — bundle 7FYYQLVM / #827). Stack dump, maps, and
+    // when the heap is corrupted, truncating the handler at this point (#827).
+    // Stack dump, maps, and
     // FP-walk frames above are written first so a nested crash here doesn't
     // lose them. Frames here may duplicate the FP-walk entries, which is fine —
     // downstream symbolization deduplicates.
@@ -1454,12 +1447,10 @@ extern "C" int helix_get_text_bounds(unsigned long* lo, unsigned long* hi) {
 // C-ABI bridges for LVGL — see include/system/crash_handler.h.
 //
 // Subject is "<class>:<name>" when the widget has an XML name, else just the
-// class; detail is the pointer. The bare class name was not enough to act on:
-// bundle 6F3QJLFG's final crumb before a heap abort was `async_d lv_obj
-// 57241184`, and "some plain container was being deleted" does not identify a
-// site — nearly every teardown crumb in that trace read the same. The name is
-// what the XML author wrote, so it points straight at a file
-// (prestonbrown/helixscreen#960).
+// class; detail is the pointer. A bare class name is not enough to act on: a
+// crumb like `async_d lv_obj 57241184` says only that some plain container was
+// deleted, and nearly every teardown crumb reads the same. The name is what the
+// XML author wrote, so it points straight at a file (#960).
 //
 // Read here rather than passed in from the patch: four patches already touch
 // lv_obj_tree.c, so widening that hook means the pristine-file regeneration

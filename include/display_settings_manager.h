@@ -425,7 +425,6 @@ class DisplaySettingsManager {
     /** @brief Set custom printer image ID and persist. Empty = auto-detect. */
     void set_printer_image(const std::string& id);
 
-    /** @brief Get bed mesh zero plane visibility */
     bool get_bed_mesh_show_zero_plane() const;
 
     // =========================================================================

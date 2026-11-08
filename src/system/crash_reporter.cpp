@@ -794,8 +794,8 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
         }
         body << " (age " << report.heap.age_ms << "ms)\n";
         if (!heap_snapshot_age_is_plausible(report.heap.age_ms, report.uptime_sec)) {
-            // Say so in the issue itself — this figure was chased as a real
-            // signal once already (bundle ED2YC336).
+            // Say so in the issue itself, so nobody chases this figure as a
+            // real signal.
             body << "  - ⚠️ Snapshot age exceeds the process uptime of " << report.uptime_sec
                  << "s, so the heap figures above are not trustworthy. Raw stamps: ts "
                  << report.heap.snapshot_ts_ms << "ms, crash clock " << report.heap.mono_ms_now

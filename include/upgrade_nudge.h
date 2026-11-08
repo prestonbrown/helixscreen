@@ -77,7 +77,6 @@ class UpgradeNudge {
     /// mutate the nudge settings directly.
     void reload();
 
-    // Non-copyable singleton
     UpgradeNudge(const UpgradeNudge&) = delete;
     UpgradeNudge& operator=(const UpgradeNudge&) = delete;
 

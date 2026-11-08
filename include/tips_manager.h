@@ -50,7 +50,7 @@ class TipsManager {
     // Derived from `data` at load so the DOM can be released. Categories are
     // stored rather than re-derived from tips_cache because a category whose
     // tips array is missing or empty contributes no cache entries but must
-    // still appear in the list, which is what the old DOM walk returned.
+    // still appear in the list.
     std::vector<std::string> categories_;
     std::string version_ = "unknown";
     std::mutex tips_mutex;
