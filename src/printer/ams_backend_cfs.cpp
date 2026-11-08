@@ -2771,9 +2771,11 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
             own_write_echoes_.arm(global_index, std::string{});
         }
 
+        // On a color-only write expected_material_half is still the code the
+        // box reported before it, which the write leaves in place.
         daemon_record = helix::cfs::daemon_material_for(
             global_index, system_info_.get_slot_global(global_index), material, brand, catalog_id,
-            mat_code, color_rgb);
+            mat_code, expected_material_half, color_rgb);
     }
 
     if (!mat_code.empty()) {

@@ -271,20 +271,31 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
         CHECK(n.max_temp_c >= n.min_temp_c);
     }
 
-    SECTION("a color-only write sends an empty rfid") {
-        cfs.push_slot_identity_to_firmware(3, "Unobtanium", "ACME", "", 0x00FF00);
+    SECTION("a color-only write names the material the box still holds, never the pick") {
+        cfs.push_slot_identity_to_firmware(1, "Unobtanium", "ACME", "", 0x00FF00);
         REQUIRE(cfs.captured[0].find("PART=material_type") == std::string::npos);
         REQUIRE(cfs.notices.size() == 1);
-        CHECK(cfs.notices[0].slot_id == 3);
-        CHECK(cfs.notices[0].rfid.empty());
-        CHECK(cfs.notices[0].name == "Unobtanium");
-        CHECK(cfs.notices[0].vendor == "ACME");
+        const auto& n = cfs.notices[0];
+        CHECK(n.slot_id == 1);
+        CHECK(n.rfid.empty());
+        CHECK(n.type == "PETG");
+        CHECK(n.name != "Unobtanium");
+        CHECK(n.vendor != "ACME");
+        CHECK(n.min_temp_c > 0);
+        CHECK(n.max_temp_c >= n.min_temp_c);
+        CHECK(n.color_rgb == 0x00FF00);
+    }
+
+    SECTION("a color-only write to a bay holding no known material tells the daemon nothing") {
+        cfs.push_slot_identity_to_firmware(3, "Unobtanium", "ACME", "", 0x00FF00);
+        REQUIRE(cfs.captured[0].find("PART=material_type") == std::string::npos);
+        CHECK(cfs.notices.empty());
     }
 
     SECTION("a raw tag UID is never sent as the vendor") {
-        cfs.push_slot_identity_to_firmware(3, "Unobtanium", "04A1B2C3D4E5F6", "", 0x00FF00);
+        cfs.push_slot_identity_to_firmware(0, "PETG", "04A1B2C3D4E5F6", "", 0x00FF00);
         REQUIRE(cfs.notices.size() == 1);
-        CHECK(cfs.notices[0].vendor.empty());
+        CHECK(cfs.notices[0].vendor != "04A1B2C3D4E5F6");
     }
 
     SECTION("a write Klipper rejects tells the daemon nothing") {

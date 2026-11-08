@@ -73,12 +73,15 @@ inline constexpr const char* kDaemonDefaultPressure = "0.04";
 
 /// The record for slot @p global_index after a BOX_MODIFY_TN_DATA write of
 /// @p mat_code (the full firmware code, "" for a color-only write) and
-/// @p color_rgb. @p slot is the slot as it now stands, or null. nullopt for an
-/// index the daemon cannot address.
+/// @p color_rgb. @p slot is the slot as it now stands, or null. @p held_code is
+/// the material_type the box reported before the write; a color-only write
+/// describes that code's catalog product, not @p material / @p brand. nullopt
+/// for an index the daemon cannot address, or for a color-only write whose
+/// held code the catalog does not know.
 [[nodiscard]] std::optional<DaemonMaterial>
 daemon_material_for(int global_index, const helix::SlotInfo* slot, const std::string& material,
                     const std::string& brand, const std::string& catalog_id,
-                    const std::string& mat_code, uint32_t color_rgb);
+                    const std::string& mat_code, const std::string& held_code, uint32_t color_rgb);
 
 struct DaemonEndpoint {
     std::string host = "127.0.0.1";

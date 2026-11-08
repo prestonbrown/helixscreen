@@ -79,11 +79,13 @@ std::string encode_modify_material(const DaemonMaterial& m) {
 // written ("" for a color-only write or a code the catalog does not know, as
 // Creality Print sends for an untagged spool). Temps and the product label prefer the slot's own
 // values and fall back to the catalog product of the code written, or of the user's pick.
-std::optional<DaemonMaterial> daemon_material_for(int global_index, const SlotInfo* slot,
-                                                  const std::string& material,
-                                                  const std::string& brand,
-                                                  const std::string& catalog_id,
-                                                  const std::string& mat_code, uint32_t color_rgb) {
+//
+// A color-only write leaves the box holding its old material code, so the
+// record describes that code's catalog product and nothing the user picked.
+std::optional<DaemonMaterial>
+daemon_material_for(int global_index, const SlotInfo* slot, const std::string& material,
+                    const std::string& brand, const std::string& catalog_id,
+                    const std::string& mat_code, const std::string& held_code, uint32_t color_rgb) {
     const auto address = daemon_address(global_index, helix::ui::kExternalSpoolSlot);
     if (!address) {
         return std::nullopt;
@@ -94,15 +96,34 @@ std::optional<DaemonMaterial> daemon_material_for(int global_index, const SlotIn
     const std::string code = helix::printer::CfsMaterialDb::strip_code(mat_code);
     const helix::printer::EffectiveFilament* coded =
         code.empty() ? nullptr : catalog->resolve_code("cfs", code);
-    const helix::printer::EffectiveFilament* entry =
-        coded ? coded : (catalog_id.empty() ? nullptr : catalog->resolve_id(catalog_id));
-    const std::string usable_brand = is_raw_tag_uid(brand) ? std::string{} : brand;
 
     DaemonMaterial record;
     record.box_id = address->box_id;
     record.slot_id = address->slot_id;
-    record.rfid = coded ? code : std::string{};
     record.color_rgb = color_rgb;
+
+    if (code.empty()) {
+        // Every captured modifyMaterial frame carries all its fields, so a
+        // bay whose held material is unknown gets no notice at all rather
+        // than one naming a material the firmware does not hold.
+        const std::string held = helix::printer::CfsMaterialDb::strip_code(held_code);
+        const helix::printer::EffectiveFilament* held_entry =
+            held.empty() ? nullptr : catalog->resolve_code("cfs", held);
+        if (!held_entry) {
+            return std::nullopt;
+        }
+        record.type = held_entry->type;
+        record.vendor = held_entry->brand;
+        record.name = !held_entry->name.empty() ? held_entry->name : held_entry->type;
+        record.min_temp_c = held_entry->nozzle_min;
+        record.max_temp_c = held_entry->nozzle_max;
+        return record;
+    }
+
+    const helix::printer::EffectiveFilament* entry =
+        coded ? coded : (catalog_id.empty() ? nullptr : catalog->resolve_id(catalog_id));
+    const std::string usable_brand = is_raw_tag_uid(brand) ? std::string{} : brand;
+    record.rfid = coded ? code : std::string{};
     record.type = !material.empty() ? material : (entry ? entry->type : std::string{});
     record.vendor = !usable_brand.empty() ? usable_brand : (entry ? entry->brand : std::string{});
     if (slot && !slot->product_name.empty()) {
