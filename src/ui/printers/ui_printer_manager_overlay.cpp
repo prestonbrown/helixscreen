@@ -241,7 +241,6 @@ void PrinterManagerOverlay::finish_name_edit() {
     // Toggle back to viewing mode — XML bind_flag_if_eq handles visibility
     lv_subject_set_int(&name_editing_, 0);
 
-    // Hide keyboard
     KeyboardManager::instance().hide();
 }
 
