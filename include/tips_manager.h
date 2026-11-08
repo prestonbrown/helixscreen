@@ -66,9 +66,8 @@ class TipsManager {
     /**
      * @brief Parse the tips database on first use.
      *
-     * Boot used to call init() unconditionally, parsing a 105 KB JSON file on
-     * every startup for a widget many sessions never display. Idempotent, and
-     * takes no lock itself -- init() does.
+     * Boot does not parse the 105 KB JSON file, since many sessions never
+     * display the widget. Idempotent, and takes no lock itself -- init() does.
      */
     void ensure_loaded();
 

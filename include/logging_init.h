@@ -248,8 +248,7 @@ StdoutKind classify_stdout();
  *
  *     Accepted tradeoff (production only): `helix-screen -vv > out.log` stays
  *     silent, because a plain redirect is indistinguishable from the daemon
- *     redirect. Unchanged from previous behavior, so not a regression; use
- *     `| tee out.log` instead.
+ *     redirect. Use `| tee out.log` instead.
  *   - enable_console is the master switch and vetoes every case.
  *
  * @param effective_target Target after Auto detection has been resolved

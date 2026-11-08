@@ -47,7 +47,6 @@ class DisplaySettingsManager {
     /// The static PersistedSetting table this manager is built from.
     static settings::TableView persisted_table();
 
-    // Non-copyable
     DisplaySettingsManager(const DisplaySettingsManager&) = delete;
     DisplaySettingsManager& operator=(const DisplaySettingsManager&) = delete;
 
@@ -61,7 +60,6 @@ class DisplaySettingsManager {
     // DARK MODE / THEME
     // =========================================================================
 
-    /** @brief Get dark mode state */
     bool get_dark_mode() const;
 
     /** @brief Set dark mode state (updates subject + persists) */
@@ -176,7 +174,6 @@ class DisplaySettingsManager {
     // UI PREFERENCES
     // =========================================================================
 
-    /** @brief Get animations enabled state */
     bool get_animations_enabled() const;
 
     /** @brief Set animations enabled state (updates subject + persists) */

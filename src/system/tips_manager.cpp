@@ -134,11 +134,10 @@ PrintingTip TipsManager::json_to_tip(const json& tip_json, const std::string& ca
     PrintingTip tip;
 
     // safe_string, not .value(): .value() throws type_error.302 on a key that is
-    // PRESENT with a null value (a missing key is fine). init()'s try/catch does
-    // span this call, so the old behaviour was not a crash — it was worse in a
-    // quieter way: one null field anywhere in the file aborted init() and the
-    // user lost the ENTIRE tips database. Per-field defaults keep the cost to
-    // the field.
+    // PRESENT with a null value (a missing key is fine). init()'s try/catch
+    // spans this call, so a throw is not a crash, but one null field anywhere
+    // in the file would abort init() and lose the ENTIRE tips database.
+    // Per-field defaults keep the cost to the field.
     tip.id = helix::json_util::safe_string(tip_json, "id");
     tip.title = helix::json_util::safe_string(tip_json, "title");
     tip.content = helix::json_util::safe_string(tip_json, "content");

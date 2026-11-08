@@ -623,7 +623,7 @@ PrinterImageManager::import_image(const std::string& source_path) {
 
 void PrinterImageManager::import_image_async(const std::string& source_path,
                                              std::function<void(ImportResult)> callback) {
-    // For now, run synchronously. Phase 4 adds proper async via thread pool.
+    // Runs synchronously on the caller's thread despite the name.
     auto result = import_image(source_path);
     if (callback) {
         callback(std::move(result));

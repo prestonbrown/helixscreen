@@ -172,7 +172,6 @@ static int find_timezone_entry(const std::string& iana_id) {
 template <size_t N>
 static int validate_timeout_option(int value, const int (&options)[N], int default_value,
                                    const char* setting_name) {
-    // Check if value is exactly one of the valid options
     for (size_t i = 0; i < N; ++i) {
         if (options[i] == value) {
             return value; // Valid

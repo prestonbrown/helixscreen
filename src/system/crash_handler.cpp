@@ -98,13 +98,11 @@ namespace fs = std::filesystem;
 // All data must be pre-allocated -- NO heap in the signal handler.
 // =============================================================================
 
-/// Maximum path length for the crash file
 static constexpr size_t MAX_PATH_LEN = 512;
 
 /// Pre-allocated buffer for the crash file path (copied at install time)
 static char s_crash_path[MAX_PATH_LEN] = {};
 
-/// Whether the crash handler is installed
 static volatile sig_atomic_t s_installed = 0;
 
 #ifdef __linux__
@@ -383,7 +381,6 @@ static char* int_to_str(char* buf, size_t buf_size, long value) {
     if (buf_size == 0)
         return buf;
 
-    // Handle negative
     bool negative = (value < 0);
     unsigned long uval =
         negative ? static_cast<unsigned long>(-value) : static_cast<unsigned long>(value);
@@ -435,7 +432,6 @@ static char* ptr_to_hex(char* buf, size_t buf_size, uintptr_t value) {
         }
     }
 
-    // Prefix with 0x
     --p;
     *p = 'x';
     --p;
@@ -707,17 +703,14 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
     char num_buf[32];
 
-    // Write signal number
     safe_write(fd, "signal:");
     safe_write(fd, int_to_str(num_buf, sizeof(num_buf), sig));
     safe_write(fd, "\n");
 
-    // Write signal name
     safe_write(fd, "name:");
     safe_write(fd, helix::crash_record::signal_name(sig));
     safe_write(fd, "\n");
 
-    // Write version
     safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
@@ -752,12 +745,12 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
     // SIGABRT-only: glibc abort reason from __abort_msg (resolved at install).
     // Distinguishes "free(): invalid pointer" / "double free or corruption" /
-    // "munmap_chunk(): invalid pointer" / assertion failures — without this
-    // every SIGABRT looked identical from the issue body (see issue #960).
+    // "munmap_chunk(): invalid pointer" / assertion failures, which otherwise
+    // look identical in a crash report (#960).
     //
     // Always emit `abort_msg_state` for SIGABRT (issue #987) so a missing reason
-    // is never ambiguous. A blank `abort_msg` previously had three indistinct
-    // causes; the state tells them apart:
+    // is never ambiguous. A blank `abort_msg` has three indistinct causes; the
+    // state tells them apart:
     //   unresolved — dlsym couldn't find __abort_msg (non-glibc, or stripped).
     //   empty      — glibc stored no message: a bare abort()/raise(SIGABRT) or a
     //                std::terminate fall-through, NOT a malloc/assert/fortify
@@ -1312,7 +1305,6 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
             ssize_t n;
             while ((n = read(maps_fd, maps_buf, sizeof(maps_buf) - 1)) > 0) {
                 maps_buf[n] = '\0';
-                // Write each line prefixed with "map:"
                 char* line_start = maps_buf;
                 for (ssize_t i = 0; i < n; ++i) {
                     if (maps_buf[i] == '\n') {
@@ -1323,7 +1315,6 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
                         line_start = maps_buf + i + 1;
                     }
                 }
-                // Handle trailing partial line
                 if (line_start < maps_buf + n) {
                     safe_write(fd, "map:");
                     safe_write(fd, line_start);
@@ -1792,7 +1783,6 @@ void crash_handler::uninstall() {
         return;
     }
 
-    // Restore previous handlers
     for (size_t i = 0; i < kCrashSignalCount; ++i) {
         sigaction(kCrashSignals[i], &s_old_actions[i], nullptr);
     }
@@ -1908,7 +1898,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 result["lvgl_version"] = value;
             } else if (key == "timestamp") {
                 try {
-                    // Convert unix timestamp to ISO 8601
                     time_t ts = static_cast<time_t>(std::stol(value));
                     struct tm utc_tm;
 #ifdef _WIN32
@@ -1996,7 +1985,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             } else if (key == "bt") {
                 backtrace_arr.push_back(value);
             } else if (key == "map") {
-                // Memory map lines from /proc/self/maps
                 if (!result.contains("memory_map")) {
                     result["memory_map"] = json::array();
                 }
@@ -2004,7 +1992,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             } else if (key == "stack_base") {
                 result["stack_base"] = value;
             } else if (key == "stk") {
-                // Stack memory dump words
                 if (!result.contains("stack_dump")) {
                     result["stack_dump"] = json::array();
                 }
@@ -2027,7 +2014,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             result["backtrace"] = backtrace_arr;
         }
 
-        // Validate minimum required fields
         if (!result.contains("signal") || !result.contains("signal_name")) {
             spdlog::warn("[CrashHandler] Crash file missing required fields");
             return nullptr;
