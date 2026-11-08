@@ -58,6 +58,21 @@ PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, f
     return proj(b, x, b.ft - height * spool_size / kShellReferenceSpool, z);
 }
 
+void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                        PointF* out, int n) {
+    const float scale = spool_size / kShellReferenceSpool;
+    for (int i = 0; i < n; ++i) {
+        const float at = n > 1 ? (float)i * (float)(shell.dome_n - 1) / (float)(n - 1) : 0.0f;
+        const int lo = std::min((int)at, shell.dome_n - 2);
+        const float t = at - (float)lo;
+        const ProfilePoint& p0 = shell.dome[lo];
+        const ProfilePoint& p1 = shell.dome[lo + 1];
+        const float z = (p0.depth_frac + (p1.depth_frac - p0.depth_frac) * t) * b.depth;
+        const float h = (p0.height_px + (p1.height_px - p0.height_px) * t) * scale;
+        out[i] = proj(b, x, b.ft - h, z);
+    }
+}
+
 float spool_pitch(float spool_size) {
     // The spool canvas's own integer geometry: width between flanges plus a
     // flange ellipse each side.

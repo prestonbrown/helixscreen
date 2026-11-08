@@ -9,11 +9,11 @@
 namespace helix::ui::tray {
 
 namespace {
-constexpr ProfilePoint k_ace_pro_cheek[] = {{0.0000f, 0.00f}, {0.4200f, 0.00f}, {1.0000f, 40.00f}};
-constexpr ProfilePoint k_ace_pro_dome[] = {{0.0000f, 0.00f}, {0.0096f, 25.05f}, {0.0381f, 34.26f}, {0.0843f, 41.65f}, {0.1464f, 48.22f}, {0.2222f, 54.23f}, {0.3087f, 59.74f}, {0.4025f, 64.70f}, {0.5000f, 69.00f}, {0.5975f, 72.50f}, {0.6913f, 75.05f}, {0.7778f, 76.46f}, {0.8536f, 76.50f}, {0.9157f, 74.91f}, {0.9619f, 71.21f}, {0.9904f, 64.28f}, {1.0000f, 40.00f}};
+constexpr ProfilePoint k_ace_pro_cheek[] = {{0.0000f, 0.00f}, {0.5982f, 0.00f}, {1.0000f, 31.42f}};
+constexpr ProfilePoint k_ace_pro_dome[] = {{0.0000f, 0.00f}, {0.0000f, 36.96f}, {0.0046f, 44.31f}, {0.0182f, 50.54f}, {0.0410f, 55.63f}, {0.0729f, 59.59f}, {0.1139f, 62.42f}, {0.1640f, 64.11f}, {0.2232f, 64.68f}, {0.8661f, 64.68f}, {0.9016f, 64.34f}, {0.9317f, 63.32f}, {0.9563f, 61.63f}, {0.9754f, 59.25f}, {0.9891f, 56.19f}, {0.9973f, 52.46f}, {1.0000f, 48.05f}, {1.0000f, 31.42f}};
 
 const UnitShell kShells[] = {
-    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 40.0f, 44.0f, 13.0f, 7.0f, true, true, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f},
+    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 18, 4, 31.42f, 44.0f, 13.0f, 7.0f, true, true, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f},
 };
 } // namespace
 

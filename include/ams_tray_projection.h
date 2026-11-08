@@ -51,6 +51,9 @@ PointF proj(const TrayBox& b, float x, float y, float z);
 float cap_width(const UnitShell& shell, float spool_size);
 /// Point @p i of the body's top edge, on the side plane at @p x.
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
+/// @p n points of a unit's real lid profile at plane @p x, front to back.
+void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                        PointF* out, int n);
 /// Where the body's top edge lies under @p upper, a point of the lid's end at plane @p x.
 PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                    PointF upper);

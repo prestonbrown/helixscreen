@@ -235,6 +235,27 @@ TEST_CASE("tray projection: a lid's end comes down to the body's contour", "[ams
     CHECK(back.y == Approx(50.0f - shell->back_extra_px - b.rise));
 }
 
+TEST_CASE("tray projection: a unit's lid takes its real profile", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 0;
+    PointF out[17];
+    shell_cap_polyline(b, *shell, 110.0f, 100, out, 17);
+    CHECK(out[0].y == Approx(50.0f));
+    CHECK(out[16].y == Approx(50.0f - shell->back_extra_px).margin(0.01));
+    // The middle of the lid sits on the flat top, at the profile's full height.
+    float crest = 0;
+    for (int i = 0; i < shell->dome_n; ++i)
+        crest = std::max(crest, shell->dome[i].height_px);
+    CHECK(out[8].y == Approx(50.0f - crest).margin(0.01));
+    CHECK(out[8].y < out[16].y);
+}
+
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     helix::AmsUnit unit;
     unit.slots.resize(4);

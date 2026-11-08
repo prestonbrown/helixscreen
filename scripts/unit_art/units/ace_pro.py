@@ -14,7 +14,16 @@ SMOKE = "#565d68"
 ORANGE = "#ee6a1f"
 EDGE = "#c9ced6"
 CENTERS = [0.15, 0.39, 0.63, 0.865]
+LOWER = ZR + 0.17
+CHEEK_KNEE_Y = 0.42
+# A 0.25-radius spool here is a 46.2 px flange on the tray's 110 px reference spool.
+TRAY_PX_PER_UNIT = 46.2 / 0.25
 _REPO = Path(__file__).resolve().parents[3]
+
+
+def _lid_profile():
+    """The lid's real side profile: up the front, a rounded corner, a flat top, a tighter rear corner."""
+    return kit.fillet([(0.018, ZR), (0.018, H), (D - 0.03, H), (D - 0.03, LOWER)], [0, 0.15, 0.09, 0], steps=7)
 
 
 @dataclass
@@ -52,9 +61,9 @@ def draw_art(sc, colors, tier):
     c = spool.spool_constants(_REPO)
     cam = sc.camera
     foot = kit.fillet([(0, 0), (0, D), (W, D), (W, 0)], [0.05] * 4, closed=True, steps=8)[::-1]
-    lower = ZR + 0.17
+    lower = LOWER
     lidx0, lidx1 = 0.012, W - 0.012
-    prof = kit.fillet([(0.018, ZR), (0.018, H), (D - 0.03, H), (D - 0.03, lower)], [0, 0.15, 0.09, 0])
+    prof = _lid_profile()
     cap = [(0.018, ZR)] + prof[1:] + [(0.42, ZR)]
 
     sc.poly([(0.0, 0.02, 0), (W + 0.03, 0.02, 0), (W + 0.03, D + 0.03, 0), (0, D + 0.03, 0)], "#000", 0.55, blur=True)
@@ -97,20 +106,13 @@ def draw_art(sc, colors, tier):
         sc.line([(lx, 0.018, ZR), (lx, 0.018, H - 0.15)], EDGE, 0.003 * thick, op)
 
 
-BACK_EXTRA_PX = 40.0
-DOME_RISE_PX = 49.0
-CHEEK_KNEE = 0.42
-
-
 def _tray_shell():
-    cheek = [(0.0, 0.0), (CHEEK_KNEE, 0.0), (1.0, BACK_EXTRA_PX)]
-    dome = []
-    n = 16
-    for i in range(n + 1):
-        th = math.pi - math.pi * i / n
-        depth = (1 + math.cos(th)) / 2
-        dome.append((depth, BACK_EXTRA_PX * depth + DOME_RISE_PX * max(0.0, math.sin(th)) ** 0.42))
-    return TrayShellDef(cheek, dome, BACK_EXTRA_PX, 44.0, 13.0, 7.0, True, True, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f)
+    profile = _lid_profile()
+    dome = kit.tray_profile(profile, ZR, TRAY_PX_PER_UNIT)
+    knee = (CHEEK_KNEE_Y - profile[0][0]) / (profile[-1][0] - profile[0][0])
+    back_extra = dome[-1][1]
+    cheek = [(0.0, 0.0), (knee, 0.0), (1.0, back_extra)]
+    return TrayShellDef(cheek, dome, back_extra, 44.0, 13.0, 7.0, True, True, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f)
 
 
 UNIT = UnitDef("ace_pro", 4, draw_art, _tray_shell())

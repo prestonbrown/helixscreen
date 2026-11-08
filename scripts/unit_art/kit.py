@@ -80,6 +80,12 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
+def tray_profile(profile, base_z, px_per_unit):
+    """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
+    y0, y1 = profile[0][0], profile[-1][0]
+    return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
+
+
 @dataclass
 class Item:
     points: list

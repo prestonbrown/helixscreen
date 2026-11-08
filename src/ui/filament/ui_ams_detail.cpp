@@ -177,8 +177,15 @@ void build_lid(const tray::TrayBox& unit_box, float lid_h, float x0, float x1, L
     lid.box = unit_box;
     lid.box.fl = x0;
     lid.box.fr = x1;
-    tray::cap_polyline(unit_box, lid_h, x0, lid.left, kCapPoints);
-    tray::cap_polyline(unit_box, lid_h, x1, lid.right, kCapPoints);
+    if (s_tray.shell) {
+        tray::shell_cap_polyline(unit_box, *s_tray.shell, s_tray.spool_size, x0, lid.left,
+                                 kCapPoints);
+        tray::shell_cap_polyline(unit_box, *s_tray.shell, s_tray.spool_size, x1, lid.right,
+                                 kCapPoints);
+    } else {
+        tray::cap_polyline(unit_box, lid_h, x0, lid.left, kCapPoints);
+        tray::cap_polyline(unit_box, lid_h, x1, lid.right, kCapPoints);
+    }
     // Monotone-chain hull; the right cap is the left one shifted along x.
     tray::PointF pts[2 * kCapPoints];
     for (int i = 0; i < kCapPoints; ++i) {
@@ -888,6 +895,12 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
 
     s_tray.lid = lid;
     s_tray.lid_h = tray::lid_height(box, flange_ry);
+    if (shell) {
+        float crest = 0;
+        for (int i = 0; i < shell->dome_n; ++i)
+            crest = std::max(crest, shell->dome[i].height_px);
+        s_tray.lid_h = crest * shell_scale - box.back_extra / 2.0f;
+    }
     s_tray.shell = shell;
     s_tray.spool_size = size;
     s_tray.lane_half = half;

@@ -78,7 +78,7 @@ def generate_shell_table(units):
         latch = "true" if t.has_latch else "false"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, k_{unit.id}_dome, {len(t.dome)}, {unit.lanes}, '
-            f"{t.back_extra_px:.1f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
+            f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
             f"{lid}, {latch}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
