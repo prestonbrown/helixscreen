@@ -15,12 +15,13 @@ setup() {
 }
 
 # Prints "SPDLOG_SYSTEM_HEADER=<SPDLOG_SYSTEM_HEADER>" then "inc=<SPDLOG_INC>". Each value is
-# the last line of its own make run, below the banner a cross target echoes.
+# the last line of its own make run, below the banner a cross target echoes. Toolchain
+# warnings go to stderr and are not part of the value.
 spdlog_header_for() {
     local v
     for v in SPDLOG_SYSTEM_HEADER SPDLOG_INC; do
         printf '%s=%s\n' "$v" "$(scratch_make -s "$@" CC=gcc CXX=g++ \
-            SPDLOG_HOST_HEADER_PATHS="$fake" print-var-$v | tail -n 1)"
+            SPDLOG_HOST_HEADER_PATHS="$fake" print-var-$v 2>/dev/null | tail -n 1)"
     done
 }
 
