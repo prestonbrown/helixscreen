@@ -107,11 +107,6 @@
     <px name="ams_edit_hdr_gap_medium" value="4"/>
     <px name="ams_edit_hdr_gap_large" value="4"/>
   </consts>
-  <subjects>
-    <!-- Save stays shut until the lane records are read: an edit before the
-         read would overwrite records nobody has seen. -->
-    <subject_expr name="ams_edit_save_blocked" expr="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0"/>
-  </subjects>
   <styles>
     <!-- The colour view's presets pane: content-wide beside the picker, the
          view's full width alone. Both are bound styles, since an inline width
@@ -119,9 +114,14 @@
     <style name="color_pane_fit" width="content"/>
     <style name="color_pane_fill" width="100%"/>
   </styles>
+  <!-- Save is shut while nothing is dirty and until the lane records are read:
+       an edit before the read would overwrite records nobody has seen. A cond,
+       not a subject_expr: both operands come from init_subjects(), after the
+       component registers. -->
   <view name="ams_edit_overlay"
         extends="overlay_panel" title="Edit Spool" hide_action_button="false" action_button_text="Save"
-        action_button_callback="ams_edit_save_cb" action_button_disabled_subject="ams_edit_save_blocked"
+        action_button_callback="ams_edit_save_cb"
+        action_button_disabled_cond="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0"
         action_button_hidden_subject="ams_edit_save_hidden" title_badge_icon="spoolman"
         title_badge_subject="ams_edit_is_managed" back_button_callback="ams_edit_back_cb">
     <!-- Header icon buttons, left of Save: Choose from Spoolman and Scan QR,
