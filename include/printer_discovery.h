@@ -226,16 +226,7 @@ class PrinterDiscovery {
 
                 // Fan detection: name starts with "FAN" (e.g., fan0, fan1, fan2)
                 if (upper_pin.rfind("FAN", 0) == 0) {
-                    // An enable pin only gates a fan driven by its own PWM pin
-                    // (`fan0_en` beside `fan0`), so it has no speed to show.
-                    const auto ends_with = [&upper_pin](const std::string& suffix) {
-                        return upper_pin.size() >= suffix.size() &&
-                               upper_pin.compare(upper_pin.size() - suffix.size(), suffix.size(),
-                                                 suffix) == 0;
-                    };
-                    if (!ends_with("_EN") && !ends_with("_ENABLE")) {
-                        fans_.push_back(name);
-                    }
+                    fans_.push_back(name);
                 }
                 // LED detection
                 else if (upper_pin.find("LIGHT") != std::string::npos ||
@@ -587,6 +578,8 @@ class PrinterDiscovery {
                 }
             }
         }
+
+        remove_fan_enable_pins(fans_);
 
         // AFC_stepper objects can be lanes (Box Turtle: "AFC_stepper lane0") or motor
         // components (Vivid: "AFC_stepper Vivid_1_drive"/"Vivid_1_selector").
@@ -1541,6 +1534,32 @@ class PrinterDiscovery {
     }
 
   private:
+    /// Drops fan-named output_pins that only gate a sibling PWM pin (`fan0_en` beside
+    /// `fan0`). A lone enable pin stays: it may be the only control that fan has.
+    static void remove_fan_enable_pins(std::vector<std::string>& fans) {
+        static const std::string kPrefix = "output_pin ";
+        const auto upper_pin = [](const std::string& fan) {
+            return fan.rfind(kPrefix, 0) == 0 ? to_upper(fan.substr(kPrefix.size()))
+                                              : std::string();
+        };
+        std::unordered_set<std::string> pins;
+        for (const auto& fan : fans) {
+            pins.insert(upper_pin(fan));
+        }
+        const auto gates_sibling = [&](const std::string& fan) {
+            const std::string pin = upper_pin(fan);
+            for (const std::string suffix : {"_EN", "_ENABLE"}) {
+                if (pin.size() > suffix.size() &&
+                    pin.compare(pin.size() - suffix.size(), suffix.size(), suffix) == 0 &&
+                    pins.count(pin.substr(0, pin.size() - suffix.size())) > 0) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        fans.erase(std::remove_if(fans.begin(), fans.end(), gates_sibling), fans.end());
+    }
+
     // Helper: convert string to uppercase
     static std::string to_upper(const std::string& str) {
         std::string result = str;
