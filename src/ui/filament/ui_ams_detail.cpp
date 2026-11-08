@@ -252,6 +252,28 @@ void fill_cheek(lv_layer_t* layer, lv_point_t o, float x, uint32_t rgb) {
     }
 }
 
+/// The glass at a lid's end, reaching down to the body's contour.
+void fill_shell_cap(lv_layer_t* layer, lv_point_t o, const tray::PointF* cap, float x,
+                    lv_color_t color, lv_opa_t opa) {
+    for (int i = 0; i + 1 < kCapPoints; ++i) {
+        const tray::PointF low0 =
+            tray::cheek_under(s_tray.box, *s_tray.shell, s_tray.spool_size, x, cap[i]);
+        const tray::PointF low1 =
+            tray::cheek_under(s_tray.box, *s_tray.shell, s_tray.spool_size, x, cap[i + 1]);
+        const tray::PointF strip[4] = {cap[i], cap[i + 1], low1, low0};
+        fill_convex(layer, o, strip, 4, color, opa);
+    }
+}
+
+/// The body's top edge along one end of the unit.
+void stroke_cheek(lv_layer_t* layer, lv_point_t o, float x, lv_color_t color, lv_opa_t opa) {
+    const tray::UnitShell& shell = *s_tray.shell;
+    for (int i = 0; i + 1 < shell.cheek_n; ++i) {
+        edge(layer, o, tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i),
+             tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i + 1), color, opa);
+    }
+}
+
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
 void draw_shell_front(lv_layer_t* layer, lv_point_t o) {
     const tray::UnitShell& shell = *s_tray.shell;
@@ -365,8 +387,13 @@ void tray_front_draw_cb(lv_event_t* e) {
     const tray::PointF edges[][2] = {{fl_t, fr_t}, {fl_b, fr_b}, {fl_t, fl_b},
                                      {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
-    for (const auto& ab : edges)
-        edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+    if (!s_tray.shell) {
+        for (const auto& ab : edges)
+            edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+    } else {
+        stroke_cheek(layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
+        stroke_cheek(layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
+    }
 
     float x0[kMaxLids], x1[kMaxLids];
     const int lids = lid_spans(x0, x1);
@@ -376,10 +403,14 @@ void tray_front_draw_cb(lv_event_t* e) {
         build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
         if (!simple) {
             fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
-            fill_convex(layer, o, lid.right, kCapPoints, c.glass, a.cap);
+            if (s_tray.shell)
+                fill_shell_cap(layer, o, lid.right, x1[i], c.glass, a.cap);
+            else
+                fill_convex(layer, o, lid.right, kCapPoints, c.glass, a.cap);
             draw_sheen(layer, o, lid);
         }
-        stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
+        if (!s_tray.shell)
+            stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
         stroke(layer, o, lid.right, kCapPoints, false, c.glass_edge,
                (lv_opa_t)(a.glass_edge * 7 / 10));
         stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge,

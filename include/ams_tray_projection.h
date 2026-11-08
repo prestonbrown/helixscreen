@@ -51,6 +51,9 @@ PointF proj(const TrayBox& b, float x, float y, float z);
 float cap_width(const UnitShell& shell, float spool_size);
 /// Point @p i of the body's top edge, on the side plane at @p x.
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
+/// Where the body's top edge lies under @p upper, a point of the lid's end at plane @p x.
+PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                   PointF upper);
 
 struct TrayFaces {
     PointF back_wall[4], floor[4], left_wall[4], front[4], right_side[4];

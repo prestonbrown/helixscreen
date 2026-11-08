@@ -218,6 +218,23 @@ TEST_CASE("tray projection: a cheek climbs from the front wall to the back", "[a
     CHECK(back.x > front.x);
 }
 
+TEST_CASE("tray projection: a lid's end comes down to the body's contour", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 10;
+    // Ahead of the knee the body is level, so the glass reaches the front wall's height.
+    const PointF level = cheek_under(b, *shell, 110.0f, 100, proj(b, 100, 0, 20));
+    CHECK(level.y == Approx(proj(b, 100, 50, 20).y));
+    // Past it the glass stops on the climbing edge, well above a straight run to the floor.
+    const PointF back = cheek_under(b, *shell, 110.0f, 100, proj(b, 100, 0, 100));
+    CHECK(back.y == Approx(50.0f - shell->back_extra_px - b.rise));
+}
+
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     helix::AmsUnit unit;
     unit.slots.resize(4);
