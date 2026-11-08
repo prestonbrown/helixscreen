@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/thread_wakes.h"
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
 #include "settings_manager.h"
@@ -1101,6 +1102,27 @@ TEST_CASE("SoundSequencer: parks the device before any sound plays",
 
     seq.shutdown();
 }
+
+#ifdef __linux__
+TEST_CASE("SoundSequencer: an idle sequencer sleeps until it is asked for something",
+          "[sound][sequencer][device_park]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    const auto fresh = helix::test::threads_started_by([&] { seq.start(); });
+    REQUIRE(fresh.size() == 1);
+    REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
+
+    const long start = helix::test::thread_voluntary_switches(fresh[0]);
+    REQUIRE(start >= 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    // Each switch is a wake: a polling wait shows tens here, a blocking one none.
+    CHECK(helix::test::thread_voluntary_switches(fresh[0]) - start <= 2);
+
+    seq.play(make_tone(1000.0f, 20.0f));
+    CHECK(wait_until_done(seq));
+    seq.shutdown();
+}
+#endif
 
 TEST_CASE("SoundSequencer: wakes the device to play and parks it again after",
           "[sound][sequencer][device_park][slow]") {

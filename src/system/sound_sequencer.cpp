@@ -34,6 +34,9 @@ void SoundSequencer::play(const SoundDefinition& sound, SoundPriority priority) 
 }
 
 void SoundSequencer::stop() {
+    // Under the lock: the idle wait checks its predicate there, so the flag
+    // cannot land between that check and the sleep and go unseen.
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     stop_requested_.store(true);
     queue_cv_.notify_one();
 }
@@ -77,8 +80,11 @@ void SoundSequencer::start() {
 void SoundSequencer::shutdown() {
     if (!running_.load())
         return;
-    running_.store(false);
-    queue_cv_.notify_one();
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        running_.store(false);
+        queue_cv_.notify_one();
+    }
     if (sequencer_thread_.joinable()) {
         sequencer_thread_.join();
     }
@@ -135,7 +141,12 @@ void SoundSequencer::sequencer_loop() {
                     device_active_ = false;
                 }
                 was_playing = false;
-                queue_cv_.wait_for(lock, std::chrono::milliseconds(10));
+                // Every producer notifies under queue_mutex_, so this sleeps until
+                // there is work instead of waking the thread on a timeout.
+                queue_cv_.wait(lock, [this] {
+                    return !running_.load() || stop_requested_.load() || !request_queue_.empty() ||
+                           has_external_tick();
+                });
                 last_tick = std::chrono::steady_clock::now();
                 continue;
             }
