@@ -62,55 +62,46 @@ static NewFilament record(const char* material, const char* color_hex) {
 // detect_changes() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver detect_changes: no changes returns both false",
+TEST_CASE("SpoolmanSlotSaver detect_changes: filament fields and spool fields each set their level",
           "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.filament_level);
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE_FALSE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: vendor changed sets filament_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.brand = "eSUN";
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE(changes.filament_level);
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: material changed sets filament_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.material = "PETG";
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE(changes.filament_level);
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: color changed sets filament_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.color_rgb = 0x00FF00; // Green
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE(changes.filament_level);
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE(changes.any());
+    struct Row {
+        const char* what;
+        std::function<void(SlotInfo&)> edit;
+        bool filament_level;
+        bool spool_level;
+    };
+    const Row rows[] = {
+        {"no change", [](SlotInfo&) {}, false, false},
+        {"vendor", [](SlotInfo& e) { e.brand = "eSUN"; }, true, false},
+        {"material", [](SlotInfo& e) { e.material = "PETG"; }, true, false},
+        {"colour", [](SlotInfo& e) { e.color_rgb = 0x00FF00; }, true, false},
+        {"remaining weight", [](SlotInfo& e) { e.remaining_weight_g = 750.0f; }, false, true},
+        // Within the 0.1 g threshold.
+        {"remaining weight by a hair", [](SlotInfo& e) { e.remaining_weight_g += 0.05f; }, false,
+         false},
+        // Spoolman's initial_weight is only ever sent at creation without this.
+        {"total weight", [](SlotInfo& e) { e.total_weight_g = 750.0f; }, false, true},
+        {"total weight by a hair", [](SlotInfo& e) { e.total_weight_g += 0.05f; }, false, false},
+        {"material and weight",
+         [](SlotInfo& e) {
+             e.material = "ABS";
+             e.remaining_weight_g = 600.0f;
+         },
+         true, true},
+        // A different spool with the same material, brand, colour and weight.
+        {"another spool", [](SlotInfo& e) { e.spoolman_id = 99; }, false, true},
+        {"unlinked from Spoolman", [](SlotInfo& e) { e.spoolman_id = 0; }, false, true},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(r.what);
+        const SlotInfo original = make_test_slot();
+        SlotInfo edited = original;
+        r.edit(edited);
+        const auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
+        CHECK(changes.filament_level == r.filament_level);
+        CHECK(changes.spool_level == r.spool_level);
+        CHECK(changes.any() == (r.filament_level || r.spool_level));
+    }
 }
 
 // A variant swap within one vendor+material — SUNLU "PLA Marble" -> "PLA+ 2.0"
@@ -148,100 +139,6 @@ TEST_CASE("SpoolmanSlotSaver detect_changes: catalog product changed sets filame
         auto changes = SpoolmanSlotSaver::detect_changes(original, original);
         REQUIRE_FALSE(changes.any());
     }
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: remaining weight changed sets spool_level only",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.remaining_weight_g = 750.0f;
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.filament_level);
-    REQUIRE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: weight within threshold is not a change",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.remaining_weight_g = original.remaining_weight_g + 0.05f; // Within 0.1 threshold
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE_FALSE(changes.any());
-}
-
-// A user-entered change to the spool's TOTAL weight is a real spool-level change.
-// Without this, the header Save button lights up (is_dirty() includes total_weight_g)
-// and the value is stored locally, while Spoolman keeps its old initial_weight forever
-// — total_weight_g was only ever sent to Spoolman at spool-creation time.
-TEST_CASE("SpoolmanSlotSaver detect_changes: total weight changed sets spool_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.total_weight_g = 750.0f; // was 1000g
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.filament_level);
-    REQUIRE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: total weight within threshold is not a change",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.total_weight_g = original.total_weight_g + 0.05f; // within 0.1 threshold
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.spool_level);
-    REQUIRE_FALSE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: both filament and weight changed sets both",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.material = "ABS";
-    edited.remaining_weight_g = 600.0f;
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE(changes.filament_level);
-    REQUIRE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: spoolman_id changed sets spool_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.spoolman_id = 99; // Different spool, same material/brand/color/weight
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.filament_level);
-    REQUIRE(changes.spool_level);
-    REQUIRE(changes.any());
-}
-
-TEST_CASE("SpoolmanSlotSaver detect_changes: spoolman_id cleared sets spool_level",
-          "[spoolman][slot_saver]") {
-    SlotInfo original = make_test_slot();
-    SlotInfo edited = original;
-    edited.spoolman_id = 0; // Unlinked from Spoolman
-
-    auto changes = SpoolmanSlotSaver::detect_changes(original, edited);
-
-    REQUIRE_FALSE(changes.filament_level);
-    REQUIRE(changes.spool_level);
-    REQUIRE(changes.any());
 }
 
 // ============================================================================
@@ -744,40 +641,20 @@ TEST_CASE("SpoolmanSlotSaver color_to_hex produces hex without # prefix (observe
 // is_filament_complete() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver is_filament_complete: all fields set returns true",
+TEST_CASE("SpoolmanSlotSaver is_filament_complete: a brand, a material and a chosen colour",
           "[spoolman][slot_saver]") {
-    SlotInfo slot;
-    slot.brand = "Polymaker";
-    slot.material = "PLA";
-    slot.color_rgb = 0xFF0000;
-    REQUIRE(SpoolmanSlotSaver::is_filament_complete(slot));
-}
-
-TEST_CASE("SpoolmanSlotSaver is_filament_complete: empty brand returns false",
-          "[spoolman][slot_saver]") {
-    SlotInfo slot;
-    slot.brand = "";
-    slot.material = "PLA";
-    slot.color_rgb = 0xFF0000;
-    REQUIRE_FALSE(SpoolmanSlotSaver::is_filament_complete(slot));
-}
-
-TEST_CASE("SpoolmanSlotSaver is_filament_complete: empty material returns false",
-          "[spoolman][slot_saver]") {
-    SlotInfo slot;
-    slot.brand = "Polymaker";
-    slot.material = "";
-    slot.color_rgb = 0xFF0000;
-    REQUIRE_FALSE(SpoolmanSlotSaver::is_filament_complete(slot));
-}
-
-TEST_CASE("SpoolmanSlotSaver is_filament_complete: default gray color returns false",
-          "[spoolman][slot_saver]") {
-    SlotInfo slot;
-    slot.brand = "Polymaker";
-    slot.material = "PLA";
-    slot.color_rgb = kAmsDefaultSlotColor; // 0x808080
-    REQUIRE_FALSE(SpoolmanSlotSaver::is_filament_complete(slot));
+    const auto slot = [](const char* brand, const char* material, uint32_t rgb) {
+        SlotInfo s;
+        s.brand = brand;
+        s.material = material;
+        s.color_rgb = rgb;
+        return s;
+    };
+    CHECK(SpoolmanSlotSaver::is_filament_complete(slot("Polymaker", "PLA", 0xFF0000)));
+    CHECK_FALSE(SpoolmanSlotSaver::is_filament_complete(slot("", "PLA", 0xFF0000)));
+    CHECK_FALSE(SpoolmanSlotSaver::is_filament_complete(slot("Polymaker", "", 0xFF0000)));
+    CHECK_FALSE(
+        SpoolmanSlotSaver::is_filament_complete(slot("Polymaker", "PLA", kAmsDefaultSlotColor)));
 }
 
 // ============================================================================
