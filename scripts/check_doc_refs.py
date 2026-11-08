@@ -7,14 +7,12 @@
 # CLAUDE.md files and skills work by progressive disclosure — they are mostly
 # pointers, and a pointer to a renamed or deleted file is worse than no pointer.
 # It sends the reader (human or agent) looking for something that isn't there, and
-# it silently teaches a wrong name. Several rounds of this have been cleaned up by
-# hand:
+# it silently teaches a wrong name. The shapes this catches:
 #
-#   - .claude/checklist.md cited six docs that had moved to docs/devel/
-#   - CLAUDE.md taught ui_nav_push_overlay(), a function with zero call sites
-#   - scripts/CLAUDE.md documented package.sh, deleted in 1ddbbbdba
-#   - a lesson taught lv_xml_component_register_from_file(), a transposed name
-#     that exists nowhere
+#   - a doc citing docs that have moved (e.g. into docs/devel/)
+#   - a doc teaching a function with zero call sites
+#   - a doc documenting a script that has been deleted
+#   - a doc teaching a transposed name that exists nowhere
 #
 # Five checks:
 #   refs   — every backticked path in an agent-facing doc resolves
@@ -380,8 +378,8 @@ def patch_created_files(targets):
 def check_refs(targets, allpaths, devel=False, created=()):
     problems = []
     # Basename index so a bare `THREADING.md` resolves without scanning all
-    # ~70k repo paths per citation — the suffix fallback used to dominate the
-    # whole run (8s of the gate's cost). Refs containing '/' keep the exact
+    # ~70k repo paths per citation — a suffix scan for every citation would
+    # dominate the whole run (about 8s). Refs containing '/' keep the exact
     # suffix scan (p.endswith('/'+path)); those are rare.
     by_basename = {}
     for p in allpaths:
@@ -809,10 +807,8 @@ def main():
         do_index = False
         do_counts = False
     else:
-        # Default scope = agent-facing docs + the docs/devel target set. The
-        # docs/devel half used to be opt-in via --devel; it flipped to default
-        # enforcement once the surviving docs were swept clean, so CI catches
-        # future citation rot in feature docs instead of accumulating it.
+        # Default scope = agent-facing docs + the docs/devel target set, so CI
+        # catches citation rot in feature docs instead of accumulating it.
         targets = sorted(set(scan_targets()) | set(scan_devel_targets([])))
         # devel=True enables the parent-dir resolution fallback for docs/devel
         # citations; for repo-root CLAUDE.md files it is a harmless no-op.
