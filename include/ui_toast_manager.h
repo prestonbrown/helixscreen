@@ -211,7 +211,7 @@ class ToastManager {
 
     // Take a toast that is being torn down away from any pointer pressing or
     // scrolling inside it, and make its action button unclickable, so no press
-    // on the button completes into a dismissed toast (#850; bundle A5V73UV4).
+    // on the button completes into a dismissed toast (#850).
     // A press anywhere else keeps its gesture.
     static void detach_from_input(lv_obj_t* widget);
     void update_notification_bell();

@@ -34,8 +34,6 @@
  * - Enables unit testing with mock NotificationHistory
  * - Decouples panel from global state
  *
- * ## Migration Notes:
- * Phase 3 panel - first to demonstrate service injection pattern.
  * Uses overlay panel helpers (ui_overlay_panel_setup_standard).
  *
  * @see PanelBase for base class documentation
