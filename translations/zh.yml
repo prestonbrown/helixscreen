@@ -632,6 +632,7 @@ translations:
   Cannot park while a print is active: '打印时无法停放'
   Cannot perform this action now: 当前无法执行此操作
   'Cannot reprint: not connected to printer': '无法重新打印: 未连接打印机'
+  Cannot restart Moonraker while printing: "打印时无法重启 Moonraker"
   Cannot restart — no filename: 无法重启 — 没有文件名
   Cannot run filament operation while printing: 打印期间无法执行耗材操作
   'Cannot schedule a pause: printer not connected': '无法设置暂停：打印机未连接'
@@ -3292,6 +3293,7 @@ translations:
   Restart Klipper?: '重启 Klipper？'
   Restart Moonraker: 重启 Moonraker
   Restart Moonraker to finish the plugin change: 重启 Moonraker 以完成插件更改
+  Restart Moonraker?: "重启 Moonraker?"
   Restart Now: 立即重启
   Restart Required: 需要重启
   'Restart failed: not connected': '重启失败: 未连接'
@@ -4122,6 +4124,7 @@ translations:
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
+  The screen will lose its connection to the printer for a few seconds.: "屏幕将与打印机断开连接几秒钟。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
   The speed of one fan you choose: 所选风扇的转速
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'

@@ -623,6 +623,7 @@
   <translation tag="Cannot park while a print is active" zh="打印时无法停放"/>
   <translation tag="Cannot perform this action now" zh="当前无法执行此操作"/>
   <translation tag="Cannot reprint: not connected to printer" zh="无法重新打印: 未连接打印机"/>
+  <translation tag="Cannot restart Moonraker while printing" zh="打印时无法重启 Moonraker"/>
   <translation tag="Cannot restart — no filename" zh="无法重启 — 没有文件名"/>
   <translation tag="Cannot run filament operation while printing" zh="打印期间无法执行耗材操作"/>
   <translation tag="Cannot save offsets while printing" zh="打印时无法保存偏移"/>
@@ -3187,6 +3188,7 @@
   <translation tag="Restart Klipper?" zh="重启 Klipper？"/>
   <translation tag="Restart Moonraker" zh="重启 Moonraker"/>
   <translation tag="Restart Moonraker to finish the plugin change" zh="重启 Moonraker 以完成插件更改"/>
+  <translation tag="Restart Moonraker?" zh="重启 Moonraker?"/>
   <translation tag="Restart Now" zh="立即重启"/>
   <translation tag="Restart Required" zh="需要重启"/>
   <translation tag="Restart failed: not connected" zh="重启失败: 未连接"/>
@@ -3972,6 +3974,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." zh="已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。"/>
+  <translation tag="The screen will lose its connection to the printer for a few seconds." zh="屏幕将与打印机断开连接几秒钟。"/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" zh="无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修"/>
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." zh="子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。"/>
