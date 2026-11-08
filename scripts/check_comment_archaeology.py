@@ -9,9 +9,16 @@
 # commit it names may be squashed, rebased away, or simply older than anyone reading.
 # See CLAUDE.md § "Comments describe the code, not its past".
 #
-# Only the mechanically-checkable half of that rule lives here. Phrasing ("this used
-# to...", a narrated bug, a recap of what a review found) is judgment and stays with
-# the reviewer; a SHA is objective, so it gets a gate.
+# Two checks live here. The SHA ratchet covers the whole tree. The phrase check reads
+# only the comment lines a change ADDS (`--staged` at commit, `--base REV|auto` for a
+# branch's committed work) for a short list of phrases that narrate history: see
+# PHRASES. Phrasing in general is judgment and stays with the reviewer; each phrase
+# on the list was measured against the tree and kept only where it almost never
+# reads as present-tense prose. "no longer", "previously", "originally", a bare
+# "this fix" and a bare date are not on it for that reason: "no longer than N", "the
+# previously selected item", "the originally clicked child", "only apply this fix for
+# 32bpp", "2026-06-15 12:00 UTC is 08:00 EDT". A deliberate one takes
+# `ARCHAEOLOGY_OK: <reason>` on its line or the line above.
 #
 # Precision comes from asking git rather than guessing at hex. A 7-40 character hex
 # token is only reported when `git cat-file -e <token>^{commit}` resolves it in THIS
@@ -26,6 +33,8 @@
 #   ./scripts/check_comment_archaeology.py
 #   ./scripts/check_comment_archaeology.py --list
 #   ./scripts/check_comment_archaeology.py --write-baseline
+#   ./scripts/check_comment_archaeology.py --staged       # phrases, the index against HEAD
+#   ./scripts/check_comment_archaeology.py --base auto    # phrases, fork point...HEAD
 
 from __future__ import annotations
 
@@ -34,6 +43,11 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from check_constant_naming import parse_diff  # noqa: E402
+from mutate_diff import comment_only_lines, comment_syntax  # noqa: E402
 
 SCAN_DIRS = ("src", "include", "tests", "scripts", "mk")
 SCAN_SUFFIXES = (".cpp", ".h", ".hpp", ".c", ".py", ".bats", ".sh", ".mk")
@@ -46,6 +60,21 @@ HEX = re.compile(r"(?<![0-9a-zA-Z_])([0-9a-f]{7,40})(?![0-9a-zA-Z_])")
 # still a citation nobody wants, and treating those lines as comments only widens the
 # net in the direction we want.
 COMMENT = re.compile(r"(//|/\*|^\s*\*|#)")
+
+# History and process phrases, read in comment text only. A pronoun before the
+# past-habit "used to" is what separates history from purpose: "a pipe used to wake
+# the loop" and "whatever used to be in the slot" describe the code as it is.
+PHRASES = (
+    ("used to", re.compile(r"\b(?:it|this|that|which|we|they|code)\s+used\s+to\b", re.I)),
+    ("pre-fix", re.compile(r"\bpre-fix\b", re.I)),
+    ("the old code", re.compile(r"\bthe\s+old\s+code\b", re.I)),
+    ("before the fix", re.compile(r"\bbefore\s+(?:the|this)\s+fix\b", re.I)),
+    ("fixes the bug where", re.compile(r"\bfix(?:es|ed)?\s+the\s+bug\s+where\b", re.I)),
+    ("was changed to", re.compile(r"\bwas\s+changed\s+to\b", re.I)),
+    ("dated note", re.compile(r"(?<![\w-])(?:as\s+of|until)\s+(?:19|20)\d\d-[01]\d-[0-3]\d\b",
+                              re.I)),
+)
+ESCAPE = "ARCHAEOLOGY_OK:"
 
 
 def iter_sources(root: Path):
@@ -149,6 +178,77 @@ def write_baseline(path: Path, counts: dict[str, int]) -> None:
     )
 
 
+def in_scope(path: str) -> bool:
+    if path in EXTRA_FILES:
+        return True
+    return path.split("/", 1)[0] in SCAN_DIRS and Path(path).suffix in SCAN_SUFFIXES
+
+
+def phrase_findings(diff_text: str, read_new) -> list[tuple[str, int, str, str]]:
+    """(path, lineno, phrase, line) for each added comment line naming history.
+
+    read_new(path) returns the file's new content: a line inside a block comment
+    is only known to be comment from the lines around it.
+    """
+    out = []
+    for path, (added, _removed) in sorted(parse_diff(diff_text).items()):
+        if not in_scope(path) or not added:
+            continue
+        lines = read_new(path).splitlines()
+        comments = comment_only_lines("\n".join(lines), comment_syntax(path))
+        for lineno, text in added:
+            if not 1 <= lineno <= len(comments):
+                continue
+            if ESCAPE in text or (lineno >= 2 and ESCAPE in lines[lineno - 2]):
+                continue
+            for name, rx in PHRASES:
+                if rx.search(comments[lineno - 1]):
+                    out.append((path, lineno, name, text.strip()))
+                    break
+    return out
+
+
+def git_out(root: Path, *args: str) -> str:
+    r = subprocess.run(["git", *args], cwd=root, stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL)
+    return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else ""
+
+
+def check_phrases(root: Path, staged: bool, base: str | None) -> int:
+    root = Path(git_out(root, "rev-parse", "--show-toplevel").strip() or root)
+    if staged:
+        diff = git_out(root, "diff", "--cached", "-U0", "--no-ext-diff", "--diff-filter=AM")
+        scope = "staged"
+
+        def read_new(p):
+            return git_out(root, "show", f":{p}")
+    else:
+        if base == "auto":
+            from diff_base import resolve_base
+            base, _ = resolve_base(root)
+        if base == "HEAD":
+            print("OK: no committed work to check for history phrases.")
+            return 0
+        diff = git_out(root, "diff", "-U0", "--no-ext-diff", "--diff-filter=AM",
+                       f"{base}...HEAD")
+        scope = f"{base[:12]}...HEAD"
+
+        def read_new(p):
+            return git_out(root, "show", f"HEAD:{p}")
+
+    hits = phrase_findings(diff, read_new)
+    if not hits:
+        print(f"OK: no history phrases in added comments ({scope}).")
+        return 0
+    print("FAIL: an added comment narrates history. Comments explain the code as it is;\n"
+          "      how it got here belongs in the commit message.\n")
+    for path, lineno, name, text in hits:
+        print(f"  {path}:{lineno}: \"{name}\"\n      {text[:110]}")
+    print(f"\n  State the constraint in the present tense instead, or mark a deliberate\n"
+          f"  one `{ESCAPE} <reason>` on the line or the one above.\n")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path,
@@ -156,9 +256,16 @@ def main() -> int:
     parser.add_argument("--baseline", type=Path, default=None)
     parser.add_argument("--write-baseline", action="store_true")
     parser.add_argument("--list", action="store_true", help="print every citation found")
+    phrases = parser.add_mutually_exclusive_group()
+    phrases.add_argument("--staged", action="store_true",
+                         help="check added comment lines in the index for history phrases")
+    phrases.add_argument("--base", metavar="REV",
+                         help="check added comment lines in REV...HEAD; 'auto' = diff_base.py")
     args = parser.parse_args()
 
     root = args.repo_root
+    if args.staged or args.base:
+        return check_phrases(root, args.staged, args.base)
     baseline_path = args.baseline or (root / "scripts" / "comment_archaeology_baseline.txt")
 
     counts, detail = scan(root)
