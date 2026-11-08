@@ -262,6 +262,7 @@ class AmsEnvironmentOverlay : public OverlayBase {
     char unit_logo_buf_[128] = {};
     lv_subject_t unit_logo_color_subject_{};
     lv_subject_t unit_logo_visible_subject_{};
+    lv_subject_t unit_art_visible_subject_{};
 
     static constexpr int kMaxComfortRows = 4;
     lv_subject_t comfort_visible_[kMaxComfortRows] = {};

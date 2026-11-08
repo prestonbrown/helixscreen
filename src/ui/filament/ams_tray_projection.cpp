@@ -30,6 +30,17 @@ float box_rise(float depth) {
     return std::round(kDepthRise * depth);
 }
 
+float cap_width(const UnitShell& shell, float spool_size) {
+    return spool_size * kSpoolWidth / 2.0f +
+           shell.cap_clearance_px * spool_size / kShellReferenceSpool;
+}
+
+PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i) {
+    const ProfilePoint& p = shell.cheek[i];
+    return proj(b, x, b.ft - p.height_px * spool_size / kShellReferenceSpool,
+                p.depth_frac * b.depth);
+}
+
 float spool_pitch(float spool_size) {
     // The spool canvas's own integer geometry: width between flanges plus a
     // flange ellipse each side.

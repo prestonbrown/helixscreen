@@ -14,6 +14,7 @@
  */
 
 #include "ams_types.h"
+#include "ams_unit_shell.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -45,6 +46,11 @@ float box_rise(float depth);
 /// Slot pitch for a spool size: its footprint, half the lid-cap tuck, and the clearance.
 float spool_pitch(float spool_size);
 PointF proj(const TrayBox& b, float x, float y, float z);
+
+/// Front-plane distance from an end spool's centre to the unit's end: it clears only the flange.
+float cap_width(const UnitShell& shell, float spool_size);
+/// Point @p i of the body's top edge, on the side plane at @p x.
+PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
 
 struct TrayFaces {
     PointF back_wall[4], floor[4], left_wall[4], front[4], right_side[4];

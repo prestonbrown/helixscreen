@@ -26,6 +26,7 @@
 #include "ui_temp_display.h"
 #include "ui_text_input.h"
 #include "ui_tile_rung.h"
+#include "ui_unit_art.h"
 
 #include "setting_group.h"
 
@@ -135,6 +136,7 @@ void LVGLUITestFixture::register_widgets() {
     // These are needed before XML components that embed them
     helix::ui::icon::register_widget();
     helix::ui::register_dryer_airflow_widget();
+    helix::ui::register_unit_art_widget();
     helix::ui::register_humidity_drop_widget();
     helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();

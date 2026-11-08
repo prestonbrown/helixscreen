@@ -192,6 +192,32 @@ TEST_CASE("tray projection: slot pitch from the spool size", "[ams][tray]") {
     CHECK(spool_pitch(61) == 68);
 }
 
+TEST_CASE("tray projection: a cap clears only the outer flange", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    CHECK(cap_width(*shell, 110.0f) ==
+          Catch::Approx(110.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px));
+    CHECK(cap_width(*shell, 55.0f) ==
+          Catch::Approx(55.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px / 2.0f));
+}
+
+TEST_CASE("tray projection: a cheek climbs from the front wall to the back", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fl = 0;
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 10;
+    const PointF front = cheek_point(b, *shell, 110.0f, 100, 0);
+    const PointF back = cheek_point(b, *shell, 110.0f, 100, shell->cheek_n - 1);
+    CHECK(front.y == Catch::Approx(50.0f));
+    CHECK(back.y == Catch::Approx(50.0f - shell->back_extra_px - b.rise));
+    CHECK(back.x > front.x);
+}
+
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     helix::AmsUnit unit;
     unit.slots.resize(4);

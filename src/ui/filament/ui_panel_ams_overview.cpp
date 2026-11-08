@@ -20,6 +20,7 @@
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -423,6 +424,8 @@ void AmsOverviewPanel::refresh_units() {
         for (auto& uc : unit_cards_) {
             if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
                 update_unit_card(uc, info.units[uc.unit_index], backend->lane_noun());
+            helix::ui::unit_art_set_unit(lv_obj_find_by_name(uc.card, "unit_thumb"), info,
+                                         uc.unit_index);
         }
     }
 
@@ -527,6 +530,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
 
         // Set logo image based on AMS system type
         ams_draw::apply_logo(uc.logo_image, unit, info);
+        lv_obj_t* thumb = lv_obj_find_by_name(uc.card, "unit_thumb");
+        helix::ui::unit_art_set_unit(thumb, info, uc.unit_index);
+        if (helix::ui::unit_art_available(info, uc.unit_index))
+            lv_obj_set_hidden(uc.logo_image, true); // DECLARATIVE_OK: per-card art with no subject
 
         // Set dynamic content only — unit name and slot count vary per unit
         uc.display_name = ams_draw::get_unit_display_name(unit, i);

@@ -88,6 +88,8 @@ struct TrayState {
     float lane_x[kAmsDetailMaxSlots] = {}; // front-plane slot centres
     TrayColors color{};
     TrayOpacities opa = kDarkOpa;
+    const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
+    float spool_size = 0;
 };
 
 TrayState s_tray;
@@ -223,6 +225,57 @@ lv_point_t container_origin(lv_obj_t* obj) {
 }
 
 /// Inside faces and the lid's interior, behind the spools.
+void fill_box(lv_layer_t* layer, lv_point_t o, float x0, float y0, float x1, float y1, uint32_t rgb,
+              int32_t radius = 0) {
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_color = lv_color_hex(rgb);
+    dsc.bg_opa = LV_OPA_COVER;
+    dsc.radius = radius;
+    const lv_area_t area = {o.x + (int32_t)x0, o.y + (int32_t)y0, o.x + (int32_t)x1,
+                            o.y + (int32_t)y1};
+    lv_draw_rect(layer, &dsc, &area);
+}
+
+/// The solid side of the unit at @p x, floor to the cheek's top edge.
+void fill_cheek(lv_layer_t* layer, lv_point_t o, float x, uint32_t rgb) {
+    const tray::UnitShell& shell = *s_tray.shell;
+    for (int i = 0; i + 1 < shell.cheek_n; ++i) {
+        const tray::PointF top0 = tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i);
+        const tray::PointF top1 = tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i + 1);
+        const float rise = s_tray.box.rise / s_tray.box.depth;
+        const float z0 = shell.cheek[i].depth_frac * s_tray.box.depth;
+        const float z1 = shell.cheek[i + 1].depth_frac * s_tray.box.depth;
+        const tray::PointF quad[4] = {
+            top0, top1, {top1.x, s_tray.box.fb - rise * z1}, {top0.x, s_tray.box.fb - rise * z0}};
+        fill_convex(layer, o, quad, 4, lv_color_hex(rgb), LV_OPA_COVER);
+    }
+}
+
+/// A unit's own front wall, rail and side, in the shell's hardware colours.
+void draw_shell_front(lv_layer_t* layer, lv_point_t o) {
+    const tray::UnitShell& shell = *s_tray.shell;
+    const tray::TrayBox& b = s_tray.box;
+    const float scale = s_tray.spool_size / tray::kShellReferenceSpool;
+    const float rail = shell.rail_px * scale;
+    fill_cheek(layer, o, b.fr, shell.body);
+    fill_box(layer, o, b.fl, b.ft, b.fr, b.fb, shell.body, 3);
+    fill_box(layer, o, b.fl + 3, b.ft + rail + 2, b.fr - 3, b.fb - 3, shell.panel, 3);
+    fill_box(layer, o, b.fl + 4, b.ft, b.fr - 4, b.ft + rail, shell.rail, 2);
+    const float tab = 7.0f * scale;
+    for (int i = 0; i < s_tray.lane_count; ++i) {
+        const float x = s_tray.lane_x[i];
+        fill_box(layer, o, x - tab, b.ft - 3.0f * scale, x + tab, b.ft, shell.accent);
+        fill_box(layer, o, x - 1, b.ft + rail * 0.35f, x + 1, b.ft + rail * 0.85f, 0xf7f7f2);
+    }
+    if (shell.has_latch) {
+        // Below the rail, so it never lands on a lane's tick.
+        const float mid = (b.fl + b.fr) / 2.0f;
+        fill_box(layer, o, mid - 15.0f * scale, b.ft + rail - 3.0f * scale, mid + 15.0f * scale,
+                 b.ft + rail + 5.0f * scale, 0xd8dade, 4);
+    }
+}
+
 void tray_back_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
     if (!layer || !s_tray.valid)
@@ -236,7 +289,10 @@ void tray_back_draw_cb(lv_event_t* e) {
     if (!simple) {
         fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
         fill_convex(layer, o, f.floor, 4, c.floor, LV_OPA_COVER);
-        fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
+        if (s_tray.shell)
+            fill_cheek(layer, o, s_tray.box.fl, s_tray.shell->body);
+        else
+            fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
     edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
 
@@ -291,7 +347,9 @@ void tray_front_draw_cb(lv_event_t* e) {
     const TrayColors& c = s_tray.color;
     const bool simple = helix::ui::reduced_effects();
 
-    if (!simple) {
+    if (s_tray.shell && !simple) {
+        draw_shell_front(layer, o);
+    } else if (!simple) {
         lv_draw_rect_dsc_t front;
         lv_draw_rect_dsc_init(&front);
         front.bg_color = c.front;
@@ -350,6 +408,17 @@ void clear_translate(lv_obj_t* obj) {
 }
 
 // Tool changers have no housing around their spools.
+/// The shell for a view; the whole-backend view of a one-unit system counts as that unit.
+const tray::UnitShell* view_shell(int unit_index) {
+    auto* backend = helix::AmsState::instance().get_backend(0);
+    if (!backend)
+        return nullptr;
+    const helix::AmsSystemInfo info = backend->get_system_info();
+    if (unit_index < 0 && info.units.size() == 1)
+        unit_index = 0;
+    return tray::unit_shell_for(info, unit_index);
+}
+
 bool unit_has_physical_tray() {
     auto* backend = helix::AmsState::instance().get_backend(0);
     return !backend || backend->has_physical_tray();
@@ -733,7 +802,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         return;
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
-    const tray::LidMode lid = unit_lid_mode(unit_index);
+    const tray::UnitShell* shell = view_shell(unit_index);
+    const tray::LidMode lid =
+        shell && shell->lid_spans_row ? tray::LidMode::Unit : unit_lid_mode(unit_index);
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;
@@ -754,7 +825,9 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     tray::TrayBox box{};
     box.depth = tray::box_depth(size);
     box.rise = tray::box_rise(box.depth);
-    box.back_extra = (float)theme_manager_get_spacing("space_md");
+    const float shell_scale = size / tray::kShellReferenceSpool;
+    box.back_extra =
+        shell ? shell->back_extra_px * shell_scale : (float)theme_manager_get_spacing("space_md");
     const float skew = tray::kDepthSkew * box.depth;
     for (int i = 0; i < n; ++i)
         s_tray.lane_x[i] = cx[i] - skew / 2;
@@ -765,13 +838,17 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // front-plane centre, whose flange bottom sits kSpoolFloorGap above FB.
     box.fb = cy_sum / n + flange_ry + tray::kSpoolFloorGap + box.rise / 2;
     lv_obj_update_layout(w.slot_grid);
-    const float front_h = std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    const float front_h = shell ? shell->front_wall_px * shell_scale
+                                : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
     box.ft = box.fb - front_h;
-    box.fl = s_tray.lane_x[0] - half;
-    box.fr = s_tray.lane_x[n - 1] + half;
+    const float cap = shell ? tray::cap_width(*shell, size) : half;
+    box.fl = s_tray.lane_x[0] - cap;
+    box.fr = s_tray.lane_x[n - 1] + cap;
 
     s_tray.lid = lid;
     s_tray.lid_h = tray::lid_height(box, flange_ry);
+    s_tray.shell = shell;
+    s_tray.spool_size = size;
     s_tray.lane_half = half;
     s_tray.lane_count = n;
     s_tray.box = box;
@@ -1206,7 +1283,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         return true;
     }
 
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
         return true;
@@ -1395,7 +1472,7 @@ void clear_if_lane_unchanged(int slot) {
     }
     const InsertOfferSnapshot shown = it->second.shown;
     offers.erase(it);
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend || !(InsertOfferSnapshot::of(backend->get_slot_info(slot)) == shown)) {
         spdlog::debug("[AMS] Slot {} changed since the same-spool notice; Clear ignored", slot);
         return;
@@ -1432,7 +1509,7 @@ void offer_clear_after_unverified_insert(int slot) {
                       slot);
         return;
     }
-    AmsBackend* backend = AmsState::instance().get_backend();
+    auto* backend = helix::AmsState::instance().get_backend(0);
     if (!backend ||
         clear_spool_blocked_by_print(get_printer_state().print_state().get_print_lifecycle(),
                                      backend->slot_is_actively_loaded(slot))) {

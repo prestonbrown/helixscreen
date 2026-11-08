@@ -26,6 +26,7 @@ class TrayShellDef:
     rail_px: float
     cap_clearance_px: float
     lid_spans_row: bool
+    has_latch: bool
     body: int
     panel: int
     rail: int
@@ -109,7 +110,7 @@ def _tray_shell():
         th = math.pi - math.pi * i / n
         depth = (1 + math.cos(th)) / 2
         dome.append((depth, BACK_EXTRA_PX * depth + DOME_RISE_PX * max(0.0, math.sin(th)) ** 0.42))
-    return TrayShellDef(cheek, dome, BACK_EXTRA_PX, 44.0, 13.0, 7.0, True, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f)
+    return TrayShellDef(cheek, dome, BACK_EXTRA_PX, 44.0, 13.0, 7.0, True, True, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f)
 
 
 UNIT = UnitDef("ace_pro", 4, draw_art, _tray_shell())

@@ -49,6 +49,9 @@
            5-unit rig it costs ~28px of a ~102px card, and the unit's NAME is what
            the row is for. No inline hidden="" here - an inline attr would outrank
            the binding. -->
+      <unit_art name="unit_thumb" width="#ams_logo_size" height="#ams_logo_size" tier="thumb" hidden="true">
+        <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
+      </unit_art>
       <lv_image name="unit_logo" width="#ams_logo_size" height="#ams_logo_size" inner_align="contain">
         <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
         <bind_style_if_eq name="styles.ams_logo_mono" subject="$logo_color" ref_value="0"/>

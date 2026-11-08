@@ -24,6 +24,12 @@ constexpr ShellRow kShellRows[] = {
 } // namespace
 
 const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index) {
+#ifdef ESP_PLATFORM
+    // The firmware image carries no unit art and stays on logos.
+    (void)info;
+    (void)unit_index;
+    return nullptr;
+#else
     if (unit_index < 0 || unit_index >= static_cast<int>(info.units.size()))
         return nullptr;
     const char* slug = ams_type_telemetry_slug(info.type);
@@ -32,6 +38,7 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index) {
             return unit_shell_by_id(row.shell_id);
     }
     return nullptr;
+#endif
 }
 
 } // namespace helix::ui::tray

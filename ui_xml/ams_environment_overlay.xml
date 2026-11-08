@@ -195,12 +195,14 @@
             <lv_obj name="dryer_status_row"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                     style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-              <bind_flag_if cond="(ui_breakpoint le 1 or ams_env_overlay_unit_logo_visible eq 0) and ams_env_overlay_drying_active eq 0"
+              <bind_flag_if cond="(ui_breakpoint le 1 or (ams_env_overlay_unit_logo_visible eq 0 and ams_env_overlay_unit_art_visible eq 0)) and ams_env_overlay_drying_active eq 0"
                             flag="hidden"/>
+              <unit_art name="unit_art_picture"
+                        width="#dryer_unit_art_size" height="#dryer_unit_art_size" tier="full" hidden="true"/>
               <lv_obj name="unit_picture"
                       width="#dryer_unit_picture_size" height="#dryer_unit_picture_size" style_pad_all="0"
                       scrollable="false">
-                <bind_flag_if cond="ui_breakpoint le 1 or (ams_env_overlay_unit_logo_visible eq 0 and ams_env_overlay_drying_active eq 0)"
+                <bind_flag_if cond="ams_env_overlay_unit_art_visible eq 1 or ui_breakpoint le 1 or (ams_env_overlay_unit_logo_visible eq 0 and ams_env_overlay_drying_active eq 0)"
                               flag="hidden"/>
                 <lv_image name="unit_picture_image"
                           width="100%" height="100%" align="center" inner_align="contain"

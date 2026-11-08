@@ -32,11 +32,13 @@ struct UnitShell {
     int cheek_n;
     const ProfilePoint* dome;
     int dome_n;
+    int art_lanes;
     float back_extra_px;
     float front_wall_px;
     float rail_px;
     float cap_clearance_px;
     bool lid_spans_row;
+    bool has_latch;
     uint32_t body;
     uint32_t panel;
     uint32_t rail;

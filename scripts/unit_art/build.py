@@ -75,10 +75,11 @@ def generate_shell_table(units):
         out.append(f"constexpr ProfilePoint k_{unit.id}_cheek[] = {{{points(t.cheek)}}};")
         out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(t.dome)}}};")
         lid = "true" if t.lid_spans_row else "false"
+        latch = "true" if t.has_latch else "false"
         rows.append(
-            f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, k_{unit.id}_dome, {len(t.dome)}, '
+            f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, k_{unit.id}_dome, {len(t.dome)}, {unit.lanes}, '
             f"{t.back_extra_px:.1f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}}},"
+            f"{lid}, {latch}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [

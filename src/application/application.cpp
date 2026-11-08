@@ -153,6 +153,7 @@
 #include "ui_tile_rung.h"
 #include "ui_toast_manager.h"
 #include "ui_touch_calibration_overlay.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
@@ -1605,6 +1606,7 @@ bool Application::register_widgets() {
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
     helix::ui::register_dryer_airflow_widget();
+    helix::ui::register_unit_art_widget();
     helix::ui::register_humidity_drop_widget();
     helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();
