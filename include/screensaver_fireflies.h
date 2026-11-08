@@ -19,7 +19,8 @@ namespace helix::ui {
  * @brief Coloured swarms of fireflies chasing invisible baits, after Fireflies
  *
  * helix::ui::FirefliesSim draws into the canvas at the display's own depth, RGB565 or
- * XRGB8888, and reports the box it cleared and drew. A level request applies at once.
+ * XRGB8888, and reports the box it cleared and drew. A level request applies at once. A
+ * finished print spells "DONE" when the UI language is English and holds a check mark otherwise.
  */
 class FirefliesScreensaver : public SimSaver<FirefliesSim> {
   public:
@@ -28,6 +29,8 @@ class FirefliesScreensaver : public SimSaver<FirefliesSim> {
     }
 
   protected:
+    /// Reads the UI language for the done text, then starts the sim.
+    bool on_start() override;
     std::optional<lv_color_format_t> canvas_format() const override {
         return kSaverBuildCanvasFormat;
     }

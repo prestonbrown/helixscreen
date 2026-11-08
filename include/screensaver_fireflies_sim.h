@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 #include "screensaver_motion.h"
 #include "screensaver_vec.h"
@@ -26,6 +27,12 @@
  * random sequence and the frame. The world advances in fixed kFirefliesStepMs steps, and the
  * random sequence is read only inside a step, so the motion is identical whatever the frame
  * period or level. Buffers are sized in init(); a frame allocates nothing.
+ *
+ * The sim reads the print each frame. During a running print the swarm gathers for
+ * kFirefliesGatherMs every kFirefliesGatherEveryMs into the percent; a finished print holds the
+ * done text, glowing; a failed or cancelled one turns the flies kPrintFailed and sends the baits
+ * to new waypoints. Without a print nothing of this runs, and the random sequence is read exactly
+ * as it would be without the reading.
  */
 
 namespace helix::ui {
@@ -113,6 +120,35 @@ float fireflies_tail_brightness(float u);
 /// rounded, at least 1 inside [0, 1].
 int32_t fireflies_tail_width(float u, float max_px);
 
+/// During a running print the swarm gathers into the percent for kFirefliesGatherMs at the start
+/// of every kFirefliesGatherEveryMs, counted from when the sim first read the print running.
+inline constexpr uint32_t kFirefliesGatherEveryMs = 60000;
+inline constexpr uint32_t kFirefliesGatherMs = 6000;
+/// Stroke width of the gathered text, in glyph units (screensaver_stroke_digits.h).
+inline constexpr float kFirefliesTextStroke = 0.15f;
+/// Most characters the gathered text holds: "100%" and "DONE".
+inline constexpr size_t kFirefliesTextMaxChars = 4;
+/// Stands in the done text for a check mark, the glyph a finished print holds outside English.
+inline constexpr char kFirefliesCheckMark = '\x01';
+
+/// What a finished print holds: "DONE" in English, a check mark (kFirefliesCheckMark) otherwise.
+const char* fireflies_done_text(bool english);
+
+/// Distance, in glyph units, from (px, py) to `c`'s centre line in the digits' box: a stroke
+/// glyph's (stroke_glyph_distance), or the check mark's two strokes for kFirefliesCheckMark.
+float fireflies_text_distance(char c, float px, float py);
+
+/// Where a gathered text of `chars` characters sits on a `w` x `h` frame: glyph boxes `unit_px`
+/// per glyph unit, the first box's top left at (x0, y0), each next box `advance_px` to the right.
+/// The text spans 70% of the width, or less where 60% of the height bounds it, centred.
+struct FirefliesTextLayout {
+    float unit_px;
+    float x0;
+    float y0;
+    float advance_px;
+};
+FirefliesTextLayout fireflies_text_layout(int32_t w, int32_t h, size_t chars);
+
 /// Positions and directions are SaverVec3s in world units: x right, y down, z away from the
 /// camera.
 class FirefliesSim {
@@ -137,8 +173,11 @@ class FirefliesSim {
     };
 
     /// Sizes every buffer for `frame` and places the population: 2 to 5 baits and 100 to 175
-    /// flies spread through the world box, every tail starting collapsed on its fly.
-    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level);
+    /// flies spread through the world box, every tail starting collapsed on its fly. A finished
+    /// print in `print` places the flies on the done text at once; a running one starts the
+    /// first gather.
+    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+              const ClockReading& print);
 
     /**
      * @brief Advances the world by `dt_ms` and redraws the swarms
@@ -148,10 +187,24 @@ class FirefliesSim {
      * drawn fly adds its light. `dirty` is replaced with at most kFirefliesMaxDirtyAreas boxes
      * covering every tile drawn in either frame: what the last frame drew (and this frame
      * cleared) and what this one drew. Tails are thin, so the tiles cover far less than the
-     * boxes round whole swarms would.
+     * boxes round whole swarms would. `print` is the print now; see the file comment.
      */
-    void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
+    void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng, const ClockReading& print,
               std::vector<DirtyRect>& dirty);
+
+    /// Whether a finished print spells "DONE" (true, the default) or holds a check mark; read
+    /// when the done text is gathered.
+    void set_spell_english(bool english) {
+        spell_english_ = english;
+    }
+    /// True while the flies steer for their places in the gathered text.
+    bool gathering() const {
+        return gathering_;
+    }
+    /// The text gathered now or last: "63%", the done text, or empty before the first gather.
+    const char* gather_text() const {
+        return gather_text_;
+    }
 
     /// Draws at `level` (clamped to the ladder) from the next frame on.
     void request_level(size_t level);
@@ -224,6 +277,10 @@ class FirefliesSim {
     void schedule_next_mode(std::minstd_rand& rng);
     template <typename Px> void draw(FrameTarget& frame, std::vector<DirtyRect>& dirty);
     void collect_dirty(std::vector<DirtyRect>& dirty);
+    void reset_tails();
+    void read_print(const ClockReading& print, std::minstd_rand& rng, bool at_init);
+    void update_gather();
+    void place_targets(const char* text);
 
     size_t level_ = 0;
     size_t pending_level_ = 0;
@@ -266,6 +323,21 @@ class FirefliesSim {
     std::vector<uint8_t> now_tiles_;
     int32_t tiles_x_ = 0;
     int32_t tiles_y_ = 0;
+
+    /// The print as the last frame read it.
+    ClockMode print_mode_ = ClockMode::CLOCK;
+    int32_t print_pct_ = 0;
+    /// Sim time the print was first read running; the gathers count from it.
+    uint64_t print_start_ms_ = 0;
+    bool spell_english_ = true;
+    bool gathering_ = false;
+    bool gather_done_ = false; ///< the gathered text is the done text
+    char gather_text_[kFirefliesTextMaxChars + 1]{};
+    /// Per fly, its place in the gathered text, on the box's middle depth plane.
+    std::vector<SaverVec3> fly_target_;
+    /// Scratch for place_targets(): the covered cells of the text's coarse glyph grid, room
+    /// for kFirefliesTextMaxChars glyphs.
+    std::vector<uint16_t> text_cells_;
 };
 
 } // namespace helix::ui
