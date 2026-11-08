@@ -543,12 +543,18 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     }
     sensor_error_ = false;
 
-    const int tool = reading.current_tool;
-    if (system_info_.current_tool != tool) {
-        spdlog::info("{} Dock sensors report tool {} (toolchanger said {})", backend_log_tag(),
-                     tool, system_info_.current_tool);
+    // The dock sensors count physical docks, so the reading is a slot index,
+    // not a G-code tool number: on a T0/T2/T3 machine reading 1 is the T2 head.
+    const int dock = reading.current_tool;
+    const int slot = (dock >= 0 && dock < static_cast<int>(tool_names_.size())) ? dock : -1;
+    const int tool = slot >= 0 ? tool_number_for_slot_locked(slot) : -1;
+    if (system_info_.current_slot != slot) {
+        spdlog::info("{} Dock sensors report dock {} (T{}; was slot {})", backend_log_tag(), dock,
+                     tool, system_info_.current_slot);
     }
-    seat_tool_number_locked(tool);
+    system_info_.current_tool = tool;
+    system_info_.current_slot = slot;
+    system_info_.filament_loaded = (slot >= 0);
 
     // Dock occupancy, when the frame carried any. Merged rather than replaced:
     // Moonraker republishes only changed fields, so a frame naming two docks

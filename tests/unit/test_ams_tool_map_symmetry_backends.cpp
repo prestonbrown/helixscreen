@@ -640,6 +640,56 @@ TEST_CASE("ToolChanger with gapped tool numbers seats no slot for an unknown num
     }
 }
 
+namespace {
+
+/// A MedusaHC whose dock sensors watch the given tools.
+helix::PrinterDiscovery dock_sensor_discovery(const std::vector<std::string>& tool_objects) {
+    json objects = json::array({"toolchanger", "pin_watch io", "servo my_servo", "extruder"});
+    for (const auto& name : tool_objects) {
+        objects.push_back("tool " + name);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("ToolChanger with gapped tool numbers seats a dock reading as a physical slot",
+          "[ams][toolchanger][tool_map]") {
+    // The dock sensors count physical docks, not G-code tool numbers: reading 1
+    // is the second dock, which holds T2.
+    ToolChangerMapProbe backend(kGappedToolNames);
+    backend.set_tool_sensor(
+        helix::toolchanger_addon::resolve_tool_sensor(dock_sensor_discovery(kGappedToolNames)));
+    report_gapped_tool_numbers(backend);
+    backend.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+
+    auto info = backend.get_system_info();
+    CHECK(info.current_slot == 1);
+    CHECK(info.current_tool == 2);
+    CHECK(backend.can_unload_from_toolhead(1));
+    CHECK_FALSE(backend.can_unload_from_toolhead(2));
+}
+
+TEST_CASE("ToolChanger with contiguous tool numbers seats a dock reading on its slot",
+          "[ams][toolchanger][tool_map]") {
+    const std::vector<std::string> names{"T0", "T1", "T2"};
+    ToolChangerMapProbe backend(names);
+    backend.set_tool_sensor(
+        helix::toolchanger_addon::resolve_tool_sensor(dock_sensor_discovery(names)));
+    backend.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
+
+    auto info = backend.get_system_info();
+    CHECK(info.current_slot == 2);
+    CHECK(info.current_tool == 2);
+
+    backend.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
+    info = backend.get_system_info();
+    CHECK(info.current_slot == -1);
+    CHECK(info.current_tool == -1);
+}
+
 TEST_CASE("ToolChanger with contiguous tool numbers still seats by number",
           "[ams][toolchanger][tool_map]") {
     ToolChangerMapProbe backend(4);
