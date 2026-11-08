@@ -550,3 +550,41 @@ TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced ca
     }
     ps().set_printer_side_pre_start(false);
 }
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced blocks a new start on its own",
+                 "[print_control][preparing_cancel][2054]") {
+    // No phase yet and no job of ours: only the announcement says the printer is busy.
+    report("standby", "previous.gcode");
+    REQUIRE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(true);
+    CHECK_FALSE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().can_start_new_print());
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced names no file before it opens",
+                 "[print_control][preparing_cancel][2054]") {
+    report("complete", "previous.gcode");
+    REQUIRE(ps().get_effective_print_filename() == "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    CHECK(ps().get_effective_print_filename().empty());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().get_effective_print_filename() == "previous.gcode");
+}
+
+TEST_CASE_METHOD(SentStartFixture, "The chamber phase keeps the chamber wait flag",
+                 "[print_control][preparing_cancel][chamber_wait]") {
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    ps().set_print_start_chamber_wait(true);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_CHAMBER, "Heating chamber...", 10);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 1);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_BED, "Heating Bed...", 20);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 0);
+    ps().set_printer_side_pre_start(false);
+    ps().reset_print_start_state();
+    drain();
+}
