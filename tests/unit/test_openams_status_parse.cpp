@@ -137,8 +137,14 @@ TEST_CASE("OpenAMS status parse maps the unit's dryer state", "[openams][status_
     CHECK(heating.remaining_min == 90);
     CHECK(heating.current_temp_c == Catch::Approx(51.5f));
     CHECK(heating.fan_pct == 60);
-    // A state this build does not know still counts as a running cycle.
-    CHECK(dryer(dryer_device(true, "holding", 60.0, 61)).remaining_min == 2);
+    CHECK(heating.phase == DryingPhase::Heating);
+    const auto holding = dryer(dryer_device(true, "holding", 60.0, 61));
+    CHECK(holding.remaining_min == 2);
+    CHECK(holding.phase == DryingPhase::Holding);
+    // A state this build does not know still counts as a running cycle, phase unknown.
+    const auto other = dryer(dryer_device(true, "timed_dry", 60.0, 61));
+    CHECK(other.active);
+    CHECK(other.phase == DryingPhase::Unknown);
     CHECK_FALSE(dryer(dryer_device(true, "fault", 60.0, 100)).active);
 
     json no_probe = dryer_device(true, "heating", 60.0, 60);

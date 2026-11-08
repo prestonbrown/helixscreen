@@ -1688,6 +1688,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" en="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it"/>
   <translation tag="Heating the nozzle" en="Heating the nozzle"/>
   <translation tag="Heating to %d°C... %.0f°C" en="Heating to %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" en="Heating to %s: %d:%02d left"/>
   <translation tag="Heating to {}°C before {}..." en="Heating to {}°C before {}..."/>
   <translation tag="Heating to {}°C for {}..." en="Heating to {}°C for {}..."/>
   <translation tag="Heating to {}°C..." en="Heating to {}°C..."/>

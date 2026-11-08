@@ -11,6 +11,7 @@
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
+#include "ui_dryer_presentation.h"
 #include "ui_error_reporting.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
@@ -798,10 +799,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
 
     if (dryer.active) {
-        int hours = dryer.remaining_min / 60;
-        int mins = dryer.remaining_min % 60;
-        snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s: %d:%02d %s", lv_tr("Drying"),
-                 hours, mins, lv_tr("left"));
+        snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",
+                 drying_status_text(dryer).c_str());
         lv_subject_copy_string(&drying_text_subject_, drying_text_buf_);
 
         int progress = dryer.get_progress_pct();

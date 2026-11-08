@@ -1688,6 +1688,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" de="Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"/>
   <translation tag="Heating the nozzle" de="Düse wird aufgeheizt"/>
   <translation tag="Heating to %d°C... %.0f°C" de="Aufheizen auf %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" de="Aufheizen auf %s: %d:%02d übrig"/>
   <translation tag="Heating to {}°C before {}..." de="Aufheizen auf {}°C vor {}..."/>
   <translation tag="Heating to {}°C for {}..." de="Aufheizen auf {}°C für {}..."/>
   <translation tag="Heating to {}°C..." de="Aufheizen auf {}°C..."/>

@@ -1752,6 +1752,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"
   Heating the nozzle: ノズルを加熱中
   Heating to %d°C... %.0f°C: '%d°Cに加熱中... %.0f°C'
+  'Heating to %s: %d:%02d left': '%sに加熱中: 残り %d:%02d'
   Heating to {}°C before {}...: '{}°Cに加熱中（{}の前）...'
   Heating to {}°C for {}...: '{}°Cに加熱中（{}）...'
   Heating to {}°C...: '{}°Cに加熱中...'
