@@ -206,7 +206,7 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
 // The lane tap is an explicit target. Honour it, and stand the box back up on
 // the way -- unless the bypass spool is still across the toolhead, which no
 // amount of gcode can fix (the switch sits above the cutter and reads the
-// upstream piece; only the user's hand clears it -- see 36205eb27).
+// upstream piece; only the user's hand clears it).
 // ---------------------------------------------------------------------------
 
 TEST_CASE("plan_load: a named lane under bypass reaches the backend, not the external macro",

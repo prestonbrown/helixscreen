@@ -165,10 +165,10 @@ TEST_CASE("Bypass: the external spool outranks any tool->slot map", "[filament][
     CHECK(resolve_op_button_slot(nothing, /*selected_tool=*/0, /*tool_count=*/1) == -1);
 }
 
-// Snapmaker U1 regression guard (commit 504905a2 "Unload visits T0 first").
+// Snapmaker U1: unload must not visit T0 first.
 // U1 = 4 virtual tools T0..T3 with an identity tool->slot map
 // (ams_backend_snapmaker.cpp), current_slot == current_tool == the picked-up
-// toolhead. The original bug came from a stuck current_slot == -1 forcing a
+// toolhead. A stuck current_slot == -1 would force a
 // bare-default (T0) unload. Resolving the op slot from the dropdown-selected
 // tool through the identity map must (a) match current_slot in steady state
 // and (b) STILL yield the selected tool even when current_slot is stuck at -1,

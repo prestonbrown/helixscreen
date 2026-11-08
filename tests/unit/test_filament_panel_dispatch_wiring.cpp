@@ -213,11 +213,10 @@ TEST_CASE("Under bypass a named lane goes to the backend, not the bypass macro",
 
 TEST_CASE("A lane load is refused while the bypass spool still crosses the toolhead",
           "[filament][dispatch][wiring][bypass]") {
-    // The refusal this file's mirror was missing: it had no BypassLoaded arm, so
-    // it fell to the SelectSlot default and claimed the panel raises "Select a
-    // filament slot to load" and redirects to the AMS panel. It does neither —
-    // the bypass switch sits above the cutter and reads the upstream piece, so
-    // no gcode retracts it and there is nothing for the user to pick (36205eb27).
+    // BypassLoaded is a refusal, not the SelectSlot default: the panel neither
+    // raises "Select a filament slot to load" nor redirects to the AMS panel.
+    // The bypass switch sits above the cutter and reads the upstream piece, so
+    // no gcode retracts it and there is nothing for the user to pick.
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
     sys.filament_loaded = true;
 

@@ -424,18 +424,16 @@ int GridRebuildSpyWidget::s_attach_count = 0;
 
 } // namespace
 
-// Regression test for #983 rebuild path (bundle VDJ3J9UV, v0.99.75, Pi): SIGSEGV
-// in grid_update -> count_tracks while REPOPULATING the home grid. The build-time
-// fix (#983, commit 69e9923dd) activates the grid last, which only covers the
-// first build — on a rebuild the reused container enters populate_widgets already
-// in LV_LAYOUT_GRID holding the previous build's descriptor pointer, which the
+// #983 rebuild path: SIGSEGV in grid_update -> count_tracks while REPOPULATING
+// the home grid. Activating the grid last covers only the first build. On a
+// rebuild the reused container enters populate_widgets already in
+// LV_LAYOUT_GRID holding the previous build's descriptor pointer, which the
 // move-assignment `dsc.col_dsc = make_col_dsc(...)` then frees. A child whose
 // attach() forces a layout walks the freed descriptor and crashes.
 //
 // Invariant: on the SECOND populate_widgets (rebuild) of the same container, the
-// container's layout is NOT LV_LAYOUT_GRID at the moment a child attaches (the fix
-// deactivated it), and the process survives the attach-forced layout. FAILS
-// pre-fix (container still grid during rebuild) and PASSES after.
+// container's layout is NOT LV_LAYOUT_GRID at the moment a child attaches, and
+// the process survives the attach-forced layout.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager deactivates grid before rebuilding a reused container",
                  "[panel_widget][manager][regression]") {

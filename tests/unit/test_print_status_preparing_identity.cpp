@@ -5,18 +5,17 @@
  * @file test_print_status_preparing_identity.cpp
  * @brief PrintStatusPanel tracks WHICH print it is showing (#1339).
  *
- * Two independent holes, both in the panel's own copy of the print identity:
+ * Two independent requirements, both on the panel's own copy of the print identity:
  *
- * 1. adac6f7eb gave ActivePrintMediaManager a preparing-epoch observer and gave
- *    the panel none, so between commit and confirmation the panel's `desired`
- *    still named the PREVIOUS print. ensure_preview_current() therefore compared
- *    the viewer against a print that had already finished, found no mismatch,
- *    and the clear_gcode that 921200ab1 added never fired in the window it was
- *    written for.
+ * 1. The panel observes the preparing epoch, as ActivePrintMediaManager does.
+ *    Without it, between commit and confirmation the panel's `desired` still
+ *    names the PREVIOUS print, so ensure_preview_current() compares the viewer
+ *    against a print that already finished, finds no mismatch, and its
+ *    clear_gcode never fires in the window it is written for.
  *
- * 2. Nothing retired thumbnail_source_filename_ when a print ended. A print
- *    started outside the app opens no preparing epoch, so the panel resolved it
- *    through the previous print's name indefinitely.
+ * 2. thumbnail_source_filename_ is retired when a print ends. A print started
+ *    outside the app opens no preparing epoch, so without that the panel would
+ *    resolve it through the previous print's name indefinitely.
  */
 
 #include "ui_panel_print_status.h"

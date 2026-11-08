@@ -1110,13 +1110,11 @@ TEST_CASE("READY refuses to disable the radio when interface resolution is incon
     WiFiManagerTestAccess::reset_sys_root();
 }
 
-// The mirror-image gap this task closes: a device whose stored preference is
-// WiFi ON but whose radio carries a stale soft rfkill block (e.g. one this
-// app itself applied before commit 8aaac4e78 made a soft block non-fatal at
-// startup) previously stayed radio-dead until a human tapped the touchscreen
-// to toggle it back on. CC1 was stranded exactly this way for days. The READY
-// reassert must now clear a stale soft block automatically so the device
-// heals itself on its next launch, with no tap required.
+// A device whose stored preference is WiFi ON but whose radio carries a stale
+// soft rfkill block (an older build of this app could apply one at startup)
+// stays radio-dead until a human taps the touchscreen to toggle it back on. The
+// READY reassert clears a stale soft block automatically so the device heals
+// itself on its next launch, with no tap required.
 TEST_CASE("READY clears a stale soft radio block when the stored setting is WiFi on",
           "[wifi][manager][radio][persistence]") {
     Config::get_instance();

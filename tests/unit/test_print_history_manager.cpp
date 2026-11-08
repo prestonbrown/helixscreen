@@ -796,7 +796,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager handles concurr
     // the server has measurable RTT. With the synchronous mock client the
     // success callback fires inline and clears the guard before the next
     // fetch() executes, so all three calls may proceed. We assert the weaker
-    // invariant the fix (1f719d0e2) actually guarantees: at least one fetch
+    // invariant the guard actually guarantees: at least one fetch
     // completes, and the guard is never stranded (subsequent fetches proceed).
     manager_->fetch(HistoryScope::COMPLETE);
     manager_->fetch(HistoryScope::COMPLETE);
