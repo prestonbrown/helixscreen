@@ -210,10 +210,9 @@ bool MoonrakerDiscoverySequence::stop_for_refused_login(const MoonrakerError& er
 }
 
 void MoonrakerDiscoverySequence::discover_power_devices() {
-    // Fire-and-forget power device detection (silent — not all printers
-    // have the power component, and "Method not found" is expected).
-    // Called both during full discovery and as partial discovery when
-    // Klippy is not ready (power devices only need Moonraker, not Klipper).
+    // Fire-and-forget and silent: "Method not found" is expected on printers with
+    // no power component. Runs in full discovery and in partial discovery when
+    // Klippy is not ready, since power devices only need Moonraker.
     client_.send_jsonrpc(
         "machine.device_power.devices", json::object(),
         [](const json& response) {
