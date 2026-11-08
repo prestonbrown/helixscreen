@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <api>
+    <!-- 1 while the unit is an absent placeholder: shows disabled and says so. -->
+    <prop name="absent" type="subject" default="ams_env_ind_off_flag"/>
+    <!-- 1 while a present unit is reported offline: the art fades and a chip says so. -->
+    <prop name="disconnected" type="subject" default="ams_env_ind_off_flag"/>
+    <prop name="temp_text" type="subject" default="ams_env_ind_0_temp_text"/>
+    <prop name="humidity_text" type="subject" default="ams_env_ind_0_humidity_text"/>
+    <prop name="humidity" type="subject" default="ams_env_ind_0_humidity"/>
+    <prop name="humidity_status" type="subject" default="ams_env_ind_0_humidity_status"/>
+    <prop name="humidity_visible" type="subject" default="ams_env_ind_0_humidity_visible"/>
+    <prop name="visible" type="subject" default="ams_env_ind_0_visible"/>
+    <prop name="drying_active" type="subject" default="ams_env_ind_0_drying_active"/>
+    <prop name="drying_text" type="subject" default="ams_env_ind_0_drying_text"/>
+  </api>
+  <!-- An overview unit drawn as its baked art: no card chrome, the name under the art, the
+       readout tucked over the art's lower right corner. The art carries the lane colours,
+       so there are no bars and no lane count. AmsOverviewPanel sizes the stage's height from
+       the tile's measured width; style_max_height caps it on a roomy row. -->
+  <view name="ams_unit_tile"
+        extends="lv_obj" height="content" scrollable="false" flex_flow="column" style_flex_main_place="start"
+        style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        style_pad_gap="#space_xxs" style_radius="#border_radius" style_min_width="#ams_tile_min_width"
+        style_max_width="#ams_card_max_width" clickable="true">
+    <style name="styles.press_wash" selector="pressed"/>
+    <bind_state_if_eq subject="$absent" state="disabled" ref_value="1"/>
+    <lv_obj name="tile_stage"
+            width="100%" height="#ams_tile_art_max_h" style_max_height="#ams_tile_art_max_h" style_pad_all="0"
+            scrollable="false" clickable="false" event_bubble="true" style_bg_opa="0" style_border_width="0">
+      <!-- The fade sits on a frame around the art: the art flattens itself to one image, and
+           a style on the art would be baked into that image and then applied again. -->
+      <lv_obj name="tile_art_frame"
+              width="100%" height="100%" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"
+              style_bg_opa="0" style_border_width="0">
+        <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
+        <bind_style_if_eq name="styles.unit_offline" subject="$absent" ref_value="1"/>
+        <unit_art name="unit_art" width="100%" height="100%" align="center" tier="full"/>
+      </lv_obj>
+      <ams_disconnected_chip name="unit_disconnected_chip" align="center" disconnected="$disconnected"/>
+      <text_small name="unit_absent_label" align="center" text="Not connected" event_bubble="true">
+        <bind_flag_if_eq subject="$absent" flag="hidden" ref_value="0"/>
+      </text_small>
+      <icon name="runout_indicator"
+            src="alert" size="sm" variant="warning" align="top_left" hidden="true" event_bubble="true">
+        <bind_flag_if_eq subject="ams_filament_runout" flag="hidden" ref_value="0"/>
+      </icon>
+      <!-- A wrapper carries the breakpoint rule: the indicator binds its own hidden flag to
+           whether the unit has readings, and one flag cannot follow two bindings. -->
+      <lv_obj name="tile_readout"
+              width="content" height="content" align="bottom_right" style_pad_all="0" scrollable="false"
+              clickable="false" event_bubble="true" style_bg_opa="0" style_border_width="0">
+        <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>
+        <ams_environment_indicator name="env_indicator"
+                                   event_bubble="true" hide_icons="true" style_margin_top="0" style_bg_opa="235"
+                                   style_border_width="1" style_border_color="#border" style_border_opa="80"
+                                   style_pad_left="#space_xs" style_pad_right="#space_xs" temp_text="$temp_text"
+                                   humidity_text="$humidity_text" humidity="$humidity"
+                                   humidity_status="$humidity_status" humidity_visible="$humidity_visible"
+                                   visible="$visible" drying_active="$drying_active" drying_text="$drying_text">
+          <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
+        </ams_environment_indicator>
+      </lv_obj>
+    </lv_obj>
+    <text_body name="unit_name"
+               width="100%" height="#ams_unit_name_h" text="Unit" long_mode="dots" style_text_align="center"
+               clickable="false" event_bubble="true"/>
+  </view>
+</component>
