@@ -24,6 +24,23 @@
 
 #include "../catch_amalgamated.hpp"
 
+namespace helix::ui {
+
+/// Frees the buffers a print's gather writes.
+class FirefliesSimTestAccess {
+  public:
+    /// The bytes freed.
+    static size_t release_gather_buffers(FirefliesSim& sim) {
+        const size_t bytes = sim.fly_target_.capacity() * sizeof(SaverVec3) +
+                             sim.text_cells_.capacity() * sizeof(uint16_t);
+        std::vector<SaverVec3>().swap(sim.fly_target_);
+        std::vector<uint16_t>().swap(sim.text_cells_);
+        return bytes;
+    }
+};
+
+} // namespace helix::ui
+
 using helix::test::diff_against;
 using helix::test::FrameDiff;
 using helix::test::hms;
@@ -37,6 +54,7 @@ using helix::ui::ClockReading;
 using helix::ui::DirtyRect;
 using helix::ui::FirefliesScreensaver;
 using helix::ui::FirefliesSim;
+using helix::ui::FirefliesSimTestAccess;
 using helix::ui::FrameTarget;
 using helix::ui::kFirefliesLevelCount;
 using helix::ui::kFirefliesLevels;
@@ -149,6 +167,10 @@ TEST_CASE("a fireflies population has 2 to 5 baits and 100 to 175 flies, each ch
 TEST_CASE("a cleared fireflies sim holds nothing", "[screensaver][fireflies_sim]") {
     Swarm s(3);
     CHECK(s.sim.heap_bytes() > 0);
+    const size_t held = s.sim.heap_bytes();
+    const size_t gather = FirefliesSimTestAccess::release_gather_buffers(s.sim);
+    REQUIRE(gather > 0);
+    CHECK(s.sim.heap_bytes() == held - gather);
     CHECK(s.sim.baits().size() == kFirefliesMaxBaits);
     s.sim.clear();
     CHECK(s.sim.heap_bytes() == 0);
@@ -948,6 +970,19 @@ TEST_CASE("the swarm gathers into the percent every minute of a print",
     REQUIRE(s.sim.gathering());
     CHECK(std::string(s.sim.gather_text()) == "64%");
     CHECK(share_on_text(s.sim, "64%", kFewestDrawn) >= 0.7);
+}
+
+TEST_CASE("a long frame ends a gather the moment its six seconds pass inside it",
+          "[screensaver][fireflies_sim]") {
+    Swarm s(63, kMotionLevel, PixelFormat::XRGB8888, kMotionW, kMotionH,
+            print_reading_for(ClockMode::COUNTDOWN, 50));
+    while (s.sim.elapsed_ms() + 200 < helix::ui::kFirefliesGatherMs) {
+        s.step();
+    }
+    REQUIRE(s.sim.gathering());
+    s.step(400);
+    REQUIRE(s.sim.elapsed_ms() > helix::ui::kFirefliesGatherMs + 10);
+    CHECK_FALSE(s.sim.gathering());
 }
 
 TEST_CASE("a finished print holds DONE", "[screensaver][fireflies_sim]") {

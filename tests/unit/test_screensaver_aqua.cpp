@@ -16,6 +16,7 @@
 #include <cstring>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -30,6 +31,31 @@ class AquaSimTestAccess {
         sim.water_.t_ = t_sim;
         sim.water_.next_impulse_ = t_sim + 0.6;
         sim.water_.impulses_.clear();
+    }
+
+    /// Paints the water of `sim` as it stands, its shading using `calm`.
+    static void paint_at_calm(AquaSim& sim, FrameTarget& frame, float calm) {
+        sim.calm_ = calm;
+        sim.paint_water(frame);
+    }
+
+    /// The boxes one droplet and one glint at the same place draw, in that order.
+    static std::vector<DirtyRect> spray_boxes(AquaSim& sim, FrameTarget& frame,
+                                              const AquaDroplet& drop) {
+        sim.splashes_.emit(drop);
+        sim.glints_.push_back({drop.x, drop.y, drop.z, 0});
+        std::vector<DirtyRect> boxes;
+        sim.draw_spray(frame, boxes);
+        return boxes;
+    }
+
+    /// Each bubble's row and speed.
+    static std::vector<std::pair<float, float>> bubbles(const AquaSim& sim) {
+        std::vector<std::pair<float, float>> out;
+        for (const auto& b : sim.bubbles_) {
+            out.emplace_back(b.y, b.speed);
+        }
+        return out;
     }
 };
 
@@ -147,6 +173,33 @@ TEST_CASE("the grid samples the analytic surface", "[screensaver][aqua]") {
         const float x = u * z;
         CAPTURE(x, z);
         CHECK(water.height_at(x, z) == Catch::Approx(water.exact_height(x, z, t)).margin(0.01));
+    }
+}
+
+TEST_CASE("amplitude zero flattens the slosh and the waves", "[screensaver][aqua]") {
+    AquaWater water;
+    std::minstd_rand rng(3);
+    water.init(rng, 40, 16, 0.416f);
+    // Before the first impulse, at 0.6 sim seconds: only the modes and waves are left to flatten.
+    const double t = 0.3;
+    const auto tallest_cell = [&water] {
+        float tallest = 0.0f;
+        for (const float h : water.heights()) {
+            tallest = std::max(tallest, std::fabs(h));
+        }
+        return tallest;
+    };
+    water.evaluate(t, rng);
+    REQUIRE(tallest_cell() > 0.01f);
+    water.set_amplitude(0.0f);
+    water.evaluate(t, rng);
+    CHECK(tallest_cell() == Catch::Approx(0.0f).margin(1e-5));
+    for (int k = 0; k < water.grid_z(); k++) {
+        for (int i = 0; i < water.grid_x(); i++) {
+            const float z = water.cell_z(k);
+            CHECK(water.exact_height(water.cell_u(i) * z, z, t) ==
+                  Catch::Approx(0.0f).margin(1e-5));
+        }
     }
 }
 
@@ -441,6 +494,98 @@ TEST_CASE("paused water calms", "[screensaver][aqua][clock]") {
     const double paused = frame_change(r);
     REQUIRE(running > 0.0);
     CHECK(paused < running * 0.8);
+}
+
+TEST_CASE("calm water loses its fine wrinkles along with its waves", "[screensaver][aqua][clock]") {
+    TestFrame base_frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(5);
+    AquaSim base;
+    const ClockReading r = reading_at(9 * 3600);
+    base.init(base_frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 10; i++) {
+        base.step(33, base_frame.target, rng, r, dirty);
+    }
+    const auto painted = [&base](float calm) {
+        AquaSim copy = base;
+        TestFrame frame(400, 240, PixelFormat::XRGB8888);
+        AquaSimTestAccess::paint_at_calm(copy, frame.target, calm);
+        return frame.bytes;
+    };
+    const auto distance = [](const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+        double sum = 0.0;
+        for (size_t i = 0; i < a.size(); i++) {
+            sum += std::abs(static_cast<int>(a[i]) - static_cast<int>(b[i]));
+        }
+        return sum;
+    };
+    const std::vector<uint8_t> glassy = painted(0.0f);
+    const double at_full = distance(painted(1.0f), glassy);
+    const double at_calm = distance(painted(helix::ui::kAquaCalm), glassy);
+    REQUIRE(at_full > 0.0);
+    CHECK(at_calm > 0.0);
+    CHECK(at_calm < at_full);
+}
+
+TEST_CASE("spray sits where the raised camera sees it", "[screensaver][aqua][droplets]") {
+    const auto boxes_at = [](int progress_pct) {
+        TestFrame frame(800, 480, PixelFormat::XRGB8888);
+        std::minstd_rand rng(3);
+        AquaSim sim;
+        ClockReading r = reading_at(9 * 3600);
+        r.mode = ClockMode::COUNTDOWN;
+        r.progress_pct = progress_pct;
+        sim.init(frame.target, rng, 1, r);
+        AquaDroplet drop;
+        drop.y = 0.5f;
+        drop.z = 5.0f;
+        return AquaSimTestAccess::spray_boxes(sim, frame.target, drop);
+    };
+    const std::vector<DirtyRect> rest = boxes_at(0);
+    const std::vector<DirtyRect> raised = boxes_at(100);
+    REQUIRE(rest.size() == 2);
+    REQUIRE(raised.size() == 2);
+    // Focal length 1000 px at this canvas, over the droplet's depth.
+    const auto rows = static_cast<int32_t>(helix::ui::kAquaBrimRise * 1000.0f / 5.0f);
+    for (size_t i = 0; i < rest.size(); i++) {
+        CAPTURE(i);
+        CHECK(rest[i].y1 - raised[i].y1 == Catch::Approx(rows).margin(1));
+    }
+}
+
+TEST_CASE("a finished print sends one burst of bubbles up from the bottom",
+          "[screensaver][aqua][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(5);
+    AquaSim sim;
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 99;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    sim.step(33, frame.target, rng, r, dirty);
+    const auto sent = [&sim] {
+        size_t n = 0;
+        for (const auto& [y, speed] : AquaSimTestAccess::bubbles(sim)) {
+            n += y >= 239.0f && speed == 0.6f ? 1 : 0;
+        }
+        return n;
+    };
+    REQUIRE(sent() == 0);
+
+    r.mode = ClockMode::DONE;
+    r.progress_pct = 100;
+    sim.step(33, frame.target, rng, r, dirty);
+    REQUIRE(AquaSimTestAccess::bubbles(sim).size() >= helix::ui::kAquaDoneBurst);
+    CHECK(sent() == helix::ui::kAquaDoneBurst);
+    const auto burst = AquaSimTestAccess::bubbles(sim);
+
+    sim.step(33, frame.target, rng, r, dirty);
+    const auto later = AquaSimTestAccess::bubbles(sim);
+    for (size_t i = 0; i < helix::ui::kAquaDoneBurst; i++) {
+        CAPTURE(i);
+        CHECK(later[i].first < burst[i].first);
+    }
 }
 
 TEST_CASE("the still rung repaints the water only per level step", "[screensaver][aqua][clock]") {
@@ -874,6 +1019,42 @@ TEST_CASE_METHOD(LVGLTestFixture, "the aqua saver shows the print its source rep
     advance_saver(ss, 33);
     CHECK(ss.clock().mode() == ClockMode::CLOCK);
     CHECK(AquaScreensaverTestAccess::line(ss).text().rfind("ETA ", 0) == std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the aqua saver's text line turns the print state's colour",
+                 "[screensaver][aqua]") {
+    AquaScreensaver ss;
+    ScreensaverStopOnExit<AquaScreensaver> stop_on_exit{ss};
+    ClockInput reported;
+    reported.seconds_of_day = 14 * 3600;
+    reported.print.phase = ClockPrintPhase::PRINTING;
+    reported.print.remaining_s = 4320;
+    reported.print.progress_pct = 40;
+    ss.set_input_source([&reported] { return reported; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    // The water and the running line are cool; only the paused amber is far redder than blue.
+    const auto amber_pixels = [&ss] {
+        const FrameTarget frame =
+            helix::test::frame_of(lv_canvas_get_draw_buf(SaverTestAccess::canvas(ss)));
+        const PixelWriter writer(frame);
+        const DirtyRect& box = AquaScreensaverTestAccess::line(ss).box();
+        size_t n = 0;
+        for (int32_t y = box.y1; y <= box.y2; y++) {
+            for (int32_t x = box.x1; x <= box.x2; x++) {
+                const Rgb c = writer.get(x, y);
+                n += c.r - c.b > 60 ? 1 : 0;
+            }
+        }
+        return n;
+    };
+    advance_saver(ss, 33);
+    CHECK(amber_pixels() == 0);
+
+    reported.print.phase = ClockPrintPhase::PAUSED;
+    advance_saver(ss, 33);
+    REQUIRE(ss.clock().mode() == ClockMode::PAUSED);
+    CHECK(amber_pixels() > 0);
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

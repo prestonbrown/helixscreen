@@ -143,6 +143,7 @@ FirefliesTextLayout fireflies_text_layout(int32_t w, int32_t h, size_t chars);
 /// camera.
 class FirefliesSim {
   public:
+    friend class FirefliesSimTestAccess;
     static constexpr const auto& kLevels = kFirefliesLevels;
 
     struct Bait {
