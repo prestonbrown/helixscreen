@@ -16,6 +16,7 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
+#include "ams_device_action_value.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -25,6 +26,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <cmath>
 #include <memory>
 
 namespace helix::ui {
@@ -332,16 +334,10 @@ void AmsDeviceSectionDetailOverlay::create_action_control(
 
         // Set current value from action.current_value
         int32_t slider_val = static_cast<int32_t>(action.min_value);
-        try {
-            if (action.current_value.has_value()) {
-                try {
-                    slider_val = static_cast<int32_t>(std::any_cast<float>(action.current_value));
-                } catch (const std::bad_any_cast&) {
-                    slider_val = std::any_cast<int>(action.current_value);
-                }
-            }
-        } catch (const std::bad_any_cast&) {
-            spdlog::warn("[{}] Failed to cast slider value for {}", get_name(), action.id);
+        if (const auto number = helix::printer::device_action_number(action.current_value)) {
+            slider_val = static_cast<int32_t>(std::lround(*number));
+        } else if (action.current_value.has_value()) {
+            spdlog::warn("[{}] Slider value for {} is not a number", get_name(), action.id);
         }
         lv_slider_set_value(slider, slider_val, LV_ANIM_OFF);
 
