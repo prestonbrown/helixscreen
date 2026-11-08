@@ -2161,3 +2161,36 @@ TEST_CASE("mount-to-feed: a tool number that skips seats the tool Klipper number
         CHECK(tc.get_system_info().current_slot == -1);
     }
 }
+
+TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carriage tool",
+          "[toolchanger][tool-number]") {
+    // Moonraker republishes only the fields that changed, so tool_numbers and
+    // tool_names can each arrive alone, after tool_number.
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 2, 3})}}}});
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T2", "tool T3"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+    CHECK(tc.get_system_info().current_tool == 2);
+
+    // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+}
+
+TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 0}}}});
+
+    REQUIRE(tc.change_tool(2).success());
+    REQUIRE_FALSE(tc.sent_.empty());
+    CHECK(tc.sent_.back() == "SELECT_TOOL TOOL=\"tool T3\"");
+}
