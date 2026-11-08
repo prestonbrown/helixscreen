@@ -613,6 +613,64 @@ TEST_CASE_METHOD(LVGLTestFixture, "software sleep overlay hides the screen until
     CHECK_FALSE(helix::active_screen_hide_hold().is_held());
 }
 
+namespace {
+/// Records whether the active screen was hidden when a refresh pass started.
+struct RefreshProbe {
+    int refreshes = 0;
+    bool screen_hidden_at_first = false;
+
+    static void on_refr_start(lv_event_t* e) {
+        auto* probe = static_cast<RefreshProbe*>(lv_event_get_user_data(e));
+        if (probe->refreshes++ == 0) {
+            probe->screen_hidden_at_first = lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "every sleep mechanism hides the screen and shows it before the wake frame",
+                 "[application][display][sleep][screen_hide][2037]") {
+    struct Case {
+        const char* name;
+        bool hardware_blank;
+        bool power_off;
+        helix::SleepMechanism expected;
+    };
+    const Case cases[] = {
+        {"hardware blank", true, false, helix::SleepMechanism::HardwareBlank},
+        {"panel power-off", false, true, helix::SleepMechanism::PanelPowerOff},
+        {"software overlay", false, false, helix::SleepMechanism::SoftwareOverlay},
+    };
+    for (const Case& c : cases) {
+        INFO(c.name);
+        DisplayManager mgr;
+        DisplayManagerTestAccess::set_backend(
+            mgr, std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/c.power_off));
+        DisplayManagerTestAccess::set_use_hardware_blank(mgr, c.hardware_blank);
+        DisplayManagerTestAccess::set_use_power_off(mgr, c.power_off);
+        lv_display_t* disp = lv_display_get_default();
+        DisplayManagerTestAccess::set_display(mgr, disp);
+        lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
+        lv_obj_t* screen = lv_screen_active();
+
+        DisplayManagerTestAccess::enter_sleep(mgr, 60);
+        REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) == c.expected);
+        CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK(helix::active_screen_hide_hold().is_held());
+
+        RefreshProbe probe;
+        lv_display_add_event_cb(disp, RefreshProbe::on_refr_start, LV_EVENT_REFR_START, &probe);
+        mgr.wake_display();
+        lv_display_remove_event_cb_with_user_data(disp, RefreshProbe::on_refr_start, &probe);
+
+        CHECK(probe.refreshes >= 1);
+        CHECK_FALSE(probe.screen_hidden_at_first);
+        CHECK_FALSE(helix::active_screen_hide_hold().is_held());
+        DisplayManagerTestAccess::set_display(mgr, nullptr);
+    }
+}
+
 TEST_CASE_METHOD(LVGLTestFixture,
                  "a display manager destroyed asleep takes its overlay and hold with it",
                  "[application][display][sleep][screen_hide]") {

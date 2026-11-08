@@ -126,6 +126,11 @@ class DisplaySleepController {
     void create_sleep_overlay();
     void destroy_sleep_overlay();
 
+    /// Hides the active screen while the hardware blank or the host has the panel dark,
+    /// and shows it again. Each is idempotent.
+    void hide_screen_for_dark_panel();
+    void show_screen_after_dark_panel();
+
     /// Asserts or releases the host window's keep-screen-on request. Android only, and
     /// transition-guarded so JNI is crossed only on a real change.
     void set_keep_screen_on(bool keep_on);
@@ -145,6 +150,7 @@ class DisplaySleepController {
     bool m_use_power_off = false;
     bool m_sleep_backlight_off = true;
     lv_obj_t* m_sleep_overlay = nullptr;
+    bool m_screen_hidden_for_dark_panel = false;
 
     /// The branch the most recent enter_sleep() actually took, which can differ from the
     /// selector's answer: power_off() may refuse at runtime and degrade to the overlay.

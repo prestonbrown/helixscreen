@@ -105,6 +105,7 @@ DisplaySleepController::DisplaySleepController(DisplaySleepHost host) : m_host(s
 DisplaySleepController::~DisplaySleepController() {
     if (lv_is_initialized()) {
         destroy_sleep_overlay();
+        show_screen_after_dark_panel();
     }
 }
 
@@ -141,6 +142,7 @@ void DisplaySleepController::enter_sleep(int timeout_sec) {
         if (backend) {
             backend->blank_display();
         }
+        hide_screen_for_dark_panel();
         break;
 
     case SleepMechanism::PanelPowerOff:
@@ -175,6 +177,7 @@ void DisplaySleepController::enter_sleep(int timeout_sec) {
         m_resume_seq_at_sleep = android_get_resume_seq();
 #endif
         set_keep_screen_on(false);
+        hide_screen_for_dark_panel();
         break;
 
     case SleepMechanism::SoftwareOverlay:
@@ -246,6 +249,24 @@ void DisplaySleepController::destroy_sleep_overlay() {
     m_sleep_overlay = nullptr;
     helix::active_screen_hide_hold().release();
     spdlog::debug("[DisplaySleep] Software sleep overlay destroyed");
+}
+
+// A panel the controller or the OS has darkened still receives every frame LVGL draws.
+// Hiding the active screen drops those invalidations and skips the drawing.
+void DisplaySleepController::hide_screen_for_dark_panel() {
+    if (m_screen_hidden_for_dark_panel) {
+        return;
+    }
+    helix::active_screen_hide_hold().acquire(lv_screen_active());
+    m_screen_hidden_for_dark_panel = true;
+}
+
+void DisplaySleepController::show_screen_after_dark_panel() {
+    if (!m_screen_hidden_for_dark_panel) {
+        return;
+    }
+    m_screen_hidden_for_dark_panel = false;
+    helix::active_screen_hide_hold().release();
 }
 
 // ============================================================================
@@ -524,6 +545,7 @@ void DisplaySleepController::restore_display_output() {
         // Software path: remove the black overlay (no FBIOBLANK to undo).
         destroy_sleep_overlay();
     }
+    show_screen_after_dark_panel();
 }
 
 void DisplaySleepController::wake() {
@@ -677,6 +699,7 @@ void DisplaySleepController::restore_on_shutdown() {
 
     // Clean up software sleep overlay if active
     destroy_sleep_overlay();
+    show_screen_after_dark_panel();
 
     // Re-enable rendering before the framebuffer clear / final brightness below,
     // otherwise the clear is committed through the no-op flush and never reaches
@@ -714,6 +737,10 @@ void DisplaySleepController::abandon_lvgl_state() {
     // here; a hold a running screensaver has taken is not.
     if (m_sleep_overlay) {
         helix::active_screen_hide_hold().release();
+    }
+    if (m_screen_hidden_for_dark_panel) {
+        helix::active_screen_hide_hold().release();
+        m_screen_hidden_for_dark_panel = false;
     }
     if (m_flush_suppressed_for_sleep) {
         helix::active_screen_hide_hold().release();
