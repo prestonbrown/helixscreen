@@ -123,7 +123,7 @@ PY
 @test "the guard lint fires on a planted ungated step using a secret or a mutating call" {
     local broken="$BATS_TEST_TMPDIR/release.yml"
     awk '{ print }
-         /^      run: make test-shell$/ {
+         /^      run: make test-shell( |$)/ {
              print "    - name: Planted secret"
              print "      env:"
              print "        TOKEN: ${{ secrets.SOME_TOKEN }}"
