@@ -3820,6 +3820,8 @@ translations:
   Tap anywhere if this text is right-side up: 如果文字方向正确请点击任意位置
   Tap anywhere to begin: 点击任意位置开始
   Tap anywhere to begin calibration: 点击任意位置开始校准
+  Tap the bed's back-left corner: 点击热床的左后角
+  Tap the bed's back-right corner: 点击热床的右后角
   Tap the bed's front-left corner: 点击热床的左前角
   Tap the bed's front-right corner: 点击热床的右前角
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: 点击十字准星（第 %1$d

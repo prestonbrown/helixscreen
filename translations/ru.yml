@@ -4086,6 +4086,8 @@ translations:
     правильно
   Tap anywhere to begin: Нажмите в любом месте для начала
   Tap anywhere to begin calibration: Нажмите в любом месте для начала калибровки
+  Tap the bed's back-left corner: Нажмите на задний левый угол стола
+  Tap the bed's back-right corner: Нажмите на задний правый угол стола
   Tap the bed's front-left corner: Нажмите на передний левый угол стола
   Tap the bed's front-right corner: Нажмите на передний правый угол стола
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Нажмите на

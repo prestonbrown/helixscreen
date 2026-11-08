@@ -9,6 +9,7 @@
 #include "ui_fault_path.h"
 #include "ui_humidity_drop.h"
 #include "ui_icon.h"
+#include "ui_plate_glow.h"
 #include "ui_progress_bar.h"
 #include "ui_swatch.h"
 #include "ui_switch.h"
@@ -209,6 +210,7 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // 4. Register custom widgets (must be done before loading components that use them)
     helix::ui::icon::register_widget();         // icon component
     helix::ui::register_humidity_drop_widget(); // humidity_drop
+    helix::ui::register_plate_glow_widget();    // plate_glow
     helix::ui::register_tile_rung_binding();    // <bind_tile_rung>
     helix::ui::register_swatch_paint_widget();  // <swatch_paint>, inside color_swatch
     ui_text_init();                             // text_heading, text_body, text_small, text_xs

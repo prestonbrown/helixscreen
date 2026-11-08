@@ -3697,6 +3697,8 @@
   <translation tag="Tap anywhere if this text is right-side up" de="Tippen Sie irgendwo, wenn dieser Text richtig herum ist"/>
   <translation tag="Tap anywhere to begin" de="Tippen Sie irgendwo, um zu beginnen"/>
   <translation tag="Tap anywhere to begin calibration" de="Tippen Sie irgendwo, um die Kalibrierung zu starten"/>
+  <translation tag="Tap the bed&apos;s back-left corner" de="Auf die hintere linke Ecke des Heizbetts tippen"/>
+  <translation tag="Tap the bed&apos;s back-right corner" de="Auf die hintere rechte Ecke des Heizbetts tippen"/>
   <translation tag="Tap the bed&apos;s front-left corner" de="Auf die vordere linke Ecke des Heizbetts tippen"/>
   <translation tag="Tap the bed&apos;s front-right corner" de="Auf die vordere rechte Ecke des Heizbetts tippen"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" de="Fadenkreuz antippen (Punkt %1$d von 3) — Berührung %2$d von %3$d"/>

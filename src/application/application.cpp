@@ -128,6 +128,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_settings.h"
 #include "ui_panel_spoolman.h"
+#include "ui_plate_glow.h"
 #include "ui_preflight_check_modal.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_printer_status_icon.h"
@@ -1597,6 +1598,7 @@ bool Application::register_widgets() {
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
     helix::ui::register_humidity_drop_widget();
+    helix::ui::register_plate_glow_widget();
 
     // Initialize component systems
     ui_component_header_bar_init();

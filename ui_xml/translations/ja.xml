@@ -3697,6 +3697,8 @@
   <translation tag="Tap anywhere if this text is right-side up" ja="この文字が正しい向きならどこかをタップ"/>
   <translation tag="Tap anywhere to begin" ja="どこかをタップして開始"/>
   <translation tag="Tap anywhere to begin calibration" ja="どこかをタップしてキャリブレーション開始"/>
+  <translation tag="Tap the bed&apos;s back-left corner" ja="ベッドの奥左の角をタップ"/>
+  <translation tag="Tap the bed&apos;s back-right corner" ja="ベッドの奥右の角をタップ"/>
   <translation tag="Tap the bed&apos;s front-left corner" ja="ベッドの手前左の角をタップ"/>
   <translation tag="Tap the bed&apos;s front-right corner" ja="ベッドの手前右の角をタップ"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" ja="十字をタップ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>

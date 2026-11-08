@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "callout_presenter.h"
 
+#include "ui_plate_glow.h"
+
+#include "plate_glow.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -9,6 +13,16 @@
 namespace helix::ui {
 
 namespace {
+
+/// How far the plate's haze rises, as a share of the plate's pictured width.
+constexpr float kPlateHazeRise = 0.55f;
+
+bool same_quad(const std::array<CalloutPoint, 4>& a, const std::array<CalloutPoint, 4>& b) {
+    for (size_t i = 0; i < a.size(); ++i)
+        if (a[i].x != b[i].x || a[i].y != b[i].y)
+            return false;
+    return true;
+}
 
 const CalloutPresenter::Chip* part_for(const CalloutPresenter::Parts& parts, CalloutKind kind) {
     for (const auto& c : parts.chips)
@@ -159,20 +173,34 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
     using callout_detail::px;
     int x, y, w, h;
     if (part.kind == CalloutKind::Bed) {
-        // An ellipse over the bed's near edge, as wide as the edge.
-        x = px(std::min(r.bed_left.x, r.bed_right.x), image.x, image.w);
-        w = px(std::max(r.bed_left.x, r.bed_right.x), image.x, image.w) - x;
-        h = w / 4;
-        y = px((r.bed_left.y + r.bed_right.y) / 2, image.y, image.h) - h / 2;
-    } else {
-        const auto a = region_anchor(r, part.kind);
-        if (!a)
-            return;
-        // A disc centred on the region's point.
-        w = h = image.w / 5;
-        x = px(a->x, image.x, image.w) - w / 2;
-        y = px(a->y, image.y, image.h) - h / 2;
+        // The plate's quad as pictured, with the haze rising into the picture
+        // above it but never past the picture's top.
+        std::array<CalloutPoint, 4> quad{};
+        const auto norm = plate_quad(r);
+        int top = image.y + image.h, left = image.x + image.w, right = image.x;
+        for (size_t i = 0; i < quad.size(); ++i) {
+            quad[i] = {px(norm[i].x, image.x, image.w), px(norm[i].y, image.y, image.h)};
+            top = std::min(top, quad[i].y);
+            left = std::min(left, quad[i].x);
+            right = std::max(right, quad[i].x);
+        }
+        const int rise =
+            std::clamp(int(float(right - left) * kPlateHazeRise), 0, std::max(0, top - image.y));
+        // A rebuilt widget starts with no mask, whatever geometry it inherits.
+        if (!lv_image_get_src(part.glow) || !same_quad(quad, plate_quad_) || rise != plate_rise_) {
+            plate_quad_ = quad;
+            plate_rise_ = rise;
+            plate_glow_set_mask(part.glow, render_plate_glow(quad, rise));
+        }
+        return;
     }
+    const auto a = region_anchor(r, part.kind);
+    if (!a)
+        return;
+    // A disc centred on the region's point.
+    w = h = image.w / 5;
+    x = px(a->x, image.x, image.w) - w / 2;
+    y = px(a->y, image.y, image.h) - h / 2;
     if (lv_obj_get_style_x(part.glow, LV_PART_MAIN) != x ||
         lv_obj_get_style_y(part.glow, LV_PART_MAIN) != y) {
         // DECLARATIVE_OK: measured callout layout

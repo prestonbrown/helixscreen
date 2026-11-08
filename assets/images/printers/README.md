@@ -120,13 +120,18 @@ the image at points hand-tagged in `assets/images/printers/regions.json`:
 ```json
 "creality-k1c": {"size": [947, 1188], "nozzle": [0.522, 0.276], "part_fan": [0.48, 0.202],
                  "chamber": [0.184, 0.377], "light": [0.197, 0.159],
-                 "bed": [[0.175, 0.572], [0.688, 0.574]]}
+                 "bed": [[0.175, 0.572], [0.688, 0.574], [0.688, 0.566], [0.175, 0.564]]}
 ```
 
 - Points are normalized 0..1 over the source PNG. The prerendered tiers and the exact-size
   cache are aspect-preserving, centred resizes of that PNG, so one set of numbers holds at
   every rendered size.
-- `bed` is the plate's near edge as seen in the picture: left end, right end.
+- `bed` is the plate's top surface as a quad, in perspective as pictured: near-left,
+  near-right, far-right, far-left corner. It hugs the build sheet the print sits on, not the
+  heated bed under it. Where the far edge is hidden (a tinted door, a gantry), its corners sit
+  where the plate actually ends in perspective. A bed seen nearly edge-on has its far edge only
+  just above the near edge. Two points (near-left, near-right) are still accepted; the far edge
+  is then estimated.
 - `size`, `nozzle` and `bed` are required; `part_fan`, `chamber` and `light` are optional -
   omit whichever the printer doesn't have.
 - `size` is the source PNG's width and height. `tests/unit/test_printer_image_regions.cpp`
@@ -141,15 +146,16 @@ python3 -m http.server -d . 8000
 # open http://localhost:8000/tools/printer-regions-tagger.html
 ```
 
-Tap-to-tag: nozzle tip, part fan, bed near-left corner, bed near-right corner, an empty spot
-inside the enclosure, the light. Part fan, chamber and light can be skipped. A review step
-renders chips at the tapped points before saving. Progress is kept in the browser; paste the
-tool's output over `regions.json` to ship. Images are listed in telemetry popularity,
-refreshed by hand, then alphabetically.
+Tap-to-tag: nozzle tip, part fan, bed near-left corner, bed near-right corner, bed far-right
+corner, bed far-left corner, an empty spot inside the enclosure, the light. Part fan, chamber
+and light can be skipped, and so can the two far corners, which leaves a two-point `bed`. A
+review step renders chips and the plate quad at the tapped points before saving. Progress is
+kept in the browser; paste the tool's output over `regions.json` to ship. Images are listed in
+telemetry popularity, refreshed by hand, then alphabetically.
 
 ### Tags users make on the device
 
-Tag parts in the printer image picker runs the same six prompts on the screen, for the image
+Tag parts in the printer image picker runs the same eight prompts on the screen, for the image
 the home widget shows, and writes `<config dir>/printer_image_regions.json` in this same
 format. Its entries override `regions.json` for their key only: a shipped image by basename,
 a custom image as `custom:<name>`. Their `size` is the natural size of the image that was

@@ -3760,6 +3760,8 @@
   <translation tag="Tap anywhere if this text is right-side up" ru="Нажмите в любом месте, если текст расположен правильно"/>
   <translation tag="Tap anywhere to begin" ru="Нажмите в любом месте для начала"/>
   <translation tag="Tap anywhere to begin calibration" ru="Нажмите в любом месте для начала калибровки"/>
+  <translation tag="Tap the bed&apos;s back-left corner" ru="Нажмите на задний левый угол стола"/>
+  <translation tag="Tap the bed&apos;s back-right corner" ru="Нажмите на задний правый угол стола"/>
   <translation tag="Tap the bed&apos;s front-left corner" ru="Нажмите на передний левый угол стола"/>
   <translation tag="Tap the bed&apos;s front-right corner" ru="Нажмите на передний правый угол стола"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" ru="Нажмите на перекрестие (точка %1$d из 3) — касание %2$d из %3$d"/>

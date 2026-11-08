@@ -3697,6 +3697,8 @@
   <translation tag="Tap anywhere if this text is right-side up" en="Tap anywhere if this text is right-side up"/>
   <translation tag="Tap anywhere to begin" en="Tap anywhere to begin"/>
   <translation tag="Tap anywhere to begin calibration" en="Tap anywhere to begin calibration"/>
+  <translation tag="Tap the bed&apos;s back-left corner" en="Tap the bed&apos;s back-left corner"/>
+  <translation tag="Tap the bed&apos;s back-right corner" en="Tap the bed&apos;s back-right corner"/>
   <translation tag="Tap the bed&apos;s front-left corner" en="Tap the bed&apos;s front-left corner"/>
   <translation tag="Tap the bed&apos;s front-right corner" en="Tap the bed&apos;s front-right corner"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" en="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d"/>

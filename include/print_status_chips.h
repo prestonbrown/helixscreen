@@ -27,8 +27,10 @@ struct ChipContent {
     ChipTone tone = ChipTone::Normal;
     /// Showing an expected value, so a tile too small for every chip drops it first.
     bool expendable = false;
-    /// Its region on the picture glows; for a heater, heater_region_glows().
-    bool glow = false;
+    /// How its region on the picture glows: 0 not at all, otherwise 1, or for
+    /// the bed its bed_glow_level() (1-3). A heater's region glows while
+    /// heater_region_glows().
+    int glow = 0;
     /// 0-100 heat-up progress for a climbing heater, -1 for no bar.
     int progress_pct = -1;
     /// A heater's HeaterStatusState as an int, for its heater_status glyph; 0 for any other chip.

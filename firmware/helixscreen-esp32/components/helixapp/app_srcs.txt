@@ -397,6 +397,8 @@ src/ui/effects/backdrop_blur.cpp
 src/ui/home/bed_coord_mapper.cpp
 src/ui/calibration/bed_mesh_profile_name.cpp
 src/ui/home/callout_presenter.cpp
+src/ui/home/plate_glow.cpp
+src/ui/components/ui_plate_glow.cpp
 src/ui/home/camera_view.cpp
 src/ui/print/card_thumbnail_plan.cpp
 src/ui/controls/chamber_assignment_options.cpp

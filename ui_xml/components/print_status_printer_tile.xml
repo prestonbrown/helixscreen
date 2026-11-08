@@ -21,7 +21,13 @@
         <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="0"/>
         <!-- PrintStatusTiles paints the heater glows from the heat state. -->
         <region_glow name="ps_glow_nozzle" tone_subject="ps_chip_nozzle_tone" shown_subject="ps_glow_nozzle"/>
-        <region_glow name="ps_glow_bed" tone_subject="ps_chip_bed_tone" shown_subject="ps_glow_bed"/>
+        <!-- ps_glow_bed is the plate's heat level: 0 hidden, 1 warm, 2 hot, 3 very hot. -->
+        <plate_glow name="ps_glow_bed" style_image_recolor="#warning" style_image_recolor_opa="255">
+          <style name="styles.plate_glow_warm"/>
+          <bind_style_if_eq name="styles.plate_glow_hot" subject="ps_glow_bed" ref_value="2"/>
+          <bind_style_if_eq name="styles.plate_glow_very_hot" subject="ps_glow_bed" ref_value="3"/>
+          <bind_flag_if_eq subject="ps_glow_bed" flag="hidden" ref_value="0"/>
+        </plate_glow>
         <region_glow name="ps_glow_chamber" tone_subject="ps_chip_chamber_tone" shown_subject="ps_glow_chamber"/>
         <region_glow name="ps_glow_part_fan"
                      color="#info" tone_subject="ps_chip_part_fan_tone" shown_subject="ps_glow_part_fan"/>
