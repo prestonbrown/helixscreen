@@ -2575,6 +2575,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker edit leaves the tag's next readin
     auto& api = mock_printer.api;
 
     SnapmakerHarness harness(&api, nullptr);
+    snapmaker_idle(*harness); // an edit writes print_task_config only once a state is read
 
     const auto tag_uid = nlohmann::json::array({144, 32, 196, 2});
     feed_filament_detect(*harness, nlohmann::json{
@@ -3415,6 +3416,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "clearing a Snapmaker spool restates the tag's
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
     SnapmakerHarness harness(&api, nullptr);
+    snapmaker_idle(*harness); // an edit writes print_task_config only once a state is read
 
     SECTION("an untagged spool keeps no name") {
         feed_filament_detect(*harness, nlohmann::json{

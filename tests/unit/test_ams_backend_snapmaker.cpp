@@ -2304,6 +2304,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker bound spool stands over a reader n
     auto& api = mock_printer.api;
     helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(&api, nullptr);
     AmsBackendSnapmaker& backend = *backend_reg;
+    SnapmakerTestAccess::handle_status(backend, json{{"print_stats", {{"state", "standby"}}}});
 
     SnapmakerTestAccess::handle_status(
         backend,
@@ -2923,6 +2924,9 @@ struct SnapmakerLaneRig {
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
             &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
         SnapmakerTestAccess::inject_override_store(*backend_reg, std::move(store));
+        // An edit writes print_task_config only once a print state is read.
+        SnapmakerTestAccess::handle_status(*backend_reg,
+                                           json{{"print_stats", {{"state", "standby"}}}});
     }
 
     SnapmakerTmpCacheDir tmp;
