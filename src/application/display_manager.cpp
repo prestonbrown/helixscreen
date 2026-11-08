@@ -110,7 +110,8 @@ DisplayManager::DisplayManager()
     : m_sleep(DisplaySleepHost{
           m_backend, m_backlight, m_display, m_shutting_down, [] { cancel_pointer_presses(); },
           [this](lv_display_flush_cb_t cb) { restore_flush_cb(cb); },
-          [] { return helix::RemoteScreenService::instance().viewer_active(); }}) {}
+          [] { return helix::RemoteScreenService::instance().viewer_active(); },
+          m_settle_for_wake_frame}) {}
 
 DisplayManager::~DisplayManager() {
     shutdown();
@@ -810,6 +811,8 @@ void DisplayManager::restore_flush_cb(lv_display_flush_cb_t flush_cb) {
 // ============================================================================
 
 void DisplayManager::check_display_sleep() {
+    // Called right after the loop applies notifications, outside any batch.
+    m_sleep.finish_owed_wake_frame();
     m_sleep.tick();
 }
 

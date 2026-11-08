@@ -8,7 +8,12 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "application_test_fixture.h"
+#include "asleep_status_wiring.h"
+#include "config.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
+#include "display_manager.h"
+#include "display_settings_manager.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "moonraker_manager.h"
@@ -297,4 +302,104 @@ TEST_CASE_METHOD(StatusHoldFixture, "shutdown drops held telemetry unapplied",
     mgr.apply_held_status();
     CHECK(bed_values.empty());
     CHECK(lv_subject_get_int(bed_temp()) == 200);
+}
+
+namespace {
+
+class AsleepWakeFixture : public StatusHoldFixture {
+  public:
+    AsleepWakeFixture() {
+        Config* config = Config::get_instance();
+        config->set<int>("/display/screensaver_type", 0);
+        config->set<int>("/display/dim_sec", 600);
+        config->set<int>("/display/sleep_sec", 60);
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+        dm.set_dim_timeout(600);
+        wire_asleep_status(dm, [this] { return &mgr; });
+        label = lv_label_create(lv_screen_active());
+        lv_display_add_event_cb(lv_display_get_default(), on_refr_start, LV_EVENT_REFR_START, this);
+    }
+    ~AsleepWakeFixture() override {
+        lv_display_remove_event_cb_with_user_data(lv_display_get_default(), on_refr_start, this);
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+    }
+
+    void sleep_display() {
+        lv_display_trigger_activity(nullptr);
+        lv_tick_inc(61000);
+        dm.check_display_sleep();
+        REQUIRE(dm.is_display_sleeping());
+    }
+
+    /// What the first refresh pass after the wake starts from.
+    static void on_refr_start(lv_event_t* e) {
+        auto* self = static_cast<AsleepWakeFixture*>(lv_event_get_user_data(e));
+        if (self->refreshes++ == 0) {
+            self->text_at_first = lv_label_get_text(self->label);
+            self->bed_at_first = lv_subject_get_int(self->bed_temp());
+            self->pending_at_first = ui::UpdateQueue::instance().pending_count();
+        }
+    }
+
+    DisplayManager dm; // no init(): software-overlay sleep on the test display
+    lv_obj_t* label = nullptr;
+    int refreshes = 0;
+    std::string text_at_first;
+    int bed_at_first = -1;
+    size_t pending_at_first = 99;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(AsleepWakeFixture,
+                 "the first frame after a wake shows held status and drained observers",
+                 "[status_hold][display][wake_frame]") {
+    sleep_display();
+    send_bed(55.0);
+    mgr.process_notifications();
+    REQUIRE(lv_subject_get_int(bed_temp()) == 200); // held, not applied
+
+    SubjectLifetime lifetime;
+    lv_subject_t* subject = get_printer_state().temperature_state().get_bed_temp_subject(lifetime);
+    ObserverGuard guard = ui::observe<int>(
+        subject, label, [](lv_obj_t* l, int deci) { lv_label_set_text_fmt(l, "%d", deci); },
+        lifetime);
+    ui::UpdateQueue::instance().drain();
+    ui::queue_update("test::queued_before_wake", [this] { lv_label_set_text(label, "queued"); });
+    refreshes = 0;
+
+    REQUIRE(dm.note_wake_press(10, 10));
+    dm.check_display_sleep();
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    CHECK(refreshes >= 1);
+    CHECK(bed_at_first == 550);
+    CHECK(text_at_first == "550");
+    CHECK(pending_at_first == 0);
+}
+
+TEST_CASE_METHOD(AsleepWakeFixture,
+                 "a wake inside a batch renders its first frame from the loop, once settled",
+                 "[status_hold][display][wake_frame]") {
+    sleep_display();
+    send_bed(56.0);
+    mgr.process_notifications();
+    lv_label_set_text(label, "before");
+    refreshes = 0;
+
+    ui::queue_update("test::wake_in_batch", [this] {
+        dm.wake_display();
+        ui::queue_update("test::after_wake", [this] { lv_label_set_text(label, "after"); });
+    });
+    ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    CHECK(refreshes == 0);
+    CHECK(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN)); // the panel is still dark
+
+    dm.check_display_sleep();
+    CHECK(refreshes >= 1);
+    CHECK(bed_at_first == 560);
+    CHECK(text_at_first == "after");
+    CHECK_FALSE(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN));
 }
