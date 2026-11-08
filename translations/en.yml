@@ -1759,8 +1759,8 @@ translations:
     before calibrating for accurate offset with thermal expansion.
   Heat nozzle: Heat nozzle
   Heat soak: Heat soak
-  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
-  : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   Heat the bed to {}°C: Heat the bed to {}°C
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
