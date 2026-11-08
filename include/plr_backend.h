@@ -4,6 +4,7 @@
 #include "helix_plugin_features.h"
 #include "json_fwd.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,12 @@ struct PlrCapabilitySignals {
     /// it; the printer_idle input of the offer decision is what scopes it to a
     /// boot after power loss.
     bool interrupted_flag = false;
+    /// The firmware's saved filename decides whether a job is on record
+    /// (plr_saved_file_gates_offer()). When false, saved_recovery_file is ignored.
+    bool saved_file_gates_offer = false;
+    /// The saved filename (plr_parse_saved_file): nullopt when the firmware
+    /// keeps none, empty when it was cleared.
+    std::optional<std::string> saved_recovery_file;
     /// The recovery file the status payload names (plr_parse_recovery_file),
     /// empty when none arrived.
     std::string status_recovery_file;
@@ -262,6 +269,13 @@ inline constexpr const char* kQidiDetectMacro = "DETECT_INTERRUPTION";
 /// PrinterDiscovery dependency.
 bool plr_resume_macro_present(const PrinterDiscovery& hw);
 
+/// Whether this firmware's saved filename is the record of an interrupted job,
+/// so that an empty one means there is nothing to resume even while the
+/// interrupted flag still reads true. Macro sets that resume from a saved name
+/// clear only the name on discard. Firmware carrying the boot-time detection
+/// macro keeps its record elsewhere and answers false.
+bool plr_saved_file_gates_offer(const PrinterDiscovery& hw);
+
 /// Status fields the PLR backends read on the discovered firmware, as a
 /// printer.objects.subscribe objects map (object -> field list, or null for
 /// every field), for the subscription builder to merge with
@@ -285,6 +299,12 @@ const std::string* plr_parse_recovery_file(const nlohmann::json& status);
 /// false). Booleans only: save_variables values are Python literals Klipper
 /// re-parses, and another type under this name is not our signal.
 int plr_parse_interrupted_flag(const nlohmann::json& status);
+
+/// Read the firmware's saved filename out of a status payload. Returns false
+/// when this frame has no save_variables.variables dict and so says nothing.
+/// Otherwise sets @p out: nullopt when the dict has no string under the name,
+/// else the name, with the empty-quote spellings macros store normalized to "".
+bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::string>& out);
 
 /// True when this status frame carries print_stats.power_loss as a JSON number.
 /// Presence, not value, is the marker (the key exists only in the firmware

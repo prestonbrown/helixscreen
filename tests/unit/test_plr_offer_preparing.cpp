@@ -41,6 +41,10 @@
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
 
+#include <initializer_list>
+#include <optional>
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -288,6 +292,93 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR: a disconnect reset lets a recon
     settle();
 
     CHECK(PlrOfferControllerTestAccess::prompted(controller));
+}
+
+namespace {
+void discover_macros(helix::PrinterState& ps, std::initializer_list<const char*> macros) {
+    helix::PrinterDiscovery hw;
+    json objects = json::array();
+    for (const char* macro : macros) {
+        objects.push_back(std::string("gcode_macro ") + macro);
+    }
+    hw.parse_objects(objects);
+    ps.set_hardware(std::move(hw));
+}
+
+json interrupted_frame(std::optional<std::string> last_file) {
+    json vars = {{"was_interrupted", true}};
+    if (last_file) {
+        vars["last_file"] = *last_file;
+    }
+    return json{{"save_variables", {{"variables", vars}}}};
+}
+} // namespace
+
+TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: firmware with the detection macro offers",
+                 "[plr][qidi][saved-file]") {
+    auto& ps = get_printer_state();
+    discover_macros(ps, {"DETECT_INTERRUPTION"});
+    ps.update_from_status(interrupted_frame(std::string()));
+    settle();
+
+    PlrOfferController controller;
+    settle();
+    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+}
+
+TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: no saved name on record still offers",
+                 "[plr][qidi][saved-file]") {
+    auto& ps = get_printer_state();
+    discover_macros(ps, {"RESUME_INTERRUPTED"});
+    ps.update_from_status(interrupted_frame(std::nullopt));
+    settle();
+
+    PlrOfferController controller;
+    settle();
+    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+}
+
+TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: an empty saved name suppresses the offer",
+                 "[plr][qidi][saved-file]") {
+    auto& ps = get_printer_state();
+    discover_macros(ps, {"RESUME_INTERRUPTED"});
+    ps.update_from_status(interrupted_frame(std::string()));
+    settle();
+
+    PlrOfferController controller;
+    settle();
+    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+}
+
+TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: Discard sticks across a reconnect",
+                 "[plr][qidi][saved-file]") {
+    auto& ps = get_printer_state();
+    lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    discover_macros(ps, {"RESUME_INTERRUPTED"});
+    ps.update_from_status(interrupted_frame("benchy.gcode"));
+    settle();
+
+    PlrOfferController controller;
+    settle();
+    REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+
+    // The discard macro empties the name and leaves the flag true.
+    ps.update_from_status(interrupted_frame(std::string()));
+    settle();
+
+    lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::DISCONNECTED));
+    settle();
+    REQUIRE_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+
+    lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    discover_macros(ps, {"RESUME_INTERRUPTED"});
+    ps.update_from_status(interrupted_frame(std::string()));
+    settle();
+
+    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
 }
 
 // ===========================================================================
