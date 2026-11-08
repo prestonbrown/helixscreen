@@ -1063,6 +1063,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
     // interrupted flag and the boolean-only rule (-1 means this frame says
     // nothing about it; see plr_parse_interrupted_flag). The offer controller
     // resets the subject on the disconnect edge, like plr_snapshot_valid.
+    helix::plr_parse_saved_file(status, plr_saved_file_);
     const int plr_flag = helix::plr_parse_interrupted_flag(status);
     if (plr_flag >= 0 && lv_subject_get_int(&plr_interrupted_flag_) != plr_flag) {
         spdlog::debug("[PrinterPrintState] PLR interrupted flag = {} (power-loss recovery)",

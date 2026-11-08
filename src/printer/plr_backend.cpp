@@ -71,6 +71,12 @@ std::string status_recovery_file(const PlrCapabilitySignals& caps,
     return caps.status_recovery_file;
 }
 
+/// A firmware whose saved filename is its record, with that name now empty.
+bool saved_file_cleared(const PlrCapabilitySignals& caps) {
+    return caps.saved_file_gates_offer && caps.saved_recovery_file &&
+           caps.saved_recovery_file->empty();
+}
+
 const std::array<PlrProvider, 5>& providers() {
     static const std::array<PlrProvider, 5> kProviders = {{
         // Snapmaker U1 fork: virtual_sdcard.pl_env_valid is the firmware's own
@@ -107,8 +113,16 @@ const std::array<PlrProvider, 5>& providers() {
          [](const PlrCapabilitySignals& caps) {
              return caps.resume_macro && caps.interrupted_flag;
          },
-         [](const PlrCapabilitySignals&, const PlrProbeSession&) { return true; },
-         status_recovery_file},
+         [](const PlrCapabilitySignals& caps, const PlrProbeSession&) {
+             return !saved_file_cleared(caps);
+         },
+         [](const PlrCapabilitySignals& caps, const PlrProbeSession& probe) {
+             if (caps.saved_file_gates_offer && caps.saved_recovery_file &&
+                 !caps.saved_recovery_file->empty()) {
+                 return *caps.saved_recovery_file;
+             }
+             return status_recovery_file(caps, probe);
+         }},
         // Creality K/Ender/Hi fork: print_stats.power_loss marks the firmware,
         // and nothing in discovery does, so every printer subscribes it;
         // Moonraker answers it with null on the rest. Availability takes the
@@ -221,6 +235,10 @@ bool plr_resume_macro_present(const PrinterDiscovery& hw) {
     return hw.has_macro(kQidiDetectMacro) || hw.has_macro(kQidiResumeGcode);
 }
 
+bool plr_saved_file_gates_offer(const PrinterDiscovery& hw) {
+    return hw.has_macro(kQidiResumeGcode) && !hw.has_macro(kQidiDetectMacro);
+}
+
 nlohmann::json plr_required_status_fields(const PrinterDiscovery& hw) {
     json fields = json::object();
     for (const PlrProvider& p : providers()) {
@@ -267,6 +285,24 @@ int plr_parse_interrupted_flag(const nlohmann::json& status) {
         return -1;
     }
     return wi_it->get<bool>() ? 1 : 0;
+}
+
+bool plr_parse_saved_file(const nlohmann::json& status, std::optional<std::string>& out) {
+    auto sv_it = status.find("save_variables");
+    if (sv_it == status.end() || !sv_it->is_object()) {
+        return false;
+    }
+    auto vars_it = sv_it->find("variables");
+    if (vars_it == sv_it->end() || !vars_it->is_object()) {
+        return false;
+    }
+    out.reset();
+    auto file_it = vars_it->find("last_file");
+    if (file_it != vars_it->end() && file_it->is_string()) {
+        const auto& name = file_it->get_ref<const std::string&>();
+        out = (name == "''" || name == "\"\"") ? std::string() : name;
+    }
+    return true;
 }
 
 bool plr_parse_power_loss_signal(const nlohmann::json& status) {
