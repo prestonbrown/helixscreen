@@ -281,7 +281,8 @@ serial field, chars 29-34, as `String.format("%06d", id)` for ids 1 to 999999.
 `TagReading::spoolman_id` (`src/printer/ams_backend_cfs.cpp#file_box_readings`). Creality
 writes its factory serial `000001` on every stock tag (CFTag's own default serial is the
 same, with reserve `000000`), so 1 names no spool, and neither do 0, a serial that is not
-six digits, or anything but a whole record. A real Spoolman spool #1 therefore cannot be
+six digits, a record whose supplier field (chars 6-9) is not Creality's `0276`, or anything
+but a whole record. A real Spoolman spool #1 therefore cannot be
 linked from a tag. The generic tag-link policy (`FILAMENT_SLOT_METADATA.md` § "Tag-declared
 Spoolman links") turns that id into a link; `tags_name_spoolman_spools()` answers true on
 the stock schema. Otherwise a stock lane's `spoolman_id` comes from a user pick (editor,
