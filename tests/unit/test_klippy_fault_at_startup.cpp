@@ -222,6 +222,68 @@ TEST_CASE_METHOD(StartupFaultFixture, "A mainboard powered off at connect shows 
     }
 }
 
+TEST_CASE_METHOD(StartupFaultFixture, "A power-off that stops Klipper shows no dialog",
+                 "[klippy_startup_fault][power][recovery]") {
+    struct PowerReset {
+        ~PowerReset() {
+            PowerDeviceState::instance().deinit_subjects();
+        }
+    } power_reset;
+    auto& power = PowerDeviceState::instance();
+    power.set_devices(
+        {PowerDevice{"printer", "gpio", "off", false}, PowerDevice{"light", "gpio", "on", false}});
+    report("ready", "");
+    REQUIRE(recovery_card() == nullptr);
+
+    // Moonraker's notify_klippy_disconnected carries no message.
+    const auto klipper_stops = [&] {
+        state().set_klippy_state(KlippyState::SHUTDOWN);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(100);
+    };
+
+    SECTION("the device bound to Klipper is off") {
+        power.set_klipper_bound_devices({"printer"});
+        klipper_stops();
+        CHECK(recovery_card() == nullptr);
+    }
+    SECTION("a bound device that is on leaves the stop unexplained") {
+        power.set_klipper_bound_devices({"light"});
+        klipper_stops();
+        CHECK(recovery_card() != nullptr);
+    }
+    SECTION("an unrelated device being off explains nothing") {
+        power.set_klipper_bound_devices({});
+        klipper_stops();
+        CHECK(recovery_card() != nullptr);
+    }
+}
+
+TEST_CASE("Discovery learns which power devices stop Klipper",
+          "[klippy_startup_fault][power][discovery]") {
+    LVGLTestFixture fixture;
+    auto& ps = get_printer_state();
+    ps.init_subjects(false);
+    struct PowerReset {
+        ~PowerReset() {
+            PowerDeviceState::instance().deinit_subjects();
+        }
+    } power_reset;
+
+    GateClient client;
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::ERROR);
+    client.set_klippy_error_message(kConfigError);
+    client.discover_printer_real();
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto& power = PowerDeviceState::instance();
+    REQUIRE_FALSE(power.klipper_bound_device_off());
+
+    power.update_device_status("printer_psu", "off");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(power.klipper_bound_device_off());
+}
+
 TEST_CASE("Klipper's MCU connect failures are told apart from other faults",
           "[klippy_startup_fault][power]") {
     CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Unable to connect"));

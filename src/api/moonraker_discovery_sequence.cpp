@@ -36,6 +36,7 @@
 #include "pause_descriptor.h"
 #include "platform_info.h"
 #include "plr_backend.h"
+#include "power_device_parse.h"
 #include "power_device_state.h"
 #include "pre_print_preferences.h"
 #include "print_start_params.h"
@@ -245,6 +246,20 @@ void MoonrakerDiscoverySequence::discover_power_devices() {
         },
         0,     // default timeout
         true); // silent — suppress error toast
+
+    client_.send_jsonrpc(
+        "server.config", json::object(),
+        [](const json& response) {
+            helix::ui::queue_update(
+                "PowerDeviceState::set_klipper_bound_devices",
+                [bound = parse_klipper_bound_power_devices(response)]() mutable {
+                    helix::PowerDeviceState::instance().set_klipper_bound_devices(std::move(bound));
+                });
+        },
+        [](const MoonrakerError& err) {
+            spdlog::debug("[Moonraker Client] Power device bindings unavailable: {}", err.message);
+        },
+        0, true);
 }
 
 void MoonrakerDiscoverySequence::discover_sensors() {

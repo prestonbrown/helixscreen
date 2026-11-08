@@ -157,6 +157,18 @@ bool PowerDeviceState::any_device_off() const {
     return false;
 }
 
+void PowerDeviceState::set_klipper_bound_devices(std::vector<std::string> devices) {
+    klipper_bound_devices_ = std::move(devices);
+}
+
+bool PowerDeviceState::klipper_bound_device_off() const {
+    return std::any_of(klipper_bound_devices_.begin(), klipper_bound_devices_.end(),
+                       [this](const std::string& name) {
+                           auto it = devices_.find(name);
+                           return it != devices_.end() && it->second.raw_status == 0;
+                       });
+}
+
 std::vector<std::string> PowerDeviceState::device_names() const {
     std::vector<std::string> names;
     names.reserve(devices_.size());
@@ -289,6 +301,8 @@ void PowerDeviceState::deinit_subjects() {
     // PrinterState has already freed that subject; either way its context is
     // freed. Leaving it attached would keep calling back into torn-down state.
     print_state_observer_.reset();
+
+    klipper_bound_devices_.clear();
 
     // Signal death then expire lifetime tokens (#816)
     for (auto& [name, info] : devices_) {

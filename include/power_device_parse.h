@@ -7,6 +7,8 @@
 #include "json_utils.h"
 #include "moonraker_types.h"
 
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace helix {
@@ -43,6 +45,51 @@ inline std::vector<PowerDevice> parse_power_devices(const nlohmann::json& j) {
         }
     }
     return devices;
+}
+
+/// Whether @p service names a Klipper instance: `klipper`, or `klipper-1` on a
+/// multi-instance host, with or without `.service`. `klipper_mcu` is a separate
+/// process that keeps Klipper running when it stops.
+inline bool is_klipper_service_name(std::string_view service) {
+    constexpr std::string_view kUnitSuffix = ".service";
+    if (service.size() > kUnitSuffix.size() &&
+        service.substr(service.size() - kUnitSuffix.size()) == kUnitSuffix) {
+        service.remove_suffix(kUnitSuffix.size());
+    }
+    constexpr std::string_view kKlipper = "klipper";
+    if (service.substr(0, kKlipper.size()) != kKlipper) {
+        return false;
+    }
+    return service.size() == kKlipper.size() || service[kKlipper.size()] == '-';
+}
+
+/// The power devices whose `bound_services` include Klipper, from a `server.config`
+/// reply. Moonraker stops those services whenever the device turns off. Foreign
+/// input: anything malformed reads as not bound.
+inline std::vector<std::string> parse_klipper_bound_power_devices(const nlohmann::json& j) {
+    std::vector<std::string> bound;
+    if (!j.is_object() || !j.contains("result") || !j["result"].is_object() ||
+        !j["result"].contains("config") || !j["result"]["config"].is_object()) {
+        return bound;
+    }
+
+    constexpr std::string_view kSectionPrefix = "power ";
+    for (const auto& [section, options] : j["result"]["config"].items()) {
+        if (section.size() <= kSectionPrefix.size() ||
+            std::string_view(section).substr(0, kSectionPrefix.size()) != kSectionPrefix ||
+            !options.is_object() || !options.contains("bound_services") ||
+            !options["bound_services"].is_array()) {
+            continue;
+        }
+        for (const auto& service : options["bound_services"]) {
+            if (service.is_string() &&
+                is_klipper_service_name(service.get_ref<const std::string&>())) {
+                bound.push_back(section.substr(kSectionPrefix.size()));
+                break;
+            }
+        }
+    }
+    return bound;
 }
 
 } // namespace helix

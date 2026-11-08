@@ -120,10 +120,11 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         const bool automatic_transition =
             helix::env_flag("HELIX_MOCK_JOB_QUEUE_AUTOMATIC_TRANSITION");
 
-        json response = {
-            {"jsonrpc", "2.0"},
-            {"result",
-             {{"config", {{"job_queue", {{"automatic_transition", automatic_transition}}}}}}}};
+        json response = {{"jsonrpc", "2.0"},
+                         {"result",
+                          {{"config",
+                            {{"job_queue", {{"automatic_transition", automatic_transition}}},
+                             {"power printer_psu", {{"bound_services", {"klipper"}}}}}}}}};
 
         if (success_cb) {
             success_cb(response);

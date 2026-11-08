@@ -624,6 +624,16 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
         return false;
     }
 
+    // Moonraker stops Klipper along with a bound power device, so Klipper being
+    // down is the normal state of a printer switched off on purpose (#2076).
+    // Handled, not declined: there is nothing to retry.
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ &&
+        helix::PowerDeviceState::instance().klipper_bound_device_off()) {
+        spdlog::info("[KlipperRecovery] Not showing {}: a power device that stops Klipper is off",
+                     recovery_reason_str(reason));
+        return true;
+    }
+
     // A mainboard switched off through a power device: Home's status icon and
     // power controls already cover it, and neither restart can reach an MCU
     // with no power. Handled, not declined: there is nothing to retry.
