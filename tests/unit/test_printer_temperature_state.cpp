@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../ui_test_utils.h"
+#include "display_numbering.h"
 #include "printer_temperature_state.h"
+#include "settings_manager.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -256,6 +258,23 @@ TEST_CASE_METHOD(BareTemps, "PrinterTemperatureState: multi-extruder display_nam
     REQUIRE(exts.find("extruder1")->second.display_name == "Nozzle 2");
     REQUIRE(exts.find("extruder2")->second.display_name == "Nozzle 3");
     REQUIRE(exts.find("extruder3")->second.display_name == "Nozzle 4");
+}
+
+TEST_CASE_METHOD(BareTemps, "PrinterTemperatureState: extruders follow the G-code tool style",
+                 "[core][temperature][display-name][tool_style]") {
+    using helix::ui::ToolNumberStyleSetting;
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Gcode);
+
+    state.init_extruders({"extruder", "extruder1"});
+    const auto& exts = state.extruders();
+    const std::string first = exts.find("extruder")->second.display_name;
+    const std::string second = exts.find("extruder1")->second.display_name;
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
+
+    CHECK(first == "Nozzle T0");
+    CHECK(second == "Nozzle T1");
 }
 
 TEST_CASE_METHOD(BareTemps, "PrinterTemperatureState: extruder names are sorted before labeling",
