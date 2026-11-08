@@ -3972,7 +3972,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." it="Serve l&apos;analisi dei file del plugin, che non è in esecuzione."/>
   <translation tag="This plugin asks for no special permissions." it="Questo plugin non richiede permessi speciali."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." it="Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL."/>
-  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." it="Questa stampa richiama {}, che la stampante non ha più. Tocca «Aggiorna macro di ausilio» in Avanzate perché continui a funzionare."/>
+  <translation tag="This print called {}, which the printer no longer has." it="Questa stampa ha richiamato {}, che la stampante non ha più."/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." it="Questa stampa ha richiamato {}, che la stampante non ha più. Tocca «Aggiorna macro di ausilio» in Avanzate per ripristinarle."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." it="Questa stampa non può essere ripresa. Riavviala, oppure disattiva il controllo del piano se continua a succedere."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." it="Questa stampa non riporta gli strati, quindi non è possibile programmare una pausa a uno strato."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" it="Questa stampa richiede circa %.0fg ma la bobina ne ha circa %.0fg rimanenti. Avviare comunque?"/>

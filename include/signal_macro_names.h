@@ -123,7 +123,7 @@ enum class SignalNamesLine {
     AllHidden,            ///< every signal macro is hidden from macro lists
     AliasesKept,          ///< forwarders keep the visible names working, and listed
     PluginWillRename,     ///< PRINT_START's phase-tracking calls; the plugin renames them
-    UpdatePluginToRename, ///< the same calls, and no plugin here that renames them
+    UpdatePluginToRename, ///< the same calls, and an installed plugin too old to rename them
 };
 
 /// The names of the macros HelixScreen before 1.1 put phase-tracking calls in.
@@ -144,19 +144,53 @@ inline constexpr std::array<std::string_view, 3> kInstrumentedSections = {
     return false;
 }
 
-/// Header-only, so the macros row's state links where the scan does not.
-/// @param migration plugin_feature("signal_macro_migration", 1)
+/// What the plugin's last signal macro migration report says it will do with
+/// the marker blocks (GET /server/helix/signal_migration, its `state`).
+enum class SignalMigrationReport {
+    Unknown,      ///< not read, or no plugin that reports one
+    NothingFound, ///< it found no visible call in a marker block
+    WillRename,   ///< it renamed them, or will once Klipper has the hidden names
+    WontRename,   ///< switched off, firmware-managed, or a file it would not touch
+};
+
+/// The report for a `state` string of the plugin's migration report.
+[[nodiscard]] inline SignalMigrationReport signal_migration_report(std::string_view state) {
+    if (state == "nothing") {
+        return SignalMigrationReport::NothingFound;
+    }
+    if (state == "done" || state == "waiting_for_pack") {
+        return SignalMigrationReport::WillRename;
+    }
+    if (state.empty()) {
+        return SignalMigrationReport::Unknown;
+    }
+    return SignalMigrationReport::WontRename;
+}
+
+/// What the HelixPrint plugin can do about the marker blocks.
+struct SignalMigrationPlugin {
+    bool installed = false; ///< a HelixPrint plugin answers
+    bool reported = false;  ///< it lists signal_macro_migration, even one it cannot run
+    PluginFeatureState feature = PluginFeatureState::Absent;
+    SignalMigrationReport report = SignalMigrationReport::Unknown;
+};
+
+/// Header-only, so the macros row's state links where the scan does not. The
+/// plugin lines show only with a plugin installed, and the rename line only
+/// once the plugin's own report says it renames: the marker blocks are
+/// invisible here, and a hand-written call in PRINT_START is no block.
 [[nodiscard]] inline SignalNamesLine signal_names_line(const SignalMacroScan& scan,
-                                                       PluginFeatureState migration) {
+                                                       const SignalMigrationPlugin& plugin) {
     if (!scan.hidden_loaded) {
         return SignalNamesLine::None;
     }
-    if (marker_callers_present(scan)) {
-        if (migration == PluginFeatureState::Ready) {
-            return SignalNamesLine::PluginWillRename;
-        }
-        if (migration == PluginFeatureState::Absent) {
+    if (marker_callers_present(scan) && plugin.installed) {
+        if (!plugin.reported) {
             return SignalNamesLine::UpdatePluginToRename;
+        }
+        if (plugin.feature == PluginFeatureState::Ready &&
+            plugin.report == SignalMigrationReport::WillRename) {
+            return SignalNamesLine::PluginWillRename;
         }
     }
     if (!scan.aliases.empty() || !scan.callers.empty()) {

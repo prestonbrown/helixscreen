@@ -4138,7 +4138,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "プラグインのファイル解析が必要ですが、実行されていません。"
   This plugin asks for no special permissions.: 'このプラグインは特別な権限を要求しません。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。'
-  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: 'この印刷は {} を使用しますが、プリンターにはもうありません。動作を続けるには、詳細設定の「ヘルパーマクロを更新」をタップしてください。'
+  This print called {}, which the printer no longer has.: 'この印刷は {} を使用しましたが、プリンターにはもうありません。'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'この印刷は {} を使用しましたが、プリンターにはもうありません。詳細設定の「ヘルパーマクロを更新」をタップすると使えるようになります。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'この印刷は再開できません。印刷をやり直すか、繰り返し起きる場合はベッドチェックをオフにしてください。'
   This print does not report layers, so no layer pause can be scheduled.: 'この印刷はレイヤーを報告しないため、レイヤーでの一時停止は予約できません。'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: この印刷には約

@@ -513,33 +513,100 @@ TEST_CASE("a recorded name is forwarded and marks the macros outdated", "[signal
     CHECK(helix::MacroManager::evaluate_status(hw, {}) == helix::MacroInstallStatus::INSTALLED);
 }
 
-TEST_CASE("the watcher records a signal name Klipper did not know, once", "[signal_macros]") {
-    LVGLTestFixture fixture;
+namespace {
+
+/// Restores the active printer's recorded names when it goes out of scope.
+struct RecordedNamesScope {
     helix::Config* cfg = helix::Config::get_instance();
-    const std::string key = cfg->df() + "helix_macros/sliced_signal_names";
-    const json saved = cfg->get<json>(key, json());
-    cfg->set<json>(key, json::array());
+    std::string key = cfg->df() + "helix_macros/sliced_signal_names";
+    json saved = cfg->get<json>(key, json());
+    RecordedNamesScope() {
+        cfg->set<json>(key, json::array());
+    }
+    ~RecordedNamesScope() {
+        cfg->set<json>(key, saved);
+    }
+};
+
+} // namespace
+
+TEST_CASE("the watcher records what a print called when it ends, with one notice",
+          "[signal_macros]") {
+    LVGLTestFixture fixture;
+    RecordedNamesScope recorded;
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     auto respond = [&](const std::string& line) {
         client.dispatch_method_callback("notify_gcode_response", {{"params", json::array({line})}});
         helix::ui::UpdateQueue::instance().drain_until_empty();
     };
 
-    std::vector<std::string> notices;
-    {
-        helix::SlicedSignalWatcher watcher(
-            &client, [&](const std::string& name) { notices.push_back(name); });
-        respond("// Unknown command:\"HELIX_READY\"");
-        respond("// Unknown command:\"HELIX_READY\"");
-        respond("// Unknown command:\"FOO\"");
-    }
-    respond("// Unknown command:\"HELIX_ENDED\"");
+    std::vector<std::vector<std::string>> notices;
+    helix::SlicedSignalWatcher watcher(
+        &client, [&](const std::vector<std::string>& names) { notices.push_back(names); });
 
-    CHECK(notices == std::vector<std::string>{"HELIX_READY"});
-    CHECK(sm::recorded_signal_names() == std::vector<std::string>{"HELIX_READY"});
-    CHECK_FALSE(sm::record_signal_name("HELIX_READY"));
-    CHECK_FALSE(sm::record_signal_name("NOT_A_SIGNAL"));
-    cfg->set<json>(key, saved);
+    // Typed in a console with no print running: neither recorded nor announced.
+    respond("// Unknown command:\"HELIX_READY\"");
+    watcher.on_print_active(true);
+    watcher.on_print_active(false);
+    CHECK(sm::recorded_signal_names().empty());
+    CHECK(notices.empty());
+
+    // One print calling two names over several frames: nothing until it ends,
+    // then one record and one notice listing them in pack order.
+    watcher.on_print_active(true);
+    respond("// Unknown command:\"HELIX_READY\"");
+    respond("// Unknown command:\"HELIX_PHASE_HOMING\"");
+    respond("// Unknown command:\"HELIX_READY\"");
+    respond("// Unknown command:\"FOO\"");
+    CHECK(sm::recorded_signal_names().empty());
+    CHECK(notices.empty());
+    watcher.on_print_active(false);
+    CHECK(sm::recorded_signal_names() ==
+          std::vector<std::string>{"HELIX_READY", "HELIX_PHASE_HOMING"});
+    REQUIRE(notices.size() == 1);
+    CHECK(notices[0] == std::vector<std::string>{"HELIX_READY", "HELIX_PHASE_HOMING"});
+
+    // The next print calling the same names is not announced again.
+    watcher.on_print_active(true);
+    respond("// Unknown command:\"HELIX_READY\"");
+    watcher.on_print_active(false);
+    CHECK(notices.size() == 1);
+}
+
+TEST_CASE("the watcher's console handler queues only signal name lines", "[signal_macros]") {
+    LVGLTestFixture fixture;
+    RecordedNamesScope recorded;
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    auto& queue = helix::ui::UpdateQueue::instance();
+    queue.drain_until_empty();
+    helix::SlicedSignalWatcher watcher(&client, [](const std::vector<std::string>&) {});
+
+    const size_t before = queue.pending_count();
+    client.dispatch_method_callback("notify_gcode_response",
+                                    {{"params", json::array({"// ok", "B:60.0 /60.0"})}});
+    CHECK(queue.pending_count() == before);
+    client.dispatch_method_callback(
+        "notify_gcode_response", {{"params", json::array({"// Unknown command:\"HELIX_READY\""})}});
+    CHECK(queue.pending_count() == before + 1);
+    queue.drain_until_empty();
+}
+
+TEST_CASE("record_signal_names saves only what is new", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    CHECK(sm::record_signal_names({"HELIX_ENDED", "NOT_A_SIGNAL", "HELIX_READY"}) ==
+          std::vector<std::string>{"HELIX_READY", "HELIX_ENDED"});
+    CHECK(sm::record_signal_names({"HELIX_READY"}).empty());
+    CHECK(sm::recorded_signal_names() == std::vector<std::string>{"HELIX_READY", "HELIX_ENDED"});
+}
+
+TEST_CASE("the sliced-file notice points at the update only when it is offered",
+          "[signal_macros]") {
+    const auto offered = sm::sliced_signal_notice({"HELIX_READY", "HELIX_ENDED"}, true);
+    const auto plain = sm::sliced_signal_notice({"HELIX_READY"}, false);
+    CHECK(offered.find("HELIX_READY, HELIX_ENDED") != std::string::npos);
+    CHECK(offered.find("Update Helper Macros") != std::string::npos);
+    CHECK(plain.find("HELIX_READY") != std::string::npos);
+    CHECK(plain.find("Update Helper Macros") == std::string::npos);
 }
 
 // ============================================================================
@@ -561,21 +628,54 @@ json instrumented_print_start() {
 TEST_CASE("signal_names_line says what the macros row reports", "[signal_macros]") {
     using L = sm::SignalNamesLine;
     using P = helix::PluginFeatureState;
+    using R = sm::SignalMigrationReport;
     json own_caller = hidden_pack();
     own_caller["gcode_macro my_start"] = macro("HELIX_READY");
+    auto plugin = [](bool installed, bool reported, P feature, R report) {
+        sm::SignalMigrationPlugin p;
+        p.installed = installed;
+        p.reported = reported;
+        p.feature = feature;
+        p.report = report;
+        return p;
+    };
+    const auto none = plugin(false, false, P::Absent, R::Unknown);
+    const auto old_plugin = plugin(true, false, P::Absent, R::Unknown);
+    const auto renames = plugin(true, true, P::Ready, R::WillRename);
+    const auto instrumented = scan_of(instrumented_print_start());
 
-    CHECK(sm::signal_names_line(scan_of(visible_pack()), P::Ready) == L::None);
-    CHECK(sm::signal_names_line(scan_of(hidden_pack()), P::Absent) == L::AllHidden);
-    CHECK(sm::signal_names_line(scan_of(with_all_forwarders(hidden_pack())), P::Ready) ==
+    CHECK(sm::signal_names_line(scan_of(visible_pack()), renames) == L::None);
+    CHECK(sm::signal_names_line(scan_of(hidden_pack()), none) == L::AllHidden);
+    CHECK(sm::signal_names_line(scan_of(with_all_forwarders(hidden_pack())), renames) ==
           L::AliasesKept);
-    CHECK(sm::signal_names_line(scan_of(own_caller), P::Absent) == L::AliasesKept);
-    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Ready) ==
-          L::PluginWillRename);
-    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Absent) ==
-          L::UpdatePluginToRename);
-    // Switched off in moonraker.conf: the calls stay visible and the forwarders keep them working.
-    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Disabled) ==
+    CHECK(sm::signal_names_line(scan_of(own_caller), none) == L::AliasesKept);
+    CHECK(sm::signal_names_line(instrumented, renames) == L::PluginWillRename);
+    CHECK(sm::signal_names_line(instrumented, old_plugin) == L::UpdatePluginToRename);
+    // No plugin at all: nothing to update, the forwarders keep the calls working.
+    CHECK(sm::signal_names_line(instrumented, none) == L::AliasesKept);
+    // The plugin found no marker block: the call is hand-written and stays.
+    CHECK(sm::signal_names_line(instrumented, plugin(true, true, P::Ready, R::NothingFound)) ==
           L::AliasesKept);
+    CHECK(sm::signal_names_line(instrumented, plugin(true, true, P::Ready, R::Unknown)) ==
+          L::AliasesKept);
+    CHECK(sm::signal_names_line(instrumented, plugin(true, true, P::Ready, R::WontRename)) ==
+          L::AliasesKept);
+    // Switched off in moonraker.conf, or reported but unable to run.
+    CHECK(sm::signal_names_line(instrumented, plugin(true, true, P::Disabled, R::WontRename)) ==
+          L::AliasesKept);
+    CHECK(sm::signal_names_line(instrumented, plugin(true, true, P::Absent, R::Unknown)) ==
+          L::AliasesKept);
+}
+
+TEST_CASE("the plugin's migration report state reads as what it will do", "[signal_macros]") {
+    using R = sm::SignalMigrationReport;
+    CHECK(sm::signal_migration_report("nothing") == R::NothingFound);
+    CHECK(sm::signal_migration_report("done") == R::WillRename);
+    CHECK(sm::signal_migration_report("waiting_for_pack") == R::WillRename);
+    for (const char* state : {"disabled", "firmware_managed", "needs_attention", "failed"}) {
+        CHECK(sm::signal_migration_report(state) == R::WontRename);
+    }
+    CHECK(sm::signal_migration_report("") == R::Unknown);
 }
 
 TEST_CASE("the macros row's signal line follows the scan and the plugin", "[signal_macros]") {
@@ -589,15 +689,20 @@ TEST_CASE("the macros row's signal line follows the scan and the plugin", "[sign
 
     CHECK(line() == sm::SignalNamesLine::None);
     status.set_signal_macro_scan(scan_of(instrumented_print_start()));
-    CHECK(line() == sm::SignalNamesLine::UpdatePluginToRename);
 
     helix::PluginFeatureEntry ready;
     ready.version = 1;
     ready.available = true;
     ready.enabled = true;
+    CHECK(line() == sm::SignalNamesLine::AliasesKept);
     status.set_installed(true);
+    CHECK(line() == sm::SignalNamesLine::UpdatePluginToRename);
     status.set_features({{"signal_macro_migration", ready}});
+    CHECK(line() == sm::SignalNamesLine::AliasesKept);
+    status.set_signal_migration_report(sm::SignalMigrationReport::WillRename);
     CHECK(line() == sm::SignalNamesLine::PluginWillRename);
+    status.set_signal_migration_report(sm::SignalMigrationReport::NothingFound);
+    CHECK(line() == sm::SignalNamesLine::AliasesKept);
 
     status.set_signal_macro_scan(std::nullopt);
     CHECK(line() == sm::SignalNamesLine::None);

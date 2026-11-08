@@ -4364,7 +4364,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Esto necesita el análisis de archivos del plugin, que no está en marcha."
   This plugin asks for no special permissions.: 'Este plugin no pide permisos especiales.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Este plugin permite que HelixScreen controle opciones de inicio de impresión como malla de cama y QGL.'
-  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: 'Esta impresión llama a {}, que la impresora ya no tiene. Toque «Actualizar macros de ayuda» en Avanzado para que siga funcionando.'
+  This print called {}, which the printer no longer has.: 'Esta impresión llamó a {}, que la impresora ya no tiene.'
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'Esta impresión llamó a {}, que la impresora ya no tiene. Toque «Actualizar macros de ayuda» en Avanzado para recuperarlos.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Esta impresión no se puede reanudar. Reiníciala o desactiva la comprobación de cama si sigue ocurriendo.'
   This print does not report layers, so no layer pause can be scheduled.: 'Esta impresión no informa capas, así que no se puede programar una pausa en una capa.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Esta

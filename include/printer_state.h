@@ -678,6 +678,9 @@ class PrinterState {
     set_helix_plugin_features(helix::PluginFeatureMap features,
                               helix::FeatureAnnounce announce = helix::FeatureAnnounce::Always);
 
+    /// The plugin's last signal macro migration report, read from its `state`; any thread.
+    void set_signal_migration_report(helix::signal_macros::SignalMigrationReport report);
+
     /**
      * @brief Set how many PRINT OPTIONS rows the PRINT_START analysis adds
      *

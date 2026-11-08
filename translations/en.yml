@@ -4265,7 +4265,8 @@ translations:
   This needs the plugin's file analysis, which isn't running.: This needs the plugin's file analysis, which isn't running.
   This plugin asks for no special permissions.: This plugin asks for no special permissions.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: This plugin lets HelixScreen control print start options like bed mesh and QGL.
-  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.
+  This print called {}, which the printer no longer has.: This print called {}, which the printer no longer has.
+  This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.
   This print does not report layers, so no layer pause can be scheduled.: This print does not report layers, so no layer pause can be scheduled.
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: This

@@ -146,19 +146,20 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
     m_event_journal_recorder = std::make_unique<EventJournalRecorder>(client);
 
     // A sliced file calling a visible signal name the printer no longer defines:
-    // the name is recorded, the macros row offers the update that forwards it,
-    // and the user hears why once.
+    // the names a print called are recorded when it ends, and the user hears
+    // why once. The update is pointed at only when the macros row offers it.
     m_sliced_signal_watcher =
-        std::make_unique<SlicedSignalWatcher>(client, [](const std::string& visible) {
+        std::make_unique<SlicedSignalWatcher>(client, [](const std::vector<std::string>& visible) {
             auto& state = get_printer_state();
-            state.plugin_status_state().set_helix_macros_base_status(
-                MacroManager::evaluate_status(state.get_discovery()));
-            const std::string text = fmt::format(
-                lv_tr("This print calls {}, which the printer no longer has. Tap Update Helper "
-                      "Macros in Advanced to keep it working."),
-                visible);
+            const MacroInstallStatus status = MacroManager::evaluate_status(state.get_discovery());
+            state.plugin_status_state().set_helix_macros_base_status(status);
+            const std::string text = signal_macros::sliced_signal_notice(
+                visible, status == MacroInstallStatus::OUTDATED);
             ToastManager::instance().show(ToastSeverity::WARNING, text.c_str(), 8000);
         });
+    m_sliced_signal_watcher->watch_print_active(
+        get_printer_state().print_state().get_print_active_subject(),
+        get_printer_state().print_state().get_static_subjects_lifetime());
 
     // Layer tracking fallback: some slicers don't emit SET_PRINT_STATS_INFO, so
     // print_stats.info never updates current_layer. The response lines carry it.

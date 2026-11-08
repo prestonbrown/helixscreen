@@ -716,6 +716,12 @@ void PrinterState::set_helix_plugin_features(helix::PluginFeatureMap features,
                           });
 }
 
+void PrinterState::set_signal_migration_report(helix::signal_macros::SignalMigrationReport report) {
+    async_lifetime_.defer("PrinterState::set_signal_migration_report", [this, report]() {
+        plugin_status_state_.set_signal_migration_report(report);
+    });
+}
+
 void PrinterState::set_macro_option_count(size_t count) {
     macro_option_count_ = count;
     update_gcode_modification_visibility();

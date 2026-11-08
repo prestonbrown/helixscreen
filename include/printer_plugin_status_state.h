@@ -247,6 +247,9 @@ class PrinterPluginStatusState {
     /// The discovery's scan of the loaded config; nullopt until it was read.
     void set_signal_macro_scan(std::optional<signal_macros::SignalMacroScan> scan);
 
+    /// What the plugin's last signal macro migration report says it does.
+    void set_signal_migration_report(signal_macros::SignalMigrationReport report);
+
     /// PluginFeatureState of the power-loss recovery feature (`plr`), as an
     /// int: 0 Absent, 1 Disabled, 2 Ready. The settings row binds it.
     lv_subject_t* get_plr_feature_state_subject() {
@@ -363,6 +366,8 @@ class PrinterPluginStatusState {
     lv_subject_t helix_macros_status_{};
     lv_subject_t helix_macros_signal_names_{};
     std::optional<signal_macros::SignalMacroScan> signal_macro_scan_;
+    signal_macros::SignalMigrationReport signal_migration_report_ =
+        signal_macros::SignalMigrationReport::Unknown;
     /// Republish helix_macros_signal_names from the scan and the plugin's features.
     void publish_signal_names_line();
     int macros_base_status_ = static_cast<int>(HelixMacrosStatus::Unknown);

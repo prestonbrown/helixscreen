@@ -3972,7 +3972,8 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." de="Dafür wird die Dateianalyse des Plugins benötigt, die nicht läuft."/>
   <translation tag="This plugin asks for no special permissions." de="Dieses Plugin fragt nach keinen besonderen Berechtigungen."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." de="Dieses Plugin ermöglicht HelixScreen die Steuerung von Druckstartoptionen wie Bettnetz und QGL."/>
-  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." de="Dieser Druck ruft {} auf, das der Drucker nicht mehr hat. Tippen Sie unter Erweitert auf „Hilfsmakros aktualisieren“, damit es weiter funktioniert."/>
+  <translation tag="This print called {}, which the printer no longer has." de="Dieser Druck hat {} aufgerufen, das der Drucker nicht mehr hat."/>
+  <translation tag="This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back." de="Dieser Druck hat {} aufgerufen, das der Drucker nicht mehr hat. Tippen Sie unter Erweitert auf „Hilfsmakros aktualisieren“, um sie wiederherzustellen."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." de="Dieser Druck kann nicht fortgesetzt werden. Starten Sie ihn neu oder schalten Sie die Bettprüfung aus, wenn das wiederholt passiert."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." de="Dieser Druck meldet keine Schichten, daher kann keine Pause bei einer Schicht geplant werden."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" de="Dieser Druck benötigt etwa %.0fg, aber die Spule hat noch etwa %.0fg übrig. Trotzdem starten?"/>

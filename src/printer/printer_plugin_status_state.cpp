@@ -64,6 +64,7 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     macros_base_status_ = static_cast<int>(HelixMacrosStatus::Unknown);
     macros_restart_pending_ = false;
     signal_macro_scan_.reset();
+    signal_migration_report_ = signal_macros::SignalMigrationReport::Unknown;
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterPluginStatusState] Subjects initialized successfully");
@@ -135,13 +136,23 @@ void PrinterPluginStatusState::set_signal_macro_scan(
     publish_signal_names_line();
 }
 
+void PrinterPluginStatusState::set_signal_migration_report(
+    signal_macros::SignalMigrationReport report) {
+    signal_migration_report_ = report;
+    publish_signal_names_line();
+}
+
 void PrinterPluginStatusState::publish_signal_names_line() {
     if (!subjects_initialized_) {
         return;
     }
+    signal_macros::SignalMigrationPlugin plugin;
+    plugin.installed = service_has_helix_plugin();
+    plugin.reported = plugin_feature_reported("signal_macro_migration", 1);
+    plugin.feature = plugin_feature("signal_macro_migration", 1);
+    plugin.report = signal_migration_report_;
     const auto line = signal_macro_scan_
-                          ? signal_macros::signal_names_line(
-                                *signal_macro_scan_, plugin_feature("signal_macro_migration", 1))
+                          ? signal_macros::signal_names_line(*signal_macro_scan_, plugin)
                           : signal_macros::SignalNamesLine::None;
     lv_subject_set_int(&helix_macros_signal_names_, static_cast<int>(line));
 }
