@@ -18,6 +18,7 @@
 #include "guided_load_flow.h"
 
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -100,6 +101,7 @@ struct ColdPullActions {
     bool keep_previous_hot = false;     ///< SendOptions flag for heater_target_c
     std::optional<int> fan_percent;     ///< via fan_gcode(part_fan, ...)
     std::string gcode;                  ///< extrusion only; "" for none
+    uint32_t command_id = 0;            ///< Names @c gcode in command_finished()
     bool run_park = false;              ///< park macro (only ever set when homed)
     bool home_then_park = false;        ///< ensure_homed_then + park (user tap only)
     bool reset_meter = false;           ///< maintenance cold pull meter (Done only)
@@ -142,6 +144,10 @@ class ColdPullFlow {
     }
     /// A command this flow sent is still running.
     [[nodiscard]] bool busy() const;
+    /// The id of the command in flight; 0 when none is.
+    [[nodiscard]] uint32_t in_flight_command() const {
+        return in_flight_command_;
+    }
     /// How the filament reaches the nozzle for this pass.
     [[nodiscard]] ColdPullFeedMode feed_mode() const;
     /// The seated lane's filament is out of the hotend while its backend, told nothing
@@ -169,7 +175,8 @@ class ColdPullFlow {
     // Printer events
     [[nodiscard]] ColdPullActions temperature(int current_c, int target_c, TimePoint now);
     [[nodiscard]] ColdPullActions filament_detected(TimePoint now);
-    [[nodiscard]] ColdPullActions command_finished(bool ok, TimePoint now);
+    /// A reply to anything but the command still in flight is dropped.
+    [[nodiscard]] ColdPullActions command_finished(uint32_t command_id, bool ok, TimePoint now);
     [[nodiscard]] ColdPullActions job_started();
     [[nodiscard]] ColdPullActions disconnected();
     [[nodiscard]] ColdPullActions tick(TimePoint now);
@@ -188,6 +195,9 @@ class ColdPullFlow {
     [[nodiscard]] ColdPullActions end(ColdPullStage stage, ColdPullEndReason reason,
                                       bool send_cleanup);
     [[nodiscard]] bool live() const;
+    void track_command(ColdPullActions& a, InFlight kind);
+    void clear_in_flight();
+    [[nodiscard]] GuidedLoadFlow new_feed() const;
 
     ColdPullParams params_;
     ColdPullStage stage_ = ColdPullStage::Setup;
@@ -195,6 +205,8 @@ class ColdPullFlow {
     int pass_ = 1;
     std::optional<GuidedLoadFlow> feed_;
     InFlight in_flight_ = InFlight::None;
+    uint32_t in_flight_command_ = 0;
+    uint32_t last_command_ = 0;
     TimePoint stage_started_{};
     TimePoint last_tap_{};
 

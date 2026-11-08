@@ -63,7 +63,7 @@ void drive_to(ColdPullFlow& f, ColdPullStage target) {
         return;
     }
     (void)f.extrude(t0 + 2s);
-    (void)f.command_finished(true, t0 + 3s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 3s);
     (void)f.fed(t0 + 4s);
     REQUIRE(f.stage() == ColdPullStage::Cooling);
     if (target == ColdPullStage::Cooling) {
@@ -124,10 +124,10 @@ TEST_CASE("cold pull: the happy path sends each step's commands in order", "[col
     a = f.extrude(t0 + 3s);
     CHECK(a.gcode == "M83\nG1 E60 F300");
     CHECK(f.extrude(t0 + 3s).empty()); // one in flight
-    (void)f.command_finished(true, t0 + 4s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 4s);
     CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
     CHECK(f.extrude(t0 + 5s).gcode == "M83\nG1 E20 F300");
-    (void)f.command_finished(true, t0 + 6s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 6s);
 
     a = f.fed(t0 + 7s);
     CHECK(f.stage() == ColdPullStage::Cooling);
@@ -300,7 +300,7 @@ TEST_CASE("cold pull: every stage times out at its limit and not before", "[cold
         (void)f.tick(t0 + 1s + 8min - 1s);
         CHECK(f.stage() == ColdPullStage::Feed);
         (void)f.extrude(t0 + 5min);
-        (void)f.command_finished(true, t0 + 5min);
+        (void)f.command_finished(f.in_flight_command(), true, t0 + 5min);
         (void)f.tick(t0 + 9min);
         CHECK(f.stage() == ColdPullStage::Feed);
         (void)f.tick(t0 + 13min);
@@ -373,12 +373,12 @@ TEST_CASE("cold pull: hold pressure stops for good near the extrusion floor", "[
     CHECK(f.tick(t0 + 6s).gcode.empty()); // first one 3 s in
     CHECK(f.tick(t0 + 7s).gcode == "M83\nG1 E1 F60");
     CHECK(f.tick(t0 + 10s).gcode.empty()); // one in flight
-    (void)f.command_finished(true, t0 + 10s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 10s);
     CHECK(f.tick(t0 + 10s).gcode == "M83\nG1 E1 F60");
-    (void)f.command_finished(true, t0 + 11s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 11s);
     (void)f.temperature(185, 90, t0 + 12s);
     CHECK_FALSE(f.tick(t0 + 13s).gcode.empty());
-    (void)f.command_finished(true, t0 + 13s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 13s);
     (void)f.temperature(184, 90, t0 + 14s);
     (void)f.temperature(200, 90, t0 + 15s); // a bump back up does not restart it
     CHECK(f.tick(t0 + 20s).gcode.empty());
@@ -432,7 +432,10 @@ TEST_CASE("cold pull: a seated lane's filament is purged, never pushed", "[cold_
     // Already at the nozzle: the 60 mm hand-feed length would be waste.
     CHECK(f.filament_detected(t0 + 2s).empty());
     CHECK(f.extrude(t0 + 2s).gcode == "M83\nG1 E20 F300");
-    (void)f.command_finished(true, t0 + 3s);
+    (void)f.command_finished(f.in_flight_command(), false, t0 + 3s);
+    CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput); // a refused purge stays a purge
+    CHECK(f.extrude(t0 + 3s).gcode == "M83\nG1 E20 F300");
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 3s);
     CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
     CHECK(f.fed(t0 + 3s).heater_target_c == 90);
     CHECK(f.stage() == ColdPullStage::Cooling);
@@ -458,7 +461,7 @@ TEST_CASE("cold pull: after a hand pull the lane is owed a re-seat", "[cold_pull
         CHECK(f.lane_needs_reseat());
         CHECK(f.extrude(t0 + 3min).gcode == "M83\nG1 E60 F300");
         CHECK(f.lane_needs_reseat()); // not back until the extrude has run
-        (void)f.command_finished(true, t0 + 3min + 1s);
+        (void)f.command_finished(f.in_flight_command(), true, t0 + 3min + 1s);
         CHECK_FALSE(f.lane_needs_reseat());
         CHECK(f.feed_mode() == ColdPullFeedMode::Loaded);
     }
@@ -470,12 +473,14 @@ TEST_CASE("cold pull: after a hand pull the lane is owed a re-seat", "[cold_pull
         CHECK(f.stage() == ColdPullStage::Cooling);
         CHECK(f.lane_needs_reseat());
     }
-    SECTION("a refused extrude does not settle it") {
+    SECTION("a refused extrude does not settle it, and the retry is the full feed") {
         (void)f.repeat(t0 + 1min);
         (void)f.temperature(228, 230, t0 + 2min);
         (void)f.extrude(t0 + 3min);
-        (void)f.command_finished(false, t0 + 3min + 1s);
+        (void)f.command_finished(f.in_flight_command(), false, t0 + 3min + 1s);
         CHECK(f.lane_needs_reseat());
+        CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush);
+        CHECK(f.extrude(t0 + 3min + 2s).gcode == "M83\nG1 E60 F300");
     }
     SECTION("cancelling a repeat before the feed leaves it owed") {
         (void)f.repeat(t0 + 1min);
@@ -491,7 +496,7 @@ TEST_CASE("cold pull: no seated lane feeds by hand and owes nothing", "[cold_pul
     CHECK(f.feed_mode() == ColdPullFeedMode::ByHand);
     CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush);
     (void)f.extrude(t0 + 2s);
-    (void)f.command_finished(true, t0 + 3s);
+    (void)f.command_finished(f.in_flight_command(), true, t0 + 3s);
     pull_to_inspect(f, t0 + 4s);
     CHECK_FALSE(f.lane_needs_reseat());
 }
@@ -502,12 +507,12 @@ TEST_CASE("cold pull: the feed runs once per push and a refused one costs nothin
     CHECK(f.filament_detected(t0 + 2s).gcode == "M83\nG1 E60 F300");
     CHECK(f.filament_detected(t0 + 2s).empty());
     CHECK(f.extrude(t0 + 2s).empty());
-    CHECK(f.command_finished(false, t0 + 3s).empty());
+    CHECK(f.command_finished(f.in_flight_command(), false, t0 + 3s).empty());
     CHECK(f.stage() == ColdPullStage::Feed);
     CHECK_FALSE(f.busy());
-    CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
-    CHECK(f.extrude(t0 + 4s).gcode == "M83\nG1 E20 F300");
-    (void)f.command_finished(false, t0 + 5s);
+    CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush); // the retry is the full feed
+    CHECK(f.extrude(t0 + 4s).gcode == "M83\nG1 E60 F300");
+    (void)f.command_finished(f.in_flight_command(), false, t0 + 5s);
     CHECK(f.fed(t0 + 6s).heater_target_c == 90);
 }
 
@@ -529,15 +534,20 @@ TEST_CASE("cold pull: a clogged head reaches the pull with nothing extruded", "[
         p.hold_pressure = true;
         ColdPullFlow f(p);
         drive_to(f, ColdPullStage::Feed);
-        (void)f.extrude(t0 + 2s);
+        const uint32_t feed_id = f.extrude(t0 + 2s).command_id;
         REQUIRE(f.busy());
         (void)f.fed(t0 + 3s);
         CHECK(f.stage() == ColdPullStage::Cooling);
         CHECK_FALSE(f.busy());
         (void)f.temperature(225, 90, t0 + 4s);
-        CHECK(f.tick(t0 + 7s).gcode == "M83\nG1 E1 F60"); // the feed's slot is free again
-        (void)f.command_finished(false, t0 + 8s);
+        const auto hold = f.tick(t0 + 7s);
+        CHECK(hold.gcode == "M83\nG1 E1 F60"); // the feed's slot is free again
+        CHECK(f.command_finished(feed_id, false, t0 + 8s).empty());
         CHECK(f.stage() == ColdPullStage::Cooling);
+        CHECK(f.in_flight_command() == hold.command_id); // the hold is still the one out
+        (void)f.command_finished(hold.command_id, true, t0 + 8s);
+        CHECK_FALSE(f.busy());
+        CHECK(f.tick(t0 + 10s).gcode == "M83\nG1 E1 F60"); // the late refusal stopped nothing
         (void)f.temperature(92, 90, t0 + 9s);
         CHECK(f.stage() == ColdPullStage::Pull);
     }
