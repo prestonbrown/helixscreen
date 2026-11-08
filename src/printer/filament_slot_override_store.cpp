@@ -744,6 +744,10 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
     // because IFS's parse path may run with colors_[idx] still empty.
     if (!slot_has_filament)
         return false;
+    // The "no colour" sentinel is how a parse spells a bay that states none
+    // (a cleared CFS bay's "-1", an empty IFS colour). Published, it would
+    // tell every other client the lane is grey.
+    const bool has_color = is_declarable_color(firmware_color);
 
     auto& ovr = overrides[slot_index]; // creates default-constructed entry if absent
     bool changed = false;
@@ -756,7 +760,7 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
         // policy bootstraps an empty override AND catches genuine external
         // edits (Mainsail console, native LCD, etc.).
 
-        if (!ovr.color_set || ovr.color_rgb != firmware_color) {
+        if (has_color && (!ovr.color_set || ovr.color_rgb != firmware_color)) {
             ovr.color_rgb = firmware_color;
             ovr.color_set = true;
             changed = true;
@@ -774,7 +778,7 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
         // The escape hatch is clear_slot_override, which erases the entry
         // and lets auto-mirror take over again.
 
-        if (!ovr.color_set) {
+        if (has_color && !ovr.color_set) {
             ovr.color_rgb = firmware_color;
             ovr.color_set = true;
             changed = true;
