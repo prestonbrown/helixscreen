@@ -329,9 +329,14 @@ TEST_CASE("QIDI Box last_load_slot promotes a single slot to LOADED", "[ams][qid
 TEST_CASE("QIDI Box last_load_slot=slot-1 means nothing is in the extruder", "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
 
-    // Seed slot2 as loaded, then explicitly clear via last_load_slot
+    // Seat slot1 in its own frame so the clear has a current slot to reset.
+    fire_vars(backend, json{{"slot1", 2}, {"last_load_slot", "slot1"}});
+    REQUIRE(backend.is_filament_loaded());
+    REQUIRE(backend.get_current_slot() == 1);
+
+    // slot2 claims LOADED in the same frame that clears the extruder.
     fire_vars(backend, json{
-                           {"slot2", 2}, // claims LOADED
+                           {"slot2", 2},
                            {"last_load_slot", "slot-1"},
                        });
 
