@@ -93,10 +93,12 @@ struct PrintStartOperation {
  */
 struct PrintStartAnalysis {
     // === Macro Discovery ===
-    bool found = false;      ///< A print start macro was found
-    std::string macro_name;  ///< Actual name found (e.g., "PRINT_START", "START_PRINT")
-    std::string source_file; ///< Config file containing the macro (e.g., "macros.cfg")
-    std::string raw_gcode;   ///< Full macro gcode content
+    bool found = false;     ///< A print start macro was found
+    std::string macro_name; ///< Actual name found (e.g., "PRINT_START", "START_PRINT")
+    /// Config file containing the macro (e.g., "macros.cfg"); empty when it was
+    /// read from Klipper's configfile object, which does not name files.
+    std::string source_file;
+    std::string raw_gcode; ///< Full macro gcode content
 
     // === Detected Operations ===
     std::vector<PrintStartOperation> operations;
@@ -171,8 +173,13 @@ class PrintStartAnalyzer {
     /**
      * @brief Analyze PRINT_START macro from connected printer
      *
-     * Fetches printer config via Moonraker, finds the print start macro,
-     * and parses it to detect operations and their controllability.
+     * Downloads printer.cfg and the files its includes reach, finds the print
+     * start macro, and parses it to detect operations and their
+     * controllability. When those files hold no print start macro, or cannot be
+     * read, the macro comes from Klipper's configfile object instead, which
+     * carries every macro Klipper loaded whether or not Moonraker serves its
+     * file (a file under a reserved path answers 403). Callbacks may run on any
+     * thread.
      *
      * @param api IMoonrakerAPI instance (must be connected)
      * @param on_complete Callback with analysis result

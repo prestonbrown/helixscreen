@@ -3472,3 +3472,54 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
     CHECK(completed);
     CHECK_FALSE(success);
 }
+
+// A printer whose config files Moonraker will not serve (Reforge keeps them under
+// a reserved path, so every download answers 403) still has its macro in
+// Klipper's configfile object (prestonbrown/helixscreen#2061).
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintStartAnalyzer: a macro the config files do not show comes from configfile",
+                 "[print_preparation][print_start][2061][eventloop]") {
+    set_list_files_success_empty();
+    std::atomic<int> configfile_queries{0};
+    const bool serve_macro = GENERATE(true, false);
+    server_->on_method("printer.objects.query",
+                       [&configfile_queries, serve_macro](const json&) -> json {
+                           configfile_queries++;
+                           json config = {{"printer", {{"kinematics", "corexy"}}}};
+                           if (serve_macro) {
+                               // Klipper's value for a multi-line option starts with the newline
+                               // after "gcode:".
+                               config["gcode_macro START_PRINT"] = {
+                                   {"gcode", "\n{% if params.SKIP_MESH|default(0)|int == 0 %}\n"
+                                             "BED_MESH_CALIBRATE\n{% endif %}\nG28\n"}};
+                           }
+                           return json{{"status", {{"configfile", {{"config", config}}}}}};
+                       });
+
+    std::atomic<bool> done{false};
+    helix::PrintStartAnalysis result;
+    helix::PrintStartAnalyzer analyzer;
+    analyzer.analyze(
+        api_.get(),
+        [&](const helix::PrintStartAnalysis& analysis) {
+            result = analysis;
+            done = true;
+        },
+        [&](const MoonrakerError&) { done = true; });
+    REQUIRE(wait_for([&] { return done.load(); }));
+
+    CHECK(get_list_files_call_count() == 1);
+    CHECK(configfile_queries.load() == 1);
+    if (serve_macro) {
+        REQUIRE(result.found);
+        CHECK(result.macro_name == "START_PRINT");
+        CHECK(result.source_file.empty());
+        const auto* mesh = result.get_operation(helix::PrintStartOpCategory::BED_MESH);
+        REQUIRE(mesh != nullptr);
+        CHECK(mesh->has_skip_param);
+    } else {
+        CHECK_FALSE(result.found);
+    }
+    // The handler captures this test's locals, which die before the fixture.
+    server_->clear_handlers();
+}
