@@ -8,6 +8,7 @@
 
 #include "ui_ams_environment_overlay.h"
 
+#include "ui_ams_detail.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
@@ -16,6 +17,7 @@
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
+#include "ui_unit_art.h"
 #include "ui_zone_presentation.h"
 
 #include "ams_backend.h"
@@ -100,6 +102,8 @@ void AmsEnvironmentOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(unit_logo_subject_, unit_logo_buf_, "",
                                   "ams_env_overlay_unit_logo", subjects_);
         UI_MANAGED_SUBJECT_INT(unit_logo_color_subject_, 0, "ams_env_overlay_unit_logo_color",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_art_visible_subject_, 0, "ams_env_overlay_unit_art_visible",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(unit_logo_visible_subject_, 0, "ams_env_overlay_unit_logo_visible",
                                subjects_);
@@ -679,6 +683,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
         lv_subject_set_int(&unit_logo_visible_subject_, 0);
+        lv_subject_set_int(&unit_art_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
         lv_subject_set_int(&humidity_subject_, -1);
         lv_subject_set_int(&all_zones_visible_subject_, 0);
@@ -736,6 +741,14 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_copy_string(&unit_logo_subject_, unit_logo_buf_);
     lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
     lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
+    const bool has_art =
+        info && helix::ui::unit_art_available(*info, zone.unit_index,
+                                              helix::ui::unit_reports_climate(zone.unit_index));
+    lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
+    if (info)
+        helix::ui::unit_art_set_unit(lv_obj_find_by_name(overlay_root_, "unit_art_picture"), *info,
+                                     zone.unit_index,
+                                     helix::ui::unit_reports_climate(zone.unit_index));
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());
