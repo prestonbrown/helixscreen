@@ -2549,14 +2549,20 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a merge never touches a row a fai
     CHECK(panels[1]["panel_visits"] == json{{"controls", 1}, {"status", 1}});
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: rows loaded from disk are never merged into",
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a row that may already be delivered is never merged into",
                  "[telemetry][queue][delta]") {
     auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
     tm.set_enabled(true);
-
     fill_queue_behind_panel_row(tm, "home");
-    tm.save_queue();
-    tm.load_queue(); // as a new process would: any loaded row may be delivered
+    SECTION("rows loaded from disk, as a new process would") {
+        tm.save_queue();
+        tm.load_queue();
+    }
+    SECTION("rows a send's claim marked attempted") {
+        send_now(tm);
+    }
 
     tm.notify_panel_changed("controls");
     tm.record_panel_usage();
@@ -2627,24 +2633,6 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(panels[0]["widget_interactions"] == json{{"fan_control", 1}, {"led_control", 1}});
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture,
-                 "Queue: a send's claim marks its rows attempted, so nothing merges into them",
-                 "[telemetry][queue][delta]") {
-    auto& tm = TelemetryManager::instance();
-    TelemetryManagerTestAccess::disable_network(tm);
-    tm.set_enabled(true);
-    fill_queue_behind_panel_row(tm, "home");
-
-    send_now(tm);
-
-    tm.notify_panel_changed("controls");
-    tm.record_panel_usage();
-    auto panels = queued_events(tm, "panel_usage");
-    REQUIRE(panels.size() == 2);
-    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
-    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}});
-}
-
 TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a finished send releases its batch for eviction",
                  "[telemetry][queue]") {
     auto& tm = TelemetryManager::instance();
@@ -2684,34 +2672,22 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(panels[0]["panel_visits"] == json{{"home", 1}, {"controls", 1}});
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a purge forgets which rows a send attempted",
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a purge or a new boot forgets which rows a send attempted",
                  "[telemetry][queue][delta]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
     fill_queue_behind_panel_row(tm, "status");
     TelemetryManagerTestAccess::fail_send(tm);
-
-    tm.clear_queue();
-    fill_queue_behind_panel_row(tm, "home");
-    tm.notify_panel_changed("controls");
-    tm.record_panel_usage();
-
-    auto panels = queued_events(tm, "panel_usage");
-    REQUIRE(panels.size() == 1);
-    CHECK(panels[0]["panel_visits"] == json{{"home", 1}, {"controls", 1}});
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a new boot inherits no claim on the queue",
-                 "[telemetry][queue][delta]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-    fill_queue_behind_panel_row(tm, "status");
-    TelemetryManagerTestAccess::fail_send(tm);
-    TelemetryManagerTestAccess::set_in_flight(tm, TelemetryManager::kMaxBatchSize);
-
-    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
-    tm.init(temp_dir().string()); // nothing was saved, so nothing is loaded
-    REQUIRE(tm.queue_size() == 0);
+    SECTION("a purge") {
+        tm.clear_queue();
+    }
+    SECTION("a new boot after an unclean exit") {
+        TelemetryManagerTestAccess::set_in_flight(tm, TelemetryManager::kMaxBatchSize);
+        TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+        tm.init(temp_dir().string()); // nothing was saved, so nothing is loaded
+        REQUIRE(tm.queue_size() == 0);
+    }
 
     fill_queue_behind_panel_row(tm, "home");
     tm.notify_panel_changed("controls");
