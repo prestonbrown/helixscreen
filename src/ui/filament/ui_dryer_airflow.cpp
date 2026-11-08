@@ -3,6 +3,8 @@
 
 #include "ui_dryer_airflow.h"
 
+#include "ui_timer_guard.h"
+
 #include "display_settings_manager.h"
 #include "dryer_airflow_geometry.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -64,7 +66,7 @@ void untrack(lv_obj_t* obj) {
     s_widgets.erase(std::remove(s_widgets.begin(), s_widgets.end(), obj), s_widgets.end());
     if (s_widgets.empty() && s_timer) {
         if (lv_is_initialized() && timer_alive(s_timer))
-            lv_timer_delete(s_timer);
+            ui::lv_timer_cancel_safe(s_timer);
         s_timer = nullptr;
     }
 }

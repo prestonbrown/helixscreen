@@ -363,7 +363,8 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     // clamps to. Bounding the entry means the field cannot show a number the
     // command would silently replace. A humidity target of 0 clears the field.
     // Duration is entered in hours, to two places, and sent in minutes.
-    float min_value = static_cast<float>(dryer.clamp_duration(1)) / 60.0f;
+    float min_value =
+        std::ceil(static_cast<float>(dryer.clamp_duration(1)) * 100.0f / 60.0f) / 100.0f;
     float max_value = static_cast<float>(dryer.max_duration_min) / 60.0f;
     const char* title = lv_tr("Hours");
     const char* unit = "h";
