@@ -411,3 +411,30 @@ land on its own before Step 1, but only if run C on the AD5M shows it pays.
 ## Decisions (Preston, 2026-11-07)
 
 - Action prompts and the Klipper-shutdown recovery modal wake the display, as part of this work rather than a separate issue.
+
+## Status (2026-11-07): implemented, measurement pending
+
+Steps 0 and 1, the prompt and recovery-dialog wake, and the first-frame-correct wake are
+implemented on `docs/plan-sleep-cpu`. The device runs in "Measurement protocol" (A to H)
+have not been taken: they need the K1C and the AD5M, and this plan stays until they are.
+
+What differs from the design above:
+
+- The hold is wired in `src/application/asleep_status_wiring.cpp#wire_asleep_status`, not
+  inline in Application. Sleep turns the hold on; waking leaves it to the settle hook,
+  since a wake inside an UpdateQueue batch notifies its callbacks at once.
+- The owed wake frame is finished from `DisplayManager::check_display_sleep()`, which the
+  main loop calls right after `process_notifications()`.
+- The coalescer's clock is `lv_tick_get()`, which the firmware also has.
+- Action prompts and the shutdown and error recovery dialog wake the display through
+  `include/display_wake_request.h#request_display_wake`, a handler the active
+  DisplayManager installs. A disconnected-printer dialog does not wake.
+- Test 17 (sleep and wake wiring) is covered by the two wake-frame cases, which run
+  through `wire_asleep_status`. Test 18 (history samples across a 60 s sleep) is not a
+  unit test: the history throttles on the wall clock, so it is left to run D.
+- The headless mock cannot show the saving. Its simulation sends whole objects every
+  tick (`target`, `state`, `homed_axes` beside the temperatures), so no frame is
+  telemetry-only and the hold releases on each one. On thelio (load 24 to 50), asleep
+  with a mock print at `--sim-speed 1`, three 60 s windows read 1.18/1.38/1.28% of one
+  core before and 1.18/1.40/1.33% after, run side by side: no change, as expected. Only
+  a real Moonraker, which sends changed fields only, measures Step 1.
