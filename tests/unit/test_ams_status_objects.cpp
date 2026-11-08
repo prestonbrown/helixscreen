@@ -120,6 +120,45 @@ TEST_CASE("each backend's required_status_objects matches its own printer and is
         CHECK(objects == AmsBackendAfc::required_status_objects(std::vector<std::string>{
                              "AFC", "AFC_stepper lane1", "AFC_hub Turtle_1"}));
     }
+
+    SECTION("AFC's lane subscription names every lane field the parser reads") {
+        // After the first snapshot Moonraker sends only the listed fields, so a
+        // key the parser reads but the list omits never updates live.
+        const json objects =
+            AmsBackendAfc::required_status_objects(discover({"AFC", "AFC_stepper lane1"}));
+        const json& lane = objects["AFC_stepper lane1"];
+        REQUIRE(lane.is_array());
+        const std::set<std::string> listed(lane.begin(), lane.end());
+        for (const char* field : {"bed_temp",
+                                  "buffer_status",
+                                  "color",
+                                  "dist_hub",
+                                  "endstops",
+                                  "extruder_temp",
+                                  "filament_name",
+                                  "filament_status",
+                                  "filament_status_led",
+                                  "initial_weight",
+                                  "load",
+                                  "loaded_to_hub",
+                                  "material",
+                                  "multi_color_hexes",
+                                  "prep",
+                                  "remember_spool",
+                                  "selector",
+                                  "spool_id",
+                                  "spool_vendor",
+                                  "status",
+                                  "td1_color",
+                                  "td1_scan_time",
+                                  "td1_td",
+                                  "tool_loaded",
+                                  "vendor_name",
+                                  "weight"}) {
+            INFO(field);
+            CHECK(listed.count(field) == 1);
+        }
+    }
 }
 
 TEST_CASE("the dispatcher merges every backend", "[ams][ams_status_objects]") {

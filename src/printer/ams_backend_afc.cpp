@@ -376,11 +376,40 @@ nlohmann::json AmsBackendAfc::required_status_objects(const std::vector<std::str
     // T-commands is active. Older AFC does not publish it and Moonraker omits
     // what an object does not have, so asking for it is safe against every
     // version.
-    static const json stepper_fields =
-        json::array({"buffer_status",   "color",         "current_map", "dist_hub",      "extruder",
-                     "filament_status", "hub",           "load",        "loaded_to_hub", "map",
-                     "material",        "prep",          "runout_lane", "spool_id",      "status",
-                     "td1_color",       "td1_scan_time", "td1_td",      "tool_loaded",   "weight"});
+    //
+    // A field list is all Moonraker delivers after the first snapshot, so every
+    // key parse_afc_stepper() reads must be here or it updates only at startup.
+    static const json stepper_fields = json::array({"bed_temp",
+                                                    "buffer_status",
+                                                    "color",
+                                                    "current_map",
+                                                    "dist_hub",
+                                                    "endstops",
+                                                    "extruder",
+                                                    "extruder_temp",
+                                                    "filament_name",
+                                                    "filament_status",
+                                                    "filament_status_led",
+                                                    "hub",
+                                                    "initial_weight",
+                                                    "load",
+                                                    "loaded_to_hub",
+                                                    "map",
+                                                    "material",
+                                                    "multi_color_hexes",
+                                                    "prep",
+                                                    "remember_spool",
+                                                    "runout_lane",
+                                                    "selector",
+                                                    "spool_id",
+                                                    "spool_vendor",
+                                                    "status",
+                                                    "td1_color",
+                                                    "td1_scan_time",
+                                                    "td1_td",
+                                                    "tool_loaded",
+                                                    "vendor_name",
+                                                    "weight"});
     static const json hub_fields = json::array({"state", "afc_bowden_length"});
     static const json buffer_fields = json::array(
         {"state", "distance_to_fault", "error_sensitivity", "fault_detection_enabled", "lanes"});
