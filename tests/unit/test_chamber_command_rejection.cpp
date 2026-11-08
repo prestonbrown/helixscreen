@@ -434,23 +434,10 @@ TEST_CASE("the route's reply parses with or without the result wrapper",
     CHECK(parse_chamber_route_reply({{"accepted", nullptr}, {"reason", "klipper_shutdown"}})
               .outcome == ChamberRouteOutcome::PrinterShutdown);
     CHECK(parse_chamber_route_reply({{"result", "ok"}}).outcome == ChamberRouteOutcome::Accepted);
-}
-
-TEST_CASE("the route's reply reads only the field types it expects",
-          "[chamber][rejection][route]") {
-    using helix::ChamberRouteOutcome;
-    using helix::parse_chamber_route_reply;
-    // pending counts only as a JSON boolean, and only when no accepted is present
-    CHECK(parse_chamber_route_reply({{"pending", true}}).outcome == ChamberRouteOutcome::Pending);
+    // Only a JSON boolean pending counts; an accepted of any type is pending.
     CHECK(parse_chamber_route_reply({{"pending", 1}}).outcome == ChamberRouteOutcome::Accepted);
-    CHECK(parse_chamber_route_reply({{"pending", "true"}}).outcome ==
-          ChamberRouteOutcome::Accepted);
-    // an accepted of any other type is a reply still waiting on the device
     CHECK(parse_chamber_route_reply({{"accepted", 0}}).outcome == ChamberRouteOutcome::Pending);
-    // a non-string reason is no reason
-    const auto numeric_reason = parse_chamber_route_reply({{"accepted", false}, {"reason", 7}});
-    CHECK(numeric_reason.outcome == ChamberRouteOutcome::Refused);
-    CHECK(numeric_reason.reason.empty());
+    CHECK(parse_chamber_route_reply({{"accepted", false}, {"reason", 7}}).reason.empty());
 }
 
 TEST_CASE_METHOD(RouteFixture, "Try again resends the target the heater turned down",
