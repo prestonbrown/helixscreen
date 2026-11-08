@@ -25,7 +25,7 @@ constexpr ProfilePoint k_btt_vivid_dome[] = {{0.0000f, 0.00f}, {0.0006f, 28.03f}
 constexpr ProfilePoint k_kms_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr ProfilePoint k_kms_dome[] = {{0.0000f, 0.00f}, {0.0062f, 11.18f}, {0.0245f, 18.76f}, {0.0737f, 29.35f}, {0.1464f, 38.51f}, {0.2061f, 43.57f}, {0.3087f, 49.27f}, {0.4218f, 52.43f}, {0.5000f, 53.04f}, {0.5782f, 52.43f}, {0.6913f, 49.27f}, {0.7939f, 43.57f}, {0.8536f, 38.51f}, {0.9263f, 29.35f}, {0.9755f, 18.76f}, {0.9938f, 11.18f}, {1.0000f, 0.00f}};
 constexpr ProfilePoint k_ams_ht_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr ProfilePoint k_ams_ht_dome[] = {{0.0000f, 0.00f}, {0.0046f, 11.97f}, {0.0181f, 21.84f}, {0.0545f, 35.64f}, {0.1084f, 47.58f}, {0.1525f, 54.18f}, {0.2284f, 61.60f}, {0.3121f, 65.73f}, {0.6300f, 66.53f}, {0.6879f, 65.73f}, {0.7716f, 61.60f}, {0.8475f, 54.18f}, {0.8916f, 47.58f}, {0.9455f, 35.64f}, {0.9819f, 21.84f}, {0.9954f, 11.97f}, {1.0000f, 0.00f}};
+constexpr ProfilePoint k_ams_ht_dome[] = {{0.0000f, 0.00f}, {0.0046f, 12.26f}, {0.0181f, 22.41f}, {0.0545f, 36.61f}, {0.1084f, 48.89f}, {0.1525f, 55.67f}, {0.2284f, 63.31f}, {0.3121f, 67.56f}, {0.6300f, 68.38f}, {0.6879f, 67.56f}, {0.7716f, 63.31f}, {0.8475f, 55.67f}, {0.8916f, 48.89f}, {0.9455f, 36.61f}, {0.9819f, 22.41f}, {0.9954f, 12.26f}, {1.0000f, 0.00f}};
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 13.0f, 7.0f, true, true, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f, 0x000000},
@@ -36,7 +36,7 @@ const UnitShell kShells[] = {
     {"qidi_box", k_qidi_box_cheek, 2, k_qidi_box_dome, 17, 4, 49.15f, 40.0f, 8.0f, 6.0f, true, true, 0xd6d8dc, 0xc4c7cc, 0xeceef0, 0x3b3f46, 0x000000},
     {"btt_vivid", k_btt_vivid_cheek, 2, k_btt_vivid_dome, 17, 4, 0.00f, 34.6f, 8.0f, 7.0f, true, true, 0x34353a, 0x44474e, 0x6a6e77, 0xe4e6e8, 0x000000},
     {"kms", k_kms_cheek, 2, k_kms_dome, 17, 4, 0.00f, 61.6f, 8.0f, 12.0f, true, false, 0x55575b, 0x4b4d51, 0x7c7f85, 0xc4c7cb, 0x000000},
-    {"ams_ht", k_ams_ht_cheek, 2, k_ams_ht_dome, 17, 1, 0.00f, 55.4f, 8.0f, 7.0f, true, false, 0x3a3b40, 0x2b2c31, 0x55585f, 0xd8dbdf, 0x000000},
+    {"ams_ht", k_ams_ht_cheek, 2, k_ams_ht_dome, 17, 1, 0.00f, 66.5f, 8.0f, 7.0f, true, false, 0x3a3b40, 0x2b2c31, 0x55585f, 0xd8dbdf, 0x000000},
 };
 } // namespace
 
