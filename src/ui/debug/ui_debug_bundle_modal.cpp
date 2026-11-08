@@ -47,7 +47,6 @@ bool DebugBundleModal::show_modal(lv_obj_t* parent) {
     lv_subject_copy_string(&share_code_subject_, "");
     lv_subject_copy_string(&error_subject_, "");
 
-    // Call base class show
     return show(parent);
 }
 
