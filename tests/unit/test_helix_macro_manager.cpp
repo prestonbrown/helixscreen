@@ -620,30 +620,32 @@ TEST_CASE_METHOD(MacroStageFixture, "install_files writes no include and no back
     CHECK(backup_count() == 0);
 }
 
-TEST_CASE_METHOD(MacroStageFixture, "install_files stages the hidden signal names",
-                 "[config][install]") {
-    hardware_.parse_objects(json::array({"gcode_macro START_PRINT", "bed_mesh"}));
+TEST_CASE_METHOD(
+    MacroStageFixture,
+    "install_files stages the hidden signal names unless the printer has the visible ones",
+    "[config][install]") {
+    struct Case {
+        const char* printer_has; ///< the signal macro the printer reports, if any
+        const char* staged;
+        const char* not_staged;
+    };
+    const auto c = GENERATE(
+        Case{nullptr, "[gcode_macro _HELIX_READY]", "[gcode_macro HELIX_READY]"},
+        Case{"gcode_macro HELIX_READY", "[gcode_macro HELIX_READY]", "[gcode_macro _HELIX_READY]"});
+    CAPTURE(c.staged);
+    json objects = json::array({"gcode_macro START_PRINT", "bed_mesh"});
+    if (c.printer_has != nullptr) {
+        objects.push_back(c.printer_has);
+    }
+    hardware_.parse_objects(objects);
 
     manager_.install_files([] {}, [](const MoonrakerError&) {});
     settle();
 
     auto macros = api_.get_uploaded_config("helix_macros.cfg");
     REQUIRE(macros.has_value());
-    CHECK(macros->find("[gcode_macro _HELIX_READY]") != std::string::npos);
-    CHECK(macros->find("[gcode_macro HELIX_READY]") == std::string::npos);
-}
-
-TEST_CASE_METHOD(MacroStageFixture, "install_files keeps the visible names a printer has",
-                 "[config][install]") {
-    hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
-
-    manager_.install_files([] {}, [](const MoonrakerError&) {});
-    settle();
-
-    auto macros = api_.get_uploaded_config("helix_macros.cfg");
-    REQUIRE(macros.has_value());
-    CHECK(macros->find("[gcode_macro HELIX_READY]") != std::string::npos);
-    CHECK(macros->find("[gcode_macro _HELIX_READY]") == std::string::npos);
+    CHECK(macros->find(c.staged) != std::string::npos);
+    CHECK(macros->find(c.not_staged) == std::string::npos);
 }
 
 TEST_CASE_METHOD(MacroStageFixture, "update_files keeps the signal names the printer has",
