@@ -504,6 +504,14 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     layered_mark_dirty(obj);
 }
 
+void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
+    auto* data = get_data(obj);
+    if (!data || data->built_in_hub == built_in)
+        return;
+    data->built_in_hub = built_in;
+    lv_obj_invalidate(obj);
+}
+
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead) {
     auto* data = get_data(obj);
     if (!data || data->hub_on_toolhead == on_toolhead)

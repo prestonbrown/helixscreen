@@ -50,6 +50,7 @@ struct UnitShell {
     float front_wall_px;
     float cap_clearance_px;
     bool lid_spans_row;
+    bool built_in_selector; ///< Lanes merge inside the unit: no separate selector or hub is drawn.
     uint32_t body;
     uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
     const FrontPart* front;

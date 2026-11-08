@@ -108,3 +108,5 @@ UNIT.tray.front = [
     kit.lane(-7, 7, 15, UNIT.tray.front_wall_px - 5, 0x8a8d92, 2),
     kit.center(-8, 8, -2, 2, 0xb9bcc2, 2),
 ]
+
+UNIT.tray.built_in_selector = True

@@ -411,6 +411,8 @@ bool hub_has_filament(const FilamentPathData* data, const LinearHubFrame& f) {
 // the recorded hub hit rect.
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
+    if (data->built_in_hub)
+        return;
     const BaseGeometry& g = ctx.geo;
 
     // Hub box - tint based on an error at the hub, or filament color

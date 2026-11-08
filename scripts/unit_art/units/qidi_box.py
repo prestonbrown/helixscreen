@@ -80,3 +80,5 @@ UNIT.tray.front = [
     kit.center(-13, 13, 1, 7, 0xeef0f3, 2),
     kit.center(-2, 2, 2.5, 5.5, 0x8d9096),
 ]
+
+UNIT.tray.built_in_selector = True

@@ -37,15 +37,15 @@ constexpr ProfilePoint k_ams_ht_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr ProfilePoint k_ams_ht_dome[] = {{0.0000f, 0.00f}, {0.0037f, 18.49f}, {0.0147f, 27.51f}, {0.0442f, 40.14f}, {0.0879f, 51.06f}, {0.1237f, 57.08f}, {0.1852f, 63.87f}, {0.2531f, 67.65f}, {0.7000f, 68.38f}, {0.7469f, 67.65f}, {0.8148f, 63.87f}, {0.8763f, 57.08f}, {0.9121f, 51.06f}, {0.9558f, 40.14f}, {0.9853f, 27.51f}, {0.9963f, 18.49f}, {1.0000f, 0.00f}};
 
 const UnitShell kShells[] = {
-    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, 0x3a3b3f, 0x000000, k_ace_pro_front, 5},
-    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 43.9f, 9.0f, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6},
-    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 43.9f, 9.0f, true, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6},
-    {"ams_2_pro", k_ams_2_pro_cheek, 2, k_ams_2_pro_dome, 17, 4, 0.00f, 42.0f, 7.0f, true, 0x2b2c30, 0x000000, k_ams_2_pro_front, 4},
-    {"cfs", k_cfs_cheek, 3, k_cfs_dome, 17, 4, 33.76f, 38.0f, 7.0f, true, 0x55585e, 0x000008, k_cfs_front, 7},
-    {"qidi_box", k_qidi_box_cheek, 2, k_qidi_box_dome, 17, 4, 49.15f, 40.0f, 6.0f, true, 0xd6d8dc, 0x000000, k_qidi_box_front, 3},
-    {"btt_vivid", k_btt_vivid_cheek, 2, k_btt_vivid_dome, 17, 4, 0.00f, 34.6f, 7.0f, true, 0x34353a, 0x000000, k_btt_vivid_front, 5},
-    {"kms", k_kms_cheek, 2, k_kms_dome, 17, 4, 0.00f, 61.6f, 12.0f, true, 0x55575b, 0x000000, k_kms_front, 2},
-    {"ams_ht", k_ams_ht_cheek, 2, k_ams_ht_dome, 17, 1, 0.00f, 66.5f, 7.0f, true, 0x3a3b40, 0x000000, k_ams_ht_front, 2},
+    {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, true, 0x3a3b3f, 0x000000, k_ace_pro_front, 5},
+    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 43.9f, 9.0f, false, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6},
+    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 43.9f, 9.0f, true, false, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6},
+    {"ams_2_pro", k_ams_2_pro_cheek, 2, k_ams_2_pro_dome, 17, 4, 0.00f, 42.0f, 7.0f, true, true, 0x2b2c30, 0x000000, k_ams_2_pro_front, 4},
+    {"cfs", k_cfs_cheek, 3, k_cfs_dome, 17, 4, 33.76f, 38.0f, 7.0f, true, true, 0x55585e, 0x000008, k_cfs_front, 7},
+    {"qidi_box", k_qidi_box_cheek, 2, k_qidi_box_dome, 17, 4, 49.15f, 40.0f, 6.0f, true, true, 0xd6d8dc, 0x000000, k_qidi_box_front, 3},
+    {"btt_vivid", k_btt_vivid_cheek, 2, k_btt_vivid_dome, 17, 4, 0.00f, 34.6f, 7.0f, true, true, 0x34353a, 0x000000, k_btt_vivid_front, 5},
+    {"kms", k_kms_cheek, 2, k_kms_dome, 17, 4, 0.00f, 61.6f, 12.0f, true, true, 0x55575b, 0x000000, k_kms_front, 2},
+    {"ams_ht", k_ams_ht_cheek, 2, k_ams_ht_dome, 17, 1, 0.00f, 66.5f, 7.0f, true, true, 0x3a3b40, 0x000000, k_ams_ht_front, 2},
 };
 } // namespace
 

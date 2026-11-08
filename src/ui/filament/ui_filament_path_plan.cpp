@@ -844,6 +844,19 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float x = (float)g.slot_x[i];
         Route& r = new_route(out);
 
+        if (data.built_in_hub) {
+            // The lanes merge inside the unit, so only the active one has a line: out of its base.
+            if (!lane.on)
+                continue;
+            append_line(r, cx, (float)f.entry_y, cx, hub_bot, lane.style(PathSegment::HUB));
+            out.active_route = i;
+            if (feeds)
+                append_trunk(out, r, lane, f, data, bypass_on_trunk, bypass_owner);
+            else
+                add_hub_output_band(out, lane, f, data);
+            continue;
+        }
+
         append_line(r, x, (float)f.entry_y, x, (float)f.prep_band_y,
                     lane.style(PathSegment::SPOOL));
         if (data.slot_has_prep_sensor[i]) {
@@ -910,6 +923,8 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         if (feeds) {
             out.trunk_route = out.route_count;
             Route& r = new_route(out);
+            if (data.built_in_hub)
+                append_line(r, cx, (float)f.entry_y, cx, hub_bot, idle.style(PathSegment::HUB));
             append_trunk(out, r, idle, f, data, bypass_on_trunk, bypass_owner);
         } else {
             add_hub_output_band(out, idle, f, data);

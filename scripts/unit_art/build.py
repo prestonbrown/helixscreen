@@ -99,7 +99,7 @@ def generate_shell_table(units):
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}}},"
+            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [

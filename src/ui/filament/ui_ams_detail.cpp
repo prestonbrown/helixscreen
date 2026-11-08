@@ -950,8 +950,15 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // outputs, and each tube runs the full height to the combiner.
     if (backend->hub_on_toolhead())
         topo = helix::PathTopology::HUB;
+    // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
+    const tray::UnitShell* drawn_unit =
+        view_shell(unit_index, helix::ui::unit_reports_climate(unit_index));
+    const bool built_in_hub = drawn_unit && drawn_unit->built_in_selector;
+    if (built_in_hub)
+        topo = helix::PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
+    ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
     // it by construction, and the all-units view always reaches a toolhead.

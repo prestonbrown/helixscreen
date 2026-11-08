@@ -206,6 +206,7 @@ class TrayShellDef:
     accent: int
     corner: int = 0
     front: Optional[list] = None
+    built_in_selector: bool = False
 
 
 @dataclass

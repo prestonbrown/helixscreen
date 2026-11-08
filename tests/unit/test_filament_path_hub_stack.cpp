@@ -261,6 +261,26 @@ TEST_CASE_METHOD(HubStackFixture, "HUB with the bypass shown keeps the ratio lay
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
 }
 
+TEST_CASE_METHOD(HubStackFixture, "A built-in selector draws one line out of the unit",
+                 "[filament-path][hub-stack]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    ui_filament_path_canvas_set_built_in_hub(c.obj, true);
+    render(c);
+    CHECK_FALSE(c.data->hits.hub_valid); // no box, so nothing to tap
+
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    REQUIRE(plan.active_route == 0);
+    for (int i = 1; i < 4; ++i)
+        CHECK(plan.routes[i].path.count == 0);
+    const auto& route = plan.routes[0].path;
+    REQUIRE(route.count > 0);
+    CHECK(seg_start(route.segs[0]).x == Catch::Approx((float)f.center_x).margin(0.01));
+    CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
+    check_contiguous(route);
+}
+
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
                  "[filament-path][hub-stack]") {
     auto c = make(true, false);

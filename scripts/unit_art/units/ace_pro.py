@@ -85,3 +85,5 @@ def _tray_shell():
 
 
 UNIT = UnitDef("ace_pro", 4, draw_art, _tray_shell())
+
+UNIT.tray.built_in_selector = True
