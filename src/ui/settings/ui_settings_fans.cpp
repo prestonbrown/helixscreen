@@ -216,7 +216,7 @@ void FanSettingsOverlay::handle_fan_rename(const std::string& object_name,
     pending_rename_object_ = object_name;
     lv_subject_copy_string(&fan_rename_old_name_, current_name.c_str());
 
-    rename_modal_ = helix::ui::modal_show("fan_rename_modal");
+    rename_modal_ = helix::ui::ComponentModal::show_owned("fan_rename_modal");
     if (!rename_modal_) {
         spdlog::error("[{}] Failed to show fan_rename_modal", get_name());
         return;
