@@ -100,9 +100,12 @@ int WizardPrinterIdentifyStep::find_printer_type_index(const std::string& printe
  * @brief Detect printer type from hardware discovery data
  *
  * Uses PrinterDetector::auto_detect() and maps result to list index.
- * Uses kinematics-filtered list when kinematics is provided.
+ * Uses kinematics-filtered list when kinematics is provided. A tie that
+ * @p saved_type settles, the one the type mismatch prompt offers, preselects
+ * that printer instead of asking again.
  */
-static PrinterDetectionHint detect_printer_type(const std::string& kinematics) {
+static PrinterDetectionHint detect_printer_type(const std::string& kinematics,
+                                                const std::string& saved_type) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api) {
         spdlog::debug("[Wizard Printer] No IMoonrakerAPI available for auto-detection");
@@ -112,6 +115,12 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics) {
 
     // Use shared auto_detect() which handles building PrinterHardwareData
     PrinterDetectionResult result = PrinterDetector::auto_detect(api->hardware());
+    const std::string settled = PrinterDetector::saved_type_contender(saved_type, result);
+    if (!settled.empty()) {
+        spdlog::info("[Wizard Printer] Detection tied; saved type '{}' names '{}'", saved_type,
+                     settled);
+        result.type_name = settled;
+    }
 
     if (result.confidence == 0) {
         return {PrinterDetector::get_unknown_list_index(kinematics), 0, result.type_name};
@@ -124,7 +133,7 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics) {
 
     // A tie is the detector's verdict, not a detection: carry the printers it
     // could not separate so the step offers them instead of its winner.
-    if (result.ambiguous()) {
+    if (result.ambiguous() && settled.empty()) {
         hint.ambiguous = true;
         for (const auto& name : result.contenders) {
             const int index = PrinterDetector::find_list_index(name, kinematics);
@@ -255,7 +264,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
                                         "printer_name");
 
     // Always run auto-detection (even when config has a saved type, e.g. re-running wizard)
-    PrinterDetectionHint hint = detect_printer_type(detected_kinematics_);
+    PrinterDetectionHint hint = detect_printer_type(detected_kinematics_, saved_type);
     candidate_indices_ = hint.candidate_indices;
     if (hint.ambiguous) {
         // The detector could not separate its candidates: offer them, select

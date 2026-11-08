@@ -2194,6 +2194,12 @@ std::string PrinterDetector::mismatch_subject(const std::string& saved_type,
     return settled != nullptr ? *settled : detected.type_name;
 }
 
+std::string PrinterDetector::saved_type_contender(const std::string& saved_type,
+                                                  const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : std::string();
+}
+
 PrinterDetector::TypeRelationResult
 PrinterDetector::relate_types(const std::vector<VariantEntry>& entries,
                               const std::string& saved_type, const std::string& detected_type) {
