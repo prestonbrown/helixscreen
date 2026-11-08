@@ -206,6 +206,27 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(lane.color_rgb.has_value());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "an AFC extras record deleted elsewhere takes its brand off the lane",
+                 "[lane][refresh][extras][afc]") {
+    MockPrinter printer;
+    printer.client.mock_db_set(
+        "helix-screen-afc-overrides", "lane1",
+        {{"lane", "0"}, {"vendor_name", "Polymaker"}, {"name", "PolyTerra"}});
+    helix::test::RegisteredBackend<StartedAfc> reg(&printer.api);
+    reg->start_now();
+    REQUIRE(reg->get_slot_info(0).brand == "Polymaker");
+    REQUIRE(reg->get_slot_info(0).spool_name == "PolyTerra");
+
+    // The record was the only source of either field, so the lane shows neither.
+    printer.client.mock_db_set("helix-screen-afc-overrides", "lane1", nullptr);
+    helix::AfcTestAccess::refresh_lane_records(*reg);
+    settle();
+    REQUIRE_FALSE(helix::ams::lane_sources(reg.lane(0)).record.has_value());
+    CHECK(reg->get_slot_info(0).brand.empty());
+    CHECK(reg->get_slot_info(0).spool_name.empty());
+}
+
 namespace {
 
 /// AmsState's subjects for one case, torn down before the next.

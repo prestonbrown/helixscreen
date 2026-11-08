@@ -652,6 +652,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return "[AMS AFC]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
   private:
     /// Whether AFC has Spoolman configured, from its status `spoolman` (a URL,

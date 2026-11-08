@@ -22,6 +22,7 @@
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "lane_apply.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -675,6 +676,14 @@ void AmsBackendAfc::maybe_drain_message_queue() {
 SlotInfo* AmsBackendAfc::cached_slot_locked(int slot_index) {
     auto* entry = slots_.get_mut(slot_index);
     return entry ? &entry->info : nullptr;
+}
+
+void AmsBackendAfc::prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) {
+    // Brand and filament name come back from AFC's firmware observation or the
+    // extras record when either still states them; overrides_ is refilled on
+    // every read, so a field only a since-deleted record stated is cleared.
+    const auto it = overrides_.find(slot_index);
+    helix::ams::clear_lane_only_identity(slot, it == overrides_.end() ? nullptr : &it->second);
 }
 
 // get_current_action(), get_current_tool(), get_current_slot(), is_filament_loaded()
