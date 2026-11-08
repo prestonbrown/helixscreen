@@ -407,3 +407,7 @@ land on its own before Step 1, but only if run C on the AD5M shows it pays.
    observer, latest value wins) would also help while awake. It changes semantics for
    handlers that act on every value, so it belongs in a separate issue if run A's census
    shows deferred handlers dominate.
+
+## Decisions (Preston, 2026-11-07)
+
+- Action prompts and the Klipper-shutdown recovery modal wake the display, as part of this work rather than a separate issue.
