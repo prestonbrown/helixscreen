@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -580,4 +582,51 @@ TEST_CASE("safe_* on a non-object returns the default", "[json_utils]") {
     CHECK(ju::safe_int(json::array({1, 2}), "k", 7) == 7);
     CHECK(ju::safe_string(json("text"), "k", "d") == "d");
     CHECK(ju::safe_double(json(nullptr), "k", 1.5) == 1.5);
+}
+
+// ============================================================================
+// read_field / read_integer_field: strict readers, nullopt on any mismatch
+// ============================================================================
+
+TEST_CASE("read_field reads a value of the asked type", "[json_utils]") {
+    json j = {{"s", "abc"}, {"b", true}, {"i", 7}, {"f", 2.75}, {"u", 3u}};
+    CHECK(ju::read_field<std::string>(j, "s") == std::optional<std::string>("abc"));
+    CHECK(ju::read_field<bool>(j, "b") == std::optional<bool>(true));
+    CHECK(ju::read_field<int>(j, "i") == std::optional<int>(7));
+    CHECK(ju::read_field<int>(j, "u") == std::optional<int>(3));
+    CHECK(ju::read_field<double>(j, "f") == std::optional<double>(2.75));
+}
+
+TEST_CASE("read_field truncates a float read as an integer", "[json_utils]") {
+    json j = {{"f", 2.75}, {"n", -2.75}};
+    CHECK(ju::read_field<int>(j, "f") == std::optional<int>(2));
+    CHECK(ju::read_field<int>(j, "n") == std::optional<int>(-2));
+}
+
+TEST_CASE("read_field refuses another type, null, missing and non-objects", "[json_utils]") {
+    json j = {{"s", "5"}, {"b", true}, {"i", 1}, {"null", nullptr}};
+    CHECK_FALSE(ju::read_field<int>(j, "s").has_value());
+    CHECK_FALSE(ju::read_field<double>(j, "b").has_value());
+    CHECK_FALSE(ju::read_field<bool>(j, "i").has_value());
+    CHECK_FALSE(ju::read_field<std::string>(j, "i").has_value());
+    CHECK_FALSE(ju::read_field<std::string>(j, "null").has_value());
+    CHECK_FALSE(ju::read_field<int>(j, "missing").has_value());
+    CHECK_FALSE(ju::read_field<int>(json::array({1, 2}), "i").has_value());
+    CHECK_FALSE(ju::read_field<int>(json(3), "i").has_value());
+}
+
+TEST_CASE("read_field keeps an empty string distinct from a missing one", "[json_utils]") {
+    json j = {{"s", ""}};
+    CHECK(ju::read_field<std::string>(j, "s") == std::optional<std::string>(""));
+}
+
+TEST_CASE("read_integer_field refuses floats, strings and bools", "[json_utils]") {
+    json j = {{"i", -4}, {"u", 9u}, {"f", 2.0}, {"s", "3"}, {"b", false}};
+    CHECK(ju::read_integer_field(j, "i") == std::optional<int>(-4));
+    CHECK(ju::read_integer_field(j, "u") == std::optional<int>(9));
+    CHECK_FALSE(ju::read_integer_field(j, "f").has_value());
+    CHECK_FALSE(ju::read_integer_field(j, "s").has_value());
+    CHECK_FALSE(ju::read_integer_field(j, "b").has_value());
+    CHECK_FALSE(ju::read_integer_field(j, "missing").has_value());
+    CHECK_FALSE(ju::read_integer_field(json::array(), "i").has_value());
 }
