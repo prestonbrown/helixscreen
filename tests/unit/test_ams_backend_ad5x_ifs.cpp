@@ -6769,6 +6769,14 @@ class TestableAd5xIfsBackend : public AmsBackendAd5xIfs {
         return false;
     }
 };
+
+/// A running TestableAd5xIfsBackend, the starting point of most eject and lane-change cases.
+struct RunningAd5xIfs {
+    TestableAd5xIfsBackend backend;
+    RunningAd5xIfs() {
+        Ad5xIfsTestAccess::set_running(backend, true);
+    }
+};
 } // namespace
 
 TEST_CASE("AD5X IFS unload non-active slot with IFS_STATUS Chan ejects that lane (raza D8Z7DAA6)",
@@ -6811,10 +6819,8 @@ TEST_CASE("AD5X IFS reports lane-eject and force-eject support", "[ams][ad5x_ifs
     REQUIRE(backend.supports_force_eject());
 }
 
-TEST_CASE("AD5X IFS eject_lane issues clamp / retract / unclamp sequence", "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane issues clamp / retract / unclamp sequence",
+                 "[ams][ad5x_ifs]") {
     // Empty cache → default 1000/1200 LEN/SPEED. 0-based slot 2 -> 1-based port 3.
     AmsError err = backend.eject_lane(2);
     REQUIRE(err.success());
@@ -6862,11 +6868,9 @@ TEST_CASE("AD5X IFS eject_lane optimistically clears the ejected lane's presence
     CHECK(backend.get_slot_info(2).status == SlotStatus::EMPTY);
 }
 
-TEST_CASE("AD5X IFS eject_lane uses the lane material's tube length / ifs speed",
-          "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS eject_lane uses the lane material's tube length / ifs speed",
+                 "[ams][ad5x_ifs]") {
     // PETG retracts 650mm at the file's default speed; TPU is not listed.
     Ad5xIfsTestAccess::parse_filament_json(
         backend, R"({"default": {"filament_tube_length": 900, "filament_ifs_speed": 1100},
@@ -6884,11 +6888,9 @@ TEST_CASE("AD5X IFS eject_lane uses the lane material's tube length / ifs speed"
     CHECK(backend.captured_gcodes[4] == "IFS_F11 PRUTOK=2 LEN=900 SPEED=1100");
 }
 
-TEST_CASE("AD5X IFS eject_lane falls back to 1000/1200 when filament.json absent",
-          "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS eject_lane falls back to 1000/1200 when filament.json absent",
+                 "[ams][ad5x_ifs]") {
     // No filament.json fetched (empty cache) and a lane material that isn't
     // cached anyway — eject must still fire the full 3-command sequence using
     // the hardcoded 1000/1200 fallback.
@@ -6902,10 +6904,8 @@ TEST_CASE("AD5X IFS eject_lane falls back to 1000/1200 when filament.json absent
     REQUIRE(backend.captured_gcodes[2] == "IFS_F39 PRUTOK=2");
 }
 
-TEST_CASE("AD5X IFS eject_lane refuses the slot loaded in toolhead", "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane refuses the slot loaded in toolhead",
+                 "[ams][ad5x_ifs]") {
     // Slot 1 is the firmware's active slot AND filament is seated at the head:
     // ejecting it cold would fight the loaded filament, so refuse.
     Ad5xIfsTestAccess::set_current_slot(backend, 1, /*filament_loaded=*/true);
@@ -6923,10 +6923,8 @@ TEST_CASE("AD5X IFS eject_lane refuses the slot loaded in toolhead", "[ams][ad5x
     REQUIRE(backend.has_gcode("IFS_F39 PRUTOK=3"));
 }
 
-TEST_CASE("AD5X IFS eject_lane rejects out-of-range slots", "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane rejects out-of-range slots",
+                 "[ams][ad5x_ifs]") {
     SECTION("negative slot") {
         AmsError err = backend.eject_lane(-1);
         REQUIRE_FALSE(err.success());
@@ -6964,10 +6962,10 @@ TEST_CASE("AD5X IFS eject_lane rejects out-of-range slots", "[ams][ad5x_ifs]") {
 // With a null client, execute_gcode() is overridden, so captured_gcodes holds exactly
 // what unload_filament() sends.
 
-TEST_CASE("AD5X IFS unload_filament dispatches the firmware _IFS_REMOVE_CURRENT_PRUTOK macro",
-          "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(
+    RunningAd5xIfs,
+    "AD5X IFS unload_filament dispatches the firmware _IFS_REMOVE_CURRENT_PRUTOK macro",
+    "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false); // no async debounce task
 
     // Normal case: active slot loaded AND filament seated at the toolhead.
@@ -6987,7 +6985,6 @@ TEST_CASE("AD5X IFS unload_filament dispatches the firmware _IFS_REMOVE_CURRENT_
 }
 
 namespace {
-
 /// Native ZMOD with filament at the head, no active slot and no seated channel.
 /// @p file_channel is FFMInfo.channel as Adventurer5M.json last said it; 0 is
 /// the state where _IFS_REMOVE_CURRENT_PRUTOK would find no lane and do nothing.
@@ -7378,10 +7375,9 @@ void drain_queue() {
 }
 } // namespace
 
-TEST_CASE("AD5X IFS load goes to ERROR with the firmware's message when its macro fails",
-          "[ams][ad5x_ifs][macro_failure]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS load goes to ERROR with the firmware's message when its macro fails",
+                 "[ams][ad5x_ifs][macro_failure]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
 
     REQUIRE(backend.load_filament(1).success());
@@ -7398,10 +7394,9 @@ TEST_CASE("AD5X IFS load goes to ERROR with the firmware's message when its macr
     CHECK_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
-TEST_CASE("AD5X IFS unload goes to ERROR with the firmware's message when its macro fails",
-          "[ams][ad5x_ifs][macro_failure]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS unload goes to ERROR with the firmware's message when its macro fails",
+                 "[ams][ad5x_ifs][macro_failure]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     Ad5xIfsTestAccess::set_current_slot(backend, 0, /*filament_loaded=*/true);
     Ad5xIfsTestAccess::set_head_filament(backend, true);
@@ -7419,10 +7414,8 @@ TEST_CASE("AD5X IFS unload goes to ERROR with the firmware's message when its ma
     CHECK_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
-TEST_CASE("AD5X IFS macro failure leaves an op it does not own alone",
-          "[ams][ad5x_ifs][macro_failure]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS macro failure leaves an op it does not own alone",
+                 "[ams][ad5x_ifs][macro_failure]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     REQUIRE(backend.load_filament(1).success());
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
@@ -8537,11 +8530,10 @@ TEST_CASE("AD5X IFS CHANGE_ZCOLOR TYPE= stops at '|' so echoed button payloads d
 // user's tap — the freshest truth available anywhere in the stream.
 // ==========================================================================
 
-TEST_CASE("AD5X IFS echoed CHANGE_ZCOLOR menu buttons are offers, not edits "
-          "(#1065 bundle 482NB943)",
-          "[ams][ad5x_ifs][1065]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS echoed CHANGE_ZCOLOR menu buttons are offers, not edits "
+                 "(#1065 bundle 482NB943)",
+                 "[ams][ad5x_ifs][1065]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
     Ad5xIfsTestAccess::set_color(backend, 0, "F330F9");
@@ -8636,10 +8628,8 @@ TEST_CASE("AD5X IFS COLOR-menu slot row is a firmware snapshot (#1065 bundle 482
 
 // Current Z-Mod puts the button color in the third field and drops the fourth;
 // the slot row reads the same (prestonbrown/helixscreen#1806).
-TEST_CASE("AD5X IFS COLOR-menu slot row with the color in the third field",
-          "[ams][ad5x_ifs][1806]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS COLOR-menu slot row with the color in the third field",
+                 "[ams][ad5x_ifs][1806]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
     Ad5xIfsTestAccess::set_color(backend, 0, "F330F9");
@@ -8654,7 +8644,6 @@ TEST_CASE("AD5X IFS COLOR-menu slot row with the color in the third field",
 }
 
 namespace {
-
 // The exact swatch grid zmod renders for "Select color" (bundle 482NB943,
 // 17:34:19.0-19.2 and 17:35:29.6-29.9). Order matters: the bug landed the slot
 // on whichever entry came LAST, so #161616 is the value that showed on screen.
@@ -8875,10 +8864,9 @@ TEST_CASE("AD5X IFS COLOR-menu slot row does not clear a user-locked override "
 // dispatch path MUST emit it, not wait for the next ~1.4s status frame.
 // ==========================================================================
 
-TEST_CASE("AD5X IFS unload publishes busy state + EVENT_STATE_CHANGED on dispatch",
-          "[ams][ad5x_ifs][unload]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS unload publishes busy state + EVENT_STATE_CHANGED on dispatch",
+                 "[ams][ad5x_ifs][unload]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     // Filament seated at the toolhead so unload routes to the heated toolhead
     // unload (not the cold lane-eject early return). current_slot < 0 + head
@@ -8907,10 +8895,9 @@ TEST_CASE("AD5X IFS unload publishes busy state + EVENT_STATE_CHANGED on dispatc
     REQUIRE(state_changed_events >= 1);
 }
 
-TEST_CASE("AD5X IFS load publishes busy state + EVENT_STATE_CHANGED on dispatch",
-          "[ams][ad5x_ifs][load]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS load publishes busy state + EVENT_STATE_CHANGED on dispatch",
+                 "[ams][ad5x_ifs][load]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
 
     int state_changed_events = 0;
@@ -9079,11 +9066,11 @@ TEST_CASE("AD5X IFS error-center: a timed-out op raises a recoverable CRITICAL e
 // must cold-eject that lane, NOT toolhead-cut the seated one. A tap ON the
 // seated slot must still take the heated toolhead unload.
 
-TEST_CASE("AD5X IFS unload of a NON-seated slot cold-ejects when firmware dropped active pointer "
-          "(raza616 5HR3HHS6)",
-          "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(
+    RunningAd5xIfs,
+    "AD5X IFS unload of a NON-seated slot cold-ejects when firmware dropped active pointer "
+    "(raza616 5HR3HHS6)",
+    "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false); // no async debounce task
     // Plugin path: Chan does not drive current_slot (gated on !has_ifs_vars_),
     // so seated_chan_ can be set independently of current_slot.
@@ -9112,11 +9099,11 @@ TEST_CASE("AD5X IFS unload of a NON-seated slot cold-ejects when firmware droppe
     REQUIRE_FALSE(backend.has_gcode_containing("REMOVE_PRUTOK"));
 }
 
-TEST_CASE("AD5X IFS unload of the seated slot still toolhead-cuts when firmware dropped pointer "
-          "(raza616 5HR3HHS6)",
-          "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(
+    RunningAd5xIfs,
+    "AD5X IFS unload of the seated slot still toolhead-cuts when firmware dropped pointer "
+    "(raza616 5HR3HHS6)",
+    "[ams][ad5x_ifs]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
     Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
 
@@ -9169,9 +9156,9 @@ TEST_CASE("AD5X IFS unload routing regression: active-slot cut + non-active cold
 // FIX 2: eject_lane schedules a status re-read on success
 // ==========================================================================
 
-TEST_CASE("AD5X IFS eject_lane schedules a status re-read on success (FIX 2)", "[ams][ad5x_ifs]") {
-    TestableAd5xIfsBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
+TEST_CASE_METHOD(RunningAd5xIfs,
+                 "AD5X IFS eject_lane schedules a status re-read on success (FIX 2)",
+                 "[ams][ad5x_ifs]") {
     // Leave zcolor_silent_supported_ at its default (true) so schedule_zcolor_query
     // passes its gate and bumps the diagnostic schedule counter synchronously.
     REQUIRE(Ad5xIfsTestAccess::zcolor_silent_supported(backend));
