@@ -1314,6 +1314,14 @@ bool Application::init_display() {
     });
 #endif
 
+    // While the display sleeps, telemetry-only status is applied once a second rather
+    // than at Moonraker's rate. The manager is read at call time, like the one above.
+    m_display->register_sleep_callback([this](bool sleeping) {
+        if (const auto& moonraker = m_session.moonraker()) {
+            moonraker->set_status_hold(sleeping);
+        }
+    });
+
     // Register LVGL log handler AFTER lv_init() (called inside display->init())
     // Must be after lv_init() because it resets global state and clears callbacks
     helix::logging::register_lvgl_log_handler();

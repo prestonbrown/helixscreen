@@ -648,7 +648,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(probe.refreshes >= 1);
         CHECK_FALSE(probe.screen_hidden_at_first);
         CHECK_FALSE(helix::active_screen_hide_hold().is_held());
-        DisplayManagerTestAccess::set_display(mgr, nullptr);
     }
 }
 
