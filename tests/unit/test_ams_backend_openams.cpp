@@ -1215,6 +1215,36 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS starts and stops a unit's dryer, cla
     }
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS shows progress for a dry this screen did not start",
+                 "[ams][openams][dryer]") {
+    OpenAmsHarness backend;
+    // Started elsewhere: the unit reports only the time left, 50 min then 30 min.
+    backend.feed(dryer_manager(-1, dryer_device(true, "holding", 55.0, 50 * 60)));
+    CHECK(backend.get_dryer_info(0).get_progress_pct() == 0);
+
+    backend.feed(dryer_manager(-1, dryer_device(true, "holding", 55.0, 30 * 60)));
+    const DryerInfo later = backend.get_dryer_info(0);
+    CHECK(later.duration_min == 50);
+    CHECK(later.remaining_min == 30);
+    CHECK(later.get_progress_pct() == 40);
+
+    SECTION("a stop then a new dry starts fresh") {
+        backend.feed(dryer_manager());
+        CHECK_FALSE(backend.get_dryer_info(0).active);
+        backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 20 * 60)));
+        const DryerInfo fresh = backend.get_dryer_info(0);
+        CHECK(fresh.duration_min == 20);
+        CHECK(fresh.get_progress_pct() == 0);
+    }
+    SECTION("a requested duration longer than anything seen still wins") {
+        backend.feed(dryer_manager());
+        REQUIRE(backend.start_drying(55.0f, 120, -1, 0).success());
+        backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 90 * 60)));
+        CHECK(backend.get_dryer_info(0).duration_min == 120);
+        CHECK(backend.get_dryer_info(0).get_progress_pct() == 25);
+    }
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS refuses to dry a unit that must be unloaded first",
                  "[ams][openams][dryer]") {
     OpenAmsHarness backend;

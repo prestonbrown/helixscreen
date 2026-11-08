@@ -247,15 +247,15 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Heating));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Heating));
     CHECK(same(lv_obj_get_style_bg_color(bar, LV_PART_INDICATOR), HeatState::Heating));
-    CHECK(same(lv_obj_get_style_bg_color(glow, LV_PART_MAIN), HeatState::Heating));
-    CHECK(subject_int("ps_glow_bed") == 1);
+    CHECK(subject_int("ps_glow_bed") == 0); // 30°C is too cool for the plate to glow
 
     set_int(temps.get_bed_temp_subject(), 900);
     settle();
     CHECK(same(lv_obj_get_style_text_color(glyph, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Cooling));
-    CHECK(subject_int("ps_glow_bed") == 0);
+    CHECK(subject_int("ps_glow_bed") == 3); // cooling from 90°C still glows its hottest
+    CHECK_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
 
     set_int(temps.get_bed_temp_subject(), 600);
     settle();
@@ -1064,9 +1064,17 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
             CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
             CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
         }
-        const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
-        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
-        CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        if (k == "bed") {
+            // The plate glow's strength is its heat level, not the chip's tone.
+            const int warm = lv_obj_get_style_opa(glow, LV_PART_MAIN);
+            set_int(subj("ps_glow_bed"), 3);
+            CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > warm);
+            set_int(subj("ps_glow_bed"), 1);
+        } else {
+            const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+            set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
+            CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        }
         set_int(subj("ps_chip_" + k + "_shown"), 0);
         CHECK(hidden(line));
         set_int(subj("ps_chip_" + k + "_shown"), 1);

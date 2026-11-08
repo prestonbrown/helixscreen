@@ -400,6 +400,8 @@ src/ui/effects/backdrop_blur.cpp
 src/ui/home/bed_coord_mapper.cpp
 src/ui/calibration/bed_mesh_profile_name.cpp
 src/ui/home/callout_presenter.cpp
+src/ui/home/plate_glow.cpp
+src/ui/components/ui_plate_glow.cpp
 src/ui/home/camera_view.cpp
 src/ui/print/card_thumbnail_plan.cpp
 src/ui/controls/chamber_assignment_options.cpp
@@ -411,6 +413,7 @@ src/ui/filament/filament_action_set.cpp
 src/ui/filament/filament_op_execute.cpp
 src/ui/filament/filament_op_heater.cpp
 src/ui/filament/filament_op_router.cpp
+src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
@@ -556,6 +559,8 @@ src/ui/filament/ui_bed_drying_modal.cpp
 src/ui/printers/ui_change_host_modal.cpp
 src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
+src/ui/filament/ui_dryer_airflow.cpp
+src/ui/filament/ui_dryer_presentation.cpp
 src/ui/components/ui_color_picker.cpp
 src/ui/components/ui_component_header_bar.cpp
 src/ui/components/ui_component_keypad.cpp
@@ -582,6 +587,7 @@ src/ui/filament/ui_filament_mapping_card.cpp
 src/ui/filament/ui_filament_mapping_modal.cpp
 src/ui/filament/filament_product_form.cpp
 src/ui/filament/ui_filament_product_edit_modal.cpp
+src/ui/filament/ui_filament_motion_glyph.cpp
 src/ui/filament/ui_filament_path_anim.cpp
 src/ui/filament/ui_filament_path_canvas.cpp
 src/ui/filament/ui_filament_path_glyphs.cpp

@@ -1858,6 +1858,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"
   Heating the nozzle: Düse wird aufgeheizt
   Heating to %d°C... %.0f°C: Aufheizen auf %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Aufheizen auf %s: %d:%02d übrig'
   Heating to {}°C before {}...: Aufheizen auf {}°C vor {}...
   Heating to {}°C for {}...: Aufheizen auf {}°C für {}...
   Heating to {}°C...: Aufheizen auf {}°C...
@@ -1943,6 +1944,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Hotend-Lüfter
   Hotend Heater: Hotend-Heizung
+  Hours: Stunden
   How Z-axis movement is displayed: Wie Z-Achsen-Bewegung angezeigt wird
   How far and how fast a lane ejects: "Wie weit und wie schnell eine Spur auswirft"
   How far filament is pushed back into the box on eject: "Wie weit das Filament beim Auswerfen in die Box zurückgeschoben wird"
@@ -4049,6 +4051,8 @@ translations:
     richtig herum ist
   Tap anywhere to begin: Tippen Sie irgendwo, um zu beginnen
   Tap anywhere to begin calibration: Tippen Sie irgendwo, um die Kalibrierung zu starten
+  Tap the bed's back-left corner: Auf die hintere linke Ecke des Heizbetts tippen
+  Tap the bed's back-right corner: Auf die hintere rechte Ecke des Heizbetts tippen
   Tap the bed's front-left corner: Auf die vordere linke Ecke des Heizbetts tippen
   Tap the bed's front-right corner: Auf die vordere rechte Ecke des Heizbetts tippen
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Fadenkreuz

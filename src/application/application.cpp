@@ -91,10 +91,12 @@
 #include "ui_component_header_bar.h"
 #include "ui_crash_report_modal.h"
 #include "ui_dialog.h"
+#include "ui_dryer_airflow.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_gcode_viewer.h"
 #include "ui_gradient_canvas.h"
 #include "ui_guided_device_flow.h"
@@ -129,6 +131,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_settings.h"
 #include "ui_panel_spoolman.h"
+#include "ui_plate_glow.h"
 #include "ui_preflight_check_modal.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_printer_status_icon.h"
@@ -1601,7 +1604,10 @@ bool Application::register_widgets() {
     helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
+    helix::ui::register_dryer_airflow_widget();
     helix::ui::register_humidity_drop_widget();
+    helix::ui::register_filament_motion_glyph_widget();
+    helix::ui::register_plate_glow_widget();
 
     // Initialize component systems
     ui_component_header_bar_init();

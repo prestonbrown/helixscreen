@@ -418,6 +418,8 @@ void FilamentPanel::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(op_retract_state_subject_, 0, "filament_op_retract_state",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(manual_motion_subject_, 0, helix::kFilamentMotionSubjectName,
+                               subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -435,6 +437,8 @@ void FilamentPanel::deinit_subjects() {
     // subjects, so it has to stop here too — deinit_subjects() runs from
     // StaticPanelRegistry::destroy_all(), well before lv_deinit().
     cancel_op_revert_timer();
+    motion_timer_.reset();
+    motion_rpc_pending_ = false;
     operation_guard_.end();
     backend_op_active_ = false;
     op_in_flight_.reset();
@@ -1433,6 +1437,9 @@ void FilamentPanel::op_started(FilamentOp op) {
 }
 
 void FilamentPanel::op_succeeded(FilamentOp op) {
+    if (op == FilamentOp::Extrude || op == FilamentOp::Retract) {
+        manual_motion_answered();
+    }
     // This op was already torn down out-of-band (see fail_op_on_unknown_command)
     // and the RPC's `ok` is only now catching up. Swallow it once, or the
     // checkmark lands on top of the error toast.
@@ -1467,6 +1474,9 @@ void FilamentPanel::op_succeeded(FilamentOp op) {
 }
 
 void FilamentPanel::op_failed(FilamentOp op) {
+    if (op == FilamentOp::Extrude || op == FilamentOp::Retract) {
+        end_manual_motion();
+    }
     if (op == FilamentOp::Unload) {
         // A refused or timed-out unload must not leave the prompt armed to fire
         // on some later unrelated sensor edge.
@@ -1475,6 +1485,41 @@ void FilamentPanel::op_failed(FilamentOp op) {
     op_showing_busy_.reset();
     cancel_op_revert_timer(); // also clears any pending min-spinner delay
     set_op_state(op, 0);      // back to idle; the error/timeout toast still fires
+}
+
+// A manual move shows as running for its own duration, or until its G1
+// answers if that comes later; a failure ends it at once.
+void FilamentPanel::begin_manual_motion(helix::FilamentMotion motion, int speed_mm_s) {
+    motion_timer_.reset();
+    motion_rpc_pending_ = true;
+    lv_subject_set_int(&manual_motion_subject_, static_cast<int>(motion));
+    const uint32_t ms = helix::manual_motion_duration_ms(extrude_length_, speed_mm_s);
+    // `this` is an immortal singleton, and motion_timer_ neuters the timer on
+    // reset and destruction.
+    lv_timer_t* t = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<FilamentPanel*>(lv_timer_get_user_data(timer));
+            self->motion_timer_.release(); // repeat_count 1: LVGL frees it after this call
+            if (!self->motion_rpc_pending_) {
+                self->end_manual_motion();
+            }
+        },
+        ms, this);
+    lv_timer_set_repeat_count(t, 1);
+    motion_timer_.reset(t);
+}
+
+void FilamentPanel::manual_motion_answered() {
+    motion_rpc_pending_ = false;
+    if (!motion_timer_) {
+        end_manual_motion();
+    }
+}
+
+void FilamentPanel::end_manual_motion() {
+    motion_timer_.reset();
+    motion_rpc_pending_ = false;
+    lv_subject_set_int(&manual_motion_subject_, static_cast<int>(helix::FilamentMotion::Idle));
 }
 
 // Every filament operation arms the guard through here, so every path shares
@@ -1647,6 +1692,7 @@ void FilamentPanel::execute_extrude() {
     spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
     std::string gcode = fmt::format("M83\nG1 E{} F{}", extrude_length_, speed_mm_min);
     op_started(FilamentOp::Extrude); // on-button spinner replaces the start toast
+    begin_manual_motion(helix::FilamentMotion::Extrude, speed_mm_min / 60);
 
     api_->execute_gcode(
         gcode,
@@ -1801,6 +1847,7 @@ void FilamentPanel::execute_retract() {
     spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
     std::string gcode = fmt::format("M83\nG1 E-{} F{}", extrude_length_, speed_mm_min);
     op_started(FilamentOp::Retract); // on-button spinner replaces the start toast
+    begin_manual_motion(helix::FilamentMotion::Retract, speed_mm_min / 60);
 
     api_->execute_gcode(
         gcode,

@@ -71,6 +71,18 @@ float seg_length(const PathSeg& s) {
     return std::fabs(s.sweep) * s.radius;
 }
 
+void translate_path(FilamentPath& p, float dx, float dy) {
+    for (int i = 0; i < p.count; ++i) {
+        PathSeg& s = p.segs[i];
+        s.p0.x += dx;
+        s.p0.y += dy;
+        s.p1.x += dx;
+        s.p1.y += dy;
+        s.center.x += dx;
+        s.center.y += dy;
+    }
+}
+
 float path_length(const FilamentPath& p) {
     float total = 0.0f;
     for (int i = 0; i < p.count; ++i)
@@ -556,6 +568,81 @@ std::vector<DashPiece> dash_polyline(const PathPoint* pts, int n, float dash_len
         }
     }
     return out;
+}
+
+Chevron chevron_at(PathPoint at, PathPoint dir, float half_width, float depth) {
+    // Screen coords, +y down: rotating dir by -90 degrees gives (dir.y, -dir.x),
+    // the counter-clockwise ("left") side.
+    const PathPoint side{dir.y, -dir.x};
+    const float lead = depth * 0.5f;
+    const PathPoint back{at.x - dir.x * lead, at.y - dir.y * lead};
+    return {{back.x + side.x * half_width, back.y + side.y * half_width},
+            {at.x + dir.x * lead, at.y + dir.y * lead},
+            {back.x - side.x * half_width, back.y - side.y * half_width}};
+}
+
+bool chevron_overlaps(const Chevron& c, const PathBox& box, float pad) {
+    const float x1 = std::min({c.left.x, c.tip.x, c.right.x}) - pad;
+    const float x2 = std::max({c.left.x, c.tip.x, c.right.x}) + pad;
+    const float y1 = std::min({c.left.y, c.tip.y, c.right.y}) - pad;
+    const float y2 = std::max({c.left.y, c.tip.y, c.right.y}) + pad;
+    return x1 <= box.x2 && x2 >= box.x1 && y1 <= box.y2 && y2 >= box.y1;
+}
+
+ChevronSize chevron_size_for_gauge(float gauge) {
+    const float g = gauge > 1.0f ? gauge : 1.0f;
+    ChevronSize s;
+    s.half_width = g * 0.75f;
+    s.depth = g * 0.75f;
+    s.stroke = std::max(g >= 4.0f ? 2.0f : 1.0f, std::round(g * 0.35f));
+    s.spacing = std::max(s.half_width * 2.0f * 3.0f, s.depth * 3.0f);
+    return s;
+}
+
+namespace {
+
+// Index of the segment holding arc length @p d (clamped to the path).
+int seg_index_at(const FilamentPath& p, float d) {
+    float accum = 0.0f;
+    for (int i = 0; i < p.count; ++i) {
+        accum += seg_length(p.segs[i]);
+        if (d <= accum)
+            return i;
+    }
+    return p.count - 1;
+}
+
+} // namespace
+
+int chevrons_along(const FilamentPath& p, const ChevronSize& size, float phase, bool reverse,
+                   Chevron* out, int max, const bool* seg_shown) {
+    if (!out || max <= 0 || p.count <= 0 || size.spacing <= 0.0f)
+        return 0;
+    const float total = path_length(p);
+    const float lead = size.depth * 0.5f;
+    if (total < size.depth)
+        return 0;
+
+    float start = std::fmod(phase, size.spacing);
+    if (start < 0.0f)
+        start += size.spacing;
+
+    int n = 0;
+    for (float d = start; d <= total && n < max; d += size.spacing) {
+        if (d < lead || d > total - lead)
+            continue;
+        const float pos = reverse ? (total - d) : d;
+        // The round caps reach a stroke past the arm ends.
+        const float reach = lead + size.stroke;
+        if (seg_shown &&
+            (!seg_shown[seg_index_at(p, pos - reach)] || !seg_shown[seg_index_at(p, pos + reach)]))
+            continue;
+        PathPoint tangent;
+        const PathPoint at = path_point_at(p, pos, &tangent);
+        const PathPoint dir = reverse ? PathPoint{-tangent.x, -tangent.y} : tangent;
+        out[n++] = chevron_at(at, dir, size.half_width, size.depth);
+    }
+    return n;
 }
 
 } // namespace pathgeo

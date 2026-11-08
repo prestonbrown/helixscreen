@@ -1694,6 +1694,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" pt="Aquecendo a mesa e o bico para que a impressão volte a aderir e o bico se solte dela"/>
   <translation tag="Heating the nozzle" pt="Aquecendo o bico"/>
   <translation tag="Heating to %d°C... %.0f°C" pt="Aquecendo a %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" pt="Aquecendo a %s: %d:%02d restante"/>
   <translation tag="Heating to {}°C before {}..." pt="Aquecendo a {}°C antes de {}..."/>
   <translation tag="Heating to {}°C for {}..." pt="Aquecendo a {}°C por {}..."/>
   <translation tag="Heating to {}°C..." pt="Aquecendo a {}°C..."/>
@@ -1772,6 +1773,7 @@
   <translation tag="Hotend" pt="Hotend"/>
   <translation tag="Hotend Fan" pt="Ventoinha do Hotend"/>
   <translation tag="Hotend Heater" pt="Aquecedor do Hotend"/>
+  <translation tag="Hours" pt="Horas"/>
   <translation tag="How Z-axis movement is displayed" pt="Como o movimento do eixo Z é exibido"/>
   <translation tag="How far and how fast a lane ejects" pt="Quanto e com que rapidez uma via ejeta"/>
   <translation tag="How far filament is pushed back into the box on eject" pt="Quanto o filamento é empurrado de volta para a caixa ao ejetar"/>
@@ -3706,6 +3708,8 @@
   <translation tag="Tap anywhere if this text is right-side up" pt="Toque em qualquer lugar se este texto estiver correto"/>
   <translation tag="Tap anywhere to begin" pt="Toque em qualquer lugar para começar"/>
   <translation tag="Tap anywhere to begin calibration" pt="Toque em qualquer lugar para iniciar a calibração"/>
+  <translation tag="Tap the bed&apos;s back-left corner" pt="Toque no canto traseiro esquerdo da mesa"/>
+  <translation tag="Tap the bed&apos;s back-right corner" pt="Toque no canto traseiro direito da mesa"/>
   <translation tag="Tap the bed&apos;s front-left corner" pt="Toque no canto frontal esquerdo da mesa"/>
   <translation tag="Tap the bed&apos;s front-right corner" pt="Toque no canto frontal direito da mesa"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" pt="Toque na mira (ponto %1$d de 3) — toque %2$d de %3$d"/>
