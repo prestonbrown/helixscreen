@@ -2748,9 +2748,9 @@ UpdateChecker::find_local_installer(const std::vector<std::string>& extra_search
 
     // Belt-and-suspenders: also derive the root directly from /proc/self/exe
     // (strip the binary name and a trailing /bin) WITHOUT the is_valid_data_root()
-    // gate app_get_install_root() applies. This candidate ranks last but stays,
-    // covering a partial install
-    // whose root lacks ui_xml/ (rejected by the canonical resolver) but still has
+    // gate app_get_install_root() applies. This candidate ranks below the
+    // canonical one, ahead of the well-known install roots, covering a partial
+    // install whose root lacks ui_xml/ (rejected by the canonical resolver) but still has
     // install.sh. Deduped against the canonical candidate above.
     char exe_buf[PATH_MAX] = {};
     ssize_t exe_len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
