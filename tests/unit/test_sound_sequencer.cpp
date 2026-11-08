@@ -1166,13 +1166,14 @@ TEST_CASE("SoundSequencer: clearing the external tick waits out a tick in flight
     std::atomic<bool> tick_done{false};
     seq.set_external_tick([&](float) {
         if (tick_done.load()) {
-            return;
+            return true;
         }
         in_tick.store(true);
         while (!release.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         tick_done.store(true);
+        return true;
     });
     REQUIRE(UITest::wait_until([&] { return in_tick.load(); }));
 
@@ -1207,6 +1208,7 @@ TEST_CASE("SoundSequencer: setting the external tick from inside it is refused",
             seq.set_external_tick(nullptr);
             inner_call_returned.store(true);
         }
+        return true;
     });
 
     REQUIRE(UITest::wait_until([&] { return inner_call_returned.load(); }, 2000));
@@ -1215,5 +1217,23 @@ TEST_CASE("SoundSequencer: setting the external tick from inside it is refused",
     CHECK(UITest::wait_until([&] { return ticks.load() > after_inner; }, 2000));
 
     seq.set_external_tick(nullptr);
+    seq.shutdown();
+}
+
+TEST_CASE("SoundSequencer: an external tick that finishes is dropped and the device parks",
+          "[sound][sequencer][device_park]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    seq.start();
+    REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
+    const int parked = backend->suspend_calls.load();
+
+    // A song that ends on its own after three ticks.
+    std::atomic<int> ticks{0};
+    seq.set_external_tick([&](float) { return ticks.fetch_add(1) + 1 < 3; });
+    REQUIRE(UITest::wait_until([&] { return ticks.load() >= 3; }));
+    CHECK(UITest::wait_until([&] { return backend->suspend_calls.load() > parked; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(ticks.load() == 3);
     seq.shutdown();
 }

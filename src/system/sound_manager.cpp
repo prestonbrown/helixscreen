@@ -619,7 +619,10 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
 
     // Route ticks to tracker for sequencing
     auto* tp = tracker_.get();
-    sequencer_->set_external_tick([tp](float dt_ms) { tp->tick(dt_ms); });
+    sequencer_->set_external_tick([tp](float dt_ms) {
+        tp->tick(dt_ms);
+        return tp->is_playing();
+    });
 
     // Set render source for PCM sample playback on capable backends.
     // Frequency-only backends (PWM, M300) get synth fallback via set_voice().
@@ -676,7 +679,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
             tp->set_volume_override(0);
             // Schedule stop (can't call stop_tracker from within the tick)
             tp->stop();
-            return;
+            return false;
         }
 
         float elapsed_ms = std::chrono::duration<float, std::milli>(now - fade_start).count();
@@ -684,6 +687,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
         float progress = elapsed_ms / total_ms;
         int vol = static_cast<int>(100.0f * (1.0f - progress));
         tp->set_volume_override(std::max(0, vol));
+        return tp->is_playing();
     });
 }
 #endif
