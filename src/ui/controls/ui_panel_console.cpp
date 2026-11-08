@@ -188,7 +188,6 @@ lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find widget references
     lv_obj_t* overlay_content = find_required(overlay_root_, "overlay_content", get_name());
     console_container_ = find_required(overlay_content, "console_container", get_name());
     if (!console_container_) {
@@ -299,14 +298,12 @@ void ConsolePanel::on_activate() {
 
     // Refresh history when panel becomes visible
     fetch_history();
-    // Subscribe to real-time updates
     subscribe_to_gcode_responses();
 }
 
 void ConsolePanel::on_deactivating(DeactivateReason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
 
-    // Unsubscribe from real-time updates
     unsubscribe_from_gcode_responses();
 }
 
@@ -668,7 +665,6 @@ void ConsolePanel::unsubscribe_from_gcode_responses() {
 }
 
 void ConsolePanel::add_entry(const GcodeEntry& entry) {
-    // Add to deque
     entries_.push_back(entry);
     entries_.back().id = next_entry_id_++;
 
@@ -688,7 +684,6 @@ void ConsolePanel::add_entry(const GcodeEntry& entry) {
     // front, so back() is still the entry just added.
     create_entry_widget(entries_.back());
 
-    // Update visibility state
     update_visibility();
 
     // Smart auto-scroll: only scroll if user hasn't scrolled up manually
@@ -703,7 +698,6 @@ void ConsolePanel::send_gcode_command() {
         return;
     }
 
-    // Get text from input
     const char* text = lv_textarea_get_text(gcode_input_);
     if (!text || text[0] == '\0') {
         spdlog::debug("[{}] Empty command, ignoring", get_name());

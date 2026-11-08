@@ -130,7 +130,6 @@ class TempGraphController {
 
     ~TempGraphController();
 
-    // Non-copyable, non-movable
     TempGraphController(const TempGraphController&) = delete;
     TempGraphController& operator=(const TempGraphController&) = delete;
     TempGraphController(TempGraphController&&) = delete;

@@ -49,7 +49,7 @@ TemperatureController::TemperatureController(PrinterState& state, IMoonrakerAPI*
  * PLA=0, PETG=0, TPU=0, and only ABS=50. Deriving chamber presets from the
  * slot's material would therefore render Off / Off / 50 / Off and collapse
  * three of the four buttons into duplicates of "Off" on every enclosed printer.
- * That is a functional regression, so chamber deliberately keeps its own
+ * So chamber deliberately keeps its own
  * generic low → high ladder that is independent of which material occupies the
  * slot. Slot N simply gets the Nth rung.
  *

@@ -10,7 +10,7 @@
 namespace helix::ui {
 
 // Thin wrappers around the shared helix_progress_arc helper. fan_arc_core.xml
-// now uses <helix_progress_arc> directly, so the common arc styling + 5-tier
+// uses <helix_progress_arc> directly, so the common arc styling + 5-tier
 // thickness binding lives in helix_progress_arc.xml; the C++ here just finds
 // the arc inside a fan card root and wires up auto-resize with an owned
 // per-card tier subject.
