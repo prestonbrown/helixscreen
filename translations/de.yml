@@ -3781,6 +3781,8 @@ translations:
   Signal: Signal
   'Signal #': Signal-Nr.
   Signal macro renaming: 'Umbenennung der Signalmakros'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Signalmakros sind in den Makrolisten von Fluidd und Mainsail ausgeblendet.'
+  Signal macros keep their old names too, so older calls still work.: 'Signalmakros behalten auch ihre alten Namen, damit ältere Aufrufe weiter funktionieren.'
   Similarity: "Übereinstimmung"
   Single object: 'Einzelnes Objekt'
   Single toggle macro. State is not tracked.: Einzelnes Umschalt-Makro. Status wird
@@ -4117,6 +4119,7 @@ translations:
     skipping bed mesh for quick reprints.
   : Das HelixPrint-Plugin ermöglicht schnelle G-Code-Modifikationen direkt auf Ihrem
     Drucker – wie das Überspringen des Bettnetzes für schnelle Neudrucke.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Das HelixPrint-Plugin stellt alte PRINT_START-Aufrufe auf die ausgeblendeten Namen um.'
   The IFS state file can't be read.: "Die IFS-Zustandsdatei kann nicht gelesen werden."
   The IP address cannot be the subnet's network or broadcast address.: 'Die IP-Adresse darf nicht die Netzwerk- oder Broadcast-Adresse des Subnetzes sein.'
   The IP address is not a valid address.: 'Die IP-Adresse ist keine gültige Adresse.'
@@ -4654,6 +4657,7 @@ translations:
   Update Success: Update erfolgreich
   Update from a Terminal: Update über ein Terminal
   Update installed!: Update installiert!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}.'
   Update your security PIN: Sicherheits-PIN aktualisieren
     nicht verfügbar.

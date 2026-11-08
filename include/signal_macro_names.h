@@ -16,6 +16,7 @@
 //
 // No I/O and no LVGL: callers fetch configfile.settings and do the uploads.
 
+#include "helix_plugin_features.h"
 #include "json_fwd.h"
 
 #include <array>
@@ -115,6 +116,54 @@ enum class SignalNameDrift {
 
 [[nodiscard]] SignalNameDrift drift(const SignalMacroScan& scan,
                                     const std::vector<std::string>& extra_names);
+
+/// What the helper-macros row says about the signal names; the row maps it to text.
+enum class SignalNamesLine {
+    None,                 ///< nothing to say: no scan, or the hidden names are not loaded yet
+    AllHidden,            ///< every signal macro is hidden from macro lists
+    AliasesKept,          ///< forwarders keep the visible names working, and listed
+    PluginWillRename,     ///< PRINT_START's phase-tracking calls; the plugin renames them
+    UpdatePluginToRename, ///< the same calls, and no plugin here that renames them
+};
+
+/// The names of the macros HelixScreen before 1.1 put phase-tracking calls in.
+inline constexpr std::array<std::string_view, 3> kInstrumentedSections = {
+    "gcode_macro print_start", "gcode_macro start_print", "gcode_macro _print_start"};
+
+/// configfile.settings carries no comments, so the marker blocks themselves are
+/// invisible here; a visible call in a macro the old instrumentation wrote to
+/// stands in for them.
+[[nodiscard]] inline bool marker_callers_present(const SignalMacroScan& scan) {
+    for (const auto& caller : scan.callers) {
+        for (auto section : kInstrumentedSections) {
+            if (caller.section == section && caller.option == "gcode") {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/// Header-only, so the macros row's state links where the scan does not.
+/// @param migration plugin_feature("signal_macro_migration", 1)
+[[nodiscard]] inline SignalNamesLine signal_names_line(const SignalMacroScan& scan,
+                                                       PluginFeatureState migration) {
+    if (!scan.hidden_loaded) {
+        return SignalNamesLine::None;
+    }
+    if (marker_callers_present(scan)) {
+        if (migration == PluginFeatureState::Ready) {
+            return SignalNamesLine::PluginWillRename;
+        }
+        if (migration == PluginFeatureState::Absent) {
+            return SignalNamesLine::UpdatePluginToRename;
+        }
+    }
+    if (!scan.aliases.empty() || !scan.callers.empty()) {
+        return SignalNamesLine::AliasesKept;
+    }
+    return SignalNamesLine::AllHidden;
+}
 
 /// The visible signal name in a Klipper `Unknown command:"HELIX_X"` response,
 /// uppercased, or nullopt for any other line.

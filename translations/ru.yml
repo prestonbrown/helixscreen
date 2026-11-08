@@ -3820,6 +3820,8 @@ translations:
   Signal: Сигнал
   'Signal #': Сигнал №
   Signal macro renaming: 'Переименование сигнальных макросов'
+  Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Сигнальные макросы скрыты из списков макросов Fluidd и Mainsail.'
+  Signal macros keep their old names too, so older calls still work.: 'Сигнальные макросы сохраняют и старые имена, поэтому старые вызовы продолжают работать.'
   Similarity: "Схожесть"
   Single object: 'Один объект'
   Single toggle macro. State is not tracked.: Один макрос переключения. Состояние
@@ -4164,6 +4166,7 @@ translations:
     skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например,
     пропускать сетку стола для быстрых перепечаток.
+  The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена.'
   The IFS state file can't be read.: "Не удаётся прочитать файл состояния IFS."
   The IP address cannot be the subnet's network or broadcast address.: 'IP-адрес не может быть сетевым или широковещательным адресом подсети.'
   The IP address is not a valid address.: 'IP-адрес не является допустимым адресом.'
@@ -4690,6 +4693,7 @@ translations:
   Update Success: Обновление успешно
   Update from a Terminal: Обновление через терминал
   Update installed!: Обновление установлено!
+  Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код
   Updates: Обновления

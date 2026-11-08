@@ -434,6 +434,15 @@ is a layout call with `ctl geom` at 800x480 and the smallest breakpoint before i
 5. **Firmware-managed packs.** On printers whose firmware ships or pins our files (Snapmaker U1
    under paxx), should the plugin rename at all, or report only?
 
+6. **Narrowing the forwarders again (option B).** Today a printer that ever had a visible name keeps
+   all eleven forwarders, because a forwarder answers a sliced file's call silently and nothing
+   proves the printer clean. B: each forwarder announces itself (`RESPOND TYPE=command
+   MSG="HELIX:ALIAS:HELIX_READY"` before calling `_HELIX_READY`), the app records every name it
+   hears, and a name with no hit over K completed prints with the forwarders loaded is dropped
+   (DropAliases, OUTDATED). It is real evidence but still statistical: a file printed rarely can
+   call a dropped name after K and answer `Unknown command` once, after which the recording brings
+   the name back. It changes D1's forwarder shape and the content tests, and needs a K.
+
 ## Decisions (Preston, 2026-11-07)
 
 - The plugin renames the legacy marker blocks at load, on by default, with the `[helix_print] migrate_signal_macros: False` opt-out.
@@ -483,13 +492,22 @@ which costs that file two upward includes (`macro_manager.h` for the pack's sect
 `signal_macro_names.h`) and four lines over its size cap; the branch grants both. Moving the call
 into `PrinterDiscovery` would put `MacroManager` into the ESP32 link, which leaves it out.
 
-Phase 4 is implemented on the same branch, except the helper-macros row line
-(`signal_names_line`), which waits for a layout pass at 800x480 and the smallest breakpoint.
+Phase 4 is implemented on the same branch. The helper-macros row's line is
+`signal_names_line(scan, plugin_feature("signal_macro_migration", 1))`, header-only in
+`signal_macro_names.h` because `PrinterPluginStatusState` links on the ESP32, where the scan does
+not; it publishes `helix_macros_signal_names` whenever the scan or the plugin's features change.
+`configfile.settings` carries no comments, so the marker blocks themselves cannot be seen: a visible
+call in `PRINT_START`, `START_PRINT` or `_PRINT_START` (the macros the old instrumentation wrote
+to) stands in for them. A plugin that reports the feature switched off gets AliasesKept rather
+than an update prompt. The line names the plugin version that renames rather than showing the
+remote install command; the plugin's own install and update rows carry that. Measured with
+`ctl geom`: the row is 708 px wide at 800x480 and 428 px at 480x272, and each line fits one line
+of `text_small` at both (649 and 392 px wide).
 `SlicedSignalWatcher` (`include/sliced_signal_names.h`, owned by `GcodeResponseRouting`) reads
 every console line through `unknown_signal_command`, records the name under the printer's
 `helix_macros/sliced_signal_names` setting, re-evaluates the macros status, and shows one toast
 per name per watcher. `macro_content_for` and `evaluate_status` read the recorded names as
 `extra_names`. The recording does not narrow the forwarders: any recorded name forwards all
-eleven, like a caller does (Q3 above). A forwarder answers a sliced file's call silently, so the
-app has no evidence that a printer with forwarders is clean, and narrowing needs a product call
-on what counts as proof.
+eleven, like a caller does (Q3 above), so recording only adds forwarders to a hidden-only
+printer. DropAliases is therefore not produced: a printer with forwarders keeps all eleven.
+Narrowing again is open question 6 (option B).

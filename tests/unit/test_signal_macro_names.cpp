@@ -13,6 +13,7 @@
 #include "macro_manager.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
+#include "printer_plugin_status_state.h"
 #include "signal_macro_names.h"
 #include "sliced_signal_names.h"
 
@@ -539,4 +540,66 @@ TEST_CASE("the watcher records a signal name Klipper did not know, once", "[sign
     CHECK_FALSE(sm::record_signal_name("HELIX_READY"));
     CHECK_FALSE(sm::record_signal_name("NOT_A_SIGNAL"));
     cfg->set<json>(key, saved);
+}
+
+// ============================================================================
+// What the helper-macros row says about the names
+// ============================================================================
+
+namespace {
+
+/// A hidden-pack printer whose PRINT_START still calls the visible names, as
+/// a 1.0.x phase-tracking instrumentation leaves it.
+json instrumented_print_start() {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("G28\nHELIX_PHASE_HOMING\nM109 S200\nHELIX_READY");
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("signal_names_line says what the macros row reports", "[signal_macros]") {
+    using L = sm::SignalNamesLine;
+    using P = helix::PluginFeatureState;
+    json own_caller = hidden_pack();
+    own_caller["gcode_macro my_start"] = macro("HELIX_READY");
+
+    CHECK(sm::signal_names_line(scan_of(visible_pack()), P::Ready) == L::None);
+    CHECK(sm::signal_names_line(scan_of(hidden_pack()), P::Absent) == L::AllHidden);
+    CHECK(sm::signal_names_line(scan_of(with_all_forwarders(hidden_pack())), P::Ready) ==
+          L::AliasesKept);
+    CHECK(sm::signal_names_line(scan_of(own_caller), P::Absent) == L::AliasesKept);
+    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Ready) ==
+          L::PluginWillRename);
+    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Absent) ==
+          L::UpdatePluginToRename);
+    // Switched off in moonraker.conf: the calls stay visible and the forwarders keep them working.
+    CHECK(sm::signal_names_line(scan_of(instrumented_print_start()), P::Disabled) ==
+          L::AliasesKept);
+}
+
+TEST_CASE("the macros row's signal line follows the scan and the plugin", "[signal_macros]") {
+    LVGLTestFixture fixture;
+    helix::PrinterPluginStatusState status;
+    status.init_subjects(false);
+    auto line = [&status] {
+        return static_cast<sm::SignalNamesLine>(
+            lv_subject_get_int(status.get_helix_macros_signal_names_subject()));
+    };
+
+    CHECK(line() == sm::SignalNamesLine::None);
+    status.set_signal_macro_scan(scan_of(instrumented_print_start()));
+    CHECK(line() == sm::SignalNamesLine::UpdatePluginToRename);
+
+    helix::PluginFeatureEntry ready;
+    ready.version = 1;
+    ready.available = true;
+    ready.enabled = true;
+    status.set_installed(true);
+    status.set_features({{"signal_macro_migration", ready}});
+    CHECK(line() == sm::SignalNamesLine::PluginWillRename);
+
+    status.set_signal_macro_scan(std::nullopt);
+    CHECK(line() == sm::SignalNamesLine::None);
+    status.deinit_subjects();
 }

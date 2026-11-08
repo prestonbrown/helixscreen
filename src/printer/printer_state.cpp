@@ -569,6 +569,7 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Fold the helper-macro install status in with the same snapshot.
     plugin_status_state_.set_helix_macros_base_status(MacroManager::evaluate_status(discovery_));
+    plugin_status_state_.set_signal_macro_scan(discovery_.signal_macro_scan());
 
     // Stored option settings belong to the machine that reported them. New
     // hardware starts from none: a self-storing firmware reports its own in the

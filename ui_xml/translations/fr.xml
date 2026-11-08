@@ -3460,6 +3460,8 @@
   <translation tag="Signal" fr="Signal"/>
   <translation tag="Signal #" fr="Signal n°"/>
   <translation tag="Signal macro renaming" fr="Renommage des macros de signal"/>
+  <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." fr="Les macros de signal sont masquées dans les listes de macros de Fluidd et Mainsail."/>
+  <translation tag="Signal macros keep their old names too, so older calls still work." fr="Les macros de signal gardent aussi leurs anciens noms, pour que les anciens appels fonctionnent encore."/>
   <translation tag="Similarity" fr="Similitude"/>
   <translation tag="Single object" fr="Objet unique"/>
   <translation tag="Single toggle macro. State is not tracked." fr="Macro à bascule unique. L&apos;état n&apos;est pas suivi."/>
@@ -3765,6 +3767,7 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." fr="Le CFS est à court de filament. L&apos;impression continue avec ce qui reste dans le tube."/>
   <translation tag="The DNS server is not a valid address." fr="Le serveur DNS n&apos;est pas une adresse valide."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." fr="Le plugin HelixPrint permet des modifications rapides du G-code directement sur votre imprimante—comme ignorer le maillage du plateau pour des réimpressions rapides."/>
+  <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." fr="Le plugin HelixPrint passe les anciens appels de PRINT_START aux noms masqués."/>
   <translation tag="The IFS state file can&apos;t be read." fr="Le fichier d&apos;état de l&apos;IFS ne peut pas être lu."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." fr="L&apos;adresse IP ne peut pas être l&apos;adresse réseau ou de diffusion du sous-réseau."/>
   <translation tag="The IP address is not a valid address." fr="L&apos;adresse IP n&apos;est pas une adresse valide."/>
@@ -4224,6 +4227,7 @@
   <translation tag="Update heater model?" fr="Mettre à jour le modèle de chauffage ?"/>
   <translation tag="Update in Spoolman" fr="Mettre à jour dans Spoolman"/>
   <translation tag="Update installed!" fr="Mise à jour installée !"/>
+  <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." fr="Mettez à jour le plugin HelixPrint vers 1.5.0 pour masquer les anciens appels de PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." fr="Mettre aussi à jour le modèle de chauffage INDX ? {} contient maintenant {} : densité {:.2f}, capacité thermique {:.2f}."/>
   <translation tag="Update your security PIN" fr="Mettez à jour votre PIN de sécurité sur cette installation."/>
   <translation tag="Updates" fr="Mises à jour"/>
