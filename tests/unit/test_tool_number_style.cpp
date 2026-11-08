@@ -257,7 +257,7 @@ TEST_CASE_METHOD(ToolStyleFixture, "a hub printer is untouched by a forced G-cod
     set_style(ToolNumberStyleSetting::Gcode);
 
     // A tool behind a hub is named by its lane, which has no tool-number style.
-    CHECK(helix::ui::fed_lane_tool_label(helix::ui::LaneNoun::Slot, 0, 0,
+    CHECK(helix::ui::fed_lane_tool_label(helix::ui::lane_label(helix::ui::LaneNoun::Slot, 0), 0,
                                          helix::ui::ToolLabelForm::Full) == "Slot 1 (T0)");
     CHECK(badge_shown() == 0);
     CHECK(badge_text().empty());
