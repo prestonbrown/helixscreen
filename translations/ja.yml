@@ -524,6 +524,7 @@ translations:
   CONFIGURATION: 設定
   CONNECTION TYPE: 接続タイプ
   CONTROLLABLE FANS: 制御可能なファン
+  Calibrate with this tool?: 'このツールで校正しますか？'
   Could not turn the heaters off: 'ヒーターを切れませんでした'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -613,6 +614,7 @@ translations:
   Cannot park while a print is active: '印刷中はパーキングできません'
   Cannot perform this action now: 現在この操作は実行できません
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
+  Cannot restart Moonraker while printing: "印刷中はMoonrakerを再起動できません"
   Cannot restart — no filename: 再起動できません — ファイル名がありません
   Cannot run filament operation while printing: 印刷中はフィラメント操作を実行できません
   'Cannot schedule a pause: printer not connected': '一時停止を予約できません: プリンターが接続されていません'
@@ -648,6 +650,7 @@ translations:
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
   Chamber heater didn't start. {}: 'チャンバーヒーターが起動しませんでした。{}'
   Chamber heating to %d°C...: チャンバーを%d°Cに加熱中...
+  Chamber light fitted: 'チャンバーライト搭載'
   Chamber target set to {}°C: チャンバー目標温度を{}°C に設定
   Chamber temp must be 0-%d°C: チャンバー温度は 0〜%d°C にしてください
   Chamber too hot: 'チャンバーが高温です'
@@ -663,6 +666,7 @@ translations:
   Change heater control?: ヒーターの制御を変更しますか？
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。'
+  Change the name or the linked spool in Spoolman.: "名前やリンクされたスプールは Spoolman で変更してください。"
   Change tool: ツールを交換
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
@@ -737,6 +741,7 @@ translations:
   Clear All: すべてクリア
   Clear All Events: すべてのイベントをクリア
   Clear Console?: コンソールをクリアしますか？
+  Clear Error: エラーをクリア
   Clear Spool: スプールを解除
   Clear every Endless Spool backup: エンドレススプールの予備をすべて消去
   Clear extruder only: 'エクストルーダーだけを空にする'
@@ -841,6 +846,8 @@ translations:
   'Connected to ': '接続先: '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Moonraker に接続しましたが、Klipper が実行されていません。続行できます — HelixScreen は Klipper のエラーを表示し、Klipper が起動するまでハードウェア検出は制限されます。
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : "Moonrakerに接続しましたが、Klipperがエラーを報告しました。続行できます。セットアップ後にHelixScreenが再度表示します。Klipperが起動するまでハードウェア検出は制限されます。"
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Moonraker に接続しましたが、プリンターの検出が完了しませんでした。続行できます — プリンターが応答するまでハードウェア検出は制限されます。
   Connected to {}: '{} に接続しました'
@@ -1166,6 +1173,7 @@ translations:
   ETA {}: '終了予定 {}'
   EXTRAS: その他
   Each fan can only be selected once: 各ファンは一度のみ選択できます
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'このプリンターでは各ツールヘッドが自分の Z-offset を持ちます。代わりにツールオフセット校正を使ってください。'
   Edit: 編集
   Edit Filament: フィラメントを編集
   Edit Slot: スロットを編集
@@ -1727,6 +1735,7 @@ translations:
   Heating bed: ベッド加熱
   Heating bed to $1°C...: ベッドを$1°Cに加熱中...
   Heating bed...: ベッド加熱中...
+  Heating chamber: チャンバー加熱中
   Heating chamber...: チャンバー加熱中...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: '待ち時間のほとんどは加熱です。いま画面を離れると実行は停止します。'
   Heating nozzle: 'ノズル加熱中'
@@ -1986,8 +1995,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : 'Klippain Shake&Tuneのマクロがプリンターにインストールされています。HelixScreenは検出しますが使用しません。MainsailまたはFluiddから実行してください。'
   Klipper: Klipper
+  Klipper Config Error: "Klipper設定エラー"
   Klipper Error: Klipper エラー
   Klipper already reports the ACE slots.: "KlipperがすでにACEのスロットを報告しています。"
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipperが設定を読み込めませんでした。プリンターの設定ファイルで下記の設定を修正してから、Klipperを再起動してください。"
   Klipper disconnected: Klipper切断
   Klipper failed to start with the skip macros, so they were removed: 'スキップ用マクロでは Klipper が起動しなかったため、削除しました'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper を起動できませんでした。printer.cfg から helix_skips.cfg の include を削除してください。'
@@ -2124,6 +2135,8 @@ translations:
   Loading filament...: フィラメントを装填中...
   Loading filaments...: フィラメントを読み込み中...
   Loading history...: 履歴を読み込み中...
+  Loading lane details. Try again in a moment.: レーンの詳細を読み込み中です。しばらくしてから再試行してください。
+  Loading lane details…: レーンの詳細を読み込み中…
   Loading photo: '写真を読み込み中'
   Loading spools...: スプールを読み込み中...
   Loading vendors...: ベンダーを読み込み中...
@@ -2206,6 +2219,7 @@ translations:
   Main LED Strip: メインLEDストリップ
   Maintaining: 維持中
   Maintenance: 'メンテナンス'
+  Make color, material and spool changes in Spoolman.: "色、素材、スプールの変更は Spoolman で行ってください。"
   Make sure every nozzle is clean.: すべてのノズルが清潔であることを確認してください。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'ツールヘッドにフィラメントがロードされていないことを確認してください: ベッドの加熱中にエクストルーダー内で柔らかくなることがあります。'
 
@@ -2496,6 +2510,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
@@ -2541,6 +2556,7 @@ translations:
   Not in your spools? Set it up: スプールにない？登録する
   Not now: 後で
   Not turned: '未回転'
+  'Not saved: {}. Try again.': "保存されていません: {}。もう一度お試しください。"
   Not set: 未設定
   Not yet available on this display: 'このディスプレイではまだ利用できません'
   Not yet calibrated: 未キャリブレーション
@@ -2643,6 +2659,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。'
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS はこのスプールを Spoolman で管理しており、ここでは素材、色、ブランド、重量のみ変更できます"
+  OpenAMS manages this spool's link: "このスプールのリンクは OpenAMS が管理しています"
+  AFC has no Spoolman configured: "AFC に Spoolman が設定されていません"
   Opened: 開
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました
@@ -3210,6 +3229,7 @@ translations:
   Restart Klipper?: 'Klipper を再起動しますか？'
   Restart Moonraker: Moonraker を再起動
   Restart Moonraker to finish the plugin change: プラグインの変更を完了するには Moonraker を再起動してください
+  Restart Moonraker?: "Moonrakerを再起動しますか?"
   Restart Now: 今すぐ再起動
   Restart Required: 再起動が必要です
   'Restart failed: not connected': '再起動に失敗: 未接続'
@@ -3345,6 +3365,9 @@ translations:
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
   Saved Z-Offset: 保存されたZ-Offset
+  Saved for the mounted head; other heads keep their own: '装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します'
+  "Saved {} mm": "保存値 {} mm"
+  "Saved {} mm, {} mm after Save": "保存値 {} mm、保存後 {} mm"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
   Saved to printer configuration.: プリンター設定に保存しました。
@@ -3521,6 +3544,7 @@ translations:
   Show Touch Points: タッチポイントを表示
   Show a confirmation dialog when tapping a macro: マクロをタップした際に確認ダイアログを表示
   Show instead of dimming: 暗くする代わりに表示
+  Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
   Show printer icon in navigation bar: ナビゲーションバーにプリンターアイコンを表示
   Show sliced colors: スライスした色を表示
   Show temp for: 温度表示対象
@@ -3988,12 +4012,15 @@ translations:
   The printer rejected the filament configuration. The print was not started.: プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'プリンターはファンの実測回転数を報告します。HelixScreenはファン画面に表示します。'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。'
+  'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}'
+  The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。'
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The runout sensor indicates no filament is loaded. Start print anyway?: フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。
+  The screen will lose its connection to the printer for a few seconds.: "画面とプリンターの接続が数秒間切断されます。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
   The speed of one fan you choose: 選んだファン1つの速度
   The time, date, and system uptime: 時間、日付、稼働時間
@@ -4028,6 +4055,10 @@ translations:
   'These tools have no matching filament loaded:': 'これらのツールに一致するフィラメントが装填されていません:'
   This .3mf has no sliced plate to print.: 'この .3mf には印刷できるスライス済みプレートがありません。'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'この .3mf はキューに追加する前に G-code に変換する必要があります。ここから印刷してください。'
+  The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
+  The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。'
+  Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'フィラメントのマッピングはこの .3mf を書き換えられません。マッピングせずに印刷してください。'
+  'This .3mf''s plates are still loading. Try again in a moment.': 'この .3mf のプレートはまだ読み込み中です。少し待ってからもう一度お試しください。'
   This .3mf has to be converted to G-code on the printer before it can print.: 'この .3mf は印刷する前にプリンター上で G-code に変換する必要があります。'
   This AFC system does not support bypass mode: 'この AFC システムはバイパスモードに対応していません'
   This CFS firmware exposes no external spool slot: 'この CFS ファームウェアには外部スプール用スロットがありません'
@@ -4079,6 +4110,7 @@ translations:
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
+  'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"
@@ -4413,6 +4445,7 @@ translations:
   Waiting for Moonraker...: Moonraker を待機中...
   Waiting for %s to finish. One heater at a time.: '%s の完了を待っています。ヒーターは一度に1つだけです。'
   Waiting for another box to finish.: 別のボックスの完了を待っています。
+  Waiting for bed temperature...: ベッド温度を待機中...
   Waiting for bed to reach temperature for accurate calibration.: 正確なキャリブレーションのためにベッド温度到達を待機中。
   Waiting for chamber {} / {}°C: 'チャンバー待機中 {} / {}°C'
   Waiting for chamber {}°C: 'チャンバー待機中 {}°C'
@@ -4660,11 +4693,18 @@ translations:
   tall: 高さ
   target {}%: '目標 {}%'
   target {}°: '目標 {}°'
+  the ACE needs a material and its nozzle temperature: "ACEには素材とそのノズル温度が必要です"
+  "the CFS can't change a slot while a print is running": "印刷中はCFSのスロットを変更できません"
+  the QIDI Box filament list has not loaded: "QIDI Boxのフィラメントリストが読み込まれていません"
+  the QIDI Box has no {} in its filament list: "QIDI Boxのフィラメントリストに{}がありません"
   the extruder: エクストルーダー
   the left belt: "左ベルト"
   the lower belt: "下ベルト"
+  the printer did not confirm it: "プリンターが確認しませんでした"
+  the printer refused it: "プリンターが拒否しました"
   the right belt: "右ベルト"
   the upper belt: "上ベルト"
+  this printer fills its gates from Spoolman, so change the spool there: "このプリンターはゲートを Spoolman から取得するため、スプールは Spoolman で変更してください"
   this week: 今週
   too slow: 遅すぎ
   tool(s): ツール
@@ -4778,6 +4818,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？'
   'Basic': '標準'
   'Recycled': 'リサイクル'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'

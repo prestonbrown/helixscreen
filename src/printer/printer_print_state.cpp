@@ -13,6 +13,7 @@
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
 #include "ui_update_queue.h"
 
+#include "config.h"
 #include "data_root_resolver.h"
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
@@ -171,6 +172,10 @@ void PrinterPrintState::deinit_subjects() {
     }
 
     spdlog::trace("[PrinterPrintState] Deinitializing subjects");
+
+    // A printer switch deinits here: another printer's starts never answer for this one.
+    pending_start_.reset();
+    confirmed_start_.reset();
 
     // Expire any setter callbacks still queued on the UpdateQueue. They capture
     // `this` and write the subjects being torn down below; without this the next
@@ -495,6 +500,9 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
     // false mid-print detection and preventing the print start collector from activating.
     if (status.contains("print_stats")) {
         const auto& stats = status["print_stats"];
+        // A printer-announced start learns its identity when the printer takes
+        // the job, even when the file's name is the one print_stats already held.
+        bool identity_follows_job = false;
 
         // plr_backend owns which print_stats key signals PLR support and the
         // numeric-only rule. Latch UP only: status arrives as deltas, so a later
@@ -652,6 +660,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                               state_str, static_cast<int>(new_state),
                               static_cast<int>(current_state));
                 lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
+                // A job the printer took with nothing of ours preparing (the
+                // queue, another client, its own screen) is not one we started.
+                if (printer_has_job(new_state) && !printer_has_job(current_state) &&
+                    preparing_job_.empty()) {
+                    confirmed_start_.reset();
+                }
                 // RAW_PRINT_STATE_OK: M300 waits in Klipper's G-code queue, so the
                 // question is whether the printer's own job is printing, not the
                 // app's lifecycle (Preparing does not run the print's moves).
@@ -674,6 +688,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
             int active_val = is_active ? 1 : 0;
             if (lv_subject_get_int(&print_active_) != active_val) {
                 lv_subject_set_int(&print_active_, active_val);
+                identity_follows_job = printer_side_pre_start_;
 
                 // Safety: When print becomes inactive, ensure print_start_phase is IDLE
                 // This prevents "Preparing Print" from showing when print is finished
@@ -710,8 +725,12 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                 // new print through the previous one's name.
                 recompute_effective_print_filename(filename);
                 lv_subject_copy_string(&print_filename_, filename.c_str());
+                identity_follows_job = false;
             }
             reconcile_preparing();
+        }
+        if (identity_follows_job) {
+            recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
         }
 
         // Structured pause cause. pause_descriptor owns which firmware publishes
@@ -1196,7 +1215,11 @@ void PrinterPrintState::recompute_effective_print_filename(const std::string& ra
         print_identity_override_.clear();
     }
 
-    if (!print_identity_override_.empty()) {
+    if (printer_side_pre_start_ && lv_subject_get_int(&print_active_) == 0) {
+        // Another app's start, before its file opens: print_stats still names the
+        // previous job, and nothing names this one yet.
+        effective_print_filename_.clear();
+    } else if (!print_identity_override_.empty()) {
         effective_print_filename_ = print_identity_override_;
     } else {
         // No override: a rewritten path still has to resolve, because a print we
@@ -1215,6 +1238,20 @@ void PrinterPrintState::publish_identity_if_changed(const std::string& before) {
     spdlog::debug("[PrinterPrintState] Effective print filename: '{}' -> '{}'", before,
                   effective_print_filename_);
     lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+}
+
+void PrinterPrintState::set_printer_side_pre_start(bool live) {
+    if (printer_side_pre_start_ == live) {
+        return;
+    }
+    printer_side_pre_start_ = live;
+    const std::string before = effective_print_filename_;
+    recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
+    // After a Klipper restart the reported name is already empty, so the
+    // identity string does not move, but what it means does: announce it.
+    if (effective_print_filename_ == before) {
+        lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+    }
 }
 
 void PrinterPrintState::set_print_identity_override(const std::string& name) {
@@ -1327,9 +1364,10 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         // A live preparing job means WE started this and the printer has not
         // caught up yet - print_active is legitimately 0 for the whole
         // host-side pre-start block, and dropping these updates freezes the
-        // overlay on its first phase.
+        // overlay on its first phase. A start the printer announced itself is
+        // in the same window without a job of ours.
         if (phase != PrintStartPhase::IDLE && lv_subject_get_int(&print_active_) == 0 &&
-            !is_new_print_start && !has_preparing_job()) {
+            !is_new_print_start && !has_preparing_job() && !printer_side_pre_start_) {
             spdlog::debug("[PrinterPrintState] Ignoring stale phase {} (print inactive)",
                           static_cast<int>(phase));
             return;
@@ -1349,7 +1387,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
                 lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
             }
         }
-        if (phase != PrintStartPhase::SOAKING) {
+        if (phase != PrintStartPhase::HEATING_CHAMBER) {
             set_print_start_chamber_wait(false);
         }
         if (lv_subject_get_int(&print_start_phase_) != static_cast<int>(phase)) {
@@ -1473,6 +1511,10 @@ bool PrinterPrintState::can_start_new_print() const {
     if (is_print_in_progress()) {
         return false;
     }
+    // The printer is running a start another app sent, before its file opens.
+    if (printer_side_pre_start_) {
+        return false;
+    }
 
     // Check printer's physical state. RAW_PRINT_STATE_OK: the preparing window
     // is already covered by the is_print_in_progress() early-return above, so
@@ -1565,11 +1607,36 @@ void PrinterPrintState::note_preparing_start_sent() {
     }
 }
 
+void PrinterPrintState::note_start_plate(const std::string& printer_id, const std::string& filename,
+                                         int plate) {
+    if (preparing_job_.empty()) {
+        return; // no job for the printer to confirm
+    }
+    pending_start_ = StartRecord{printer_id, filename, plate, preparing_epoch_counter_};
+}
+
+std::string PrinterPrintState::start_record_printer_id() {
+    const Config* config = Config::get_instance();
+    return config ? config->get_active_printer_id() : std::string();
+}
+
+std::optional<int> PrinterPrintState::confirmed_start_plate(const std::string& printer_id,
+                                                            const std::string& filename) const {
+    if (!confirmed_start_ || filename.empty() || confirmed_start_->printer_id != printer_id ||
+        confirmed_start_->filename != filename) {
+        return std::nullopt;
+    }
+    return confirmed_start_->plate;
+}
+
 void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) {
     if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return;
     }
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
+    if (!accepted) {
+        pending_start_.reset();
+    }
 }
 
 bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
@@ -1677,6 +1744,15 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     }
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
+    // The printer's last job is ours only when it confirms the one we sent;
+    // a job it took instead replaces whatever ours was.
+    if (reason == PreparingExit::Confirmed) {
+        const bool sent = pending_start_ && pending_start_->epoch == preparing_epoch_counter_;
+        confirmed_start_ = sent ? pending_start_ : std::nullopt;
+    } else if (reason == PreparingExit::Superseded) {
+        confirmed_start_.reset();
+    }
+    pending_start_.reset();
     preparing_job_ = {};
     preparing_cancel_requested_ = false;
     set_preparing_start(PreparingStart::None);

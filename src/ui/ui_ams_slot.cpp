@@ -23,7 +23,9 @@
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
 #include "observer_factory.h"
 #include "panel_widget_size.h"
 #include "static_subject_registry.h"
@@ -56,6 +58,7 @@ using namespace helix;
 struct AmsSlotData {
     int slot_index = -1;
     int total_count = 4; // Total slots being displayed (for stagger calculation)
+    helix::ui::AmsSlotHitBand hit_band;
 
     /// Backend whose subjects the observers below are bound to (captured at
     /// setup_slot_observers time from the active backend). Kept so later
@@ -97,12 +100,12 @@ struct AmsSlotData {
 
     lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
 
-    // The lane spool graphic (spool, placeholder, error dot) renders itself
+    // The lane spool graphic (spool, placeholder, error glow) renders itself
     // from the per-slot subjects; ams_slot only points it at a slot index.
     lv_obj_t* lane_spool = nullptr;
 
     // Other UI elements
-    lv_obj_t* name_label = nullptr; // Spool name, above the material
+    lv_obj_t* name_label = nullptr; // Brand, above the material
     lv_obj_t* material_label = nullptr;
     lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
     lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
@@ -250,6 +253,31 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
         data->total_count, data->last_lane_state == helix::ui::LaneState::Empty);
 }
 
+/// Whether @p name fits the slot's width on one line. A slot not laid out yet
+/// counts as fitting: its first SIZE_CHANGED repaints the label.
+static bool card_name_fits(const AmsSlotData* data, const std::string& name) {
+    if (name.empty() || !data->name_label || !data->container) {
+        return true;
+    }
+    const int32_t room = lv_obj_get_content_width(data->container);
+    if (room <= 0) {
+        return true;
+    }
+    const lv_font_t* font = lv_obj_get_style_text_font(data->name_label, LV_PART_MAIN);
+    const int32_t letter_space = lv_obj_get_style_text_letter_space(data->name_label, LV_PART_MAIN);
+    return helix::ui::text_width(name.c_str(), font, letter_space) <= room;
+}
+
+/// What the card reads: slot_lines(), with a name too wide for the slot
+/// dropped rather than cut to its first letters.
+static helix::SlotCardLines card_lines(const AmsSlotData* data) {
+    helix::SlotCardLines lines = slot_lines(data);
+    if (!card_name_fits(data, lines.name)) {
+        lines.name.clear();
+    }
+    return lines;
+}
+
 /**
  * The name line takes its row's space in every slot of the row or in none. The
  * spools stand below the label lines, so one slot laid out with the line and
@@ -262,7 +290,7 @@ static void apply_row_name_lines(lv_obj_t* row) {
     const uint32_t count = lv_obj_get_child_count(row);
     for (uint32_t i = 0; i < count && !any_name; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
-        any_name = d && d->slot_index >= 0 && d->name_label && !slot_lines(d).name.empty();
+        any_name = d && d->slot_index >= 0 && d->name_label && !card_lines(d).name.empty();
     }
     for (uint32_t i = 0; i < count; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
@@ -279,7 +307,7 @@ static void apply_row_name_lines(lv_obj_t* row) {
 static void apply_slot_label(AmsSlotData* data) {
     if (!data || data->slot_index < 0)
         return;
-    const helix::SlotCardLines lines = slot_lines(data);
+    const helix::SlotCardLines lines = card_lines(data);
 
     if (data->material_label)
         lv_label_set_text(data->material_label, lines.lower.c_str());
@@ -622,6 +650,22 @@ static void ams_slot_event_cb(lv_event_t* e) {
 
         // Use the registry for cleanup - more reliable than user_data during lv_deinit()
         unregister_slot_data(obj);
+    } else if (code == LV_EVENT_SIZE_CHANGED) {
+        // Whether the brand fits depends on the width the row gave the slot.
+        lv_obj_t* obj = lv_event_get_target_obj(e);
+        apply_slot_label(obj ? get_slot_data(obj) : nullptr);
+    } else if (code == LV_EVENT_HIT_TEST) {
+        lv_obj_t* obj = lv_event_get_target_obj(e);
+        auto* info = static_cast<lv_hit_test_info_t*>(lv_event_get_param(e));
+        const auto* data = obj ? get_slot_data(obj) : nullptr;
+        if (!info || !data) {
+            return;
+        }
+        lv_area_t area;
+        lv_obj_get_coords(obj, &area);
+        const int32_t x = info->point->x;
+        info->res = info->res && x >= area.x1 + data->hit_band.left_inset &&
+                    x <= area.x2 - data->hit_band.right_inset;
     }
 }
 
@@ -844,9 +888,9 @@ static void setup_slot_observers(AmsSlotData* data) {
                                    ? lv_subject_get_string(remaining_subject)
                                    : "");
 
-    // Update tool badge from the slot's own backend. Material and the error dot are NOT read
+    // Update tool badge from the slot's own backend. Material and the error glow are NOT read
     // here - material flows from the per-slot material subject via the observer
-    // above, and the error dot is the embedded ams_lane_spool's, driven by the
+    // above, and the error glow is the embedded ams_lane_spool's, driven by the
     // has_error/severity subjects.
     AmsBackend* backend = state.get_backend(backend_idx);
     if (backend) {
@@ -933,6 +977,9 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     // Register for cleanup
     register_slot_data(obj, data_ptr.release());
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_HIT_TEST, nullptr);
+    lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_ADV_HITTEST);
 
     // Apply responsive slot width
     int32_t space_lg = theme_manager_get_spacing("space_lg");
@@ -1097,7 +1144,7 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     }
 
     // Only update non-observer properties here. Color, fill, status, lane
-    // state, current-slot highlight, material and the error dot are all driven
+    // state, current-slot highlight, material and the error glow are all driven
     // by observers (this widget's or the embedded ams_lane_spool's).
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend) {
@@ -1149,6 +1196,15 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
 
     // The embedded spool widget owns the fill render; report what it applied.
     return helix::ui::ams_lane_spool_get_fill_level(data->lane_spool);
+}
+
+void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset) {
+    auto* data = obj ? get_slot_data(obj) : nullptr;
+    if (!data) {
+        return;
+    }
+    data->hit_band.left_inset = std::max<int32_t>(0, left_inset);
+    data->hit_band.right_inset = std::max<int32_t>(0, right_inset);
 }
 
 void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count) {
@@ -1373,30 +1429,30 @@ void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32
         return;
     }
 
-    // Get spool container position relative to the slot widget
-    lv_obj_update_layout(data->spool_container);
-    int32_t container_w = lv_obj_get_width(data->spool_container);
-    int32_t container_h = lv_obj_get_height(data->spool_container);
+    // The badge sits on the corner of the spool as drawn. The fixed-size
+    // spool_container is no anchor: the graphic scales with the breakpoint, so
+    // it is smaller than the container on small screens and larger on big ones.
+    lv_obj_t* spool =
+        data->lane_spool ? lv_obj_find_by_name(data->lane_spool, "spool_graphic") : nullptr;
+    if (!spool)
+        spool = data->spool_container;
 
-    // Badge is at bottom_right of spool_container with translate offsets
-    // Compute badge position in badge_layer coords using slot_center_x
-    lv_obj_update_layout(data->status_badge_bg);
+    lv_obj_update_layout(obj);
     int32_t badge_w = lv_obj_get_width(data->status_badge_bg);
     int32_t badge_h = lv_obj_get_height(data->status_badge_bg);
 
-    // Bottom-right of spool_container, centered on slot_center_x
-    // spool_container is centered in the slot, so its right edge is at slot_center_x +
-    // container_w/2
-    int32_t slot_pad_top = lv_obj_get_style_pad_top(obj, LV_PART_MAIN);
-    int32_t label_h = data->material_label ? lv_obj_get_height(data->material_label) : 0;
-    int32_t pad_row = lv_obj_get_style_pad_row(obj, LV_PART_MAIN);
-
-    // Spool container top Y = slot padding + label lines + row gaps
-    int32_t container_top_y = slot_pad_top + label_h + pad_row;
-    if (data->name_label && !lv_obj_has_flag(data->name_label, LV_OBJ_FLAG_HIDDEN))
-        container_top_y += lv_obj_get_height(data->name_label) + pad_row;
-    int32_t badge_x = slot_center_x + container_w / 2 - badge_w - 2; // -2 from translate_x
-    int32_t badge_y = container_top_y + container_h - badge_h - 2;   // -2 from translate_y
+    // Measured against the slot, not summed from the labels: a staggered label
+    // stands outside the flow, in rows the slot's top padding already holds.
+    lv_area_t slot_area;
+    lv_area_t spool_area;
+    lv_obj_get_coords(obj, &slot_area);
+    lv_obj_get_coords(spool, &spool_area);
+    const int32_t slot_left_center = (slot_area.x2 - slot_area.x1 + 1) / 2;
+    const int32_t spool_right = spool_area.x2 + 1 - slot_area.x1 - slot_left_center;
+    const int32_t spool_bottom = spool_area.y2 + 1 - slot_area.y1;
+    // The badge's own translate_x/y still applies on the layer, as it does in the slot.
+    int32_t badge_x = slot_center_x + spool_right - badge_w;
+    int32_t badge_y = spool_bottom - badge_h;
     // The spool container is wider than a narrow slot, so an end lane's corner
     // can stand past the row; the layer clips there, so the badge stays inside.
     // A layer not laid out yet has no width to hold it in.

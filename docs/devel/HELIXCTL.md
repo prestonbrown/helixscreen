@@ -289,6 +289,22 @@ Deriving both names from the worktree basename means two agents in two trees nev
 collide, and re-running in the same tree reuses the same paths instead of littering
 `/tmp` with pid-suffixed sockets.
 
+**An empty `HELIX_CONFIG_DIR` is isolated for the lock and socket, not for the printer
+address.** Finding no `settings.json` there, `Config` bootstraps one from
+`~/.helixscreen/settings.json.backup` (`[Config] Config missing — restoring from backup:` in
+the log). That inherits the real `moonraker_host`, so a run **without** `--test` opens a
+WebSocket to the actual printer. Keep `--test` (the mock client ignores the host entirely), or
+name the target with `--moonraker ws://HOST:7125`, which takes precedence over the saved host.
+The flag is `--moonraker`; there is no `--moonraker-url`.
+
+**A hand-written `settings.json` presets nothing unless it carries `config_version`.** A config
+whose `config_version` is absent or 0 is read as the packaged tarball default and replaced
+wholesale from the rolling backup (`[Config] Loaded config is a tarball default (no
+config_version) — restoring from backup:`), which is how a Moonraker web update recovers real
+settings after `rmtree()`. Every value you thought you set is then the backup's. Copy a real
+`settings.json` and edit it, or read the value back from the log rather than trusting the file
+you wrote.
+
 `HELIX_CONFIG_DIR` is documented in `ENVIRONMENT_VARIABLES.md`.
 
 ## Commands

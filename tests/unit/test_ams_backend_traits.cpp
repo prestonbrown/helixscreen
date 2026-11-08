@@ -32,12 +32,10 @@ namespace {
 
 /// The mock's traits with the fields it answers from itself copied from @p real,
 /// so the comparison covers every other field. Environment data is faked for
-/// every persona (HELIX_MOCK_AMS_ENV); the mock has no firmware store, so spool
-/// persistence is always ToolState's job; consumption tracking is a test hook.
+/// every persona (HELIX_MOCK_AMS_ENV); consumption tracking is a test hook.
 BackendTraits comparable(const AmsBackendMock& mock, const BackendTraits& real) {
     BackendTraits t = mock.traits();
     t.has_environment_sensors = real.has_environment_sensors;
-    t.has_firmware_spool_persistence = real.has_firmware_spool_persistence;
     t.tracks_consumption_natively = real.tracks_consumption_natively;
     return t;
 }
@@ -136,14 +134,6 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK_FALSE(AmsBackendToolChanger::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendHappyHare::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendAfc::kTraits.unloads_stand_alone);
-}
-
-TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
-          "[ams][mock][traits]") {
-    AmsBackendMock mock(4);
-    mock.set_afc_mode(true);
-    REQUIRE(AmsBackendAfc::kTraits.has_firmware_spool_persistence);
-    CHECK_FALSE(mock.has_firmware_spool_persistence());
 }
 
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {

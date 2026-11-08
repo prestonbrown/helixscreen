@@ -4,6 +4,7 @@
 #include "ace_vocabulary.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "lane_observation.h"
 
 #include <cstdint>
 #include <optional>
@@ -90,5 +91,11 @@ void apply_dryer_state(const nlohmann::json& data, DryerInfo& dryer);
 /// reports no remaining time).
 [[nodiscard]] std::pair<float, int> restart_request(const DryerInfo& dryer, float temp_c,
                                                     int duration_min);
+
+/// A bay's hub reading, on hardware that cannot store an edit: the colour,
+/// material and brand the lane's @p record states stand over what the hub
+/// remembers, since the record is the only place the edit lives. A swap
+/// clears the record, and the hub's reading of the new spool shows again.
+void yield_to_record(ams::Observation& hub, const std::optional<ams::Observation>& record);
 
 } // namespace helix::ace

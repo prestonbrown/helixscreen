@@ -317,11 +317,9 @@ void ActiveSpoolWidget::handle_clicked() {
                     SlotInfo original = be->get_slot_info(current);
                     AmsError err =
                         AmsState::instance().commit_slot_edit(current, original, result.slot_info);
+                    // The editor reports the outcome inline.
                     if (err.success() || err.partially_applied) {
                         helix::ui::offer_edit_follow_up(current, original, result.slot_info);
-                    }
-                    if (!err.success()) {
-                        helix::ui::notify_ams_error(err);
                     }
                 });
             return;

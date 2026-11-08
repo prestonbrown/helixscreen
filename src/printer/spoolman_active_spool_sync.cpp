@@ -45,32 +45,28 @@ void request_status_sync(ISpoolmanAPI& spoolman) {
 } // namespace
 
 void try_assign_active_spool_to_tool(const SpoolInfo& spool) {
-    auto* backend = AmsState::instance().get_backend();
+    auto& ams = AmsState::instance();
+    auto* backend = ams.get_backend();
     if (!backend || !backend->supports_per_tool_spool_assignment())
         return;
 
-    auto& tool_state = ToolState::instance();
-    if (!tool_state.spool_assignments_loaded())
-        return; // assignments haven't loaded yet — can't safely auto-assign
-
-    int tool_idx = tool_state.active_tool_index();
-    if (tool_idx < 0)
+    // The active tool's spool is the spool of the lane that feeds it, so the
+    // link is written where that lane's identity lives (the backend's own link
+    // path: firmware, macro variable or lane record).
+    const auto lane = ams.lane_feeding_tool(ToolState::instance().active_tool_index());
+    if (!lane || lane->backend_index != 0 || lane->info.spoolman_id > 0)
         return;
 
-    const auto& tools = tool_state.tools();
-    if (tool_idx >= static_cast<int>(tools.size()))
+    SlotInfo linked = lane->info;
+    linked.spoolman_id = spool.id;
+    const AmsError err = ams.commit_slot_edit(lane->slot, lane->info, linked);
+    if (!err.success()) {
+        spdlog::debug("[Application] Active spool {} not linked to lane {}: {}", spool.id,
+                      lane->slot, err.technical_msg);
         return;
-
-    if (tools[tool_idx].spoolman_id > 0)
-        return; // already has an assignment
-
-    tool_state.assign_spool(tool_idx, spool.id, spool.display_name(),
-                            static_cast<float>(spool.remaining_weight_g),
-                            static_cast<float>(spool.initial_weight_g));
-    AmsState::instance().sync_from_backend();
-    spdlog::info("[Application] Auto-assigned Spoolman spool {} to "
-                 "toolchanger tool {}",
-                 spool.id, tool_idx);
+    }
+    spdlog::info("[Application] Linked active Spoolman spool {} to the lane feeding tool {}",
+                 spool.id, ToolState::instance().active_tool_index());
 }
 
 void sync_external_spool(const SpoolInfo& spool, std::string log_context) {
@@ -137,10 +133,11 @@ void apply_saved_pressure_advance(const SpoolInfo& spool) {
         return;
     }
     std::vector<helix::pa::SpoolOnExtruder> mounted;
-    auto& tools = ToolState::instance();
-    for (const auto& tool : tools.tools()) {
-        if (tool.spoolman_id > 0) {
-            mounted.push_back({tool.spoolman_id, tool.effective_heater()});
+    const auto& tools = ToolState::instance().tools();
+    for (size_t i = 0; i < tools.size(); ++i) {
+        const auto lane = AmsState::instance().lane_feeding_tool(static_cast<int>(i));
+        if (lane && lane->info.spoolman_id > 0) {
+            mounted.push_back({lane->info.spoolman_id, tools[i].effective_heater()});
         }
     }
     const std::string extruder = helix::pa::extruder_for_spool(

@@ -464,6 +464,15 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - z_offset subject"
         REQUIRE(z_offset_subject() == -125);
     }
 
+    SECTION("Rounds to the micron rather than truncating") {
+        set_role("bltouch", ProbeSensorRole::Z_PROBE);
+        json status;
+        // 2.047f times 1000 is 2046.9999; truncation would read 2.046mm.
+        status["bltouch"]["z_offset"] = 2.047f;
+        mgr().update_from_status(status);
+        REQUIRE(z_offset_subject() == 2047);
+    }
+
     SECTION("Shows -1 when the holder is disabled") {
         set_role("bltouch", ProbeSensorRole::Z_PROBE);
         json status;

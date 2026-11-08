@@ -22,6 +22,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_backend_mock.h"
@@ -620,7 +621,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
         ext.global_index = -2;
         ext.color_rgb = 0xFFB6C1;
         ext.material = "PLA";
-        ams.set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
 
         ams.sync_current_loaded_from_backend();
 
@@ -645,7 +646,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
         ext.spoolman_id = 55;
         ext.color_rgb = 0xFFB6C1;
         ext.material = "PLA";
-        ams.set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
 
         SpoolmanManager::cache_identity(make_spool(55, "Polymaker", "Ambrosia Pink", "PLA"));
         ams.sync_current_loaded_from_backend();
@@ -751,15 +752,16 @@ TEST_CASE_METHOD(IdentityCacheFixture,
 TEST_CASE_METHOD(IdentityCacheFixture,
                  "SpoolmanManager identity: a late identity names the AMS slot card",
                  "[spoolman][identity][slot_name]") {
-    // The slot card's name line reads AmsState's per-slot name subject. A lane
-    // that only Spoolman can name paints material-only first, then must pick
-    // the name up when the identity lands, with no slot change to carry it.
+    // The slot card's brand line reads AmsState's per-slot name subject. A
+    // lane only Spoolman can name paints material-only first, then must pick
+    // the vendor up when the identity lands, with no slot change to carry it.
     set_spoolman_available(true);
     PollHarness h;
 
     SlotInfo slot = h.backend->get_slot_info(0);
     slot.spoolman_id = 1;
     slot.spool_name.clear();
+    slot.brand.clear();
     slot.color_name.clear();
     slot.remaining_weight_g = 850.0f;
     slot.total_weight_g = 1000.0f;
@@ -775,8 +777,8 @@ TEST_CASE_METHOD(IdentityCacheFixture,
 
     const auto identity = SpoolmanManager::find_identity(1);
     REQUIRE(identity.has_value());
-    REQUIRE_FALSE(identity->filament_name.empty());
-    CHECK(std::string(lv_subject_get_string(name)) == identity->filament_name);
+    REQUIRE_FALSE(identity->vendor.empty());
+    CHECK(std::string(lv_subject_get_string(name)) == identity->vendor);
 }
 
 TEST_CASE_METHOD(IdentityCacheFixture,
@@ -792,6 +794,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
     SlotInfo slot = h.backend->get_slot_info(0);
     slot.spoolman_id = 1;
     slot.spool_name.clear();
+    slot.brand.clear();
     slot.color_name.clear();
     slot.remaining_weight_g = 850.0f;
     slot.total_weight_g = 1000.0f;

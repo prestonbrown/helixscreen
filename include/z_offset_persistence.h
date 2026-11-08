@@ -88,13 +88,28 @@ std::optional<bool> persistence_already_enabled(const PrinterDiscovery& hw,
 /// intended value minus a stale delta (ghzserg/zmod#699);
 /// ghzserg/z_ad5x@6a0adf3 zeroes it at _COMMON_END_PRINT, unreleased so far.
 /// Sending the clear is correct against both: on fixed firmware it writes zero
-/// over zero. Send this immediately before the adjustment, on the
+/// over zero. Empty where the firmware keeps a Z offset per head
+/// (firmware_applies_z_offset_per_head()): there the variable feeds every
+/// pickup's absolute offset and the per-head save base, so it is no leftover.
+/// Send this immediately before the adjustment, on the
 /// same script, and ONLY while no print is running: mid-print the subtraction
 /// is correct, excluding the live per-print transient.
 std::string stale_probe_delta_clear_gcode(const PrinterDiscovery& hw);
 
 /// Whether this printer keeps its authoritative z-offset outside gcode_move.
 bool firmware_persists_z_offset(const PrinterDiscovery& hw);
+
+/// Whether the firmware keeps a Z offset per head: it sets the mounted head's
+/// gcode offset absolutely at every tool pickup and saves only a relative
+/// `SET_GCODE_OFFSET Z_ADJUST=` against the head that is mounted.
+///
+/// On such a machine the live gcode_move offset is the mounted head's real
+/// offset, any machine-wide stored value belongs to no head in particular, and
+/// an absolute `SET_GCODE_OFFSET Z=` both puts a foreign number on the mounted
+/// head (a nozzle drop of several millimetres) and is never saved. Callers
+/// adjust relatively, ignore the stored base, and keep the manual Z-offset
+/// calibration, which ends in an absolute Z=, out of reach.
+bool firmware_applies_z_offset_per_head(const PrinterDiscovery& hw);
 
 /// Whether this status frame PROVES the matched provider's storage is absent -
 /// that detection over-matched and this printer does not in fact persist the

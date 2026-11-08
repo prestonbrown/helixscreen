@@ -184,19 +184,18 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// the always-show-bypass row.
     lv_subject_t bypass_is_virtual_subject_{};
 
-    /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).
-    /// Set from AmsBackend::printer_reports_spool_ids(), so the row appears
-    /// only on systems whose firmware reports spool ids per lane (AFC, Happy
-    /// Hare); no backend means hidden.
-    lv_subject_t reports_spool_ids_subject_{};
+    /// Subject gating HelixScreen's keep-spool-info-on-eject row (0=hidden,
+    /// 1=shown): AmsBackend::lane_record_is_only_identity(); no backend means
+    /// hidden.
+    lv_subject_t record_only_identity_subject_{};
     lv_subject_t tags_name_spools_subject_{};
 
-    /// Subject disabling the keep-spool-info-on-eject toggle (0=enabled,
-    /// 1=firmware retention owns it). Set from
-    /// AmsBackend::printer_retains_spool_info(): with AFC's per-lane
-    /// remember_spool true everywhere, the toggle has no observable effect,
-    /// so it is shown disabled with a note instead of silently lying.
+    /// The firmware's own Keep Spool Info value on every lane
+    /// (AmsBackend::printer_retains_spool_info()), shown by the switch when
+    /// the firmware owns the setting.
     lv_subject_t printer_retains_spool_info_subject_{};
+    /// AmsBackend::firmware_owns_spool_retention(): which Keep Spool Info row shows.
+    lv_subject_t firmware_owns_spool_retention_subject_{};
 
     /// Subject gating the "Reset Endless Spool" row (0=hidden, 1=shown).
     /// Set from EndlessSpoolCapabilities::editable(), so the row lights up for

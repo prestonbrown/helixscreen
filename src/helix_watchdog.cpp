@@ -35,6 +35,7 @@
 #include "helix_version.h"
 #include "logging_init.h"
 #include "system/crash_record.h"
+#include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
 
 #include <spdlog/spdlog.h>
@@ -895,7 +896,8 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
         lv_obj_t* hint = lv_label_create(container);
         lv_label_set_text(hint, "Same crash 3+ times in a row. Try Safe Mode\n"
                                 "(boots without connecting to the printer) so\n"
-                                "you can adjust settings.");
+                                "you can adjust settings. Safe Mode starts\n"
+                                "by itself in 2 minutes.");
         lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(hint, LV_PCT(100));
         lv_obj_set_style_text_font(hint, &noto_sans_14, 0);
@@ -946,11 +948,12 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
 }
 
 /**
- * @brief Show crash dialog and wait for user choice
- * @return User's choice
+ * @brief Body of the dialog process: draws the dialog and exits with the choice.
+ *
+ * Runs only in the child forked by show_crash_dialog().
  */
-static DialogChoice show_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
-                                      bool crash_loop_detected) {
+static DialogChoice run_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
+                                     bool crash_loop_detected) {
     int auto_restart_sec = read_auto_restart_timeout();
 
     spdlog::info("[Watchdog] Showing crash dialog (auto_restart={}s)", auto_restart_sec);
@@ -990,8 +993,16 @@ static DialogChoice show_crash_dialog(int width, int height, int rotation, const
 
     // Apply rotation to crash dialog display
     if (rotation != 0) {
-        lv_display_set_rotation(display, degrees_to_lv_rotation(rotation));
-        spdlog::info("[Watchdog] Crash dialog rotated {}°", rotation);
+        const bool rotated =
+            helix::settle_standalone_rotation(backend, display, rotation, width, height, [] {
+                return DisplayBackend::create(DisplayBackendType::FBDEV);
+            });
+        if (!display) {
+            spdlog::error("[Watchdog] No display left after the rotation fallback");
+            return DialogChoice::RESTART_APP;
+        }
+        spdlog::info("[Watchdog] Crash dialog {} {}° on {}",
+                     rotated ? "rotated" : "left unrotated, wanted", rotation, backend->name());
     }
 
     // Turn on backlight
@@ -1011,10 +1022,18 @@ static DialogChoice show_crash_dialog(int width, int height, int rotation, const
     // Event loop with countdown
     g_dialog_choice = DialogChoice::NONE;
     uint32_t last_second = get_ticks_ms() / 1000;
+    const uint32_t shown_at_ms = get_ticks_ms();
 
     while (g_dialog_choice == DialogChoice::NONE && !g_quit) {
         lv_timer_handler();
         usleep(kFrameDelayUs);
+
+        if (helix::watchdog::crash_loop_deadline_passed(crash_loop_detected, shown_at_ms,
+                                                        get_ticks_ms())) {
+            spdlog::warn("[Watchdog] Nobody answered the crash-loop dialog, starting Safe Mode");
+            g_dialog_choice = DialogChoice::RESTART_SAFE_MODE;
+            break;
+        }
 
         // Update countdown every second
         uint32_t current_second = get_ticks_ms() / 1000;
@@ -1033,15 +1052,59 @@ static DialogChoice show_crash_dialog(int width, int height, int rotation, const
         }
     }
 
-    DialogChoice result = g_dialog_choice;
-
-    // Cleanup LVGL
-    lv_deinit();
+    const DialogChoice result =
+        g_dialog_choice == DialogChoice::NONE ? DialogChoice::RESTART_APP : g_dialog_choice;
 
     spdlog::info("[Watchdog] User choice: {}",
                  result == DialogChoice::RESTART_SYSTEM ? "restart system" : "restart app");
+    spdlog::default_logger()->flush();
 
-    return result == DialogChoice::NONE ? DialogChoice::RESTART_APP : result;
+    // The process ends here and the kernel releases the framebuffer and touch
+    // device. Tearing LVGL down first would only add a way to strand the
+    // supervisor behind a screen that no longer responds.
+    _exit(static_cast<int>(result));
+}
+
+/**
+ * @brief Show the recovery dialog in its own process and return the choice.
+ *
+ * A dialog that cannot start, crashes or is interrupted ends in RESTART_APP, so
+ * the supervisor goes on to relaunch helix-screen. The wait has no deadline: the
+ * user may cancel the countdown and read the dialog for as long as they like.
+ */
+static DialogChoice show_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
+                                      bool crash_loop_detected) {
+    using helix::watchdog::IsolatedDialogOutcome;
+
+    const auto result = helix::watchdog::run_isolated_dialog(
+        [&] {
+            return static_cast<int>(
+                run_crash_dialog(width, height, rotation, crash, crash_loop_detected));
+        },
+        g_quit);
+
+    switch (result.outcome) {
+    case IsolatedDialogOutcome::COMPLETED:
+        switch (static_cast<DialogChoice>(result.exit_code)) {
+        case DialogChoice::RESTART_SYSTEM:
+            return DialogChoice::RESTART_SYSTEM;
+        case DialogChoice::RESTART_SAFE_MODE:
+            return DialogChoice::RESTART_SAFE_MODE;
+        default:
+            return DialogChoice::RESTART_APP;
+        }
+    case IsolatedDialogOutcome::FORK_FAILED:
+        spdlog::error("[Watchdog] Could not fork the crash dialog: {}", strerror(result.os_errno));
+        break;
+    case IsolatedDialogOutcome::CHILD_DIED:
+        spdlog::error("[Watchdog] Crash dialog died (signal {}, errno {})", result.term_signal,
+                      result.os_errno);
+        break;
+    case IsolatedDialogOutcome::INTERRUPTED:
+        spdlog::info("[Watchdog] Crash dialog stopped for shutdown");
+        break;
+    }
+    return DialogChoice::RESTART_APP;
 }
 
 // =============================================================================

@@ -329,6 +329,15 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     /// Every config path the mock currently holds (for list_files mirroring)
     std::map<std::string, std::string> get_config_files() const;
 
+    /// Make download_file(root == "config", @p path) fail with @p error, as
+    /// Moonraker refuses a file under a reserved path with HTTP 403.
+    void set_config_file_error(const std::string& path, MoonrakerError error);
+
+    /// Every config-root path download_file() was asked for, in call order.
+    [[nodiscard]] const std::vector<std::string>& config_downloads() const {
+        return config_downloads_;
+    }
+
     // ========================================================================
     // Overridden HTTP File Transfer Methods (use local files instead of HTTP)
     // ========================================================================
@@ -508,6 +517,9 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
 
     /// Injected config root: full relative path -> content. Empty = use disk.
     std::map<std::string, std::string> config_files_;
+    /// Config paths whose download fails, and how.
+    std::map<std::string, MoonrakerError> config_file_errors_;
+    std::vector<std::string> config_downloads_;
 
     /// Recorded upload_file_from_path() calls (test spy)
     std::vector<PathUploadRecord> path_uploads_;
@@ -589,15 +601,18 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
         std::string original_filename;
         std::string temp_file_path;
         std::vector<std::string> modifications;
+        helix::PrintStartParams extra_params;
     };
 
     void start_print(const std::string& filename, SuccessCallback on_success,
-                     ErrorCallback on_error) override;
+                     ErrorCallback on_error,
+                     const helix::PrintStartParams& extra_params = {}) override;
 
     void start_modified_print(const std::string& original_filename,
                               const std::string& temp_file_path,
                               const std::vector<std::string>& modifications,
-                              ModifiedPrintCallback on_success, ErrorCallback on_error) override;
+                              ModifiedPrintCallback on_success, ErrorCallback on_error,
+                              const helix::PrintStartParams& extra_params = {}) override;
 
     /// One recorded start_edited_print() call
     struct EditedPrintRecord {
@@ -606,12 +621,14 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
         json edits;
         std::vector<std::string> modifications;
         uint64_t file_size = 0;
+        helix::PrintStartParams extra_params;
     };
 
     void start_edited_print(const std::string& original_filename, const std::string& temp_file_path,
                             const json& edits, const std::vector<std::string>& modifications,
                             uint64_t file_size, ModifiedPrintCallback on_success,
-                            ErrorCallback on_error) override;
+                            ErrorCallback on_error,
+                            const helix::PrintStartParams& extra_params = {}) override;
 
     /// Recorded start_edited_print() calls, in call order
     [[nodiscard]] const std::vector<EditedPrintRecord>& edited_prints() const {
@@ -621,6 +638,11 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
     /// Filenames handed to start_print(), in call order
     [[nodiscard]] const std::vector<std::string>& started_prints() const {
         return started_prints_;
+    }
+
+    /// The extra parameters each start_print() carried, in call order
+    [[nodiscard]] const std::vector<helix::PrintStartParams>& started_print_params() const {
+        return started_print_params_;
     }
 
     /// Recorded start_modified_print() calls, in call order
@@ -648,6 +670,7 @@ class MoonrakerJobAPIMock : public MoonrakerJobAPI {
 
   private:
     std::vector<std::string> started_prints_;
+    std::vector<helix::PrintStartParams> started_print_params_;
     std::vector<ModifiedPrintRecord> modified_prints_;
     std::vector<EditedPrintRecord> edited_prints_;
     bool fail_modified_prints_ = false;
@@ -839,6 +862,15 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     /// uploaded since seeding. std::nullopt when the path is unknown.
     std::optional<std::string> get_uploaded_config(const std::string& path) const;
 
+    /// The gcode_macro sections query_configfile() answers with, replacing the
+    /// client mock's own. Without this, an injected config root (set_config_files())
+    /// answers with no gcode_macro sections: those files are the printer's config.
+    void set_configfile_macros(json macros);
+
+    /// The client mock's configfile.config, with the gcode_macro sections
+    /// set_configfile_macros() or set_config_files() decide.
+    void query_configfile(JsonCallback on_success, ErrorCallback on_error) override;
+
     /**
      * @brief Get the Timelapse mock sub-API for mock-specific helpers
      *
@@ -860,6 +892,8 @@ class MoonrakerAPIMock : public MoonrakerAPI {
   private:
     // Shared mock state for coordination with MoonrakerClientMock
     std::shared_ptr<MockPrinterState> mock_state_;
+    std::optional<json> configfile_macros_;
+    bool config_files_injected_ = false;
 
     // Mock power device states (for toggle testing)
     std::map<std::string, bool> mock_power_states_;

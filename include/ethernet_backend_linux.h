@@ -46,6 +46,9 @@ class EthernetBackendLinux : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
+    std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() override {
+        return helix::ethernet::open_kernel_link_events();
+    }
 
     /// Lists interfaces with their name, ip and mac (operstate stays empty;
     /// get_info() reads it from sysfs). Returns 0, or ifconfig()'s error code.

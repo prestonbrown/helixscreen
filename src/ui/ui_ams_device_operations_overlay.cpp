@@ -67,20 +67,22 @@ void AmsDeviceOperationsOverlay::init_subjects() {
                                subjects_);
 
         // Keep-spool-info-on-eject row visibility. Gates on
-        // AmsBackend::printer_reports_spool_ids() in update_from_backend().
-        UI_MANAGED_SUBJECT_INT(reports_spool_ids_subject_, 0, "ams_device_ops_reports_spool_ids",
-                               subjects_);
+        // AmsBackend::lane_record_is_only_identity() in update_from_backend().
+        UI_MANAGED_SUBJECT_INT(record_only_identity_subject_, 0,
+                               "ams_device_ops_record_only_identity", subjects_);
 
         // Link-spools-from-tags row visibility. Gates on
         // AmsBackend::tags_name_spoolman_spools() in update_from_backend().
         UI_MANAGED_SUBJECT_INT(tags_name_spools_subject_, 0, "ams_device_ops_tags_name_spools",
                                subjects_);
 
-        // Disables the keep-spool-info toggle when firmware retention owns the
-        // behavior. Gates on AmsBackend::printer_retains_spool_info() in
-        // update_from_backend().
+        // The firmware's own spool-retention setting: whether it owns the
+        // behavior (firmware_owns_spool_retention()) and its value on every
+        // lane (printer_retains_spool_info()). Set in update_from_backend().
         UI_MANAGED_SUBJECT_INT(printer_retains_spool_info_subject_, 0,
                                "ams_device_ops_printer_retains_spool_info", subjects_);
+        UI_MANAGED_SUBJECT_INT(firmware_owns_spool_retention_subject_, 0,
+                               "ams_device_ops_firmware_owns_spool_retention", subjects_);
 
         // "Reset Endless Spool" row visibility. Gates on
         // EndlessSpoolCapabilities::editable() in update_from_backend().
@@ -175,6 +177,22 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
         {"on_ams_keep_spool_info_toggled",
          [](lv_event_t* e) {
              SettingsManager::instance().set_ams_keep_spool_info_on_eject(event_checked(e));
+         }},
+        {"on_ams_firmware_keep_spool_info_toggled",
+         [](lv_event_t* e) {
+             const bool keep = event_checked(e);
+             AmsBackend* backend = AmsState::instance().get_backend();
+             AmsError result = backend ? backend->set_firmware_spool_retention(keep)
+                                       : AmsErrorHelper::not_supported("Keep Spool Info");
+             auto& overlay = get_ams_device_operations_overlay();
+             if (result.success()) {
+                 // The firmware reports the value back on its next status
+                 // frame; show what was asked for until then.
+                 lv_subject_set_int(&overlay.printer_retains_spool_info_subject_, keep ? 1 : 0);
+                 return;
+             }
+             helix::ui::notify_ams_error(result, lv_tr("Keep Spool Info on Eject"));
+             lv_subject_notify(&overlay.printer_retains_spool_info_subject_);
          }},
         {"on_ams_tag_links_spoolman_toggled",
          [](lv_event_t* e) {
@@ -343,9 +361,10 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&hw_bypass_sensor_subject_, 0);
         lv_subject_set_int(&supports_auto_heat_subject_, 0);
         lv_subject_set_int(&bypass_is_virtual_subject_, 0);
-        lv_subject_set_int(&reports_spool_ids_subject_, 0);
+        lv_subject_set_int(&record_only_identity_subject_, 0);
         lv_subject_set_int(&tags_name_spools_subject_, 0);
         lv_subject_set_int(&printer_retains_spool_info_subject_, 0);
+        lv_subject_set_int(&firmware_owns_spool_retention_subject_, 0);
         lv_subject_set_int(&can_reset_endless_spool_subject_, 0);
         lv_subject_set_int(&can_abort_subject_, 0);
         lv_subject_set_int(&can_home_subject_, 0);
@@ -412,21 +431,22 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
     // hides when disengaged, i.e. where the reported bypass is virtual.
     lv_subject_set_int(&bypass_is_virtual_subject_, backend->bypass_is_virtual() ? 1 : 0);
 
-    // Keep-spool-info-on-eject is only meaningful where the firmware reports
-    // spool ids per lane (AFC, Happy Hare); other systems clear on a detected
-    // spool swap regardless of the toggle, so the row stays hidden there.
-    lv_subject_set_int(&reports_spool_ids_subject_, backend->printer_reports_spool_ids() ? 1 : 0);
+    // HelixScreen's Keep Spool Info on Eject decides something only where its
+    // lane record is a lane's only identity; firmware that holds the spool
+    // decides an eject itself.
+    lv_subject_set_int(&record_only_identity_subject_,
+                       backend->lane_record_is_only_identity() ? 1 : 0);
 
     // Linking a lane from its tag means something only where a tag can name a
     // Spoolman spool.
     lv_subject_set_int(&tags_name_spools_subject_, backend->tags_name_spoolman_spools() ? 1 : 0);
 
-    // Firmware retention (AFC remember_spool = true everywhere) makes the
-    // keep-spool-info toggle a no-op: firmware keeps reporting the spool id,
-    // so neither the eject rule nor the re-assert push ever fires. Show it
-    // disabled with a note rather than letting it silently lie.
+    // Firmware with its own per-lane retention setting owns Keep Spool Info:
+    // the switch shows and writes that setting instead of HelixScreen's.
     lv_subject_set_int(&printer_retains_spool_info_subject_,
                        backend->printer_retains_spool_info() ? 1 : 0);
+    lv_subject_set_int(&firmware_owns_spool_retention_subject_,
+                       backend->firmware_owns_spool_retention() ? 1 : 0);
 
     // "Reset Endless Spool" lights up for any backend whose endless-spool
     // mapping the UI may write (editable() = available + not ReadOnly): AFC's

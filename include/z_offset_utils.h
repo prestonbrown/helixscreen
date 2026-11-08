@@ -48,8 +48,13 @@ void format_offset_compact(int microns, char* buf, size_t buf_size);
 ///                           (every non-ZMOD printer, and ZMOD before its
 ///                           save_variables frame has arrived)
 /// @param print_active       a print is currently running
+/// @param per_head           the firmware applies each head's own Z offset at
+///                           pickup (PrinterProfileState::
+///                           z_offset_reapplied_per_head()): the live offset is
+///                           the mounted head's own, and a stored machine-wide
+///                           value is never shown
 int displayed_z_offset_microns(int live_microns, std::optional<int> persisted_microns,
-                               bool print_active);
+                               bool print_active, bool per_head = false);
 
 /// Convenience overload resolving all three inputs from PrinterState. Use this
 /// at UI call sites so the selection rule lives in exactly one place.
@@ -68,9 +73,15 @@ int displayed_z_offset_microns(helix::PrinterState& state);
 /// @param base_microns  offset the UI displayed and is adjusting from
 /// @param live_microns  Klipper's current gcode_move.homing_origin[2]
 /// @param delta_microns signed baby-step
+/// A firmware that applies each head's own Z offset at pickup (@p per_head)
+/// always gets the relative form: an absolute Z= would put a value that
+/// belongs to no head on the mounted one, and a firmware that saves per head
+/// saves only a relative adjustment.
+///
 /// @param all_homed     x, y and z are all homed (MOVE=1 errors otherwise)
+/// @param per_head      PrinterProfileState::z_offset_reapplied_per_head()
 std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
-                                 bool all_homed);
+                                 bool all_homed, bool per_head = false);
 
 /// How far one tuning session may travel from the offset it opened on, in
 /// either direction, in millimetres. The guard bounds the *travel*, not the
@@ -149,6 +160,10 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
 ///   ENDSTOP -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 ///   FIRMWARE_MANAGED -> no-op (firmware/macros auto-persist)
 ///
+/// The apply command is sent only where printer.gcode.help lists it, or where
+/// the list cannot be read. A firmware that never registered it gets
+/// @p on_error and no SAVE_CONFIG, since a save then keeps nothing.
+///
 /// SAVE_CONFIG's rpc is dropped by the restart it triggers, so @p save_watch -
 /// not the rpc - decides the outcome: it absorbs the dropped reply and reports
 /// success once Klipper is back READY. Reporting the drop cost every successful
@@ -167,6 +182,22 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                     std::function<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
+
+/// Save a calibration that ACCEPT has just staged in the printer config.
+///
+/// PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE and the scan-probe calibrations write
+/// their result into configfile on ACCEPT, so the save is SAVE_CONFIG alone.
+/// Z_OFFSET_APPLY_* is for baby-step saves: it writes the value Klipper loaded
+/// at start minus the live gcode Z offset, which here would replace the fresh
+/// result whenever an offset is set (#1994). FIRMWARE_MANAGED forwards to
+/// apply_and_save().
+///
+/// Parameters and callbacks are apply_and_save()'s.
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               std::function<void()> on_success,
+                               std::function<void(const std::string& error)> on_error,
+                               PrinterState* ps = nullptr);
 
 /// The facts the "is there an offset worth saving" decision is made from.
 struct SaveAvailability {
@@ -231,6 +262,37 @@ constexpr bool save_enabled(SaveMode mode, bool per_tool_z_offsets) {
 /// save_enabled() asked of the live setting and ToolState.
 [[nodiscard]] bool save_enabled();
 
+/// The offset saved in the printer config, shown beside the session adjustment
+/// (prestonbrown/helixscreen#1998).
+struct SavedOffsetLine {
+    /// What Klipper loaded: the probe's z_offset, or stepper_z's position_endstop.
+    int saved_microns = 0;
+    /// What a save writes. Z_OFFSET_APPLY_PROBE and Z_OFFSET_APPLY_ENDSTOP both
+    /// store the saved value minus the gcode offset, so it moves opposite to the
+    /// buttons.
+    int after_save_microns = 0;
+};
+
+/// Whether to show the saved offset, and what it is.
+///
+/// nullopt where the line would mislead: the firmware persists the offset itself
+/// (no manual save), saving is turned off, each tool or head keeps its own Z
+/// offset (@p per_tool_z: a machine-wide value says nothing about the mounted
+/// one), or the saved value has not been read.
+///
+/// @param live_microns gcode_move.homing_origin[2], the session adjustment
+[[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line(const SaveAvailability& facts,
+                                                               bool per_tool_z,
+                                                               std::optional<int> saved_microns,
+                                                               int live_microns);
+
+/// saved_offset_line() asked of live state.
+[[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line();
+
+/// "Saved 1.250 mm", or "Saved 1.250 mm, 1.230 mm after Save" while an adjustment is
+/// unsaved. Translated.
+[[nodiscard]] std::string format_saved_offset_line(const SavedOffsetLine& line);
+
 /// Record an explicit choice for the active printer, overriding Auto.
 void set_save_enabled(bool enabled);
 
@@ -273,7 +335,9 @@ lv_subject_t* get_save_available_subject();
 /// ordering them the other way would strand them until the next save. When only
 /// tools are dirty and the firmware still needs a SAVE_CONFIG, this issues one;
 /// when the firmware persists immediately (a save-variables store) it does not,
-/// and the caller is told not to expect a restart.
+/// and the caller is told not to expect a restart. A firmware without the
+/// machine-wide apply command still gets the SAVE_CONFIG that commits staged
+/// tool offsets; on_error then says the machine-wide offset was not saved.
 ///
 /// @param api        Moonraker API (must not be null)
 /// @param save_watch Restart watch, shared with apply_and_save()

@@ -9,7 +9,6 @@
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "snapmaker_channel_state.h"
 #include "snapmaker_nozzle_properties.h"
@@ -377,17 +376,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
     /// The channel's last tag reading. An entry whose CARD_UID names no card
     /// was written over the API, not read off a spool, and is none.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
@@ -684,6 +677,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     void on_started() override;
+    void on_lane_records_read_locked() override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS Snapmaker]";
@@ -701,10 +695,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// What one status frame decides, collected under mutex_ and acted on by
     /// dispatch_effects() after it is released, plus the frame-local values the
     /// parse sections hand to each other.
-    /// A user edit's record write held by record_writes_held_locked().
-    struct PendingRecordWrite {
-        SlotInfo info;
-        bool material_declared = false;
+    /// How a SET_PRINT_FILAMENT_CONFIG for an edit goes out: FORCE=1 or not,
+    /// and which lines.
+    struct RecordWrite {
+        bool force = false;
+        RecordLines lines = RecordLines::Both;
     };
 
     /// A refeed whose AUTO_FEEDING answered OK before the feeder's frame
@@ -742,8 +737,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         std::vector<std::pair<int, std::string>> official_repairs;
         /// record_restores_locked() output, sent outside mutex_.
         std::vector<std::pair<int, std::string>> record_restores;
-        /// Held record writes this frame released.
-        std::vector<std::pair<int, PendingRecordWrite>> record_flushes;
         /// The head a refeed waits on reached a settled state this frame.
         bool refeed_settled = false;
         /// The print's first printing frame: its file's heads are checked for
@@ -1003,6 +996,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// firmware record last named a type. Under mutex_.
     std::array<bool, kNumTools> record_restore_sent_{};
 
+    /// Per head, the type and colour this session's last edit wrote into
+    /// print_task_config: the record official_flag_repairs_locked() may
+    /// rewrite, since another writer's it would discard. Under mutex_.
+    struct SentRecord {
+        std::string material;
+        uint32_t color_rgb = 0;
+    };
+    std::array<std::optional<SentRecord>, kNumTools> sent_record_{};
+
     /// Per channel: a spool went into the feeder port after the lane's
     /// material was declared, so the declaration may name a spool that has
     /// left. The next user edit declares the spool in the port. Under mutex_.
@@ -1066,10 +1068,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// unset until a frame carries it. Under mutex_.
     std::optional<int> main_state_;
 
-    /// Per head, the latest held record write; dropped with the head's
-    /// override and at on_started(). Under mutex_.
-    std::array<std::optional<PendingRecordWrite>, kNumTools> pending_record_writes_{};
-
     /// The temperatures and spool weight the last tag reading on each channel
     /// wrote onto SlotInfo, which no lane record carries. Unset until a tag is
     /// read, and again once retract_tag_reading_locked() takes them back.
@@ -1087,6 +1085,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// on_started(); all access under mutex_.
     std::array<std::optional<helix::ams::TagReading>, kNumTools> tag_readings_{};
 
+    /// The Firmware observation each channel's last tag reading files; unset
+    /// when the entry names no tag. file_head_firmware_locked() lays the
+    /// head's print_task_config over it. Under mutex_.
+    std::array<std::optional<helix::ams::Observation>, kNumTools> tag_firmware_{};
+
+    /// File @p head's Firmware observation: the tag's reading with
+    /// print_task_config's type and colour over it, or drop
+    /// the source when neither states anything. Caller holds mutex_.
+    void file_head_firmware_locked(int head);
+
     /// Whether filament_detect.info last showed a real card on each channel: a
     /// CARD_UID with a nonzero byte. Unset until the first entry for it.
     std::array<std::optional<bool>, kNumTools> tag_has_card_{};
@@ -1097,23 +1105,28 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// beside an official flag). Caller holds mutex_.
     [[nodiscard]] std::optional<bool> record_write_needs_force_locked(int head) const;
 
-    /// Write a user edit into the head's print_task_config record, the one the
-    /// firmware's RESUME gate, the stock screen and slicers read: the identity
-    /// line when the record names a different type, vendor or subtype, the
-    /// colour line when it names a different colour, nothing when it already
-    /// agrees (every line runs FLOW_RESET_K on the head), both lines with
-    /// FORCE=1 on an official head with no card. A record not seen yet is
-    /// written only for a declared material, @p material_declared. While
-    /// record_writes_held_locked() the edit is kept in pending_record_writes_
-    /// and written by the first frame for which heads_free_locked(). Main
-    /// thread.
-    void write_task_filament_record(int head, const SlotInfo& info, bool material_declared);
+    /// What a user edit's write into the head's print_task_config record (the
+    /// one the firmware's RESUME gate, the stock screen and slicers read)
+    /// sends: the identity line when the record names a different type, vendor
+    /// or subtype, the colour line when it names a different colour, both
+    /// lines with FORCE=1 on an official head with no card. Nullopt when
+    /// nothing goes out: the record already agrees (every line runs
+    /// FLOW_RESET_K on the head), a real tag owns it, the material cannot be
+    /// sent, or a record not seen yet with no declared material
+    /// (@p material_declared). Caller holds mutex_.
+    [[nodiscard]] std::optional<RecordWrite>
+    plan_record_write_locked(int head, const SlotInfo& info, bool material_declared) const;
 
-    /// Whether a user edit's record write must wait: the offset calibration
-    /// holds the heads, this backend's own print_stats.state reads printing,
-    /// or, before its frames have named one, the app's print job state reads
-    /// PRINTING or is not initialized. Caller holds mutex_.
-    [[nodiscard]] bool record_writes_held_locked() const;
+    /// Send @p plan for @p head. Main thread, mutex_ not held.
+    void write_task_filament_record(int head, const SlotInfo& info, const RecordWrite& plan);
+
+    /// Whether a user edit's write of @p head's record is refused: the offset
+    /// calibration holds the heads; the print state (this backend's own
+    /// print_stats.state, else the app's print job state) reads printing, or
+    /// paused while the firmware still holds a type for the head (a paused
+    /// head it reset is the runout reload, which the resume writes anyway); or
+    /// no print state has been read. Caller holds mutex_.
+    [[nodiscard]] bool record_writes_held_locked(int head) const;
 
     /// FORCE=1 rewrites for heads whose record is flagged official while the
     /// tag entry is filled with no card behind it, the channel has shown no
@@ -1124,9 +1137,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// print_stats.state that is neither printing nor paused. Marks each head
     /// returned sent. Caller holds mutex_.
     [[nodiscard]] std::vector<std::pair<int, std::string>> official_flag_repairs_locked();
-
-    /// Forget @p head's held record write, if it has one. Caller holds mutex_.
-    void drop_pending_record_write_locked(int head);
 
     /// Whether the toolhead offset calibration holds the machine state: it
     /// parks, heats and probes the heads between its steps. Caller holds mutex_.
@@ -1272,10 +1282,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Silent when the tools cannot be read.
     void warn_unloaded_used_heads(const std::string& filename, uint32_t print);
 
-    /// On a channel whose firmware states no identity at all, drop the brand
-    /// and product line the lane only remembers. Caller holds mutex_.
-    void retract_unbacked_identity_locked(int slot_index, SlotInfo& slot);
-
     /// On a channel whose tag reader names no tag, drop the lane's vendor-cache
     /// record and take what it stated off @p slot, falling back to what
     /// print_task_config last said. Returns whether a record was dropped.
@@ -1379,22 +1385,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Source of BatchPlan::dispatch_id; monotonic per backend. Under mutex_.
     uint64_t next_batch_dispatch_id_ = 1;
 
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
     // Per-slot last-observed RFID CARD_UID. Shared with the other
     // RFID-fingerprint backend (CFS). Snapmaker never calls expect() — nothing
     // here writes a UID back to firmware, so every change is external. All
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
-
-    // The base's own_write_echoes_ stays unarmed on this backend: a user edit
-    // reaches firmware only through SET_PRINT_FILAMENT_CONFIG, which writes
-    // print_task_config, and that struct files no lane observation. Nothing
-    // this backend sends comes back through filament_detect.info.
 };
 
 } // namespace helix

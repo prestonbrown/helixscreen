@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -112,12 +113,24 @@ class PrintStartControllerTestAccess {
         return helix::AmsState::instance().pending_tool_map_restore().backend_index;
     }
 
+    static void persist_record() {
+        helix::ui::PrintStartController::persist_remap_state();
+    }
+
+    static void clear_record() {
+        helix::ui::PrintStartController::clear_persisted_remap_state();
+    }
+
     static void restore(helix::ui::PrintStartController& c) {
         c.restore_filament_mapping();
     }
 
     static bool apply_remaps(helix::ui::PrintStartController& c) {
         return c.apply_filament_remaps();
+    }
+
+    static helix::PrintStartParams print_start_params(const helix::ui::PrintStartController& c) {
+        return c.print_start_params();
     }
 
     /// The pre-print send execute_print_start() makes for a backend that

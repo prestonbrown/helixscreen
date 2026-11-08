@@ -97,6 +97,14 @@
             <bind_state_if_eq subject="ams_slot_preload" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="ams_context_preload_cb"/>
           </ui_button>
+          <!-- Clear Error (hidden unless the backend still latches a fault on this lane) -->
+          <ui_button name="btn_clear_error"
+                     height="#button_height_sm" icon="alert_circle" text="Clear Error" variant="ghost" clickable="true"
+                     style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_clear_error" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="ams_slot_clear_error" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="ams_context_clear_fault_cb"/>
+          </ui_button>
           <!-- Mount the tool this slot feeds, and Park the mounted one: a tool
                action set apart under its own rule, offered where the head's
                filament is all by hand (decide_slot_actions()). -->
@@ -143,8 +151,13 @@
           <ui_button name="btn_edit"
                      height="#button_height_sm" icon="tune" text="Edit Spool" variant="ghost" clickable="true"
                      style_flex_main_place="start">
+            <bind_state_if_eq subject="ams_lane_records_ready" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_context_edit_cb"/>
           </ui_button>
+          <text_small name="lane_records_loading"
+                      width="100%" long_mode="wrap" text="Loading lane details…" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
+          </text_small>
           <!-- Clear Spool Button — shown only when the slot has a Spoolman assignment -->
           <ui_button name="btn_clear_spool"
                      height="#button_height_sm" icon="close" text="Clear Spool" variant="ghost" clickable="true"

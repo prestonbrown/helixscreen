@@ -25,6 +25,7 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "filament_display_name.h"
+#include "helix/ui/text_metrics.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "utf8_validation.h"
 
@@ -95,44 +96,41 @@ SlotInfo named_slot(const char* spool_name, const char* color_name, const char* 
 // 1. The pure decision
 // ============================================================================
 
-TEST_CASE("slot_card_name: spool name, then Spoolman name, then product name",
-          "[ams][slot_name][pure]") {
+TEST_CASE("slot_card_name: the brand, then Spoolman's vendor", "[ams][slot_name][pure]") {
+    // Spool and filament names are free text that opens with a brand on one
+    // spool and a colour on the next; the card names every lane by its brand.
     SpoolIdentity identity;
-    identity.filament_name = "Ambrosia Pink";
-    identity.material = "PLA";
+    identity.vendor = "Overture";
+    identity.filament_name = "Overture Gray ASA";
+    identity.material = "ASA";
 
-    SlotInfo slot = named_slot("Bone White", "White", "PLA");
+    SlotInfo slot = named_slot("Deep Gray ABS+HS", "Gray", "ASA");
     slot.product_name = "PLA+ 2.0";
-    CHECK(helix::slot_card_name(slot, &identity) == "Bone White");
-    slot.spool_name.clear();
-    CHECK(helix::slot_card_name(slot, &identity) == "Ambrosia Pink");
-    CHECK(helix::slot_card_name(slot, nullptr) == "PLA+ 2.0");
+    slot.brand = "eSUN";
+    CHECK(helix::slot_card_name(slot, &identity) == "eSUN");
+    slot.brand.clear();
+    CHECK(helix::slot_card_name(slot, &identity) == "Overture");
+    CHECK(helix::slot_card_name(slot, nullptr).empty());
 }
 
-TEST_CASE("slot_card_name: a name that only repeats the material gives way",
+TEST_CASE("slot_card_name: no brand, Generic, or the material names nothing",
           "[ams][slot_name][pure]") {
     struct Row {
-        const char* spool_name;
-        const char* identity_name; // nullptr = no Spoolman identity
-        const char* product;
         const char* brand;
         const char* expected;
     };
     const Row rows[] = {
-        {"ABS+", nullptr, "", "eSUN", "eSUN"},                     // the brand stands in
-        {"ABS+", nullptr, "ABS+HS", "eSUN", "ABS+HS"},             // the next name first
-        {"", " abs+ ", "", "", ""},                                // case and spacing are no name
-        {"ABS+ Deep Gray", nullptr, "", "eSUN", "ABS+ Deep Gray"}, // containing it is a name
-        {"", nullptr, "", "eSUN", ""}, // no name at all keeps the one line
+        {"", ""},                       // no brand
+        {"Generic", ""},                // names no maker
+        {" generic ", ""},              // in any case or spacing
+        {"ABS+", ""},                   // a brand spelled as the material repeats it
+        {"  Polymaker  ", "Polymaker"}, // spacing normalized
     };
     for (const Row& r : rows) {
-        SlotInfo slot = named_slot(r.spool_name, "", "ABS+");
-        slot.product_name = r.product;
+        SlotInfo slot = named_slot("Bone White", "", "ABS+");
         slot.brand = r.brand;
-        SpoolIdentity identity;
-        identity.filament_name = r.identity_name ? r.identity_name : "";
-        CAPTURE(r.spool_name, r.product);
-        CHECK(helix::slot_card_name(slot, r.identity_name ? &identity : nullptr) == r.expected);
+        CAPTURE(r.brand);
+        CHECK(helix::slot_card_name(slot, nullptr) == r.expected);
     }
 }
 
@@ -248,20 +246,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: the slot name subject follows the
     ams.set_backend(std::move(owned));
 
     SlotInfo info = mock->get_slot_info(0);
-    info.spool_name = "Bone White";
+    info.brand = "Polymaker";
     info.material = "PLA";
     REQUIRE(helix::test::apply_edit(*mock, 0, info).success());
     ams.sync_from_backend();
-    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0))) == "Bone White");
-    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0, 0))) == "Bone White");
+    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0))) == "Polymaker");
+    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0, 0))) == "Polymaker");
 
-    // A second PLA spool in the same lane: only the name moves.
+    // A second PLA spool in the same lane: only the brand moves.
     const int version = lv_subject_get_int(ams.get_slots_version_subject());
     info = mock->get_slot_info(0);
-    info.spool_name = "Jet Black";
+    info.brand = "eSUN";
     REQUIRE(helix::test::apply_edit(*mock, 0, info).success());
     ams.sync_from_backend();
-    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0))) == "Jet Black");
+    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0))) == "eSUN");
     CHECK(lv_subject_get_int(ams.get_slots_version_subject()) > version);
 
     ams.clear_backends();
@@ -293,7 +291,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a secondary backend publishes its
     REQUIRE(second == 1);
 
     SlotInfo info = sec_mock->get_slot_info(1);
-    info.spool_name = "Galaxy Black";
+    info.brand = "Prusament";
     REQUIRE(helix::test::apply_edit(*sec_mock, 1, info).success());
     ams.sync_backend(second);
 
@@ -301,15 +299,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a secondary backend publishes its
     lv_subject_t* sec_name = ams.get_slot_name_subject(second, 1, lt);
     REQUIRE(sec_name != nullptr);
     CHECK(lt != nullptr);
-    CHECK(std::string(lv_subject_get_string(sec_name)) == "Galaxy Black");
+    CHECK(std::string(lv_subject_get_string(sec_name)) == "Prusament");
     CHECK(ams.get_slot_name_subject(second, 4, lt) == nullptr);
 
     // A single-slot update reaches it too.
     info = sec_mock->get_slot_info(1);
-    info.spool_name = "Galaxy Blue";
+    info.brand = "Sunlu";
     REQUIRE(helix::test::apply_edit(*sec_mock, 1, info).success());
     ams.update_slot_for_backend(second, 1);
-    CHECK(std::string(lv_subject_get_string(sec_name)) == "Galaxy Blue");
+    CHECK(std::string(lv_subject_get_string(sec_name)) == "Sunlu");
 
     ams.clear_backends();
 }
@@ -328,7 +326,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a long multibyte name is cut on a
     for (int i = 0; i < 40; ++i)
         long_name += "\xE7\x99\xBD"; // 白
     SlotInfo info = mock->get_slot_info(1);
-    info.spool_name = long_name;
+    info.brand = long_name;
     REQUIRE(helix::test::apply_edit(*mock, 1, info).success());
     ams.sync_from_backend();
 
@@ -478,7 +476,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a new name with the same material
     lv_obj_delete(slot);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: swapping two PLA spools repaints the name",
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: swapping two PLA spools repaints the brand",
                  "[ams][slot_name][ui]") {
     ui_ams_slot_register();
     auto& ams = AmsState::instance();
@@ -488,7 +486,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: swapping two PLA spools repaints 
     ams.set_backend(std::move(owned));
 
     SlotInfo info = mock->get_slot_info(0);
-    info.spool_name = "Bone White";
+    info.brand = "Polymaker";
     info.material = "PLA";
     REQUIRE(helix::test::apply_edit(*mock, 0, info).success());
     mock->force_slot_status(0, SlotStatus::AVAILABLE);
@@ -496,15 +494,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: swapping two PLA spools repaints 
 
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
-    REQUIRE(text_of(name_label(slot)) == "Bone White");
+    REQUIRE(text_of(name_label(slot)) == "Polymaker");
 
     info = mock->get_slot_info(0);
-    info.spool_name = "Jet Black";
+    info.brand = "eSUN";
     REQUIRE(helix::test::apply_edit(*mock, 0, info).success());
     ams.sync_from_backend();
     process_lvgl(50);
 
-    CHECK(text_of(name_label(slot)) == "Jet Black");
+    CHECK(text_of(name_label(slot)) == "eSUN");
     CHECK(text_of(material_label(slot)) == "PLA");
 
     lv_obj_delete(slot);
@@ -543,11 +541,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
     ams.clear_backends();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a long name stays one line inside the slot",
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a brand too wide for the slot hides its line",
                  "[ams][slot_name][ui][layout]") {
     ui_ams_slot_register();
     AmsState::instance().init_subjects(true);
-    seed_slot(0, "Polymaker PolyTerra Ambrosia Pink Matte", "PLA");
+    seed_slot(0, "eSUN", "PLA");
 
     lv_obj_t* slot = create_ams_slot(test_screen(), 0);
     REQUIRE(slot != nullptr);
@@ -556,8 +554,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a long name stays one line inside
     lv_obj_t* name = name_label(slot);
     const lv_font_t* font = lv_obj_get_style_text_font(name, LV_PART_MAIN);
     CHECK(lv_obj_get_height(name) == lv_font_get_line_height(font));
-    CHECK(lv_obj_get_width(name) <= lv_obj_get_content_width(slot));
-    CHECK(lv_label_get_long_mode(name) == LV_LABEL_LONG_MODE_DOTS);
+    CHECK(text_of(name) == "eSUN");
+    CHECK(shown(name));
+
+    // Far wider than the slot: the line goes rather than showing a few letters.
+    const char* wide = "Polymaker PolyTerra Ambrosia Pink Matte";
+    REQUIRE(helix::ui::text_width(wide, font, 0) > lv_obj_get_content_width(slot));
+    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), wide);
+    process_lvgl(50);
+    CHECK(text_of(name).empty());
+    CHECK_FALSE(shown(name));
+    CHECK(text_of(material_label(slot)) == "PLA");
+
+    // A narrower slot drops a brand that fit before.
+    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), "eSUN");
+    process_lvgl(50);
+    REQUIRE(text_of(name) == "eSUN");
+    lv_obj_set_width(slot, helix::ui::text_width("eSUN", font, 0) / 2);
+    lv_obj_update_layout(test_screen());
+    CHECK(text_of(name).empty());
 
     lv_obj_delete(slot);
 }

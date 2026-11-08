@@ -2010,7 +2010,7 @@ check_weight_poll_is_weight_only() {
         echo "could not locate $file"
         return 1
     fi
-    if grep -qE '(\.|->)(apply_user_edit|sync_external_identity)\(' "$file"; then
+    if grep -qE '(\.|->)apply_user_edit\(' "$file"; then
         echo "$file writes a whole SlotInfo; an automated weight poll must file the lane's Spoolman source through helix::ams::ingest() instead"
         return 1
     fi
@@ -2028,7 +2028,7 @@ check_weight_poll_is_weight_only() {
     local filing='helix::ams::ingest(lane, stated);'
     # A mutation whose target has moved changes nothing and passes vacuously.
     grep -qF "$filing" src/printer/spoolman_manager.cpp
-    sed -e 's@helix::ams::ingest(lane, stated);@owner.sync_external_identity(slot_index, slot);@' \
+    sed -e 's@helix::ams::ingest(lane, stated);@owner.apply_user_edit(slot_index, slot);@' \
         src/printer/spoolman_manager.cpp > "$mutated"
 
     run check_weight_poll_is_weight_only "$mutated"
@@ -2043,7 +2043,7 @@ check_weight_poll_is_weight_only() {
 }
 
 # --- The lane source store has exactly one mutable entry point ---
-# LaneSourceStore::write() is private, so ingest() and commit_slot_edit() are
+# LaneSourceStore::write() is private, so ingest() and file_pending() are
 # the only code that can reach a lane's records; a third friend line, of any
 # kind, would be a third writer. check_friend_list's grep matches "friend "
 # rather than "friend class ", since both funnels here are free functions a
@@ -2052,7 +2052,7 @@ check_weight_poll_is_weight_only() {
 # reader that entries here need not be load-bearing.
 
 LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
-friend void commit_slot_edit(LaneId, const Observation&);"
+friend void file_pending(LaneId, const Observation&);"
 
 @test "the lane source store names exactly its two funnels as friends" {
     run check_friend_list include/lane_source_store.h "$LANE_STORE_FRIENDS_EXPECTED"
@@ -2074,7 +2074,7 @@ friend void commit_slot_edit(LaneId, const Observation&);"
     # substitution keeps the list at two and hands write() to code the funnels
     # do not cover.
     local mutated="${BATS_TEST_TMPDIR}/lane_store_swapped_friend.h"
-    sed -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+    sed -e 's@^\([[:space:]]*\)friend void file_pending(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
         include/lane_source_store.h > "$mutated"
 
     [ "$(grep -cE '^[[:space:]]*friend ' "$mutated")" -eq 2 ]
@@ -2136,7 +2136,7 @@ check_no_lane_store_instance_callers() {
            2>/dev/null | grep -v 'src/printer/lane_source_store.cpp' || true)
     if [ -n "$hits" ]; then
         echo "LaneSourceStore::instance() is reachable only from the funnels."
-        echo "Call helix::ams::ingest() or helix::ams::commit_slot_edit() instead:"
+        echo "Call helix::ams::ingest() or helix::ams::file_pending() instead:"
         echo "$hits"
         return 1
     fi
@@ -2171,8 +2171,8 @@ EOF
 @test "the friend-list gate ignores harmless reordering of the same friends" {
     local mutated="${BATS_TEST_TMPDIR}/lane_store_reordered_friends.h"
     sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1PLACEHOLDER_SWAP@' \
-        -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
-        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void commit_slot_edit(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)friend void file_pending(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void file_pending(LaneId, const Observation\&);@' \
         include/lane_source_store.h > "$mutated"
 
     run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
@@ -2253,75 +2253,6 @@ check_lane_store_write_is_private() {
     run check_lane_store_write_is_private "$mutated"
     [ "$status" -eq 1 ]
     [[ "$output" == *"was not found"* ]]
-}
-
-# --- The mock files its lane readings from exactly one call site ---
-# AmsBackendMock::publish_lane_observations() reads the persistent SlotInfo
-# that apply_user_edit() writes a user's colour and material into, so it states
-# simulated firmware truth only where no edit can have landed yet: the tail of
-# start(). A second call site - from load_filament, unload_filament,
-# select_slot, change_tool or force_slot_status - would file the user's own
-# values back as something the simulated machine reported.
-#
-# The mock has one struct playing both roles and no simulated firmware behind
-# it, so it cannot express the invariant the way a real backend does, and the
-# number of callers is what bounds it instead.
-
-check_mock_publishes_lane_readings_once() {
-    local file="$1"
-    if [ ! -f "$file" ]; then
-        echo "could not locate $file"
-        return 1
-    fi
-
-    if ! grep -qE '^void AmsBackendMock::publish_lane_observations\(\)' "$file"; then
-        echo "AmsBackendMock::publish_lane_observations is not defined in $file"
-        return 1
-    fi
-
-    local calls
-    calls=$(grep -nE 'publish_lane_observations\(\)' "$file" \
-            | grep -v '::publish_lane_observations' || true)
-    local count
-    count=$(printf '%s\n' "$calls" | grep -c . || true)
-
-    if [ "$count" -ne 1 ]; then
-        echo "expected exactly 1 call to publish_lane_observations() in $file, found $count:"
-        echo "$calls"
-        return 1
-    fi
-    return 0
-}
-
-@test "the mock files its lane readings from exactly one call site" {
-    run check_mock_publishes_lane_readings_once src/printer/ams_backend_mock.cpp
-    [ "$status" -eq 0 ]
-}
-
-@test "the mock publish gate fires when a second call site is added" {
-    local mutated="${BATS_TEST_TMPDIR}/mock_two_publishes.cpp"
-    sed -e 's@^\([[:space:]]*\)publish_lane_observations();@\1publish_lane_observations();\n\1publish_lane_observations();@' \
-        src/printer/ams_backend_mock.cpp > "$mutated"
-
-    run check_mock_publishes_lane_readings_once "$mutated"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"found 2"* ]]
-}
-
-@test "the mock publish gate fails closed when the method is renamed" {
-    local mutated="${BATS_TEST_TMPDIR}/mock_renamed_publish.cpp"
-    sed -e 's@publish_lane_observations@refile_lane_readings@g' \
-        src/printer/ams_backend_mock.cpp > "$mutated"
-
-    run check_mock_publishes_lane_readings_once "$mutated"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"is not defined in"* ]]
-}
-
-@test "the mock publish gate fails closed when the file is missing" {
-    run check_mock_publishes_lane_readings_once "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"could not locate"* ]]
 }
 
 # --- Hand-built tool labels and lane/slot offsets must route through display_numbering.h ---
@@ -3154,15 +3085,19 @@ override_store_offenders() {
     #     override_store_ = std::move(s);
     # as clean. A seventh backend naming its member something else evades a
     # name-keyed grep too. Every construction of the type is therefore an
-    # offender unless it is one of the three the allowlist names.
+    # offender unless it is one of the two sanctioned ones: the backends' single
+    # opener (AmsSubscriptionBackend::open_lane_record_store) and AmsState's
+    # bypass-lane store. Each is allowed as that exact assignment in that file
+    # only, so a second construction in either file still fires.
     grep -rnE 'make_unique<[^>]*FilamentSlotOverrideStore|new[[:space:]]+[A-Za-z:]*FilamentSlotOverrideStore' \
         --include='*.cpp' --include='*.h' "$root" 2>/dev/null \
         | grep -v 'printer/filament_slot_override_store\.cpp' \
-        | grep -v 'lane_publish_store_' \
+        | grep -vE 'printer/ams_subscription_backend\.cpp:[0-9]+:[[:space:]]*override_store_ = std::make_unique<' \
+        | grep -vE 'printer/ams_state_external_spool\.cpp:[0-9]+:[[:space:]]*bypass_store_ = std::make_unique<' \
         || true
 }
 
-@test "override_store_ is only ever assigned from make_loaded_override_store()" {
+@test "a lane record store is only ever built by its two sanctioned openers" {
     run override_store_offenders src
     [ "$status" -eq 0 ]
     [ -z "$output" ]
@@ -3198,20 +3133,21 @@ EOF
     contains "FilamentSlotOverrideStore" "$output"
 }
 
-@test "the override-store gate stays quiet on the helper and on the publish store" {
-    # The silent half: the sanctioned spelling moves a store the helper built,
-    # and the publish store is a different member with no map behind it.
-    local d="${BATS_TEST_TMPDIR}/quiet"
+@test "the override-store gate stays quiet on the two sanctioned openers" {
+    # The silent half: the backends' one opener and AmsState's bypass store,
+    # each in its own file, each as the one assignment the gate allows.
+    local d="${BATS_TEST_TMPDIR}/quiet/printer"
     mkdir -p "$d"
-    cat > "$d/ams_backend_ok.cpp" <<'EOF'
-void AmsBackendOk::on_started() {
-    auto loaded = helix::ams::make_loaded_override_store(api_, "ok", get_type(),
-                                                         backend_log_tag());
+    cat > "$d/ams_subscription_backend.cpp" <<'EOF'
+void AmsSubscriptionBackend::open_lane_record_store(std::string id, std::string ns) {
     std::lock_guard<std::mutex> lock(mutex_);
-    override_store_ = std::move(loaded.store);
-    overrides_ = std::move(loaded.overrides);
-    lane_publish_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        api_, "ok", style, "lane_data");
+        override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            api_, std::move(id), helix::ams::lane_key_style_for(get_type()), std::move(ns));
+}
+EOF
+    cat > "$d/ams_state_external_spool.cpp" <<'EOF'
+void AmsState::open_bypass_store() {
+    bypass_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api, "bypass", style);
 }
 EOF
     run override_store_offenders "$d"

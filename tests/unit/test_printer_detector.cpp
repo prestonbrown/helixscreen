@@ -742,6 +742,80 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a saved model settles a tie between that model's firmware "
+                 "variant and another model's",
+                 "[printer][detector][mismatch][k2][k2improvements]") {
+    // A K2 Plus on k2-improvements that declares no bed: the mod's definitive
+    // macro is the base score of both mod entries, the bonus caps, and the
+    // hostname that names the Plus is lost in the ceiling. Detection ties the
+    // Plus and the Pro mod entries while excluding the stock K2 Plus the user
+    // saved. The tie is about which model; both candidates agree on the
+    // firmware, and the saved type already answers the model.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .sensors = {},
+                                 .fans = {},
+                                 .leds = {},
+                                 .hostname = "k2plus",
+                                 .printer_objects = {"motor_control", "fan_feedback", "load_ai",
+                                                     "gcode_macro _START_PRINT_VARS",
+                                                     "gcode_macro START_PRINT"},
+                                 .steppers = {},
+                                 .kinematics = "corexy",
+                                 .build_volume = {}};
+
+    const auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+    REQUIRE(result.confidence == 100);
+    REQUIRE(result.ambiguous());
+    REQUIRE(result.contenders.size() == 2);
+
+    using PD = PrinterDetector;
+    SECTION("the saved stock model is offered its own variant") {
+        CHECK(PD::mismatch_subject("Creality K2 Plus", result) ==
+              "Creality K2 Plus (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, "") ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("the other saved model is offered ITS variant, whichever entry won") {
+        CHECK(PD::mismatch_subject("Creality K2 Pro", result) ==
+              "Creality K2 Pro (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro", result, "") ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("a saved type that is one of the tied candidates is confirmed") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro (k2-improvements)", result, "") ==
+              PD::MismatchDecision::MatchesSavedType);
+    }
+    SECTION("a saved model outside the tie leaves it ambiguous") {
+        CHECK(PD::mismatch_subject("Creality K2", result) == result.type_name);
+        CHECK(PD::classify_type_mismatch("Creality K2", result, "") ==
+              PD::MismatchDecision::Ambiguous);
+        CHECK(PD::classify_type_mismatch("Voron 2.4", result, "") ==
+              PD::MismatchDecision::Ambiguous);
+    }
+    SECTION("a dismissal for the saved type still holds") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, "Creality K2 Plus") ==
+              PD::MismatchDecision::AlreadyDismissed);
+    }
+}
+
+TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
+          "[printer][detector][mismatch]") {
+    // The Neptune 4 line shares one image across four sizes. A Max tied with
+    // another machine is no evidence that a saved Pro is really a Max.
+    PrinterDetectionResult tied{"Elegoo Neptune 4 Max", 95, "tied"};
+    tied.runner_up_type_name = "Voron 2.4";
+    tied.runner_up_confidence = 95;
+    tied.contenders = {"Elegoo Neptune 4 Max", "Voron 2.4"};
+    REQUIRE(tied.ambiguous());
+
+    CHECK(PrinterDetector::mismatch_subject("Elegoo Neptune 4 Pro", tied) == tied.type_name);
+    CHECK(PrinterDetector::classify_type_mismatch("Elegoo Neptune 4 Pro", tied, "") ==
+          PrinterDetector::MismatchDecision::Ambiguous);
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build
@@ -4481,11 +4555,20 @@ TEST_CASE("PrinterDetector: preset_default survives database array order, not ju
 
 TEST_CASE("PrinterDetector: hide_manual_z_calibration defaults to false",
           "[printer_detector][tool_offset_cal]") {
-    // No bundled printer opts in: a stock klipper-toolchanger's example macro
-    // writes nothing for T0, so the paper test must stay unless a database
-    // entry says the routine covers the reference tool.
+    // A stock klipper-toolchanger's example macro writes nothing for T0, so the
+    // paper test stays unless a database entry says the routine covers the
+    // reference tool.
     REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Snapmaker U1"));
     REQUIRE_FALSE(PrinterDetector::hide_manual_z_calibration("Some Random Printer"));
+}
+
+TEST_CASE("PrinterDetector: the Creator 5 line hides manual Z calibration",
+          "[printer_detector][tool_offset_cal][per_head]") {
+    // Every head carries its own Z offset, measured by the changer's own
+    // calibration; a paper test sets one absolute offset for whichever head is
+    // mounted.
+    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5"));
+    CHECK(PrinterDetector::hide_manual_z_calibration("FlashForge Creator 5 Pro"));
 }
 
 TEST_CASE("PrinterDetector: hide_manual_z_calibration reads the database field",
@@ -6061,6 +6144,79 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
     CHECK_FALSE(detected);
 
     CHECK(get_printer_state().profile_state().printer_type() == "Voron 2.4");
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
+// A Z-Mod AD5M Pro is typed as the stock 5M Pro, but was set up from
+// ad5m_pro_zmod. The boot migration has to read the preset that was installed,
+// or it unions the stock machine's fans and runout switch into the expected
+// hardware of a printer that has none of them (prestonbrown/helixscreen#2064).
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save migrates a saved type from its installed variant preset",
+                 "[printer_detector][preset]") {
+    SetUp();
+    namespace fs = std::filesystem;
+    for (const char* name : {"ad5m_pro", "ad5m_pro_zmod"}) {
+        fs::copy_file(fs::current_path() / "assets/config/presets" / (std::string(name) + ".json"),
+                      temp_dir + "/assets/config/presets/" + name + ".json");
+    }
+
+    const std::string df = config.df();
+    config.set<std::string>(df + helix::wizard::PRINTER_TYPE, "FlashForge Adventurer 5M Pro");
+    config.set<bool>(df + "wizard_completed", true);
+    ConfigTestAccess::data(config)["printers"]["default"]["hardware"]["expected"] =
+        nlohmann::json::array({"heater_bed", "extruder", "fan_generic fanM106",
+                               "heater_fan heat_fan", "fan_generic chamber_fan"});
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"extruder", "heater_bed", "fan_generic fanM106"});
+
+    const std::vector<std::string> stock_only = {
+        "fan", "heater_fan hotend_fan", "fan_generic internal_fan", "fan_generic external_fan",
+        "filament_switch_sensor runout_sensor"};
+    auto expected_has = [&](const std::string& name) {
+        const auto& expected =
+            ConfigTestAccess::data(config)["printers"]["default"]["hardware"]["expected"];
+        return std::find(expected.begin(), expected.end(), name) != expected.end();
+    };
+
+    SECTION("The installed Z-Mod preset is the one migrated") {
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK_FALSE(expected_has(name));
+        }
+        CHECK(expected_has("filament_switch_sensor e0_sensor"));
+        CHECK_FALSE(config.exists(df + "fans/exhaust"));
+    }
+
+    SECTION("With no recorded preset the base preset is migrated") {
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK(expected_has(name));
+        }
+    }
+
+    SECTION("An installed preset from another family falls back to the base") {
+        config.set_preset("ad5x");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
+
+    SECTION("An installed variant whose file is gone falls back to the base") {
+        fs::remove(temp_dir + "/assets/config/presets/ad5m_pro_zmod.json");
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
 
     get_printer_state().set_printer_type_sync("");
     TearDown();

@@ -45,6 +45,10 @@ class WizardWifiStepTestAccess {
     static void password_connect_clicked(WizardWifiStep& step) {
         step.handle_modal_connect_clicked();
     }
+    /// The production handler behind the Add Hidden Network button.
+    static void add_hidden_clicked(WizardWifiStep& step) {
+        step.handle_add_hidden_clicked();
+    }
 
     /// The status-read paths: the backend-state apply, a list refresh after a
     /// scan, and a join's success.

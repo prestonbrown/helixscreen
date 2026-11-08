@@ -96,29 +96,24 @@
                             subject="ams_always_show_bypass_spool" callback="on_ams_always_show_bypass_spool_toggled">
           <bind_flag_if_eq subject="ams_device_ops_bypass_is_virtual" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
-        <!-- Retention across eject: keep the previously assigned spool details
-             so reloading the same spool after maintenance needs no re-selection
-             (default on). Turn off to start fresh whenever a lane empties.
-             Meaningful on systems whose firmware reports spool ids per lane
-             (AFC, Happy Hare); other systems clear on a detected spool swap
-             regardless of this toggle. When the firmware retains spools itself
-             (AFC's per-lane remember_spool = true everywhere) it keeps
-             reporting the spool id across ejects, so this toggle has no
-             observable effect — it is shown disabled with the note below
-             instead of silently lying. -->
+        <!-- Retention across eject: whether the lane record keeps the spool's
+             details when the lane empties. HelixScreen's setting (default on)
+             applies only where its lane record is a lane's only identity. Firmware
+             with its own per-lane setting owns it instead: that switch shows and
+             writes the firmware's setting, so every client of the printer agrees. -->
         <setting_toggle_row name="row_ams_keep_spool_info_on_eject"
                             label="Keep Spool Info on Eject" icon="filament"
                             description="Remember slot spool details across an eject"
-                            subject="ams_keep_spool_info_on_eject" callback="on_ams_keep_spool_info_toggled"
-                            disabled="ams_device_ops_printer_retains_spool_info">
-          <bind_flag_if_eq subject="ams_device_ops_reports_spool_ids" flag="hidden" ref_value="0"/>
+                            subject="ams_keep_spool_info_on_eject" callback="on_ams_keep_spool_info_toggled">
+          <bind_flag_if_eq subject="ams_device_ops_record_only_identity" flag="hidden" ref_value="0"/>
         </setting_toggle_row>
-        <text_small name="label_printer_retains_note"
-                    text="AFC's remember_spool is retaining spool info in firmware; that takes precedence over this toggle"
-                    style_text_color="#text_subtle">
-          <bind_flag_if_eq subject="ams_device_ops_printer_retains_spool_info" flag="hidden" ref_value="0"/>
-          <bind_flag_if_eq subject="ams_device_ops_reports_spool_ids" flag="hidden" ref_value="0"/>
-        </text_small>
+        <setting_toggle_row name="row_ams_firmware_keeps_spool_info"
+                            label="Keep Spool Info on Eject" icon="filament"
+                            description="Remember slot spool details across an eject"
+                            subject="ams_device_ops_printer_retains_spool_info"
+                            callback="on_ams_firmware_keep_spool_info_toggled">
+          <bind_flag_if_eq subject="ams_device_ops_firmware_owns_spool_retention" flag="hidden" ref_value="0"/>
+        </setting_toggle_row>
         <!-- Link a lane to the Spoolman spool its tag names when the spool is
              seated (default on). Shown where a tag can name a spool and
              Spoolman is configured. -->

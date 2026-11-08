@@ -132,9 +132,10 @@ TEST_CASE("Z-offset approach: an unknown plate sends no move", "[zoffset_center]
 TEST_CASE("Z-offset calibration command: strategy and probe pick the command and reading point",
           "[zoffset_center]") {
     using S = ZOffsetCalibrationStrategy;
-    auto check = [](S s, ProbeSensorType t, const std::string& gcode, ReadingPoint point) {
-        const auto c = calibration_command(s, t);
-        CHECK(std::string(c.gcode) == gcode);
+    auto check = [](S s, ProbeSensorType t, const std::string& gcode, ReadingPoint point,
+                    std::string_view chip = "btt") {
+        const auto c = calibration_command(s, t, chip);
+        CHECK(c.gcode == gcode);
         CHECK(c.point == point);
     };
     check(S::PROBE_CALIBRATE, ProbeSensorType::STANDARD, "PROBE_CALIBRATE", ReadingPoint::Probe);
@@ -142,6 +143,11 @@ TEST_CASE("Z-offset calibration command: strategy and probe pick the command and
     check(S::PROBE_CALIBRATE, ProbeSensorType::CARTOGRAPHER, "CARTOGRAPHER_SCAN_CALIBRATE",
           ReadingPoint::Nozzle);
     check(S::PROBE_CALIBRATE, ProbeSensorType::BEACON, "BEACON_CALIBRATE", ReadingPoint::Nozzle);
+    // The eddy calibration is a paper test at the nozzle; after ACCEPT Klipper
+    // moves the coil over that point and sweeps it.
+    check(S::PROBE_CALIBRATE, ProbeSensorType::EDDY_CURRENT,
+          "PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy", ReadingPoint::Nozzle, "btt_eddy");
+    check(S::ENDSTOP, ProbeSensorType::EDDY_CURRENT, "Z_ENDSTOP_CALIBRATE", ReadingPoint::Nozzle);
     check(S::ENDSTOP, ProbeSensorType::BLTOUCH, "Z_ENDSTOP_CALIBRATE", ReadingPoint::Nozzle);
     check(S::FIRMWARE_MANAGED, ProbeSensorType::STANDARD, "", ReadingPoint::Nozzle);
 }
@@ -196,4 +202,36 @@ TEST_CASE("PrinterDiscovery: the probe XY offset comes from the probe's config s
         hw.clear();
         CHECK_FALSE(hw.probe_xy_offset().has_value());
     }
+}
+
+// --- reference tool gate --------------------------------------------------
+
+TEST_CASE("Z-offset tool gate: the reference tool mounted proceeds",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 0) ==
+          ToolGate::Proceed);
+}
+
+TEST_CASE("Z-offset tool gate: another tool mounted asks before starting",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, 2) ==
+          ToolGate::ConfirmFirst);
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::ENDSTOP, 0, 1) == ToolGate::ConfirmFirst);
+}
+
+TEST_CASE("Z-offset tool gate: an unknown mounted tool asks before starting",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, 0, -1) ==
+          ToolGate::ConfirmFirst);
+}
+
+TEST_CASE("Z-offset tool gate: no reference tool leaves calibration as it was",
+          "[zoffset_cal][reference_tool]") {
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, -1) ==
+          ToolGate::Proceed);
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, std::nullopt, 3) ==
+          ToolGate::Proceed);
+    // A firmware-managed printer runs no calibrate command of ours.
+    CHECK(reference_tool_gate(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, 0, 2) ==
+          ToolGate::Proceed);
 }

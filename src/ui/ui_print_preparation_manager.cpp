@@ -47,6 +47,7 @@
 #include <optional>
 #include <set>
 #include <unistd.h>
+#include <utility>
 
 // Forward declaration for global print status panel (declared in ui_panel_print_status.h)
 PrintStatusPanel& get_global_print_status_panel();
@@ -60,6 +61,11 @@ using helix::CapabilityOrigin;
 using helix::OperationCategory;
 
 namespace {
+
+/// The plate a rewrite of @p route extracts first, or 0 when it rewrites the file itself.
+int rewritten_plate(const helix::print_3mf::Route& route) {
+    return route.kind == helix::print_3mf::RouteKind::ExtractPlate ? route.plate : 0;
+}
 
 /// The PRINT_START operations macro analysis can turn into an option, in row order.
 struct MacroOptionId {
@@ -469,8 +475,9 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
                 spdlog::warn(
                     "[PrintPreparationManager] PRINT_START analysis failed (attempt {}): {}",
                     macro_analysis_retry_count_ + 1, error.message);
-                // Check if we should retry
-                if (macro_analysis_retry_count_ < kMaxMacroAnalysisRetries) {
+                // Only a lost connection can answer differently a second later.
+                if (error.is_transport_loss() &&
+                    macro_analysis_retry_count_ < kMaxMacroAnalysisRetries) {
                     macro_analysis_retry_count_++;
                     // Exponential backoff: 1s, 2s
                     int delay_ms = 1000 * (1 << (macro_analysis_retry_count_ - 1));
@@ -504,8 +511,8 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
 
                 // Final failure - notify user
                 spdlog::error(
-                    "[PrintPreparationManager] PRINT_START analysis failed after {} attempts",
-                    kMaxMacroAnalysisRetries + 1);
+                    "[PrintPreparationManager] PRINT_START analysis failed after {} attempt(s)",
+                    macro_analysis_retry_count_ + 1);
                 // A printer refusing our login says why in its own message.
                 if (!helix::moonraker_auth::unauthorized()) {
                     NOTIFY_ERROR(lv_tr("Could not analyze PRINT_START macro. Some print options "
@@ -1043,7 +1050,9 @@ void PrintPreparationManager::start_print(const std::string& filename,
                                           const std::string& current_path,
                                           NavigateToStatusCallback on_navigate_to_status,
                                           PrintCompletionCallback on_completion,
-                                          const std::string& expected_scan_key) {
+                                          const std::string& expected_scan_key,
+                                          const helix::PrintStartParams& start_params) {
+    start_params_ = start_params;
     // A start's override answers this one start: every option read happens
     // before this returns, and a later Print tap must read its own rows.
     const helix::ScopeExit drop_start_override([this]() { start_option_override_ = nullptr; });
@@ -2057,6 +2066,10 @@ void PrintPreparationManager::modify_and_print(
         return;
     }
 
+    const print_3mf::Route plate_route = archive_route(file_path, print_3mf::Rewrite::Steps);
+    if (refuse_archive_route(plate_route, on_completion)) {
+        return;
+    }
     RewriteRoute route;
     route.file_path = printable_path(file_path);
     route.local_download_path =
@@ -2065,7 +2078,7 @@ void PrintPreparationManager::modify_and_print(
     // Without the plugin the modified copy is started as itself.
     route.use_plugin =
         printer_state_ && printer_state_->plugin_status_state().service_has_helix_plugin();
-    route.archive_plate = archive_plate_for(file_path);
+    route.archive_plate = rewritten_plate(plate_route);
     route.download_error = TR_NOOP("Failed to download G-code for modification: {}");
     route.upload_error = TR_NOOP("Failed to upload modified G-code: {}");
 
@@ -2116,6 +2129,7 @@ void PrintPreparationManager::modify_and_print(
 void PrintPreparationManager::modify_and_print_with_remap(
     const std::string& file_path, const std::map<int, int>& remap,
     NavigateToStatusCallback on_navigate_to_status, PrintCompletionCallback on_completion) {
+    start_params_.clear();
     if (!api_) {
         spdlog::error("[PrintPreparationManager] modify_and_print_with_remap: no API");
         NOTIFY_ERROR(lv_tr("Couldn't map filament: internal error"));
@@ -2146,6 +2160,10 @@ void PrintPreparationManager::modify_and_print_with_remap(
     spdlog::info("[PrintPreparationManager] Remap modification: {} tool mapping(s), downloading {}",
                  remap.size(), file_path);
 
+    const print_3mf::Route plate_route = archive_route(file_path, print_3mf::Rewrite::Remap);
+    if (refuse_archive_route(plate_route, on_completion)) {
+        return;
+    }
     RewriteRoute route;
     route.file_path = printable_path(file_path);
     route.local_download_path = local_download_path;
@@ -2156,7 +2174,7 @@ void PrintPreparationManager::modify_and_print_with_remap(
     // The caller guarantees the plugin is installed (open_remap_modal guards on
     // it for the GcodeRewrite strategy).
     route.use_plugin = true;
-    route.archive_plate = archive_plate_for(file_path);
+    route.archive_plate = rewritten_plate(plate_route);
     route.download_error = TR_NOOP("Failed to download G-code for Filament Mapping: {}");
     route.upload_error = TR_NOOP("Failed to upload the rewritten G-code: {}");
     route.server_edits = gcode::to_server_edits(gcode::EditList{{}, remap});
@@ -2481,20 +2499,26 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         on_print_success();
     };
 
+    // A staged copy is G-code: the builder adds no plate to its tool map. The
+    // plugin hands the map to a Moonraker whose start takes it.
+    const helix::PrintStartParams start_params =
+        helix::print_start::start_request_params({}, std::exchange(start_params_, {}));
+
     if (plugin_edits) {
         // The plugin writes the copy itself, and removes it if the start fails, so no
         // branch here deletes it.
-        auto on_edit_error = [this, token, job, on_navigate_to_status, on_completion, ps,
-                              epoch](const MoonrakerError& error) {
+        auto on_edit_error = [this, token, job, on_navigate_to_status, on_completion, ps, epoch,
+                              start_params](const MoonrakerError& error) {
             switch (gcode::classify_print_edited_failure(error)) {
             case gcode::EditedPrintFailure::Unsupported:
                 spdlog::warn("[PrintPreparationManager] Plugin cannot edit {} ({}); rewriting "
                              "on the screen",
                              job->file_path, error.message);
                 token.defer("PrintPreparationManager::edit_fallback",
-                            [this, job, on_navigate_to_status, on_completion]() {
+                            [this, job, on_navigate_to_status, on_completion, start_params]() {
                                 // Refused before anything ran: the fallback
-                                // sends its own start.
+                                // sends its own start, with this print's map.
+                                start_params_ = start_params;
                                 if (printer_state_) {
                                     printer_state_->print_state().note_preparing_start_answered(
                                         job->preparing_epoch, false);
@@ -2538,37 +2562,75 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         };
         api_->job().start_edited_print(job->file_path, remote_temp_path, *job->server_edits,
                                        job->mod_names, job->file_size, on_plugin_accepted,
-                                       on_edit_error);
+                                       on_edit_error, start_params);
     } else if (job->use_plugin) {
         // The plugin symlinks the copy under the original name,
         // patches history, and starts the print.
         api_->job().start_modified_print(job->file_path, remote_temp_path, job->mod_names,
-                                         on_plugin_accepted, on_print_error);
+                                         on_plugin_accepted, on_print_error, start_params);
     } else {
-        api_->job().start_print(remote_temp_path, on_print_success, on_print_error);
+        api_->job().start_print(remote_temp_path, on_print_success, on_print_error, start_params);
     }
 }
 
 void PrintPreparationManager::set_archive_plate(const std::string& file_path, int plate,
                                                 const std::string& converted_output) {
-    const bool marked = plate > 0 || !converted_output.empty();
-    archive_path_ = marked ? file_path : std::string();
-    archive_plate_ = marked && converted_output.empty() ? std::max(plate, 0) : 0;
-    archive_output_ = marked ? converted_output : std::string();
+    print_3mf::RouteInputs in;
+    in.reads = print_3mf::PrinterReads::Nothing;
+    if (plate > 0) {
+        in.shown_plate = plate;
+    }
+    in.converted_output = converted_output;
+    if (plate <= 0 && converted_output.empty()) {
+        in.reads = print_3mf::PrinterReads::Archive;
+    }
+    set_archive_route(file_path, in);
+}
+
+void PrintPreparationManager::set_archive_route(const std::string& file_path,
+                                                const print_3mf::RouteInputs& inputs) {
+    // An archive the printer reads and picks the plate of needs nothing kept.
+    const bool kept = inputs.reads != print_3mf::PrinterReads::Archive;
+    archive_path_ = kept ? file_path : std::string();
+    archive_inputs_ = kept ? inputs : print_3mf::RouteInputs{};
+}
+
+print_3mf::Route PrintPreparationManager::archive_route(const std::string& file_path,
+                                                        print_3mf::Rewrite rewrite) const {
+    if (!gcode::is_3mf(file_path)) {
+        return {};
+    }
+    print_3mf::RouteInputs in = !archive_path_.empty() && file_path == archive_path_
+                                    ? archive_inputs_
+                                    : print_3mf::RouteInputs{};
+    in.keeps_local_copies = keeps_local_copies_;
+    in.rewrite = rewrite;
+    in.purpose = print_3mf::Purpose::Print;
+    return print_3mf::classify(in);
 }
 
 void PrintPreparationManager::start_archive_reprint(const std::string& file_path, int plate,
                                                     PrintCompletionCallback on_completion) {
+    start_params_.clear();
     set_archive_plate(file_path, plate);
-    print_archive_plate(file_path, plate, nullptr, std::move(on_completion));
-}
-
-int PrintPreparationManager::archive_plate_for(const std::string& file_path) const {
-    return !archive_path_.empty() && file_path == archive_path_ ? archive_plate_ : 0;
+    start_print_directly(file_path, nullptr, std::move(on_completion));
 }
 
 std::string PrintPreparationManager::printable_path(const std::string& file_path) const {
-    return !archive_output_.empty() && file_path == archive_path_ ? archive_output_ : file_path;
+    const print_3mf::Route route = archive_route(file_path, print_3mf::Rewrite::None);
+    return route.kind == print_3mf::RouteKind::ConvertedOutput ? route.print_path : file_path;
+}
+
+bool PrintPreparationManager::refuse_archive_route(const print_3mf::Route& route,
+                                                   const PrintCompletionCallback& on_completion) {
+    if (route.kind != print_3mf::RouteKind::Refuse) {
+        return false;
+    }
+    spdlog::warn("[PrintPreparationManager] Not starting the .3mf: {}",
+                 print_3mf::refusal_message(route.refusal));
+    NOTIFY_WARNING(lv_tr(print_3mf::refusal_message(route.refusal)));
+    abandon_start("archive_refused", on_completion);
+    return true;
 }
 
 gcode::StagingRoot PrintPreparationManager::staging_root() const {
@@ -2646,12 +2708,6 @@ void PrintPreparationManager::print_archive_plate(const std::string& file_path, 
         abandon_start("archive_no_api", on_completion);
         return;
     }
-    if (!transport_keeps_local_copies()) {
-        NOTIFY_WARNING(lv_tr("This .3mf has to be converted to G-code on the printer before it "
-                             "can print."));
-        abandon_start("archive_no_local_copies", on_completion);
-        return;
-    }
     const std::string local_download_path = gcode::GCodeFileModifier::generate_temp_path(
         "archive_dl_" + gcode::get_filename_basename(file_path));
     if (local_download_path.empty()) {
@@ -2678,16 +2734,35 @@ void PrintPreparationManager::print_archive_plate(const std::string& file_path, 
 void PrintPreparationManager::start_print_directly(const std::string& filename,
                                                    NavigateToStatusCallback on_navigate_to_status,
                                                    PrintCompletionCallback on_completion) {
-    if (const int plate = archive_plate_for(filename); plate > 0) {
-        print_archive_plate(filename, plate, std::move(on_navigate_to_status),
-                            std::move(on_completion));
+    const print_3mf::Route route = archive_route(filename, print_3mf::Rewrite::None);
+    if (refuse_archive_route(route, on_completion)) {
         return;
     }
-    if (const std::string printable = printable_path(filename); printable != filename) {
-        spdlog::info("[PrintPreparationManager] Printing the printer's conversion {} of {}",
-                     printable, filename);
-        start_print_directly(printable, std::move(on_navigate_to_status), std::move(on_completion));
+    switch (route.kind) {
+    case print_3mf::RouteKind::ExtractPlate:
+        print_archive_plate(filename, route.plate, std::move(on_navigate_to_status),
+                            std::move(on_completion));
         return;
+    case print_3mf::RouteKind::ConvertedOutput:
+        spdlog::info("[PrintPreparationManager] Printing the printer's conversion {} of {}",
+                     route.print_path, filename);
+        start_print_directly(route.print_path, std::move(on_navigate_to_status),
+                             std::move(on_completion));
+        return;
+    case print_3mf::RouteKind::NativePlate:
+        spdlog::info("[PrintPreparationManager] Printing plate {} of {} by the printer's own start",
+                     route.plate, filename);
+        break;
+    case print_3mf::RouteKind::AsFile:
+    case print_3mf::RouteKind::Refuse:
+        break;
+    }
+    const helix::PrintStartParams params =
+        helix::print_start::start_request_params(route, std::exchange(start_params_, {}));
+    if (printer_state_) {
+        printer_state_->print_state().note_start_plate(
+            helix::PrinterPrintState::start_record_printer_id(), filename,
+            route.kind == print_3mf::RouteKind::NativePlate ? route.plate : 0);
     }
     note_start_sent();
     helix::PrinterState* ps = printer_state_;
@@ -2729,7 +2804,8 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
                         on_completion(false, error.message);
                     }
                 });
-        });
+        },
+        params);
 }
 
 } // namespace helix::ui

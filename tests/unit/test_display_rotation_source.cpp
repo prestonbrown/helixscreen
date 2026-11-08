@@ -261,3 +261,98 @@ TEST_CASE_METHOD(LVGLTestFixture, "LVGL's own rotation undoes the unrotated poin
         }
     }
 }
+
+namespace {
+
+class StandaloneBackend : public DisplayBackend {
+  public:
+    StandaloneBackend(DisplayBackendType t, bool turns_it, bool available = true)
+        : type_(t), turns_it_(turns_it), available_(available) {}
+
+    lv_display_t* create_display(int w, int h) override {
+        created = lv_display_create(w, h);
+        return created;
+    }
+    lv_indev_t* create_input_pointer() override {
+        return nullptr;
+    }
+    DisplayBackendType type() const override {
+        return type_;
+    }
+    const char* name() const override {
+        return "standalone";
+    }
+    bool is_available() const override {
+        return available_;
+    }
+    bool supports_hardware_rotation(lv_display_rotation_t) const override {
+        return turns_it_;
+    }
+    void set_display_rotation(lv_display_t*, lv_display_rotation_t r, int, int) override {
+        applied = r;
+        ++apply_calls;
+    }
+
+    lv_display_t* created = nullptr;
+    lv_display_rotation_t applied = LV_DISPLAY_ROTATION_0;
+    int apply_calls = 0;
+
+  private:
+    DisplayBackendType type_;
+    bool turns_it_;
+    bool available_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a standalone screen rotates through its backend",
+                 "[display][rotation][crash_dialog]") {
+    auto owned = std::make_unique<StandaloneBackend>(DisplayBackendType::DRM, true);
+    auto* drm = owned.get();
+    std::unique_ptr<DisplayBackend> backend = std::move(owned);
+    lv_display_t* display = backend->create_display(800, 480);
+    lv_display_t* const before = display;
+
+    CHECK(helix::settle_standalone_rotation(backend, display, 90, 800, 480,
+                                            [] { return std::unique_ptr<DisplayBackend>{}; }));
+    CHECK(drm->applied == LV_DISPLAY_ROTATION_90);
+    CHECK(display == before);
+    lv_display_delete(display);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a standalone screen DRM cannot turn moves to fbdev",
+                 "[display][rotation][crash_dialog]") {
+    std::unique_ptr<DisplayBackend> backend =
+        std::make_unique<StandaloneBackend>(DisplayBackendType::DRM, false);
+    lv_display_t* display = backend->create_display(800, 480);
+    StandaloneBackend* fb = nullptr;
+
+    CHECK(helix::settle_standalone_rotation(backend, display, 270, 800, 480, [&] {
+        auto next = std::make_unique<StandaloneBackend>(DisplayBackendType::FBDEV, false);
+        fb = next.get();
+        return std::unique_ptr<DisplayBackend>(std::move(next));
+    }));
+    REQUIRE(fb != nullptr);
+    CHECK(backend.get() == fb);
+    CHECK(display == fb->created);
+    CHECK(fb->applied == LV_DISPLAY_ROTATION_270);
+    lv_display_delete(display);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "with no fbdev a standalone screen stays up unrotated",
+                 "[display][rotation][crash_dialog]") {
+    auto owned = std::make_unique<StandaloneBackend>(DisplayBackendType::DRM, false);
+    auto* drm = owned.get();
+    std::unique_ptr<DisplayBackend> backend = std::move(owned);
+    lv_display_t* display = backend->create_display(800, 480);
+    lv_display_t* const before = display;
+
+    CHECK_FALSE(helix::settle_standalone_rotation(backend, display, 90, 800, 480, [] {
+        return std::unique_ptr<DisplayBackend>(
+            std::make_unique<StandaloneBackend>(DisplayBackendType::FBDEV, false, false));
+    }));
+    CHECK(backend.get() == drm);
+    CHECK(display == before);
+    CHECK(drm->apply_calls == 0);
+    lv_display_delete(display);
+}

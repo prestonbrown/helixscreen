@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "filament_slot_override.h"
@@ -54,6 +56,13 @@ class ToolChangerTestAccess {
     static void arm_dispatch(AmsBackendToolChanger& b, AmsAction action) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.begin_dispatch_locked(action);
+    }
+
+    /// Shrink the published slot table below the discovered tool count, the
+    /// shape a status frame that has not yet named every head leaves.
+    static void set_total_slots(AmsBackendToolChanger& b, int slots) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.system_info_.total_slots = slots;
     }
 
     static bool has_pending_dispatch(const AmsBackendToolChanger& b) {
@@ -140,15 +149,16 @@ class ToolChangerTestAccess {
     }
 
     /// Run the REAL on_started(), which is where the backend builds its
-    /// FilamentSlotOverrideStore and does the blocking load. start() is final on
+    /// FilamentSlotOverrideStore and starts its read. start() is final on
     /// AmsSubscriptionBackend and drags in subscription setup a store
     /// round-trip has no use for, so this reaches the one hook that matters.
     ///
     /// on_started() and NOT additional_start_checks(): start() calls the latter
-    /// with mutex_ held, and load_blocking() needs mutex_ to publish - doing it
-    /// there self-deadlocks.
+    /// with mutex_ held, and opening the store takes mutex_.
     static void call_on_started(AmsBackendToolChanger& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// Drive the REAL status path. handle_status_update() is protected, and it
@@ -172,16 +182,13 @@ class ToolChangerTestAccess {
         helix::test::file_override_as_lane_records(b, slot_index, ovr);
     }
 
-    /// Run the lane_data re-read a firmware change scheduled, now rather than
-    /// after its debounce.
-    static void fire_lane_record_reread(AmsBackendToolChanger& b) {
-        b.lane_reread_pending_.store(false);
-        b.reread_lane_records();
+    /// A read of the lane records, as the poll and every write start one.
+    static void refresh_lane_records(AmsBackendToolChanger& b) {
+        b.refresh_lane_records();
     }
-
-    /// Whether a lane_data re-read is scheduled and has not run yet.
-    static bool lane_reread_pending(const AmsBackendToolChanger& b) {
-        return b.lane_reread_pending_.load();
+    /// One tick of the lane-record poll timer.
+    static void poll_lane_records(AmsBackendToolChanger& b) {
+        b.poll_lane_records();
     }
 
     /// The override standing for @p slot_index, or nullopt when it has none.
@@ -205,7 +212,7 @@ class ToolChangerTestAccess {
     /// can assert it is the SHARED "lane_data" and not a private one. Empty
     /// when no store was built (null API).
     static std::string store_namespace(const AmsBackendToolChanger& b) {
-        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
+        return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
 };
 } // namespace helix

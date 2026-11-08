@@ -33,6 +33,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Plugin Development**](devel/PLUGIN_DEVELOPMENT.md) | Writing a Lua plugin: manifest, XML rules, the helix.* API, permissions, limits, debugging |
 | [**Architecture**](devel/ARCHITECTURE.md) | Whole-app model + routing to the 17-chapter guide (`devel/architecture/`) |
 | [**Build System**](devel/BUILD_SYSTEM.md) | Makefile, cross-compilation, patches |
+| [**Sharing the Tree**](devel/SHARED_TREE.md) | Working beside other sessions: `helix-claim`, the git hooks, committing in a shared tree |
 | [**Testing**](devel/TESTING.md) | Test infrastructure and Catch2 usage |
 | [**Changelog Style**](devel/CHANGELOG_STYLE.md) | How `CHANGELOG.md` entries are written: user-facing voice, separator, issue links, daily vs milestone shapes |
 

@@ -1,0 +1,377 @@
+# Creator 5 Pro on Z-Mod 1.7.5, 2026-11-06: a start with a saved mesh, from the colour
+# prompt's answer (PRINT_ZCOLOR, t=0) to the end of START_PRINT. Moonraker gcode_store
+# responses as 'S.mmm > text' (a multi-line message joined with \n), and the printer's
+# state once a second as 'S.mmm = print_stats bed bed_target extruder extruder_target' (C).
+-1.197 = standby 45.4 0 42.0 0
+-0.197 = standby 45.4 0 42.0 0
+0.050 > // action:prompt_end
+0.211 > // T0 (PLA):\n// temp (auto purge): 220°C\n// temp_wait:         120°C\n// drop_length:       50 mm\n// full_length:       600.0 mm\n// trash_position:    X=275.0 Y=254.0 Z=10.0
+0.803 = standby 45.4 65 42.0 220
+1.803 = standby 45.4 65 43.9 220
+2.803 = standby 45.5 65 50.8 220
+3.804 = standby 45.8 65 57.7 220
+4.804 = standby 46.1 65 65.2 220
+5.804 = standby 46.5 65 75.4 220
+6.804 = standby 47.0 65 83.0 220
+7.804 = standby 47.4 65 90.5 220
+8.804 = standby 47.9 65 100.2 220
+9.804 = standby 48.5 65 107.3 220
+10.804 = standby 48.9 65 114.2 220
+11.804 = standby 49.3 65 123.2 220
+11.981 > // Head: -1
+12.804 = standby 49.9 65 129.7 220
+13.804 = standby 50.3 65 136.0 220
+14.804 = standby 50.9 65 144.2 220
+15.804 = standby 51.3 65 150.2 220
+16.805 = standby 51.8 65 158.0 220
+17.805 = standby 52.3 65 163.7 220
+18.805 = standby 52.7 65 169.2 220
+19.805 = standby 53.1 65 176.4 220
+20.805 = standby 53.7 65 181.7 220
+21.805 = standby 54.0 65 186.9 220
+22.805 = standby 54.4 65 193.6 220
+23.805 = standby 55.0 65 198.5 220
+24.805 = standby 55.4 65 203.3 220
+25.805 = standby 55.8 65 209.2 220
+26.805 = standby 56.3 65 212.8 220
+27.805 = standby 56.7 65 215.5 220
+28.805 = standby 57.0 65 218.2 220
+29.805 = standby 57.6 65 219.7 220
+30.806 = standby 58.0 65 220.7 220
+31.806 = standby 58.3 65 221.6 220
+32.806 = standby 58.8 65 222.0 220
+33.806 = standby 59.2 65 222.2 220
+34.806 = standby 59.6 65 222.1 220
+35.806 = standby 60.1 65 221.9 220
+36.806 = standby 60.5 65 221.6 220
+37.806 = standby 60.8 65 221.3 220
+38.806 = standby 61.3 65 221.1 220
+39.806 = standby 61.7 65 220.9 220
+40.806 = standby 62.0 65 220.7 220
+41.806 = standby 62.5 65 220.7 220
+42.806 = standby 62.9 65 220.6 220
+43.807 = standby 63.2 65 220.5 220
+44.807 = standby 63.7 65 220.4 220
+45.602 > // Grab attempt for T0: 1 of 5...
+45.606 > // X-Offset: 0.0000 _T_IN
+45.607 > // Y-Offset: 0.0000 _T_IN
+45.807 = standby 64.0 65 220.3 220
+46.807 = standby 64.3 65 220.2 220
+47.807 = standby 64.6 65 219.9 220
+48.112 > // X-Offset: 0.0000 _T_IN
+48.113 > // Y-Offset: 0.0000 _T_IN
+48.133 > // Z-Offset: 3.4120 _T_IN
+48.807 = standby 65.0 65 219.9 220
+49.807 = standby 65.3 65 220.0 220
+50.167 > // Head: T0
+50.807 = standby 65.6 65 220.2 220
+51.807 = standby 66.0 65 220.3 220
+51.849 > // Waiting for temperature normalization. Extruder: 218.0-222.0 T0 _T_PREPARE
+51.855 > // If it takes a long time, calibrate the PID of the extruder and bed T0 _T_PREPARE
+51.865 > // Temperature normalization completed T0 _T_PREPARE
+52.807 = standby 66.2 65 220.4 220
+53.807 = standby 66.5 65 220.3 220
+54.807 = standby 66.7 65 220.1 220
+55.807 = standby 66.8 65 219.6 220
+56.808 = standby 67.1 65 219.2 220
+57.808 = standby 67.2 65 219.0 220
+58.808 = standby 67.3 65 219.0 220
+59.808 = standby 67.4 65 219.1 220
+60.808 = standby 67.5 65 219.3 220
+61.808 = standby 67.5 65 219.6 220
+62.808 = standby 67.5 65 219.7 220
+63.808 = standby 67.5 65 219.8 220
+64.808 = standby 67.5 65 219.8 220
+64.968 > // Reset Motion Sensor fm_ex0: reset , Current pos: 50.00 mm , Runout pos: 100.00 mm (current + 50.00 mm)
+65.808 = standby 67.5 65 219.8 220
+66.808 = standby 67.4 65 220.1 220
+66.860 > // Reset Motion Sensor fm_ex0: reset , Current pos: 45.00 mm , Runout pos: 95.00 mm (current + 50.00 mm)
+67.808 = standby 67.3 65 220.4 220
+68.808 = standby 67.3 65 220.5 220
+69.808 = standby 67.2 65 220.6 220
+70.809 = standby 67.2 65 220.6 220
+71.809 = standby 67.1 65 220.4 220
+72.809 = standby 67.0 65 220.2 220
+73.809 = standby 67.0 65 220.2 220
+74.809 = standby 66.9 65 220.2 220
+75.310 > X:266.500 Y:13.800 Z:1.000 E:-5.000
+75.310 > // Waiting for temperature normalization. Bed: 62.0-68.0. T0: 218.0-222.0 _T_PREPARE
+75.319 > // If it takes a long time, calibrate the PID of the extruder and bed T0 _T_PREPARE
+75.338 > // Temperature normalization completed T0 _T_PREPARE
+75.809 = standby 66.8 65 220.2 220
+76.481 > // MUTE_MODE_ENABLE = False, speed: 0.000000
+76.809 = standby 66.8 65 220.1 220
+77.809 = printing 66.7 65 220.1 220
+77.843 > info Getting data for KAMP.
+77.848 > ZEXCLUDE: /usr/data/gcodes/helix_ttc_pie_4color_24.gcode
+78.077 > ZEXCLUDE: First layer 98.0,98.0 - 158.0,158.0
+78.102 > echo: _SET_FAST_KAMP X:98.0 Y:98.0 to X:158.0 Y:158.0 // ZEXCLUDE
+78.108 > ZEXCLUDE: Fast KAMP area 98.0,98.0 - 158.0,158.0
+78.108 > ZEXCLUDE: End
+78.129 > File opened:helix_ttc_pie_4color_24.gcode Size:441197
+78.130 > File selected
+78.161 > // Head: T0
+78.166 > // T0: HEAD
+78.168 > // T1: home
+78.171 > // T2: home
+78.171 > // T3: home
+78.171 > // Door: Close
+78.172 > // Top: Open
+78.177 > // Offset: X=0.000 Y=0.000 Z=3.412 (0.000)
+78.178 > // zoffset.json: T0: 0.000, T1: 0.000, T2: 0.000, T3: 0.000
+78.365 > info You are NOT using native screen
+78.378 > // Using native Klipper 12
+78.378 > // FIRMWARE_NAME:Klipper FIRMWARE_VERSION:?
+78.407 > // zssh:
+78.766 > // Installed from USB: 1.7.5. Update from Fluidd/Mainsail: 1.7.5-180
+78.775 > // Enabled Plugins:
+78.791 > // Have you forgotten to enable the recommended parameters? ENABLE_PLUGIN name=recommend
+78.809 = printing 66.7 55 220.2 220
+78.943 > info START_PRINT BED_TEMP=55.0 EXTRUDER_TEMP=220.0 FORCE_LEVELING=False FORCE_KAMP=False Z_OFFSET=99.0 SKIP_LEVELING=False MESH=auto
+78.943 > info Extruder temperature: 220.0
+78.951 > info Bed temperature: 55.0
+78.956 > info KAMP: disabled
+78.956 > info Forced bed leveling: disabled
+78.961 > info Skip bed leveling: disabled
+78.962 > info Load bed mesh: auto
+78.967 > info MD5: disabled
+78.968 > info Nozzle priming: enabled
+78.974 > info Priming algorithm: LINE_PURGE
+78.974 > info SKEW: disabled
+78.997 > info Trying to load bed mesh: auto
+78.997 > info BED_MESH_CLEAR // _START_PRINT
+79.538 > info BED_MESH_PROFILE LOAD=auto FROM=_START_PRINT // _START_PRINT
+79.649 > info Bed mesh auto loaded
+79.666 > // No need for leveling. Loaded profile: auto
+79.791 > // Fast Smart Park
+79.798 > // Smart Park coordinates: 78.0,78.0.
+79.809 = printing 66.6 55 220.4 220
+80.713 > // Waiting for temperature normalization. Bed: 52.0-58.0. T0: 218.0-222.0 START_PRINT
+80.726 > // If it takes a long time, calibrate the PID of the extruder and bed T0 START_PRINT
+80.809 = printing 66.5 55 220.6 220
+81.809 = printing 66.5 55 220.6 220
+82.809 = printing 66.5 55 220.5 220
+83.810 = printing 66.4 55 220.3 220
+84.810 = printing 66.3 55 220.1 220
+85.810 = printing 66.3 55 220.1 220
+86.810 = printing 66.2 55 220.1 220
+87.810 = printing 66.2 55 220.1 220
+88.810 = printing 66.1 55 220.1 220
+89.810 = printing 66.0 55 220.1 220
+90.810 = printing 66.0 55 220.1 220
+91.810 = printing 65.9 55 220.0 220
+92.810 = printing 65.9 55 219.9 220
+93.810 = printing 65.8 55 219.9 220
+94.810 = printing 65.8 55 220.0 220
+95.810 = printing 65.7 55 220.1 220
+96.810 = printing 65.7 55 220.2 220
+97.811 = printing 65.6 55 220.2 220
+98.811 = printing 65.5 55 220.2 220
+99.811 = printing 65.5 55 220.1 220
+100.811 = printing 65.5 55 219.9 220
+101.811 = printing 65.4 55 219.8 220
+102.811 = printing 65.4 55 219.8 220
+103.811 = printing 65.3 55 220.0 220
+104.811 = printing 65.3 55 220.1 220
+105.811 = printing 65.2 55 220.3 220
+106.811 = printing 65.2 55 220.3 220
+107.811 = printing 65.1 55 220.2 220
+108.811 = printing 65.1 55 220.1 220
+109.811 = printing 65.0 55 219.9 220
+110.812 = printing 65.0 55 219.8 220
+111.812 = printing 65.0 55 220.0 220
+112.812 = printing 64.9 55 220.1 220
+113.812 = printing 64.9 55 220.2 220
+114.812 = printing 64.8 55 220.1 220
+115.812 = printing 64.8 55 220.0 220
+116.812 = printing 64.7 55 219.9 220
+117.812 = printing 64.7 55 219.8 220
+118.812 = printing 64.6 55 219.8 220
+119.812 = printing 64.6 55 219.9 220
+120.812 = printing 64.5 55 220.1 220
+121.812 = printing 64.5 55 220.1 220
+122.812 = printing 64.4 55 220.1 220
+123.812 = printing 64.4 55 220.1 220
+124.813 = printing 64.3 55 220.0 220
+125.813 = printing 64.2 55 219.9 220
+126.813 = printing 64.2 55 219.9 220
+127.813 = printing 64.2 55 219.9 220
+128.813 = printing 64.1 55 220.0 220
+129.813 = printing 64.1 55 220.0 220
+130.813 = printing 64.0 55 220.0 220
+131.813 = printing 64.0 55 220.0 220
+132.813 = printing 63.9 55 220.0 220
+133.813 = printing 63.9 55 220.1 220
+134.813 = printing 63.8 55 220.2 220
+135.813 = printing 63.8 55 220.2 220
+136.813 = printing 63.7 55 220.2 220
+137.813 = printing 63.7 55 220.1 220
+138.814 = printing 63.6 55 220.0 220
+139.814 = printing 63.6 55 219.9 220
+140.814 = printing 63.5 55 219.8 220
+141.814 = printing 63.5 55 219.9 220
+142.814 = printing 63.4 55 220.0 220
+143.814 = printing 63.4 55 220.1 220
+144.814 = printing 63.4 55 220.0 220
+146.288 = printing 63.3 55 219.9 220
+147.288 = printing 63.3 55 220.0 220
+148.288 = printing 63.2 55 220.1 220
+149.288 = printing 63.2 55 220.1 220
+150.288 = printing 63.1 55 220.0 220
+151.288 = printing 63.0 55 220.0 220
+152.288 = printing 63.0 55 219.9 220
+153.289 = printing 63.0 55 219.9 220
+154.289 = printing 62.9 55 219.9 220
+155.289 = printing 62.9 55 219.9 220
+156.289 = printing 62.9 55 219.9 220
+157.289 = printing 62.8 55 220.0 220
+158.289 = printing 62.8 55 220.0 220
+159.289 = printing 62.7 55 220.1 220
+160.289 = printing 62.6 55 220.1 220
+161.289 = printing 62.6 55 220.1 220
+162.289 = printing 62.5 55 220.0 220
+163.289 = printing 62.5 55 220.0 220
+164.289 = printing 62.4 55 220.0 220
+165.289 = printing 62.4 55 220.0 220
+166.290 = printing 62.3 55 220.0 220
+167.290 = printing 62.3 55 220.0 220
+168.295 = printing 62.3 55 220.0 220
+169.295 = printing 62.2 55 220.0 220
+170.295 = printing 62.2 55 220.0 220
+171.297 = printing 62.1 55 220.0 220
+172.297 = printing 62.0 55 220.0 220
+173.297 = printing 62.0 55 220.0 220
+174.297 = printing 62.0 55 220.1 220
+175.297 = printing 61.9 55 220.1 220
+176.297 = printing 61.9 55 220.2 220
+177.297 = printing 61.9 55 220.2 220
+178.297 = printing 61.8 55 220.1 220
+179.297 = printing 61.8 55 220.0 220
+180.297 = printing 61.7 55 219.9 220
+181.298 = printing 61.7 55 219.9 220
+182.298 = printing 61.6 55 219.9 220
+183.298 = printing 61.6 55 220.0 220
+184.298 = printing 61.6 55 220.0 220
+185.298 = printing 61.5 55 220.0 220
+186.298 = printing 61.5 55 220.0 220
+187.298 = printing 61.5 55 220.1 220
+188.298 = printing 61.4 55 220.2 220
+189.298 = printing 61.4 55 220.2 220
+190.298 = printing 61.4 55 220.0 220
+191.298 = printing 61.3 55 219.9 220
+192.298 = printing 61.3 55 219.8 220
+193.298 = printing 61.2 55 219.8 220
+194.299 = printing 61.2 55 219.9 220
+195.299 = printing 61.1 55 220.0 220
+196.299 = printing 61.1 55 220.2 220
+197.299 = printing 61.0 55 220.2 220
+198.299 = printing 61.0 55 220.1 220
+199.299 = printing 61.0 55 219.9 220
+200.299 = printing 60.9 55 219.8 220
+201.299 = printing 60.9 55 219.9 220
+202.299 = printing 60.9 55 220.1 220
+203.299 = printing 60.8 55 220.1 220
+204.299 = printing 60.8 55 220.2 220
+205.299 = printing 60.7 55 220.1 220
+206.299 = printing 60.7 55 220.0 220
+207.300 = printing 60.6 55 219.9 220
+208.300 = printing 60.6 55 219.8 220
+209.300 = printing 60.6 55 219.8 220
+210.300 = printing 60.5 55 219.9 220
+211.300 = printing 60.5 55 220.0 220
+212.300 = printing 60.4 55 220.1 220
+213.300 = printing 60.4 55 220.1 220
+214.300 = printing 60.3 55 220.0 220
+215.300 = printing 60.3 55 219.9 220
+216.300 = printing 60.2 55 219.8 220
+217.300 = printing 60.2 55 219.9 220
+218.300 = printing 60.2 55 219.9 220
+219.300 = printing 60.1 55 220.1 220
+220.301 = printing 60.1 55 220.1 220
+221.301 = printing 60.0 55 220.2 220
+222.301 = printing 60.0 55 220.1 220
+223.301 = printing 60.0 55 220.0 220
+224.301 = printing 59.9 55 220.0 220
+225.301 = printing 59.9 55 219.9 220
+226.301 = printing 59.8 55 219.9 220
+227.301 = printing 59.8 55 219.9 220
+228.301 = printing 59.8 55 220.1 220
+229.301 = printing 59.7 55 220.1 220
+230.301 = printing 59.7 55 220.0 220
+231.301 = printing 59.6 55 219.9 220
+232.301 = printing 59.6 55 219.9 220
+233.301 = printing 59.6 55 219.8 220
+234.302 = printing 59.5 55 219.9 220
+235.302 = printing 59.5 55 220.0 220
+236.302 = printing 59.5 55 220.2 220
+237.302 = printing 59.4 55 220.2 220
+238.302 = printing 59.4 55 220.2 220
+239.302 = printing 59.4 55 220.1 220
+240.302 = printing 59.3 55 219.9 220
+241.302 = printing 59.3 55 219.9 220
+242.302 = printing 59.2 55 220.0 220
+243.302 = printing 59.2 55 220.1 220
+244.302 = printing 59.1 55 220.2 220
+245.302 = printing 59.1 55 220.1 220
+246.302 = printing 59.1 55 220.1 220
+247.303 = printing 59.1 55 219.9 220
+248.303 = printing 59.0 55 219.9 220
+249.303 = printing 59.0 55 219.8 220
+250.303 = printing 59.0 55 219.9 220
+251.303 = printing 58.9 55 220.0 220
+252.303 = printing 58.9 55 220.0 220
+253.303 = printing 58.8 55 220.0 220
+254.303 = printing 58.8 55 220.1 220
+255.303 = printing 58.8 55 220.1 220
+256.571 = printing 58.7 55 220.1 220
+257.571 = printing 58.7 55 220.0 220
+258.571 = printing 58.6 55 219.9 220
+259.571 = printing 58.6 55 219.9 220
+260.571 = printing 58.6 55 220.0 220
+261.571 = printing 58.5 55 220.0 220
+262.571 = printing 58.5 55 220.1 220
+263.571 = printing 58.5 55 220.0 220
+264.571 = printing 58.4 55 220.0 220
+265.571 = printing 58.4 55 219.9 220
+266.571 = printing 58.4 55 219.8 220
+267.571 = printing 58.3 55 219.8 220
+268.571 = printing 58.3 55 220.0 220
+269.572 = printing 58.2 55 220.2 220
+270.572 = printing 58.2 55 220.2 220
+271.572 = printing 58.2 55 220.2 220
+272.572 = printing 58.2 55 220.1 220
+273.572 = printing 58.1 55 219.9 220
+274.572 = printing 58.1 55 219.8 220
+275.572 = printing 58.1 55 219.8 220
+276.572 = printing 58.1 55 219.9 220
+277.572 = printing 58.0 55 220.0 220
+278.572 = printing 58.0 55 220.1 220
+279.384 > // Temperature normalization completed T0 START_PRINT
+279.401 > info Creator 5/Creator 5 Pro: Z-Offset setup skipped
+279.401 > info Printing with bed mesh: auto
+279.402 > info Nozzle line purge. Algorithm: LINE_PURGE
+279.572 = printing 57.9 55 220.2 220
+280.159 > // Fast Line Purge
+280.168 > // Moving filament tip 0.0mms
+280.190 > // KAMP purge is using firmware retraction.
+280.190 > // KAMP purge starts at 113.0, 78.0 and purges 30.0mm of filament, required flow rate is 12.0mm³/s
+280.193 > // KAMP Z start: 0.8
+280.572 = printing 57.9 55 220.2 220
+281.572 = printing 57.9 55 220.1 220
+282.572 = printing 57.8 55 220.0 220
+283.573 = printing 57.8 55 219.7 220
+284.103 > // Reset Motion Sensor fm_ex0: reset , Current pos: 52.33 mm , Runout pos: 102.33 mm (current + 50.00 mm)
+284.116 > info END: Nozzle line purge.
+284.125 > // shaper_type_x:mzv shaper_freq_x:60.200 damping_ratio_x:0.100000
+284.125 > // shaper_type_y:mzv shaper_freq_y:72.000 damping_ratio_y:0.100000
+284.133 > echo: START_PRINT has finished its work.
+284.152 > info You are NOT using native screen
+284.153 > // Using native Klipper 12
+284.160 > // FIRMWARE_NAME:Klipper FIRMWARE_VERSION:?
+284.183 > // zssh:
+284.431 > // Installed from USB: 1.7.5. Update from Fluidd/Mainsail: 1.7.5-180
+284.449 > // Enabled Plugins:
+284.469 > // Have you forgotten to enable the recommended parameters? ENABLE_PLUGIN name=recommend
+284.573 = printing 57.8 55 219.5 220
+285.573 = printing 57.7 55 219.4 220
+286.573 = printing 57.6 55 219.3 220

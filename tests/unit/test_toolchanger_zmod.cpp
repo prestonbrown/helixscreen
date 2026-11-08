@@ -4,6 +4,7 @@
 
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
+#include "ams_remap.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
@@ -52,6 +53,22 @@ PrinterDiscovery zmod_c5_afclite_discovery(const std::vector<std::string>& lanes
     for (const auto& lane : lanes) {
         objects.push_back("AFC_lane " + lane);
     }
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+/// The C5 with Z-Mod's built-in AFC emulation (AFC=1): `AFC`, one `AFC_IFS`
+/// unit and `AFC_lane lane1..4`, lane N on head N-1, and no zmod_afclite.
+PrinterDiscovery zmod_c5_builtin_afc_discovery() {
+    json objects = json::array({"zmod", "zmod_color", "save_variables", "AFC", "AFC_IFS IFS",
+                                "AFC_lane lane1", "AFC_lane lane2", "AFC_lane lane3",
+                                "AFC_lane lane4", "extruder", "extruder1", "extruder2", "extruder3",
+                                "heater_bed", "toolhead", "gcode_move", "configfile"});
     for (int i = 1; i <= 4; ++i) {
         objects.push_back("gcode_button extruder_pos" + std::to_string(i));
         objects.push_back("gcode_button extruder_grab" + std::to_string(i));
@@ -207,7 +224,7 @@ TEST_CASE("Z-Mod publishes each head's material and colour", "[toolchanger][zmod
     wire_material_source(tc);
     tc.feed(full_zmod_color_frame());
 
-    auto vc = helix::ams::lane_sources(tc.lane_id(1)).vendor_cache;
+    auto vc = helix::ams::lane_sources(tc.lane_id(1)).firmware;
     REQUIRE(vc.has_value());
     CHECK(vc->material == std::optional<std::string>("PETG"));
     CHECK(vc->color_rgb == std::optional<uint32_t>(0x0ACC38));
@@ -216,7 +233,7 @@ TEST_CASE("Z-Mod publishes each head's material and colour", "[toolchanger][zmod
     CHECK(info.units[0].slots[1].material == "PETG");
     CHECK(info.units[0].slots[1].color_rgb == 0x0ACC38);
     // "?" is the firmware saying nothing is set.
-    auto unset = helix::ams::lane_sources(tc.lane_id(2)).vendor_cache;
+    auto unset = helix::ams::lane_sources(tc.lane_id(2)).firmware;
     REQUIRE(unset.has_value());
     CHECK_FALSE(unset->material.has_value());
 }
@@ -231,7 +248,7 @@ TEST_CASE("A frame without slots leaves the firmware reading standing",
     tc.feed(full_zmod_color_frame());
     tc.feed(json{{"zmod_color", {{"active_tool_id", 1}}}});
 
-    auto vc = helix::ams::lane_sources(tc.lane_id(1)).vendor_cache;
+    auto vc = helix::ams::lane_sources(tc.lane_id(1)).firmware;
     REQUIRE(vc.has_value());
     CHECK(vc->material == std::optional<std::string>("PETG"));
 }
@@ -254,7 +271,7 @@ TEST_CASE("A changer without a material source files no firmware reading",
     ToolChangerHelper& tc = *tc_reg;
     wire_zmod(tc);
     tc.feed(full_zmod_color_frame());
-    CHECK_FALSE(helix::ams::lane_sources(tc.lane_id(1)).vendor_cache.has_value());
+    CHECK_FALSE(helix::ams::lane_sources(tc.lane_id(1)).firmware.has_value());
     CHECK_FALSE(tc.get_supported_materials().has_value());
 }
 
@@ -309,29 +326,6 @@ TEST_CASE("A material outside the firmware's types is mapped to one of them",
     CHECK(tc.sent().back() == "CHANGE_ZCOLOR SLOT=2 HEX=0ACC38 TYPE=PETG SILENT=1");
 }
 
-TEST_CASE("The firmware owns colour and material: an edit declares neither",
-          "[toolchanger][zmod][material][write]") {
-    helix::ams::reset_lane_sources();
-    // Registered, because the lane funnels drop what an unstamped lane_id names.
-    helix::test::RegisteredBackend<ToolChangerHelper> tc_reg(4);
-    ToolChangerHelper& tc = *tc_reg;
-    wire_zmod(tc);
-    wire_material_source(tc);
-    tc.feed(full_zmod_color_frame());
-    REQUIRE(tc.firmware_stores_color_and_material(0));
-
-    SlotInfo info = edited(tc, 0, 0xF72224, "ABS");
-    info.brand = "Polymaker";
-    const SlotInfo before = tc.get_system_info().units[0].slots[0];
-    REQUIRE(tc.commit_user_edit(0, before, info).success());
-
-    auto user = helix::ams::lane_sources(tc.lane_id(0)).local_user;
-    REQUIRE(user.has_value());
-    CHECK_FALSE(user->color_rgb.has_value());
-    CHECK_FALSE(user->material.has_value());
-    CHECK(user->brand == std::optional<std::string>("Polymaker"));
-}
-
 TEST_CASE("An edit that changes neither colour nor material sends nothing",
           "[toolchanger][zmod][material][write]") {
     helix::ams::reset_lane_sources();
@@ -347,25 +341,6 @@ TEST_CASE("An edit that changes neither colour nor material sends nothing",
     CHECK(zcolor_sends(tc) == 0);
 }
 
-TEST_CASE("Before the firmware publishes slots an edit stays local",
-          "[toolchanger][zmod][material][write]") {
-    helix::ams::reset_lane_sources();
-    // Registered, because the lane funnels drop what an unstamped lane_id names.
-    helix::test::RegisteredBackend<ToolChangerHelper> tc_reg(4);
-    ToolChangerHelper& tc = *tc_reg;
-    wire_zmod(tc);
-    wire_material_source(tc);
-    tc.feed(json{{"zmod_color", {{"active_tool_id", -1}}}}); // a Z-Mod without the export
-    CHECK_FALSE(tc.firmware_stores_color_and_material(0));
-
-    const SlotInfo before = tc.get_system_info().units[0].slots[0];
-    REQUIRE(tc.commit_user_edit(0, before, edited(tc, 0, 0xF72224, "ABS")).success());
-    CHECK(zcolor_sends(tc) == 0);
-    auto user = helix::ams::lane_sources(tc.lane_id(0)).local_user;
-    REQUIRE(user.has_value());
-    CHECK(user->color_rgb == std::optional<uint32_t>(0xF72224));
-}
-
 TEST_CASE("An unsafe type is refused", "[toolchanger][zmod][material][write]") {
     helix::ams::reset_lane_sources();
     // Registered, because the refusal must also leave the lane model untouched.
@@ -378,17 +353,24 @@ TEST_CASE("An unsafe type is refused", "[toolchanger][zmod][material][write]") {
     tc.feed(frame);
 
     const SlotInfo before = tc.get_system_info().units[0].slots[0];
+    const auto record_before = ToolChangerTestAccess::get_override(tc, 0);
     auto err = tc.commit_user_edit(0, before, edited(tc, 0, 0xF72224, "PLA;M112"));
     CHECK_FALSE(err.success());
     CHECK_FALSE(err.partially_applied);
     CHECK(zcolor_sends(tc) == 0);
-    // The refusal changes nothing: the slot keeps the firmware reading and no
-    // override is staged anywhere.
+    // The refusal changes nothing: the slot keeps the firmware reading and the
+    // record keeps what the firmware stated.
     const SlotInfo after = tc.get_system_info().units[0].slots[0];
     CHECK(after.material == before.material);
     CHECK(after.color_rgb == before.color_rgb);
-    CHECK_FALSE(ToolChangerTestAccess::has_overrides(tc));
-    CHECK_FALSE(helix::ams::lane_sources(tc.lane_id(0)).local_user.has_value());
+    const auto record_after = ToolChangerTestAccess::get_override(tc, 0);
+    REQUIRE(record_after.has_value() == record_before.has_value());
+    if (record_after) {
+        CHECK(record_after->material == record_before->material);
+        CHECK(record_after->color_rgb == record_before->color_rgb);
+        CHECK(record_after->brand.empty());
+    }
+    CHECK_FALSE(helix::ams::lane_sources(tc.lane_id(0)).pending.has_value());
 }
 
 TEST_CASE("A failed firmware write still declares the rest of the edit",
@@ -410,7 +392,7 @@ TEST_CASE("A failed firmware write still declares the rest of the edit",
     // is still the user's statement and must be declared on the lane.
     CHECK(err.partially_applied);
     CHECK(zcolor_sends(tc) == 1);
-    auto user = helix::ams::lane_sources(tc.lane_id(0)).local_user;
+    auto user = helix::ams::lane_sources(tc.lane_id(0)).pending;
     REQUIRE(user.has_value());
     CHECK(user->brand == std::optional<std::string>("Polymaker"));
 }
@@ -753,6 +735,23 @@ TEST_CASE("Every filament-unload dispatch stops at the notice on a manual-unload
     CHECK(tc.sent().size() == sent_before);
 }
 
+TEST_CASE("A configured Unload macro outranks a manual-unload backend",
+          "[toolchanger][zmod][manual_unload][2067]") {
+    InfoToasts toasts;
+    ToolChangerHelper tc(4);
+    wire_zmod(tc);
+    tc.feed(json{{"zmod_color", {{"active_tool_id", 2}}}});
+    REQUIRE(helix::ui::notify_if_filament_op_unavailable(&tc, -1, /*load=*/false));
+    toasts.seen.clear();
+
+    StandardMacros::instance().set_macro(StandardMacroSlot::UnloadFilament, "MY_UNLOAD");
+    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::UnloadFilament).get_source() ==
+            MacroSource::CONFIGURED);
+    CHECK_FALSE(helix::ui::notify_if_filament_op_unavailable(&tc, -1, /*load=*/false));
+    CHECK(toasts.seen.empty());
+    StandardMacros::instance().set_macro(StandardMacroSlot::UnloadFilament, "");
+}
+
 TEST_CASE("An explicit park still unmounts on Z-Mod, and Unload never does",
           "[toolchanger][zmod][manual_unload]") {
     // Park calls the backend directly and is not swallowed by the
@@ -817,6 +816,126 @@ TEST_CASE("Load with the afclite shim sends CHANGE_TOOL for that head's lane",
         REQUIRE(tc.sent().size() == 1);
         CHECK(tc.sent().back() == "CHANGE_TOOL LANE=E" + std::to_string(head));
     }
+}
+
+TEST_CASE("The built-in AFC's lanes feed head n through lane n+1",
+          "[toolchanger][zmod][feed][2033]") {
+    const auto feed = toolchanger_addon::resolve_tool_feed(zmod_c5_builtin_afc_discovery());
+    REQUIRE(feed.present);
+    REQUIRE(feed.head_gcode.size() == 4);
+    for (int head = 0; head < 4; ++head) {
+        CAPTURE(head);
+        CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
+              "CHANGE_TOOL LANE=lane" + std::to_string(head + 1));
+    }
+}
+
+TEST_CASE("The built-in AFC subscribes AFC and its lanes", "[toolchanger][zmod][2033]") {
+    const auto objects =
+        toolchanger_addon::required_status_objects(zmod_c5_builtin_afc_discovery());
+    CHECK(objects == std::vector<std::string>{"zmod_color", "AFC", "AFC_lane lane1",
+                                              "AFC_lane lane2", "AFC_lane lane3",
+                                              "AFC_lane lane4"});
+}
+
+TEST_CASE("The built-in AFC's fault flag reads from AFC", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Loading"}, {"error_state", true}, {"message", "jam"}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->current_state == "Loading");
+    CHECK(r->error_state);
+    CHECK(r->message == "jam");
+}
+
+TEST_CASE("The built-in AFC's list lane map reads as its tools", "[toolchanger][zmod][2033]") {
+    const auto r = toolchanger_addon::read_afc_state(
+        json{{"AFC", {{"current_state", "Idle"}, {"lanes", json::array({"lane1"})}}},
+             {"AFC_lane lane1", {{"map", json::array({"T0", "T2"})}}}});
+    REQUIRE(r.has_value());
+    CHECK(r->lane_maps == std::vector<std::string>{"T0,T2"});
+}
+
+TEST_CASE("Z-Mod's built-in AFC on a Creator 5 maps tools at the start, not in the file",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+
+    // Each head as its 1-based slot.
+    CHECK(tc.print_start_params({{0, 1}, {2, 0}}) == helix::PrintStartParams{{"tools", "2,,1"}});
+    // Native: a pick is stored and carried by Print, and no job rewrite runs.
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helix::printer::can_write_mapping_table(tc));
+    REQUIRE(tc.set_tool_mapping(0, 1).success());
+    CHECK(tc.get_tool_mapping().at(0) == 1);
+    // Z-Mod has no ASSIGN_TOOL: the pick sends nothing on its own.
+    CHECK(tc.sent().empty());
+}
+
+TEST_CASE("A Creator 5 map never names a tool or head past its four",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    // T4 does not exist on four heads, and slot 4 is no head: both left empty.
+    CHECK(tc.print_start_params({{0, 0}, {1, 4}, {4, 1}}) ==
+          helix::PrintStartParams{{"tools", "1"}});
+}
+
+TEST_CASE("A Creator 5 pick the slot table cannot hold reports failure",
+          "[toolchanger][zmod][2033]") {
+    ToolChangerHelper tc(4);
+    tc.set_discovery(zmod_c5_builtin_afc_discovery());
+    helix::ToolChangerTestAccess::set_total_slots(tc, 2);
+    // Nothing was stored, so the print start must not count it or arm a restore.
+    CHECK_FALSE(tc.set_tool_mapping(0, 3).success());
+    CHECK(tc.get_tool_mapping().at(0) != 3);
+    CHECK(tc.set_tool_mapping(0, 1).success());
+}
+
+TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    for (const auto& hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
+        ToolChangerHelper tc(4);
+        tc.set_discovery(hw);
+        CHECK(tc.print_start_params({{0, 1}}).empty());
+        CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+        CHECK(tc.set_tool_mapping(0, 1).result == AmsResult::NOT_SUPPORTED);
+    }
+}
+
+TEST_CASE("A Creator 5 whose Moonraker reads tools takes the map with its AFC off",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    PrinterDiscovery hw = zmod_c5_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE_FALSE(hw.has_zmod_afc());
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}, {1, 0}}) == helix::PrintStartParams{{"tools", "2,1"}});
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+}
+
+TEST_CASE("A Creator 5 with the afclite plugin keeps the job rewrite where Moonraker reads tools",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    PrinterDiscovery hw = zmod_c5_afclite_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE(helix::print_start::takes_tool_slots(hw));
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}}).empty());
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+}
+
+TEST_CASE("A klipper-toolchanger machine starts the print with its filename alone",
+          "[toolchanger][print_start_params][2033]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1"}));
+    AmsBackendToolChanger backend(nullptr, nullptr);
+    backend.set_discovery(hw);
+    CHECK(backend.print_start_params({{0, 1}}).empty());
+}
+
+TEST_CASE("The built-in AFC leaves lane picking to the print start", "[toolchanger][zmod][2033]") {
+    CHECK_FALSE(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_builtin_afc_discovery()));
+    CHECK(toolchanger_addon::firmware_picks_lanes_at_print(zmod_c5_afclite_discovery()));
 }
 
 TEST_CASE("Load on Z-Mod without the shim refuses and mounts nothing",

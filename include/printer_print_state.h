@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "gcode_pause_scan.h"
 #include "height_layer_dwell.h"
+#include "layer_line_z.h"
 #include "layer_pause.h"
 #include "print_eta_estimator.h"
 #include "print_job_ref.h"
@@ -438,6 +439,22 @@ class PrinterPrintState {
     }
 
     /**
+     * @brief A print start the printer announced on its console is live
+     *
+     * Such a start has no preparing job: another app sent it, and print_stats
+     * reports no job until the file opens. Its pre-print phases are accepted
+     * while this holds, as a preparing job's are. Set and cleared by
+     * PrintStartCollector. Main thread only.
+     *
+     * Until print_stats reports the job, the print's identity is unknown: the
+     * name print_stats still holds is the previous job's.
+     */
+    void set_printer_side_pre_start(bool live);
+    [[nodiscard]] bool printer_side_pre_start() const {
+        return printer_side_pre_start_;
+    }
+
+    /**
      * @brief The preparing job's start command is being sent to the printer
      *
      * From here retiring the job locally no longer stops it: only the printer
@@ -447,6 +464,22 @@ class PrinterPrintState {
      * (prestonbrown/helixscreen#1890). No-op without a preparing job.
      */
     void note_preparing_start_sent();
+
+    /// Records the .3mf plate (0: none) a print start of @p filename (its
+    /// gcodes-relative path) names on printer @p printer_id. It stays pending
+    /// with the preparing job, and becomes the job's record only when the
+    /// printer confirms it took that job (reconcile_preparing()). A refused,
+    /// cancelled or superseded start never does. Main thread only.
+    void note_start_plate(const std::string& printer_id, const std::string& filename, int plate);
+
+    /// The plate the confirmed last job HelixScreen started names, when that
+    /// job was @p filename on printer @p printer_id; nullopt otherwise, or once
+    /// any other job has started on the printer. Main thread only.
+    [[nodiscard]] std::optional<int> confirmed_start_plate(const std::string& printer_id,
+                                                           const std::string& filename) const;
+
+    /// The printer id the start record keys on: the active printer's configured id.
+    [[nodiscard]] static std::string start_record_printer_id();
 
     /// The start sent for the job armed at @p epoch answered: OK when
     /// @p accepted, else refused, which leaves the printer nothing to cancel.
@@ -656,7 +689,7 @@ class PrinterPrintState {
 
     /// 1 while the job is held by a heater wait on the chamber: the nozzle
     /// and bed are at target and the wait goes on. Main thread only; any
-    /// phase change other than to SOAKING clears it.
+    /// phase change other than to HEATING_CHAMBER clears it.
     lv_subject_t* get_print_start_chamber_wait_subject() {
         return &print_start_chamber_wait_;
     }
@@ -947,6 +980,15 @@ class PrinterPrintState {
         return has_real_layer_data_ || layer_z_derived_;
     }
 
+    /// The Z height the layer line shows next to @p layer, in centimillimeters
+    /// (0 = none): @p live_z_centimm while printing, else @p layer's height from
+    /// the slice geometry, never where the head parked (#2055). Main thread.
+    [[nodiscard]] int layer_line_z_centimm(int layer, int live_z_centimm) const {
+        return helix::layer_line_z_centimm(get_print_lifecycle() == PrintState::Printing,
+                                           live_z_centimm, layer, first_layer_height_,
+                                           layer_height_);
+    }
+
     /**
      * @brief Sticky: has this printer EVER reported a real layer field this session?
      *
@@ -1114,6 +1156,15 @@ class PrinterPrintState {
     void reconcile_preparing();
 
   private:
+    /// What a HelixScreen start named, for note_start_plate(). Main thread only.
+    struct StartRecord {
+        std::string printer_id;
+        std::string filename;
+        int plate = 0;
+        int epoch = 0; ///< the preparing epoch it was sent under
+    };
+    std::optional<StartRecord> pending_start_;   ///< sent, not yet confirmed. Main thread only
+    std::optional<StartRecord> confirmed_start_; ///< the printer's last job, ours. Main thread only
     friend class PrinterPrintStateTestAccess;
 
     /**
@@ -1297,6 +1348,7 @@ class PrinterPrintState {
     PrintJobRef preparing_job_{};
     lv_subject_t preparing_start_{};          // Integer PreparingStart
     bool preparing_cancel_requested_ = false; // See note_preparing_cancel_requested()
+    bool printer_side_pre_start_ = false;     // See set_printer_side_pre_start()
     void set_preparing_start(PreparingStart start);
     lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;

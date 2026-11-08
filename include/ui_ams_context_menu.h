@@ -78,7 +78,8 @@ class AmsContextMenu : public ContextMenu {
         PURGE,            ///< Purge the current filament through the nozzle
         TOGGLE_BYPASS,    ///< Engage or disengage bypass (external spool only)
         MOUNT,            ///< Mount the tool this slot feeds
-        PARK              ///< Put the mounted tool back in its dock
+        PARK,             ///< Put the mounted tool back in its dock
+        CLEAR_FAULT       ///< Clear a fault the firmware still latches on this slot
     };
 
     using ActionCallback = std::function<void(MenuAction action, int slot_index)>;
@@ -211,6 +212,9 @@ class AmsContextMenu : public ContextMenu {
     // 1 disabled, 2 enabled.
     static lv_subject_t slot_mount_subject_;
     static lv_subject_t slot_park_subject_;
+    // Clear error for a fault that outlived its dialog
+    // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
+    static lv_subject_t slot_clear_error_subject_;
     static bool subjects_initialized_;
 
     // === Backend the menu's actions are gated on ===
@@ -245,6 +249,7 @@ class AmsContextMenu : public ContextMenu {
     void handle_park();
     void handle_edit();
     void handle_clear_spool();
+    void handle_clear_fault();
     void handle_purge();
     void handle_bypass_toggle();
     void handle_spoolman();
@@ -253,6 +258,9 @@ class AmsContextMenu : public ContextMenu {
     /// The word this menu spells a position with. The backend the menu was
     /// shown for owns the answer; with none, the active printer's does.
     LaneNoun menu_lane_noun() const;
+    /// What this menu calls the lane at @p slot_index: the backend's own lane
+    /// name when it has one ("2B" on a CFS), else the numbered label ("Gate 3").
+    std::string menu_lane_label(int slot_index) const;
     /// Plugin items for the slot, in their own column beside Filament and Spool. A
     /// lane menu only: the external spool takes no plugin items.
     void append_slot_plugin_rows(lv_obj_t* menu_obj, int slot_index);
@@ -384,6 +392,7 @@ class AmsContextMenu : public ContextMenu {
     static void on_park_cb(lv_event_t* e);
     static void on_edit_cb(lv_event_t* e);
     static void on_clear_spool_cb(lv_event_t* e);
+    static void on_clear_fault_cb(lv_event_t* e);
     static void on_purge_cb(lv_event_t* e);
     static void on_bypass_toggle_cb(lv_event_t* e);
     static void on_spoolman_cb(lv_event_t* e);

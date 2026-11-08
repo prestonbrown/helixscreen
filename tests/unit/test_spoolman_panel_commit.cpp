@@ -66,8 +66,6 @@ struct SpoolmanPanelCommitFixture : LVGLTestFixture {
         std::filesystem::remove(app_constants::update::env_backup_fallback());
 
         Config::get_instance()->init(config_path);
-        // Resets the in-memory override too, not just the settings record.
-        AmsState::instance().clear_external_spool_info();
 
         auto& ams = AmsState::instance();
         ams.clear_backends();
@@ -115,7 +113,7 @@ struct SpoolmanPanelCommitFixture : LVGLTestFixture {
     }
 
     /// Link spoolman_id as the external spool on every store the panel's
-    /// assignment replaces (settings + server), the state #1283 staged.
+    /// assignment replaces (bypass record + server), the state #1283 staged.
     void seed_external_link(int spoolman_id) {
         SlotInfo seeded;
         seeded.spoolman_id = spoolman_id;
@@ -147,8 +145,9 @@ TEST_CASE("panel set_active_spool commits through the shared external-spool path
 
     // S1 — the server was told which spool is active.
     REQUIRE(f.client.spoolman_mock().get_mock_active_spool_id() == 170);
-    // S5 — the settings store now holds spool 170.
-    auto persisted = helix::SettingsManager::instance().get_external_spool_info();
+    // S5 — the bypass record now holds spool 170.
+    helix::ui::UpdateQueue::instance().drain();
+    auto persisted = AmsState::instance().get_external_spool_info();
     REQUIRE(persisted.has_value());
     CHECK(persisted->spoolman_id == 170);
     // S6 — the replaced link's identity cache entry was dropped while the
@@ -176,9 +175,9 @@ TEST_CASE("panel set_active_spool server failure leaves every store untouched",
     helix::ui::UpdateQueue::instance().drain();
 
     // Server-first semantics preserved: on server failure the store subset
-    // must NOT run — settings still hold the old link, and the panel's
-    // active id never advanced.
-    auto persisted = helix::SettingsManager::instance().get_external_spool_info();
+    // must NOT run — the bypass record still holds the old link, and the
+    // panel's active id never advanced.
+    auto persisted = AmsState::instance().get_external_spool_info();
     REQUIRE(persisted.has_value());
     CHECK(persisted->spoolman_id == 169);
     CHECK(SpoolmanPanelTestAccess::active_spool_id(f.panel) == -1);

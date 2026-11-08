@@ -226,3 +226,39 @@ TEST_CASE_METHOD(InputShaperPanelProgressFixture,
     // must never tick forward on its own again.
     CHECK_FALSE(label_ticked_after_deactivate);
 }
+
+TEST_CASE_METHOD(InputShaperPanelProgressFixture,
+                 "a result that lands behind the screensaver is still shown on wake",
+                 "[input_shaper][panel][progress][suspend]") {
+    panel_->handle_calibrate_x_clicked();
+    REQUIRE(pump_until([&] { return panel_state() == 1; })); // MEASURING
+
+    panel_->on_deactivate(DeactivateReason::Suspended);
+    REQUIRE(pump_until([&] { return panel_state() == 2; })); // RESULTS, behind the screensaver
+
+    panel_->on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(panel_state() == 2);
+    CHECK(lv_subject_get_int(subject("is_results_has_x")) == 1);
+}
+
+TEST_CASE_METHOD(InputShaperPanelProgressFixture,
+                 "the analysis elapsed label pauses behind the screensaver and resumes on wake",
+                 "[input_shaper][panel][progress][suspend]") {
+    panel_->handle_calibrate_x_clicked();
+    REQUIRE(pump_until([&] { return analysis_seconds(step_label()) >= 0; }));
+    REQUIRE(panel_->analysis_elapsed_timer_for_test() != nullptr);
+
+    panel_->on_deactivate(DeactivateReason::Suspended);
+    CHECK(panel_->analysis_elapsed_timer_for_test() == nullptr);
+
+    // A second of virtual time passes behind the screensaver; the count keeps
+    // the run's start, so the wake shows at least that second.
+    lv_tick_inc(1500);
+    panel_->on_activate();
+
+    CHECK(panel_state() == 1);
+    CHECK(panel_->analysis_elapsed_timer_for_test() != nullptr);
+    CHECK(analysis_seconds(step_label()) >= 1);
+}

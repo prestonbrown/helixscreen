@@ -101,11 +101,36 @@ TEST_CASE("Migrating to PID sets control and removes every MPC key", "[mpc_migra
     REQUIRE(removes(edits, "sensor_responsiveness"));
     REQUIRE(removes(edits, "ambient_transfer"));
     REQUIRE(removes(edits, "fan_ambient_transfer"));
+    REQUIRE(removes(edits, "cooling_fan"));
 }
 
 TEST_CASE("Migrating to PID never adds heater_power", "[mpc_migration]") {
     auto edits = PIDCalibrationPanel::build_control_migration_edits(CalibMethod::PID, 50);
     REQUIRE(value_of(edits, "heater_power").empty());
+}
+
+TEST_CASE("Migrating to MPC names the part fan unless the section names a fan", "[mpc_migration]") {
+    KlipperConfigEditor editor;
+    const auto edits =
+        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50, "fan");
+
+    auto added = editor.apply_edits("[extruder]\nstep_pin: PA1\n", "extruder", edits);
+    REQUIRE(added.has_value());
+    CHECK(added->find("\ncooling_fan: fan") != std::string::npos);
+
+    // Kalico reads any fan object; a user's own choice is not ours to replace.
+    auto kept =
+        editor.apply_edits("[extruder]\ncooling_fan: fan_generic nozzle\n", "extruder", edits);
+    REQUIRE(kept.has_value());
+    CHECK(kept->find("cooling_fan: fan_generic nozzle") != std::string::npos);
+    CHECK(kept->find("cooling_fan: fan\n") == std::string::npos);
+
+    CHECK(value_of(PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50),
+                   "cooling_fan")
+              .empty());
+    CHECK(value_of(PIDCalibrationPanel::build_control_migration_edits(CalibMethod::PID, 50, "fan"),
+                   "cooling_fan")
+              .empty());
 }
 
 // ============================================================================
@@ -124,10 +149,11 @@ TEST_CASE("PID -> MPC -> PID round trip leaves no MPC keys active", "[mpc_migrat
     // Forward: the panel's migration.
     auto to_mpc = editor.apply_edits(
         original, "extruder",
-        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50));
+        PIDCalibrationPanel::build_control_migration_edits(CalibMethod::MPC, 50, "fan"));
     REQUIRE(to_mpc.has_value());
     REQUIRE(to_mpc->find("control: mpc") != std::string::npos);
     REQUIRE(to_mpc->find("heater_power: 50") != std::string::npos);
+    REQUIRE(to_mpc->find("\ncooling_fan: fan") != std::string::npos);
 
     // A hand-written config carrying the thermal model in the section itself.
     auto calibrated = editor.apply_edits(
@@ -152,7 +178,7 @@ TEST_CASE("PID -> MPC -> PID round trip leaves no MPC keys active", "[mpc_migrat
     // REMOVE_KEY comments keys out rather than deleting the line, so assert on
     // the active form: no MPC key may survive at the start of a line.
     for (const char* key : {"heater_power", "block_heat_capacity", "sensor_responsiveness",
-                            "ambient_transfer", "fan_ambient_transfer"}) {
+                            "ambient_transfer", "fan_ambient_transfer", "cooling_fan"}) {
         const std::string active = "\n" + std::string(key) + ":";
         INFO("MPC key still active after reverse migration: " << key);
         REQUIRE(to_pid->find(active) == std::string::npos);

@@ -23,11 +23,13 @@ SCRIPT="$WORKTREE_ROOT/scripts/test-host-run.sh"
 
 setup() {
     load helpers
+    load test_host_run_drop
     export HELIX_TEST_HOST=testhost.invalid
     export HELIX_TEST_LOCK_DIR="$BATS_TEST_TMPDIR"
     export TMPDIR="$BATS_TEST_TMPDIR"
     export HELIX_TEST_WORKDIR="$BATS_TEST_TMPDIR/work/helixscreen"
     export MOCK_DOCKER_LOG="$BATS_TEST_TMPDIR/docker.log"
+    export HELIX_TEST_WATCHDOG_POLL_SECS=0.2
     # No jobpool on the test host unless a test installs the fake below.
     export HELIX_TEST_JOBPOOL="$BATS_TEST_TMPDIR/no-jobpool"
     # No ZFS on the test host unless a test installs the fake below.
@@ -59,7 +61,8 @@ case "$*" in
     *) echo "unhandled git call: $*" >&2; exit 1 ;;
 esac'
     # docker: enough behavior for the container checks, and an exec that
-    # records instead of running, so no git or make ever executes. The pgrep
+    # records instead of running, so no git or make ever executes; the
+    # mutate_diff exec also prints the verdict a finished run ends with. The pgrep
     # probe is stateful when MOCK_PGREP_HITS names a file: the first poll
     # reports a running make, later polls report none, and the file counts
     # the polls. Without the knob every poll reports no make.
@@ -70,6 +73,13 @@ case "$1" in
     inspect) [ -n "${MOCK_MOUNTS:-}" ] && echo "$MOCK_MOUNTS" ;;
     exec)
         case "$*" in
+            *helix-job-kill*)
+                # Stopping a job: run the container half here, against the
+                # local /proc, so it stops what the job left running.
+                echo "$*" >> "${MOCK_KILL_LOG:-/dev/null}"
+                while [ "$1" != sh ]; do shift; done
+                s=$3; shift 3
+                exec sh -c "$s" "$@" ;;
             *pgrep*)
                 [ -n "${MOCK_PGREP_LOG:-}" ] && echo "$*" >> "$MOCK_PGREP_LOG"
                 if [ -n "${MOCK_PGREP_HITS:-}" ]; then
@@ -79,6 +89,24 @@ case "$1" in
                     [ "$n" -eq 1 ] && exit 0
                 fi
                 exit 1
+                ;;
+            *"base64 -d | sh"*)
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                [ -z "${MOCK_CONTAINER_MEM_KB:-}" ] || echo "$MOCK_CONTAINER_MEM_KB"
+                ;;
+            *mutate_diff*)
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                echo "VERDICT: CLEAN"
+                ;;
+            *MOCK-JOB*)
+                # A job that outlives a dropped link: its first line drops
+                # the link that relays it (MOCK_SSH_DROP_AFTER), and it ends
+                # only once the run has reconnected.
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                echo job-start
+                for _ in $(seq 1 600); do [ -e "$MOCK_SSH_RECONNECTED" ] && break; sleep 0.05; done
+                [ -e "$MOCK_SSH_RECONNECTED" ] || { echo job-never-reconnected; exit 9; }
+                echo job-done; exit 3
                 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
@@ -125,23 +153,93 @@ wait_for_line() { # <substring> <file>
     [ "$(wc -l < "$(lock_file)")" -eq 1 ]
 }
 
+@test "on a Mac a run re-executes itself holding the machine awake" {
+    mock_command_script uname 'echo Darwin'
+    mock_command_script caffeinate 'echo "awake: $*"'
+    unset HELIX_TEST_AWAKE
+    run "$SCRIPT" --help
+    [ "$status" -eq 0 ]
+    contains "awake: -is $SCRIPT --help" "$output"
+}
+
+@test "a run over the load ceiling waits, then starts when the load falls" {
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_POLL_SECS=1
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "103.20 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    # Each wait on the load drops it, so the second check passes.
+    mock_command_script sleep "echo \"12.00 90.00 80.00 3/900 1234\" > \"$HELIX_TEST_LOADAVG_FILE\""
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    contains "load 103, ceiling 72; waiting" "$output"
+    [ -s "$MOCK_DOCKER_LOG" ]
+}
+
+@test "a run under the load ceiling starts without waiting" {
+    export HELIX_TEST_MAX_LOAD=72
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "71.99 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    lacks "waiting" "$output"
+}
+
+@test "a run still over the ceiling after the wait limit refuses and never starts" {
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOAD_WAIT_SECS=0
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "72.00 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "still over its ceiling of 72" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
+}
+
+@test "with no ceiling set, a run waits under four fifths of the host's CPUs" {
+    unset HELIX_TEST_MAX_LOAD
+    export HELIX_TEST_LOAD_WAIT_SECS=0
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    mock_command_script nproc 'echo 72'
+    echo "57.10 50.00 40.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "still over its ceiling of 57" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
+    echo "56.90 50.00 40.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    lacks "waiting" "$output"
+}
+
+@test "the default ceiling is never below 1, and the wait names its override" {
+    unset HELIX_TEST_MAX_LOAD
+    export HELIX_TEST_LOAD_WAIT_SECS=1 HELIX_TEST_LOAD_POLL_SECS=1
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    mock_command_script nproc 'echo 1'
+    mock_command_script sleep ':'
+    echo "1.00 1.00 1.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -ne 0 ]
+    contains "ceiling 1; waiting for its one-minute load to fall under 1" "$output"
+    contains "HELIX_TEST_MAX_LOAD=N sets the ceiling, 0 never waits" "$output"
+}
+
+@test "a ceiling of zero never waits, and an unreadable load does not block" {
+    export HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/loadavg"
+    echo "999.00 90.00 80.00 3/900 1234" > "$HELIX_TEST_LOADAVG_FILE"
+    HELIX_TEST_MAX_LOAD=0 run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+    export HELIX_TEST_MAX_LOAD=72 HELIX_TEST_LOADAVG_FILE="$BATS_TEST_TMPDIR/absent"
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 0 ]
+}
+
 @test "a second run waits for the workdir lock and names the holder" {
     local lock ready out holder runner
     lock="$(lock_file)"
     ready="$BATS_TEST_TMPDIR/holder-ready"
     out="$BATS_TEST_TMPDIR/waiting.log"
 
-    # A stand-in holder: takes the lock, records a holder line in the format
-    # the script writes, then sleeps. fd 9 is closed for the sleep so killing
-    # the holder releases the lock instead of leaving it to the child.
-    (
-        exec 9>>"$lock"
-        flock 9
-        printf 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00\n' "$$" >&9
-        touch "$ready"
-        sleep 30 9>&-
-    ) &
-    holder=$!
+    # A stand-in holder with a holder line in the format the script writes.
+    holder=$(hold_flock "$lock" "$ready" 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00')
     wait_for_file "$ready"
 
     "$SCRIPT" --commit test >"$out" 2>&1 &
@@ -151,12 +249,67 @@ wait_for_line() { # <substring> <file>
     # line that follows the lock (job sizing onward) is still absent.
     wait_for_line "busy:" "$out"
     grep -q "busy: held by pid.*: mutate 0123456 since " "$out"
-    refute_grep "MemAvailable" "$out"
+    refute_grep "available to helix-test" "$out"
 
     kill "$holder"
     wait "$holder" 2>/dev/null || true
     wait "$runner"
     grep -q "free; continuing" "$out"
+}
+
+@test "a job outlives a dropped link: the run reconnects and reports its output and exit status" {
+    install_drop_ssh
+    export MOCK_SSH_DROP_AFTER=job-start
+    # HELIX_TEST_RECONNECT_SECS is left at its default: a default of 0 gives up
+    # on the first drop.
+    run "$SCRIPT" --commit exec -- MOCK-JOB
+    [ "$status" -eq 3 ]
+    [ "$(grep -c "lost the connection to testhost.invalid (ssh exit 255); the job keeps running there" <<<"$output")" -eq 1 ]
+    [ "$(grep -c job-start <<<"$output")" -eq 1 ]
+    contains "job-done" "$output"
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+# A waiting run whose link drops, and whose holder then lets go. The run's pid
+# is left in RUNNER.
+drop_during_lock_wait() { # <out file>
+    local lock ready holder
+    lock="$(lock_file)"
+    ready="$BATS_TEST_TMPDIR/holder-ready"
+    holder=$(hold_flock "$lock" "$ready" 'held by pid %s: mutate 0123456 since 2026-09-24 12:00:00')
+    wait_for_file "$ready"
+    timeout 40 "$SCRIPT" --commit test >"$1" 2>&1 3>&- &
+    RUNNER=$!
+    wait_for_line "busy:" "$1"
+    touch "$MOCK_SSH_DROP"
+    wait_for_line "lost the connection" "$1"
+    kill "$holder"
+    wait "$holder" 2>/dev/null || true
+}
+
+@test "a link that drops while the run waits for the lock reconnects and takes the tree once" {
+    local out="$BATS_TEST_TMPDIR/waiting.log"
+    install_drop_ssh
+    drop_during_lock_wait "$out"
+    wait "$RUNNER"
+    grep -qF "while waiting for the $HELIX_TEST_WORKDIR lock (ssh exit 255); reconnecting" "$out"
+    [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
+    flock -n "$(lock_file)" true
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
+}
+
+@test "an attempt that takes the lock after its link dropped gives it to the reconnected one" {
+    # The far end of the dropped link keeps running and takes the lock while
+    # this side waits to reconnect; its LOCKED goes nowhere.
+    local out="$BATS_TEST_TMPDIR/waiting.log"
+    install_drop_ssh
+    export MOCK_SSH_DROP_KEEP=1 HELIX_TEST_RECONNECT_PAUSE_SECS=2
+    drop_during_lock_wait "$out"
+    wait "$RUNNER"
+    [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
+    for _ in $(seq 1 60); do flock -n "$(lock_file)" true && break; sleep 0.05; done
+    flock -n "$(lock_file)" true
+    kill $(cat "$BATS_TEST_TMPDIR/ssh-keepers") 2>/dev/null || true
 }
 
 @test "a run waits out an orphaned container build before touching the tree" {
@@ -182,6 +335,27 @@ wait_for_line() { # <substring> <file>
     run "$SCRIPT" --commit test
     [ "$status" -eq 0 ]
     grep -qF "pgrep -x -r R,S,D,T,t make" "$MOCK_PGREP_LOG"
+}
+
+@test "-j is sized from what the container says it may allocate" {
+    export MOCK_CONTAINER_MEM_KB=$(( 6 * 1048576 ))
+    run "$SCRIPT" --commit test '[x]'
+    [ "$status" -eq 0 ]
+    contains "6GB available to helix-test" "$output"
+}
+
+@test "the container's memory probe carries lib/mem_available.sh and runs under sh" {
+    run "$SCRIPT" --commit test '[x]'
+    [ "$status" -eq 0 ]
+    b64=$(sed -n 's/.*echo \([A-Za-z0-9+\/=]*\) | base64 -d | sh.*/\1/p' "$MOCK_DOCKER_LOG" | head -1)
+    [ -n "$b64" ] || fail "no probe in: $(cat "$MOCK_DOCKER_LOG")"
+    mkdir -p "$BATS_TEST_TMPDIR/cg"
+    printf '10737418240\n' > "$BATS_TEST_TMPDIR/cg/memory.max"
+    printf 'anon 0\n' > "$BATS_TEST_TMPDIR/cg/memory.stat"
+    printf 'MemAvailable: 167000000 kB\n' > "$BATS_TEST_TMPDIR/meminfo"
+    run env HELIX_CGROUP_ROOT="$BATS_TEST_TMPDIR/cg" HELIX_MEMINFO="$BATS_TEST_TMPDIR/meminfo" \
+        sh -c 'echo "$1" | base64 -d | sh' _ "$b64"
+    [ "$output" = "10485760" ]
 }
 
 @test "every docker exec names the container and a command" {
@@ -284,6 +458,20 @@ exit 0'
     refute_grep 'test-tsan-one' "$MOCK_DOCKER_LOG"
 }
 
+@test "asan refuses a [#file] filter before anything reaches the host" {
+    run "$SCRIPT" --commit asan '[#test_foo]'
+    [ "$status" -eq 2 ]
+    contains "asan cannot filter by '[#test_foo]'" "$output"
+    [ ! -e "$MOCK_DOCKER_LOG" ] || fail "reached docker: $(cat "$MOCK_DOCKER_LOG")"
+}
+
+@test "tsan refuses a [#file] filter before anything reaches the host" {
+    run "$SCRIPT" --commit tsan '[#test_foo]'
+    [ "$status" -eq 2 ]
+    contains "tsan cannot filter by '[#test_foo]'" "$output"
+    [ ! -e "$MOCK_DOCKER_LOG" ] || fail "reached docker: $(cat "$MOCK_DOCKER_LOG")"
+}
+
 @test "a tsan run that printed no Catch2 summary is not reported clean" {
     # The default docker stub runs nothing, so the log carries no summary.
     run "$SCRIPT" --commit tsan '[ams]'
@@ -291,8 +479,14 @@ exit 0'
     contains "not a clean TSAN result" "$output"
 }
 
+# The jobpool execs the job made, without the watchdog's consumer (sh).
+job_pool_execs() {
+    grep -vx "jobpool exec sh" "$MOCK_JOBPOOL_LOG"
+}
+
 # A jobpool on the test host whose state dir is $BATS_TEST_TMPDIR/mnt/.jobpool. It
-# records exec, and container-env prints a marker naming the dir it was given.
+# records exec and the command it runs, and container-env prints a marker naming
+# the dir it was given.
 fake_jobpool() {
     export HELIX_TEST_JOBPOOL="$BATS_TEST_TMPDIR/fake-jobpool"
     export MOCK_JOBPOOL_LOG="$BATS_TEST_TMPDIR/jobpool.log"
@@ -302,7 +496,7 @@ case "$1" in
     ensure) echo "$BATS_TEST_TMPDIR/mnt/.jobpool/fifo" ;;
     container-env) echo "POOLENV:$2" ;;
     status) echo '{"running":true,"target":30,"available":30}' ;;
-    exec) echo "jobpool exec" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
+    exec) echo "jobpool exec $3" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
     *) exit 2 ;;
 esac
 FAKE
@@ -314,6 +508,22 @@ FAKE
     [ "$status" -eq 0 ]
     contains "using -j" "$output"
     grep -qE 'HELIX_JFLAG=-j[0-9]+ helix-test bash -lc make test \$HELIX_JFLAG' "$MOCK_DOCKER_LOG"
+}
+
+@test "test hands its arguments to helix-tests, in a run with no mirror" {
+    run "$SCRIPT" --commit test -# '[#test_x]'
+    [ "$status" -eq 0 ]
+    grep -qF './build/bin/helix-tests -# ' "$MOCK_DOCKER_LOG"
+    grep -qF 'test_x' "$MOCK_DOCKER_LOG"
+}
+
+@test "a quote in an argument survives the jobpool branch's quoting" {
+    fake_jobpool
+    export MOCK_MOUNTS="$BATS_TEST_TMPDIR/mnt /work"
+    run "$SCRIPT" --commit test "it's"
+    [ "$status" -eq 0 ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
+    grep -qF "helix-tests it\\'s" "$MOCK_DOCKER_LOG"
 }
 
 # The container half run for real: docker exec of the job exports its -e
@@ -329,7 +539,7 @@ case "$1" in
     ensure) echo "$BATS_TEST_TMPDIR/mnt/.jobpool/fifo" ;;
     container-env) echo "exec 3<>$POOL_FIFO 4<>$POOL_FIFO && export MAKEFLAGS=POOLED:$2" ;;
     status) echo '{"running":true,"target":30,"available":30}' ;;
-    exec) echo "jobpool exec" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
+    exec) echo "jobpool exec $3" >> "$MOCK_JOBPOOL_LOG"; shift 2; exec "$@" ;;
     *) exit 2 ;;
 esac
 FAKE
@@ -363,7 +573,19 @@ exit 0'
     [ "$status" -eq 0 ]
     contains "joining jobpool: target 30" "$output"
     contains "MAKE: unit-sweep NPROCS=96 MAKEFLAGS=POOLED:/work/.jobpool" "$output"
-    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
+}
+
+@test "a pooled job keeps a jobpool consumer for as long as its watchdog lives" {
+    # The daemon refills a pool that has no live consumer; an orphaned make in
+    # the container, which it cannot see, would take every refill.
+    fake_jobpool
+    run_container_job
+    mock_command_script make 'echo "MAKE: $* MAKEFLAGS=${MAKEFLAGS:-}"; sleep 1'
+    run "$SCRIPT" --commit sweep
+    [ "$status" -eq 0 ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
+    grep -qx "jobpool exec sh" "$MOCK_JOBPOOL_LOG"
 }
 
 @test "a container uid that cannot open the FIFO runs with its own -j" {
@@ -403,7 +625,7 @@ exit 0'
 # python3 that prints the scheduling it inherited and the jobserver it was handed.
 run_mutate_for_real() {
     mock_command_script make 'echo "MAKE: $*" >> "$BATS_TEST_TMPDIR/make.log"'
-    mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"'
+    mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"; echo "VERDICT: CLEAN"'
     mock_command_script docker '
 case "$1" in
     ps) echo helix-test ;;
@@ -427,11 +649,35 @@ exit 0'
 
 @test "mutate hands each argument through whole, spaces included" {
     run_mutate_for_real
-    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"'
+    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"; echo "VERDICT: CLEAN"'
     cd "$BATS_TEST_TMPDIR" || return 1
     run "$SCRIPT" mutate --tests-for 'src/a b.cpp=[one case]'
     [ "$status" -eq 0 ]
     contains "ARG<src/a b.cpp=[one case]>" "$output"
+}
+
+@test "a mutate run that printed no verdict is not reported clean" {
+    run_mutate_for_real
+    mock_command_script python3 'exit 0'
+    cd "$BATS_TEST_TMPDIR" || return 1
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 1 ]
+    contains "no mutation verdict" "$output"
+}
+
+@test "mutate passes --workers only to a mutate_diff.py that takes it" {
+    run_mutate_for_real
+    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"; echo "VERDICT: CLEAN"'
+    cd "$BATS_TEST_TMPDIR" || return 1
+    mkdir -p scripts
+    echo "ap.add_argument('--jobs')" > scripts/mutate_diff.py
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 0 ]
+    lacks "ARG<--workers>" "$output"
+    echo "ap.add_argument('--workers')" >> scripts/mutate_diff.py
+    run "$SCRIPT" mutate --tests '[x]'
+    [ "$status" -eq 0 ]
+    contains "ARG<--workers>" "$output"
 }
 
 @test "mutate makes the checkout's venv when it cannot import pytest" {
@@ -519,7 +765,7 @@ exit 0'
     run "$SCRIPT" --commit sweep
     [ "$status" -eq 0 ]
     lacks "background job" "$output"
-    [ "$(cat "$MOCK_JOBPOOL_LOG")" = "jobpool exec" ]
+    [ "$(job_pool_execs)" = "jobpool exec sudo" ]
     refute_grep "chrt" "$MOCK_DOCKER_LOG"
 }
 
@@ -596,14 +842,7 @@ SYS_FREE=$((64 * 1024 * 1024 * 1024))
 @test "--commit excludes a client that still runs zeus-run.sh against the same checkout" {
     # zeus-run.sh locks helix-zeus-run-<checkout>.lock; both reset the checkout.
     local lock="$HELIX_TEST_LOCK_DIR/helix-zeus-run-helixscreen.lock" out runner holder
-    (
-        exec 9>>"$lock"
-        flock 9
-        printf 'held by pid %s: mutate abc1234 since 2026-10-08 12:00:00\n' "$$" >&9
-        touch "$BATS_TEST_TMPDIR/ready"
-        sleep 30 9>&-
-    ) &
-    holder=$!
+    holder=$(hold_flock "$lock" "$BATS_TEST_TMPDIR/ready" 'held by pid %s: mutate abc1234 since 2026-10-08 12:00:00')
     wait_for_file "$BATS_TEST_TMPDIR/ready"
     out="$BATS_TEST_TMPDIR/waiting.log"
     "$SCRIPT" --commit test >"$out" 2>&1 &
@@ -612,4 +851,46 @@ SYS_FREE=$((64 * 1024 * 1024 * 1024))
     grep -q "mutate abc1234" "$out"
     kill "$holder"; wait "$holder" 2>/dev/null || true
     wait "$runner"
+}
+
+# --- the watchdog, alone ----------------------------------------------------
+
+# A job directory as hold() leaves it, its wrapper a sleep in a group of its own,
+# and the watchdog's functions from the script, run with docker stubbed out.
+watchdog_fixture() { # <heartbeat age in seconds>
+    JOB="$BATS_TEST_TMPDIR/job"
+    mkdir -p "$JOB"
+    setsid sleep 300 < /dev/null > /dev/null 2>&1 &
+    WRAPPER=$!
+    echo "$WRAPPER" > "$JOB/pid"
+    touch -d "-$1 seconds" "$JOB/heartbeat"
+    FUNCS="$BATS_TEST_TMPDIR/watchdog.sh"
+    awk '/^(job_kill|watchdog)_snippet\(\) \{$/ { f = 1; next }
+         f && /^SNIPPET$/ { f = 0 }
+         f && !/^    cat <<.SNIPPET.$/' "$SCRIPT" > "$FUNCS"
+    bash -n "$FUNCS"
+    grep -q "^helix_job_watchdog()" "$FUNCS"
+}
+
+@test "the watchdog stops a job no run has pinged for the client grace" {
+    watchdog_fixture 100
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x /work/none 1 50 30 0.1' _ "$FUNCS" "$JOB"
+    [ "$status" -eq 0 ]
+    ! kill -0 "$WRAPPER" 2>/dev/null || { kill -9 "$WRAPPER"; false; }
+    [ ! -e "$JOB" ]
+    grep -qF "no run has followed it for" "$JOB.log"
+}
+
+@test "the watchdog leaves a job alone while it is pinged, and exits with it" {
+    watchdog_fixture 0
+    bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x /work/none 1 50 30 0.1' _ "$FUNCS" "$JOB" &
+    local wd=$!
+    sleep 1
+    kill -0 "$WRAPPER"
+    kill -0 "$wd"
+    [ ! -e "$JOB/rc" ]
+    echo 0 > "$JOB/rc"
+    for _ in $(seq 1 60); do kill -0 "$wd" 2>/dev/null || break; sleep 0.05; done
+    ! kill -0 "$wd" 2>/dev/null
+    kill "$WRAPPER"
 }

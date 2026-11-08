@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -69,7 +70,7 @@ struct TrackerRoutingFixture : LVGLTestFixture {
             info.remaining_weight_g = 1000.0f;
             info.total_weight_g = 1000.0f;
             info.spoolman_id = 0;
-            mock->sync_external_identity(s, info);
+            helix::test::apply_edit(*mock, s, info);
         }
 
         // Zero the aggregate + per-extruder subjects. PrinterPrintState
@@ -191,7 +192,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         info.remaining_weight_g = 1000.0f;
         info.total_weight_g = 1000.0f;
         info.spoolman_id = 0;
-        mock->sync_external_identity(s, info);
+        helix::test::apply_edit(*mock, s, info);
     }
 
     // select_slot on the mock synchronously updates current_slot (no motion).

@@ -189,14 +189,11 @@ class AmsBackendMock : public AmsBackend {
      * tool mapping, and nothing else. Passing a status other than UNKNOWN that
      * differs from the slot's current one logs a warning rather than silently
      * doing nothing — use force_slot_status() to stage a mock slot state.
+     * The edit is also filed as the lane's Record, which echoes the fields the
+     * simulated firmware does not hold.
      */
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
-    /// The same write as apply_user_edit(). The mock has no firmware or store
-    /// behind a slot, so an edit and a sync differ only in what the caller
-    /// says the values are.
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -303,6 +300,12 @@ class AmsBackendMock : public AmsBackend {
     /// Emulate a firmware that picks each tool's lane itself at print time.
     void set_firmware_picks_lanes_at_print(bool picks);
     [[nodiscard]] bool firmware_picks_lanes_at_print() const override;
+
+    /// Emulate a print start that takes the print's tool map, each slot as
+    /// its 1-based port (Z-Mod on the AD5X).
+    void set_print_start_takes_tool_slots(bool takes);
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
 
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
@@ -853,7 +856,11 @@ class AmsBackendMock : public AmsBackend {
      */
     void init_mock_data();
 
-    /// The slot write apply_user_edit() and sync_external_identity() share.
+    /// The simulated firmware takes a metered weight onto the slot, as AFC's does.
+    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
+                                 bool persist) override;
+
+    /// The slot write behind apply_user_edit().
     AmsError write_slot(int slot_index, const SlotInfo& info);
 
     /**
@@ -948,21 +955,16 @@ class AmsBackendMock : public AmsBackend {
      *
      * The simulated population is this backend's firmware: the constructor seeds
      * it from kSampleFilaments and each rig mode rebuilds it, which is the same
-     * signal a real backend gets from a parse. Presence is Sensed; colour and
-     * material are VendorCache.
+     * signal a real backend gets from a parse. Presence is Sensed; identity is
+     * Firmware, every field the simulated firmware holds, the way AFC's lane
+     * object states colour, material, brand, name and spool id. Not a colour's
+     * name (firmware reports hex) and not a weight, which is the meter's and
+     * Spoolman's on this backend. A write
+     * files the population again, so an edit echoes the way it does on such a
+     * printer and its Pending record retires.
      *
-     * Nothing else is, and the bound is deliberate: a mock that files a field
-     * no hardware reports lets a case pass against a reading no backend can
-     * produce. Brand is out for the reason the constructor gives, that a real
-     * lane's brand comes only from the override store or the Spoolman identity
-     * cache. Colour NAME is out for the same reason one step further on:
-     * firmware reports hex, and a name comes from our own naming or from
-     * Spoolman. The Spoolman handles and weights on these slots are Spoolman's
-     * to file, not this backend's.
-     *
-     * Called from start(), which AmsState reaches only after registration has
-     * stamped a backend index; an earlier call files onto kInvalidLaneId and
-     * is dropped.
+     * Called from start() and after every slot write. Before registration has
+     * stamped a backend index a call files onto kInvalidLaneId and is dropped.
      *
      * Takes mutex_ itself, so the caller must not hold it.
      */
@@ -1119,6 +1121,7 @@ class AmsBackendMock : public AmsBackend {
     /// non-Snapmaker mode stands in for a table-owning backend.
     RemapStrategy remap_strategy_ = RemapStrategy::Native;
     bool firmware_picks_lanes_at_print_ = false;
+    bool print_start_takes_tool_slots_ = false;
     bool remap_ready_ = true; ///< Cleared to emulate AD5X IFS before `_IFS_VARS`
     /// The emulated print_task_config, in the firmware's own two fields so
     /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both

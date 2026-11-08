@@ -398,7 +398,9 @@ CapabilityChipFacts gather_capability_chip_facts() {
         }
         const bool tool_changer = is_tool_changer(info->type);
         f.has_tool_changer = f.has_tool_changer || tool_changer;
-        f.filament_systems.push_back({info->type_name, info->total_slots, tool_changer});
+        const AmsBackend* backend = ams.get_backend(i);
+        f.filament_systems.push_back({info->type_name, info->total_slots, tool_changer,
+                                      backend ? backend->lane_noun() : helix::ui::LaneNoun::Slot});
     }
 
     // Only the capabilities whose subject an override drives: there, a chip
@@ -409,6 +411,7 @@ CapabilityChipFacts gather_capability_chip_facts() {
         {C::BedMesh, capability::BED_MESH},   {C::Qgl, capability::QGL},
         {C::ZTilt, capability::Z_TILT},       {C::NozzleClean, capability::NOZZLE_CLEAN},
         {C::HeatSoak, capability::HEAT_SOAK}, {C::Speaker, capability::SPEAKER},
+        {C::Leds, capability::LED},
     };
     for (const auto& [chip, name] : overridable) {
         if (overrides.is_forced_on(name)) {

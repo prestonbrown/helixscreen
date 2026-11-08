@@ -171,6 +171,9 @@ class PACalibrationPanel : public OverlayBase {
     lv_timer_t* eta_timer_for_test() const {
         return eta_timer_;
     }
+    void arm_eta_timer_for_test() {
+        arm_eta_timer();
+    }
 
   private:
     // --- run control ---
@@ -212,6 +215,8 @@ class PACalibrationPanel : public OverlayBase {
     /// Cancel the ETA timer. Safe with none armed and safe from the
     /// destructor, which is why it is separate from stop_heat_tracking().
     void cancel_eta_timer();
+    /// Start the once-a-second remaining-time tick, replacing any armed one.
+    void arm_eta_timer();
     static void on_eta_tick(lv_timer_t* timer);
 
     /// Klipper name of the heater behind the selected tool.

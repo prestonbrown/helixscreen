@@ -121,11 +121,29 @@ PrintStartCollector::PrintStartCollector(IMoonrakerClient& client, PrinterState&
 
 std::shared_ptr<PrintStartCollector> PrintStartCollector::create(IMoonrakerClient& client,
                                                                  PrinterState& state) {
-    return std::shared_ptr<PrintStartCollector>(
+    auto collector = std::shared_ptr<PrintStartCollector>(
         new PrintStartCollector(client, state), [](PrintStartCollector* collector) {
             helix::ui::run_on_main("PrintStartCollector::destroy",
                                    [collector]() { delete collector; });
         });
+    // Listening from creation, not from the first start(): an idle collector
+    // arms on a start the printer announces.
+    collector->register_console_handler();
+    return collector;
+}
+
+void PrintStartCollector::register_console_handler() {
+    // Stays registered until detach(): on_gcode_response() returns early when
+    // !active_, apart from a start announcement. Registering it only at start()
+    // would lose the first responses from START_PRINT.
+    if (!handler_name_.empty() || detached_.load()) {
+        return;
+    }
+    static std::atomic<uint64_t> s_collector_id{0};
+    handler_name_ = "print_start_collector_" + std::to_string(++s_collector_id);
+    auto self = shared_from_this();
+    client_.register_method_callback("notify_gcode_response", handler_name_,
+                                     [self](const json& msg) { self->on_gcode_response(msg); });
 }
 
 PrintStartCollector::~PrintStartCollector() {
@@ -152,6 +170,10 @@ void PrintStartCollector::start() {
         spdlog::debug("[PrintStartCollector] Already active, ignoring start()");
         return;
     }
+    if (detached_.load()) {
+        spdlog::debug("[PrintStartCollector] Detached, ignoring start()");
+        return;
+    }
 
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -163,6 +185,13 @@ void PrintStartCollector::start() {
         baseline_layer_ =
             lv_subject_get_int(state_.print_state().get_print_layer_current_subject());
         baseline_progress_ = lv_subject_get_int(state_.print_state().get_print_progress_subject());
+        // A layer already at 0 is this print's layer 0: a slicer's
+        // SET_PRINT_STATS_INFO TOTAL_LAYER reports it before PRINT_START, and an
+        // unchanged subject never reaches the layer observer. Only a stale
+        // positive needs a fresh 0 to arm the first-layer edge.
+        if (baseline_layer_ < 1) {
+            layer_zero_seen_.store(true, std::memory_order_relaxed);
+        }
     }
     fallbacks_enabled_.store(false); // Will be enabled after initial window
     spdlog::info("[PrintStartCollector] Baselines: layer={}, progress={}", baseline_layer_,
@@ -204,33 +233,31 @@ void PrintStartCollector::start() {
     // Compute duration-proportional weights from predictions + thermal model
     compute_predicted_weights();
 
-    // Ensure we have a profile for pattern matching
+    // Ensure we have a profile for pattern matching. Written under state_mutex_:
+    // the inactive collector reads it from the WebSocket thread for a start
+    // announcement.
     if (!profile_) {
+        std::shared_ptr<PrintStartProfile> loaded;
         // Try printer-specific profile first (printer type may not have been known at init time)
         std::string printer_type = state_.profile_state().printer_type();
         if (!printer_type.empty()) {
             std::string profile_name = PrinterDetector::get_print_start_profile(printer_type);
             if (!profile_name.empty()) {
-                profile_ = PrintStartProfile::load(profile_name);
+                loaded = PrintStartProfile::load(profile_name);
                 spdlog::info("[PrintStartCollector] Loaded profile '{}' for '{}'", profile_name,
                              printer_type);
             }
         }
-        if (!profile_) {
-            profile_ = PrintStartProfile::load_default();
+        if (!loaded) {
+            loaded = PrintStartProfile::load_default();
         }
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile_ = std::move(loaded);
     }
 
     auto self = shared_from_this();
 
-    // Register gcode response handler if not already registered (stays registered
-    // permanently — on_gcode_response() returns early when !active_)
-    if (handler_name_.empty()) {
-        static std::atomic<uint64_t> s_collector_id{0};
-        handler_name_ = "print_start_collector_" + std::to_string(++s_collector_id);
-        client_.register_method_callback("notify_gcode_response", handler_name_,
-                                         [self](const json& msg) { self->on_gcode_response(msg); });
-    }
+    register_console_handler();
 
     // Register for printer status updates (fallback for printers with KAMP/custom macros)
     // This watches for _START_PRINT.print_started, START_PRINT.preparation_done, etc.
@@ -308,6 +335,7 @@ void PrintStartCollector::start() {
                 // shared_from_this() would throw.
                 if (collector && !collector->weak_from_this().expired()) {
                     collector->update_eta_display();
+                    collector->check_printer_start_retirement();
                     collector->check_purge_shape();
                     collector->check_fallback_completion();
                     collector->flush_deferred_start_block_step();
@@ -330,6 +358,17 @@ void PrintStartCollector::stop() {
     // Mark inactive first to stop callbacks from processing
     bool was_active = active_.exchange(false);
     bool was_registered = registered_.exchange(false);
+    if (armed_by_printer_.exchange(false)) {
+        state_.print_state().set_printer_side_pre_start(false);
+    }
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (has_pending_profile_) {
+            profile_ = std::move(pending_profile_);
+            pending_profile_.reset();
+            has_pending_profile_ = false;
+        }
+    }
 
     // Keep gcode response handler registered permanently — it checks active_ and
     // returns early when not collecting. This avoids the race where early responses
@@ -365,6 +404,7 @@ void PrintStartCollector::stop() {
 }
 
 void PrintStartCollector::detach() {
+    detached_.store(true);
     stop();
     if (!handler_name_.empty()) {
         client_.unregister_method_callback("notify_gcode_response", handler_name_);
@@ -475,9 +515,9 @@ void PrintStartCollector::reset_run_locked() {
     real_signal_seen_.store(false, std::memory_order_relaxed);
     // Arm the layer-1 completion edge fresh for this print. The current
     // subject value may be a stale positive carried over from the previous
-    // print (reset_for_new_print() runs async, after start()), so we do NOT
-    // seed layer_zero_seen_ from it — only a freshly observed current_layer<1
-    // (post-reset) latches it. See MoonrakerManager::should_complete_preprint().
+    // print (reset_for_new_print() runs async, after start()), so a positive is
+    // never seeded: only a 0 read at start() or a freshly observed
+    // current_layer<1 latches it. See MoonrakerManager::should_complete_preprint().
     layer_zero_seen_.store(false, std::memory_order_relaxed);
     first_layer_observed_.store(-1, std::memory_order_relaxed);
     layer_advanced_.store(false, std::memory_order_relaxed);
@@ -997,7 +1037,7 @@ void PrintStartCollector::check_fallback_completion() {
             const PrintStartPhase guessed = nozzle_short ? PrintStartPhase::HEATING_NOZZLE
                                             : bed_short  ? PrintStartPhase::HEATING_BED
                                             : device_wait || chamber_heating || chamber_unheated
-                                                ? PrintStartPhase::SOAKING
+                                                ? PrintStartPhase::HEATING_CHAMBER
                                                 : PrintStartPhase::IDLE;
             const PrintStartPhase waited_on = named.value_or(guessed);
             tick_waited_on = waited_on;
@@ -1021,7 +1061,7 @@ void PrintStartCollector::check_fallback_completion() {
             if (waited_on != PrintStartPhase::IDLE && may_relabel) {
                 relabel_heating_phase(
                     waited_on, /*heater_wait=*/true,
-                    waited_on == PrintStartPhase::SOAKING
+                    waited_on == PrintStartPhase::HEATING_CHAMBER
                         ? chamber_wait_message(chamber_temp,
                                                device_wait && temps.chamber_wait_target_c() > 0
                                                    ? static_cast<int>(std::lround(
@@ -1035,8 +1075,9 @@ void PrintStartCollector::check_fallback_completion() {
         bool chamber_wait;
         {
             std::lock_guard<std::mutex> lock(state_mutex_);
-            chamber_wait = heater_wait_shown_ && current_phase_ == PrintStartPhase::SOAKING &&
-                           tick_waited_on == PrintStartPhase::SOAKING;
+            chamber_wait = heater_wait_shown_ &&
+                           current_phase_ == PrintStartPhase::HEATING_CHAMBER &&
+                           tick_waited_on == PrintStartPhase::HEATING_CHAMBER;
         }
         state_.print_state().set_print_start_chamber_wait(chamber_wait);
     }
@@ -1189,8 +1230,86 @@ bool PrintStartCollector::is_own_pre_start_echo_locked(const std::string& line) 
     return false;
 }
 
+void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
+    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
+        !msg["params"][0].is_string()) {
+        return;
+    }
+    std::shared_ptr<PrintStartProfile> profile;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile = profile_;
+    }
+    if (!profile ||
+        !profile->announces_print_start(msg["params"][0].get_ref<const std::string&>())) {
+        return;
+    }
+    auto self = shared_from_this();
+    helix::ui::queue_update("PrintStartCollector::arm_from_printer_start",
+                            [self, msg]() { self->arm_from_printer_start(msg); });
+}
+
+void PrintStartCollector::arm_from_printer_start(const json& msg) {
+    if (active_.load() || detached_.load()) {
+        return;
+    }
+    auto& print_state = state_.print_state();
+    // RAW_PRINT_STATE_OK: whether the printer holds a job decides if a start
+    // announcement can be a new print; mid-print the same line is not one.
+    if (helix::printer_has_job(print_state.get_print_job_state()) ||
+        print_state.has_preparing_job()) {
+        return;
+    }
+    spdlog::info("[PrintStartCollector] The printer announced a print start; arming");
+    print_state.set_printer_side_pre_start(true);
+    start();
+    armed_by_printer_.store(true);
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        printer_start_last_line_ = helix::sim::SimulatedClock::now();
+    }
+    on_gcode_response(msg);
+}
+
+void PrintStartCollector::check_printer_start_retirement() {
+    if (!active_.load() || !armed_by_printer_.load()) {
+        return;
+    }
+    // RAW_PRINT_STATE_OK: a printer-announced start ends its pre-file window
+    // when print_stats takes the job; until then nothing else times it out.
+    if (helix::printer_has_job(state_.print_state().get_print_job_state())) {
+        return;
+    }
+    helix::sim::SimulatedClock::time_point last;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        last = std::max(printer_start_last_line_, last_inferred_activity_time_);
+    }
+    if (helix::sim::SimulatedClock::now() - last < kPrinterStartQuietLimit) {
+        return;
+    }
+    // Deferred: the ETA tick runs this, and stop() deletes that tick's timer.
+    queue_printer_start_retirement("went quiet");
+}
+
+void PrintStartCollector::queue_printer_start_retirement(const char* why) {
+    auto self = shared_from_this();
+    helix::ui::queue_update("PrintStartCollector::retire_printer_start", [self, why]() {
+        // RAW_PRINT_STATE_OK: the file may have opened since this was queued;
+        // a run that now holds its job is a print starting, not an abandoned one.
+        if (!self->active_.load() || !self->armed_by_printer_.load() ||
+            helix::printer_has_job(self->state_.print_state().get_print_job_state())) {
+            return;
+        }
+        spdlog::info("[PrintStartCollector] Retiring a printer-announced start with no job: {}",
+                     why);
+        self->stop();
+    });
+}
+
 void PrintStartCollector::on_gcode_response(const json& msg) {
     if (!active_.load()) {
+        arm_if_printer_announces_start(msg);
         return;
     }
 
@@ -1210,7 +1329,26 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return;
     }
 
+    // Lines this long are firmware telemetry, such as the K2 nozzle pressure traces
+    // printed on every probe touch. The phase patterns have nothing to find in them,
+    // and scanning them is unbounded work on the websocket thread.
+    if (line.size() > kMaxScannedConsoleLineChars) {
+        return;
+    }
+
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
+
+    if (armed_by_printer_.load()) {
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            printer_start_last_line_ = helix::sim::SimulatedClock::now();
+        }
+        // An error before the file opens aborts the start: Z-Mod's macros raise
+        // one and leave print_stats where it was.
+        if (line.rfind("!! ", 0) == 0) {
+            queue_printer_start_retirement("the printer reported an error");
+        }
+    }
 
     // Klipper echoes dispatched gcode back through the console. A line that
     // reproduces the host-side pre-start block is our own text being repeated
@@ -2246,7 +2384,7 @@ PrintStartCollector::heater_waited_on(const helix::WaitLine& line,
         if (chamber_heater.empty()) {
             return std::nullopt;
         }
-        return PrintStartPhase::SOAKING;
+        return PrintStartPhase::HEATING_CHAMBER;
     case helix::WaitKind::TemperatureWait:
         if (line.sensor == "heater_bed") {
             return PrintStartPhase::HEATING_BED;
@@ -2255,7 +2393,7 @@ PrintStartCollector::heater_waited_on(const helix::WaitLine& line,
             return PrintStartPhase::HEATING_NOZZLE;
         }
         if (helix::wait_names_chamber_heater(line, chamber_heater)) {
-            return PrintStartPhase::SOAKING;
+            return PrintStartPhase::HEATING_CHAMBER;
         }
         return std::nullopt;
     case helix::WaitKind::Other:
@@ -2550,10 +2688,10 @@ std::string PrintStartCollector::chamber_wait_message(int temp_deci, int target_
 void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved, bool heater_wait,
                                                 const std::string& label) {
     const std::string message =
-        !label.empty()                             ? label
-        : resolved == PrintStartPhase::HEATING_BED ? std::string(lv_tr("Heating Bed..."))
-        : resolved == PrintStartPhase::SOAKING     ? std::string(lv_tr("Heating chamber..."))
-                                                   : std::string(lv_tr("Heating Nozzle..."));
+        !label.empty()                                 ? label
+        : resolved == PrintStartPhase::HEATING_BED     ? std::string(lv_tr("Heating Bed..."))
+        : resolved == PrintStartPhase::HEATING_CHAMBER ? std::string(lv_tr("Heating chamber..."))
+                                                       : std::string(lv_tr("Heating Nozzle..."));
     int progress;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -2562,7 +2700,7 @@ void PrintStartCollector::relabel_heating_phase(PrintStartPhase resolved, bool h
         // since. Relabeling then would regress a newer, correct phase.
         const bool heating = current_phase_ == PrintStartPhase::HEATING_BED ||
                              current_phase_ == PrintStartPhase::HEATING_NOZZLE;
-        const bool wait_label = heating || current_phase_ == PrintStartPhase::SOAKING;
+        const bool wait_label = heating || current_phase_ == PrintStartPhase::HEATING_CHAMBER;
         bool takeover = false;
         bool allowed;
         if (heater_wait) {
@@ -2620,7 +2758,7 @@ void PrintStartCollector::end_heater_wait() {
         // Restore only over the wait's own label: anything else got there later.
         if (current_phase_ != PrintStartPhase::HEATING_BED &&
             current_phase_ != PrintStartPhase::HEATING_NOZZLE &&
-            current_phase_ != PrintStartPhase::SOAKING) {
+            current_phase_ != PrintStartPhase::HEATING_CHAMBER) {
             return;
         }
         // A finished mesh gives way for good to a nozzle target raised after
@@ -2671,10 +2809,16 @@ bool PrintStartCollector::mesh_probing_locked() const {
 
 void PrintStartCollector::set_profile(std::shared_ptr<PrintStartProfile> profile) {
     if (active_.load()) {
-        spdlog::warn("[PrintStartCollector] set_profile() called while active, ignoring");
+        spdlog::debug("[PrintStartCollector] set_profile() during a run: applied when it stops");
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        pending_profile_ = std::move(profile);
+        has_pending_profile_ = true;
         return;
     }
-    profile_ = std::move(profile);
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        profile_ = std::move(profile);
+    }
     if (profile_) {
         spdlog::debug("[PrintStartCollector] Using profile: {}", profile_->name());
     } else {

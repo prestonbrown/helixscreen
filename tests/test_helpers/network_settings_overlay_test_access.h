@@ -3,6 +3,7 @@
 
 #include "ui_overlay_network_settings.h"
 
+#include "ethernet_manager.h"
 #include "wifi_backend.h"
 
 #include <cstring>
@@ -22,9 +23,6 @@ class NetworkSettingsOverlayTestAccess {
     static helix::ui::WidgetRef& password_modal(NetworkSettingsOverlay& o) {
         return o.password_modal_;
     }
-    static helix::ui::WidgetRef& hidden_network_modal(NetworkSettingsOverlay& o) {
-        return o.hidden_network_modal_;
-    }
     static helix::ui::WidgetRef& test_modal(NetworkSettingsOverlay& o) {
         return o.test_modal_;
     }
@@ -35,6 +33,18 @@ class NetworkSettingsOverlayTestAccess {
     /// WiFiManager instead of the process-global singleton, before create().
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
         return o.wifi_manager_;
+    }
+    /// The overlay's EthernetManager. create() makes one only when none is set.
+    static std::unique_ptr<EthernetManager>& ethernet_manager(NetworkSettingsOverlay& o) {
+        return o.ethernet_manager_;
+    }
+    /// No Ethernet probe in flight or queued behind one.
+    static bool eth_refresh_idle(NetworkSettingsOverlay& o) {
+        return !o.eth_refresh_in_flight_ && !o.eth_refresh_trailing_;
+    }
+    /// The eth_connected subject (0/1) the Ethernet row binds to.
+    static lv_subject_t& eth_connected(NetworkSettingsOverlay& o) {
+        return o.eth_connected_;
     }
     /// The wifi_connected subject (0/1) — the observable a transport refresh
     /// must move.
@@ -90,10 +100,6 @@ class NetworkSettingsOverlayTestAccess {
     static void add_other_clicked(NetworkSettingsOverlay& o) {
         o.handle_add_other_clicked();
     }
-    /// The production handler behind the hidden-network modal's Connect button.
-    static void hidden_connect_clicked(NetworkSettingsOverlay& o) {
-        o.handle_hidden_connect_clicked();
-    }
     /// Build the scan rows synchronously, with no network connected — the click
     /// handler reads per-row data only this path attaches.
     static void populate(NetworkSettingsOverlay& o, const std::vector<WiFiNetwork>& networks) {
@@ -141,5 +147,9 @@ class NetworkSettingsOverlayTestAccess {
     static void populate_network_list(NetworkSettingsOverlay& o,
                                       const std::vector<WiFiNetwork>& networks) {
         o.populate_network_list(networks);
+    }
+    /// An Ethernet probe the overlay is waiting on.
+    static bool& eth_refresh_in_flight(NetworkSettingsOverlay& o) {
+        return o.eth_refresh_in_flight_;
     }
 };

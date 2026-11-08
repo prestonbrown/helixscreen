@@ -1407,6 +1407,51 @@ TEST_CASE("forget on a backend that cannot forget informs, and never blames the 
     helix::ui::UpdateQueue::instance().drain();
 }
 
+/// A backend whose first start() fails, the way a wpa_supplicant that is
+/// wedged at boot leaves the real one: down, and refusing radio calls with
+/// "WiFi system not ready" until something starts it again.
+class FirstStartFailsBackend : public WifiBackendMock {
+  public:
+    WiFiError start() override {
+        if (start_calls_.fetch_add(1) == 0) {
+            return WiFiError(WiFiResult::CONNECTION_FAILED, "wpa_supplicant did not answer");
+        }
+        return WifiBackendMock::start();
+    }
+    WiFiError set_radio_enabled(bool on) override {
+        if (!is_running()) {
+            return WiFiError(WiFiResult::NOT_INITIALIZED, "Backend not started",
+                             "WiFi system not ready");
+        }
+        return WifiBackendMock::set_radio_enabled(on);
+    }
+    int start_calls() const {
+        return start_calls_.load();
+    }
+
+  private:
+    std::atomic<int> start_calls_{0};
+};
+
+TEST_CASE("turning WiFi on starts a backend whose init failed (#2066)",
+          "[wifi][manager][radio][2066]") {
+    auto backend = std::make_unique<FirstStartFailsBackend>();
+    FirstStartFailsBackend* raw = backend.get();
+    WiFiManager manager(std::move(backend));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(raw->start_calls() == 1);
+    REQUIRE_FALSE(raw->is_running());
+
+    ToastCounter toasts;
+    CHECK(manager.set_enabled(true));
+    CHECK(raw->start_calls() == 2);
+    CHECK(raw->is_running());
+    CHECK(manager.is_enabled());
+    CHECK(toasts.errors == 0);
+
+    helix::ui::UpdateQueue::instance().drain();
+}
+
 TEST_CASE("a radio toggle the backend cannot perform tells the user instead of going quiet",
           "[wifi][manager][radio]") {
     auto backend = std::make_unique<DaemonOwnedRadioBackend>();

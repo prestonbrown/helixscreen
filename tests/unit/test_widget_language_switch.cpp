@@ -57,6 +57,12 @@ namespace {
 /// could free.
 void collect_labels(lv_obj_t* obj, const std::string& path,
                     std::map<std::string, std::string>& out) {
+    // The tips widget's title is printing_tips.json data, which carries no
+    // translations; a tip titled like a UI string ("Notification History") is not a key.
+    const char* name = lv_obj_get_name(obj);
+    if (name && std::string(name) == "status_text_label") {
+        return;
+    }
     if (lv_obj_check_type(obj, &lv_label_class)) {
         const char* text = lv_label_get_text(obj);
         out[path] = text ? text : "";

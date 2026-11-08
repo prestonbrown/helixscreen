@@ -82,12 +82,6 @@ struct ToolInfo {
     /// says which of them the head holds.
     bool lane_seated = false;
 
-    // Spoolman spool assignment (persisted per-tool)
-    int spoolman_id = 0;           ///< Spoolman spool ID (0=not tracked)
-    std::string spool_name;        ///< Display name from Spoolman
-    float remaining_weight_g = -1; ///< Remaining weight in grams (-1=unknown)
-    float total_weight_g = -1;     ///< Total spool weight in grams (-1=unknown)
-
     [[nodiscard]] std::string effective_heater() const {
         if (heater_name)
             return *heater_name;
@@ -291,45 +285,6 @@ class ToolState {
     /// mounted tool's, empty with none mounted.
     [[nodiscard]] std::string display_label_for_extruder(const std::string& extruder_name) const;
 
-    /// Assign a Spoolman spool to a tool. Persists to local JSON + Moonraker DB.
-    void assign_spool(int tool_index, int spoolman_id, const std::string& spool_name = "",
-                      float remaining_g = -1, float total_g = -1);
-
-    /// Clear spool assignment for a tool
-    void clear_spool(int tool_index);
-
-    /// Get set of Spoolman spool IDs currently assigned to tools,
-    /// optionally excluding one tool index (e.g., the one being edited).
-    [[nodiscard]] std::set<int> assigned_spool_ids(int exclude_tool = -1) const;
-
-    /// Load persisted spool assignments (Moonraker DB → local JSON → empty)
-    void load_spool_assignments(IMoonrakerAPI* api);
-
-    /// Save all spool assignments (local JSON + Moonraker DB fire-and-forget)
-    void save_spool_assignments(IMoonrakerAPI* api);
-
-    /// Save spool assignments only if data has changed since last save
-    void save_spool_assignments_if_dirty(IMoonrakerAPI* api);
-
-    /// True after load_spool_assignments() has completed (success or fallback).
-    [[nodiscard]] bool spool_assignments_loaded() const {
-        return spool_assignments_loaded_;
-    }
-
-    /// Set the config directory for local JSON persistence (default: "config").
-    /// An explicit override wins over the value init_subjects() derives from
-    /// helix::get_user_config_dir(), so re-initialising subjects can't silently
-    /// move tool_spools.json back to the default location.
-    void set_config_dir(const std::string& dir) {
-        config_dir_ = dir;
-        config_dir_explicit_ = true;
-    }
-
-    /// Directory tool_spools.json is read from and written to.
-    [[nodiscard]] const std::string& get_config_dir() const {
-        return config_dir_;
-    }
-
     lv_subject_t* get_active_tool_subject() {
         return &active_tool_;
     }
@@ -425,8 +380,6 @@ class ToolState {
     void mark_tool_offsets_saved(int tool_index);
 
   private:
-    friend class ToolStateTestAccess;
-
     /// The X, Y or Z member of a subject trio.
     static lv_subject_t* axis_member(Axis axis, lv_subject_t& x, lv_subject_t& y, lv_subject_t& z) {
         lv_subject_t* members[] = {&x, &y, &z};
@@ -448,8 +401,8 @@ class ToolState {
     /// status path - which has no PrinterDiscovery - reads by direct lookup.
     helix::tool_offsets::OffsetReader offset_reader_;
 
-    /// Expires the Moonraker-DB spool-assignment callbacks, which fire from the
-    /// WebSocket thread long after the request was issued. Declared after
+    /// Expires the tool-offset query callbacks, which fire from the WebSocket
+    /// thread long after the request was issued. Declared after
     /// `subjects_` so reverse-order member destruction invalidates it before the
     /// subjects it protects; also invalidated by deinit_subjects() (#1165, #1146).
     helix::AsyncLifetimeGuard async_lifetime_;
@@ -479,16 +432,6 @@ class ToolState {
     /// per-tool extruder must be one of to be taken as a Klipper extruder.
     std::vector<std::string> discovered_extruders_;
     int active_tool_index_ = 0;
-    std::string config_dir_ = "config";     ///< Directory for local JSON persistence
-    bool config_dir_explicit_ = false;      ///< set_config_dir() pinned it; don't re-derive
-    bool spool_dirty_ = false;              ///< True when spool data changed since last save
-    bool spool_assignments_loaded_ = false; ///< True after load_spool_assignments() completes
-    /// The printer a Moonraker spool load is in flight for; empty when none is.
-    std::string spool_load_printer_;
-    /// The active printer's local set came from a single-printer file, which holds whichever
-    /// printer saved last, so it must not seed this printer's DB. Cleared by a successful DB
-    /// load.
-    bool spool_set_adopted_ = false;
 
     // AMS topology override (set by AMS backends that multiplex tools, e.g. AFC).
     // When ams_topology_active_ is true, tools_ is sourced from the backend's
@@ -503,20 +446,10 @@ class ToolState {
     // says which head is mounted.
     bool backend_owns_active_tool_ = false;
 
-    /// Save spool assignments to local JSON file
-    void save_spool_json() const;
-
-    /// Load spool assignments from local JSON file. Returns true on success.
-    bool load_spool_json();
-
-    /// Drop @p printer_id's set from the spool file.
-    void forget_printer_spools(const std::string& printer_id) const;
-
-    /// Build JSON representation of current spool assignments
-    [[nodiscard]] nlohmann::json spool_assignments_to_json() const;
-
-    /// Apply spool assignments from JSON
-    void apply_spool_assignments(const nlohmann::json& data);
+    // klipper-toolchanger reports the mounted tool as toolchanger.tool_number,
+    // -1 for an empty carriage, while toolhead.extruder keeps naming the last
+    // extruder used. Set by init_tools() for a printer with a [toolchanger].
+    bool toolchanger_reports_mount_ = false;
 };
 
 } // namespace helix

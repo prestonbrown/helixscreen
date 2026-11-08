@@ -1363,6 +1363,12 @@ Two kinds of remote machine help here, and both are optional:
   `TEST_HOST=0` or `HELIX_TEST_HOST_AUTO=0` keeps both local). `make land-gate`
   makes the same choice for its two C++ sweeps (`scripts/lib/sweep_location.sh`
   holds it for both gates).
+  Run ASAN there rather than on thelio: thelio's `/etc/ld.so.preload` makes
+  ASAN's runtime load second, so the binary produces no test output and exits
+  0, a pass that ran nothing. The container has no `ld.so.preload` and its
+  image matches CI's. `test-host-run.sh test` with no arguments runs the
+  suite in one process, where cross-test contamination fails cases no branch
+  touched, so it is not a gate.
 - a **remote build host** builds natively or for the cross targets:
   `make remote-native`, `make remote-test`, `make remote-pi` and siblings
   (`mk/remote.mk`, `scripts/remote-build.sh`).
@@ -1431,6 +1437,9 @@ host simply runs both suites locally, without a word.
 | `HELIX_TEST_CCACHE` | same | ccache dir inside the container (`/work/ccache`) |
 | `HELIX_TEST_CCACHE_SIZE` | `test-host-run.sh`, `test-host-setup.sh` | `max_size` floor for that cache, never lowered (`200G`) |
 | `HELIX_TEST_WORKDIR` | `test-host-run.sh --commit` | the shared git checkout inside the container (`/work/helixscreen`); mutate checkouts copy it |
+| `HELIX_TEST_MAX_LOAD` | `test-host-run.sh` | a run waits until the host's one-minute load is under this, and refuses after `HELIX_TEST_LOAD_WAIT_SECS` (3600); default four fifths of the host's logical CPUs (57 on zeus's 72 threads), `0` never waits |
+| `HELIX_TEST_KILL_GRACE_SECS` | `test-host-run.sh` | stopping a job sends each of its processes TERM, then KILL after this many seconds (`15`) |
+| `HELIX_TEST_CLIENT_GONE_SECS` / `HELIX_TEST_CLIENT_GRACE_SECS` | `test-host-run.sh` | the host-side watchdog stops a job this long after its run's connection closed (`30`), or after its last ping when the link went silent (`HELIX_TEST_RECONNECT_SECS` + 60) |
 | `HELIX_TEST_SEED` | `test-host-run.sh` | `0` starts a new mirror cold instead of copying the nearest warm one (`1`) |
 | `HELIX_TEST_PRUNE_DAYS` | `test-host-run.sh` | creating a mirror or mutate checkout removes those unused this many days; `0` never (`14`) |
 | `HELIX_TEST_LOCK_DIR` | `test-host-run.sh` | lock directory on the host (`/tmp`) |
@@ -1513,6 +1522,28 @@ several hunks at once (one per 12 cores, at most 6), each in a reflink copy of
 the checkout beside it (`mutate/.<tree>.mutate-w<i>`) that the run removes when
 it ends; a run killed with SIGKILL leaves them for its tree's next run to
 replace. Its builds and test shards draw from the host's jobpool.
+
+**Stopping a run stops its build.** `docker exec` never stops the process it
+started when its own client dies, so killing the local run, its ssh, or the
+host-side wrapper alone leaves the build compiling in the container. Under the
+host's jobpool that orphan is worse than one stray build: once the wrapper's
+`jobpool exec` is gone the daemon sees no consumer, takes the pool's tokens for
+lost and refills it every five seconds, and the orphaned make takes every
+refill. On 2026-11-07 one orphan reached about 900 concurrent compiles against
+a pool of 70 and drove zeus's load to 700. So every process of a job carries
+`HELIX_TEST_JOB=<job id>` in its environment, and one function
+(`helix_job_kill`) stops a job: TERM to every process with that tag or with its
+cwd in the job's directory or a mutate worker copy, KILL after
+`HELIX_TEST_KILL_GRACE_SECS`, and it returns only once none is left. An INT,
+TERM or HUP to the run calls it before killing the wrapper; the wrapper calls it
+on its own exit; and a watchdog on the host calls it when the run is gone. The
+run pings its log follow every two seconds; the watchdog stops the job 30s
+after the run's end of that connection closes (a run killed with SIGKILL), or
+`HELIX_TEST_RECONNECT_SECS` + 60 after the last ping when the link went silent,
+by which time the run itself has stopped reconnecting. A pooled job's watchdog
+also holds a jobpool consumer for as long as any process of the job lives, so
+the pool never refills under it. A tree on an older branch runs that branch's
+copy of the script, which may lack all of this.
 
 **Cleanup.** `scripts/test-host-run.sh --prune [DAYS]` removes mirrors and
 mutate checkouts nobody has run for DAYS (14); a run that creates either one

@@ -2134,3 +2134,219 @@ TEST_CASE_METHOD(LVGLTestFixture,
     AmsState::instance().set_backend(nullptr);
     set_connection(ConnectionState::CONNECTED);
 }
+
+// ============================================================================
+// The mounted tool's number
+// ============================================================================
+
+namespace {
+
+/// A changer whose tools carry the numbers @p numbers, listed the way
+/// klipper-toolchanger publishes them: ascending, names in the same order.
+std::unique_ptr<AckingChanger> numbered_changer(const std::vector<int>& numbers) {
+    auto tc = std::make_unique<AckingChanger>(static_cast<int>(numbers.size()));
+    std::vector<std::string> names;
+    json listed_names = json::array();
+    for (int n : numbers) {
+        names.push_back("T" + std::to_string(n));
+        listed_names.push_back("tool T" + std::to_string(n));
+    }
+    tc->set_discovered_tools(names);
+    tc->feed(
+        json{{"toolchanger",
+              {{"status", "ready"}, {"tool_numbers", numbers}, {"tool_names", listed_names}}}});
+    return tc;
+}
+
+} // namespace
+
+TEST_CASE("A mounted tool's number names its slot, not its position",
+          "[toolchanger][mount_feed][tool_number]") {
+    SECTION("tools 0, 2, 3 with T2 mounted: the T2 head, and an unload empties it") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 1);
+
+        REQUIRE(tc->unload_filament(-1).success());
+        REQUIRE_FALSE(tc->sent_.empty());
+        // The head on the carriage needs no mount: the first stage heats it.
+        CHECK(tc->sent_.front().find("HEATER=" + mf::heater_name(1) + " ") != std::string::npos);
+        for (const auto& g : tc->sent_) {
+            CHECK(g.find(mf::heater_name(2)) == std::string::npos);
+            CHECK(g.find("tool T3") == std::string::npos);
+        }
+    }
+
+    SECTION("tools 0, 2, 3: loading lane 2 mounts T3, by its tool object") {
+        // T=<n> is a tool NUMBER, and T=2 here would mount the T2 head.
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 0);
+        REQUIRE(tc->load_filament(2).success());
+        tc->ack(); // the prompt is up
+        ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
+        CHECK(tc->sent_.back() == mf::prompt_end_gcode() + "\nSELECT_TOOL TOOL=\"tool T3\"");
+        for (const auto& g : tc->sent_) {
+            CHECK(g.find("T=") == std::string::npos);
+        }
+    }
+
+    SECTION("tools 0, 2 with T2 mounted: the second head") {
+        auto tc = numbered_changer({0, 2});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 1);
+    }
+
+    SECTION("contiguous 0, 1, 2 is unchanged") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 2);
+        tc->feed_status("ready", 0);
+        CHECK(tc->get_current_slot() == 0);
+    }
+
+    SECTION("a number the printer does not list seats nothing") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 1);
+        CHECK(tc->get_current_slot() == -1);
+        CHECK_FALSE(tc->unload_filament(-1).success());
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("an ASSIGN_TOOL remap resolves through the listing it rewrites") {
+        // ASSIGN_TOOL TOOL="tool T2" N=0: T2's head now answers to 0, and the
+        // tool that held 0 loses its number.
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed(json{{"toolchanger",
+                       {{"tool_numbers", {0, 1}},
+                        {"tool_names", {"tool T2", "tool T1"}},
+                        {"tool_number", 0}}}});
+        CHECK(tc->get_current_slot() == 2);
+    }
+
+    SECTION("a reset returns each tool to its own number, gaps included") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        const auto sent = [&](const std::string& g) {
+            return std::find(tc->sent_.begin(), tc->sent_.end(), g) != tc->sent_.end();
+        };
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T0\" N=0"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T2\" N=2"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T3\" N=3"));
+        CHECK(tc->sent_.size() == 3);
+    }
+
+    SECTION("a reset uses the configured numbers when the first listing was already remapped") {
+        AckingChanger tc(3);
+        tc.set_discovered_tools({"T0", "T2", "T3"});
+        tc.set_configured_tool_numbers({{"t0", 0}, {"t2", 2}, {"t3", 3}});
+        tc.feed(json{{"toolchanger",
+                      {{"status", "ready"},
+                       {"tool_numbers", {0, 2, 3}},
+                       {"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc.reset_tool_mappings().success());
+        const auto sent = [&](const std::string& g) {
+            return std::find(tc.sent_.begin(), tc.sent_.end(), g) != tc.sent_.end();
+        };
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T0\" N=0"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T2\" N=2"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T3\" N=3"));
+        CHECK(tc.sent_.size() == 3);
+    }
+
+    SECTION("set_discovery hands the configured numbers to the reset") {
+        AckingChanger tc(3);
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T2", "tool T3"}));
+        hw.parse_configured_tool_numbers({{"tool t0", {{"tool_number", 0}}},
+                                          {"tool t2", {{"tool_number", 2}}},
+                                          {"tool t3", {{"tool_number", 3}}}});
+        tc.set_discovery(hw);
+        tc.feed(json{{"toolchanger",
+                      {{"status", "ready"},
+                       {"tool_numbers", {0, 2, 3}},
+                       {"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                                   "ASSIGN_TOOL TOOL=\"tool T2\" N=2",
+                                                   "ASSIGN_TOOL TOOL=\"tool T3\" N=3"});
+    }
+
+    SECTION("a listed reset of a contiguous swap sends exactly the two ASSIGN_TOOLs") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T1", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                                    "ASSIGN_TOOL TOOL=\"tool T1\" N=1"});
+    }
+
+    SECTION("a listed reset on a machine with no ASSIGN_TOOL fails and keeps the listed badges") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->set_tool_commands(toolchanger_addon::ToolCommands{true, "test", "T", "", false});
+        // T2 dropped out of the numbering: the listing badges its head with nothing.
+        tc->feed(json{
+            {"toolchanger", {{"tool_numbers", {0, 1}}, {"tool_names", {"tool T1", "tool T0"}}}}});
+        REQUIRE(tc->get_slot_info(0).mapped_tool == 1);
+        REQUIRE(tc->get_slot_info(2).mapped_tool == -1);
+        CHECK_FALSE(tc->reset_tool_mappings().success());
+        CHECK(tc->get_slot_info(0).mapped_tool == 1);
+        CHECK(tc->get_slot_info(1).mapped_tool == 0);
+        CHECK(tc->get_slot_info(2).mapped_tool == -1);
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("a Klipper restart forgets the home numbers of the old config") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->on_klipper_restarted();
+        // The restarted config numbers the same tools 0, 1, 2.
+        tc->feed(json{
+            {"toolchanger",
+             {{"tool_numbers", {0, 1, 2}}, {"tool_names", {"tool T0", "tool T2", "tool T3"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("a reset of tools already on their numbers sends nothing") {
+        auto tc = numbered_changer({0, 2, 3});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("each head is badged with its tool's number") {
+        auto tc = numbered_changer({0, 2, 3});
+        CHECK(tc->get_slot_info(0).mapped_tool == 0);
+        CHECK(tc->get_slot_info(1).mapped_tool == 2);
+        CHECK(tc->get_slot_info(2).mapped_tool == 3);
+        const auto map = tc->get_tool_mapping();
+        REQUIRE(map.size() == 4);
+        CHECK(map[1] == -1);
+        CHECK(map[2] == 1);
+        CHECK(map[3] == 2);
+    }
+
+    SECTION("a remap moves the badge with the listing") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        CHECK(tc->get_slot_info(2).mapped_tool == 0);
+        CHECK(tc->get_slot_info(0).mapped_tool == 2);
+        CHECK(tc->get_slot_info(1).mapped_tool == 3);
+    }
+
+    SECTION("a listed number past the tool count can be remapped") {
+        auto tc = numbered_changer({0, 2, 3});
+        CHECK(tc->can_set_tool_mapping(3, 0).success());
+        REQUIRE(tc->set_tool_mapping(3, 0).success());
+        CHECK(tc->sent_.back() == "ASSIGN_TOOL TOOL=\"tool T0\" N=3");
+        // A number nobody lists, past the tool count, is still out of range.
+        CHECK_FALSE(tc->can_set_tool_mapping(7, 0).success());
+    }
+
+    SECTION("a reassigned number follows its tool when only the names change") {
+        // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
+        // Moonraker's delta carries tool_names alone.
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T0", "tool T3", "tool T2"}}}}});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 2);
+    }
+}

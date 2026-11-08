@@ -17,6 +17,7 @@ TEST_HOST_RUN="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/scripts/test-host-run.sh"
 
 setup() {
     load helpers
+    load test_host_run_drop
     export HELIX_TEST_HOST=testhost.invalid
     export HELIX_TEST_LOCK_DIR="$BATS_TEST_TMPDIR/locks"
     export HELIX_TEST_TREES_HOST="$BATS_TEST_TMPDIR/host-trees"
@@ -27,7 +28,7 @@ setup() {
     export HELIX_TEST_ARC_SYS_FREE="$BATS_TEST_TMPDIR/no-zfs/zfs_arc_sys_free"
     export HELIX_TEST_ARC_MARK="$BATS_TEST_TMPDIR/arc-mark"
     export HELIX_TEST_TREES=/work/trees
-    export HELIX_TEST_ORPHAN_POLL_SECS=0
+    export HELIX_TEST_ORPHAN_POLL_SECS=0 HELIX_TEST_WATCHDOG_POLL_SECS=0.2
     mkdir -p "$HELIX_TEST_LOCK_DIR"
     REAL_RSYNC=$(command -v rsync)
     export REAL_RSYNC
@@ -48,6 +49,13 @@ case "$1" in
     inspect) exit 0 ;;
     exec)
         case "$*" in
+            *helix-job-kill*)
+                # Stopping a job: run the container half here, against the
+                # local /proc, so it stops what the job left running.
+                echo "$*" >> "${MOCK_KILL_LOG:-/dev/null}"
+                while [ "$1" != sh ]; do shift; done
+                s=$3; shift 3
+                exec sh -c "$s" "$@" ;;
             *pgrep*)
                 # MOCK_LIVE_MAKE_DIR: a make (an orphan) runs in that tree.
                 if [ -n "${MOCK_LIVE_MAKE_DIR:-}" ]; then
@@ -81,13 +89,23 @@ case "$1" in
                     CCACHE_DIR=$MOCK_CCACHE_DIR exec bash -c "$last"
                 fi ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+               # MOCK_EXEC_DIR: run the job command there, with make logged to
+               # MOCK_EXEC_LOG instead of run; its last argument is the bash -c script.
+               if [ -n "${MOCK_EXEC_DIR:-}" ]; then
+                   for a in "$@"; do last=$a; done
+                   # The job tag reaches the job, as docker exec -e passes it.
+                   for a in "$@"; do case "$a" in HELIX_TEST_JOB=*) export "$a" ;; esac; done
+                   cd "$MOCK_EXEC_DIR" || exit 1
+                   exec bash -c "make() { echo \"make \$*\" >> \"\$MOCK_EXEC_LOG\"; }; $last"
+               fi
                # MOCK_SWEEP_FAILS=<mirror>: the sweep fails and leaves a
                # failing shard log in that mirror, as the real one does.
                if [ -n "${MOCK_SWEEP_FAILS:-}" ]; then
                    mkdir -p "$MOCK_SWEEP_FAILS/build/shard-artifacts/helix-shards-T1"
                    echo "hung in: a teardown case" > "$MOCK_SWEEP_FAILS/build/shard-artifacts/helix-shards-T1/92.log"
                    exit 2
-               fi ;;
+               fi
+               case "$*" in *mutate_diff*) echo "VERDICT: CLEAN" ;; esac ;;
         esac ;;
     *) echo "unhandled docker call: $*" >&2; exit 1 ;;
 esac
@@ -233,14 +251,7 @@ wait_for_line() { # <substring> <file>
 }
 
 hold_lock() { # <lock file> <ready marker>: prints the holder pid
-    (
-        exec 9>>"$1"
-        flock 9
-        printf 'held by pid %s: sweep 0123456 since 2026-10-08 12:00:00\n' "$$" >&9
-        touch "$2"
-        sleep 30 9>&-
-    ) >/dev/null 2>&1 &
-    echo $!
+    hold_flock "$1" "$2" 'held by pid %s: sweep 0123456 since 2026-10-08 12:00:00'
 }
 
 @test "two trees hold different locks and both proceed; two runs of one tree queue" {
@@ -284,11 +295,11 @@ hold_lock() { # <lock file> <ready marker>: prints the holder pid
     "$TEST_HOST_RUN" test >"$out" 2>&1 &
     runner=$!
     wait_for_line "no jobpool on" "$out"
-    refute_grep "MemAvailable" "$out"
+    refute_grep "available to" "$out"
     kill "$holder"
     wait "$holder" 2>/dev/null || true
     wait "$runner"
-    grep -q "MemAvailable" "$out"
+    grep -q "available to" "$out"
 }
 
 @test "the provenance line and log name carry -dirty and the diff hash only when dirty" {
@@ -930,6 +941,27 @@ shared_checkout() {
     [ -d "$BATS_TEST_TMPDIR/mutate/fresh" ]
 }
 
+@test "--prune and --drop remove a mutate checkout's worker copies, even with the checkout gone" {
+    local m=$BATS_TEST_TMPDIR/mutate
+    mkdir -p "$m/old/.git" "$m/.old.mutate-w1" "$m/.old.mutate-w2" \
+        "$m/fresh/.git" "$m/.fresh.mutate-w1" "$m/.orphan.mutate-w1" "$m/.orphan.mutate-w3"
+    touch -d '20 days ago' "$m/old/.git/index"
+    touch "$m/fresh/.git/index"
+    run "$TEST_HOST_RUN" --prune
+    [ "$status" -eq 0 ]
+    [ ! -e "$m/.old.mutate-w1" ]
+    [ ! -e "$m/.old.mutate-w2" ]
+    [ -d "$m/.fresh.mutate-w1" ]
+    # A run that died mid-copy leaves workers with no checkout beside them.
+    run "$TEST_HOST_RUN" --drop orphan
+    [ "$status" -eq 0 ]
+    contains "removed mutate worker copies orphan" "$output"
+    [ ! -e "$m/.orphan.mutate-w1" ]
+    [ ! -e "$m/.orphan.mutate-w3" ]
+    [ -d "$m/.fresh.mutate-w1" ]
+    [ -d "$m/fresh" ]
+}
+
 @test "a seed candidate with an orphaned build running in it is passed over" {
     local a b
     a=$(make_tree tree-a)
@@ -1016,4 +1048,218 @@ shared_checkout() {
     run "$TEST_HOST_RUN" sweep
     [ "$status" -eq 0 ]
     [ ! -e "$t/build/shard-artifacts" ]
+}
+
+# --- test and exec: arguments arrive word for word -----------------------------
+
+# A mirror run whose job command runs here, in a directory holding a stand-in
+# helix-tests that logs each argument it receives on its own line.
+job_runner() {
+    export MOCK_EXEC_DIR="$BATS_TEST_TMPDIR/container" MOCK_EXEC_LOG="$BATS_TEST_TMPDIR/exec.log"
+    mkdir -p "$MOCK_EXEC_DIR/build/bin"
+    cat > "$MOCK_EXEC_DIR/build/bin/helix-tests" <<'EOF2'
+#!/usr/bin/env bash
+echo "helix-tests argc=$#" >> "$MOCK_EXEC_LOG"
+for a in "$@"; do printf 'arg[%s]\n' "$a" >> "$MOCK_EXEC_LOG"; done
+EOF2
+    chmod +x "$MOCK_EXEC_DIR/build/bin/helix-tests"
+    : > "$MOCK_EXEC_LOG"
+    cd "$(make_tree tree-args)" || return 1
+}
+
+@test "test forwards every argument to helix-tests as its own word" {
+    job_runner
+    run "$TEST_HOST_RUN" test -# '[#test_x]'
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=2" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[-#]" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[[#test_x]]" "$MOCK_EXEC_LOG"
+    grep -qF "make test" "$MOCK_EXEC_LOG"
+}
+
+@test "test with no arguments runs the whole suite: helix-tests gets none" {
+    job_runner
+    run "$TEST_HOST_RUN" test
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=0" "$MOCK_EXEC_LOG"
+}
+
+@test "an argument with spaces, quotes or a semicolon arrives intact and is never executed" {
+    job_runner
+    run "$TEST_HOST_RUN" test 'two words' 'x" ; touch PWNED ; echo "' "it's"
+    [ "$status" -eq 0 ]
+    grep -qxF "helix-tests argc=3" "$MOCK_EXEC_LOG"
+    grep -qxF "arg[two words]" "$MOCK_EXEC_LOG"
+    grep -qxF 'arg[x" ; touch PWNED ; echo "]' "$MOCK_EXEC_LOG"
+    grep -qxF "arg[it's]" "$MOCK_EXEC_LOG"
+    [ ! -e "$MOCK_EXEC_DIR/PWNED" ]
+}
+
+@test "exec runs a command in the mirror without building; --build runs make test first" {
+    job_runner
+    printf 'printf "x.sh[%%s]\\n" "$@" >> "$MOCK_EXEC_LOG"\n' > "$MOCK_EXEC_DIR/x.sh"
+    run "$TEST_HOST_RUN" exec -- bash ./x.sh 'a b' '"; touch PWNED; "'
+    [ "$status" -eq 0 ]
+    grep -qxF "x.sh[a b]" "$MOCK_EXEC_LOG"
+    grep -qxF 'x.sh["; touch PWNED; "]' "$MOCK_EXEC_LOG"
+    refute_grep "make test" "$MOCK_EXEC_LOG"
+    [ ! -e "$MOCK_EXEC_DIR/PWNED" ]
+    : > "$MOCK_EXEC_LOG"
+    run "$TEST_HOST_RUN" exec --build -- bash ./x.sh c
+    [ "$status" -eq 0 ]
+    head -1 "$MOCK_EXEC_LOG" | grep -q "^make test"
+    grep -qxF "x.sh[c]" "$MOCK_EXEC_LOG"
+}
+
+@test "exec refuses a missing command or an unknown option before reaching the host" {
+    job_runner
+    run "$TEST_HOST_RUN" exec --
+    [ "$status" -eq 2 ]
+    contains "exec needs a command" "$output"
+    run "$TEST_HOST_RUN" exec bash ./x.sh
+    [ "$status" -eq 2 ]
+    contains "exec takes [--build] -- COMMAND" "$output"
+    [ ! -s "$MOCK_DOCKER_LOG" ]
+}
+
+no_job_left() {
+    ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-*/ 2>/dev/null
+}
+
+@test "a connection that drops during a silent job reconnects and still reports its output and exit status" {
+    job_runner
+    install_drop_ssh
+    run "$TEST_HOST_RUN" exec -- bash -c 'echo before-drop; sleep 1; touch "$MOCK_SSH_DROP"; sleep 1; echo done-marker; exit 3'
+    [ "$status" -eq 3 ]
+    contains "lost the connection" "$output"
+    contains "done-marker" "$output"
+    # The resumed follow starts where the dropped one stopped: nothing twice.
+    [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c before-drop)" -eq 1 ]
+    [ "$(cat "$TMPDIR"/test-host-exec-*.log | grep -c done-marker)" -eq 1 ]
+    no_job_left
+}
+
+@test "a dropped link leaves the tree locked until its job finishes" {
+    job_runner
+    install_drop_ssh
+    local order="$BATS_TEST_TMPDIR/order" first
+    export ORDER="$order"
+    "$TEST_HOST_RUN" exec -- bash -c 'sleep 1; touch "$MOCK_SSH_DROP"; sleep 6; echo first-end >> "$ORDER"' \
+        > "$BATS_TEST_TMPDIR/first.out" 2>&1 &
+    first=$!
+    for _ in $(seq 1 200); do [ -e "$MOCK_SSH_DROP" ] && break; sleep 0.05; done
+    [ -e "$MOCK_SSH_DROP" ]
+    sleep 0.3
+    run "$TEST_HOST_RUN" exec -- bash -c 'echo second-start >> "$ORDER"'
+    wait "$first"
+    [ "$status" -eq 0 ]
+    contains "busy" "$output"
+    [ "$(cat "$order")" = "$(printf 'first-end\nsecond-start')" ]
+}
+
+@test "a signal here stops the job on the test host and removes its directory" {
+    job_runner
+    local pidf="$BATS_TEST_TMPDIR/job.pid" runner rc=0
+    export PIDF="$pidf"
+    # TERM, since a background job may have started with SIGINT ignored; INT
+    # and HUP take the same trap.
+    "$TEST_HOST_RUN" exec -- bash -c 'echo $$ > "$PIDF"; exec sleep 30' > "$BATS_TEST_TMPDIR/run.out" 2>&1 &
+    runner=$!
+    for _ in $(seq 1 200); do [ -s "$pidf" ] && break; sleep 0.05; done
+    [ -s "$pidf" ]
+    kill -TERM "$runner"
+    wait "$runner" || rc=$?
+    [ "$rc" -eq 143 ]
+    grep -qF "stopping the job" "$BATS_TEST_TMPDIR/run.out"
+    for _ in $(seq 1 100); do kill -0 "$(cat "$pidf")" 2>/dev/null || break; sleep 0.05; done
+    ! kill -0 "$(cat "$pidf")" 2>/dev/null
+    no_job_left
+}
+
+# A process the job started in a session of its own: no kill of the wrapper's
+# process group reaches it, as none reaches a process in the container. Its pid
+# is left in ORPHAN once it is running; the job itself then waits in sleep 60.
+orphan_job() { # <runner output file>
+    export ORPHANF="$BATS_TEST_TMPDIR/orphan.pid"
+    "$TEST_HOST_RUN" exec -- bash -c 'setsid sleep 300 < /dev/null > /dev/null 2>&1 & echo $! > "$ORPHANF"; exec sleep 60' \
+        > "$1" 2>&1 &
+    RUNNER=$!
+    for _ in $(seq 1 200); do [ -s "$ORPHANF" ] && break; sleep 0.05; done
+    [ -s "$ORPHANF" ] || { cat "$1" >&3; return 1; }
+    ORPHAN=$(cat "$ORPHANF")
+    kill -0 "$ORPHAN"
+}
+
+gone_within() { # <pid> <seconds>
+    local _
+    for _ in $(seq 1 $(( $2 * 20 ))); do kill -0 "$1" 2>/dev/null || return 0; sleep 0.05; done
+    kill -9 "$1" 2>/dev/null
+    return 1
+}
+
+@test "a signal here stops the job's processes in the container, not just the wrapper's group" {
+    job_runner
+    local rc=0
+    orphan_job "$BATS_TEST_TMPDIR/run.out"
+    kill -TERM "$RUNNER"
+    wait "$RUNNER" || rc=$?
+    [ "$rc" -eq 143 ]
+    # Gone before the run returned, not some time later.
+    ! kill -0 "$ORPHAN" 2>/dev/null || { kill -9 "$ORPHAN"; false; }
+    grep -qE "stopped [0-9]+ process\(es\)" "$BATS_TEST_TMPDIR/run.out"
+    no_job_left
+}
+
+@test "a run killed outright leaves its job to the watchdog, which stops it" {
+    job_runner
+    export HELIX_TEST_CLIENT_GONE_SECS=1
+    orphan_job "$BATS_TEST_TMPDIR/run.out"
+    # SIGKILL: no trap runs here, so nothing on this side can stop the job.
+    kill -KILL "$RUNNER"
+    wait "$RUNNER" 2>/dev/null || true
+    gone_within "$ORPHAN" 20
+    for _ in $(seq 1 40); do no_job_left && break; sleep 0.05; done
+    no_job_left
+    grep -qF "the run that started it went away" "$HELIX_TEST_LOCK_DIR"/*.job-*.log
+}
+
+@test "a job whose wrapper dies without a status fails with its own exit code" {
+    job_runner
+    run "$TEST_HOST_RUN" exec -- bash -c 'kill -9 "$(cat "$HELIX_TEST_LOCK_DIR"/*.job-*/pid)"; sleep 3'
+    [ "$status" -eq 254 ]
+    contains "died without an exit status" "$output"
+    no_job_left
+}
+
+@test "plugin-host stops at the first failing step instead of running the matrix elsewhere" {
+    [ "$(id -u)" != 0 ] || skip "root removes the read-only output directory"
+    local t out="$BATS_TEST_TMPDIR/ph-out"
+    t=$(make_tree tree-ph)
+    mkdir -p "$t/scripts"
+    echo 'touch "$PWD/MATRIX-RAN"' > "$t/scripts/plugin-host-matrix.sh"
+    # The step before the matrix fails: an output directory it cannot clear.
+    mkdir -p "$out/helix-plugin-host-tree-ph/sub"
+    touch "$out/helix-plugin-host-tree-ph/sub/f"
+    chmod 555 "$out/helix-plugin-host-tree-ph/sub"
+    export HELIX_TEST_PLUGIN_HOST_OUT="$out"
+    cd "$t"
+    run "$TEST_HOST_RUN" plugin-host
+    chmod -R u+w "$out" "$t/build"
+    [ "$status" -ne 0 ]
+    [ -z "$(find "$BATS_TEST_TMPDIR" -name MATRIX-RAN)" ]
+}
+
+@test "plugin-host's matrix outlives a dropped link and still reports its result" {
+    local t
+    t=$(make_tree tree-ph)
+    mkdir -p "$t/scripts"
+    printf '%s\n' 'echo matrix-start' 'sleep 1' 'touch "$MOCK_SSH_DROP"' 'sleep 1' 'echo matrix-done' > "$t/scripts/plugin-host-matrix.sh"
+    export HELIX_TEST_PLUGIN_HOST_OUT="$BATS_TEST_TMPDIR/ph-out"
+    install_drop_ssh
+    cd "$t"
+    run "$TEST_HOST_RUN" plugin-host
+    [ "$status" -eq 0 ]
+    contains "lost the connection" "$output"
+    contains "matrix-done" "$output"
+    no_job_left
 }

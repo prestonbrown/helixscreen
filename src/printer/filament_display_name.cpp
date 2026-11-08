@@ -186,28 +186,20 @@ FilamentLabelParts resolve_filament_label_parts(const SlotInfo& slot, const Spoo
 
 std::string slot_card_name(const SlotInfo& slot, const SpoolIdentity* identity) {
     const SpoolIdentity* id = (identity != nullptr && identity->valid()) ? identity : nullptr;
-    const std::string_view id_name = id ? std::string_view(id->filament_name) : std::string_view();
-    // A name that is only the lane's material says nothing the material line
-    // below it does not, so the next name stands in, and the brand after them.
-    const std::string material = normalize_ws(slot.material);
-    bool repeated = false;
-    for (std::string_view candidate :
-         {std::string_view(slot.spool_name), id_name, std::string_view(slot.product_name)}) {
-        std::string name = normalize_ws(candidate);
-        if (name.empty()) {
-            continue;
-        }
-        if (!material.empty() && text_io::equals_ignore_case(name, material)) {
-            repeated = true;
-            continue;
-        }
-        return name;
+    // The brand is the one name every lane states the same way. Spool and
+    // filament names are free text that opens with a brand on one spool and a
+    // colour on the next, and the card only has room for their first word.
+    std::string brand = normalize_ws(slot.brand);
+    if (brand.empty() && id != nullptr) {
+        brand = normalize_ws(id->vendor);
     }
-    if (!repeated) {
+    // "Generic" names no maker, and a brand spelled as the material repeats
+    // the line below it.
+    if (text_io::equals_ignore_case(brand, "Generic") ||
+        text_io::equals_ignore_case(brand, normalize_ws(slot.material))) {
         return {};
     }
-    std::string brand = normalize_ws(slot.brand);
-    return text_io::equals_ignore_case(brand, material) ? std::string{} : brand;
+    return brand;
 }
 
 SlotCardLines slot_card_lines(std::string_view name, std::string_view material,

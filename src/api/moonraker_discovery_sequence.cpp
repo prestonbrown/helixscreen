@@ -38,6 +38,7 @@
 #include "plr_backend.h"
 #include "power_device_state.h"
 #include "pre_print_preferences.h"
+#include "print_start_params.h"
 #include "print_start_profile.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -514,6 +515,15 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
 
             spdlog::debug("[Moonraker Client] Klippy state gate check: {}", klippy_state);
 
+            // Read here, ahead of the object list, because the filament backends
+            // that ask it are created from that list.
+            if (const json* result =
+                    helix::json_util::find_member(server_info_response, "result")) {
+                const bool takes_tools = helix::print_start::server_takes_tool_slots(*result);
+                std::lock_guard<std::mutex> lock(hardware_mutex_);
+                hardware_.set_server_takes_print_start_tools(takes_tools);
+            }
+
             // Allow "ready" and "shutdown" — both have valid Klipper objects.
             // Abort on "startup", "error", or unknown states.
             if (klippy_state != "ready" && klippy_state != "shutdown") {
@@ -524,6 +534,11 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
                 // Query them even when Klippy isn't ready so users can power on their printer.
                 discover_power_devices();
                 discover_sensors();
+
+                // The gate also stops the subscription that would have carried
+                // Klippy's state and reason, so fetch them: a config error at
+                // connect has no other way to reach the recovery dialog.
+                client_.poll_klippy_state_until_settled();
 
                 // Deferred (retryable) — notify_klippy_ready/shutdown will retry.
                 client_.emit_event(MoonrakerEventType::DISCOVERY_DEFERRED, reason, true);
@@ -1050,6 +1065,11 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     }
                                 }
 
+                                {
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.parse_configured_tool_numbers(settings);
+                                }
+
                                 // Record each fan's configured max_power. Klipper reports
                                 // `speed` as last_fan_value = value * max_power, so the UI
                                 // divides it back out to show the logical fraction (a full-on
@@ -1376,10 +1396,9 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // OpenAMS): each backend owns which objects it reads and which fields of them,
     // and answers only for its own printer. Subscribing a field-less object costs
     // Klipper serialization on every tick, so the backends narrow where they can.
-    const json filament_objects = AmsBackend::required_status_objects(hw);
-    for (auto it = filament_objects.begin(); it != filament_objects.end(); ++it) {
-        subscription_objects[it.key()] = it.value();
-    }
+    // Merged, because a backend may add fields to a core object (a U1's extruders).
+    subscription_objects =
+        merge_subscription_objects(subscription_objects, AmsBackend::required_status_objects(hw));
 
     // Firmware that keeps the authoritative z-offset outside gcode_move needs
     // whatever object stores it; without this the Z-offset row reads 0.000

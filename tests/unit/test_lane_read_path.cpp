@@ -113,7 +113,7 @@ TEST_CASE_METHOD(HelixTestFixture, "A lane with one record resolves onto the bac
     sensed.present = true;
     ingest(harness.lane(1), sensed);
 
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.material = "ABS";
     cache.color_rgb = 0x1B6AC9;
     ingest(harness.lane(1), cache);
@@ -142,7 +142,7 @@ TEST_CASE_METHOD(HelixTestFixture, "A sensed absence narrows the status the back
     sensed.present = false;
     ingest(harness.lane(0), sensed);
 
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.material = "PETG";
     ingest(harness.lane(0), cache);
 
@@ -168,11 +168,11 @@ TEST_CASE_METHOD(HelixTestFixture, "apply_resolved_lane reads the backend's own 
     REQUIRE(raw->backend_index() == 1);
     REQUIRE(first.lane(0) != raw->lane_id(0));
 
-    Observation a(ObservationSource::VendorCache);
+    Observation a(ObservationSource::Firmware);
     a.material = "PLA";
     ingest(first.lane(0), a);
 
-    Observation b(ObservationSource::VendorCache);
+    Observation b(ObservationSource::Firmware);
     b.material = "ASA";
     ingest(raw->lane_id(0), b);
 

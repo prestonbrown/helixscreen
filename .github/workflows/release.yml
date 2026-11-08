@@ -42,7 +42,9 @@ jobs:
   validate-shell:
     name: Validate Shell Scripts
     runs-on: ubuntu-22.04
-    timeout-minutes: 10
+    # build.yml's test-shell budget, on the same 4-core runner: every build
+    # job waits on this one, and a timeout here cancels the whole release.
+    timeout-minutes: 45
 
     steps:
     - name: Checkout repository
@@ -92,8 +94,14 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm ci --no-audit --no-fund
 
+    # A release runs the product files only: BATS_BASE=HEAD leaves no change to
+    # trigger a build-tooling file, which the commit already passed on its way
+    # to main and the nightly runs every day. BATS_REQUIRED=1 fails rather than
+    # run the files serially when GNU parallel is missing.
     - name: Run shell tests
-      run: make test-shell
+      env:
+        BATS_BASE: HEAD
+      run: make test-shell BATS_REQUIRED=1
 
   # ============================================================================
   # Resolve the release mode, version, R2 prefix and platform matrix once

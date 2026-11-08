@@ -148,6 +148,8 @@ void configure_named_tools(const std::vector<std::string>& names) {
     disc.parse_objects(objects);
     ts.init_tools(disc);
     REQUIRE(ts.tool_count() == static_cast<int>(names.size()));
+    // The changer's first status frame: the first tool is on the carriage.
+    ts.update_from_status({{"toolchanger", {{"tool_number", 0}}}});
 }
 
 } // namespace

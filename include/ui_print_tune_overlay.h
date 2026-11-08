@@ -208,6 +208,8 @@ class PrintTuneOverlay : public OverlayBase {
     lv_subject_t z_tune_target_subject_{};
     /// The target the user is NOT on, formatted for the muted context label.
     lv_subject_t tune_z_other_subject_{};
+    lv_subject_t tune_z_offset_saved_subject_{};
+    lv_subject_t tune_z_offset_saved_visible_subject_{};
     /// Label for the tool button ("T1"). Not tool_badge_text: that one is
     /// deliberately index-only, sized for a disc overlaid on the nozzle glyph.
     lv_subject_t tune_z_tool_label_subject_{};
@@ -236,6 +238,7 @@ class PrintTuneOverlay : public OverlayBase {
     // ("Печатающая головка 16 -0.150mm"), so it needs more room than the
     // label-only buffer below.
     char tune_z_other_buf_[96] = "";
+    char tune_z_offset_saved_buf_[96] = "";
     // Holds a translated position label ("Tool 1", "Печатающая головка 16") —
     // sized like current_slot_text_buf_/layer_text_buf_ elsewhere, since a
     // translated noun plus a two-digit number can run well past ASCII length.

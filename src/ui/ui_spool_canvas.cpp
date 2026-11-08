@@ -1323,7 +1323,8 @@ struct SpoolGlowData {
     lv_obj_t* spool = nullptr; ///< bound spool canvas
     int32_t size = 0;
     bool simple = false;
-    bool lit = false; ///< painted, or waiting on the spool's first render
+    lv_color_t color{}; ///< the glow's hue
+    bool lit = false;   ///< painted, or waiting on the spool's first render
     GlowImage image;
     int32_t margin = 0;
 };
@@ -1402,9 +1403,9 @@ static void paint_glow_layer(lv_obj_t* glow, SpoolGlowData& g) {
     }
     const SpoolGlow mode = g.simple ? SpoolGlow::Outline : SpoolGlow::Halo;
     const int32_t margin = g.simple ? kOutlinePx : kGlowMargin;
-    const lv_color_t accent = helix::ui::tube_accent();
+    const lv_color_t accent = g.color;
     // A glow depends only on the silhouette, never the filament color, so the
-    // key carries the accent where a spool render carries its color.
+    // key carries the glow's hue where a spool render carries its color.
     // Face-on, the flange covers the filament at every fill, so one glow
     // serves them all.
     const helix::ui::SpoolView view = spool->last_key.view;
@@ -1469,7 +1470,8 @@ lv_obj_t* spool_glow_create(lv_obj_t* parent) {
     return glow;
 }
 
-void spool_glow_paint(lv_obj_t* glow, lv_obj_t* spool_canvas, int32_t size, bool simple) {
+void spool_glow_paint(lv_obj_t* glow, lv_obj_t* spool_canvas, int32_t size, lv_color_t color,
+                      bool simple) {
     auto it = s_glow_registry.find(glow);
     if (it == s_glow_registry.end() || size <= 0)
         return;
@@ -1477,6 +1479,7 @@ void spool_glow_paint(lv_obj_t* glow, lv_obj_t* spool_canvas, int32_t size, bool
     g.spool = spool_canvas;
     g.size = size;
     g.simple = simple;
+    g.color = color;
     g.lit = true;
     paint_glow_layer(glow, g);
 }

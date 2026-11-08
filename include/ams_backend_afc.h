@@ -8,7 +8,6 @@
 #include "async_lifetime_guard.h"
 #include "error_event.h"
 #include "filament_slot_override_store.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "slot_registry.h"
 
@@ -182,6 +181,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     AmsBackendAfc(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAfc() override;
 
+  protected:
+    /// Drops an in-flight lane reset's console watch while the client is still
+    /// alive; the destructor cannot, since the client may already be gone.
+    void on_stopping() override;
+
+  public:
     /**
      * @brief Bare filament-sensor names AFC owns (no AMS keyword).
      *
@@ -274,7 +279,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         // heat, cut, unload (toolchange_phase_template() in ams_backend_afc.cpp).
         t.supports_auto_heat_on_unload = true;
         // AFC uses SET_SPOOL_ID gcode for persistence
-        t.has_firmware_spool_persistence = true;
         // AFC publishes a lane spool_id in its status
         t.printer_reports_spool_ids = true;
         // classify_error() + current_error() raise the runout, while a job runs too.
@@ -407,7 +411,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// load switch triggered, and AFC naming this exact lane as active. See
     /// can_recover_lane_position() for why each is load-bearing.
     [[nodiscard]] bool can_recover_lane_position(int slot_index) const override;
+    /// AFC_LANE_RESET leaves error_state and the lane's Error status set, so a
+    /// reset that reports success on the lane AFC names (current_lane) ends with
+    /// clear_fault() (prestonbrown/helixscreen#2049). The verdict is read off the
+    /// console: AFC reports success and failure alike as a normal script return.
     AmsError recover_lane_position(int slot_index) override;
+    /// The lane shows an error (its own `status: Error`), or AFC's error_state
+    /// is set and this is the lane AFC names. False while a lane reset is in
+    /// flight. The clear is system-wide: AFC has no per-lane fault clear.
+    [[nodiscard]] bool has_clearable_fault(int slot_index) const override;
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
     /// the unit, so an unattributed trigger cannot say whose filament caused it
@@ -419,13 +431,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// inherited the no-op default, so the button did nothing here.
     void clear_slot_override(int slot_index) override;
 
-    /// Publish the external spool as T{N} (one past the last lane) in the
-    /// SHARED lane_data namespace — AFC's own plugin never publishes its
-    /// extern (verified: AFC_lane.send_lane_data runs only for lanes with a
-    /// tool mapping, and AFC deletes the whole namespace at boot). Our entry
-    /// is wiped by that boot delete; the AmsState event triggers (bypass
-    /// engage, external-spool edit) re-publish.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
     AmsError eject_lane(int slot_index) override;
     [[nodiscard]] bool supports_lane_eject() const override {
         return true;
@@ -437,17 +442,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     void on_klipper_restarted() override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
     /// The lane's inline colour scan (a TD-1), which SlotInfo keeps apart from
     /// color_rgb: the scanner's colour is the reading.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -470,6 +471,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return firmware_maps_tools_per_print_.load(std::memory_order_relaxed);
     }
 
+    /// Each slot as the slot number its lane name carries ("lane11" is 11),
+    /// where the print start takes the map (helix::print_start).
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
+
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
@@ -479,6 +485,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// semantics — a mixed config still leaves the toggle governing the
     /// false lanes). See AmsBackend::printer_retains_spool_info().
     [[nodiscard]] bool printer_retains_spool_info() const override;
+
+    /// Every lane reports remember_spool, so AFC's setting decides.
+    [[nodiscard]] bool firmware_owns_spool_retention() const override;
+
+    /// AFC_SET_REMEMBER_SPOOL on every lane.
+    AmsError set_firmware_spool_retention(bool keep) override;
 
     /// [AFC] auto_home from AFC.cfg — true only once afc_config_ has landed
     /// (see AmsBackend::delegates_homing_to_printer()).
@@ -640,8 +652,14 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return "[AMS AFC]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
   private:
+    /// Whether AFC has Spoolman configured, from its status `spoolman` (a URL,
+    /// or false/null without one); unset until a frame states it. AFC's
+    /// SET_SPOOL_ID does nothing without one and still answers OK.
+    std::optional<bool> afc_spoolman_configured_;
+
     // === User-attached slot identity (FilamentSlotOverrideStore) =============
     //
     // AFC firmware cannot hold brand, color_name or the Spoolman filament/vendor
@@ -659,23 +677,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // parse_afc_stepper honours AFC's clears: firmware truth clears, and the
     // override re-supplies the identity the user attached.
     static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
-    /// Store on the SHARED lane_data namespace, used only by
-    /// publish_external_spool_lane. AFC's plugin owns that namespace — our
-    /// private override_store_ is deliberately NOT pointed at it.
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
     // overrides_ is keyed by the lane's registry position (slots_ index), the
-    // one key every per-lane store here shares: lane_id(), own-write
-    // expectations and own_write_echoes_ all take it. Never a SlotInfo field:
-    // slot_index there is unit-local, and global_index is a copy the registry
-    // stamps (#1644).
-    /// Layer the user override over firmware values. Callers hold mutex_.
-    /// Build + persist an override from a user edit, recording what @p declared
-    /// says the user moved. Callers hold mutex_.
-    void persist_override(int slot_index, const SlotInfo& info,
-                          const helix::ams::Observation& declared);
-    /// Put @p info's filament fields and tool mapping on @p slot, the half an
-    /// edit and a sync share. Callers hold mutex_.
-    void write_lane_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
+    // one key every per-lane store here shares, lane_id() included. Never a
+    // SlotInfo field: slot_index there is unit-local, and global_index is a
+    // copy the registry stamps (#1644).
 
     /**
      * @brief Parse AFC state from Moonraker JSON
@@ -1013,45 +1018,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
                            const nlohmann::json& data);
 
     /**
-     * @brief Push a retained Spoolman binding back into AFC (#1289)
-     *
-     * Called from parse_afc_stepper on the empty -> loaded EDGE only. With
-     * "Keep Spool Info on Eject" on, AFC's own remember_spool = false means
-     * firmware dropped the lane's link on eject while our override kept the
-     * identity — re-inserting the spool would paint the retained id here
-     * while AFC/Mainsail show an unknown spool. Sends the same
-     * SET_SPOOL_ID write the editor re-link uses, wrapped in
-     * record_own_spool_write() so the echo cannot classify as a re-bind and
-     * drop the records that declared the binding.
-     *
-     * Gates: retention setting on, override holds a spool id for the lane,
-     * and firmware's freshest spool_id reading is 0/null (a
-     * remember_spool = true firmware or another writer's link wins by not
-     * firing). Edge-triggered — no re-send while loaded, no retry on a
-     * failed dispatch; the next eject/re-insert cycle is the retry.
-     *
-     * @param slot_index Registry slot index for this lane
-     * @param lane_name Lane identifier (e.g., "lane1") for the gcode
-     */
-    void maybe_reassert_retained_spool_link(int slot_index, const std::string& lane_name);
-
-    /**
-     * @brief Drop a binding firmware has stopped agreeing with, in both stores
-     *
-     * Both parsers state a spool id, so both invalidate on one: which of them
-     * ran last is not allowed to decide whether a stale binding still paints.
-     *
-     * The verdict is reached on every frame rather than only where a clear
-     * might follow, because reaching it is also what retires the own-write
-     * expectation for this lane.
-     *
-     * @param slot_index Registry slot index for this lane, the key its binding
-     *                   and its stored override are both filed under
-     * @param firmware_spool_id The id firmware states this frame, 0 for none
-     */
-    void invalidate_broken_binding(int slot_index, int firmware_spool_id);
-
-    /**
      * @brief Parse AFC_hub object for per-hub sensor state
      *
      * @param hub_name Name of the hub (e.g., "Turtle_1")
@@ -1254,10 +1220,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * @param gcode The G-code command to execute
      * @param success_msg Toast message on success (empty = no toast)
      * @param error_prefix Toast prefix on error (shown as "prefix: error details")
+     * @param on_success Runs on the WebSocket thread once the firmware accepts the command
      * @return AmsError indicating success or failure to queue command
      */
     virtual AmsError execute_gcode_notify(const std::string& gcode, const std::string& success_msg,
-                                          const std::string& error_prefix);
+                                          const std::string& error_prefix,
+                                          helix::SharedCallback<void()> on_success = nullptr);
 
     // Unified slot registry -- single source of truth for all slot-indexed state
     helix::printer::SlotRegistry slots_;
@@ -1334,6 +1302,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
     /// raises an error by design.
     std::atomic<bool> firmware_maps_tools_per_print_{false};
+
+    /// The print start takes this print's tool map (print_start_params()).
+    std::atomic<bool> print_start_takes_tool_slots_{false};
 
     // AFC state strings outside our known vocabulary — dedupes the schema-drift
     // warning so it fires once per distinct string, not once per status update.
@@ -1419,6 +1390,44 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// still present. Must be called WITHOUT mutex_ held.
     void maybe_drain_message_queue();
 
+    /// Lane whose AFC_LANE_RESET is in flight, and the notify_gcode_response
+    /// handler watching its console; both empty when none. Guarded by mutex_.
+    std::string lane_reset_in_flight_;
+    std::string lane_reset_handler_;
+
+    /// Lanes AFC still reports as `status: Error` whose error clear_fault()
+    /// acknowledged. RESET_FAILURE never touches a lane's status, so without
+    /// this the lane keeps its error marking after the clear. A lane leaves the
+    /// set when AFC publishes another status for it or raises a new error.
+    /// Guarded by mutex_.
+    std::set<std::string> acknowledged_lane_errors_;
+
+    /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
+    [[nodiscard]] SlotError lane_error_locked() const;
+
+    /// Acknowledges the errors @p lanes still show, once AFC accepted the
+    /// RESET_FAILURE that cleared them. Main thread, mutex_ not held.
+    void acknowledge_lane_errors(const std::vector<std::string>& lanes);
+
+    /// Shows an acknowledged lane's error again: @p lane when it is one,
+    /// otherwise every acknowledged lane. Caller holds mutex_.
+    void rearm_acknowledged_lanes_locked(const std::string& lane);
+
+    /// The lane an AFC message names by its first token ("lane3 Current lane
+    /// not loaded ..."), or empty. Caller holds mutex_.
+    [[nodiscard]] std::string lane_named_by_locked(const std::string& message) const;
+
+    /// Settles an AFC_LANE_RESET of @p lane: clears the fault when the console
+    /// reported success and AFC still names @p lane in its error state. Main
+    /// thread, mutex_ not held.
+    void finish_lane_reset(const std::string& lane, bool reported_success);
+
+    /// AFC's success line for AFC_LANE_RESET, as notify_gcode_response carries
+    /// it: "// <lane> reset to hub, ...". The failure lines quote the lane
+    /// ("!! '<lane>' failed to reset to hub").
+    [[nodiscard]] static bool is_lane_reset_success_line(const std::string& line,
+                                                         const std::string& lane);
+
     // Global state
     bool error_state_{false};       ///< AFC error state
     bool bypass_active_{false};     ///< Bypass mode active (external spool)
@@ -1458,29 +1467,18 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// firmware or our own override store is the thing preserving identity.
     std::unordered_map<std::string, bool> lane_remember_spool_;
 
-    /// Firmware's own last-reported spool_id per lane, updated only when a
-    /// status delta carries the key. Distinct from SlotInfo::spoolman_id,
-    /// which the §5 override merge re-supplies with the retained id — this
-    /// map preserves "does AFC itself still hold a link?" for
-    /// maybe_reassert_retained_spool_link() (#1289).
-    std::unordered_map<std::string, int> lane_firmware_spool_id_;
+    /// Every lane has reported remember_spool. Caller holds mutex_.
+    [[nodiscard]] bool every_lane_reports_remember_spool_locked() const;
+
+    /// Drop every HelixScreen record of an ejected lane's spool, on a lane
+    /// whose remember_spool is off. Caller holds mutex_.
+    void forget_lane_spool_locked(int slot_index, const std::string& lane_name);
 
     /// Latest reading per OpenAMS sensor, keyed by lowercased sensor name.
     std::unordered_map<std::string, EnvironmentData> oams_env_;
     /// Lowercased AFC_OpenAMS unit name -> lowercased [AFC_OAMS] name, from configfile.
     std::unordered_map<std::string, std::string> unit_oams_names_;
     std::atomic<bool> has_unit_environment_{false};
-
-    /// True when @p firmware_id is the id the user unlinked from @p slot_index,
-    /// which AFC keeps on a lane with remember_spool and restates on every
-    /// full status snapshot. The unlink lives in the slot's persisted override
-    /// (FilamentSlotOverride::unlinked_spool_id) so it survives a reconnect and
-    /// a restart; any other id ends it. @pre mutex_ held.
-    bool restates_unlinked_spool(int slot_index, int firmware_id);
-
-    /// Record (@p spool_id > 0) or end (0) the unlink on @p slot_index and
-    /// persist it. @pre mutex_ held.
-    void set_unlinked_spool(int slot_index, int spool_id);
 
     /// What AFC itself has said about a lane, per observation source, built up
     /// field by field across status frames and keyed by lane name the way the
@@ -1497,17 +1495,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// Nothing writes an override here, so what this holds is firmware's word
     /// by construction.
     struct LaneFirmwareReadings {
-        ams::Observation cache{ams::ObservationSource::VendorCache};
+        ams::Observation cache{ams::ObservationSource::Firmware};
         ams::Observation metered{ams::ObservationSource::Metered};
     };
     std::unordered_map<std::string, LaneFirmwareReadings> lane_firmware_readings_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What a user's edit declared and this backend wrote back, for the parse
-    // to tell firmware repeating our own SET_COLOR / SET_MATERIAL from a
-    // reading. Keyed by slot index like the guard's other users, and under
-    // the same mutex_ discipline as lane_firmware_readings_ above: both parse
-    // paths and apply_user_edit() run with the lock held.
 
     /// Lanes last seen on each buffer, keyed by buffer name. AFC's buffer status
     /// arrives as a Moonraker delta, so a frame that changes only `state` omits

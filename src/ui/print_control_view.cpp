@@ -25,14 +25,21 @@ ControlButtonView compute_control_button_view(const ControlButtonInputs& in) {
     if (unclaimed) {
         v.stop_route = in.start_sent ? StopRoute::CancelSentStart : StopRoute::RetirePreparing;
     }
+    // A start another app sent is on the printer already, like a sent start of
+    // ours: only a cancel sent there stops it.
+    const bool printer_started =
+        in.printer_announced_start && !in.has_preparing_job && !printer_has_the_job;
+    if (printer_started) {
+        v.stop_route = StopRoute::CancelSentStart;
+    }
 
     // Cancel keeps one promise - the print does not happen - in both
     // architectures. Neither preparing route is gated on the cancel macro:
     // retiring needs none, and refusing a sent start's cancel would leave that
     // start unstoppable from here. A cancel already in flight leaves nothing for
     // a second tap to do.
-    v.stop_enabled =
-        !in.cancel_requested && (unclaimed || (printer_has_the_job && in.cancel_available));
+    v.stop_enabled = !in.cancel_requested &&
+                     (unclaimed || printer_started || (printer_has_the_job && in.cancel_available));
 
     // Pause is disabled for the whole preparing window, including the half where
     // Klipper is already reporting `printing` because pre-print work lives inside

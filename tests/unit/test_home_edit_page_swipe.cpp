@@ -44,6 +44,7 @@
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/scoped_pointer_indev.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/scoped_widget_factory.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -61,6 +62,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "runtime_config.h"
 #include "scope_exit.h"
 #include "setting_group.h"
 #include "theme_manager.h"
@@ -1148,14 +1150,18 @@ class EditHomeFixture : public LVGLTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(EditHomeFixture, "edit mode keeps the carousel swipeable with nothing selected",
-                 "[1638][edit-swipe][home][grid_edit]") {
+TEST_CASE_METHOD(EditHomeFixture,
+                 "edit mode keeps the carousel swipeable; outside it the paging arrows replace it",
+                 "[1638][1978][edit-swipe][home][grid_edit]") {
+    // Test mode builds the panel's paging arrows.
+    const bool arrows = GENERATE(false, true);
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = arrows;
     build_home();
 
-    // Precondition: two real pages resolve the swipe policy to swiping, so the
-    // flag this case checks is one edit mode could take away.
+    // Two real pages page by swipe, unless the arrows are there to page them.
     REQUIRE(carousel_state()->real_page_count == 2);
-    REQUIRE(scroll_live());
+    CHECK(scroll_live() == !arrows);
 
     enter_edit_mode();
 
@@ -1163,11 +1169,17 @@ TEST_CASE_METHOD(EditHomeFixture, "edit mode keeps the carousel swipeable with n
     // empty-area drag can flip pages.
     CHECK(scroll_live());
     CHECK(swipe_policy() == CarouselSwipe::Auto);
+
+    panel().exit_grid_edit_mode();
+    CHECK(scroll_live() == !arrows);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
                  "a single-page home swipes to the next-page slot's +, in edit mode or out of it",
-                 "[1638][edit-swipe][home][grid_edit]") {
+                 "[1638][1978][edit-swipe][home][grid_edit]") {
+    // Test mode builds the paging arrows, which a single page hides.
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = GENERATE(false, true);
     build_home(1, 1);
 
     // The only page has the slot's + tile past it, so the strip swipes.
@@ -3806,23 +3818,49 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(HomePanelTestAccess::edit_mode_active(panel()));
 }
 
-TEST_CASE_METHOD(EditHomeFixture, "the next-page slot draws no delete-page button",
+TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page button",
                  "[1638][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home(); // 'fan' alone on page 1, the last page
     lv_obj_t* fan = widget_on(1, "fan");
-    enter_edit_mode(1);
-    // A config page other than the main page draws it.
-    REQUIRE(GridEditModeTestAccess::delete_page_button(grid()) != nullptr);
+    enter_edit_mode(0);
+    // The main page offers none.
+    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+    show_page(1);
+    // A config page other than the main page offers it.
+    REQUIRE(GridEditModeTestAccess::delete_page_offered());
 
     const SlotDrag drag = drag_onto_slot(fan);
-    CHECK(GridEditModeTestAccess::delete_page_button(grid()) == nullptr);
+    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
 
-    // Ended uncommitted, the drag goes back to page 1, which draws it again.
+    // Ended uncommitted, the drag goes back to page 1, which offers it again.
     lv_indev_reset(nullptr, nullptr);
     indev.release(drag.pointer.x, drag.pointer.y);
     settle();
     REQUIRE(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::delete_page_button(grid()) != nullptr);
+    CHECK(GridEditModeTestAccess::delete_page_offered());
+
+    // Leaving edit mode withdraws it.
+    panel().exit_grid_edit_mode();
+    settle();
+    CHECK_FALSE(GridEditModeTestAccess::delete_page_offered());
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the grid",
+                 "[2023][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
+    build_home();
+    widget_on(1, "fan");
+    enter_edit_mode(1);
+    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+
+    // The shield only draws the lattice; every tile under it stays uncovered.
+    lv_obj_t* shield = GridEditModeTestAccess::shield(grid());
+    REQUIRE(shield != nullptr);
+    CHECK(lv_obj_get_child_count(shield) == 0);
+    CHECK(lv_obj_find_by_name(lv_screen_active(), "edit_delete_page_btn") == nullptr);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
@@ -4401,12 +4439,8 @@ TEST_CASE_METHOD(EditHomeFixture,
     settle();
     show_page(1);
 
-    lv_obj_t* button = GridEditModeTestAccess::delete_page_button(grid());
-    REQUIRE(button != nullptr);
-    lv_point_t b = center_of(button);
-    REQUIRE(lv_indev_search_obj(lv_screen_active(), &b) == button);
-    indev.press(b.x, b.y);
-    indev.release(b.x, b.y);
+    REQUIRE(GridEditModeTestAccess::delete_page_offered());
+    panel().request_delete_edit_page();
     process_lvgl(static_cast<int>(kReadPeriodMs));
 
     // The tap asks, and removes nothing yet. It withdraws the removal's Undo,

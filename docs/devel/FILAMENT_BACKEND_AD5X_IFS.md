@@ -22,6 +22,8 @@ IFS is detected via `filament_switch_sensor _ifs_port_sensor_{1-4}` or `filament
 
 Detection is gated by `!has_mmu_` — if Happy Hare or AFC is already detected, IFS sensors are ignored (priority: HH > AFC > IFS).
 
+Z-Mod's built-in AFC emulation (mod setting `AFC=1`) publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` beside `zmod_color`. Those are Z-Mod's own lane picker in AFC's shape, not the AFC project, so `PrinterDiscovery::parse_objects` hands the printer back to this backend (`has_zmod_afc()` without the Creator 5 changer fingerprint): `zmod_color` and the IFS sensors are there whatever `AFC` says, so the setting changes nothing on screen. Ports past 4 (IFS Jacker) stay unread either way.
+
 ### The standalone IFS module (Forge-X)
 
 The IFS logic was extracted from zmod into a drop-in module (Python plugins plus
@@ -43,7 +45,7 @@ unchanged. `ifs_loaded` overwrites `seated_chan_` directly, and once the module 
 published it, it stays the seated lane on every module frame (`active_channel` included),
 unless a lessWaste/bambufy plugin runs beside the module: its swaps need not run
 `IFS_LOAD`, so that rig keeps following `active_channel`.
-The remembered seated lane (the `lane_data` DB `seated` key) mirrors it instead of
+The remembered seated lane (the `ifs_seated` key in the `helix-screen` namespace) mirrors it instead of
 feeding the cold-boot floor: on the module, `active_channel=0` with a loaded head is the
 normal idle state, not a firmware that forgot its lane (#1897).
 
@@ -317,6 +319,8 @@ marker) as the same kind of direct signal.
 - **Forge-X port:** the `[ifs]` module's wire table (see State Sources). `set_tool_mapping()` validates the parameters and emits `IFS_MAP_TOOL`; it does **not** write the map locally — the module owns the table and the `printer.ifs.tool_map` echo is what promotes a mapping, so a refused write (a lane with no filament) leaves `get_tool_mapping()` reporting what the printer actually has. `reset_tool_mappings()` emits `IFS_MAP_TOOL RESET=1` the same way.
 - **ZMOD + lessWaste/bambufy:** the plugin's `save_variables.<prefix>_tools` table. `set_tool_mapping()` applies the mapping locally and persists it with `_IFS_VARS tools=…` (`build_tool_map_value()` emits the whole 16-entry array — the macro replaces, not merges). This is the long-standing path, unchanged. The plugin contract has no reset verb; `reset_tool_mappings()` answers not supported there.
 
+- **Z-Mod's print start:** where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`: its `server.info` lists `print_start_tools`, or, on builds from before that flag, the built-in AFC is on), it takes the print's map as `printer.print.start`'s `tools` (`"2,,1"`: index the G-code tool, value the 1-based port) and, without it, opens its own colour prompt. `print_start_params()` answers it from the print's full map (`helix::print_start`, `include/print_start_params.h`), and it alone readies `remap_ready()`: a pick lands in that print, with no table to write, so `owns_tool_mapping_table()` stays with the two adapters above. With the built-in AFC on (`has_zmod_afc()`) each pick also sends `SET_MAP LANE=lane<port> MAP=T<n>`, which keeps Z-Mod's AFC lane map (what Fluidd and Mainsail show) in step; it does not route the print, and with `AFC=0` there is no `SET_MAP` to send. A Z-Mod build that advertises neither keeps its own prompt.
+
 When both signals exist (stale plugin rows surviving a firmware swap), the wire table wins — it is live firmware state — and the detection logs that precedence rather than silently dropping the plugin signal.
 
 **Variable persistence**: Use `_IFS_VARS` macro (not raw `SAVE_VARIABLE`) to persist slot data. `_IFS_VARS` updates both in-memory gcode variables AND `save_variables` with the correct prefix (`less_waste_*` for lessWaste, `bambufy_*` for bambufy). `SHOW=0` suppresses the interactive dialog. Example: `_IFS_VARS colors="['FF0000', '00FF00']" SHOW=0`. **The macro ships with those two plugins only** — stock zMod does not define `_IFS_VARS` at all, which is why HelixScreen cannot persist UI-side slot edits there (see the "Stock lacks this" row above).
@@ -382,7 +386,7 @@ sensor; `unload_lane_decision_locked()` feeds it the live state. Top-down:
 
 | # | State | Verdict | What happens |
 |---|---|---|---|
-| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `lane_data` DB `seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
+| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `helix-screen` `ifs_seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
 | 2 | Module only: `ifs_at_hub = n` and port n reads present | `UnloadLane` | `IFS_UNLOAD SLOT=n`, no question. Only one lane fits in the shared path, and `IFS_LOAD` claims it before the feed, so a load that failed after the feed leaves exactly this record |
 | 3 | Exactly one lane reads present | `ConfirmLane` | The lane picker with that one lane. Never dispatched on the inference alone: a runout tail or filament fed from outside the IFS breaks it |
 | 4 | Several lanes read present | `PickLane` | The lane picker |
@@ -484,13 +488,29 @@ Positive switch evidence is required to claim empty, because the errors are not 
 
 > **The switch pair is a proxy for a sensor we do not read.** The firmware's actual gate is `get_extruder_sensor()` (zmod_ifs.py:1149), an ADC read of `temperature_sensor filamentValue` (`result = value >= 0.72` when `value > 0.3`, `True` otherwise — a missing reading counts as loaded, zmod_ifs.py:353-361). HelixScreen subscribes to it nowhere. Subscribing is the proper fix; it needs a session on the fleet's AD5X rig (commissioned 2026-08-23) to confirm the object is published — no `ad5x` mock profile exists.
 
+#### Lane identity: what the firmware holds and what `lane_data` holds
+
+Colour and type are the firmware's: `IFS_SET_MATERIAL` on the module, otherwise
+`Adventurer5M.json` (`write_adventurer_json`) plus the plugin's `_IFS_VARS colors=`/`types=`
+on a lessWaste/bambufy rig. HelixScreen is the `lane_data` writer here (`lane<n>`, writer
+`helixscreen`): an edit puts brand, spool name and id, weights, colour name and
+temperatures in the record, and never the edit's colour or type. The record copies colour
+and type from the firmware when a firmware reading changes on a present lane
+(`check_external_color_change` / `check_external_type_change` →
+`sync_override_to_firmware_locked`), for OrcaSlicer and other `lane_data` readers; that
+copy also triggers the `_IFS_VARS` push that keeps the plugin in step with an LCD edit.
+Nothing is copied before the first record read lands. The lane shows the edit (a pending
+write) until the firmware echoes it; a type the firmware spells its own way (`Silk PLA`
+→ `SILK`) waits for that spelling. An LCD, Mainsail or `CHANGE_ZCOLOR` edit is simply
+the firmware's new reading and wins. A weight persist writes only the record.
+
 #### External-change triggers (the gcode-response listener)
 
 `register_zcolor_listener()` subscribes to `notify_gcode_response`; `on_gcode_response_line()` schedules a `GET_ZCOLOR` re-read when it sees an externally-driven change (commit `cafcff3ad` added the bare-`Extruder:` trigger). The watched signals:
 
 | Token in stream | Why it fires | Notes |
 |-----------------|--------------|-------|
-| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | `CHANGE_ZCOLOR SLOT=N` carrying a real locked override also clears that stale override so the new firmware color wins (#981). |
+| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | The firmware holds colour and type, so the edit is the lane's truth (#981): its `TYPE=`/`HEX=` land in the firmware caches at once and the `lane_data` record copies them. |
 | bare `Extruder: <N>` | zmod's `_SET_EXTRUDER_SLOT` (zmod_color.py `cmd_SET_EXTRUDER_SLOT`) emits `Extruder: {zslot}` via `respond_raw` at the channel-commit step near the **end** of an operation. This is the marker that catches **external unloads/loads done via zmod's own color macro**, where the stream carries no `RUN_ZCOLOR`/`CHANGE_ZCOLOR`. | Matched by a **strict** regex (`^\s*(?://\s*)?Extruder:\s*\d+\s*$`). |
 
 **Why `IN_ZCOLOR` is NOT watched.** An external unload via zmod's color macro emits `IN_ZCOLOR SLOT=N NAPR=0/1` (load/unload) — but the literal `IN_ZCOLOR` token only appears in the **dialog button *definition* echo** (`action:prompt_button Unload|IN_ZCOLOR SLOT=N NAPR=1…`) at *prompt-render* time, **not** when the unload actually runs. Watching it would false-fire on dialog-open and still miss the real unload. The bare `Extruder: <N>` channel-commit marker is the reliable terminal signal instead.

@@ -2,6 +2,12 @@
 # Shared test helpers for bats tests
 # Source this from setup() in each .bats file
 
+# A test of test-host-run.sh must not re-exec it under the real caffeinate.
+export HELIX_TEST_AWAKE=1
+
+# Stubbed ssh runs test-host-run.sh's load check here, on a machine that may be busy.
+export HELIX_TEST_MAX_LOAD=0
+
 # Stub out logging functions (not available outside installer)
 log_info() { :; }
 log_warn() { :; }
@@ -841,4 +847,25 @@ run_mk_fragment() {
     grep -q "^$3:" "$dir/Makefile" || { echo "no $3 recipe in the fragment" >&2; return 1; }
     shift 3
     (cd "$dir" && make --no-print-directory -f Makefile "$@")
+}
+
+# A stand-in for another process holding a flock: takes <lock file> on fd 9,
+# writes <holder format> into it (its %s is the test's pid), touches
+# <ready marker> and holds the lock until killed. Prints the holder's pid.
+#
+# Killing that pid releases the lock and ends the holder's sleep with it.
+# Neither keeps bats' output fd 3 open, which bats waits on before it ends
+# the file, so a holder never adds its sleep to the file's run time.
+hold_flock() { # <lock file> <ready marker> <holder format>
+    (
+        exec 9>>"$1"
+        flock 9
+        # shellcheck disable=SC2059
+        printf "$3\n" "$$" >&9
+        sleep 30 9>&- &
+        trap 'kill $! 2>/dev/null; exit 0' TERM
+        touch "$2"
+        wait
+    ) >/dev/null 2>&1 3>&- &
+    echo $!
 }

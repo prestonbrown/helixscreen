@@ -174,6 +174,7 @@ void MoonrakerManager::shutdown() {
     m_print_start_phase_observer.release();
     m_print_klippy_state_observer.release();
     m_preparing_epoch_observer.release();
+    m_print_start_profile_observer.release();
     m_print_bed_target_fallback_observer.release();
     m_print_ext_target_fallback_observer.release();
     m_print_homed_axes_fallback_observer.release();
@@ -727,22 +728,6 @@ void MoonrakerManager::init_print_start_collector() {
     release_print_start_collector();
     m_print_start_collector = PrintStartCollector::create(*m_client, get_printer_state());
 
-    // Load print start profile based on detected printer type
-    std::string printer_type = get_printer_state().profile_state().printer_type();
-    if (!printer_type.empty()) {
-        std::string profile_name = PrinterDetector::get_print_start_profile(printer_type);
-        if (!profile_name.empty()) {
-            auto profile = PrintStartProfile::load(profile_name);
-            m_print_start_collector->set_profile(profile);
-            spdlog::debug("[MoonrakerManager] Loaded print start profile '{}' for printer '{}'",
-                          profile_name, printer_type);
-        } else {
-            spdlog::debug(
-                "[MoonrakerManager] No print start profile for printer '{}', using default",
-                printer_type);
-        }
-    }
-
     // Bed-mesh presence verdicts feed the collector: a mesh cleared during
     // nozzle cleaning marks the start of leveling work that Creality-class
     // firmware does not echo to gcode_response. The observer fires on the
@@ -772,6 +757,34 @@ void MoonrakerManager::init_print_start_collector() {
     // This avoids the capturing lambda issue with ObserverGuard
     static std::weak_ptr<PrintStartCollector> s_collector;
     s_collector = m_print_start_collector;
+
+    // The profile follows the printer type, which discovery can settle after the
+    // collector exists. An idle collector needs it to recognise a start the
+    // printer announces (#2054); a running one takes it when the run ends.
+    m_print_start_profile_observer = ObserverGuard(
+        get_printer_state().profile_state().get_printer_type_subject(),
+        [](lv_observer_t*, lv_subject_t*) {
+            auto collector = s_collector.lock();
+            if (!collector) {
+                return;
+            }
+            const std::string printer_type = get_printer_state().profile_state().printer_type();
+            if (printer_type.empty()) {
+                return;
+            }
+            const std::string profile_name = PrinterDetector::get_print_start_profile(printer_type);
+            if (profile_name.empty()) {
+                spdlog::debug(
+                    "[MoonrakerManager] No print start profile for printer '{}', using default",
+                    printer_type);
+                collector->set_profile(nullptr);
+                return;
+            }
+            collector->set_profile(PrintStartProfile::load(profile_name));
+            spdlog::debug("[MoonrakerManager] Loaded print start profile '{}' for printer '{}'",
+                          profile_name, printer_type);
+        },
+        nullptr);
 
     // Track previous state to detect TRANSITIONS to PRINTING, not just current state.
     // This prevents false triggers when the app starts while a print is already running.
@@ -842,9 +855,11 @@ void MoonrakerManager::init_print_start_collector() {
                                              current_print_duration)) {
                 if (!collector->is_active()) {
                     collector->start();
-                    collector->enable_fallbacks();
                     spdlog::info("[MoonrakerManager] PRINT_START collector started");
                 }
+                // A printer-announced start arms with fallbacks off: they finish
+                // a pre-print the printer is running, and until now it held no job.
+                collector->enable_fallbacks();
                 s_arming.consume_initial_transition();
                 // RAW_PRINT_STATE_OK: this whole dispatch - the collector
                 // measures the pre-print window, so it arms and completes on the
@@ -869,7 +884,8 @@ void MoonrakerManager::init_print_start_collector() {
                              current_progress);
                 s_arming.consume_initial_transition();
             } else if (should_stop_print_collector(
-                           new_state, get_printer_state().print_state().has_preparing_job())) {
+                           new_state, get_printer_state().print_state().has_preparing_job(),
+                           get_printer_state().print_state().printer_side_pre_start())) {
                 // No longer printing - stop collector if active. A live
                 // preparing job means this is the transient hop INTO a print we
                 // initiated, not the end of one.
@@ -948,7 +964,7 @@ void MoonrakerManager::init_print_start_collector() {
             if (!collector || !collector->is_active())
                 return;
             auto klippy = static_cast<KlippyState>(lv_subject_get_int(subject));
-            if (should_stop_collector_on_klippy_state(klippy)) {
+            if (should_stop_collector_on_klippy_state(klippy, collector->armed_by_printer())) {
                 collector->stop();
                 spdlog::info("[MoonrakerManager] PRINT_START collector stopped (klippy state={})",
                              static_cast<int>(klippy));

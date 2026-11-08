@@ -253,6 +253,14 @@ ScanTrigger classify_scan_reply(const std::string& reply) {
         return ScanTrigger::AlreadyBusy;
     return ScanTrigger::Failed;
 }
+
+CtrlRequestOutcome classify_ctrl_request(int wpa_ctrl_rc) {
+    if (wpa_ctrl_rc == 0)
+        return CtrlRequestOutcome::Reply;
+    if (wpa_ctrl_rc == -2)
+        return CtrlRequestOutcome::TimedOut;
+    return CtrlRequestOutcome::Failed;
+}
 } // namespace helix::wifi::detail
 
 /// The process table the daemon scans read. HELIX_WPA_PROC_ROOT is the test
@@ -481,6 +489,7 @@ WifiBackendWpaSupplicant::~WifiBackendWpaSupplicant() {
 }
 
 WiFiError WifiBackendWpaSupplicant::start() {
+    std::lock_guard<std::mutex> start_lock(start_mutex_);
     spdlog::debug("[WifiBackend] Starting wpa_supplicant backend...");
     shutdown_requested_ = false;
 
@@ -978,15 +987,23 @@ void WifiBackendWpaSupplicant::init_wpa() {
     }
 
     // Open control connection (for sending commands)
-    if (conn == nullptr) {
-        conn = wpa_ctrl_open2(wpa_socket.c_str(), cli_dir);
+    bool ctrl_open = false;
+    {
+        std::lock_guard<std::mutex> lock(cmd_mutex_);
         if (conn == nullptr) {
-            LOG_ERROR_INTERNAL("Failed to open control connection to {}", wpa_socket);
-            dispatch_event("INIT_FAILED", "Failed to connect to wpa_supplicant");
-            signal_init_complete();
-            return;
+            conn = wpa_ctrl_open2(wpa_socket.c_str(), cli_dir);
+            if (conn != nullptr)
+                spdlog::debug("[WifiBackend] Opened control connection");
         }
-        spdlog::debug("[WifiBackend] Opened control connection");
+        ctrl_open = conn != nullptr;
+        ctrl_socket_path_ = wpa_socket;
+        ctrl_client_dir_ = cli_dir ? cli_dir : "";
+    }
+    if (!ctrl_open) {
+        LOG_ERROR_INTERNAL("Failed to open control connection to {}", wpa_socket);
+        dispatch_event("INIT_FAILED", "Failed to connect to wpa_supplicant");
+        signal_init_complete();
+        return;
     }
 
     // Check for shutdown before opening monitor connection
@@ -1304,6 +1321,11 @@ void WifiBackendWpaSupplicant::_handle_wpa_events(hio_t* io, void* data, int rea
     }
 }
 
+/// Upper bound on stale datagrams discarded before one request. wpa_supplicant
+/// owes at most one reply per timed-out request, so a handful covers any real
+/// backlog; the bound keeps a misbehaving peer from holding the command lock.
+static constexpr int kMaxStaleReplies = 16;
+
 // Helper function to sanitize commands for logging (remove passwords)
 static std::string sanitize_command_for_log(const std::string& cmd) {
     // Check if command contains password
@@ -1312,6 +1334,23 @@ static std::string sanitize_command_for_log(const std::string& cmd) {
         return cmd.substr(0, psk_pos + 5) + "\"[REDACTED]\"";
     }
     return cmd;
+}
+
+void WifiBackendWpaSupplicant::reopen_ctrl_locked() {
+    if (ctrl_socket_path_.empty())
+        return;
+    const char* cli_dir = ctrl_client_dir_.empty() ? nullptr : ctrl_client_dir_.c_str();
+    struct wpa_ctrl* fresh = wpa_ctrl_open2(ctrl_socket_path_.c_str(), cli_dir);
+    if (fresh == nullptr) {
+        LOG_WARN_INTERNAL("Could not reopen the control connection to {} after a timeout: {}",
+                          ctrl_socket_path_, strerror(errno));
+        return;
+    }
+    if (conn)
+        wpa_ctrl_close(conn);
+    conn = fresh;
+    spdlog::info("[WifiBackend] Reopened the wpa_supplicant control connection after a "
+                 "timed-out request");
 }
 
 std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
@@ -1336,9 +1375,23 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
     std::string safe_cmd = sanitize_command_for_log(cmd);
     spdlog::trace("[WifiBackend] Sending command: {}", safe_cmd);
 
+    // Anything already queued on this connection was sent before this request,
+    // so it cannot be its reply: a late answer to an earlier request, or a
+    // stray datagram. Left in place, wpa_ctrl_request() would return it.
+    for (int dropped = 0; dropped < kMaxStaleReplies && wpa_ctrl_pending(conn) > 0; ++dropped) {
+        size_t stale_len = sizeof(resp) - 1;
+        if (wpa_ctrl_recv(conn, resp, &stale_len) != 0)
+            break;
+        spdlog::debug("[WifiBackend] Discarded a stale control reply ({} bytes) before {}",
+                      stale_len, safe_cmd);
+    }
+
     int result = wpa_ctrl_request(conn, cmd.c_str(), cmd.length(), resp, &len, nullptr);
-    if (result != 0) {
+    const auto outcome = helix::wifi::detail::classify_ctrl_request(result);
+    if (outcome != helix::wifi::detail::CtrlRequestOutcome::Reply) {
         LOG_ERROR_INTERNAL("Command failed: {} (error code: {})", safe_cmd, result);
+        if (outcome == helix::wifi::detail::CtrlRequestOutcome::TimedOut)
+            reopen_ctrl_locked();
         return "";
     }
 

@@ -169,6 +169,11 @@ void MoonrakerClient::start_klippy_state_poll() {
     spdlog::debug("[Moonraker Client] Polling printer.info until Klippy's state settles");
 }
 
+void MoonrakerClient::poll_klippy_state_until_settled() {
+    start_klippy_state_poll();
+    poll_klippy_state();
+}
+
 void MoonrakerClient::stop_klippy_state_poll(const char* why) {
     if (klippy_state_poll_->started_at.exchange(0) == 0) {
         return;
@@ -184,7 +189,7 @@ void MoonrakerClient::poll_klippy_state() {
         return;
     }
     if (const long long elapsed = steady_ms_since(started); elapsed > kKlippyStatePollMaxMs) {
-        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after disconnect — "
+        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after polling began — "
                      "no longer polling printer.info",
                      elapsed);
         stop_klippy_state_poll("unsettled");
@@ -218,8 +223,7 @@ void MoonrakerClient::poll_klippy_state() {
             }
             poll->started_at.store(0);
 
-            spdlog::info("[Moonraker Client] Klippy state after disconnect: '{}' ({})", state,
-                         message);
+            spdlog::info("[Moonraker Client] Klippy state settled: '{}' ({})", state, message);
             json webhooks = {{"state", state}, {"state_message", message}};
             const uint64_t epoch = get_printer_state().network_state().klippy_epoch();
             helix::ui::queue_update("MoonrakerClient::klippy_state_poll", [webhooks, epoch]() {
@@ -672,35 +676,18 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
             spdlog::error("[Moonraker Client] Message too large: {} bytes (max: {})", msg.size(),
                           kMaxMessageSize);
 
-            // Emit event - this indicates a protocol problem
+            // The dropped reply is reported, so a request that then fails has a cause on screen.
             emit_event(MoonrakerEvent::translatable(
                 MoonrakerEventType::MESSAGE_OVERSIZED,
                 TR_NOOP("Received oversized data from printer ({} bytes). "
                         "This may indicate a communication error."),
                 {std::to_string(msg.size())}, true));
 
-            // Deferred, not inline. disconnect() takes callback_lifecycle_mutex_
-            // exclusively, and the onmessage trampoline that called us still holds
-            // that same mutex SHARED on this very thread. std::shared_mutex is
-            // neither recursive nor upgradeable, so acquiring exclusive here is an
-            // unconditional self-deadlock of the event loop — the socket stops
-            // being serviced and every later request times out with no clue why.
-            //
-            // queueInLoop() rather than runInLoop(): the latter runs inline when
-            // already on the loop thread, which is exactly the case here and would
-            // reproduce the deadlock. Queuing lands it on the next loop iteration,
-            // after the trampoline has returned and dropped its shared lock.
-            if (auto l = loop()) {
-                l->queueInLoop([this, dg = std::weak_ptr<bool>(destruction_guard_)]() {
-                    // Same liveness contract as the trampolines: a null lock() means
-                    // the destructor already ran, so never touch `this`.
-                    auto live = dg.lock();
-                    if (!live || is_destroying_.load(std::memory_order_acquire)) {
-                        return;
-                    }
-                    disconnect();
-                });
-            }
+            // Drop the frame and keep the connection. A frame is complete when it
+            // arrives, so the stream stays in sync, and the oversized one is usually
+            // Moonraker's valid reply to a large request: the request it answered
+            // times out and fails like any other. Disconnecting here would also
+            // switch off auto-reconnect, leaving the screen offline until restart.
             return;
         }
 

@@ -465,9 +465,7 @@ AmsError AmsBackendMock::start() {
 void AmsBackendMock::publish_lane_observations() {
     struct Reading {
         int slot_index;
-        SlotStatus status;
-        uint32_t color_rgb;
-        std::string material;
+        SlotInfo info;
     };
 
     std::vector<Reading> readings;
@@ -476,32 +474,39 @@ void AmsBackendMock::publish_lane_observations() {
         const int count = slots_.slot_count();
         readings.reserve(static_cast<size_t>(std::max(0, count)));
         for (int i = 0; i < count; ++i) {
-            const auto* entry = slots_.get(i);
-            if (!entry) {
-                continue;
+            if (const auto* entry = slots_.get(i)) {
+                readings.push_back({i, entry->info});
             }
-            readings.push_back(
-                {i, entry->info.status, entry->info.color_rgb, entry->info.material});
         }
     }
 
-    // Outside the lock, like every other event this backend publishes.
+    // Outside the lock, like every other event this backend publishes. The
+    // simulated firmware holds every identity field a write gives it, so its
+    // reading is also the echo of an edit.
     for (const auto& r : readings) {
         // A record with present unset is the machine declining to state, which
         // retracts whatever an earlier frame established; the other backends
         // file UNKNOWN the same way.
         helix::ams::Observation sensed(helix::ams::ObservationSource::Sensed);
-        sensed.present = slot_status_reports_filament(r.status);
+        sensed.present = slot_status_reports_filament(r.info.status);
         helix::ams::ingest(lane_id(r.slot_index), sensed);
 
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
-        if (!r.material.empty()) {
-            cache.material = r.material;
+        helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
+        const auto text = [](std::optional<std::string>& field, const std::string& value) {
+            if (!value.empty()) {
+                field = value;
+            }
+        };
+        text(firmware.material, r.info.material);
+        text(firmware.brand, r.info.brand);
+        text(firmware.spool_name, r.info.spool_name);
+        if (helix::ams::is_declarable_color(r.info.color_rgb)) {
+            firmware.color_rgb = r.info.color_rgb;
         }
-        if (helix::ams::is_declarable_color(r.color_rgb)) {
-            cache.color_rgb = r.color_rgb;
+        if (r.info.spoolman_id > 0) {
+            firmware.spoolman_id = r.info.spoolman_id;
         }
-        helix::ams::ingest(lane_id(r.slot_index), cache);
+        helix::ams::ingest(lane_id(r.slot_index), firmware);
     }
 }
 
@@ -891,7 +896,6 @@ BackendTraits AmsBackendMock::traits() const {
     t.tracks_consumption_natively = tracks_consumption_natively_;
     // No firmware stands behind the mock's slot table, so nothing it is told
     // survives a restart: ToolState has to save the assignments itself.
-    t.has_firmware_spool_persistence = false;
     // Environment data is faked for every persona (HELIX_MOCK_AMS_ENV) so the
     // environment UI is drivable in --test whatever the emulated firmware has.
     // An empty mode resolves to "dryer" or "passive", both of which have sensors.
@@ -1276,21 +1280,46 @@ AmsError AmsBackendMock::check_all_gates() {
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMock::apply_user_edit(int slot_index, const SlotInfo& info,
-                                         const helix::ams::Observation& /*declared*/) {
-    return write_slot(slot_index, info);
+AmsError AmsBackendMock::apply_user_edit(int slot_index, const SlotInfo& info) {
+    AmsError err = write_slot(slot_index, info);
+    if (err.success()) {
+        // What the simulated firmware does not hold (a colour's name, the
+        // catalog pick, Spoolman's other ids, weights) lands in a lane record,
+        // the way a record-backed printer keeps it, so every edited field
+        // echoes and the edit's Pending record retires.
+        helix::ams::ingest(lane_id(slot_index),
+                           helix::ams::record_observation(
+                               helix::ams::user_override_from_slot_info(info, nullptr)));
+    }
+    return err;
 }
 
 void AmsBackendMock::clear_slot_override(int slot_index) {
     // The slot table was wiped by the edit this clear rides behind; what can
-    // still outlive it is the lane's user rung, so the clear resets the lane
+    // still outlive it is the lane's pending edit, so the clear resets the lane
     // to machine readings and lets the resync announce the slot.
     helix::ams::reset_lane_to_machine_readings(lane_id(slot_index));
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
-AmsError AmsBackendMock::sync_external_identity(int slot_index, const SlotInfo& info) {
-    return write_slot(slot_index, info);
+void AmsBackendMock::update_slot_weight_impl(int slot_index, float remaining_weight_g,
+                                             float total_weight_g, bool persist) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto* entry = slots_.get_mut(slot_index);
+        if (!entry) {
+            return;
+        }
+        entry->info.remaining_weight_g = remaining_weight_g;
+        if (total_weight_g >= 0.0f) {
+            entry->info.total_weight_g = total_weight_g;
+        }
+    }
+    publish_lane_observations();
+    if (persist) {
+        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 AmsError AmsBackendMock::write_slot(int slot_index, const SlotInfo& info) {
@@ -1341,6 +1370,7 @@ AmsError AmsBackendMock::write_slot(int slot_index, const SlotInfo& info) {
         spdlog::trace("[AmsBackendMock] Updated slot {} info", slot_index);
     }
 
+    publish_lane_observations();
     // Emit event OUTSIDE the lock to avoid deadlock
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
@@ -2367,14 +2397,9 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             entry->info.slot_index = i;
             entry->info.global_index = i;
             entry->info.material = d.material;
-            // No brand: AFC does not report a vendor. read_vendor() in
-            // ams_backend_afc.cpp looks for vendor_name/spool_vendor/vendor/brand,
-            // but upstream AFC #808 has not shipped (#833 is the PR), so the
-            // payload never carries any of them and a real lane's brand stays
-            // empty unless the user sets an override. The vendor in sample_data is
-            // what the Spoolman identity cache supplies for the linked lanes, not
-            // what firmware reports -- seeding it onto the slot made mock mode
-            // render a brand real hardware never produces, which is what hid #1264.
+            // No brand: the simulated AFC reports no spool_vendor. The vendor in
+            // sample_data is what Spoolman supplies for the linked lanes, not
+            // what firmware reports (#1264).
             entry->info.color_rgb = d.color;
             entry->info.color_name = d.color_name;
             entry->info.status = (i == 0) ? SlotStatus::LOADED : d.status;
@@ -4233,6 +4258,26 @@ void AmsBackendMock::set_firmware_picks_lanes_at_print(bool picks) {
 bool AmsBackendMock::firmware_picks_lanes_at_print() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return firmware_picks_lanes_at_print_;
+}
+
+void AmsBackendMock::set_print_start_takes_tool_slots(bool takes) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    print_start_takes_tool_slots_ = takes;
+}
+
+helix::PrintStartParams
+AmsBackendMock::print_start_params(const std::map<int, int>& tool_slots) const {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!print_start_takes_tool_slots_) {
+            return {};
+        }
+    }
+    std::map<int, int> ports;
+    for (const auto& [tool, slot] : tool_slots) {
+        ports[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based port
+    }
+    return helix::print_start::tool_slot_params(ports);
 }
 
 void AmsBackendMock::set_remap_ready(bool ready) {

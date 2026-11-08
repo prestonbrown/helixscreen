@@ -38,7 +38,7 @@ void SoundSequencer::stop() {
     queue_cv_.notify_one();
 }
 
-void SoundSequencer::set_external_tick(std::function<void(float dt_ms)> fn) {
+void SoundSequencer::set_external_tick(std::function<bool(float dt_ms)> fn) {
     // From inside the callback this would wait on the call it is part of.
     if (std::this_thread::get_id() == loop_thread_id_.load()) {
         spdlog::error(
@@ -187,8 +187,8 @@ void SoundSequencer::sequencer_loop() {
                 // Held across the call so set_external_tick() cannot return, and
                 // its caller free what the callback points at, mid-tick.
                 std::lock_guard<std::mutex> lock(external_tick_mutex_);
-                if (external_tick_) {
-                    external_tick_(dt_ms);
+                if (external_tick_ && !external_tick_(dt_ms)) {
+                    external_tick_ = nullptr;
                 }
             }
             if (playing_.load()) {

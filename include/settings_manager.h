@@ -402,27 +402,6 @@ class SettingsManager {
     }
 
     // =========================================================================
-    // FILAMENT SETTINGS (owned by SettingsManager — AMS types dependency)
-    // =========================================================================
-
-    /**
-     * @brief Get external spool info (bypass/direct spool)
-     * @return SlotInfo with external spool data, or nullopt if not set
-     */
-    std::optional<SlotInfo> get_external_spool_info() const;
-
-    /**
-     * @brief Set external spool info (bypass/direct spool)
-     * @param info SlotInfo with filament data (slot_index forced to -2)
-     */
-    void set_external_spool_info(const SlotInfo& info);
-
-    /**
-     * @brief Clear external spool info (back to unassigned)
-     */
-    void clear_external_spool_info();
-
-    // =========================================================================
     // SUBJECT ACCESSORS (for XML binding) — owned subjects only
     // =========================================================================
 
@@ -591,11 +570,9 @@ class SettingsManager {
     /**
      * @brief Keep Spoolman spool info on a slot the firmware reports as ejected.
      *
-     * classify_binding() arms its eject verdict only on backends whose
-     * firmware reports spool ids (AFC, Happy Hare): there, firmware id 0/null
-     * means the spool was ejected. This setting decides whether the lane keeps
-     * its declared identity anyway. Default true: retention is the designed
-     * behavior, and disabling it starts an ejected lane fresh.
+     * Decides whether a lane keeps its identity when its spool is ejected.
+     * Default true: retention is the designed behavior, and disabling it
+     * starts an ejected lane fresh.
      * Per-printer setting.
      */
     bool get_ams_keep_spool_info_on_eject() const {
@@ -652,20 +629,6 @@ class SettingsManager {
     void set_ams_force_bypass_controls(bool enabled) {
         settings_.set(Key::AmsForceBypassControls, enabled);
     }
-
-    /**
-     * @brief Whether bypass was declared on a system with no firmware bypass
-     *        command (per-printer, backend-owned).
-     *
-     * Persists the user's bypass toggle for backends whose firmware cannot
-     * hold that state itself — today only the stock CFS dialect (its
-     * BOX_ENABLE_CFS_PRINT stand-down persists in the box, but HelixScreen's
-     * declaration is ours to remember across restarts). Not a user setting;
-     * no subject — read once at backend start, written on the toggle.
-     */
-    bool get_bypass_declared() const;
-    /** @brief Persist the bypass declaration (see get_bypass_declared) */
-    void set_bypass_declared(bool declared);
 
     /** @brief Force-bypass-controls subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_ams_force_bypass_controls() {

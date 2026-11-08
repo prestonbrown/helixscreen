@@ -5202,3 +5202,91 @@ TEST_CASE_METHOD(HelixTestFixture,
           std::vector<helix::PrintStartPhase>{helix::PrintStartPhase::BED_MESH,
                                               helix::PrintStartPhase::PURGING});
 }
+
+TEST_CASE_METHOD(
+    HelixTestFixture,
+    "PrintPreparationManager: a start the plugin rewrites carries the print's tool map",
+    "[print_preparation][plugin_server_edits][2038]") {
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+    state.set_helix_plugin_installed(true);
+
+    const std::string transport =
+        GENERATE(std::string("modified"), std::string("edited"), std::string("edit refused"));
+    CAPTURE(transport);
+    if (transport != "modified") {
+        PluginFeatureEntry entry;
+        entry.version = gcode::kServerEditsMinVersion;
+        entry.available = true;
+        entry.enabled = true;
+        state.plugin_status_state().set_features({{gcode::kServerEditsFeature, entry}});
+    }
+    if (transport == "edit refused") {
+        api.job_mock().mock_edited_print_error(MoonrakerError::from_json_rpc(
+            {{"code", 503}, {"message", "Feature unavailable"}}, "server.helix.print_edited"));
+    }
+    drain_until_quiet();
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    // The file meshes the bed itself; turning that off makes the start rewrite it.
+    const auto scan =
+        gcode::GCodeOpsDetector().scan_file(std::string("assets/test_gcodes/") + kRemapFixture);
+    REQUIRE(scan.has_operation(gcode::OperationType::BED_MESH));
+    manager.set_cached_scan_result(scan, kRemapFixture);
+    manager.set_option_state_provider(
+        [](const std::string& id) { return id == "bed_mesh" ? 0 : -1; });
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+
+    const helix::PrintStartParams tools{{"tools", "2,,1"}};
+    manager.start_print(kRemapFixture, "", []() {}, [](bool, const std::string&) {}, "", tools);
+    drain_until_quiet();
+
+    const auto& modified = api.job_mock().modified_prints();
+    const auto& edited = api.job_mock().edited_prints();
+    if (transport == "modified") {
+        REQUIRE(modified.size() == 1);
+        CHECK(edited.empty());
+        CHECK(modified[0].extra_params == tools);
+    } else if (transport == "edited") {
+        REQUIRE(edited.size() == 1);
+        CHECK(modified.empty());
+        CHECK(edited[0].extra_params == tools);
+    } else {
+        // Refused before anything ran: the screen's own rewrite starts it, map and all.
+        REQUIRE(edited.size() == 1);
+        CHECK(edited[0].extra_params == tools);
+        REQUIRE(modified.size() == 1);
+        CHECK(modified[0].extra_params == tools);
+    }
+    manager.set_dependencies(nullptr, nullptr);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a remap sends none of an earlier start's parameters",
+                 "[print_preparation][remap]") {
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+    PrintPreparationManagerTestAccess::set_start_params(manager, {{"plateindex", "3"}});
+
+    manager.modify_and_print_with_remap(kRemapFixture, {{1, 2}}, nullptr);
+    drain_until_quiet();
+
+    const auto& starts = api.job_mock().modified_prints();
+    REQUIRE(starts.size() == 1);
+    CHECK(starts[0].extra_params.count("plateindex") == 0);
+}

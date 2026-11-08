@@ -152,6 +152,8 @@ struct ToolChangerRig {
         hw.parse_objects(objects);
         ToolState::instance().init_tools(hw);
         REQUIRE(ToolState::instance().tool_count() == heads);
+        // The changer's first status frame: T0 is on the carriage.
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
 
         auto owned = std::make_unique<GateBackend>(slots > 0 ? slots : heads);
         owned->set_tool_changer_mode(true);

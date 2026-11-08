@@ -326,6 +326,7 @@ TEST_CASE("Runtime artifacts are never extracted from the package", "[android][a
     CHECK(is_non_shippable_config_file("telemetry_device.json"));
     CHECK(is_non_shippable_config_file("telemetry_queue.json"));
     CHECK(is_non_shippable_config_file(".helix-screen.lock"));
+    CHECK(is_non_shippable_config_file("pending_remap.json"));
 }
 
 TEST_CASE("Shipped config seeds still extract", "[android][asset][config]") {

@@ -707,7 +707,7 @@ TEST_CASE("AD5X IFS module writes the remembered lane only when ifs_loaded chang
     Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
     const int posts = mock_printer.client.call_count("server.database.post_item");
     REQUIRE(posts == 1);
-    CHECK(mock_printer.client.mock_db_get("lane_data", "seated") == json(1));
+    CHECK(mock_printer.client.mock_db_get("helix-screen", "ifs_seated") == json(1));
 
     for (int i = 0; i < 5; ++i) {
         Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2}));

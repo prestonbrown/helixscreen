@@ -195,6 +195,7 @@ void LedController::deinit() {
     // and shutdown — a rediscovery re-runs init() alone and must NOT re-arm it.
     startup_preference_applied_ = false;
     wled_discovery_pending_ = false;
+    lights_disabled_ = false;
 
     spdlog::info("[LedController] Deinitialized");
 }
@@ -2075,16 +2076,21 @@ void LedController::apply_startup_preference(const std::vector<std::string>& tar
     set_power(targets, true, /*silent=*/true);
 }
 
+void LedController::set_lights_disabled(bool disabled) {
+    lights_disabled_ = disabled;
+    publish_controllable_state();
+}
+
 void LedController::publish_controllable_state() {
     if (!version_subject_initialized_) {
         return;
     }
-    int desired = chamber_light().empty() ? 0 : 1;
+    int desired = (lights_disabled_ || chamber_light().empty()) ? 0 : 1;
     if (lv_subject_get_int(&led_controllable_) != desired) {
         lv_subject_set_int(&led_controllable_, desired);
         spdlog::debug("[LedController] led_controllable={}", desired);
     }
-    const int any = all_devices().empty() ? 0 : 1;
+    const int any = (lights_disabled_ || all_devices().empty()) ? 0 : 1;
     if (lv_subject_get_int(&led_has_devices_) != any) {
         lv_subject_set_int(&led_has_devices_, any);
         spdlog::debug("[LedController] led_has_devices={}", any);

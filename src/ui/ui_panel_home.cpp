@@ -273,12 +273,16 @@ void HomePanel::apply_edit_swipe_policy() {
         return;
     }
     using helix::ui::CarouselSwipe;
-    // A gesture or the open widget catalog holds the page; otherwise the pages
-    // swipe by their count, in edit mode as out of it.
+    // A gesture or the open widget catalog holds the page. Outside edit mode,
+    // shown paging arrows are the only way to turn a page, so a press on a
+    // tile never drifts into a page change (prestonbrown/helixscreen#1978).
+    // Otherwise the pages swipe by their count.
     const bool edit_holds_page =
         grid_edit_mode_.owns_gesture() || grid_edit_mode_.is_catalog_open();
-    helix::ui::carousel_set_swipe(carousel_,
-                                  edit_holds_page ? CarouselSwipe::Disabled : CarouselSwipe::Auto);
+    const bool arrows_page =
+        arrow_left_ != nullptr && pages_.size() > 1 && !grid_edit_mode_.is_active();
+    helix::ui::carousel_set_swipe(
+        carousel_, edit_holds_page || arrows_page ? CarouselSwipe::Disabled : CarouselSwipe::Auto);
     // The next-page slot carries the + that adds a page and stays a drag's drop
     // target, so its tile is within reach whenever the slot exists. A drop that
     // creates a page leaves the session scoped to it, and the carousel resting
@@ -346,8 +350,6 @@ void HomePanel::build_carousel(int initial_page) {
 
     // The indicator dots count config pages, not the slot
     ui_carousel_set_real_page_count(carousel_, num_pages);
-    // The swipe and the slot's reach for the edit state this carousel is built in
-    apply_edit_swipe_policy();
 
     // Events from widgets inside page containers, which bubble by their
     // component, propagate up through tile -> scroll -> carousel ->
@@ -388,6 +390,10 @@ void HomePanel::build_carousel(int initial_page) {
         arrow_left_ = create_arrow("chevron_left", LV_ALIGN_LEFT_MID);
         arrow_right_ = create_arrow("chevron_right", LV_ALIGN_RIGHT_MID);
     }
+
+    // The swipe and the slot's reach for the edit state this carousel is built
+    // in, and for whether it has arrows
+    apply_edit_swipe_policy();
 
     // Arrow click handlers (only when arrows were created)
     if (arrow_left_) {
@@ -1332,6 +1338,10 @@ void HomePanel::open_widget_catalog() {
     if (grid_edit_mode_.is_active() && parent_screen_) {
         grid_edit_mode_.open_widget_catalog(parent_screen_);
     }
+}
+
+void HomePanel::request_delete_edit_page() {
+    grid_edit_mode_.request_delete_page();
 }
 
 // ============================================================================

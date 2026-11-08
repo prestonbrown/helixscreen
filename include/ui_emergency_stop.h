@@ -261,12 +261,6 @@ class EmergencyStopOverlay {
     // ERROR now is where the restart landed, not the stop on its way down.
     std::atomic<bool> restart_saw_startup_{false};
 
-    // Skip the first klippy_state observer fire — it carries the subject's
-    // default (SHUTDOWN) before Moonraker has reported real state. A real
-    // shutdown at startup is delivered separately via the
-    // MoonrakerEventType::KLIPPY_SHUTDOWN event in MoonrakerManager.
-    bool klippy_state_initial_seen_ = false;
-
     // Recovery dialog state
     RecoveryReason recovery_reason_ = RecoveryReason::NONE;
 
@@ -329,6 +323,7 @@ class EmergencyStopOverlay {
     ObserverGuard print_state_observer_;
     ObserverGuard klippy_state_observer_;
     ObserverGuard klippy_message_observer_;
+    ObserverGuard wizard_observer_;
 
     // Event handlers
     void handle_click();
@@ -382,10 +377,20 @@ class EmergencyStopOverlay {
     bool show_recovery_for_main(RecoveryReason reason);
     void dismiss_recovery_dialog();
     void update_recovery_dialog_content();
+
+    /// Show the recovery dialog for a SHUTDOWN or ERROR Klippy has already
+    /// reported. For the moments a fault went unshown with no edge left to
+    /// carry it, such as the setup wizard closing over a faulted printer.
+    void surface_reported_klippy_fault();
     /// While a restart is in flight, toast that one is and return true, so the
     /// caller sends nothing. Main thread only.
     bool refuse_restart_in_flight();
     void restart_klipper();
+    /// True, after toasting why, when a Moonraker restart cannot be sent now:
+    /// no connection to carry it, a job holding the machine, or a Klipper
+    /// restart still in flight. Main thread only.
+    bool refuse_moonraker_restart();
+    void restart_moonraker();
 
   public:
     /// Restart Klipper firmware: the platform-correct sequence (a plain
@@ -408,6 +413,7 @@ class EmergencyStopOverlay {
     static void advanced_estop_clicked(lv_event_t* e);
     static void advanced_restart_klipper_clicked(lv_event_t* e);
     static void advanced_firmware_restart_clicked(lv_event_t* e);
+    static void advanced_restart_moonraker_clicked(lv_event_t* e);
     static void home_firmware_restart_clicked(lv_event_t* e);
 };
 

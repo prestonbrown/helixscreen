@@ -15,20 +15,6 @@ bool same_weight(float a, float b) {
     return std::fabs(a - b) < 0.5F;
 }
 
-/// One field of fold_tag_frame(): stated and filed is a reading, stated and
-/// withheld keeps what was kept, unstated is gone.
-template <typename T>
-std::optional<T> fold_field(const std::optional<T>& kept, const std::optional<T>& raw,
-                            const std::optional<T>& filed) {
-    if (!raw) {
-        return std::nullopt;
-    }
-    if (filed) {
-        return filed;
-    }
-    return kept;
-}
-
 } // namespace
 
 bool TagReading::states(TagField field) const {
@@ -147,49 +133,18 @@ SlotInfo reset_to_tag(const SlotInfo& slot, const TagReading& tag) {
     return out;
 }
 
-std::optional<TagReading> fold_tag_frame(const std::optional<TagReading>& kept,
-                                         const TagReading& raw, const TagReading& filed) {
-    const TagReading none;
-    const TagReading& k = kept ? *kept : none;
-    TagReading out;
-    out.material = fold_field(k.material, raw.material, filed.material);
-    out.brand = fold_field(k.brand, raw.brand, filed.brand);
-    out.product_name = fold_field(k.product_name, raw.product_name, filed.product_name);
-    out.color_rgb = fold_field(k.color_rgb, raw.color_rgb, filed.color_rgb);
-    out.nozzle_temp_min = fold_field(k.nozzle_temp_min, raw.nozzle_temp_min, filed.nozzle_temp_min);
-    out.nozzle_temp_max = fold_field(k.nozzle_temp_max, raw.nozzle_temp_max, filed.nozzle_temp_max);
-    out.bed_temp = fold_field(k.bed_temp, raw.bed_temp, filed.bed_temp);
-    out.total_weight_g = fold_field(k.total_weight_g, raw.total_weight_g, filed.total_weight_g);
-    if (!raw.multi_color_hexes.empty()) {
-        out.multi_color_hexes =
-            !filed.multi_color_hexes.empty() ? filed.multi_color_hexes : k.multi_color_hexes;
+void keep_tag_reading(std::unordered_map<int, TagReading>& kept, int slot_index,
+                      const Observation& stated, std::optional<int> nozzle_min,
+                      std::optional<int> nozzle_max) {
+    TagReading reading = tag_reading_from(stated);
+    if (reading.material) {
+        reading.nozzle_temp_min = nozzle_min;
+        reading.nozzle_temp_max = nozzle_max;
     }
-    if (out.empty()) {
-        return std::nullopt;
-    }
-    return out;
-}
-
-void fold_tag_frame_into(std::unordered_map<int, TagReading>& kept, int slot_index,
-                         const Observation& stated, const Observation& filed,
-                         std::optional<int> nozzle_min, std::optional<int> nozzle_max) {
-    const auto with_temps = [&](TagReading reading) {
-        if (reading.material) {
-            reading.nozzle_temp_min = nozzle_min;
-            reading.nozzle_temp_max = nozzle_max;
-        }
-        return reading;
-    };
-    std::optional<TagReading> before;
-    if (auto it = kept.find(slot_index); it != kept.end()) {
-        before = it->second;
-    }
-    std::optional<TagReading> folded = fold_tag_frame(before, with_temps(tag_reading_from(stated)),
-                                                      with_temps(tag_reading_from(filed)));
-    if (folded) {
-        kept[slot_index] = std::move(*folded);
-    } else {
+    if (reading.empty()) {
         kept.erase(slot_index);
+    } else {
+        kept[slot_index] = std::move(reading);
     }
 }
 

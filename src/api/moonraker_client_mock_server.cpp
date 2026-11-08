@@ -108,6 +108,48 @@ MoonrakerError method_not_found(const std::string& method) {
 } // namespace
 
 void register_server_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
+    // The openams [openams_spoolman] component's endpoints, present only when
+    // a test loads the component (set_openams_spoolman).
+    const auto absent = [](const std::string& method,
+                           const helix::SharedCallback<void(const MoonrakerError&)>& error_cb) {
+        if (error_cb) {
+            MoonrakerError err;
+            err.code = -32601;
+            err.message = "Method not found";
+            err.method = method;
+            error_cb(err);
+        }
+    };
+    registry["server.openams_spoolman.status"] =
+        [absent](MoonrakerClientMock* self, const json& /*params*/,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        if (!self->openams_spoolman()) {
+            absent("server.openams_spoolman.status", error_cb);
+            return true;
+        }
+        if (success_cb) {
+            success_cb(json{{"jsonrpc", "2.0"}, {"result", self->openams_spoolman_status()}});
+        }
+        return true;
+    };
+    registry["server.openams_spoolman.edit"] =
+        [absent](MoonrakerClientMock* self, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        if (!self->openams_spoolman()) {
+            absent("server.openams_spoolman.edit", error_cb);
+            return true;
+        }
+        self->record_openams_spoolman_edit(params);
+        if (success_cb) {
+            success_cb(
+                json{{"jsonrpc", "2.0"},
+                     {"result", {{"spool_id", 1}, {"created", false}, {"bay", json::object()}}}});
+        }
+        return true;
+    };
+
     // server.config - Moonraker's own configuration.
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-server-configuration
     // job_queue.automatic_transition defaults to false the way Moonraker's
@@ -886,6 +928,9 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                            {"registered_directories", json::array({"gcodes", "config", "logs"})},
                            {"warnings", json::array()},
                            {"websocket_count", 1}}}};
+        for (const auto& [key, value] : self->mock_server_info_extra().items()) {
+            response["result"][key] = value;
+        }
 
         if (success_cb) {
             success_cb(response);
@@ -917,7 +962,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             break;
         case MoonrakerClientMock::KlippyState::ERROR:
             state_str = "error";
-            state_message = "Printer is in error state";
+            state_message = self->klippy_error_message().empty() ? "Printer is in error state"
+                                                                 : self->klippy_error_message();
             break;
         }
 

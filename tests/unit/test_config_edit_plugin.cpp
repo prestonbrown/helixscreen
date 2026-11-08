@@ -6,6 +6,7 @@
 // plugin_feature state, the edit list the plugin path sends, and the editor
 // taking the plugin path when the feature is ready and the file API otherwise.
 
+#include "ui_panel_calibration_pid.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
@@ -19,6 +20,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -249,6 +251,21 @@ TEST_CASE("plan_plugin_config_edits carries each option's current value",
         CHECK(plan.edits[0]["expect"].is_null());
     }
 
+    SECTION("ADD_IF_ABSENT adds an absent key and leaves a present one") {
+        auto plan =
+            plan_plugin_config_edits("extruder",
+                                     {{ConfigEdit::Type::ADD_IF_ABSENT, "control", "mpc"},
+                                      {ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", "fan"}},
+                                     config);
+        REQUIRE(plan.kind == Kind::Edits);
+        REQUIRE(plan.edits.size() == 1);
+        CHECK(plan.edits[0] == json{{"section", "extruder"},
+                                    {"option", "cooling_fan"},
+                                    {"action", "set"},
+                                    {"value", "fan"},
+                                    {"expect", nullptr}});
+    }
+
     SECTION("REMOVE_KEY comments out a present key and skips an absent one") {
         auto plan = plan_plugin_config_edits("extruder",
                                              {{ConfigEdit::Type::REMOVE_KEY, "pid_kp", ""},
@@ -260,6 +277,30 @@ TEST_CASE("plan_plugin_config_edits carries each option's current value",
                                     {"option", "pid_kp"},
                                     {"action", "remove"},
                                     {"expect", "26.2"}});
+    }
+
+    SECTION("the PID migration removes cooling_fan only where the section has one") {
+        const auto to_pid = PIDCalibrationPanel::build_control_migration_edits(
+            PIDCalibrationPanel::CalibMethod::PID, 50);
+        auto touches_fan = [](const PluginConfigEditPlan& plan) {
+            return std::any_of(plan.edits.begin(), plan.edits.end(),
+                               [](const json& e) { return e["option"] == "cooling_fan"; });
+        };
+
+        auto absent = plan_plugin_config_edits("extruder", to_pid, config);
+        REQUIRE(absent.kind == Kind::Edits);
+        CHECK_FALSE(touches_fan(absent));
+
+        const json mpc = read_result("extruder", {{"control", option("mpc")},
+                                                  {"heater_power", option("50")},
+                                                  {"cooling_fan", option("fan")}});
+        auto present = plan_plugin_config_edits("extruder", to_pid, mpc);
+        REQUIRE(present.kind == Kind::Edits);
+        CHECK(std::count(present.edits.begin(), present.edits.end(),
+                         json{{"section", "extruder"},
+                              {"option", "cooling_fan"},
+                              {"action", "remove"},
+                              {"expect", "fan"}}) == 1);
     }
 
     SECTION("a key edited twice expects its own earlier edit") {

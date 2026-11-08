@@ -18,7 +18,6 @@
 // clang-format off
 static const BindGroup kDoubleBindWidgets[] = {
     {"ams_current_tool", "ams_current_tool", BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
-    {"ams_device_operations", "label_printer_retains_note", BindKind::Flag, "hidden", {{"ams_device_ops_printer_retains_spool_info", -1}, {"ams_device_ops_reports_spool_ids", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
     {"components/filament_operations_group", "btn_load", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_load_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
     {"components/filament_operations_group", "btn_unload", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
     {"components/filament_operations_group", "btn_purge", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
@@ -69,4 +68,4 @@ static constexpr int kUndrivableGroups = 34;
 
 // Total groups in ui_xml/. A new double-bind widget moves this, which is the
 // point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 78;
+static constexpr int kTotalGroups = 77;

@@ -135,9 +135,11 @@ class PrinterDiscovery {
     /**
      * @brief Reset all discovered hardware to initial state
      *
-     * @note This clears ALL fields including printer info (hostname, versions, etc).
-     *       When using parse_objects(), call printer info setters AFTER parse_objects()
-     *       since it calls clear() internally.
+     * @note This clears ALL fields including printer info (hostname, versions, etc),
+     *       except server_takes_print_start_tools(), which discovery reads from
+     *       server.info before the object list. When using parse_objects(), call
+     *       the other printer info setters AFTER parse_objects(), since it calls
+     *       clear() internally.
      */
     void clear();
 
@@ -255,6 +257,16 @@ class PrinterDiscovery {
     /// (toolchanger_addon::zmod_c5_present).
     [[nodiscard]] bool has_zmod_afclite() const {
         return has_zmod_afclite_;
+    }
+
+    /// Z-Mod's built-in AFC emulation: the `AFC` object beside Z-Mod's own
+    /// `zmod_color` and without the afclite shim's own object, with lanes
+    /// `lane1..N` where lane N is physical slot N (the AD5X's IFS port, the
+    /// Creator 5's head). Z-Mod's lane picker publishing AFC-shaped objects,
+    /// not the AFC project. A plain fact about the object list; backend
+    /// selection decides what it means.
+    [[nodiscard]] bool has_zmod_afc() const {
+        return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_;
     }
 
     /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
@@ -495,7 +507,7 @@ class PrinterDiscovery {
     /// @brief Every filament-system presence flag and count, for the same
     /// purpose. A new flag or count joins here beside its member.
     [[nodiscard]] std::vector<int> filament_system_facts() const {
-        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,
+        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,   has_zmod_afc(),
                 has_indx_,      has_openams_manager_, qidi_box_slot_count_};
     }
 
@@ -550,6 +562,15 @@ class PrinterDiscovery {
      * list as discovered.
      */
     void order_tools_by_number(const nlohmann::json& toolchanger_status);
+
+    /// Record each `[tool <name>]` section's configured `tool_number` from a
+    /// configfile.settings object. That is the tool's own number, which an
+    /// ASSIGN_TOOL at runtime does not change. Keyed by the lowercased tool
+    /// name, as Klipper lowercases settings section names.
+    void parse_configured_tool_numbers(const nlohmann::json& settings);
+    [[nodiscard]] const std::unordered_map<std::string, int>& configured_tool_numbers() const {
+        return configured_tool_numbers_;
+    }
 
     /// @brief Alias for tool_names() - compatibility with PrinterCapabilities API
     [[nodiscard]] const std::vector<std::string>& get_tool_names() const {
@@ -955,6 +976,17 @@ class PrinterDiscovery {
         return software_version_;
     }
 
+    /// Moonraker's server.info says printer.print.start takes a per-print
+    /// `tools` map (print_start::server_takes_tool_slots()). Read before the
+    /// object list is parsed, so parse_objects() keeps it.
+    void set_server_takes_print_start_tools(bool takes) {
+        server_takes_print_start_tools_ = takes;
+    }
+
+    [[nodiscard]] bool server_takes_print_start_tools() const {
+        return server_takes_print_start_tools_;
+    }
+
     /**
      * @brief Set Moonraker version from server.info
      */
@@ -1155,6 +1187,8 @@ class PrinterDiscovery {
     bool has_snapmaker_ = false;
     bool has_afc_lite_ = false;
     bool has_zmod_afclite_ = false;
+    bool has_afc_object_ = false;
+    bool has_zmod_color_ = false;
     bool has_tool_changer_ = false;
     /// Filament systems present beside the detected mmu_type_ (a tool changer
     /// carrying another system's lanes).
@@ -1190,6 +1224,7 @@ class PrinterDiscovery {
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to
@@ -1217,6 +1252,7 @@ class PrinterDiscovery {
     std::string hostname_;
     std::string software_version_;
     std::string moonraker_version_;
+    bool server_takes_print_start_tools_ = false;
     std::string os_version_;
     std::string cpu_arch_;
     std::string kinematics_;

@@ -138,7 +138,7 @@ bool is_default_cooldown_gcode(const std::string& gcode);
  * ```
  */
 /// Current config schema version — bump when adding new migrations
-static constexpr int kCurrentConfigVersion = 33;
+static constexpr int kCurrentConfigVersion = 34;
 /// Oldest config_version still migrated. Config::init() sets a document stamped
 /// 1 .. kMinMigratableConfigVersion-1 aside and starts from defaults; version 0
 /// is a shipped preset and is still migrated.
@@ -148,9 +148,7 @@ class Config {
   private:
     static Config* instance;
     std::string path;
-    std::string active_printer_id_; ///< Currently active printer slug ID
-    /// Told each printer remove_printer() takes out of the list; see set_printer_removed_hook().
-    std::function<void(const std::string&)> printer_removed_hook_;
+    std::string active_printer_id_;          ///< Currently active printer slug ID
     bool read_only_mode_ = false;            ///< Config directory is on a read-only filesystem
     std::unique_ptr<ConfigStorage> storage_; ///< Document-level persistence backend
     /// True when storage_ was auto-created from `path` rather than injected by
@@ -472,6 +470,10 @@ class Config {
     /// (set_preset("") is a no-op and cannot clear it)
     void clear_preset();
 
+    /// Whether presets/<preset_name>.json resolves in the writable dir or the
+    /// shipped seed bundle
+    static bool preset_file_exists(const std::string& preset_name);
+
     /**
      * @brief Load a preset file and merge hardware config into active printer
      *
@@ -616,13 +618,6 @@ class Config {
      * @param printer_id Slug ID of the printer to remove
      */
     void remove_printer(const std::string& printer_id);
-
-    /// Called with the id of each printer remove_printer() (or archive_printer()) takes out
-    /// of the list, so state kept per printer outside settings.json goes with it: ids are
-    /// reused (next_printer_id()), and a new printer must not inherit a removed one's.
-    void set_printer_removed_hook(std::function<void(const std::string&)> hook) {
-        printer_removed_hook_ = std::move(hook);
-    }
 
     /**
      * @brief Move a printer configuration out of the active list, preserving it

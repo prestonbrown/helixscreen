@@ -52,6 +52,10 @@ Yes. HelixScreen is a Moonraker client — it only needs network access to your 
 
 Point it at Moonraker (port `7125`), not the Mainsail/Fluidd web interface — you don't need Mainsail or Fluidd on the screen device at all. See [Remote Screen Setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) for step-by-step instructions.
 
+### Can I use HelixScreen on a Klipper machine that isn't a printer?
+
+Yes. If your `[printer]` section sets `kinematics: none`, HelixScreen knows the machine has no motion system and won't warn that the nozzle heater is missing. On any other machine without a nozzle heater, open the warning's **View** button (or **Settings → Devices → Hardware Health**) and tap **Ignore** on the extruder entry. It won't be reported again. See [Hardware Health](guide/settings/devices.md#hardware-health).
+
 ### Which displays are supported?
 
 **Tested and confirmed working:**
@@ -258,6 +262,14 @@ This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x 
 - **Advanced panel** → **Spoolman** to browse your spool inventory
 - **Settings** → **Devices** → **Spoolman** for weight sync settings
 - Assign spools to AMS slots and track filament usage
+
+### Where are my lanes' spool details stored?
+
+On the printer, not on the screen. Your filament system keeps what it can (color and material at
+least), and the rest goes into a lane record on the printer that OrcaSlicer, Mainsail and any
+other screen read too, so every screen shows the same thing. When you save an edit, HelixScreen
+writes it there and waits for the printer to take it; if it can't, the editor stays open and says
+why. See [Where a lane's details come from](guide/filament-tracking.md#where-a-lanes-details-come-from).
 
 ### Why didn't Spoolman deduct my print from the spool?
 

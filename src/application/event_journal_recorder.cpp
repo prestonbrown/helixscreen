@@ -21,7 +21,11 @@ namespace helix {
 namespace {
 
 constexpr const char* kHandlerName = "event_journal";
-constexpr int kGcodeStoreCount = 1000;
+/// Moonraker answers only "the latest N", so this bounds the reply, not just the window. Verbose
+/// macro output can make 1000 entries several MB, past the desktop client's 5 MB frame cap. 200
+/// keeps a typical console well under it; a reply that still overflows is dropped and the
+/// backfill simply misses that start.
+constexpr int kGcodeStoreCount = 200;
 constexpr int kHistoryBackfillLimit = 50;
 /// klippy.log read on a reconnect whose gap held a shutdown. Klipper logs a
 /// Stats line a second while printing, so this spans about 15 minutes of a

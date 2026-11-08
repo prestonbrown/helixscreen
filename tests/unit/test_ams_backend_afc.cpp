@@ -8,6 +8,7 @@
 #include "ui_test_utils.h"
 #include "ui_update_queue.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "ams_backend_afc.h"
@@ -70,6 +71,9 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     AmsBackendAfcTestHelper() : AmsBackendAfc(nullptr, nullptr) {}
+    // With a client, for paths that watch the console while a macro runs.
+    explicit AmsBackendAfcTestHelper(helix::IMoonrakerClient* client)
+        : AmsBackendAfc(nullptr, client) {}
 
     // Version is display/diagnostics only — nothing gates on it (AFC stopped
     // writing the afc-install namespace in its #451). Kept so tests can assert
@@ -347,18 +351,34 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
 
     // SET_COLOR/SET_MATERIAL dispatch through the error-callback form so a
     // refused macro can cancel its echo guard. Capture it like the others.
-    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
-                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/ = true) override {
         captured_gcodes.push_back(gcode);
+        pending_gcode_complete = std::move(on_complete);
+        pending_gcode_error = std::move(on_error);
         return AmsErrorHelper::success();
     }
 
+    helix::SharedCallback<void()> pending_gcode_complete;
+    helix::SharedCallback<void(const MoonrakerError&)> pending_gcode_error;
+
     // Override execute_gcode_notify to capture commands (avoids real API call)
     AmsError execute_gcode_notify(const std::string& gcode, const std::string& /*success_msg*/,
-                                  const std::string& /*error_prefix*/) override {
+                                  const std::string& /*error_prefix*/,
+                                  helix::SharedCallback<void()> on_success = nullptr) override {
         captured_gcodes.push_back(gcode);
+        pending_notify_success = std::move(on_success);
         return AmsErrorHelper::success();
+    }
+
+    // The last execute_gcode_notify() success continuation; a test fires it to
+    // stand for the firmware accepting the command.
+    helix::SharedCallback<void()> pending_notify_success;
+    void accept_notify_gcode() {
+        REQUIRE(pending_notify_success);
+        pending_notify_success();
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // ------------------------------------------------------------------
@@ -1018,9 +1038,6 @@ TEST_CASE("AFC persistence: persist=false is the only thing that skips G-code",
     info.remaining_weight_g = 850;
     info.spoolman_id = 42;
 
-    helper.sync_external_identity(0, info);
-    REQUIRE(helper.captured_gcodes.empty());
-
     helix::test::apply_edit(helper, 0, info);
     REQUIRE_FALSE(helper.captured_gcodes.empty());
     REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
@@ -1510,13 +1527,13 @@ namespace {
 /// An AFC lane carrying a user's edit that declared its colour, material and
 /// brand, with a store behind it so a persist can be read back
 /// from the record a restart would load.
-struct AfcLockedLaneFixture : HelixTestFixture {
+struct AfcEditedLaneFixture : HelixTestFixture {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
     std::optional<MoonrakerAPIMock> api;
     AmsBackendAfcTestHelper helper;
 
-    AfcLockedLaneFixture() {
+    AfcEditedLaneFixture() {
         state.init_subjects(false);
         api.emplace(client, state);
         helper.initialize_test_lanes_with_slots(4);
@@ -1529,9 +1546,6 @@ struct AfcLockedLaneFixture : HelixTestFixture {
         edit.color_rgb = 0x1E5AA8;
         REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
 
-        const auto locked = record();
-        REQUIRE(helix::ams::declared_field_names(locked.declared) ==
-                nlohmann::json::array({"color_rgb", "material", "brand"}));
         helper.clear_captured_gcodes();
     }
 
@@ -1546,35 +1560,7 @@ struct AfcLockedLaneFixture : HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight persist writes the weight and no identity",
-                 "[ams][afc][persistence][filament_slot_override][1652]") {
-    // What the consumption meter's pause and completion flushes do.
-    helper.update_slot_weight(0, 730.0f, 1000.0f, /*persist=*/true);
-
-    // Both of AFC's durable homes for a weight: the lane's own, and the record
-    // a restart reads back.
-    CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=730"));
-    const nlohmann::json stored = client.mock_db_get("lane_data", "lane1");
-    REQUIRE_FALSE(stored.is_null());
-    CHECK(stored["remaining_weight_g"] == 730.0f);
-
-    // A meter has no identity to state. Restating the edit's would overwrite
-    // whatever has changed the lane's colour, material or spool since.
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_MATERIAL"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_SPOOL_ID"));
-
-    const auto after = record();
-    CHECK(after.remaining_weight_g == Catch::Approx(730.0f));
-    CHECK(after.total_weight_g == Catch::Approx(1000.0f));
-    CHECK(helix::ams::declared_field_names(after.declared) ==
-          nlohmann::json::array({"color_rgb", "material", "brand"}));
-    CHECK(stored["helix_locked_color"] == true);
-    CHECK(stored["helix_locked_material"] == true);
-    CHECK(stored["helix_declared"] == nlohmann::json::array({"color_rgb", "material", "brand"}));
-}
-
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight update without persist writes nothing durable",
+TEST_CASE_METHOD(AfcEditedLaneFixture, "AFC weight update without persist writes nothing durable",
                  "[ams][afc][persistence][filament_slot_override][1652]") {
     const nlohmann::json stored_before = client.mock_db_get("lane_data", "lane1");
     REQUIRE_FALSE(stored_before.is_null());
@@ -1630,64 +1616,6 @@ TEST_CASE("AFC persistence: sends multiple commands for full slot info",
     REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=99"));
 }
 
-// ============================================================================
-// sync_external_identity() Tests
-// ============================================================================
-//
-// sync_external_identity() should update in-memory slot state but
-// NOT send any G-code commands to firmware. This is critical for preventing an
-// infinite feedback loop when Spoolman weight polling updates slot data:
-//
-//   apply_user_edit() → G-code to firmware → firmware status_update
-//   via WebSocket → sync_from_backend → refresh_spoolman_weights →
-//   apply_user_edit again → ∞
-//
-// Through sync_external_identity() the cycle breaks because no G-code is sent, so firmware
-// doesn't emit a status_update, and the loop terminates.
-// ============================================================================
-
-TEST_CASE("AFC persist=false: updates local state without G-code",
-          "[ams][afc][persistence][persist_flag]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
-    info.remaining_weight_g = 850;
-    info.spoolman_id = 42;
-
-    // persist=false should NOT send any G-code
-    helper.sync_external_identity(0, info);
-
-    REQUIRE(helper.captured_gcodes.empty());
-
-    // But local state SHOULD be updated
-    SlotInfo stored = helper.get_slot_info(0);
-    REQUIRE(stored.color_rgb == 0xFF0000);
-    REQUIRE(stored.material == "PLA");
-    REQUIRE(stored.remaining_weight_g == Catch::Approx(850.0f));
-    REQUIRE(stored.spoolman_id == 42);
-}
-
-TEST_CASE("AFC sync_external_identity carries the whole Spoolman link", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-    info.spoolman_filament_id = 77;
-    info.spoolman_vendor_id = 3;
-    helper.sync_external_identity(0, info);
-
-    const SlotInfo stored = helper.get_slot_info(0);
-    CHECK(stored.spoolman_filament_id == 77);
-    CHECK(stored.spoolman_vendor_id == 3);
-}
-
 TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
           "[ams][afc][persistence][persist_flag]") {
     AmsBackendAfcTestHelper helper;
@@ -1710,22 +1638,31 @@ TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
     REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
 }
 
-TEST_CASE("AFC persist=false: version warning not emitted",
-          "[ams][afc][persistence][persist_flag]") {
+TEST_CASE("an AFC with no Spoolman refuses a spool link before writing it",
+          "[ams][afc][persistence][review]") {
     AmsBackendAfcTestHelper helper;
-
-    // Old version + persist=false should NOT log the upgrade warning
-    helper.set_afc_version("1.0.19");
+    helper.set_afc_version("1.0.20");
     helper.initialize_test_lanes_with_slots(4);
 
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
+    SlotInfo linked;
+    linked.material = "PLA";
+    linked.spoolman_id = 7;
 
-    // Should succeed without errors and without persistence
-    auto result = helper.sync_external_identity(0, info);
-    REQUIRE(result.success());
-    REQUIRE(helper.captured_gcodes.empty());
+    SECTION("Spoolman off: refused, nothing sent") {
+        // AFC publishes false for its Spoolman URL when none is configured.
+        helper.feed_afc_state({{"spoolman", false}});
+        helper.clear_captured_gcodes();
+        const AmsError err = helix::test::apply_edit(helper, 0, linked);
+        CHECK_FALSE(err.success());
+        CHECK(err.user_msg == "AFC has no Spoolman configured");
+        CHECK(helper.captured_gcodes.empty());
+        CHECK(helper.get_slot_info(0).spoolman_id == 0);
+    }
+    SECTION("Spoolman on: the link is sent") {
+        helper.feed_afc_state({{"spoolman", "http://192.0.2.1:7912"}});
+        REQUIRE(helix::test::apply_edit(helper, 0, linked).success());
+        CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
+    }
 }
 
 // ============================================================================
@@ -3305,6 +3242,77 @@ TEST_CASE("AFC with its own SET_MAP keeps the native remap", "[ams][afc][tool_ma
     CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
 }
 
+namespace {
+// Z-Mod's built-in AFC emulation as discovery reports it: `AFC` beside
+// zmod_color, no afclite object. @p zmod false is the same lanes on real AFC.
+void discover_builtin_afc(AmsBackendAfcTestHelper& helper, bool zmod,
+                          const std::vector<std::string>& lanes) {
+    nlohmann::json objects = nlohmann::json::array({"AFC", "AFC_IFS IFS", "extruder"});
+    if (zmod) {
+        objects.push_back("zmod_color");
+    }
+    for (const auto& lane : lanes) {
+        objects.push_back("AFC_lane " + lane);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    helper.set_discovery(hw);
+    AfcTestAccess::initialize_slots(helper, lanes);
+}
+} // namespace
+
+TEST_CASE("Z-Mod's built-in AFC starts the print with the tool map",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane1", "lane2", "lane3", "lane4"});
+
+    // T0 on the second lane, T2 on the first, T1 left to the firmware.
+    CHECK(helper.print_start_params({{0, 1}, {2, 0}}) ==
+          helix::PrintStartParams{{"tools", "2,,1"}});
+}
+
+TEST_CASE("Z-Mod's built-in AFC names a slot by its lane's digits",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    // A second IFS unit's lanes continue the numbering: slot index 2 is lane11.
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane9", "lane10", "lane11"});
+
+    CHECK(helper.print_start_params({{0, 2}, {1, 0}}) ==
+          helix::PrintStartParams{{"tools", "11,9"}});
+    // A slot the backend has no lane for is left to the firmware.
+    CHECK(helper.print_start_params({{0, 7}}).empty());
+}
+
+TEST_CASE("Z-Mod's built-in AFC keeps SET_MAP and picks no lanes itself",
+          "[ams][afc][tool_mapping][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/true, {"lane1", "lane2", "lane3", "lane4"});
+    helper.set_running(true);
+
+    CHECK_FALSE(helper.firmware_picks_lanes_at_print());
+    CHECK(helper.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helper.set_tool_mapping(0, 1).success());
+    CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
+}
+
+TEST_CASE("AFC off Z-Mod starts the print with its filename alone",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    discover_builtin_afc(helper, /*zmod=*/false, {"lane1", "lane2", "lane3", "lane4"});
+    CHECK(helper.print_start_params({{0, 1}}).empty());
+}
+
+TEST_CASE("Z-Mod's afclite shim picks lanes itself and is sent no tool map",
+          "[ams][afc][tool_mapping][print_start_params][2033]") {
+    AmsBackendAfcTestHelper helper;
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"AFC", "AFC_unit C5", "AFC_lane E0", "AFC_lane E1", "zmod_afclite", "zmod_color"}));
+    helper.set_discovery(hw);
+    AfcTestAccess::initialize_slots(helper, std::vector<std::string>{"E0", "E1"});
+    CHECK(helper.print_start_params({{0, 1}}).empty());
+}
+
 TEST_CASE("AFC recover_lane_position validates slot index", "[ams][afc][recovery][phase4]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
@@ -3791,6 +3799,233 @@ TEST_CASE("AFC clear_fault is scope-independent of the slot argument", "[ams][af
 
     REQUIRE(helper.clear_fault(-1).success());
     REQUIRE(helper.has_gcode("AFC_CLEAR_MESSAGE"));
+}
+
+// AFC_LANE_RESET clears neither error_state nor the lane's Error status, so a
+// successful reset of the faulted lane leaves the error on screen until
+// RESET_FAILURE (prestonbrown/helixscreen#2049). The verdict arrives only on the
+// console: success and failure both return the script normally.
+namespace {
+
+struct StaleFaultRig {
+    helix::test::FakeMoonrakerClient client;
+    AmsBackendAfcTestHelper helper{&client};
+
+    StaleFaultRig() {
+        helper.initialize_test_lanes_with_slots(4);
+        helper.set_running(true);
+        // As captured from the Voron after the reset: still Error, lane3 named.
+        helper.feed_afc_state(
+            {{"current_state", "Error"}, {"error_state", true}, {"current_lane", "lane3"}});
+        helper.clear_captured_gcodes();
+    }
+
+    // Exactly what notify_gcode_response carries: respond_info lines arrive as
+    // "// <text>", AFC errors as "!! <text>".
+    void console(const std::string& line) {
+        client.fire_notification(
+            "notify_gcode_response",
+            {{"method", "notify_gcode_response"}, {"params", nlohmann::json::array({line})}});
+    }
+
+    bool console_watched() const {
+        auto it = client.method_callbacks.find("notify_gcode_response");
+        return it != client.method_callbacks.end() && !it->second.empty();
+    }
+};
+
+} // namespace
+
+TEST_CASE("AFC clears the fault after a successful reset of the faulted lane",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    REQUIRE(rig.helper.has_gcode("AFC_LANE_RESET LANE=lane3"));
+    REQUIRE(rig.console_watched());
+
+    rig.console("// lane3 reset to hub, take necessary action");
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE(rig.helper.pending_gcode_complete);
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE(rig.helper.has_gcode("AFC_CLEAR_MESSAGE"));
+    REQUIRE_FALSE(rig.console_watched());
+}
+
+TEST_CASE("AFC keeps the fault after a failed lane reset", "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+
+    SECTION("failure line") {
+        rig.console("!! 'lane3' failed to reset to hub");
+    }
+    SECTION("wrong-lane failure line") {
+        rig.console("!! 'lane3' failed to reset to hub, load switch became false during reset");
+    }
+    SECTION("no verdict at all") {}
+    SECTION("another lane's success") {
+        rig.console("// lane1 reset to hub, take necessary action");
+    }
+
+    rig.helper.pending_gcode_complete();
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+    REQUIRE_FALSE(rig.console_watched());
+}
+
+TEST_CASE("AFC leaves a fault on another lane after a lane reset succeeds",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    rig.helper.feed_afc_state({{"current_lane", "lane1"}});
+
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    rig.console("// lane3 reset to hub, take necessary action");
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+}
+
+TEST_CASE("AFC sends no clear when the fault cleared during the reset",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    rig.console("// lane3 reset to hub, take necessary action");
+    rig.helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    rig.helper.pending_gcode_complete();
+
+    REQUIRE_FALSE(rig.helper.has_gcode("RESET_FAILURE"));
+}
+
+TEST_CASE("AFC offers a fault clear on the faulted lane only while nothing is in flight",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    auto& h = rig.helper;
+
+    REQUIRE(h.has_clearable_fault(2));
+    REQUIRE_FALSE(h.has_clearable_fault(0));
+    REQUIRE_FALSE(h.has_clearable_fault(99));
+
+    SECTION("a lane AFC marks Error is clearable too") {
+        h.feed_afc_stepper("lane2", {{"status", "Error"}});
+        REQUIRE(h.has_clearable_fault(1));
+    }
+
+    SECTION("not while the lane reset is in flight") {
+        REQUIRE(h.recover_lane_position(2).success());
+        REQUIRE_FALSE(h.has_clearable_fault(2));
+
+        SECTION("back once it completes") {
+            h.pending_gcode_complete();
+        }
+        SECTION("back once it errors") {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::TIMEOUT;
+            h.pending_gcode_error(err);
+            REQUIRE_FALSE(rig.console_watched());
+        }
+        REQUIRE(h.has_clearable_fault(2));
+    }
+
+    SECTION("not once AFC leaves its error state") {
+        h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+        REQUIRE_FALSE(h.has_clearable_fault(2));
+    }
+}
+
+TEST_CASE("AFC keeps Clear Error on a lane still marked Error after error_state clears",
+          "[ams][afc][recovery][stale_fault]") {
+    // RESET_FAILURE clears error_state but never the lane's own status, so the
+    // lane keeps its dot. The action has to stay with it.
+    StaleFaultRig rig;
+    rig.helper.feed_afc_stepper("lane3", {{"status", "Error"}});
+    rig.helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+
+    REQUIRE(rig.helper.get_slot_info(2).error.has_value());
+    REQUIRE(rig.helper.has_clearable_fault(2));
+}
+
+TEST_CASE("AFC still marks a lane that failed outside an error state",
+          "[ams][afc][recovery][stale_fault]") {
+    // A load failure outside a print calls handle_lane_failure(pause=False):
+    // the lane goes to Error and error_state never rises. That is a live fault,
+    // which is why error_state alone cannot retire a lane's Error status.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    REQUIRE(helper.has_clearable_fault(1));
+}
+
+TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    auto& h = rig.helper;
+    h.feed_afc_stepper("lane3", {{"status", "Error"}});
+    REQUIRE(h.get_slot_info(2).error.has_value());
+
+    REQUIRE(h.clear_fault(2).success());
+    REQUIRE(h.has_gcode("RESET_FAILURE"));
+
+    SECTION("a refused RESET_FAILURE keeps the marking") {
+        REQUIRE(h.get_slot_info(2).error.has_value());
+        REQUIRE(h.has_clearable_fault(2));
+        return;
+    }
+
+    // AFC answers RESET_FAILURE with error_state false and no lane status delta.
+    h.accept_notify_gcode();
+    h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+    h.feed_afc_stepper("lane3", {{"prep", true}});
+
+    REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+    REQUIRE_FALSE(h.has_clearable_fault(2));
+
+    SECTION("the lane failing again outside a print brings it back") {
+        // handle_lane_failure(pause=False): status stays Error (no delta) and
+        // error_state never rises. Only the new message says so.
+        h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
+        h.feed_afc_state(
+            {{"message",
+              {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+               {"type", "error"}}}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+        REQUIRE(h.has_clearable_fault(2));
+    }
+    SECTION("a new error naming no lane brings every acknowledged lane back") {
+        h.feed_afc_state(
+            {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+    SECTION("a new error naming another lane leaves this one cleared") {
+        h.feed_afc_state(
+            {{"message",
+              {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+               {"type", "error"}}}});
+        REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+    }
+
+    SECTION("a new AFC error brings the marking back") {
+        h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+    SECTION("the lane failing again after moving on brings it back") {
+        h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
+        h.feed_afc_stepper("lane3", {{"status", "Error"}});
+        REQUIRE(h.get_slot_info(2).error.has_value());
+    }
+}
+
+TEST_CASE("AFC drops the console watch when the backend stops mid-reset",
+          "[ams][afc][recovery][stale_fault]") {
+    StaleFaultRig rig;
+    REQUIRE(rig.helper.recover_lane_position(2).success());
+    REQUIRE(rig.console_watched());
+
+    rig.helper.stop();
+    REQUIRE_FALSE(rig.console_watched());
 }
 
 TEST_CASE("AFC drains the message queue until it empties", "[ams][afc][recovery]") {
@@ -7741,83 +7976,29 @@ TEST_CASE("AFC version never gates behaviour", "[ams][afc][version]") {
     CHECK(slot.material == "PLA");
 }
 
-TEST_CASE("AFC lane_data reads vendor_name for the brand, with brand as fallback (#808)",
+TEST_CASE("AFC lane_data's vendor_name is the brand, and an empty one clears it (#808)",
           "[ams][afc][lane_data]") {
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_zero_based(4);
     helper.initialize_slots_from_discovery();
 
-    // Upstream is naming this vendor_name, NOT vendor, to match Happy Hare's
-    // mmu_server.py so both backends share one spelling.
-    //
-    // All four lanes in ONE payload: parse_lane_data re-initializes the registry
-    // when the lane count changes, so feeding lanes piecemeal would collapse it
-    // to a single slot and make these assertions read default-constructed slots.
+    // All four lanes in one payload: parse_lane_data re-initializes the
+    // registry when the lane count changes.
     nlohmann::json lanes;
-    lanes["lane0"] = {{"brand", "Prusament"}}; // legacy spelling
-    lanes["lane1"] = {{"vendor_name", "Polymaker"},
-                      {"brand", "Prusament"}};       // both -> upstream wins
-    lanes["lane2"] = {{"vendor_name", "Polymaker"}}; // upstream spelling
-    lanes["lane3"] = {{"material", "PLA"}};          // neither
-    helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Prusament");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Polymaker");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE("AFC lane_data also reads the `vendor` spelling we write ourselves (#808)",
-          "[ams][afc][lane_data]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_zero_based(4);
-    helper.initialize_slots_from_discovery();
-
-    // `vendor` is the name we originally proposed upstream AND the key our own
-    // FilamentSlotOverrideStore::to_lane_data_record() emits alongside vendor_name.
-    //
-    // For AFC that record currently lands in a PRIVATE namespace (#1158), so this
-    // reader does not meet it yet — but it will the moment #1158 migrates AFC's
-    // overrides into lane_data proper, and a record written by any other producer
-    // using the originally-proposed spelling reads correctly today.
-    nlohmann::json lanes;
-    lanes["lane0"] = {{"vendor", "Hatchbox"}};
-    lanes["lane1"] = {{"vendor_name", "Polymaker"}, {"vendor", "Hatchbox"}}; // upstream wins
-    lanes["lane2"] = {{"vendor", "Hatchbox"}, {"brand", "Prusament"}}; // vendor outranks brand
+    lanes["lane0"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane1"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane2"] = {{"brand", "Prusament"}, {"vendor", "Hatchbox"}}; // not AFC's spellings
     lanes["lane3"] = {{"material", "PLA"}};
     helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE("AFC an empty vendor never clears an existing brand (#808)", "[ams][afc][lane_data]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_zero_based(4);
-    helper.initialize_slots_from_discovery();
-
-    nlohmann::json lanes;
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", "Polymaker"}};
-    helper.feed_afc_state({{"lanes", lanes}});
     REQUIRE(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(2).brand.empty());
+    CHECK(helper.get_slot_info(3).brand.empty());
 
-    // #808 is unimplemented, so we do not know whether an unlinked lane will omit
-    // the key or publish "". Treating "" as a clear would silently wipe a user's
-    // brand override, and parse_lane_data does NOT call apply_overrides() to put it
-    // back. Ignoring empties is the recoverable direction.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", ""}};
+    lanes["lane0"] = {{"vendor_name", ""}}; // AFC states no vendor
+    lanes["lane1"] = {{"material", "PLA"}}; // a record silent on the vendor
     helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
-
-    // Absent behaves the same as empty.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"material", "PLA"}};
-    helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(0).brand.empty());
+    CHECK(helper.get_slot_info(1).brand == "Polymaker");
 }
 
 TEST_CASE("AFC reads vendor_name from the AFC_stepper status object (#808)", "[ams][afc][vendor]") {
@@ -9023,24 +9204,6 @@ TEST_CASE("AFC names its positions lanes", "[ams][afc][numbering]") {
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
 // the record tells one from a firmware reading (#965, #1649).
-TEST_CASE("AFC marks a persisted edit as the user's own", "[ams][afc][filament_slot_override]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PETG";
-    info.color_rgb = 0x1188FF;
-    info.color_name = "Blue";
-    helix::test::apply_edit(helper, 0, info);
-
-    auto& overrides = AfcTestAccess::overrides(helper);
-    REQUIRE(overrides.count(0) == 1);
-    REQUIRE(overrides.at(0).material == "PETG");
-    REQUIRE(overrides.at(0).color_rgb == 0x1188FFu);
-    CHECK(helix::ams::declares_color(overrides.at(0)));
-    CHECK(helix::ams::declares_material(overrides.at(0)));
-}
-
 TEST_CASE("AFC configfile topology parses to a small result", "[ams][afc][configfile]") {
     using Topo = AmsBackendAfc::ConfigfileTopology;
 

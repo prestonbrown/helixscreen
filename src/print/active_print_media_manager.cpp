@@ -12,6 +12,7 @@
 #include "json_utils.h"
 #include "memory_monitor.h"
 #include "observer_factory.h"
+#include "print_3mf.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "three_mf_reader.h"
@@ -125,12 +126,45 @@ ActivePrintMediaManager::ActivePrintMediaManager(PrinterState& printer_state)
                 self->release_identity();
                 return;
             }
+            // Confirmed: the start this screen sent may name a plate the
+            // commit-time load, made before the printer took it, could not.
+            if (self->printing_plate_changed()) {
+                self->reload_for_printing_plate();
+                return;
+            }
             // Confirmed. The commit-time load may have run before Moonraker had
             // the file - the longer the pre-start block, the likelier - and
             // nothing else refunds its retry budget: process_filename() will
             // early-return from here on, because the effective filename has not
             // changed. Give it one fresh ladder now that the file must exist.
             self->rearm_media_if_incomplete();
+        },
+        printer_state_.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+
+    // A start another app sent has no identity until its file opens
+    // (PrinterPrintState::set_printer_side_pre_start()), and gets one when the
+    // printer takes the job, even under the name print_stats already held, or
+    // gives the previous job its name back when abandoned. Those changes arrive
+    // with neither a filename nor a preparing epoch, so only entering and
+    // leaving that unknown identity is acted on here.
+    print_identity_observer_ = helix::ui::observe<int>(
+        printer_state_.print_state().get_print_identity_epoch_subject(), this,
+        [](ActivePrintMediaManager* self, int /*epoch*/) {
+            auto& ps = self->printer_state_.print_state();
+            const bool unknown =
+                ps.printer_side_pre_start() && ps.get_effective_print_filename().empty();
+            if (unknown == self->identity_unknown_) {
+                return;
+            }
+            self->identity_unknown_ = unknown;
+            if (unknown) {
+                // Not through process_filename(): after a Klipper restart the
+                // reported filename is empty, which it answers by keeping the
+                // last job on screen.
+                self->publish_unknown_identity();
+                return;
+            }
+            self->process_filename(lv_subject_get_string(ps.get_print_filename_subject()));
         },
         printer_state_.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
 
@@ -305,8 +339,8 @@ void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
 
     if (helix::gcode::is_3mf(gcode_path)) {
         // A .3mf carries its renders as archive entries, never in a G-code
-        // header: the printed plate's render, or the first sliced plate's.
-        const int plate = helix::gcode::rewritten_archive_plate(last_raw_filename_);
+        // header: the printing plate's render, or the first sliced plate's.
+        const int plate = printing_archive_plate(gcode_path).value_or(0);
         three_mf::ThreeMfReader(api_->transfers())
             .read_summary(
                 gcode_path, 0, 0.0,
@@ -333,6 +367,83 @@ void ActivePrintMediaManager::self_serve_from_gcode(const std::string& filename,
     helix::fetch_thumbnail_from_gcode(gcode_path, helix::kGcodeThumbnailHeaderBytes, api_, target,
                                       ctx, std::move(on_success), on_error);
 #endif
+}
+
+std::optional<int>
+ActivePrintMediaManager::printing_archive_plate(const std::string& archive) const {
+    return print_3mf::printing_plate(helix::gcode::rewritten_archive_plate(last_raw_filename_),
+                                     printer_state_.print_state().confirmed_start_plate(
+                                         PrinterPrintState::start_record_printer_id(), archive));
+}
+
+void ActivePrintMediaManager::describe_archive_plate(const std::string& filename,
+                                                     const std::string& archive, int plate,
+                                                     const ThumbnailLoadContext& ctx,
+                                                     bool skip_thumbnail) {
+#if defined(HELIX_PLATFORM_ESP32)
+    (void)filename;
+    (void)archive;
+    (void)plate;
+    (void)ctx;
+    (void)skip_thumbnail;
+#else
+    spdlog::debug("[ActivePrintMediaManager] Describing '{}' from plate {} of its archive",
+                  filename, plate);
+    const std::function<void(const std::string&)> on_error = lifetime_.bg_cb(
+        "ActivePrintMediaManager::archive_plate_error",
+        [this, ctx, filename, plate](const std::string& error) {
+            if (!ctx.is_valid()) {
+                return;
+            }
+            spdlog::warn("[ActivePrintMediaManager] Reading plate {} of '{}' failed: {}", plate,
+                         filename, error);
+            schedule_thumbnail_retry(filename);
+        });
+    three_mf::ThreeMfReader(api_->transfers())
+        .read_summary(
+            archive, 0, 0.0,
+            lifetime_.bg_cb(
+                "ActivePrintMediaManager::archive_plate",
+                [this, filename, archive, plate, ctx, skip_thumbnail,
+                 on_error](const three_mf::ArchiveSummary& summary) {
+                    if (!ctx.is_valid()) {
+                        return;
+                    }
+                    const auto* shown = three_mf::find_plate(summary, plate);
+                    if (!shown) {
+                        spdlog::warn("[ActivePrintMediaManager] '{}' holds no sliced plate",
+                                     filename);
+                        return;
+                    }
+                    const FileMetadata meta = three_mf::plate_file_metadata(*shown);
+                    auto& print_state = printer_state_.print_state();
+                    print_state.set_print_materials(materials_in_metadata(meta));
+                    if (meta.estimated_time > 0) {
+                        print_state.set_estimated_print_time(static_cast<int>(meta.estimated_time));
+                    }
+                    const zip::ZipEntry* entry = three_mf::plate_thumbnail(*shown);
+                    if (skip_thumbnail || !entry || !api_) {
+                        return;
+                    }
+                    helix::fetch_thumbnail_from_archive(
+                        archive, *entry, 0, api_,
+                        helix::ThumbnailProcessor::get_target_for_display(
+                            helix::ThumbnailSize::Detail),
+                        ctx, fetched_thumbnail_callback(filename, ctx), on_error);
+                }),
+            on_error);
+#endif
+}
+
+void ActivePrintMediaManager::publish_unknown_identity() {
+    // A print with no name yet: nothing of the previous job's may show, and
+    // whatever file it turns out to be loads afresh.
+    last_effective_filename_.clear();
+    last_loaded_thumbnail_filename_.clear();
+    PrinterState* state = &printer_state_;
+    helix::ui::queue_update("ActivePrintMediaManager::publish_unknown_identity",
+                            [state]() { state->print_state().set_print_display_filename(""); });
+    publish_thumbnail("", no_thumbnail_placeholder());
 }
 
 void ActivePrintMediaManager::process_filename(const char* raw_filename) {
@@ -378,8 +489,13 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
         std::make_unique<std::string>(display_name),
         [state](std::string* name) { state->print_state().set_print_display_filename(*name); });
 
+    if (effective_filename.empty()) {
+        publish_unknown_identity();
+        return;
+    }
+
     // Load thumbnail if filename changed
-    if (!effective_filename.empty() && effective_filename != last_loaded_thumbnail_filename_) {
+    if (effective_filename != last_loaded_thumbnail_filename_) {
         // Whether the published path survives is decided by the path's own
         // identity, not by this manager's history. A path published FOR this
         // file (USB / PrintStartController pre-set) is kept; anything else is
@@ -465,6 +581,17 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
     // Resolve to original filename if this is a modified temp file
     // (Moonraker only has metadata for original files, not modified copies)
     std::string metadata_filename = resolve_gcode_filename(filename);
+
+    described_plate_.reset();
+#if !defined(HELIX_PLATFORM_ESP32)
+    if (helix::gcode::is_3mf(metadata_filename)) {
+        if (const std::optional<int> plate = printing_archive_plate(metadata_filename)) {
+            described_plate_ = plate;
+            describe_archive_plate(filename, metadata_filename, *plate, ctx, skip_thumbnail);
+            return;
+        }
+    }
+#endif
 
     spdlog::debug("[ActivePrintMediaManager] Loading metadata for: {}", metadata_filename);
 
@@ -888,6 +1015,34 @@ void ActivePrintMediaManager::rearm_media_if_incomplete() {
     spdlog::info("[ActivePrintMediaManager] Print confirmed with incomplete media "
                  "(layers={}, thumbnail={}) - re-arming load for '{}'",
                  have_layers, have_thumbnail, last_effective_filename_);
+    restart_media_load();
+}
+
+bool ActivePrintMediaManager::printing_plate_changed() const {
+#if defined(HELIX_PLATFORM_ESP32)
+    return false;
+#else
+    if (last_effective_filename_.empty() || !api_) {
+        return false;
+    }
+    const std::string archive = resolve_gcode_filename(last_effective_filename_);
+    return helix::gcode::is_3mf(archive) && printing_archive_plate(archive) != described_plate_;
+#endif
+}
+
+void ActivePrintMediaManager::reload_for_printing_plate() {
+    spdlog::info("[ActivePrintMediaManager] '{}' prints a different plate than its media "
+                 "describes - reloading",
+                 last_effective_filename_);
+    // The fetched render is another plate's; one set from outside is kept.
+    if (thumbnail_origin_ == ThumbnailOrigin::Fetched) {
+        publish_thumbnail(last_effective_filename_, no_thumbnail_placeholder());
+        thumbnail_origin_ = ThumbnailOrigin::None;
+    }
+    restart_media_load();
+}
+
+void ActivePrintMediaManager::restart_media_load() {
     cancel_thumbnail_retry();
     thumbnail_retry_count_ = 0;
     // A new print of the same file may be a re-slice that added thumbnails,

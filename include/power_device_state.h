@@ -52,6 +52,9 @@ class PowerDeviceState {
     /// Get list of all tracked device names
     std::vector<std::string> device_names() const;
 
+    /// Whether any tracked device is off, an "error" status included. Main thread.
+    [[nodiscard]] bool any_device_off() const;
+
     /// Update a device's status directly (for mock/testing).
     /// Marshals to UI thread via queue_update.
     void update_device_status(const std::string& device, const std::string& status);

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -10,24 +9,16 @@
 
 namespace helix::ams {
 
-/// Where a reading came from. Presence is sensed; identity is declared.
-/// No AMS backend in the fleet reports a spool identity from hardware, so an
-/// identity value only ever originates from a human or a database.
+/// Where a reading came from. A lane shows what Moonraker holds: presence from
+/// the hardware, identity from the firmware's own fields or the lane record in
+/// Moonraker's database, and an edit of ours only while its write is in flight.
 enum class ObservationSource {
-    Sensed,      ///< Real hardware. Presence and motion only, never identity.
-    Spoolman,    ///< The Spoolman server.
-    LocalUser,   ///< A human editing in HelixScreen.
-    VendorCache, ///< Firmware-persisted metadata. A cache of a past declaration.
-    Metered,     ///< The consumption meter.
-    /// What our own stored record remembered from before this session.
-    ///
-    /// Distinct from VendorCache, which is what the machine states on THIS
-    /// frame. The two had one destination and two producers: a lane's stored
-    /// record was filed as VendorCache at load, and the backend's own parse
-    /// then replaced that record whole, erasing every field the frame did not
-    /// restate. A brand nobody had typed since last boot vanished on the first
-    /// poll.
-    Remembered,
+    Sensed,   ///< Real hardware. Presence and docking only, never identity.
+    Firmware, ///< What the firmware frame, or a record the firmware wrote, states.
+    Record,   ///< The lane record HelixScreen reads from Moonraker's database.
+    Spoolman, ///< The Spoolman server's details for the lane's linked spool. Fills only.
+    Metered,  ///< The consumption meter's estimate.
+    Pending,  ///< A HelixScreen edit whose write has not echoed back yet.
 };
 
 /// One reading from one source. Every field is optional so that "not observed"
@@ -62,14 +53,6 @@ struct Observation {
 
     std::optional<float> remaining_weight_g;
     std::optional<float> total_weight_g;
-
-    /// When this statement was made, from the record it was filed from.
-    ///
-    /// Bookkeeping for the newest-edit-wins comparison between a lane's own
-    /// statement and a record another tool wrote, never part of what the
-    /// statement says: it deliberately stays out of fields(), so no amend or
-    /// merge carries it and resolve() never sees it.
-    std::optional<std::chrono::system_clock::time_point> edited_at;
 
     /// Every optional field above, as a tuple of references. Code that must
     /// touch all of them (amending one record onto another) folds over this

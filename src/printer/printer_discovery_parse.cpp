@@ -240,6 +240,7 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         } else if (name == "AFC") {
             has_mmu_ = true;
             mmu_type_ = AmsType::AFC;
+            has_afc_object_ = true;
         }
         // Z-Mod's afclite extra for the Creator 5 line registers the `AFC`
         // object above through its own name; recorded separately so backend
@@ -247,6 +248,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         // publishes this object.
         else if (name == "zmod_afclite") {
             has_zmod_afclite_ = true;
+        }
+        // Z-Mod's own extra, on every Z-Mod printer whatever its AFC setting.
+        // Beside `AFC` it names Z-Mod's built-in AFC emulation.
+        else if (name == "zmod_color") {
+            has_zmod_color_ = true;
         }
         // klipper_openams. The name alone cannot claim the printer: a
         // manager that predates its versioned API publishes only
@@ -652,21 +658,29 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                      "the printer and its four toolheads.");
     }
 
-    // Z-Mod's afclite shim impersonates AFC so Fluidd and Mainsail draw an AFC
-    // panel for the Creator 5's four heads. It reports no extruders and no
-    // hubs, so an AFC backend infers a hub topology for heads that are each
-    // their own path, and most of the AFC op macros do not exist on this
-    // firmware. The changer fingerprint is what names the machine (the AD5X
-    // Z-Mod publishes zmod_color but has no carriage grab buttons), so the
-    // toolchanger backend keeps the printer. Scoped to that fingerprint for the
-    // same reason the PAXX rule is scoped to filament_detect: a bare
-    // zmod_afclite on some other machine is displacing nothing better.
-    if (has_mmu_ && mmu_type_ == AmsType::AFC && has_zmod_afclite_ &&
-        toolchanger_addon::zmod_c5_present(*this)) {
-        has_mmu_ = false;
-        spdlog::info("[PrinterDiscovery] zmod_afclite alongside the Creator 5 changer "
-                     "fingerprint: Z-Mod's AFC shim on a head changer. The toolchanger "
-                     "backend keeps the printer and its four toolheads.");
+    // Z-Mod's AFC-shaped objects (the afclite shim on older builds, the
+    // built-in emulation on current ones) exist so Fluidd and Mainsail draw an
+    // AFC panel. They report no extruders and no hubs, and most of the AFC op
+    // macros do not exist on this firmware, so the backend built for the
+    // machine underneath keeps it. The changer fingerprint names the Creator 5
+    // (the AD5X Z-Mod publishes zmod_color but has no carriage grab buttons),
+    // and the toolchanger backend keeps its four heads. On the AD5X the IFS
+    // backend keeps its four ports: zmod_color and the IFS sensors are there
+    // whatever the AFC setting says, so flipping it changes nothing on screen.
+    // Scoped to Z-Mod's own objects for the same reason the PAXX rule is scoped
+    // to filament_detect: a bare zmod_afclite on some other machine is
+    // displacing nothing better.
+    if (has_mmu_ && mmu_type_ == AmsType::AFC && (has_zmod_afclite_ || has_zmod_afc())) {
+        if (toolchanger_addon::zmod_c5_present(*this)) {
+            has_mmu_ = false;
+            spdlog::info("[PrinterDiscovery] Z-Mod's AFC objects alongside the Creator 5 changer "
+                         "fingerprint: the toolchanger backend keeps the printer and its four "
+                         "toolheads.");
+        } else if (has_zmod_afc()) {
+            mmu_type_ = AmsType::AD5X_IFS;
+            spdlog::info("[PrinterDiscovery] Z-Mod's built-in AFC on an AD5X: the IFS backend "
+                         "keeps the printer and its four ports.");
+        }
     }
 
     register_detected_ams_systems();
@@ -1032,6 +1046,8 @@ void PrinterDiscovery::clear() {
     has_snapmaker_ = false;
     has_afc_lite_ = false;
     has_zmod_afclite_ = false;
+    has_afc_object_ = false;
+    has_zmod_color_ = false;
     has_tool_changer_ = false;
     coexisting_systems_.clear();
     has_pin_watch_ = false;
@@ -1058,6 +1074,7 @@ void PrinterDiscovery::clear() {
     probe_xy_offset_.reset();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
+    configured_tool_numbers_.clear();
     has_led_ = false;
     led_effects_.clear();
     has_led_effects_ = false;
@@ -1165,6 +1182,24 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
         }
         spdlog::info("[PrinterDiscovery] Tools ordered by Klipper tool number: {}", joined);
         tool_names_ = std::move(ordered);
+    }
+}
+
+void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& settings) {
+    if (!settings.is_object()) {
+        return;
+    }
+    static constexpr std::string_view kSectionPrefix = "tool ";
+    for (const auto& [section, values] : settings.items()) {
+        if (section.rfind(kSectionPrefix, 0) != 0 || !values.is_object()) {
+            continue;
+        }
+        const auto number = values.find("tool_number");
+        if (number == values.end() || !number->is_number_integer()) {
+            continue;
+        }
+        configured_tool_numbers_[helix::text_io::to_lower(section.substr(kSectionPrefix.size()))] =
+            number->get<int>();
     }
 }
 

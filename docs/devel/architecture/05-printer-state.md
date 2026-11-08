@@ -87,7 +87,7 @@ Firmware-specific print fields reach `PrinterPrintState` through the module that
 `ToolState` ([`include/tool_state.h#ToolState`](../../../include/tool_state.h)) is a standalone `::instance()` singleton because tools span domains: a tool has a temperature (extruder mapping), a filament source (AMS backend slot), and a Spoolman identity. Its subjects are `active_tool`, `tool_count`, `tools_version` (UI rebuild trigger), `tool_badge_text` and `show_tool_badge` (the `nozzle_icon` component's tool badge), plus the per-tool offset family (`per_tool_{x,y,z}_supported`, `any_tool_offset_dirty`). Two facts trip contributors:
 
 - `tool_count() != extruder_count()`. When an AMS backend pushes a `ToolTopology` override (`set_ams_topology()`), `tools_` expands to one entry per filament **slot**, so a 4-slot AMS on a single-hotend printer reports 4 tools and 1 extruder. `is_multi_tool()` answers "show multi-tool controls?"; `has_multiple_extruders()` answers "does this printer physically have several hotends?" - the badge test, not the controls test.
-- Spool assignments are persisted by identity, not weight (`assign_spool()` → the tool_spools JSON + Moonraker DB); why weights are a cache is in [`07-filament-ams.md`](07-filament-ams.md) ("Spool assignment: identity is durable, weight is cache").
+- A tool holds no spool: its spool is the spool of the lane that feeds it ([`07-filament-ams.md`](07-filament-ams.md), "A tool's spool is its lane's").
 
 Like `PrinterState`, `ToolState` is fed `update_from_status()` on the main thread (ch. 02) and hands out a `SubjectLifetime` via `get_subjects_lifetime()` ([`include/tool_state.h#get_subjects_lifetime`](../../../include/tool_state.h)) that long-lived observers must pass to their `observe_*` call.
 

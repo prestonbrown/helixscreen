@@ -48,6 +48,7 @@ TEST_CASE_METHOD(HelixTestFixture, "phase label: the short and long name of ever
         {PrintStartPhase::HOMING, "Homing", "Homing..."},
         {PrintStartPhase::HEATING_BED, "Heating bed", "Heating Bed..."},
         {PrintStartPhase::SOAKING, "Heat soak", "Heat Soaking..."},
+        {PrintStartPhase::HEATING_CHAMBER, "Heating chamber", "Heating Chamber..."},
         {PrintStartPhase::HEATING_NOZZLE, "Heating nozzle", "Heating Nozzle..."},
         {PrintStartPhase::QGL, "Quad gantry level", "Leveling Gantry..."},
         {PrintStartPhase::Z_TILT, "Z tilt", "Z Tilt Adjust..."},

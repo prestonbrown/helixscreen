@@ -32,6 +32,8 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
 #if HELIX_HAS_PLUGINS
@@ -715,14 +717,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const std::vector<std::string> colors{"#FF0000"};
     const std::vector<std::string> materials{"PLA"};
 
-    // sync_external_identity deliberately drops SlotStatus (no real backend accepts a
+    // A slot write deliberately drops SlotStatus (no real backend accepts a
     // user-written status), so the empty case has to go through
     // force_slot_status - see ams_backend_mock.cpp:999.
     auto load_lane = [&ams](uint32_t rgb, const char* material, helix::SlotStatus status) {
         auto slot = ams.backend->get_slot_info(0);
         slot.color_rgb = rgb;
         slot.material = material;
-        ams.backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*ams.backend, 0, slot);
         ams.backend->force_slot_status(0, status);
     };
 
@@ -1461,10 +1463,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed", "gcode_move"}));
     helix::ToolState::instance().init_tools(hw);
-    helix::SlotInfo spool;
-    spool.material = "PLA";
-    spool.color_rgb = 0xFF0000;
-    ams.set_external_spool_info_in_memory(spool);
     get_printer_state().set_helix_plugin_installed(true);
 
     // A backend that presents no filament system (a K2 with no CFS) still has
@@ -1490,6 +1488,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(ams.get_backend() != nullptr);
     }
     REQUIRE_FALSE(ams.is_available());
+    // Seeded after the backend: registering one starts its lanes, the bypass
+    // lane included, from nothing.
+    helix::SlotInfo spool;
+    spool.material = "PLA";
+    spool.color_rgb = 0xFF0000;
+    helix::AmsStateTestAccess::seed_external_spool(spool);
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1536,7 +1540,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // A spool edit re-judges the chip while the view is open.
     spool.material = "PETG";
-    ams.set_external_spool_info_in_memory(spool);
+    helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 0);
 }

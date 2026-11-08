@@ -535,6 +535,8 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_
     for (int i = 0; i < count; ++i) {
         if (slot_widgets[i]) {
             lv_obj_set_width(slot_widgets[i], result.layout.slot_width);
+            const auto band = helix::ui::ams_slot_hit_band(result.layout, i, count);
+            helix::ui::ams_slot_set_hit_band(slot_widgets[i], band.left_inset, band.right_inset);
         }
     }
 
@@ -1180,6 +1182,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     case MenuAction::CLEAR_SPOOL:
     case MenuAction::MOUNT:
     case MenuAction::PARK:
+    case MenuAction::CLEAR_FAULT:
         break;
     default:
         return false; // caller's own switch owns it
@@ -1227,6 +1230,14 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         break;
     }
 
+    case MenuAction::CLEAR_FAULT: {
+        AmsError error = backend->clear_fault(slot);
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Clear failed"));
+        }
+        break;
+    }
+
     case MenuAction::MOUNT: {
         // The toolhead tap's own verdict: refusals and the paused-job
         // confirmation are the same as from any other tool control.
@@ -1266,6 +1277,12 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                 get_printer_state().print_state().get_print_lifecycle(),
                 backend->slot_is_actively_loaded(slot))) {
             NOTIFY_WARNING("{}", helix::ui::clear_spool_blocked_hint(backend->lane_noun(), slot));
+            break;
+        }
+        // The menu greys Clear with this reason; a caller holding an older
+        // menu is refused here, quietly, since the reason is already shown.
+        if (const std::string refusal = backend->clear_spool_refusal(slot); !refusal.empty()) {
+            spdlog::info("[AMS] Clear of slot {} refused: {}", slot, refusal);
             break;
         }
 
@@ -1409,7 +1426,8 @@ void offer_clear_after_unverified_insert(int slot) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend ||
         clear_spool_blocked_by_print(get_printer_state().print_state().get_print_lifecycle(),
-                                     backend->slot_is_actively_loaded(slot))) {
+                                     backend->slot_is_actively_loaded(slot)) ||
+        !backend->clear_spool_refusal(slot).empty()) {
         return;
     }
     // A lane with no details has nothing the new spool could contradict.

@@ -6,32 +6,12 @@
 <!-- Emergency buttons pinned in non-scrolling bottom bar -->
 <!-- Features are conditionally shown based on printer capabilities -->
 <component>
-  <!-- Emergency bar orientation. Portrait is too narrow to seat E-Stop, Restart
-       Klipper and Firmware Restart in one row: each button gets a third of the
-       width and all three labels clip mid-word. Stacking them full-width keeps
-       the labels readable, and these are the three controls someone reaches for
-       when things are going wrong.
-
-       Only container flex direction and child sizing differ, so this is a
-       bind_style_if toggle on ui_is_portrait rather than an if/else structural
-       branch. An if/else would have to duplicate all three buttons and their
-       event_cb wiring inside one file, where no gate can see the copies drift
-       apart (see the same reasoning in motion_panel.xml).
-
-       Both orientations need an explicit style: an inline flex_flow or
-       flex_grow attribute outranks a bound style, so leaving the landscape
-       values inline would silently win over the portrait binding.
-
-       layout="flex" is not redundant with flex_flow. The inline flex_flow=
-       attribute routes through lv_obj_set_flex_flow(), which sets the layout
-       AND the flow; a style sets only the property named. Without layout the
-       container runs no layout at all and all three buttons land on top of
-       each other at the same y. -->
+  <!-- Emergency bar: the four buttons sit two to a row in every orientation.
+       min_width forces the wrap, because four in one row clip their labels even
+       at 800x480. These are the controls someone reaches for when things are
+       going wrong, and their labels have to stay readable. -->
   <styles>
-    <style name="estop_bar_row" layout="flex" flex_flow="row_wrap"/>
-    <style name="estop_bar_column" layout="flex" flex_flow="column"/>
-    <style name="estop_btn_inline" flex_grow="1" min_width="content" pad_hor="#space_sm"/>
-    <style name="estop_btn_stacked" width="100%" flex_grow="0"/>
+    <style name="estop_btn_inline" min_width="45%" flex_grow="1" pad_hor="#space_sm"/>
   </styles>
   <view name="advanced_panel"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="0" flex_flow="column"
@@ -260,12 +240,13 @@
         <!-- Z-Offset Calibration (hidden if no probe) -->
         <setting_action_row name="row_z_offset"
                             label="Z-Offset Calibration" icon="z_closer" description="Interactive probe calibration">
-          <!-- One binding, both tests (two flag bindings on a widget fight):
-               needs a probe, and steps aside for automatic tool offset
-               calibration only where the database says that routine covers
-               the reference tool's Z too (see the same bind in
-               controls_panel.xml). -->
-          <bind_flag_if cond="printer_has_probe eq 0 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
+          <!-- One binding, every test (two flag bindings on a widget fight):
+               needs a probe; steps aside where the firmware applies each
+               head's own Z offset at pickup, which the calibration's absolute
+               offset would overwrite on the mounted head; and steps aside for automatic tool offset calibration where
+               the database says that routine covers the reference tool's Z
+               too (see the same bind in controls_panel.xml). -->
+          <bind_flag_if cond="printer_has_probe eq 0 or z_offset_reapplied_per_head eq 1 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
                         flag="hidden"/>
           <event_cb trigger="clicked" callback="on_zoffset_row_clicked"/>
         </setting_action_row>
@@ -304,27 +285,27 @@
     <!-- PINNED EMERGENCY BAR (non-scrolling, always enabled) -->
     <!-- ================================================================== -->
     <lv_obj width="100%"
-            height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="#space_sm" style_pad_gap="#space_sm" scrollable="false">
-      <bind_style_if name="estop_bar_column" cond="ui_is_portrait"/>
-      <bind_style_if name="estop_bar_row" cond="ui_is_portrait" invert="true"/>
+            height="content" flex_flow="row_wrap" style_pad_left="#space_md" style_pad_right="#space_md"
+            style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_gap="#space_sm" scrollable="false">
       <ui_button name="advanced_estop_btn"
                  height="#button_height_sm" icon="alert_octagon" text="E-Stop (M112)" variant="danger">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_estop_clicked"/>
       </ui_button>
       <ui_button name="advanced_restart_klipper_btn"
                  height="#button_height_sm" icon="refresh" text="Restart Klipper" variant="warning">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_restart_klipper_clicked"/>
       </ui_button>
       <ui_button name="advanced_firmware_restart_btn"
                  height="#button_height_sm" icon="cog_refresh" text="Firmware Restart" variant="secondary">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_firmware_restart_clicked"/>
+      </ui_button>
+      <ui_button name="advanced_restart_moonraker_btn"
+                 height="#button_height_sm" icon="refresh" text="Restart Moonraker" variant="secondary">
+        <style name="estop_btn_inline"/>
+        <event_cb trigger="clicked" callback="advanced_restart_moonraker_clicked"/>
       </ui_button>
     </lv_obj>
   </view>

@@ -177,6 +177,11 @@ class GridEditMode {
         delete_page_cb_ = std::move(cb);
     }
 
+    /// The navbar's delete-page button: withdraws a held Undo, then runs the
+    /// delete-page callback. A no-op while grid input does not act (see
+    /// grid_input_acts) or the session's page is not deletable.
+    void request_delete_page();
+
     void set_gesture_ownership_callback(GestureOwnershipCallback cb) {
         gesture_ownership_cb_ = std::move(cb);
     }
@@ -325,7 +330,7 @@ class GridEditMode {
 
     /// Whether input on the grid acts: a press, hold or click the grid handlers
     /// pass on, and a tap on the selection's configure or remove button or the
-    /// delete-page button. True while the session is live and the widget
+    /// navbar's delete-page button. True while the session is live and the widget
     /// catalog is closed. The catalog places onto the page and cell it was
     /// opened from; navigation's dismiss backdrop normally takes every press
     /// beside it, and when that backdrop could not be created the grid still
@@ -396,7 +401,7 @@ class GridEditMode {
     ///
     /// A spot must lie inside @p bounds (the grid container, which excludes the
     /// navbar and its Done button) and clear of every rect in @p blocked (a
-    /// pill already placed, the delete-page button). A pill above another
+    /// pill already placed). A pill above another
     /// widget would take the tap that selects it, so a spot clear of every rect
     /// in @p tiles wins, and a spot over another tile's centre, or over more
     /// than a sliver of it, never qualifies: a tap meant to select that tile
@@ -410,8 +415,8 @@ class GridEditMode {
     /// Screen rect of a @p pill_px selection pill on @p tile's @p corner, a
     /// pill that overhangs the corner by @p overhang px on each axis.
     ///
-    /// A pill over a rect in @p blocked (the delete-page button, a pill
-    /// already placed) would take its taps, so the pill slides down the
+    /// A pill over a rect in @p blocked (a pill already placed) would take
+    /// its taps, so the pill slides down the
     /// tile's side, then along its top edge toward its middle, @p gap px clear
     /// of the rect. A pill over the tile's centre would leave no drag target,
     /// so on a tile too small for the corner spot to miss it the pill moves
@@ -423,14 +428,14 @@ class GridEditMode {
                                       const std::vector<lv_area_t>& tiles = {});
 
     /// Whether the release that produced @p e acts on the pill it ended on:
-    /// it lifted over the pill, not over the delete-page button beneath, and
-    /// its press landed kPillLockoutMs or more after the pill was first drawn.
-    /// Consumes the press.
+    /// it lifted over the pill, and its press landed kPillLockoutMs or more
+    /// after the pill was first drawn. Consumes the press.
     bool pill_release_acts(lv_event_t* e);
 
-    /// Screen rect of the delete-page button in the top-right corner of a
-    /// page whose content area is @p content.
-    static lv_area_t delete_page_button_area(const lv_area_t& content);
+    /// Whether the session's page may be deleted: a config page other than the
+    /// main page while more than one page exists. The next-page slot is no
+    /// page to delete.
+    bool page_deletable() const;
 
     /// Edge grab band in px, derived from the live grid's cell size. Falls back
     /// to a fixed band before a grid exists (cell_w/cell_h are 0 then).
@@ -454,10 +459,10 @@ class GridEditMode {
     /// to the handlers on carousel_host; its only callbacks draw the lattice
     /// and free what that draw reads.
     void ensure_shield();
-    /// Redraw the shield for the current selection: the lattice it draws, the
-    /// boundaries the selected widget can snap to, and its one child, the
-    /// delete-page button. Mid-gesture safe: the button is never the press
-    /// target and the shield itself is kept.
+    /// Redraw the shield for the current selection: the lattice it draws and
+    /// the boundaries the selected widget can snap to. Publishes whether the
+    /// navbar's delete-page button shows. Mid-gesture safe: the shield itself
+    /// is kept.
     void rebuild_lattice();
     /// Dots in the lattice the shield draws, 0 with none.
     int drawn_dot_count() const;
@@ -593,7 +598,7 @@ class GridEditMode {
     void clear_gesture_state();
 
     /// Null every pointer to an object living in the scoped container (the
-    /// selection, its chrome, the shield and its delete-page button, the snap
+    /// selection, its chrome, the shield, the snap
     /// preview and its cell) without deleting anything. For the rebuilds that
     /// destroy the container's children: a pointer kept past lv_obj_clean
     /// dangles.
@@ -723,14 +728,12 @@ class GridEditMode {
     void request_page_flip(const char* trigger, int dir);
     static void crossing_flip_cb(lv_timer_t* timer);
     static void dwell_flip_cb(lv_timer_t* timer);
-    lv_obj_t* delete_page_btn_ = nullptr;
     /// What the shield draws as the lattice, owned by the shield.
     GridLatticeSpec* lattice_spec_ = nullptr;
     /// What the drawn lattice was built for: the shield and page holding it,
-    /// the grid, the selection's snap steps, the content size and whether the
-    /// delete-page button shows. rebuild_lattice() keeps a lattice whose key
-    /// still matches.
-    using LatticeKey = std::tuple<lv_obj_t*, lv_obj_t*, int, int, int, int, int, int, bool>;
+    /// the grid, the selection's snap steps and the content size.
+    /// rebuild_lattice() keeps a lattice whose key still matches.
+    using LatticeKey = std::tuple<lv_obj_t*, lv_obj_t*, int, int, int, int, int, int>;
     LatticeKey lattice_key_{};
 
     // Drag threshold: track press origin, only start real drag after movement

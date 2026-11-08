@@ -11,6 +11,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "http_executor.h"
+#include "print_start_phase.h"
 #include "thumbnail_processor.h"
 
 #include <spdlog/spdlog.h>
@@ -324,7 +325,7 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 230); // 23.0°C (ambient)
                              set_int("bed_target", 0);
                              set_int("fan_speed", 0);
-                             set_int("print_start_phase", 0); // IDLE
+                             set_int("print_start_phase", static_cast<int>(PrintStartPhase::IDLE));
                          }});
 
     // --- printing ---
@@ -347,7 +348,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 600); // 60.0°C
                              set_int("bed_target", 600);
                              set_int("fan_speed", 255);
-                             set_int("print_start_phase", 10); // COMPLETE (past start)
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::COMPLETE));
                              set_int("print_show_progress", 1);
                          }});
 
@@ -368,7 +370,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 600);
                              set_int("bed_target", 600);
                              set_int("fan_speed", 0);
-                             set_int("print_start_phase", 10);
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::COMPLETE));
                          }});
 
     // --- error ---
@@ -404,7 +407,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("print_active", 1);
                              set_int("print_progress", 0);
                              set_int("print_show_progress", 0);
-                             set_int("print_start_phase", 4); // HEATING_NOZZLE
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
                              set_int("print_start_progress", 65);
                              set_string("print_start_message", "Heating Nozzle...");
                              set_string("print_start_time_left", "~2 min left");

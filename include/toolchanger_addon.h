@@ -215,6 +215,8 @@ bool zmod_c5_present(const PrinterDiscovery& hw);
 /// Whether the firmware picks each tool's lane itself at print time. Z-Mod's
 /// afclite, a lane-picking shim that publishes AFC-shaped objects, asks for the
 /// lanes in its own material prompt when the print starts, and refuses SET_MAP.
+/// Z-Mod's built-in AFC emulation does not: it takes the print's map from the
+/// print start (helix::print_start) and keeps SET_MAP's lane map.
 bool firmware_picks_lanes_at_print(const PrinterDiscovery& hw);
 
 /// The Z-Mod Creator 5 provider row's name, so callers holding machine_name()
@@ -253,16 +255,16 @@ struct AfcStateReading {
     std::string current_state; ///< As published; empty when the frame did not say
     bool error_state = false;  ///< The shim's own fault flag
     std::string message;       ///< Its fault text, when it sent one
-    /// `lanes[].map` verbatim ("T0", "T2", ...), indexed by lane; empty when
-    /// the frame carried no lane table. Read-only visibility: the lane→tool
-    /// relation is the firmware's own, and what it means for head indices is
-    /// exactly what a field capture has to settle before anything acts on it.
+    /// `lanes[].map` verbatim ("T0", "T2", ...; a list joined as "T0,T2"), indexed by lane; empty
+    /// when the frame carried no lane table. Read-only visibility: the lane→tool relation is the
+    /// firmware's own, and what it means for head indices is exactly what a field capture has to
+    /// settle before anything acts on it.
     std::vector<std::string> lane_maps;
 };
 
 /// Pull an AfcStateReading out of a Moonraker status frame carrying the
-/// `zmod_afclite` (or its `AFC` alias) object. nullopt when the frame carried
-/// neither object.
+/// `zmod_afclite` (or its `AFC` alias) object, or the built-in emulation's
+/// `AFC`. nullopt when the frame carried neither object.
 std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status);
 
 /// One afclite lane's Spoolman spool as its `AFC_lane <name>` object publishes

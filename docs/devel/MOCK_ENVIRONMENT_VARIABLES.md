@@ -213,6 +213,16 @@ Make the mock report metadata for `.3mf` files, as a printer that reads `.3mf` a
 | **Default** | unset (`.3mf` metadata 404s) |
 | **File** | `src/api/moonraker_client_mock_files.cpp` |
 
+### `HELIX_MOCK_3MF_PLATES`
+
+Make the mock a Moonraker that starts the plate a print start names: a `.3mf`'s metadata reports it (as `HELIX_MOCK_3MF_METADATA` does) and lists the archive's sliced plates (`sliced_plates`, read from its central directory) and the plate it describes (`plate_index`, the first). Print select then shows the plate stepper and starts the shown plate as the archive with `plateindex`, which `printer.print.start` logs beside `tools`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, `true`, `yes` or `on` enables |
+| **Default** | unset |
+| **File** | `src/api/moonraker_client_mock_files.cpp` |
+
 ### `HELIX_MOCK_3MF_CONVERSIONS`
 
 Serve a JSON file as the result of `server.helix.3mf_conversions`, the printer-side `.3mf` converter's provenance (`{"conversions":[{"source", "source_mtime", "source_size", "plate", "output", "state", ...}]}`). Unset, the method is not found, as on a printer without the converter.
@@ -256,6 +266,20 @@ Start the mock printer with a `display_status.message` (M117) already set, as a 
 
 ```bash
 HELIX_MOCK_DISPLAY_MESSAGE="Nozzle wiped, ready" ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_KLIPPY_ERROR`
+
+Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a config-style message gets the "Klipper Config Error" wording). Restart Klipper or Firmware Restart brings the mock up as usual.
+
+| Property | Value |
+|----------|-------|
+| **Values** | the `state_message` text; empty sets nothing |
+| **Default** | unset (Klippy ready) |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+```bash
+HELIX_MOCK_KLIPPY_ERROR="Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0" ./build/bin/helix-screen --test -vv
 ```
 
 ### `HELIX_MOCK_AUTO_PRINT`
@@ -1000,7 +1024,7 @@ Select the mock AMS visual scenario.
 | `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
 | `bypass` | Bypass mode active |
 | `unaccounted` | Filament at the toolhead that no lane accounts for (drives the print-start gate warning) |
-| `blocked` | Lane 2 reports BLOCKED (jammed) with no error object, the QIDI Box shape: error-red on the lane bar, spool dot and unit card badge |
+| `blocked` | Lane 2 reports BLOCKED (jammed) with no error object, the QIDI Box shape: error-red on the lane bar, spool glow and unit card badge |
 | `feeder` | Lane 3's filament waits at its feeder: its entry sensor reads it, its toolhead has not taken it (`PREP`). Shows the PARALLEL entry band with `HELIX_MOCK_AMS=snapmaker` |
 | `disconnected` | The last unit reports itself offline: its overview card ghosts with a "Disconnected" chip, and the detail header carries the chip. With one unit, the AMS panel header does |
 | `finishes` | One lane per swatch finish (silk, marble, sparkle, matte) plus a three-colour silk and a two-colour lane, repeating across the lanes, named for their colours and unlinked from Spoolman: every surface that paints a spool shows each (`docs/devel/COLOR_SWATCHES.md`) |
@@ -1457,6 +1481,14 @@ The mock answers the firmware's macros: `_T_IN T=<n>` / `_T_OUT` republish
 stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
+
+`HELIX_MOCK_ZMOD_AFC=1` swaps the afclite shim's objects for Z-Mod's built-in AFC
+emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
+`CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the
+tool changer. On the `ad5x` persona the same flag adds `zmod_color` and those objects
+(discovery picks `AD5X_IFS`), and the mock IFS backend answers
+`AmsBackend::print_start_params()` the way Z-Mod's AD5X does, so a mapped print logs
+`printer.print.start tools=...` from the mock Moonraker.
 
 It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`
 answers with the firmware's action:prompt (plate warning, OK/Cancel) and its OK

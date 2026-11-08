@@ -518,6 +518,16 @@ void PrinterState::update_nav_buttons_enabled() {
     network_state_.update_nav_buttons_enabled();
 }
 
+void PrinterState::set_led_override(OverrideState state) {
+    capability_overrides_.set_override(capability::LED, state);
+    if (!capability_overrides_.save_override_to_config(capability::LED)) {
+        spdlog::warn("[PrinterState] Could not save the led capability override");
+    }
+    capabilities_state_.set_led(discovery_, capability_overrides_);
+    spdlog::info("[PrinterState] led capability set to {}",
+                 CapabilityOverrides::state_to_string(state));
+}
+
 void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // Called directly from the main LVGL thread (hardware discovery callback).
     // No deferral needed — the caller is already inside a queue_update callback.
@@ -542,6 +552,12 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
+    // Per-head Z offset storage changes what the tune hint can promise.
+    if (profile_state_.set_z_offset_per_head(
+            helix::zoffset::firmware_applies_z_offset_per_head(discovery_)) &&
+        !profile_state_.printer_type().empty()) {
+        set_printer_type_internal(profile_state_.printer_type());
+    }
     chamber_air_state_.set_hardware(discovery_);
     versions_state_.set_firmware_name_internal(discovery_.firmware_name());
     print_domain_.set_layer_pause_state_object(helix::layer_pause::state_object(discovery_));

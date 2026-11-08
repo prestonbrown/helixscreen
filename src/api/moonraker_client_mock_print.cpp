@@ -75,6 +75,12 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         if (params.contains("filename")) {
             filename = params["filename"].get<std::string>();
         }
+        if (auto tools = params.find("tools"); tools != params.end()) {
+            spdlog::info("[MoonrakerClientMock] printer.print.start tools={}", tools->dump());
+        }
+        if (auto plate = params.find("plateindex"); plate != params.end()) {
+            spdlog::info("[MoonrakerClientMock] printer.print.start plateindex={}", plate->dump());
+        }
         if (!filename.empty()) {
             if (self->start_print_internal(filename)) {
                 if (success_cb) {

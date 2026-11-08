@@ -5,6 +5,7 @@
 
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "backend_user_edit.h"
 
 #include <cstdint>
 #include <memory>
@@ -53,13 +54,13 @@ struct ScopedMockAms {
     ScopedMockAms(const ScopedMockAms&) = delete;
     ScopedMockAms& operator=(const ScopedMockAms&) = delete;
 
-    /// sync_external_identity() drops SlotStatus (no real backend accepts a
+    /// A slot write drops SlotStatus (no real backend accepts a
     /// user-written status), so the status goes through force_slot_status().
     void load(int slot_index, uint32_t rgb, const char* material, SlotStatus status) {
         auto slot = backend->get_slot_info(slot_index);
         slot.color_rgb = rgb;
         slot.material = material;
-        backend->sync_external_identity(slot_index, slot);
+        helix::test::apply_edit(*backend, slot_index, slot);
         backend->force_slot_status(slot_index, status);
     }
 };

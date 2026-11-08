@@ -2119,19 +2119,21 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     transfers_stub().serve_archive(archive, bytes);
 
     std::string expect_entry;
-    SECTION("the plate a staged extract names") {
+    SECTION("the plate a staged extract names, without asking the printer") {
         set_print_filename_no_drain(helix::gcode::make_extracted_plate_path(archive, 5));
         expect_entry = "Metadata/plate_5.png";
+        drain();
+        CHECK_FALSE(files().has_pending());
     }
     SECTION("a .3mf the printer runs itself: its first plate") {
         set_print_filename_no_drain(archive);
         expect_entry = "Metadata/plate_2.png";
+        drain();
+        REQUIRE(files().has_pending());
+        MoonrakerError metadata_err;
+        metadata_err.message = "Metadata not available";
+        files().fire_error_last(metadata_err);
     }
-    drain();
-    REQUIRE(files().has_pending());
-    MoonrakerError metadata_err;
-    metadata_err.message = "Metadata not available";
-    files().fire_error_last(metadata_err);
     drain();
 
     // No G-code header read: the render is an entry of the archive.
@@ -2142,6 +2144,65 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     const std::string thumb = get_thumbnail_path();
     INFO(thumb);
     CHECK(thumb.find(".bin") != std::string::npos);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a plate this screen started natively is described "
+                 "from the archive",
+                 "[ActivePrintMediaManager][async][three_mf][2063]") {
+    const std::string bytes = three_mf_fixture("multi_plate.gcode.3mf");
+    const std::string archive = "Native_" + std::to_string(::getpid()) + ".gcode.3mf";
+    transfers_stub().serve_archive(archive, bytes);
+    const std::string printer_id = PrinterPrintState::start_record_printer_id();
+
+    // The commit-time load runs before the start names its plate.
+    state().print_state().begin_preparing(PrintJobRef{archive, "", ""});
+    drain();
+    REQUIRE(files().has_pending());
+    state().print_state().note_start_plate(printer_id, archive, 5);
+    state().update_from_status(
+        json{{"print_stats", {{"state", "printing"}, {"filename", archive}}}});
+    drain();
+    REQUIRE(state().print_state().confirmed_start_plate(printer_id, archive) == 5);
+    CHECK(files().pending_count() == 1); // the archive answers, not a second metadata ask
+
+    // The printer's metadata describes its default plate, 2, and arrives late.
+    FileMetadata default_plate = make_metadata_with_thumb(200, unique_thumb_path("default"));
+    default_plate.estimated_time = 5238;
+    default_plate.filament_type = "ABS";
+    files().fire_index(0, default_plate);
+    drain();
+
+    const auto& offsets = transfers_stub().range_offsets();
+    CHECK(std::find(offsets.begin(), offsets.end(), entry_offset(bytes, "Metadata/plate_5.png")) !=
+          offsets.end());
+    CHECK(get_thumbnail_path().find(".bin") != std::string::npos);
+    CHECK(state().print_state().get_estimated_print_time() == 1800);
+    CHECK(state().print_state().print_materials() == std::vector<std::string>{"ABS", "PLA"});
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a .3mf started elsewhere is described by its metadata",
+                 "[ActivePrintMediaManager][async][three_mf][2063]") {
+    const std::string bytes = three_mf_fixture("multi_plate.gcode.3mf");
+    const std::string archive = "Elsewhere_" + std::to_string(::getpid()) + ".gcode.3mf";
+    transfers_stub().serve_archive(archive, bytes);
+
+    state().update_from_status(
+        json{{"print_stats", {{"state", "printing"}, {"filename", archive}}}});
+    drain();
+    REQUIRE(files().has_pending());
+    const std::string thumb = unique_thumb_path("elsewhere");
+    FileMetadata default_plate = make_metadata_with_thumb(200, thumb);
+    default_plate.estimated_time = 5238;
+    default_plate.filament_type = "ABS";
+    files().fire_last(default_plate);
+    drain();
+
+    CHECK(transfers_stub().range_offsets().empty());
+    CHECK(transfers_stub().last_thumbnail_path() == thumb);
+    CHECK(state().print_state().get_estimated_print_time() == 5238);
+    CHECK(state().print_state().print_materials() == std::vector<std::string>{"ABS"});
 }
 
 TEST_CASE_METHOD(
@@ -2163,4 +2224,83 @@ TEST_CASE_METHOD(
     drain();
     REQUIRE(files().has_pending());
     CHECK(state().print_state().print_materials().empty());
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "ActivePrintMediaManager: a printer-announced start names no file until the "
+                 "printer does",
+                 "[ActivePrintMediaManager][2054]") {
+    // print_stats still names the previous job while another app's start runs,
+    // and the new file has no name anywhere before it opens.
+    state().update_from_status(
+        json{{"print_stats", {{"state", "cancelled"}, {"filename", "benchy.gcode"}}}});
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(get_display_filename() == "benchy");
+
+    state().print_state().set_printer_side_pre_start(true);
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(get_display_filename().empty());
+    CHECK(get_thumbnail_path() == kNoThumb);
+
+    SECTION("a reprint of the same file is named once it opens") {
+        state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(get_display_filename() == "benchy");
+    }
+    SECTION("an abandoned start gives the previous job its name back") {
+        state().print_state().set_printer_side_pre_start(false);
+        UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(get_display_filename() == "benchy");
+    }
+}
+
+TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
+                 "ActivePrintMediaManager: a printer-announced start after a restart drops the "
+                 "kept name",
+                 "[ActivePrintMediaManager][2054]") {
+    // A Klipper restart reports an empty filename, and the last job's name and
+    // picture are kept on purpose; a new start must still replace them.
+    set_print_filename("benchy.gcode");
+    REQUIRE(get_display_filename() == "benchy");
+    set_print_filename("");
+    REQUIRE(get_display_filename() == "benchy");
+
+    state().print_state().set_printer_side_pre_start(true);
+    UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(get_display_filename().empty());
+    CHECK(get_thumbnail_path() == kNoThumb);
+    state().print_state().set_printer_side_pre_start(false);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a plate named after the commit-time load reloads it",
+                 "[ActivePrintMediaManager][async][three_mf][2063]") {
+    const std::string bytes = three_mf_fixture("multi_plate.gcode.3mf");
+    const std::string archive = "Late_" + std::to_string(::getpid()) + ".gcode.3mf";
+    transfers_stub().serve_archive(archive, bytes);
+    const std::string printer_id = PrinterPrintState::start_record_printer_id();
+
+    // The commit-time load finishes on the printer's default plate first.
+    state().print_state().begin_preparing(PrintJobRef{archive, "", ""});
+    drain();
+    REQUIRE(files().has_pending());
+    FileMetadata default_plate = make_metadata_with_thumb(200, unique_thumb_path("late"));
+    default_plate.estimated_time = 5238;
+    default_plate.filament_type = "ABS";
+    files().fire_index(0, default_plate);
+    drain();
+    const auto& offsets = transfers_stub().range_offsets();
+    REQUIRE(std::find(offsets.begin(), offsets.end(),
+                      entry_offset(bytes, "Metadata/plate_5.png")) == offsets.end());
+
+    // The start names plate 5, and the printer confirms it.
+    state().print_state().note_start_plate(printer_id, archive, 5);
+    state().update_from_status(
+        json{{"print_stats", {{"state", "printing"}, {"filename", archive}}}});
+    drain();
+    INFO("metadata asks: " << files().pending_count());
+    files().fire_last(default_plate);
+    drain();
+    CHECK(std::find(offsets.begin(), offsets.end(), entry_offset(bytes, "Metadata/plate_5.png")) !=
+          offsets.end());
 }

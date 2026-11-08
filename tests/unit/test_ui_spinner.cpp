@@ -13,6 +13,8 @@
  * of inline styles. This enables automatic theme reactivity via LVGL's style system.
  */
 
+#include "ui_spinner.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "theme_manager.h"
 
@@ -194,4 +196,75 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: multiple spinners update togeth
     lv_obj_delete(spinner1);
     lv_obj_delete(spinner2);
     lv_obj_delete(spinner3);
+}
+
+// ============================================================================
+// Hidden spinners stop animating
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_spinner: a hidden spinner stops animating and resumes when shown",
+                 "[ui_spinner]") {
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_set_size(box, 200, 200);
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(box, "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    // The fixture pauses LVGL's refresh timer, so each draw is explicit.
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
+
+    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_delete(box);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: animated=false never starts animating when drawn",
+                 "[ui_spinner]") {
+    const char* attrs[] = {"size", "md", "animated", "false", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
+
+    lv_obj_delete(spinner);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: a frozen spinner stays still until unfrozen",
+                 "[ui_spinner]") {
+    struct FreezeGuard {
+        ~FreezeGuard() {
+            helix::ui::spinner_set_frozen(false);
+        }
+    } freeze_guard;
+
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    // What a remote-control freeze does: every animation gone, spinners held still.
+    helix::ui::spinner_set_frozen(true);
+    lv_anim_delete_all();
+    lv_obj_invalidate(spinner);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
+
+    helix::ui::spinner_set_frozen(false);
+    lv_obj_invalidate(spinner);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_delete(spinner);
 }

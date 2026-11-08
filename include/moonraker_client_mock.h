@@ -230,6 +230,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         klippy_state_.store(state);
     }
 
+    /// The state_message printer.info reports while Klippy is in ERROR. Empty
+    /// keeps the generic text. Set before connecting: not synchronised.
+    void set_klippy_error_message(std::string message) {
+        klippy_error_message_ = std::move(message);
+    }
+    const std::string& klippy_error_message() const {
+        return klippy_error_message_;
+    }
+
     /**
      * @brief Check if motors are currently enabled
      * @return true if motors enabled (Ready/Printing), false if disabled (Idle via M84)
@@ -847,6 +856,21 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /** @} */
 
     /**
+     * @brief Leave a command out of printer.gcode.help, as a firmware that never
+     * registered it does
+     *
+     * The mock lists a fixed set of stock Klipper commands, including
+     * Z_OFFSET_APPLY_PROBE.
+     */
+    void set_gcode_command_unregistered(const std::string& command) {
+        unregistered_gcode_commands_.insert(command);
+    }
+
+    [[nodiscard]] bool is_gcode_command_unregistered(const std::string& command) const {
+        return unregistered_gcode_commands_.count(command) > 0;
+    }
+
+    /**
      * @brief Report stepper_z position_endstop as JSON null
      *
      * Klipper emits `position_endstop: null` for any printer configured with
@@ -1027,6 +1051,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if Spoolman should be reported as available during discovery
      */
+    /// Test seam: extra top-level members server.info's result carries, the way
+    /// a firmware fork's Moonraker adds its own (Z-Mod's `zmod.features`).
+    void set_mock_server_info_extra(nlohmann::json extra) {
+        mock_server_info_extra_ = std::move(extra);
+    }
+
+    [[nodiscard]] const nlohmann::json& mock_server_info_extra() const {
+        return mock_server_info_extra_;
+    }
+
     /// Test seam: drive the Spoolman component in and out of server.info so the
     /// REAL discovery sequence's spoolman branch can be exercised both ways.
     void set_mock_spoolman_enabled(bool enabled) {
@@ -1953,6 +1987,31 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Test inspection: sends of @p method so far, failed and deferred included.
     [[nodiscard]] int call_count(const std::string& method) const;
 
+    /// Test helper: whether the openams `[openams_spoolman]` Moonraker
+    /// component is loaded. Absent, its methods answer "Method not found".
+    void set_openams_spoolman(bool present) {
+        openams_spoolman_ = present;
+    }
+    [[nodiscard]] bool openams_spoolman() const {
+        return openams_spoolman_;
+    }
+    /// Test helper: what server.openams_spoolman.status answers (its linker
+    /// status: schema_version, spoolman_online, bays keyed "<unit>-<bay>").
+    void set_openams_spoolman_status(json status) {
+        openams_spoolman_status_ = std::move(status);
+    }
+    [[nodiscard]] const json& openams_spoolman_status() const {
+        return openams_spoolman_status_;
+    }
+    /// Test inspection: the params of every server.openams_spoolman.edit the
+    /// component accepted, oldest first.
+    [[nodiscard]] const std::vector<json>& openams_spoolman_edits() const {
+        return openams_spoolman_edits_;
+    }
+    void record_openams_spoolman_edit(const json& params) {
+        openams_spoolman_edits_.push_back(params);
+    }
+
     /// What machine.update.status reports as `busy` (an update_manager job running).
     void set_update_manager_busy(bool busy) {
         update_manager_busy_ = busy;
@@ -2131,6 +2190,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
     bool update_manager_busy_{false};
+    bool openams_spoolman_{false};
+    json openams_spoolman_status_ =
+        json{{"schema_version", 1}, {"spoolman_online", true}, {"bays", json::object()}};
+    std::vector<json> openams_spoolman_edits_;
 
     // Intent of the in-flight send_jsonrpc() dispatch, read by the method
     // handlers via current_send_intent().
@@ -2336,6 +2399,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Klippy service state (for RESTART/FIRMWARE_RESTART simulation)
     std::atomic<KlippyState> klippy_state_{KlippyState::READY};
+    std::string klippy_error_message_;
 
     // Fan speed tracking (multiple fans by name)
     std::map<std::string, double> fan_speeds_; // Fan name -> speed (0.0-1.0)
@@ -2468,6 +2532,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     static constexpr int kNotificationIntervalTicks = 4; // Dispatch every 4 ticks (~1s)
 
     // Mock service availability flags (initialized from env vars in constructor)
+    nlohmann::json mock_server_info_extra_ = nlohmann::json::object();
     bool mock_spoolman_enabled_{true};     ///< Controlled by HELIX_MOCK_SPOOLMAN env var
     std::vector<WebcamInfo> mock_webcams_; ///< Published at discovery; HELIX_MOCK_WEBCAMS
 
@@ -2495,8 +2560,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     double shaper_freq_y_{47.6};
     bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
     bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
-    double extruder_max_temp_{300.0};    ///< Extruder max_temp reported in configfile.settings
-    double extruder_min_temp_{0.0};      ///< Extruder min_temp reported in configfile.settings
+    std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help
+    double extruder_max_temp_{300.0};         ///< Extruder max_temp reported in configfile.settings
+    double extruder_min_temp_{0.0};           ///< Extruder min_temp reported in configfile.settings
     double extruder_min_extrude_temp_{170.0}; ///< Extruder min_extrude_temp in configfile.settings
     json extra_config_settings_ = json::object();   ///< set_config_settings_section() sections
     std::atomic<int> skip_flags_[3] = {1, 1, 1};    ///< `_HELIX_PREP` run_* by skip_wrappers::Op
@@ -2592,6 +2658,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // tool id is atomic and the slot registry sits behind its own mutex.
     /// zmod_color.active_tool_id: 0..3 mounted, -1 nothing on the carriage.
     std::atomic<int> zmod_active_tool_{-1};
+    /// HELIX_MOCK_ZMOD_AFC: the Z-Mod personas publish the built-in AFC
+    /// emulation's objects (Z-Mod's AFC=1) instead of the afclite shim's.
+    bool zmod_builtin_afc_ = false;
+    static void push_zmod_builtin_afc_objects(json& objects);
     mutable std::mutex zmod_mutex_;
     /// (Material, HEX) per head; slot N (1-based, as CHANGE_ZCOLOR names it)
     /// lives at index N-1.

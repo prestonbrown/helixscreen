@@ -110,8 +110,13 @@
         <!-- Header Row -->
         <lv_obj width="100%"
                 height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                style_flex_main_place="space_between" style_flex_cross_place="center">
-          <text_body text="Z-Offset"/>
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_column="#space_sm">
+          <text_body text="Z-Offset" flex_grow="1"/>
+          <!-- The offset in the printer config and what a save turns it into:
+               context for the adjustment, which stays the big number. -->
+          <text_small name="z_offset_saved_line" bind_text="tune_z_offset_saved_text" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="tune_z_offset_saved_visible" flag="hidden" ref_value="0"/>
+          </text_small>
           <text_heading name="z_offset_display" bind_text="tune_z_offset_display"/>
         </lv_obj>
 
@@ -209,7 +214,7 @@
              controls above them already fill the height. -->
         <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="column" scrollable="false">
           <bind_flag_if cond="ui_breakpoint le 0" flag="hidden"/>
-          <!-- One of four, picked by z_offset_tune_hint (ZOffsetTuneHint in
+          <!-- One of five, picked by z_offset_tune_hint (ZOffsetTuneHint in
                include/printer_profile_state.h). -->
           <text_small name="z_offset_help_text_manual"
                       width="100%" long_mode="wrap"
@@ -228,6 +233,11 @@
                       width="100%" long_mode="wrap" text="Temporary for this print; a tool change resets it"
                       hidden="true">
             <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="3"/>
+          </text_small>
+          <text_small name="z_offset_help_text_per_head"
+                      width="100%" long_mode="wrap" text="Saved for the mounted head; other heads keep their own"
+                      hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="4"/>
           </text_small>
         </lv_obj>
       </lv_obj>

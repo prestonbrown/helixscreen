@@ -57,6 +57,7 @@ HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_load_hint_visible_subject_;
 HELIX_PSRAM_BSS char AmsContextMenu::slot_load_hint_buf_[192];
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_mount_subject_;
 HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_park_subject_;
+HELIX_PSRAM_BSS lv_subject_t AmsContextMenu::slot_clear_error_subject_;
 
 // ============================================================================
 // Construction / Destruction
@@ -85,6 +86,7 @@ void AmsContextMenu::init_subjects() {
                            sizeof(slot_load_hint_buf_), "");
     lv_subject_init_int(&slot_mount_subject_, 0);
     lv_subject_init_int(&slot_park_subject_, 0);
+    lv_subject_init_int(&slot_clear_error_subject_, 0);
 
     lv_xml_register_subject(nullptr, "ams_slot_is_loaded", &slot_is_loaded_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_can_load", &slot_can_load_subject_);
@@ -105,6 +107,7 @@ void AmsContextMenu::init_subjects() {
                             &slot_load_hint_visible_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_mount", &slot_mount_subject_);
     lv_xml_register_subject(nullptr, "ams_slot_park", &slot_park_subject_);
+    lv_xml_register_subject(nullptr, "ams_slot_clear_error", &slot_clear_error_subject_);
 
     subjects_initialized_ = true;
 }
@@ -204,8 +207,9 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     int slot_index = get_item_index();
 
     // Hidden until the lane path below says otherwise; the external spool
-    // has no gate to preload.
+    // has no gate to preload and no fault of its own.
     lv_subject_set_int(&slot_preload_subject_, 0);
+    lv_subject_set_int(&slot_clear_error_subject_, 0);
 
     // External spool mode: Load and Unload apply — kExternalSpoolSlot is a
     // target plan_load()/plan_unload() both resolve, and this menu is where a
@@ -444,6 +448,12 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_preload_subject_, preload_blocked ? 1 : 2);
     }
 
+    // Bookkeeping only, so no print gate: the error dialog's dismissal sends the
+    // same clear mid-pause.
+    if (backend_ && backend_->has_clearable_fault(slot_index)) {
+        lv_subject_set_int(&slot_clear_error_subject_, system_busy ? 1 : 2);
+    }
+
     // Show Clear Spool whenever the slot carries an assignment, present or not
     // (should_show_clear_spool). It used to be gated on an EMPTY slot, so it
     // disappeared the moment a spool went in — exactly when stale metadata does
@@ -463,22 +473,26 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         // reason beside it, and ams_dispatch_backend_action() refuses the same
         // case independently: a menu rendered before the print started keeps
         // its old subject values until it is rebuilt.
-        const bool clear_blocked = helix::ui::clear_spool_blocked_by_print(
+        // A backend whose link another program owns refuses the same way.
+        const bool print_blocks_clear = helix::ui::clear_spool_blocked_by_print(
             lifecycle, backend_->slot_is_actively_loaded(slot_index));
+        const std::string refusal = backend_->clear_spool_refusal(slot_index);
+        const bool clear_blocked = print_blocks_clear || !refusal.empty();
         lv_subject_set_int(&slot_can_clear_subject_, clear_blocked ? 0 : 1);
         const std::string clear_hint =
-            clear_blocked ? helix::ui::clear_spool_blocked_hint(backend_->lane_noun(), slot_index)
-                          : std::string();
+            print_blocks_clear
+                ? helix::ui::clear_spool_blocked_hint(backend_->lane_noun(), slot_index)
+                : refusal;
         lv_subject_copy_string(&slot_clear_hint_subject_, clear_hint.c_str());
         lv_subject_set_int(&slot_clear_hint_visible_subject_, clear_hint.empty() ? 0 : 1);
     }
 
-    // The header names the position in the backend's own word ("Lane 3",
-    // "Gate 3"), 1-based. lane_label() owns both halves, so there is no buffer
-    // here a translated noun can overrun.
+    // The header names the position as the hardware does: the lane's own name
+    // ("2B") when the backend has one, else the backend's word with a 1-based
+    // number ("Gate 3").
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
-        lv_label_set_text(slot_header, helix::ui::lane_label(menu_lane_noun(), slot_index).c_str());
+        lv_label_set_text(slot_header, menu_lane_label(slot_index).c_str());
     }
 
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
@@ -573,6 +587,11 @@ void AmsContextMenu::handle_bypass_toggle() {
 void AmsContextMenu::handle_gate_check() {
     spdlog::info("[AmsContextMenu] Check gate requested for slot {}", get_item_index());
     dispatch_ams_action(MenuAction::CHECK_GATE);
+}
+
+void AmsContextMenu::handle_clear_fault() {
+    spdlog::info("[AmsContextMenu] Clear error requested for slot {}", get_item_index());
+    dispatch_ams_action(MenuAction::CLEAR_FAULT);
 }
 
 void AmsContextMenu::handle_preload() {
@@ -767,6 +786,7 @@ void AmsContextMenu::register_callbacks() {
         {"ams_context_park_cb", on_park_cb},
         {"ams_context_edit_cb", on_edit_cb},
         {"ams_context_clear_spool_cb", on_clear_spool_cb},
+        {"ams_context_clear_fault_cb", on_clear_fault_cb},
         {"ams_context_spoolman_cb", on_spoolman_cb},
         {"ams_context_scan_qr_cb", on_scan_qr_cb},
         {"ams_context_purge_cb", on_purge_cb},
@@ -819,6 +839,12 @@ void AmsContextMenu::on_mount_cb(lv_event_t* /*e*/) {
 void AmsContextMenu::on_park_cb(lv_event_t* /*e*/) {
     if (auto* self = get_active_instance()) {
         self->handle_park();
+    }
+}
+
+void AmsContextMenu::on_clear_fault_cb(lv_event_t* /*e*/) {
+    if (auto* self = get_active_instance()) {
+        self->handle_clear_fault();
     }
 }
 
@@ -875,6 +901,11 @@ LaneNoun AmsContextMenu::menu_lane_noun() const {
     return backend_ ? backend_->lane_noun() : helix::ui::active_lane_noun();
 }
 
+std::string AmsContextMenu::menu_lane_label(int slot_index) const {
+    return backend_ ? helix::ui::backend_lane_label(*backend_, slot_index)
+                    : helix::ui::active_lane_label(slot_index);
+}
+
 void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_index,
                       bool open_on_picker) {
     if (!parent_screen) {
@@ -903,14 +934,11 @@ void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_inde
             SlotInfo original = backend->get_slot_info(result.slot_index);
             AmsError err = AmsState::instance().commit_slot_edit(result.slot_index, original,
                                                                  result.slot_info);
+            // The editor reports the outcome inline: it closes once the lane
+            // holds the edit and stays open saying why when it does not.
             if (err.success() || err.partially_applied) {
                 offer_edit_follow_up(result.slot_index, original, result.slot_info);
             }
-            if (!err.success()) {
-                notify_ams_error(err);
-                return;
-            }
-            NOTIFY_INFO(lv_tr("{} updated"), lane_label(backend->lane_noun(), result.slot_index));
         },
         open_on_picker);
 }
@@ -943,8 +971,8 @@ void dispatch_slot_menu_action(const SlotMenuHost& host, AmsContextMenu::MenuAct
                                int slot) {
     using MenuAction = AmsContextMenu::MenuAction;
 
-    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL are pure backend
-    // calls; see ams_dispatch_backend_action().
+    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL / CLEAR_FAULT are
+    // pure backend calls; see ams_dispatch_backend_action().
     if (ams_dispatch_backend_action(action, slot,
                                     host.path_canvas ? host.path_canvas() : nullptr)) {
         return;

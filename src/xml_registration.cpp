@@ -410,6 +410,9 @@ void register_xml_components() {
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",
                              [](lv_event_t*) { get_global_home_panel().open_widget_catalog(); });
+    lv_xml_register_event_cb(nullptr, "on_edit_delete_page_clicked", [](lv_event_t*) {
+        get_global_home_panel().request_delete_edit_page();
+    });
 
     // Backdrop tap and close/Done for every context menu — one pair, routed through
     // ContextMenu::active(), rather than a callback per menu.

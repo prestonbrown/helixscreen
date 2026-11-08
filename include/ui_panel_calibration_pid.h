@@ -101,10 +101,16 @@ class PIDCalibrationPanel : public OverlayBase {
      * section may carry, which Klipper would reject once no MPC object reads
      * them. Calibration results live in the autosave block and are left alone.
      *
+     * MPC also names the part fan as `cooling_fan`, which Kalico's model needs to
+     * measure fan heat loss, unless the section already names a fan of its own.
+     *
      * @param heater_wattage Heater power in watts, used only for MPC
+     * @param cooling_fan Klipper object of the fan cooling this heater ("fan",
+     *        "fan_generic <name>"), used only for MPC; empty for none
      */
     [[nodiscard]] static std::vector<helix::system::ConfigEdit>
-    build_control_migration_edits(CalibMethod target, int heater_wattage);
+    build_control_migration_edits(CalibMethod target, int heater_wattage,
+                                  const std::string& cooling_fan = "");
 
     PIDCalibrationPanel();
     ~PIDCalibrationPanel() override;
@@ -262,6 +268,14 @@ class PIDCalibrationPanel : public OverlayBase {
     std::string run_extruder_;
     /// M106 went out for this run, so it is owed an M107.
     bool fan_sent_ = false;
+
+    /// Guards the run's own callbacks (calibrate result, error and progress,
+    /// migration). It outlives the screensaver, which leaves the run going on
+    /// the printer, and is invalidated when the user really leaves the panel.
+    helix::AsyncLifetimeGuard run_lifetime_;
+    /// A run entered CALIBRATING behind the screensaver: the wake starts its
+    /// progress tracking instead of resuming one.
+    bool tracking_starts_on_wake_ = false;
     int target_temp_ = 200;         // Default for extruder
     int fan_speed_ = 0;             // Part cooling fan speed for extruder PID
     std::string selected_material_; // Active material preset name
@@ -406,6 +420,11 @@ class PIDCalibrationPanel : public OverlayBase {
     lv_timer_t* eta_update_timer_ = nullptr;
 
     void start_progress_tracking();
+    /// Follow the run's heater and refresh the ETA, keeping what the tracker
+    /// has measured so far: a wake from the screensaver resumes a run.
+    void attach_progress_tracking();
+    /// The temperature subject of the heater this run calibrates, or nullptr.
+    lv_subject_t* progress_temp_subject();
     void stop_progress_tracking();
 
     /// Cancel the ETA refresh timer. Safe to call when none is armed, and safe
@@ -489,6 +508,11 @@ class PIDCalibrationPanel : public OverlayBase {
     /// Part-fan gcode (M106/M107) drives the active tool's fan, so it only
     /// cools the heater being tuned when that heater is the active tool's.
     bool part_fan_reaches_heater() const;
+    /// The Klipper fan object that cools the heater being tuned, or "" where
+    /// no part fan reaches it or discovery did not find that object.
+    std::string mpc_cooling_fan() const;
+    /// build_control_migration_edits() for the selected heater.
+    std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
 
     // Event handlers
     void handle_heater_extruder_clicked();

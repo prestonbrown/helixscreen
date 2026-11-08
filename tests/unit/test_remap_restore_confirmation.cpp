@@ -25,8 +25,10 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/afc_test_access.h"
 #include "../test_helpers/cfs_test_access.h"
 #include "../test_helpers/config_dir_guard.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -38,12 +40,14 @@
 #include "config.h"
 #include "data_root_resolver.h"
 #include "discovery_steps.h"
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_job_ref.h"
 #include "printer_cache_registry.h"
 #include "printer_discovery.h"
+#include "printer_print_state.h"
 #include "printer_state.h"
 #include "slot_registry.h"
 
@@ -167,6 +171,10 @@ struct Harness {
 
     Harness() {
         ps.init_subjects(false);
+    }
+    // A start's answer reaches ps through the queue; run it before ps goes.
+    ~Harness() {
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// Tick AmsState's data-revision subject the way a synced backend event
@@ -697,6 +705,104 @@ TEST_CASE("remap restore: a backend with no mapping table drops the record unsen
     CHECK_FALSE(std::filesystem::exists(record));
 }
 
+TEST_CASE("print start carries the full tool map where the printer takes it",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"print_start_tools"};
+    ScopedCountingBackend be{{0, 1, 2, 3}};
+    const std::vector<std::string> lanes{"lane1", "lane2", "lane3", "lane4"};
+    Harness h;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    // T0 picked onto lane2, T2 a seed on lane1, T1 left to the firmware:
+    // every lane the card shows is carried, not only the picks.
+    helix::ToolMapping auto_row = row(1, -1, false);
+    auto_row.is_auto = true;
+    view.set_filament_mappings({row(0, 1, true), auto_row, row(2, 0, false)});
+
+    SECTION("Z-Mod") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_IFS IFS", "zmod_color"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+        CHECK(PrintStartControllerTestAccess::print_start_params(h.controller) ==
+              helix::PrintStartParams{{"tools", "2,,1"}});
+    }
+
+    SECTION("any other printer") {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_BoxTurtle Turtle_1"}));
+        be.backend->set_discovery(hw);
+        AfcTestAccess::initialize_slots(*be.backend, lanes);
+        CHECK(PrintStartControllerTestAccess::print_start_params(h.controller).empty());
+    }
+    h.controller.set_detail_view(nullptr);
+}
+
+namespace {
+/// The AD5X IFS backend on Z-Mod with the built-in AFC, registered as the
+/// active backend: the shape every Z-Mod AD5X print start runs against.
+struct ScopedZmodIfsBackend {
+    explicit ScopedZmodIfsBackend(bool builtin_afc = true) {
+        AmsState::instance().init_subjects(true);
+        auto be = std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr);
+        helix::PrinterDiscovery hw;
+        auto objects = nlohmann::json::array(
+            {"zmod", "zmod_color", "zmod_ifs", "filament_motion_sensor ifs_motion_sensor"});
+        if (builtin_afc) {
+            for (const char* o : {"AFC", "AFC_IFS IFS", "AFC_lane lane1", "AFC_lane lane2",
+                                  "AFC_lane lane3", "AFC_lane lane4"}) {
+                objects.push_back(o);
+            }
+        }
+        hw.parse_objects(objects);
+        be->set_discovery(hw);
+        AmsState::instance().set_backend(std::move(be));
+    }
+    ~ScopedZmodIfsBackend() {
+        AmsState::instance().set_backend(nullptr);
+    }
+};
+} // namespace
+
+TEST_CASE("print start on a Z-Mod AD5X carries the card's map, Auto left empty",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"ifs_print_start_tools"};
+    ScopedZmodIfsBackend be;
+    Harness h;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    // T0 picked onto port 3, T1 a seed on port 1, T2 Auto.
+    helix::ToolMapping auto_row = row(2, 1, false);
+    auto_row.is_auto = true;
+    view.set_filament_mappings({row(0, 2, true), row(1, 0, false), auto_row});
+
+    CHECK(PrintStartControllerTestAccess::print_start_params(h.controller) ==
+          helix::PrintStartParams{{"tools", "3,1"}});
+    h.controller.set_detail_view(nullptr);
+}
+
+TEST_CASE("a reprint on Z-Mod sends no tool map it would have to guess",
+          "[remap-restore][print_start_params][2033]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"reprint_tools"};
+    ScopedZmodIfsBackend be;
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    SECTION("a reprint from the print status panel") {
+        h.controller.initiate_reprint("cube.gcode", "", {0, 1}, nullptr, nullptr);
+    }
+    SECTION("a PA tower, whose routing names heads") {
+        h.controller.initiate_reprint_with_routing("pa_tower.gcode", {0}, {{0, 0}}, nullptr,
+                                                   nullptr);
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(h.api.job_mock().started_print_params().size() == 1);
+    CHECK(h.api.job_mock().started_print_params()[0].empty());
+}
+
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {
     LVGLTestFixture fx;
     ScopedCountingBackend be{{1, 2}};
@@ -948,6 +1054,74 @@ TEST_CASE("remap restore: a replay with no print state waits for the printer's w
         CHECK(be.backend->calls.empty());
         h.report("complete", "remapped.gcode");
         CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("an answer after the restore finished acts on nothing") {
+        PrintStartControllerTestAccess::restore(controller);
+        REQUIRE(be.backend->calls.size() == 2);
+        // A reconnect replays a record for a print that is running.
+        {
+            std::ofstream ofs(record);
+            ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+        }
+        controller.recover_pending_remap(ReportedPrintActivity::Active);
+        answer("standby");
+        CHECK(be.backend->calls.size() == 2);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+}
+
+TEST_CASE("remap restore: a replay with no print state restores on the printer's first report",
+          "[remap-restore][remap-restart]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_recover_report"};
+    ScopedCountingBackend be{{1, 2}};
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+    // No API, so nothing is asked: only a print_stats report ends the wait.
+    auto controller = std::make_unique<PrintStartController>(h.ps, nullptr);
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+    controller->recover_pending_remap(ReportedPrintActivity::Unknown);
+    REQUIRE(be.backend->calls.empty());
+
+    SECTION("an idle report restores") {
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 2);
+        CHECK_FALSE(std::filesystem::exists(record));
+    }
+
+    SECTION("a running report restores at that job's end") {
+        h.report("printing", "remapped.gcode");
+        CHECK(be.backend->calls.empty());
+        h.report("complete", "remapped.gcode");
+        CHECK(be.backend->calls.size() == 2);
+    }
+
+    SECTION("a new print's remap drops the wait") {
+        helix::ui::PrintSelectDetailView view;
+        controller->set_detail_view(&view);
+        view.set_filament_mappings({row(1, 3, true)});
+        REQUIRE(PrintStartControllerTestAccess::apply_remaps(*controller));
+        REQUIRE(be.backend->calls.size() == 1);
+        PrintStartControllerTestAccess::observe_for_restore(*controller);
+        // The idle report that lands before the print is prepared reverts nothing.
+        h.report("standby", "");
+        CHECK(be.backend->calls.size() == 1);
+        controller->set_detail_view(nullptr);
+        AmsState::instance().clear_pending_tool_map_restore();
+    }
+
+    SECTION("a controller destroyed while waiting says it will not restore") {
+        LogCapture log;
+        controller.reset();
+        CHECK(log.count_containing("Destroyed with pending remap restore") == 1);
+        CHECK(std::filesystem::exists(record));
+        AmsState::instance().clear_pending_tool_map_restore();
     }
 }
 
@@ -1721,4 +1895,53 @@ TEST_CASE("remap send: a pick on a second backend is never sent to the first",
     CHECK_FALSE(t1_sent_to_backend_0);
     CHECK(second->calls.empty());
     h.controller.set_detail_view(nullptr);
+}
+
+// The installer links pending_remap.json out to printer_data so a release update
+// keeps a restore the printer is still owed. Content checks cannot see the link
+// being replaced by a file in the install dir: the data round-trips either way.
+TEST_CASE("remap restore: the record is written and cleared through the installer's symlink",
+          "[remap-restore][2032]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_symlink"};
+    namespace fs = std::filesystem;
+
+    const fs::path printer_data = config_dir.dir / "printer_data";
+    fs::create_directories(printer_data);
+    const fs::path target = printer_data / "pending_remap.json";
+    const fs::path link = fs::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::ofstream(target) << "{}\n";
+    std::error_code ec;
+    fs::create_symlink(target, link, ec);
+    REQUIRE_FALSE(ec);
+
+    const auto read_target = [&] {
+        std::ifstream ifs(target);
+        const std::string text((std::istreambuf_iterator<char>(ifs)),
+                               std::istreambuf_iterator<char>());
+        return nlohmann::json::parse(text, nullptr, false);
+    };
+    const std::string printer = Config::get_instance()->get_active_printer_id();
+
+    AmsState::instance().set_pending_tool_map_restore(0, AmsType::AFC, {2, 1});
+    PrintStartControllerTestAccess::persist_record();
+
+    CHECK(fs::is_symlink(link));
+    const auto written = read_target();
+    REQUIRE(written.is_object());
+    CHECK(written["printers"][printer]["tool_mapping"] == nlohmann::json::array({2, 1}));
+
+    PrintStartControllerTestAccess::clear_record();
+
+    // The link and its target both survive, and the target holds nothing to replay.
+    CHECK(fs::is_symlink(link));
+    REQUIRE(fs::exists(target));
+    const auto cleared = read_target();
+    REQUIRE(cleared.is_object());
+    const auto* printers = helix::json_util::find_member(cleared, "printers");
+    CHECK((printers == nullptr || printers->empty()));
+    CHECK_FALSE(fs::exists(link.string() + ".tmp"));
+    CHECK_FALSE(fs::exists(target.string() + ".tmp"));
+
+    AmsState::instance().clear_pending_tool_map_restore();
 }

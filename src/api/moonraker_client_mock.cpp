@@ -190,6 +190,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         medusa_.last_error = "MHC_SET: sensors did not confirm T0";
         medusa_.redock_ticks = medusa_redock_notifications_;
     }
+    zmod_builtin_afc_ = helix::env_flag("HELIX_MOCK_ZMOD_AFC");
     dragonbreath_fault_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_FAULT");
     dragonbreath_offline_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_OFFLINE");
     dragonbreath_external_ = helix::env_flag("HELIX_MOCK_DRAGONBREATH_EXTERNAL");
@@ -325,9 +326,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                              {"color", COLORS[i]},
                              {"color_name", NAMES[i]},
                              {"material", "ASA"},
-                             {"helix_material", "ASA"},
-                             {"helix_locked_color", true},
-                             {"helix_locked_material", true}});
+                             {"helix_material", "ASA"}});
         }
     } else if (is_mock_openams() && openams_fleet_lane_units()) {
         // One bay loaded, on the third unit (slot 5); its spool is known to the store.
@@ -345,18 +344,14 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                          {"color", "#3CE05A"},
                          {"color_name", "Green"},
                          {"material", "PETG"},
-                         {"helix_material", "PETG"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"helix_material", "PETG"}});
     } else if (is_mock_openams()) {
         mock_db_set("lane_data", "lane3",
                     json{{"lane", "2"},
                          {"color", "#3CE05A"},
                          {"color_name", "Green"},
                          {"material", "ASA"},
-                         {"helix_material", "ASA"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"helix_material", "ASA"}});
         mock_db_set("lane_data", "lane4",
                     json{{"lane", "3"},
                          {"color", "#303030"},
@@ -364,9 +359,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                          {"material", "ASA"},
                          {"helix_material", "ASA"},
                          {"vendor", "Polymaker"},
-                         {"vendor_name", "Polymaker"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"vendor_name", "Polymaker"}});
     }
 
     // Populate hardware immediately (available for wizard without calling discover_printer())
@@ -469,6 +462,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         display_message_set_ = true;
         spdlog::info("[MoonrakerClientMock] HELIX_MOCK_DISPLAY_MESSAGE — display message \"{}\"",
                      display_message_);
+    }
+
+    // HELIX_MOCK_KLIPPY_ERROR=<state_message> — Klipper refused to start, as on a
+    // printer.cfg it cannot load: Klippy reports `error` with this reason until a
+    // restart brings it up.
+    if (const char* klippy_error = std::getenv("HELIX_MOCK_KLIPPY_ERROR");
+        klippy_error && klippy_error[0]) {
+        klippy_state_.store(KlippyState::ERROR);
+        klippy_error_message_ = klippy_error;
+        spdlog::info("[MoonrakerClientMock] HELIX_MOCK_KLIPPY_ERROR — Klippy in error: \"{}\"",
+                     klippy_error_message_);
     }
 
     // HELIX_MOCK_EXCLUDE_OBJECTS=<n>|1 — publish a synthetic multi-object plate at
@@ -1239,15 +1243,22 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("zmod");
         mock_objects.push_back("zmod_color");
         mock_objects.push_back("save_variables");
-        // Z-Mod 1.7.4's afclite shim: the AFC-shaped objects it registers so
-        // Fluidd/Mainsail draw an AFC panel for the C5's heads (names from
-        // field bundle 5WSPTZBL). Discovery must yield the AFC claim these
+        // Z-Mod's AFC-shaped objects, which exist so Fluidd/Mainsail draw an
+        // AFC panel for the C5's heads: the built-in emulation's lane1..4 under
+        // HELIX_MOCK_ZMOD_AFC, else Z-Mod 1.7.4's afclite shim (names from
+        // field bundle 5WSPTZBL). Discovery must yield the AFC claim either
         // would otherwise raise to the tool changer.
-        mock_objects.push_back("zmod_afclite");
-        mock_objects.push_back("AFC");
-        mock_objects.push_back("AFC_unit C5");
+        if (zmod_builtin_afc_) {
+            push_zmod_builtin_afc_objects(mock_objects);
+        } else {
+            mock_objects.push_back("zmod_afclite");
+            mock_objects.push_back("AFC");
+            mock_objects.push_back("AFC_unit C5");
+            for (int i = 0; i < 4; ++i) {
+                mock_objects.push_back("AFC_lane E" + std::to_string(i));
+            }
+        }
         for (int i = 0; i < 4; ++i) {
-            mock_objects.push_back("AFC_lane E" + std::to_string(i));
             mock_objects.push_back("filament_switch_sensor fd_ex" + std::to_string(i));
             mock_objects.push_back("filament_motion_sensor fm_ex" + std::to_string(i));
         }
@@ -1298,6 +1309,11 @@ void MoonrakerClientMock::populate_capabilities() {
         // the IFS module's own objects: those make discovery stand up the
         // production AD5X IFS backend, and this persona runs the mock IFS.
         mock_objects.push_back("gcode_macro SET_EXTRUDER_SLOT");
+        // Z-Mod with its built-in AFC enabled (AFC=1).
+        if (zmod_builtin_afc_) {
+            mock_objects.push_back("zmod_color");
+            push_zmod_builtin_afc_objects(mock_objects);
+        }
         break;
     case PrinterType::CREALITY_K2_PLUS:
         // The K2 Plus capture's identifying objects. `box` rides on is_mock_cfs().
@@ -2640,6 +2656,15 @@ json MoonrakerClientMock::zmod_color_status() const {
                 {"slots", std::move(slots)}};
 }
 
+void MoonrakerClientMock::push_zmod_builtin_afc_objects(json& objects) {
+    // The emulation's own names: one IFS unit, lane N = physical slot N.
+    objects.push_back("AFC");
+    objects.push_back("AFC_IFS IFS");
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("AFC_lane lane" + std::to_string(i));
+    }
+}
+
 // Z-Mod commands (creator5_zmod persona): the zmod_color extra's macros.
 // Matched on the command token exactly, and armed only for this persona.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::string& gcode) {
@@ -2695,12 +2720,17 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
         return 0;
     }
     if (cmd == "CHANGE_TOOL") {
-        // The afclite shim's load: it mounts the lane's head and feeds it. Lanes
-        // are the E0..E3 objects the persona publishes.
+        // Z-Mod's AFC load: it mounts the lane's head and feeds it. Lanes are
+        // the objects the persona publishes, E0..E3 on the afclite shim and
+        // lane1..lane4 on the built-in emulation.
         const std::string lane = param("LANE");
         int tool = -1;
-        if (lane.size() == 2 && lane[0] == 'E' && lane[1] >= '0' && lane[1] <= '3') {
+        if (!zmod_builtin_afc_ && lane.size() == 2 && lane[0] == 'E' && lane[1] >= '0' &&
+            lane[1] <= '3') {
             tool = lane[1] - '0';
+        } else if (zmod_builtin_afc_ && lane.size() == 5 && lane.rfind("lane", 0) == 0 &&
+                   lane[4] >= '1' && lane[4] <= '4') {
+            tool = lane[4] - '1';
         }
         if (tool < 0) {
             return refuse("Unknown lane: " + lane);
@@ -3677,7 +3707,7 @@ void MoonrakerClientMock::populate_hardware() {
         break;
 
     case PrinterType::FLASHFORGE_AD5X:
-        // FlashForge Adventurer 5X. Fans mirror assets/config/presets/ad5x.json
+        // FlashForge Adventurer 5X. Fans and LEDs mirror assets/config/presets/ad5x.json
         // hardware/expected.
         discovery_.heaters() = {"heater_bed", "extruder"};
         discovery_.sensors() = {"heater_bed", // Bed thermistor (Klipper naming: bare heater name)
@@ -3685,7 +3715,7 @@ void MoonrakerClientMock::populate_hardware() {
                                 "temperature_sensor chamber"};
         discovery_.fans() = {"fan_generic fanM106", "heater_fan heat_fan",
                              "fan_generic chamber_fan", "controller_fan driver_fan"};
-        discovery_.leds() = {"led chamber_led"};
+        discovery_.leds() = {"led chamber_led", "led chamber_light"};
         break;
 
     case PrinterType::CREALITY_K2_PLUS:
@@ -4962,8 +4992,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
         {"fan", {{"speed", fan / 255.0}}},
         {"webhooks",
          {{"state", klippy_str},
-          {"state_message",
-           klippy == KlippyState::SHUTDOWN ? kM112ShutdownMessage : "Printer is ready"}}},
+          {"state_message", klippy == KlippyState::SHUTDOWN ? std::string(kM112ShutdownMessage)
+                            : klippy == KlippyState::ERROR && !klippy_error_message_.empty()
+                                ? klippy_error_message_
+                                : std::string("Printer is ready")}}},
         {"print_stats", {{"state", print_state_str}, {"filename", filename}}},
         {"virtual_sdcard", {{"progress", progress}}},
         {"bed_mesh", bed_mesh_status()}};

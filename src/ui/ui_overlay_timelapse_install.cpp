@@ -93,12 +93,18 @@ lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t* parent) {
 void TimelapseInstallOverlay::on_activate() {
     OverlayBase::on_activate();
     spdlog::debug("[{}] Activated", get_name());
+    // A wake resumes the run on the step it reached; its replies still land.
+    if (take_wake()) {
+        return;
+    }
     start_wizard();
 }
 
-void TimelapseInstallOverlay::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] Deactivated", get_name());
-    wizard_active_ = false;
+void TimelapseInstallOverlay::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] Deactivated ({})", get_name(), deactivate_reason_name(reason));
+    if (reason != DeactivateReason::Suspended) {
+        wizard_active_ = false;
+    }
 }
 
 void TimelapseInstallOverlay::cleanup() {

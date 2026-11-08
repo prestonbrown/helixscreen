@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "gcode_help.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "save_config_restart.h"
@@ -60,8 +61,8 @@ void format_offset_compact(int microns, char* buf, size_t buf_size) {
 }
 
 int displayed_z_offset_microns(int live_microns, std::optional<int> persisted_microns,
-                               bool print_active) {
-    if (print_active || !persisted_microns.has_value()) {
+                               bool print_active, bool per_head) {
+    if (print_active || per_head || !persisted_microns.has_value()) {
         return live_microns;
     }
     return *persisted_microns;
@@ -71,16 +72,17 @@ int displayed_z_offset_microns(helix::PrinterState& state) {
     return displayed_z_offset_microns(
         lv_subject_get_int(state.motion_state().get_gcode_z_offset_subject()),
         state.get_persisted_z_offset_microns(),
-        lv_subject_get_int(state.print_state().get_print_active_subject()) != 0);
+        lv_subject_get_int(state.print_state().get_print_active_subject()) != 0,
+        state.profile_state().z_offset_reapplied_per_head());
 }
 
 std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_microns,
-                                 bool all_homed) {
+                                 bool all_homed, bool per_head) {
     // MOVE=1 makes the toolhead take up the new offset immediately, which is what
     // makes baby stepping usable. Klipper errors on it when an axis is unhomed.
     const char* move = all_homed ? " MOVE=1" : "";
 
-    if (base_microns == live_microns) {
+    if (per_head || base_microns == live_microns) {
         return fmt::format("SET_GCODE_OFFSET Z_ADJUST={:.3f}{}",
                            static_cast<double>(delta_microns) / 1000.0, move);
     }
@@ -124,15 +126,13 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
     return true;
 }
 
-void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
-                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
-                    std::function<void(const std::string& error)> on_error, PrinterState* ps) {
-    // Both success paths below (the FIRMWARE_MANAGED early return and the
-    // APPLY -> SAVE_CONFIG chain) funnel through this wrapper, so the pending
-    // Z-offset delta is cleared exactly once, wherever the save actually
-    // completed — including firmware-managed printers, where the offset is
-    // genuinely persisted even though HelixScreen sent nothing.
-    auto on_saved = [ps, on_success = std::move(on_success)]() {
+namespace {
+
+/// Wraps @p on_success so a completed save also clears @p ps's pending Z-offset
+/// delta, on every success path, firmware-managed printers included: there the
+/// offset is persisted even though HelixScreen sent nothing.
+std::function<void()> clearing_pending_delta(PrinterState* ps, std::function<void()> on_success) {
+    return [ps, on_success = std::move(on_success)]() {
         if (ps) {
             ps->motion_state().clear_pending_z_offset_delta();
         }
@@ -140,6 +140,39 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
             on_success();
         }
     };
+}
+
+/// SAVE_CONFIG through @p save_watch, from the WebSocket thread.
+///
+/// The watch owns the whole SAVE_CONFIG contract: it arms the expected-restart
+/// suppressions, sends the save, absorbs the rpc the restart drops, and reports
+/// success only once Klipper is back READY (prestonbrown/helixscreen#1359).
+/// begin() installs an observer, hence the _from_background form.
+void begin_save_config(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                       std::function<void()> on_saved,
+                       std::function<void(const std::string& error)> on_error) {
+    save_watch.begin_from_background(
+        api, "Saving config... Klipper will restart.", std::move(on_saved),
+        [on_error = std::move(on_error)](const std::string& err) {
+            // English in the log for developers, a translated copy for the user.
+            spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
+            if (on_error)
+                on_error(fmt::format(
+                    lv_tr("SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
+                          "Run SAVE_CONFIG manually or the offset will be lost on restart."),
+                    err));
+        });
+}
+
+/// apply_and_save(), with what happens when the firmware never registered the
+/// apply command left to the caller: @p on_apply_missing runs on the main thread
+/// with the user-facing reason, and when it is empty that reason goes to
+/// @p on_error.
+void apply_and_save_or(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                       ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
+                       std::function<void(const std::string& error)> on_error, PrinterState* ps,
+                       std::function<void(const std::string& reason)> on_apply_missing) {
+    auto on_saved = clearing_pending_delta(ps, std::move(on_success));
 
     if (!api) {
         spdlog::error("[ZOffsetUtils] apply_and_save called with null API");
@@ -165,50 +198,90 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
     spdlog::info("[ZOffsetUtils] Applying Z-offset with {} strategy (cmd: {})", strategy_name,
                  apply_cmd);
 
-    // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
-    // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
-    // calibration result in ZOffsetCalibrationPanel). The gate reads only the
-    // callback body, where that hand-off looks like logging and nothing else.
-    api->execute_gcode(
-        apply_cmd,
-        [api, apply_cmd, &save_watch, on_saved, on_error]() {
-            spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
-
-            // The watch owns the whole SAVE_CONFIG contract: it arms the
-            // expected-restart suppressions, sends the save, absorbs the rpc the
-            // restart drops, and reports success only once Klipper is back READY.
-            // Sending it raw here reported every successful save as a failure and
-            // never ran on_saved(), so the pending Z-offset delta was left set
-            // (prestonbrown/helixscreen#1359).
-            //
-            // This callback lands on the WebSocket thread and begin() installs an
-            // observer, hence the _from_background form.
-            save_watch.begin_from_background(
-                api, "Saving config... Klipper will restart.", on_saved,
-                [on_error](const std::string& err) {
-                    // Log in English (developer-facing), hand the user a
-                    // translated copy. The message used to be one bare
-                    // fmt::format serving both, so the whole sentence was
-                    // untranslatable.
-                    spdlog::error("[ZOffsetUtils] SAVE_CONFIG failed: {}", err);
-                    if (on_error)
-                        on_error(fmt::format(
-                            lv_tr(
-                                "SAVE_CONFIG failed: {}. Z-offset was applied but not saved. "
-                                "Run SAVE_CONFIG manually or the offset will be lost on restart."),
-                            err));
+    auto send_apply = [api, apply_cmd, &save_watch, on_saved, on_error]() {
+        // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
+        // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
+        // calibration result in ZOffsetCalibrationPanel). The gate reads only the
+        // callback body, where that hand-off looks like logging and nothing else.
+        api->execute_gcode(
+            apply_cmd,
+            [api, apply_cmd, &save_watch, on_saved, on_error]() {
+                spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
+                begin_save_config(api, save_watch, on_saved, on_error);
+            },
+            [apply_cmd, on_error](const MoonrakerError& err) {
+                spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
+                if (!on_error)
+                    return;
+                // Klipper's reply arrives on the WebSocket thread; on_error is UI-facing.
+                helix::ui::run_on_main("ZOffsetUtils::apply_error", [on_error, apply_cmd, err]() {
+                    on_error(fmt::format(fmt::runtime(lv_tr("{} failed: {}")), apply_cmd,
+                                         err.localized_message()));
                 });
-        },
-        [apply_cmd, on_error](const MoonrakerError& err) {
-            spdlog::error("[ZOffsetUtils] {} failed: {}", apply_cmd, err.message);
-            if (!on_error)
-                return;
-            // Klipper's reply arrives on the WebSocket thread; on_error is UI-facing.
-            helix::ui::run_on_main("ZOffsetUtils::apply_error", [on_error, apply_cmd, err]() {
-                on_error(fmt::format(fmt::runtime(lv_tr("{} failed: {}")), apply_cmd,
-                                     err.localized_message()));
             });
-        });
+    };
+
+    // A firmware that never registered the apply command (Creality's Klipper
+    // with BTT's Eddy module) cannot fold the offset into its config, and a bare
+    // SAVE_CONFIG would report a save that kept nothing. An unreadable command
+    // list sends the apply as usual.
+    //
+    // Both replies arrive on the WebSocket thread. The apply goes out from the
+    // main thread, where execute_gcode()'s gates read their subjects.
+    auto report_missing = [apply_cmd, on_error, on_apply_missing = std::move(on_apply_missing)]() {
+        spdlog::warn("[ZOffsetUtils] {} is not registered; the offset cannot be saved", apply_cmd);
+        const std::string reason = fmt::format(
+            fmt::runtime(lv_tr("This printer has no {} command, so the Z-offset cannot be saved.")),
+            apply_cmd);
+        if (on_apply_missing) {
+            on_apply_missing(reason);
+        } else if (on_error) {
+            on_error(reason);
+        }
+    };
+    api->get_client().send_jsonrpc(
+        "printer.gcode.help", nlohmann::json::object(),
+        [apply_cmd, send_apply, report_missing](const nlohmann::json& response) {
+            if (helix::gcode_help_lists(response, apply_cmd) != false) {
+                helix::ui::run_on_main("ZOffsetUtils::apply", send_apply);
+            } else {
+                helix::ui::run_on_main("ZOffsetUtils::apply_missing", report_missing);
+            }
+        },
+        [send_apply](const MoonrakerError& err) {
+            spdlog::debug("[ZOffsetUtils] Could not list gcode commands ({}); applying as usual",
+                          err.message);
+            helix::ui::run_on_main("ZOffsetUtils::apply", send_apply);
+        },
+        0,   // default timeout
+        true // silent: a probe; the apply goes ahead without it
+    );
+}
+
+} // namespace
+
+void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
+                    std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+    apply_and_save_or(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps,
+                      nullptr);
+}
+
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               std::function<void()> on_success,
+                               std::function<void(const std::string& error)> on_error,
+                               PrinterState* ps) {
+    if (!api || strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
+        apply_and_save(api, save_watch, strategy, std::move(on_success), std::move(on_error), ps);
+        return;
+    }
+    // ACCEPT has already staged the calibrated value. Z_OFFSET_APPLY_* would
+    // overwrite it with the value Klipper loaded at start minus any live gcode
+    // Z offset, so the save only commits.
+    spdlog::info("[ZOffsetUtils] Saving the accepted calibration with SAVE_CONFIG");
+    begin_save_config(api, save_watch, clearing_pending_delta(ps, std::move(on_success)),
+                      std::move(on_error));
 }
 
 int persisted_step_index() {
@@ -269,7 +342,8 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
     // Read the live offset before the optimistic write below overwrites it.
     const int live_microns =
         ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
-    const bool adjusting_from_persisted = ps && base_microns != live_microns;
+    const bool per_head = ps && ps->profile_state().z_offset_reapplied_per_head();
+    const bool adjusting_from_persisted = ps && !per_head && base_microns != live_microns;
 
     if (ps) {
         ps->motion_state().add_pending_z_offset_delta(delta_microns);
@@ -296,7 +370,8 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
 
     // Relative Z_ADJUST resolves against homing_origin, so it is only right when
     // the base we adjusted from IS the live offset. See build_z_adjust_gcode().
-    std::string gcode = build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed);
+    std::string gcode =
+        build_z_adjust_gcode(base_microns, live_microns, delta_microns, all_homed, per_head);
 
     // ZMOD persists the adjustment as `z - _TEST_POINT.temp_z_offset`, and
     // through 1.7.2 that variable survived END_PRINT/CANCEL_PRINT - so while
@@ -351,6 +426,45 @@ bool save_enabled() {
         lv_subject_get_int(
             helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1;
     return save_enabled(mode, per_tool_z);
+}
+
+std::optional<SavedOffsetLine> saved_offset_line(const SaveAvailability& facts, bool per_tool_z,
+                                                 std::optional<int> saved_microns,
+                                                 int live_microns) {
+    if (!facts.manual_save_supported || !facts.save_enabled || per_tool_z || !saved_microns) {
+        return std::nullopt;
+    }
+    return SavedOffsetLine{*saved_microns, *saved_microns - live_microns};
+}
+
+std::optional<SavedOffsetLine> saved_offset_line() {
+    PrinterState& ps = get_printer_state();
+    // 0 is "nothing read": the endstop's unset default, and the probe reading of
+    // a probe whose config carries no z_offset (Beacon and Cartographer keep
+    // theirs in their own models). The probe subject's -1 is "no Z probe".
+    std::optional<int> saved;
+    const int configured = ps.get_configured_z_offset_microns();
+    const bool probe = ps.capabilities_state().has_probe();
+    if (configured != 0 && !(probe && configured == -1)) {
+        saved = configured;
+    }
+    // A firmware that re-applies each head's own offset at pickup is per-tool
+    // too: the live offset belongs to the mounted head.
+    const bool per_tool_z =
+        lv_subject_get_int(
+            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1 ||
+        ps.profile_state().z_offset_reapplied_per_head();
+    return saved_offset_line(current_save_availability(), per_tool_z, saved,
+                             lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()));
+}
+
+std::string format_saved_offset_line(const SavedOffsetLine& line) {
+    const std::string saved = fmt::format("{:.3f}", line.saved_microns / 1000.0);
+    if (line.after_save_microns == line.saved_microns) {
+        return fmt::format(fmt::runtime(lv_tr("Saved {} mm")), saved);
+    }
+    return fmt::format(fmt::runtime(lv_tr("Saved {} mm, {} mm after Save")), saved,
+                       fmt::format("{:.3f}", line.after_save_microns / 1000.0));
 }
 
 void set_save_enabled(bool enabled) {
@@ -609,6 +723,50 @@ void save_dirty_offsets_shared() {
         ModalSeverity::Warning, lv_tr("Save"), []() { run_shared_save(); });
 }
 
+namespace {
+
+/// SAVE_CONFIG for tool parameters already staged in Klipper, from the main thread.
+///
+/// Through the watch, never a bare execute_gcode(): Klipper's cmd_SAVE_CONFIG
+/// calls request_restart() as its last act and never acks, so Moonraker fails
+/// the pending rpc with 503 (include/save_config_restart.h). A raw send would
+/// leave the restart unsuppressed, drop the rejection, and report success
+/// before the command reached the printer (prestonbrown/helixscreen#1359).
+/// begin() arms the suppression, sends the save itself, and reports success
+/// only once Klipper is back READY.
+///
+/// The restart also resets the live machine-wide offset. One this save does
+/// not persist is put back once Klipper is READY: SET_GCODE_OFFSET is
+/// live-only, so this persists nothing.
+void commit_staged_tool_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                                PrinterState* ps, std::function<void()> on_saved,
+                                std::function<void(const std::string& error)> on_error) {
+    const int live_microns =
+        ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
+    auto on_restarted = [api, live_microns, saved = std::move(on_saved)]() {
+        if (live_microns != 0) {
+            const std::string restore = fmt::format("SET_GCODE_OFFSET Z={:.3f}",
+                                                    static_cast<double>(live_microns) / 1000.0);
+            spdlog::info("[ZOffsetUtils] Restoring the unsaved live offset: {}", restore);
+            api->execute_gcode(restore, nullptr, nullptr);
+        }
+        saved();
+    };
+    save_watch.begin(
+        api, "Saving tool offsets... Klipper will restart.", std::move(on_restarted),
+        [on_error = std::move(on_error)](const std::string& err) {
+            spdlog::error("[ZOffsetUtils] SAVE_CONFIG (tool offsets) failed: {}", err);
+            if (on_error) {
+                on_error(fmt::format(
+                    lv_tr("SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. "
+                          "Run SAVE_CONFIG manually or they will be lost on restart."),
+                    err));
+            }
+        });
+}
+
+} // namespace
+
 void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                         ZOffsetCalibrationStrategy strategy, const helix::PrinterDiscovery& hw,
                         bool global_dirty, std::function<void()> on_success,
@@ -677,50 +835,38 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
         }
     };
 
+    const bool tools_need_save_config =
+        !dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw);
+
     if (global_dirty) {
-        // Commits its own change AND any tool parameters staged above.
-        apply_and_save(api, save_watch, strategy, std::move(on_saved), std::move(on_error), ps);
+        // Commits its own change AND any tool parameters staged above. A
+        // firmware without the apply command cannot save the global offset, but
+        // the staged tool parameters still get their SAVE_CONFIG: left staged,
+        // the next restart drops them, and a retry fails the same way.
+        std::function<void(const std::string&)> on_apply_missing;
+        if (tools_need_save_config) {
+            on_apply_missing = [api, &save_watch, ps, mark_saved,
+                                on_error](const std::string& reason) {
+                commit_staged_tool_offsets(
+                    api, save_watch, ps,
+                    [mark_saved, on_error, reason]() {
+                        mark_saved();
+                        if (on_error) {
+                            on_error(reason);
+                        }
+                    },
+                    on_error);
+            };
+        }
+        apply_and_save_or(api, save_watch, strategy, std::move(on_saved), on_error, ps,
+                          std::move(on_apply_missing));
         return;
     }
 
-    if (!dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw)) {
+    if (tools_need_save_config) {
         // Nothing machine-wide to apply, but the staged tool parameters still
         // need committing — and SAVE_CONFIG restarts Klipper.
-        //
-        // Through the watch, never a bare execute_gcode(): Klipper's
-        // cmd_SAVE_CONFIG calls request_restart() as its last act and never
-        // acks, so Moonraker fails the pending rpc with 503
-        // (include/save_config_restart.h). Sending it raw left the restart
-        // unsuppressed, dropped the rejection on the floor, and reported
-        // success before the command had reached the printer — the same shape
-        // as prestonbrown/helixscreen#1359. begin() arms the suppression, sends
-        // the save itself, and reports success only once Klipper is back READY.
-        //
-        // The restart also resets the live machine-wide offset. One the caller
-        // chose not to save (Z-offset saving off) is put back once Klipper is
-        // READY: SET_GCODE_OFFSET is live-only, so this persists nothing.
-        const int live_microns =
-            ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
-        auto on_restarted = [api, live_microns, saved = std::move(on_saved)]() {
-            if (live_microns != 0) {
-                const std::string restore = fmt::format("SET_GCODE_OFFSET Z={:.3f}",
-                                                        static_cast<double>(live_microns) / 1000.0);
-                spdlog::info("[ZOffsetUtils] Restoring the unsaved live offset: {}", restore);
-                api->execute_gcode(restore, nullptr, nullptr);
-            }
-            saved();
-        };
-        save_watch.begin(
-            api, "Saving tool offsets... Klipper will restart.", std::move(on_restarted),
-            [on_error](const std::string& err) {
-                spdlog::error("[ZOffsetUtils] SAVE_CONFIG (tool offsets) failed: {}", err);
-                if (on_error) {
-                    on_error(fmt::format(
-                        lv_tr("SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. "
-                              "Run SAVE_CONFIG manually or they will be lost on restart."),
-                        err));
-                }
-            });
+        commit_staged_tool_offsets(api, save_watch, ps, std::move(on_saved), std::move(on_error));
         return;
     }
 

@@ -558,6 +558,7 @@ translations:
   CONFIGURATION: KONFIGURATION
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
+  Calibrate with this tool?: 'Mit diesem Werkzeug kalibrieren?'
   Could not turn the heaters off: Die Heizungen konnten nicht ausgeschaltet werden
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -660,6 +661,7 @@ translations:
   Cannot perform this action now: Diese Aktion ist derzeit nicht möglich
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit
     Drucker verbunden'
+  Cannot restart Moonraker while printing: "Moonraker kann während eines Drucks nicht neu gestartet werden"
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
   Cannot run filament operation while printing: Filamentvorgang während des Drucks nicht möglich
   'Cannot schedule a pause: printer not connected': 'Pause kann nicht geplant werden: Drucker nicht verbunden'
@@ -698,6 +700,7 @@ translations:
   Chamber heater didn't start: 'Kammerheizung ist nicht gestartet'
   Chamber heater didn't start. {}: 'Kammerheizung ist nicht gestartet. {}'
   Chamber heating to %d°C...: Kammer heizt auf %d°C auf...
+  Chamber light fitted: 'Kammerlicht eingebaut'
   Chamber target set to {}°C: Kammer-Ziel auf {}°C gesetzt
   Chamber temp must be 0-%d°C: Kammertemperatur muss 0-%d°C betragen
   Chamber too hot: 'Kammer zu heiß'
@@ -713,6 +716,7 @@ translations:
   Change heater control?: Heizungsregelung ändern?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Ändert Druckereinstellungen über Moonraker, einschließlich Hochladen, Überschreiben und Löschen von Dateien im Konfigurationsordner des Druckers.'
+  Change the name or the linked spool in Spoolman.: "Name oder verknüpfte Spule in Spoolman ändern."
   Change tool: Werkzeug wechseln
   Changes apply immediately. Adjust during print for tuning.: Änderungen werden sofort
     angewendet. Während des Drucks zur Feinabstimmung anpassen.
@@ -796,6 +800,7 @@ translations:
   Clear All: Alles löschen
   Clear All Events: Alle Ereignisse löschen
   Clear Console?: Konsole leeren?
+  Clear Error: Fehler löschen
   Clear Spool: Spule entfernen
   Clear every Endless Spool backup: Alle Endlosspulen-Reserven löschen
   Clear extruder only: 'Nur Extruder leeren'
@@ -908,6 +913,8 @@ translations:
   'Connected to ': 'Verbunden mit '
   ? Connected to Moonraker, but Klipper is not running. You can continue — HelixScreen will show the Klipper error, and hardware detection stays limited until Klipper starts.
   : Mit Moonraker verbunden, aber Klipper läuft nicht. Sie können fortfahren — HelixScreen zeigt den Klipper-Fehler an, und die Hardware-Erkennung bleibt eingeschränkt, bis Klipper startet.
+  ? Connected to Moonraker, but Klipper reported an error. You can continue, and HelixScreen will show it again after setup. Hardware detection stays limited until Klipper starts.
+  : "Mit Moonraker verbunden, aber Klipper hat einen Fehler gemeldet. Sie können fortfahren, HelixScreen zeigt ihn nach der Einrichtung erneut an. Die Hardware-Erkennung bleibt eingeschränkt, bis Klipper startet."
   ? Connected to Moonraker, but printer discovery did not finish. You can continue — hardware detection stays limited until the printer responds.
   : Mit Moonraker verbunden, aber die Druckererkennung wurde nicht abgeschlossen. Sie können fortfahren — die Hardware-Erkennung bleibt eingeschränkt, bis der Drucker antwortet.
   Connected to {}: Verbunden mit {}
@@ -1240,6 +1247,7 @@ translations:
   ETA {}: 'Ende {}'
   EXTRAS: EXTRAS
   Each fan can only be selected once: Jeder Lüfter kann nur einmal ausgewählt werden
+  Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Jeder Werkzeugkopf hat an diesem Drucker seinen eigenen Z-Offset. Verwende stattdessen die Werkzeug-Offset-Kalibrierung.'
   Edit: Bearbeiten
   Edit Filament: Filament bearbeiten
   Edit Slot: Slot bearbeiten
@@ -1828,6 +1836,7 @@ translations:
   Heating bed: Bett aufheizen
   Heating bed to $1°C...: Bett heizt auf $1°C auf...
   Heating bed...: Bett aufheizen...
+  Heating chamber: Kammer aufheizen
   Heating chamber...: Kammer aufheizen...
   Heating is nearly the whole wait. Leaving the screen now stops the run.: 'Das Aufheizen dauert am längsten. Wenn du den Bildschirm jetzt verlässt, stoppt der Durchlauf.'
   Heating nozzle: 'Düse heizt auf'
@@ -2104,8 +2113,10 @@ translations:
   ? Klippain Shake&Tune macros are installed on the printer. HelixScreen detects them but does not use them; run them from Mainsail or Fluidd.
   : 'Klippain-Shake&Tune-Makros sind auf dem Drucker installiert. HelixScreen erkennt sie, nutzt sie aber nicht; starte sie über Mainsail oder Fluidd.'
   Klipper: Klipper
+  Klipper Config Error: "Klipper-Konfigurationsfehler"
   Klipper Error: Klipper-Fehler
   Klipper already reports the ACE slots.: "Klipper meldet die ACE-Slots bereits."
+  Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper konnte seine Konfiguration nicht laden. Korrigieren Sie die unten genannte Einstellung in den Konfigurationsdateien des Druckers und starten Sie Klipper dann neu."
   Klipper disconnected: Klipper getrennt
   Klipper failed to start with the skip macros, so they were removed: 'Klipper startete nicht mit den Überspring-Makros, daher wurden sie entfernt'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper konnte nicht starten. Entferne den Include von helix_skips.cfg aus printer.cfg.'
@@ -2252,6 +2263,8 @@ translations:
   Loading filament...: Filament wird geladen...
   Loading filaments...: Filamente werden geladen...
   Loading history...: Lade Verlauf...
+  Loading lane details. Try again in a moment.: Spurdetails werden geladen. Bitte gleich erneut versuchen.
+  Loading lane details…: Spurdetails werden geladen…
   Loading photo: 'Foto wird geladen'
   Loading spools...: Lade Spulen...
   Loading vendors...: Hersteller werden geladen...
@@ -2338,6 +2351,7 @@ translations:
   Main LED Strip: Haupt-LED-Streifen
   Maintaining: Wird gehalten
   Maintenance: 'Wartung'
+  Make color, material and spool changes in Spoolman.: "Farbe, Material und Spule in Spoolman ändern."
   Make sure every nozzle is clean.: Stelle sicher, dass alle Düsen sauber sind.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Stelle sicher, dass kein Filament im Werkzeugkopf geladen ist: Es kann im Extruder weich werden, während das Heizbett heizt.'
 
@@ -2638,6 +2652,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?'
   No tool is mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
@@ -2683,6 +2698,7 @@ translations:
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
   Not now: Nicht jetzt
   Not turned: 'Ungedreht'
+  'Not saved: {}. Try again.': "Nicht gespeichert: {}. Bitte erneut versuchen."
   Not set: Nicht festgelegt
   Not yet available on this display: 'Auf diesem Display noch nicht verfügbar'
   Not yet calibrated: Noch nicht kalibriert
@@ -2786,6 +2802,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Öffne die .3mf in Druckdateien, um diese Platte erneut zu drucken.'
   Open the CFS unit and remove the broken filament from the slot: CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen
   Open the slot editor when you load a new spool: 'Slot-Editor öffnen, wenn eine neue Spule eingelegt wird'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS verwaltet diese Spule in Spoolman, das hier nur Material, Farbe, Marke und Gewicht annimmt"
+  OpenAMS manages this spool's link: "OpenAMS verwaltet die Verknüpfung dieser Spule"
+  AFC has no Spoolman configured: "In AFC ist kein Spoolman eingerichtet"
   Opened: Geöffnet
   Operation already in progress: Vorgang läuft bereits
   Operation timed out: Zeitüberschreitung beim Vorgang
@@ -3377,6 +3396,7 @@ translations:
   Restart Klipper?: 'Klipper neu starten?'
   Restart Moonraker: Moonraker neu starten
   Restart Moonraker to finish the plugin change: Moonraker neu starten, um die Plugin-Änderung abzuschließen
+  Restart Moonraker?: "Moonraker neu starten?"
   Restart Now: Jetzt neu starten
   Restart Required: Neustart erforderlich
   'Restart failed: not connected': 'Neustart fehlgeschlagen: nicht verbunden'
@@ -3521,6 +3541,9 @@ translations:
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern
   Saved Z-Offset: Gespeicherter Z-Offset
+  Saved for the mounted head; other heads keep their own: 'Für den aufgesetzten Werkzeugkopf gespeichert; die anderen Werkzeugköpfe behalten ihren eigenen'
+  "Saved {} mm": "Gespeichert {} mm"
+  "Saved {} mm, {} mm after Save": "Gespeichert {} mm, {} mm nach dem Speichern"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR
     nicht verfügbar)
@@ -3716,6 +3739,7 @@ translations:
   Show a confirmation dialog when tapping a macro: Bestätigungsdialog beim Antippen
     eines Makros anzeigen
   Show instead of dimming: Anzeigen statt Abdunkeln
+  Show light controls for a light connected to this printer: 'Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen'
   Show printer icon in navigation bar: Druckersymbol in Navigationsleiste anzeigen
   Show sliced colors: Slice-Farben anzeigen
   Show temp for: Temperatur anzeigen für
@@ -4211,6 +4235,8 @@ translations:
     Drucker hat die Filamentkonfiguration abgelehnt. Der Druck wurde nicht gestartet.
   The printer reports measured fan speeds. HelixScreen shows them on the Fans screen.: 'Der Drucker meldet gemessene Lüfterdrehzahlen. HelixScreen zeigt sie im Lüfter-Bildschirm an.'
   The printer reports no lane record, so only clearing the extruder can unload it.: 'Der Drucker meldet keine Spuraufzeichnung, daher kann nur das Leeren des Extruders entladen.'
+  'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'Der Drucker verlangt eine verschlüsselte Verbindung, hat den verschlüsselten Auftrag aber abgelehnt: HTTP {} {}'
+  The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'Der Drucker verlangt eine verschlüsselte Verbindung, aber die verschlüsselte Verbindung zu {}:{} ist fehlgeschlagen'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'Der Drucker wechselt zwischen mehreren Werkzeugköpfen. Verwalte die Werkzeuge im Filamentsystem-Bildschirm.'
   The printer's firmware chooses where to switch on runout: Die Drucker-Firmware wählt selbst, wohin bei Filamentende gewechselt wird
   The requested position is outside the printer's bounds: 'Die angeforderte Position liegt außerhalb des Druckerbereichs'
@@ -4218,6 +4244,7 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: Der Auslaufsensor
     zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
+  The screen will lose its connection to the printer for a few seconds.: "Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
@@ -4258,6 +4285,10 @@ translations:
     Filament geladen:'
   This .3mf has no sliced plate to print.: 'Diese .3mf-Datei enthält keine geslicte Platte zum Drucken.'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Diese .3mf-Datei muss erst in G-code umgewandelt werden, bevor sie in die Warteschlange kann. Drucke sie stattdessen von hier.'
+  The queue prints this .3mf's default plate. Print this plate from here instead.: 'Die Warteschlange druckt die Standardplatte dieser .3mf-Datei. Drucke diese Platte stattdessen von hier.'
+  The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Die abgeschalteten Vorbereitungsschritte können auf diese .3mf-Datei nicht angewendet werden. Schalte sie wieder ein, um zu drucken.'
+  Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'Die Filamentzuordnung kann diese .3mf-Datei nicht umschreiben. Drucke sie ohne Neuzuordnung.'
+  'This .3mf''s plates are still loading. Try again in a moment.': 'Die Platten dieser .3mf-Datei werden noch geladen. Versuche es gleich noch einmal.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Diese .3mf-Datei muss auf dem Drucker in G-code umgewandelt werden, bevor sie gedruckt werden kann.'
   This AFC system does not support bypass mode: 'Dieses AFC-System unterstützt den Bypass-Modus nicht'
   This CFS firmware exposes no external spool slot: 'Diese CFS-Firmware bietet keinen externen Spulen-Slot'
@@ -4312,6 +4343,7 @@ translations:
   This printer has no IFS.: "Dieser Drucker hat kein IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus.
+  'This printer has no {} command, so the Z-offset cannot be saved.': 'Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an.
   "This printer's INDX macros are missing: {}": "Den INDX-Makros dieses Druckers fehlt: {}"
@@ -4665,6 +4697,7 @@ translations:
   Waiting for Moonraker...: Warte auf Moonraker...
   Waiting for %s to finish. One heater at a time.: Warte, bis %s fertig ist. Nur eine Heizung gleichzeitig.
   Waiting for another box to finish.: Warte, bis eine andere Box fertig ist.
+  Waiting for bed temperature...: Warten auf Betttemperatur...
   Waiting for bed to reach temperature for accurate calibration.: Warte auf Bett-Temperatur
     für genaue Kalibrierung.
   Waiting for chamber {} / {}°C: 'Warte auf Kammer {} / {}°C'
@@ -4924,11 +4957,18 @@ translations:
   tall: hoch
   target {}%: 'Ziel {}%'
   target {}°: 'Ziel {}°'
+  the ACE needs a material and its nozzle temperature: "der ACE braucht ein Material und dessen Düsentemperatur"
+  "the CFS can't change a slot while a print is running": "das CFS kann während eines Drucks keinen Slot ändern"
+  the QIDI Box filament list has not loaded: "die Filamentliste der QIDI Box ist nicht geladen"
+  the QIDI Box has no {} in its filament list: "die QIDI Box hat kein {} in ihrer Filamentliste"
   the extruder: den Extruder
   the left belt: "Riemen links"
   the lower belt: "Riemen unten"
+  the printer did not confirm it: "der Drucker hat es nicht bestätigt"
+  the printer refused it: "der Drucker hat es abgelehnt"
   the right belt: "Riemen rechts"
   the upper belt: "Riemen oben"
+  this printer fills its gates from Spoolman, so change the spool there: "dieser Drucker füllt seine Gates aus Spoolman, ändere die Spule dort"
   this week: diese Woche
   too slow: zu langsam
   tool(s): Werkzeug(e)
@@ -5044,6 +5084,7 @@ translations:
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert'
   '{}:{:02} elapsed': '{}:{:02} vergangen'
   '{}% left': '{}% übrig'
+  '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} ist montiert. Mit einer gemeinsamen Sonde mit {1} kalibrieren. Mit {0} fortfahren?'
   'Basic': 'Standard'
   'Recycled': 'Recycelt'
   'Add to Spoolman + label': 'Zu Spoolman hinzufügen + Etikett'

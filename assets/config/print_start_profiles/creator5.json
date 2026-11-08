@@ -1,0 +1,58 @@
+{
+  "name": "FlashForge Creator 5",
+  "description": "FlashForge Creator 5 / 5 Pro. Z-Mod narrates its START_PRINT on the console in its own words, captured live on a Creator 5 Pro on Z-Mod 1.7.5 (2026-11-06: a saved-mesh start and a full 10x10 mesh start). Those lines are tag_patterns because the sequence is not monotonic in the phase enum: the tool is picked up and heated, the mesh runs with the head docked and the tool is picked up again, and the bed then waits in its print window (Waiting for temperature normalization. Bed: lo-hi ... START_PRINT) for up to several minutes before the purge. Those bed waits say 'Waiting for bed temperature' because the line does not say which way the bed is moving. 'info Priming algorithm:' and 'info Load bed mesh:' are settings in the START_PRINT banner, not steps. The per-tool table PRINT_ZCOLOR prints once the colour prompt is answered announces the start (announces_start), so a print started from another app shows Preparing from its first step rather than at the file opening. The rest is the generic profile, for the Creator 5's other firmwares, without what misfires on Z-Mod's narration: BED_TEMP and EXTRUDER_TEMP (the banner's 'info START_PRINT BED_TEMP=55.0 EXTRUDER_TEMP=220.0 ...', minutes before either heater step); LINE_PURGE and Priming ('info Priming algorithm: LINE_PURGE' and 'info Nozzle priming: enabled', ~200s before the purge); BED_MESH_PROFILE LOAD=, mesh.*load and 'bed mesh' (a saved mesh's sub-second load, and 'info Printing with bed mesh: auto' after the bed wait, which would show Bed Mesh again just before the purge); and the generic 'purging' status signal (filament moving with the head moving once the heaters are at target), since the tool pickup and docking move the head and filament with the heaters at target and no capture recorded motion_report to clear it.",
+  "progress_mode": "weighted",
+  "phase_object": {
+    "object": "display_status",
+    "field": "message"
+  },
+  "tag_patterns": [
+    { "pattern": "^// T[0-9]+ \\([^)]*\\):\\n// temp \\(auto purge\\):", "case_sensitive": true, "phase": "INITIALIZING", "message": "Preparing...", "announces_start": true },
+    { "pattern": "^// Grab attempt for T[0-9]+: 1 of ", "case_sensitive": true, "phase": "INITIALIZING", "message": "Picking up tool" },
+    { "pattern": "^// Unload attempt for T[0-9]+: 1 of ", "case_sensitive": true, "phase": "INITIALIZING", "message": "Docking tool" },
+    { "pattern": "^// Waiting for temperature normalization\\. Extruder: ", "case_sensitive": true, "phase": "HEATING_NOZZLE", "message": "Heating Nozzle..." },
+    { "pattern": "^// Waiting for temperature normalization\\. Bed: .* START_PRINT$", "case_sensitive": true, "phase": "HEATING_BED", "message": "Waiting for bed temperature..." },
+    { "pattern": "^// Waiting for temperature normalization\\. Bed: ", "case_sensitive": true, "phase": "HEATING_BED", "message": "Heating Bed..." },
+    { "pattern": "^info Bed calibration\\. ", "case_sensitive": true, "phase": "HEATING_BED", "message": "Waiting for bed temperature..." },
+    { "pattern": "^info Nozzle line purge\\. |^// KAMP purge starts at ", "case_sensitive": true, "phase": "PURGING", "message": "Purging..." },
+    { "pattern": "^echo: START_PRINT has finished its work\\.", "case_sensitive": true, "phase": "COMPLETE", "message": "Starting Print..." }
+  ],
+  "signal_formats": [],
+  "response_patterns": [
+    { "pattern": "G28|Homing|Home All|homing axes|homing all", "phase": "HOMING", "message": "Homing...", "weight": 10 },
+    { "pattern": "M190|M140\\s+S[1-9]|Heating bed|Heat Bed|bed.*heat", "phase": "HEATING_BED", "message": "Heating Bed...", "weight": 20 },
+    { "pattern": "^Bed:\\s*[0-9]+\\s*C?$", "phase": "HEATING_BED", "message": "Heating Bed...", "weight": 20, "narrates": false },
+    { "pattern": "(heat|bed|chamber).?soak|soaking|heating chamber|waiting for chamber", "phase": "SOAKING", "message": "Heat Soaking...", "weight": 20 },
+    { "pattern": "M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 20 },
+    { "pattern": "^(Hotend|Nozzle):\\s*[0-9]+\\s*C?$", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 20, "narrates": false },
+    { "pattern": "QUAD_GANTRY_LEVEL|quad.?gantry.?level|QGL|level(l)?ing.{0,12}gantry|gantry.{0,3}level|Gantry-relative probe points", "phase": "QGL", "message": "Leveling Gantry...", "weight": 15 },
+    { "pattern": "Z_TILT_ADJUST|z.?tilt", "phase": "Z_TILT", "message": "Z Tilt Adjust...", "weight": 15 },
+    { "pattern": "BED_MESH_CALIBRATE|Loading bed mesh|Probing mesh|generating mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
+    { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean(ing)?.?nozzle|nozzle.?clear", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
+    { "pattern": "VORON_PURGE|PURGE_LINE|Prime.?Line|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE|\\bpurging\\b", "phase": "PURGING", "message": "Purging...", "weight": 5 }
+  ],
+  "status_signals": [
+    {
+      "name": "heating_bed",
+      "object": "heater_bed",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 15
+    },
+    {
+      "name": "heating_nozzle",
+      "object": "extruder",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    }
+  ]
+}

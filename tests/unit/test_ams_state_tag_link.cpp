@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -123,7 +124,7 @@ struct TagLinkFixture : LVGLTestFixture {
 
         SlotInfo slot = backend->get_slot_info(0);
         slot.spoolman_id = 0;
-        backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*backend, 0, slot);
         backend->force_slot_status(0, SlotStatus::AVAILABLE);
 
         ui::set_test_notification_warning_hook(
@@ -305,7 +306,7 @@ TEST_CASE_METHOD(TagLinkFixture, "a new backend starts with no tag link left ove
     next->tag_ids[0] = kTaggedSpool;
     SlotInfo slot = next->get_slot_info(0);
     slot.spoolman_id = kOtherSpool;
-    next->sync_external_identity(0, slot);
+    helix::test::apply_edit(*next, 0, slot);
     next->force_slot_status(0, SlotStatus::AVAILABLE);
     AmsState::instance().set_backend(std::move(owned));
     backend = next;

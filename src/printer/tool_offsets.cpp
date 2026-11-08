@@ -42,6 +42,9 @@ struct Provider {
     /// model whose writes otherwise wait for the next tool change. nullptr when
     /// a write already takes effect on the next move.
     std::string (*activate_gcode)(const PrinterDiscovery& hw, int tool_index);
+    /// The tool number the probe's z_offset belongs to, or -1 when a probe
+    /// calibration does not depend on which tool is mounted.
+    int probe_reference_tool;
 };
 
 namespace {
@@ -324,13 +327,17 @@ const std::vector<Provider>& providers() {
     // nothing more.
     static const std::vector<Provider> table = {
         {"INDX save_variables", &helix::indx::present, &supports_axis_all, &status_objects_none,
-         &read_indx, &read_global_z_indx, nullptr, nullptr, false, nullptr},
+         &read_indx, &read_global_z_indx, nullptr, nullptr, false, nullptr, -1},
         {"TOOL_OFFSET macro", &detect_tool_offset_macro, &supports_axis_all,
          &status_objects_tool_offset_macro, &read_tool_offset_macro, nullptr,
-         &set_tool_offset_macro, &save_tool_offset_macro, false, &activate_tool_offset_macro},
+         &set_tool_offset_macro, &save_tool_offset_macro, false, &activate_tool_offset_macro, -1},
         {"klipper-toolchanger", &detect_toolchanger, &supports_axis_toolchanger,
          &status_objects_none, &read_toolchanger, nullptr, &set_toolchanger, &save_toolchanger,
-         true, nullptr},
+         true, nullptr,
+         // Each tool's gcode offsets are measured against T0 (the example
+         // calibrate-offsets.cfg probes the others relative to it), and every
+         // move adds the mounted tool's own, so the probe's z_offset is T0's.
+         0},
     };
     return table;
 }
@@ -440,6 +447,14 @@ std::string activate_mounted_offset_gcode(const PrinterDiscovery& hw, int tool_i
 bool persist_requires_save_config(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->persist_needs_save_config;
+}
+
+std::optional<int> probe_reference_tool(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    if (!p || p->probe_reference_tool < 0) {
+        return std::nullopt;
+    }
+    return p->probe_reference_tool;
 }
 
 std::string provider_name(const PrinterDiscovery& hw) {

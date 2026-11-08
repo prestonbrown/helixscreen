@@ -12,7 +12,6 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "http_executor.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"
 #include "print_start_phase.h"
@@ -76,6 +75,16 @@ const ImageRegions& tagged_regions() {
     return r;
 }
 
+/// A 400x400 printer picture at `path`, tagged with every region.
+PrintStatusTiles::Image tagged_image(const std::string& path) {
+    PrintStatusTiles::Image img;
+    img.path = path;
+    img.natural_w = 400;
+    img.natural_h = 400;
+    img.regions = &tagged_regions();
+    return img;
+}
+
 /// The panel's own XML built at a screen size, with a tagged printer picture.
 class TileFixture : public PrintStatusPanelFixture {
   public:
@@ -92,14 +101,7 @@ class TileFixture : public PrintStatusPanelFixture {
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
         REQUIRE(tile_ != nullptr);
-        tiles().set_image_source([]() {
-            PrintStatusTiles::Image img;
-            img.path = "A:test-printer.png";
-            img.natural_w = 400;
-            img.natural_h = 400;
-            img.regions = &tagged_regions();
-            return img;
-        });
+        tiles().set_image_source([]() { return tagged_image("A:test-printer.png"); });
         settle();
     }
 
@@ -1075,14 +1077,7 @@ TEST_CASE_METHOD(Landscape800,
     // Both lay out alike, so the two copies are cut for one rect. No picture
     // until the caches are cleared, so nothing generates early.
     std::string source;
-    tiles().set_image_source([&source]() {
-        PrintStatusTiles::Image img;
-        img.path = source;
-        img.natural_w = 400;
-        img.natural_h = 400;
-        img.regions = &tagged_regions();
-        return img;
-    });
+    tiles().set_image_source([&source]() { return tagged_image(source); });
     settle();
     lv_obj_update_layout(root_);
     lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
@@ -1112,14 +1107,7 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
         lv_display_get_horizontal_resolution(lv_display_get_default()));
     REQUIRE_FALSE(source.empty());
     std::string shown;
-    tiles().set_image_source([&shown]() {
-        PrintStatusTiles::Image img;
-        img.path = shown;
-        img.natural_w = 400;
-        img.natural_h = 400;
-        img.regions = &tagged_regions();
-        return img;
-    });
+    tiles().set_image_source([&shown]() { return tagged_image(shown); });
     settle();
     lv_obj_update_layout(root_);
     lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
@@ -1129,18 +1117,14 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
     std::error_code ec;
     std::filesystem::remove(cache_path, ec);
 
-    // The fixture's own picture may still be generating. While it runs the tile
-    // refuses this request and retries it only when that result lands, which the
-    // deinit() below cancels, so nothing would ever generate this one.
-    REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; },
-                       kGenerationBudgetMs));
-    UpdateQueue::instance().drain();
-
+    // Another picture's generation holds the slot until a drain, so this miss is refused.
+    shown = "A:not-a-printer.png";
+    tiles().update_now();
     shown = source;
-    tiles().update_now(); // a miss: the generation starts
+    tiles().update_now();
     REQUIRE(subject_str("ps_printer_image_src") == source);
     tiles().deinit();
-    // The worker still writes its entry; its result must not reach the subject.
+    // The refused miss is still written; no result may reach the subject.
     REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }, kGenerationBudgetMs));
     process_lvgl(50);
     UpdateQueue::instance().drain();

@@ -1738,7 +1738,7 @@ void FilamentPanel::execute_purge() {
                 return;
             }
             begin_operation_guard();
-            api_->execute_gcode(filament_purge_fallback_gcode(),
+            api_->execute_gcode(filament_purge_fallback_gcode(AmsState::instance().get_backend()),
                                 object_lifetime_.bg_cb("FilamentPanel::purge_ok",
                                                        [this]() {
                                                            operation_guard_.end();
@@ -2047,13 +2047,27 @@ void FilamentPanel::populate_extruder_dropdown() {
 
     // Build options string ("Tool 1 (T0)\nTool 2 (T1)\n..."). The open list
     // sizes itself to its widest option, so it always has room for the full
-    // form; the closed control shows only the G-code name.
+    // form; the closed control shows only the G-code name. With one head, every
+    // tool is a lane the hub feeds into it, so each is named by its lane
+    // ("Slot 1 (T0)", "1A (T0)"): "Tool 2" would name a toolhead the printer
+    // does not have.
+    const bool tools_are_lanes = !ts.has_multiple_toolheads();
+    // A lane is named by the backend that feeds it, which need not be the
+    // active one.
+    auto lane_label = [](const ToolInfo& tool) {
+        const auto* backend = AmsState::instance().get_backend(tool.backend_index);
+        return backend ? helix::ui::backend_lane_label(*backend, tool.backend_slot)
+                       : helix::ui::active_lane_label(tool.backend_slot);
+    };
     std::string options;
     for (const auto& tool : ts.tools()) {
         if (!options.empty())
             options += '\n';
-        options +=
-            helix::ui::active_tool_label(tool.name, tool.index, helix::ui::ToolLabelForm::Full);
+        options += tools_are_lanes && tool.backend_slot >= 0
+                       ? helix::ui::fed_lane_tool_label(lane_label(tool), tool.index,
+                                                        helix::ui::ToolLabelForm::Full)
+                       : helix::ui::active_tool_label(tool.name, tool.index,
+                                                      helix::ui::ToolLabelForm::Full);
     }
     lv_dropdown_set_options(extruder_dropdown_, options.c_str());
 

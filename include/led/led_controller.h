@@ -402,6 +402,11 @@ class LedController {
 
     // Discovery
     void discover_from_hardware(const helix::PrinterDiscovery& hardware);
+
+    /// The led capability is turned off for this printer: its firmware declares
+    /// lights the hardware does not have, so led_controllable and led_has_devices
+    /// read 0 whatever discovery finds. Republishes both.
+    void set_lights_disabled(bool disabled);
     void discover_wled_strips(); ///< Async WLED discovery via Moonraker HTTP bridge
 
     /// Called on the main thread when a WLED discovery settles (see
@@ -533,6 +538,12 @@ class LedController {
         return &led_controllable_;
     }
 
+    /// Boolean subject (0/1): the LEDs overlay has a device to list. Registered
+    /// globally as "led_has_devices".
+    lv_subject_t* get_led_has_devices_subject() {
+        return &led_has_devices_;
+    }
+
     /// Int subject (0/1): a light toggle command is currently awaiting its gcode ACK.
     /// Drives button greying while a command is in flight. Registered globally as
     /// "led_command_in_flight" for direct XML binding.
@@ -650,6 +661,7 @@ class LedController {
     // singleton-lifetime subject (no lifetime-token overload).
     ObserverGuard klippy_observer_;
     bool version_subject_initialized_ = false;
+    bool lights_disabled_ = false;
     /// Owns the four subjects above: when the registry deinit calls
     /// deinit_all(), the death signal expires before they are freed.
     SubjectManager subjects_;

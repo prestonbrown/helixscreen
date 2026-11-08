@@ -82,6 +82,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasHeatSoak, "printer_has_heat_soak", 0},
     {Capability::HasFanFeedback, "printer_has_fan_feedback", 0},
     {Capability::HasLedEffects, "printer_has_led_effects", 0},
+    {Capability::HasLedObject, "printer_has_led_object", 0},
     {Capability::EnclosureTopFitted, "printer_enclosure_top_fitted", 0},
     {Capability::HardwareGeneration, "printer_hardware_generation", 0},
 };
@@ -181,6 +182,15 @@ void PrinterCapabilitiesState::deinit_subjects() {
     pending_capability_values_.fill(std::nullopt);
 }
 
+void PrinterCapabilitiesState::set_led(const PrinterDiscovery& hardware,
+                                       const CapabilityOverrides& overrides) {
+    // A preset turns this off for printers whose firmware declares a light that
+    // stock hardware does not wire; the object flag keeps the toggle that turns
+    // it back on reachable.
+    set_capability(Capability::HasLed, overrides.has_led() ? 1 : 0);
+    set_capability(Capability::HasLedObject, hardware.has_led() ? 1 : 0);
+}
+
 void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
                                             const CapabilityOverrides& overrides) {
     // Update subjects using effective values (auto-detect + user overrides)
@@ -192,13 +202,13 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasBedMesh, overrides.has_bed_mesh() ? 1 : 0);
     set_capability(Capability::HasNozzleClean, overrides.has_nozzle_clean() ? 1 : 0);
     set_capability(Capability::HasHeatSoak, overrides.has_heat_soak() ? 1 : 0);
+    set_led(hardware, overrides);
 
     // Hardware capabilities (no user override support yet - set directly from detection)
     spdlog::debug("[PrinterCapabilitiesState] has_probe={} has_led={} has_accel={}",
                   hardware.has_probe(), hardware.has_led(), hardware.has_accelerometer());
     set_capability(Capability::HasProbe, hardware.has_probe() ? 1 : 0);
     set_capability(Capability::HasHeaterBed, hardware.has_heater_bed() ? 1 : 0);
-    set_capability(Capability::HasLed, hardware.has_led() ? 1 : 0);
     set_capability(Capability::HasAccelerometer, hardware.has_accelerometer() ? 1 : 0);
     set_capability(Capability::HasShakeTune, hardware.has_klippain_shaketune() ? 1 : 0);
     set_capability(Capability::HasFanFeedback, hardware.has_fan_feedback() ? 1 : 0);
