@@ -460,7 +460,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// which a head the firmware calls official requires.
     [[nodiscard]] static std::string
     build_filament_config_gcode(int head, const SlotInfo& slot, bool force = false,
-                                RecordLines lines = RecordLines::Both);
+                                RecordLines lines = RecordLines::Both,
+                                const std::string& kept_subtype = {});
 
     /// One multi-line feed script covering @p slots, in the order given,
     /// newline-joined with no trailing newline. Empty @p slots yields the
@@ -700,6 +701,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     struct RecordWrite {
         bool force = false;
         RecordLines lines = RecordLines::Both;
+        /// The sub-type the head keeps when the edit names no product line.
+        std::string kept_subtype;
     };
 
     /// A refeed whose AUTO_FEEDING answered OK before the feeder's frame
