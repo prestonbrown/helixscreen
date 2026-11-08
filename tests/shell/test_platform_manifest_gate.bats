@@ -559,15 +559,19 @@ print(' '.join(pm.splash_3d_classes_for(m, 'mips')), pm.printer_image_sizes_for(
     # prerender_size_class.cpp says "Must match SCREEN_SIZES in gen_splash_3d.py",
     # which is an instruction to a human rather than a check. This is the check:
     # every class the generator builds must be one the manifest knows, at the
-    # same composited height, or the app asks for a file the generator never made.
+    # same composited width and height, or the app asks for a file the generator
+    # never made, or measures one it did make wrongly.
     run python3 - <<'EOF'
 import json, re, sys
 src = open("scripts/gen_splash_3d.py").read()
 block = re.search(r"SCREEN_SIZES = \[(.*?)\]", src, re.S).group(1)
-gen = {m[0]: int(m[2]) for m in re.findall(r'\("([a-z_]+)",\s*(\d+),\s*(\d+),', block)}
-heights = json.load(open("assets/config/platforms.json"))["size_classes"]["splash_composite_height"]
-bad = [f"{k}: generator {v}px, manifest {heights.get(k)}px" for k, v in gen.items() if heights.get(k) != v]
-missing = [k for k in heights if k not in gen]
+gen = {m[0]: (int(m[1]), int(m[2])) for m in re.findall(r'\("([a-z_]+)",\s*(\d+),\s*(\d+),', block)}
+classes = json.load(open("assets/config/platforms.json"))["size_classes"]
+widths = classes["splash_composite_width"]
+heights = classes["splash_composite_height"]
+bad = [f"{k}: generator {w}x{h}, manifest {widths.get(k)}x{heights.get(k)}"
+       for k, (w, h) in gen.items() if (widths.get(k), heights.get(k)) != (w, h)]
+missing = [k for k in set(heights) | set(widths) if k not in gen]
 if bad or missing:
     print("MISMATCH " + "; ".join(bad + [f"manifest class {k} has no canvas" for k in missing]))
     sys.exit(1)
