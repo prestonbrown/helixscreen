@@ -171,6 +171,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: A motor IO pin couldn't be restored. Power-cycle the printer to recover
   A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
+  "A new Print Status screen": "A new Print Status screen"
   A newer version of the helper macros is available: A newer version of the helper macros is available
   A picture of your printer: A picture of your printer
   A print holds the printer.: A print holds the printer.
@@ -980,21 +981,30 @@ translations:
     not analyze PRINT_START macro. Some print options may be unavailable.
   Could not answer the connection request: Could not answer the connection request
   'Could not check {} - it stays in the queue': 'Could not check {} - it stays in the queue'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   "Every screen and setting explained": "Every screen and setting explained"
   "Getting Started": "Getting Started"
+  "Here's a quick look at what changed since your last version.": "Here's a quick look at what changed since your last version."
   'Klipper: {}': 'Klipper: {}'
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Learn the basics: the setup wizard, moving around the screens, and touch gestures."
   Load all stopped: Load all stopped
+  "Load and unload": "Load and unload"
   Load stopped: Load stopped
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Load, unload, and purge from here. Choose a material to set its temperatures first."
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Load, unload, and swap spools, set temperatures, and monitor runout sensors."
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
   'Moonraker answered at {}.': 'Moonraker answered at {}.'
+  "New in 1.1": "New in 1.1"
   No filament was inserted in time: No filament was inserted in time
   Print hours between filter changes. Off hides this meter.: Print hours between filter changes. Off hides this meter.
   Print hours between nozzle changes. Off hides this meter.: Print hours between nozzle changes. Off hides this meter.
   Print hours between rail cleaning and lubrication. Off hides this meter.: Print hours between rail cleaning and lubrication. Off hides this meter.
   Print hours this week and lifetime totals: Print hours this week and lifetime totals
   "Setup, navigation and gestures": "Setup, navigation and gestures"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman."
   Unload stopped: Unload stopped
   "User Guide": "User Guide"
+  "Your filament system": "Your filament system"
   '{} could not be checked from Home - review it and tap Print': '{} could not be checked from Home - review it and tap Print'
   Could not apply the new IPv4 settings.: Could not apply the new IPv4 settings.
   Could not change printer.cfg: Could not change printer.cfg
@@ -2232,8 +2242,6 @@ translations:
   Load Profile: Load Profile
   Load the required filaments or start anyway?: Load the required filaments or start
     anyway?
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
   Load...: Load...
   Loaded: Loaded
   Loading: Loading
@@ -2263,7 +2271,6 @@ translations:
   Login Required: Login Required
   Logs: Logs
   Long Press Time: Long Press Time
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.'
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): Long-press the home grid to rearrange widgets (turn off if it triggers by accident)
   Longest Disconnect: Longest Disconnect
   Loosen {0} noticeably: Loosen {0} noticeably
@@ -2419,7 +2426,6 @@ translations:
   Modifying G-code needs the HelixPrint plugin. Printing original file.: Modifying G-code needs the HelixPrint plugin. Printing original file.
   Monitor for print abnormalities (K2 Plus camera-based): Monitor for print abnormalities (K2 Plus camera-based)
   Monitor for print abnormalities (camera-based): 'Monitor for print abnormalities (camera-based)'
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.'
   Monitoring: Monitoring
   Month: Month
   Moonraker: Moonraker

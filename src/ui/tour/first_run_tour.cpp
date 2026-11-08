@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_next_tick.h"
+#include "ui_panel_ams_overview.h"
 
 #include "app_globals.h"
 #include "config.h"
@@ -21,14 +22,26 @@
 
 namespace helix::tour {
 
+namespace {
+// The overlay slide-in takes 200ms; the margin covers a panel's first layout.
+constexpr uint32_t kPanelSettleMs = 280;
+
+PanelId base_panel_for(TourPanel panel) {
+    return panel == TourPanel::Home ? PanelId::Home : PanelId::Filament;
+}
+} // namespace
+
 FirstRunTour& FirstRunTour::instance() {
     static FirstRunTour s;
     static bool registered = []() {
         // Tear the overlay down before LVGL deinits — otherwise the unique_ptr's
         // destructor runs during C++ static teardown, after lv_deinit(), and
         // ~TourOverlay's lv_obj_delete() touches freed LVGL state.
-        StaticPanelRegistry::instance().register_destroy(
-            "FirstRunTour", []() { FirstRunTour::instance().overlay_.reset(); });
+        StaticPanelRegistry::instance().register_destroy("FirstRunTour", []() {
+            auto& tour = FirstRunTour::instance();
+            tour.panel_settle_timer_.reset();
+            tour.overlay_.reset();
+        });
         return true;
     }();
     (void)registered;
@@ -99,20 +112,27 @@ void FirstRunTour::maybe_start() {
         // and a modal or overlay may have come up over Home since the check.
         if (running_ || !should_auto_start())
             return;
-        start_impl();
+        auto* cfg = ::helix::Config::get_instance();
+        start_impl(auto_start_seen_version(cfg->get<bool>("/tour/completed", false),
+                                           cfg->get<int>("/tour/last_seen_version", 0)));
     });
 }
 
 void FirstRunTour::start() {
     if (running_)
         return;
-    start_impl();
+    start_impl(/*seen_version=*/0);
 }
 
-void FirstRunTour::start_impl() {
+void FirstRunTour::start_impl(int seen_version) {
+    steps_ = build_tour_steps(hardware_has_ams(), seen_version);
+    if (steps_.empty()) {
+        mark_completed();
+        return;
+    }
     running_ = true;
     current_index_ = 0;
-    steps_ = build_tour_steps(hardware_has_ams());
+    shown_panel_ = TourPanel::Home;
 
     // Overlay requires an active LVGL screen; unit tests run headless.
     if (lv_screen_active()) {
@@ -120,17 +140,18 @@ void FirstRunTour::start_impl() {
             steps_, [this] { this->advance(); }, [this] { this->skip(); });
         render_current_step();
 
-        // Cancel the tour if the user navigates away from Home via the navbar.
-        // The overlay dim doesn't cover the navbar, so without this the tour
-        // would be orphaned on top of a different panel with a stale target.
+        // Cancel the tour if something else moves off the panel the current step
+        // is on, which would orphan the tour over a stale target.
         auto* nav_subject = NavigationManager::instance().get_active_panel_subject();
         nav_observer_ = helix::ui::observe<int>(
             nav_subject, this,
             [](FirstRunTour* self, int panel_id) {
                 if (!self->running_)
                     return;
-                if (panel_id != static_cast<int>(helix::PanelId::Home)) {
-                    spdlog::debug("[FirstRunTour] Cancelled: user navigated away from Home");
+                if (panel_id != static_cast<int>(base_panel_for(self->shown_panel_))) {
+                    spdlog::debug("[FirstRunTour] Cancelled: navigated away from the step's panel");
+                    // Whoever navigated decided where the user is going.
+                    self->shown_panel_ = TourPanel::Home;
                     self->skip();
                 }
             },
@@ -179,25 +200,58 @@ void FirstRunTour::skip() {
     if (!running_)
         return;
     spdlog::debug("[FirstRunTour] Skipped at step {}/{}", current_index_ + 1, steps_.size());
-    mark_completed();
-    running_ = false;
-    nav_observer_.reset();
-    breakpoint_observer_.reset();
-    overlay_.reset();
+    end_tour();
 }
 
 void FirstRunTour::finish() {
     spdlog::debug("[FirstRunTour] Finished");
+    end_tour();
+}
+
+void FirstRunTour::end_tour() {
     mark_completed();
     running_ = false;
     nav_observer_.reset();
     breakpoint_observer_.reset();
+    panel_settle_timer_.reset();
     overlay_.reset();
+    show_panel(TourPanel::Home);
+}
+
+void FirstRunTour::show_panel(TourPanel panel) {
+    if (panel == shown_panel_)
+        return;
+    const bool leaving_ams = shown_panel_ == TourPanel::AmsOverlay;
+    // Set first: the active-panel observer reads it during set_active().
+    shown_panel_ = panel;
+    if (leaving_ams && NavigationManager::instance().has_open_overlays())
+        helix::nav::go_back();
+    helix::nav::set_active(base_panel_for(panel));
+    if (panel == TourPanel::AmsOverlay)
+        navigate_to_ams_panel();
+}
+
+void FirstRunTour::on_panel_settled(lv_timer_t* timer) {
+    auto* self = static_cast<FirstRunTour*>(lv_timer_get_user_data(timer));
+    // A one-shot timer frees itself when this returns.
+    self->panel_settle_timer_.release();
+    if (self->running_ && self->overlay_)
+        self->overlay_->show_step(self->current_index_);
 }
 
 void FirstRunTour::render_current_step() {
-    if (overlay_)
+    if (!overlay_)
+        return;
+    const TourPanel wanted = steps_[current_index_].panel;
+    if (wanted == shown_panel_) {
         overlay_->show_step(current_index_);
+        return;
+    }
+    overlay_->hide_card();
+    show_panel(wanted);
+    lv_timer_t* timer = lv_timer_create(on_panel_settled, kPanelSettleMs, this);
+    lv_timer_set_repeat_count(timer, 1);
+    panel_settle_timer_.reset(timer);
 }
 
 } // namespace helix::tour
