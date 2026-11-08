@@ -1436,6 +1436,7 @@
   <translation tag="Filament In The Toolhead" pt="Filamento no cabeçote"/>
   <translation tag="Filament Jam" pt="Entupimento de filamento"/>
   <translation tag="Filament Mapping" pt="Mapeamento de Filamento"/>
+  <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." pt="O mapeamento de filamento não pode reescrever este .3mf. Imprima sem remapear."/>
   <translation tag="Filament Mapping is not available on this device." pt="O mapeamento de filamento não está disponível neste dispositivo."/>
   <translation tag="Filament Mapping is unavailable" pt="O mapeamento de filamento está indisponível"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" pt="Esta impressora não suporta o mapeamento de filamento, então a impressão usa as ferramentas atribuídas na impressora"/>
@@ -3796,6 +3797,7 @@
   <translation tag="The plugin can&apos;t reach the camera, so this screen takes the photos." pt="O plugin não alcança a câmera, então esta tela tira as fotos."/>
   <translation tag="The plugin can&apos;t save its recovery data to disk." pt="O plugin não consegue salvar seus dados de recuperação."/>
   <translation tag="The plugin is turned off in moonraker.conf." pt="O plugin está desligado no moonraker.conf."/>
+  <translation tag="The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it." pt="As etapas de preparação desativadas não podem ser aplicadas a este .3mf. Ative-as de novo para imprimir."/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." pt="A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora."/>
   <translation tag="The print is on its last layer." pt="A impressão está na última camada."/>
@@ -3845,6 +3847,7 @@
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" pt="A impressora exige uma conexão criptografada, mas a conexão criptografada com {}:{} falhou"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." pt="A impressora alterna entre vários cabeçotes. Gerencie as ferramentas na tela do sistema de filamento."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" pt="O firmware da impressora escolhe para onde trocar ao acabar"/>
+  <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." pt="A fila imprime a placa padrão deste .3mf. Imprima esta placa daqui."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" pt="A posição solicitada está fora dos limites da impressora"/>
   <translation tag="The right RFID reader in this CFS unit may need service" pt="O leitor RFID direito desta unidade CFS pode precisar de manutenção"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" pt="O sensor de fim de filamento indica que não há filamento carregado. Iniciar a impressão mesmo assim?"/>
@@ -3882,6 +3885,7 @@
   <translation tag="This .3mf has no sliced plate to print." pt="Este .3mf não tem nenhuma placa fatiada para imprimir."/>
   <translation tag="This .3mf has to be converted to G-code before it can be queued. Print it from here instead." pt="Este .3mf precisa ser convertido em G-code antes de entrar na fila. Imprima-o daqui."/>
   <translation tag="This .3mf has to be converted to G-code on the printer before it can print." pt="Este .3mf precisa ser convertido em G-code na impressora antes de poder imprimir."/>
+  <translation tag="This .3mf&apos;s plates are still loading. Try again in a moment." pt="As placas deste .3mf ainda estão carregando. Tente de novo em um momento."/>
   <translation tag="This AFC system does not support bypass mode" pt="Este sistema AFC não oferece suporte ao modo bypass"/>
   <translation tag="This CFS firmware exposes no external spool slot" pt="Este firmware do CFS não expõe um slot para carretel externo"/>
   <translation tag="This Happy Hare system does not support bypass mode" pt="Este sistema Happy Hare não oferece suporte ao modo bypass"/>

@@ -127,6 +127,10 @@ class ThreeMfReader {
     static zip::ZipError extract_plate(const std::string& local_zip, int plate,
                                        const std::string& local_gcode);
 
+    /// The sliced plates of the local archive @p local_zip, by plate number;
+    /// empty when it cannot be read or nothing is sliced in it.
+    static std::vector<int> local_plate_numbers(const std::string& local_zip);
+
     /// Drops every kept summary.
     void clear_cache();
 

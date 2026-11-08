@@ -25,10 +25,12 @@ Tap it to see the list:
 | **Info** | New hardware HelixScreen hasn't seen before |
 | **Session** | Hardware changed since HelixScreen last ran |
 
-For anything that isn't critical you can:
+For each item you can:
 
-- **Ignore**: mark it as optional. HelixScreen won't warn about it again, even if it goes missing.
-- **Save**: add it to the expected list. HelixScreen will warn you if it disappears later.
+- **Ignore**: mark it as optional. HelixScreen won't warn about it again, even if it goes missing. This works on critical items too, so a machine built without a nozzle heater can stop the warning about it.
+- **Save** (new hardware only): add it to the expected list. HelixScreen will warn you if it disappears later.
+
+A Klipper machine that isn't a printer, one whose `[printer]` section sets `kinematics: none`, is never warned about a missing nozzle heater.
 
 Check this page after you add or remove hardware, so HelixScreen's list matches your printer.
 

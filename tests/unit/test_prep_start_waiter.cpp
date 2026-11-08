@@ -59,6 +59,9 @@ class WaiterFixture : private helix::PrintSelectGlobalStateReset, public LVGLUIT
     WaiterFixture() : client(MoonrakerClientMock::PrinterType::VORON_24, 100.0) {
         client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<DelayedMoonrakerAPIMock>(client, get_printer_state(), transfers);
+        // No macro in Klipper's config object, so the PRINT_START analysis walks
+        // the config files, the step these cases hold and count.
+        api->set_configfile_macros(nlohmann::json::object());
         manager = std::make_unique<PrintPreparationManager>();
         manager->set_dependencies(api.get(), &get_printer_state());
         get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);

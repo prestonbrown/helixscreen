@@ -278,13 +278,15 @@ std::string lower_hex(std::string_view s) {
     return out;
 }
 
-zip::ZipError extract_from(FILE* in, uint64_t size, int plate_index, FILE* out) {
+/// The sliced plates of the archive @p in (@p size bytes) into @p plates, its
+/// central directory into @p entries, which the plates point into.
+zip::ZipError plates_from(FILE* in, uint64_t size, std::vector<zip::ZipEntry>& entries,
+                          std::vector<ThreeMfPlate>& plates) {
     std::string tail;
     const uint64_t tail_len = std::min<uint64_t>(size, zip::kZipTailReadBytes);
     if (!read_at(in, size - tail_len, static_cast<size_t>(tail_len), tail)) {
         return zip::ZipError::Io;
     }
-    std::vector<zip::ZipEntry> entries;
     zip::ZipError err = zip::ZipError::None;
     uint64_t needed = 0;
     if (!zip::parse_central_directory(bytes_of(tail), tail.size(), size, entries, err, &needed)) {
@@ -310,7 +312,17 @@ zip::ZipError extract_from(FILE* in, uint64_t size, int plate_index, FILE* out) 
             settings = parse_model_settings(xml);
         }
     }
-    const auto plates = sliced_plates(entries, settings);
+    plates = sliced_plates(entries, settings);
+    return zip::ZipError::None;
+}
+
+zip::ZipError extract_from(FILE* in, uint64_t size, int plate_index, FILE* out) {
+    std::vector<zip::ZipEntry> entries;
+    std::vector<ThreeMfPlate> plates;
+    zip::ZipError err = plates_from(in, size, entries, plates);
+    if (err != zip::ZipError::None) {
+        return err;
+    }
     const auto plate = std::find_if(plates.begin(), plates.end(), [plate_index](const auto& p) {
         return p.index == plate_index;
     });
@@ -607,6 +619,30 @@ void ThreeMfReader::read_entry_head(ITransfersAPI& transfers, const std::string&
             }
         },
         std::move(cancelled));
+}
+
+std::vector<int> ThreeMfReader::local_plate_numbers(const std::string& local_zip) {
+#if defined(HELIX_PLATFORM_ESP32)
+    (void)local_zip;
+    return {};
+#else
+    File in(std::fopen(local_zip.c_str(), "rb"));
+    if (!in.f || std::fseek(in.f, 0, SEEK_END) != 0) {
+        return {};
+    }
+    const long end = std::ftell(in.f);
+    std::vector<zip::ZipEntry> entries;
+    std::vector<ThreeMfPlate> plates;
+    if (end <= 0 ||
+        plates_from(in.f, static_cast<uint64_t>(end), entries, plates) != zip::ZipError::None) {
+        return {};
+    }
+    std::vector<int> numbers;
+    for (const auto& p : plates) {
+        numbers.push_back(p.index);
+    }
+    return numbers;
+#endif
 }
 
 zip::ZipError ThreeMfReader::extract_plate(const std::string& local_zip, int plate,

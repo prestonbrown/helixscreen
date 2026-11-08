@@ -277,7 +277,16 @@ class PrintStartController {
                       const std::set<int>& tools_used,
                       const std::optional<std::map<int, int>>& routing,
                       std::function<void()> on_started, std::function<void()> on_error,
-                      int archive_plate);
+                      int archive_plate, std::optional<int> native_plate = std::nullopt);
+
+    /// The plate a Reprint of the .3mf @p filename, which printed as itself,
+    /// names: the plate of the job this session confirmed starting
+    /// (PrinterPrintState::confirmed_start_plate()), else the one the printer's
+    /// metadata leaves no doubt about (print_3mf::unrecorded_reprint_plate()).
+    /// Calls @p on_plate with it (0: none), or toasts and calls @p on_error when
+    /// which plate printed is unknown, a failed metadata read included.
+    void resolve_archive_reprint(const std::string& filename, std::function<void(int)> on_plate,
+                                 std::function<void()> on_error);
 
     /// @p routed false sends the backend's unrouted step for @p tools_used
     /// (build_unrouted_preprint_gcode()) instead of a map.

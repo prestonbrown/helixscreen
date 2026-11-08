@@ -211,6 +211,9 @@ class FlipClockSim {
     static constexpr Rgb kCardBottom{24, 24, 26};
     static constexpr Rgb kDigit{222, 222, 222};
     static constexpr Rgb kColon{130, 130, 130};
+    /// The folding flap's edge band and its outermost row.
+    static constexpr Rgb kFlapEdge{72, 72, 78};
+    static constexpr Rgb kFlapRim{118, 118, 124};
 
   private:
     struct CardAnim {
