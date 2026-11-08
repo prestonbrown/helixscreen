@@ -102,30 +102,19 @@ void HistoryListView::reset() {
 // Pool Initialization
 // ============================================================================
 
-void HistoryListView::init_pool() {
-    if (!container_ || !pool_.empty()) {
-        return;
+bool HistoryListView::add_pool_row() {
+    if (!container_) {
+        return false;
     }
-
-    spdlog::debug("[HistoryListView] Creating {} row widgets", kPoolSize);
-
-    pool_.reserve(kPoolSize);
-    pool_indices_.resize(kPoolSize, -1);
-
-    for (int i = 0; i < kPoolSize; i++) {
-        lv_obj_t* row =
-            static_cast<lv_obj_t*>(lv_xml_create(container_, "history_list_row", nullptr));
-
-        if (row) {
-            lv_obj_add_flag(
-                row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, built once with its list
-            // Attach click handler — one per pool row, reused across recycles
-            lv_obj_add_event_cb(row, on_row_click_static, LV_EVENT_CLICKED, this);
-            pool_.push_back(row);
-        }
+    lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(container_, "history_list_row", nullptr));
+    if (!row) {
+        return false;
     }
-
-    spdlog::debug("[HistoryListView] Pool initialized with {} rows", pool_.size());
+    lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, shown by show_window
+    // Attach click handler: one per pool row, reused across recycles
+    lv_obj_add_event_cb(row, on_row_click_static, LV_EVENT_CLICKED, this);
+    pool_.push_back(row);
+    return true;
 }
 
 void HistoryListView::create_spacers() {
@@ -256,9 +245,9 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
     spdlog::debug("[HistoryListView] Populating with {} jobs (preserve_scroll={})", jobs.size(),
                   preserve_scroll);
 
-    // Initialize pool on first call
-    if (pool_.empty()) {
-        init_pool();
+    // One row up front to measure; the rest are sized from the viewport below
+    if (pool_.empty() && add_pool_row()) {
+        pool_indices_.push_back(-1);
     }
 
     create_spacers();
@@ -289,6 +278,13 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
         lv_obj_scroll_to_y(scroll_parent_, 0, LV_ANIM_OFF);
     }
 
+    // The viewport is read from the laid-out container; one that was just unhidden has none yet
+    lv_obj_update_layout(scroll_parent_);
+    const int row_stride = (cached_row_height_ > 0 ? cached_row_height_ : 56) + cached_row_gap_;
+    grow_pool_to(pool_rows_for_viewport(lv_obj_get_height(scroll_parent_), row_stride,
+                                        static_cast<int>(jobs.size()), kBufferRows,
+                                        static_cast<size_t>(kPoolSize)),
+                 pool_indices_, [this] { return add_pool_row(); });
     update_visible(jobs);
 
     spdlog::debug("[HistoryListView] Populated: {} jobs, pool size {}", jobs.size(), pool_.size());
