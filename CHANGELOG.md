@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved Z-offset in Print Tune** (#1998) - the Z-offset adjustment shows the saved value beside it. Printers that keep a Z-offset per head do not show this line.
 - **MPC calibration uses the right fan** (#2016).
 - **The layer line after a cancel shows the last layer printed** (#2055) - after a cancelled print, print status shows the height of the last layer printed instead of the height the head parked at.
+- **Print start ignores long firmware telemetry lines** - print start no longer scans very long firmware telemetry lines, such as the pressure traces K2 printers report while probing.
 - **The G-code preview keeps up after a slow frame** (#2035) - the print status preview no longer gets stuck drawing one layer at a time for the rest of a print after a single slow frame.
 - **A pending tool-map restore survives an update** (#2032) - a tool-map restore HelixScreen still owes the printer is kept across a HelixScreen update.
 
