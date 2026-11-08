@@ -685,6 +685,15 @@ TEST_CASE("PrinterDiscovery: an output_pin gating a sibling fan pin is not a fan
         CHECK(has(hw.fans(), "output_pin fan1"));
     }
 
+    SECTION("a chain of enable pins is dropped whatever the object order") {
+        PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array(
+            {"output_pin fan", "output_pin fan_en", "output_pin fan2", "output_pin fan_en_en"}));
+        CHECK_FALSE(has(hw.fans(), "output_pin fan_en"));
+        CHECK_FALSE(has(hw.fans(), "output_pin fan_en_en"));
+        CHECK(has(hw.fans(), "output_pin fan2"));
+    }
+
     SECTION("a lone enable pin may be the only control, so it stays") {
         PrinterDiscovery hw;
         hw.parse_objects(

@@ -740,8 +740,10 @@ namespace {
 /// `fan0`). A lone enable pin stays: it may be the only control that fan has.
 void remove_fan_enable_pins(std::vector<std::string>& fans) {
     static constexpr std::string_view kPrefix = "output_pin ";
-    const auto has_sibling = [&fans](std::string_view stem) {
-        return std::any_of(fans.begin(), fans.end(), [stem](const std::string& fan) {
+    // remove_if overwrites elements as it goes, so siblings are looked up in a copy.
+    const std::vector<std::string> names = fans;
+    const auto has_sibling = [&names](std::string_view stem) {
+        return std::any_of(names.begin(), names.end(), [stem](const std::string& fan) {
             return std::string_view(fan).substr(0, kPrefix.size()) == kPrefix &&
                    text_io::equals_ignore_case(std::string_view(fan).substr(kPrefix.size()), stem);
         });
