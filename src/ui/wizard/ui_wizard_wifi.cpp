@@ -1144,7 +1144,7 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
                            "connect_callback",
                            "on_wizard_wifi_password_connect",
                            NULL};
-    password_modal_ = helix::ui::modal_show("wifi_password_modal", attrs);
+    password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", attrs);
 
     if (!password_modal_) {
         LOG_ERROR_INTERNAL("Failed to create password modal");

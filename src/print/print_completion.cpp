@@ -297,7 +297,7 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
-    lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
 
     if (!dialog) {
         spdlog::error("[PrintComplete] Failed to create print_completion_modal");

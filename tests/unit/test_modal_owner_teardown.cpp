@@ -584,6 +584,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal i
     CHECK(ModalStack::instance().stack_empty());
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "A ComponentModal dialog is owned and closes on ESC",
+                 "[modal][teardown][1958]") {
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned(kTestComponent);
+    REQUIRE(dialog != nullptr);
+    Modal* owner = ModalStack::instance().owner_for(dialog);
+    REQUIRE(owner != nullptr);
+    CHECK(owner->kind_tag() == helix::type_tag<helix::ui::ComponentModal>());
+    CHECK(std::string(owner->component_name()) == kTestComponent);
+
+    uint32_t key = LV_KEY_ESC;
+    lv_obj_send_event(ModalStack::instance().backdrop_for(dialog), LV_EVENT_KEY, &key);
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+
+    CHECK(helix::ui::ComponentModal::show_owned("no_such_component_xyz") == nullptr);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
 // The owner is what makes the static hide() overload run a real teardown, so a
 // helper dialog closed through it now disarms like any instance-backed modal.
 TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",

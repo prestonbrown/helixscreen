@@ -210,7 +210,7 @@ void UpdatesSettingsOverlay::show_update_download_modal(bool start_immediately) 
         // content before the status update below takes effect.
         UpdateChecker::instance().report_download_status(UpdateChecker::DownloadStatus::Idle, 0,
                                                          "");
-        update_download_modal_ = helix::ui::modal_show("update_download_modal");
+        update_download_modal_ = helix::ui::ComponentModal::show_owned("update_download_modal");
     }
 
     if (start_immediately) {
@@ -244,7 +244,7 @@ void UpdatesSettingsOverlay::on_download_status(int status) {
     // Reopened as-is: the status, text and error are already the failure's, and
     // the modal binds straight to them.
     spdlog::info("[UpdatesSettings] Update failed after its dialog closed - reopening it");
-    update_download_modal_ = helix::ui::modal_show("update_download_modal");
+    update_download_modal_ = helix::ui::ComponentModal::show_owned("update_download_modal");
 }
 
 void UpdatesSettingsOverlay::hide_update_download_modal() {

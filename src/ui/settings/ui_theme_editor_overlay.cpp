@@ -592,7 +592,7 @@ void ThemeEditorOverlay::show_save_as_dialog() {
     }
 
     // Show save as modal
-    save_as_dialog_ = helix::ui::modal_show("theme_save_as_modal");
+    save_as_dialog_ = helix::ui::ComponentModal::show_owned("theme_save_as_modal");
     if (!save_as_dialog_) {
         spdlog::error("[{}] Failed to show Save As dialog", get_name());
         return;

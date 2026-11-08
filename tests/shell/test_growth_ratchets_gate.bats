@@ -441,6 +441,39 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+# --- bare modal factory ban ---------------------------------------------------
+
+@test "the bare Modal::show factory fails in app code, in every spelling, even with no branch work" {
+    cat > "$REPO/src/ui/m.cpp" <<'EOF2'
+void a() { Modal::show("a_modal"); }
+void b(const std::string& n) { Modal::show(n.c_str()); }
+void c(const char* name) { helix::ui::modal_show(name, attrs); }
+EOF2
+    printf 'inline void d() { Modal::show( "d_modal"); }\n' > "$REPO/include/m.h"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "calls already there"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/m.cpp:1:" "$output"
+    contains "src/ui/m.cpp:2:" "$output"
+    contains "src/ui/m.cpp:3:" "$output"
+    contains "include/m.h:1:" "$output"
+}
+
+@test "an instance show, an owned show, a comment, a string and a test file pass the factory ban" {
+    cat > "$REPO/src/ui/quiet_modal.cpp" <<'EOF2'
+// Modal::show("x") has no owner
+const char* s = "Modal::show(\"y\")";
+bool MyModal::open(lv_obj_t* parent) { return Modal::show(parent, attrs.data()); }
+lv_obj_t* d = helix::ui::ComponentModal::show_owned("z_modal");
+EOF2
+    printf 'void t() { Modal::show("t_modal"); }\n' > "$REPO/tests/unit/m.cpp"
+    commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
 # --- WidgetRef against the delete target -------------------------------------
 
 @test "a WidgetRef compared with the target in a DELETE callback fails, in every spelling" {

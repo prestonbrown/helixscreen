@@ -583,7 +583,7 @@ Unified modal system with RAII lifecycle, backdrop, stacking, and animations.
 
 ```cpp
 // Simple modal (no subclass):
-lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
+lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_cancel_confirm_modal");
 Modal::hide(dialog);
 
 // Confirmation dialog helper (helix::ui):
