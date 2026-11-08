@@ -443,7 +443,6 @@ void ModalStack::animate_entrance(lv_obj_t* dialog) {
         return;
     }
 
-    // Find backdrop for this dialog
     lv_obj_t* backdrop = backdrop_for(dialog);
     if (!backdrop) {
         return;
@@ -766,7 +765,6 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
         return nullptr;
     }
 
-    // Create backdrop using shared utility
     lv_obj_t* backdrop =
         helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
     if (!backdrop) {
@@ -774,7 +772,6 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
         return nullptr;
     }
 
-    // Create XML component inside backdrop
     lv_obj_t* dialog = static_cast<lv_obj_t*>(lv_xml_create(backdrop, component_name, attrs));
     if (!dialog) {
         spdlog::error("[Modal] Failed to create modal from XML: {}", component_name);
@@ -782,16 +779,13 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
         return nullptr;
     }
 
-    // Position dialog centered
     lv_obj_align(dialog, LV_ALIGN_CENTER, 0, 0);
 
     // Apply current theme palette to dialog tree (context-aware input styling)
     theme_apply_current_palette_to_tree(dialog);
 
-    // Add backdrop click handler
     lv_obj_add_event_cb(backdrop, backdrop_click_cb, LV_EVENT_CLICKED, nullptr);
 
-    // Add ESC key handler
     lv_obj_add_event_cb(backdrop, esc_key_cb, LV_EVENT_KEY, nullptr);
     lv_obj_add_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
     lv_group_t* group = lv_group_get_default();
@@ -802,10 +796,8 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
     // Bring to foreground
     helix::ui::bring_to_front(backdrop);
 
-    // Add to stack
     ModalStack::instance().push(backdrop, dialog, component_name);
 
-    // Animate entrance
     ModalStack::instance().animate_entrance(dialog);
 
     spdlog::info("[Modal] Modal shown successfully");
@@ -1183,14 +1175,12 @@ void Modal::wire_senary_button(const char* name) {
 // ============================================================================
 
 bool Modal::create_and_show(lv_obj_t* parent, const char* comp_name, const char** attrs) {
-    // Create backdrop using shared utility
     backdrop_ = helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
     if (!backdrop_) {
         spdlog::error("[{}] Failed to create backdrop", get_name());
         return false;
     }
 
-    // Create XML component inside backdrop
     dialog_ = static_cast<lv_obj_t*>(lv_xml_create(backdrop_, comp_name, attrs));
     if (!dialog_) {
         spdlog::error("[{}] Failed to create modal from XML component '{}'", get_name(), comp_name);
@@ -1198,16 +1188,13 @@ bool Modal::create_and_show(lv_obj_t* parent, const char* comp_name, const char*
         return false;
     }
 
-    // Position dialog centered
     lv_obj_align(dialog_, LV_ALIGN_CENTER, 0, 0);
 
     // Apply current theme palette to dialog tree (context-aware input styling)
     theme_apply_current_palette_to_tree(dialog_);
 
-    // Add backdrop click handler
     lv_obj_add_event_cb(backdrop_, backdrop_click_cb, LV_EVENT_CLICKED, this);
 
-    // Add ESC key handler
     lv_obj_add_event_cb(backdrop_, esc_key_cb, LV_EVENT_KEY, this);
     lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_CLICKABLE);
     lv_group_t* group = lv_group_get_default();
@@ -1222,7 +1209,6 @@ bool Modal::create_and_show(lv_obj_t* parent, const char* comp_name, const char*
     // Modal::hide(dialog) overload can delegate back to instance teardown
     ModalStack::instance().push(backdrop_, dialog_, comp_name, this);
 
-    // Animate entrance
     ModalStack::instance().animate_entrance(dialog_);
 
     return true;
@@ -1404,14 +1390,13 @@ namespace {
 /// Payload for a deferred dismissal callback.
 /// The owner behind the confirmation/alert helpers.
 ///
-/// They used to push through the static Modal::show() factory, which records no
-/// owner, so nothing observed the close: no on_hide(), no lifetime_, no disarm,
-/// and a dismissal reported nothing to the caller. That is the root of
-/// prestonbrown/helixscreen#1380.
+/// The static Modal::show() factory records no owner, so through it nothing
+/// observes the close: no on_hide(), no lifetime_, no disarm, and a dismissal
+/// reports nothing to the caller (#1380).
 ///
-/// Owning an instance fixes it centrally: ModalStack has something to delegate
-/// to, the static hide() overload runs real teardown, and on_hide() runs however
-/// the dialog closed.
+/// Owning an instance handles that centrally: ModalStack has something to
+/// delegate to, the static hide() overload runs real teardown, and on_hide()
+/// runs however the dialog closed.
 ///
 /// One-shot, like InfoQrModal, CrashReportModal and the other show_owned()
 /// modals: build_confirmation() hands the instance to the stack, which frees it
