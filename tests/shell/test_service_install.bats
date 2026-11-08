@@ -663,6 +663,117 @@ EOF
 }
 
 # =============================================================================
+# fix_user_config_ownership
+# =============================================================================
+
+# printer_data/config/helixscreen with the contents a root-run install leaves.
+# Sets KLIPPER_HOME and USER_CONFIG_DIR.
+stage_user_config_dir() {
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/qidi"
+    USER_CONFIG_DIR="$KLIPPER_HOME/printer_data/config/helixscreen"
+    local dir="$USER_CONFIG_DIR"
+    mkdir -p "$dir/themes" "$dir/custom_images" "$dir/printer_database.d"
+    : > "$dir/settings.json"
+    : > "$dir/crash_history.json"
+}
+
+@test "fix_user_config_ownership: gives the printer_data helixscreen tree to the service user" {
+    KLIPPER_USER="qidi"
+    KLIPPER_GROUP="users"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    fix_user_config_ownership
+
+    [ "$(cat "$chown_log")" = "-Rh qidi:users $USER_CONFIG_DIR" ]
+}
+
+@test "fix_user_config_ownership: repairs a root-owned tree through sudo when bare chown is refused" {
+    KLIPPER_USER="qidi"
+    local sudo_log="$BATS_TEST_TMPDIR/sudo_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'exit 1'
+    SUDO="$BATS_TEST_TMPDIR/bin/fake_sudo"
+    mock_command_script "fake_sudo" 'echo "$@" >> "'"$sudo_log"'"'
+
+    fix_user_config_ownership
+
+    [ "$(cat "$sudo_log")" = "chown -Rh qidi:qidi $USER_CONFIG_DIR" ]
+}
+
+@test "fix_user_config_ownership: survives when both chown and sudo fail" {
+    KLIPPER_USER="qidi"
+    stage_user_config_dir
+    mock_command_script "chown" 'exit 1'
+    SUDO="false"
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+}
+
+@test "fix_user_config_ownership: empty KLIPPER_USER is a no-op" {
+    KLIPPER_USER=""
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+# On the U1 printer_data belongs to lava while the service runs as root: a root
+# service must not take the tree back.
+@test "fix_user_config_ownership: a root service user leaves the tree alone" {
+    KLIPPER_USER="root"
+    KLIPPER_GROUP="root"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "fix_user_config_ownership: no config directory on disk is a no-op" {
+    KLIPPER_USER="qidi"
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/qidi"
+    mkdir -p "$KLIPPER_HOME/printer_data/config"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "fix_user_config_ownership: no known Klipper config dir is a no-op" {
+    KLIPPER_USER="qidi"
+    KLIPPER_HOME=""
+    unset KLIPPER_CONFIG_DIR
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "the install path repairs user config ownership after its last config write and before the first start" {
+    local main="$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+    local fix last_write start
+    fix=$(grep -n '^    fix_user_config_ownership$' "$main" | cut -d: -f1)
+    start=$(grep -n '^    start_service "\$platform"$' "$main" | head -1 | cut -d: -f1)
+    last_write=$(head -n "$start" "$main" | grep -nE '^    (setup_config_symlink|seed_update_channel)( |$)' | tail -1 | cut -d: -f1)
+
+    [ -n "$fix" ] && [ -n "$last_write" ] && [ -n "$start" ]
+    [ "$fix" -gt "$last_write" ]
+    [ "$fix" -lt "$start" ]
+}
+
+# =============================================================================
 # _is_self_update / HELIX_SELF_UPDATE skip logic
 # =============================================================================
 
