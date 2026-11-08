@@ -28,6 +28,7 @@
 #include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
+#include "display_wake_request.h"
 #include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_client.h"
@@ -536,6 +537,15 @@ DisplayManager* DisplayManager::instance() {
 
 void DisplayManager::set_active_instance(DisplayManager* dm) {
     s_instance = dm;
+    if (dm) {
+        helix::set_display_wake_handler([] {
+            if (DisplayManager* active = instance()) {
+                active->wake_display();
+            }
+        });
+    } else {
+        helix::set_display_wake_handler(nullptr);
+    }
 }
 
 void DisplayManager::shutdown() {

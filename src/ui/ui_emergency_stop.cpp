@@ -15,6 +15,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
@@ -674,6 +675,11 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
                      recovery_reason_str(inst.recovery_reason_));
         inst.show_recovery_dialog();
         inst.update_recovery_dialog_content();
+        // A Klipper fault needs the user to restart it. A lost connection is often a
+        // host reboot or a network blip that recovers on its own, so it does not wake.
+        if (inst.recovery_dialog_ && inst.recovery_reason_ != RecoveryReason::DISCONNECTED) {
+            helix::request_display_wake();
+        }
     });
 
     return true;
