@@ -237,3 +237,19 @@ TEST_CASE("Without -r each launch reads the rotation saved since the last one",
     saved = 0;
     CHECK(rotation_for_launch(0, read_saved) == 0);
 }
+
+TEST_CASE("Only a crash-loop dialog gives up on waiting, at its deadline",
+          "[watchdog][crash_dialog]") {
+    using namespace helix::watchdog;
+    CHECK_FALSE(crash_loop_deadline_passed(true, 1000, 1000 + kCrashLoopDialogDeadlineMs - 1));
+    CHECK(crash_loop_deadline_passed(true, 1000, 1000 + kCrashLoopDialogDeadlineMs));
+    CHECK_FALSE(crash_loop_deadline_passed(false, 1000, 1000 + 10 * kCrashLoopDialogDeadlineMs));
+}
+
+TEST_CASE("The crash-loop deadline survives the tick counter wrapping",
+          "[watchdog][crash_dialog]") {
+    using namespace helix::watchdog;
+    const unsigned shown = 0xFFFFFFFFu - 1000u;
+    CHECK_FALSE(crash_loop_deadline_passed(true, shown, shown + 2000u));
+    CHECK(crash_loop_deadline_passed(true, shown, shown + kCrashLoopDialogDeadlineMs));
+}
