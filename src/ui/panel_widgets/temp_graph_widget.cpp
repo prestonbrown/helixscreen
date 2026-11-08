@@ -22,6 +22,7 @@
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "sort_small.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
@@ -158,6 +159,11 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Bed and chamber are named here, not by the printer layer.
     language_observer_ = helix::ui::observe_language_change(
         this, [](TempGraphWidget* self) { self->refresh_series_names(); });
+    // Extruder series are named "Nozzle 2" or "Nozzle T1" by the tool number style.
+    auto& settings = helix::SettingsManager::instance();
+    tool_number_style_observer_ = helix::ui::observe_int_change(
+        settings.subject_tool_number_style(), settings.get_subjects_lifetime(), this,
+        [](TempGraphWidget* self) { self->refresh_series_names(); });
 
     // The graph is `merges_into_card = false` — it reads as its own panel, not
     // as one tile in a fused run — so it supplies its own surface. Use the
@@ -175,6 +181,7 @@ void TempGraphWidget::detach() {
     cancel_discovery_rebuild();
     extruder_version_observer_.reset();
     language_observer_.reset();
+    tool_number_style_observer_.reset();
     controller_.reset();
 
     widget_obj_ = nullptr;

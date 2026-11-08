@@ -724,9 +724,12 @@ void ToolSwitcherWidget::publish_heads() {
         // the temperature, shown where the segment is tall enough.
         std::string label = short_text(tool);
         std::string sub = head_temp_text(i);
+        // A generated name in G-code style is its code already: one line says it.
         if (label_form_ == ui::ToolLabelForm::Full) {
-            label = name_text(tool);
-            sub = short_text(tool);
+            if (std::string name = name_text(tool); name != label) {
+                sub = std::move(label);
+                label = std::move(name);
+            }
         }
         ui::copy_string_if_changed(s_seg_label.at(i), label.c_str());
         ui::copy_string_if_changed(s_seg_sub.at(i), sub.c_str());
@@ -864,12 +867,13 @@ std::pair<std::string, std::string> ToolSwitcherWidget::picker_lines(int i,
                                                                      ui::ToolLabelForm form) const {
     const ToolInfo tool = head_tool(ToolState::instance().physical_heads(), i);
     const std::string temp = head_temp_text(i);
-    if (form == ui::ToolLabelForm::Code)
-        return {short_text(tool), temp};
-    std::string sub = short_text(tool);
+    std::string code = short_text(tool);
+    std::string name = name_text(tool);
+    if (form == ui::ToolLabelForm::Code || name == code)
+        return {std::move(code), temp};
     if (!temp.empty())
-        sub = fmt::format(lv_tr("{} · {}"), sub, temp);
-    return {name_text(tool), sub};
+        code = fmt::format(lv_tr("{} · {}"), code, temp);
+    return {std::move(name), std::move(code)};
 }
 
 void ToolSwitcherWidget::publish_two_line() {
