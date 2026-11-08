@@ -3042,7 +3042,7 @@
   <translation tag="Random" de="Zufällig"/>
   <translation tag="Raspberry Pi" de="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" de="Raspberry Pi (32-bit)"/>
-  <translation tag="Re-apply spool"/>
+  <translation tag="Re-apply spool" de="Spule neu anwenden"/>
   <translation tag="Re-identify" de="Erneut identifizieren"/>
   <translation tag="Re-measure" de="Neu messen"/>
   <translation tag="Re-measure (~{} min)" de="Messen (~{} Min)"/>
@@ -3898,7 +3898,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." de="Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." de="Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" de="Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
-  <translation tag="The linked spool says {}."/>
+  <translation tag="The linked spool says {}." de="Die verknüpfte Spule gibt {} an."/>
   <translation tag="The loaded slot is not known yet" de="Der geladene Slot ist noch nicht bekannt"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." de="Die geladene Spule ist {}, aber diese Datei wurde für {} gesliced. Gefülltes Filament läuft mit einer niedrigeren Flussrate und erfordert eine gehärtete Düse."/>
   <translation tag="The message your printer&apos;s macros show (M117)" de="Die Meldung, die die Makros deines Druckers anzeigen (M117)"/>
@@ -4262,7 +4262,7 @@
   <translation tag="Unknown Spool" de="Unbekannte Spule"/>
   <translation tag="Unknown Step" de="Unbekannter Schritt"/>
   <translation tag="Unknown error" de="Unbekannter Fehler"/>
-  <translation tag="Unlink"/>
+  <translation tag="Unlink" de="Lösen"/>
   <translation tag="Unlink, keep on this slot" de="Lösen, auf diesem Platz behalten"/>
   <translation tag="Unload" de="Entladen"/>
   <translation tag="Unload Distance" de="Entladeweg"/>

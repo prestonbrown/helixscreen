@@ -3154,7 +3154,7 @@ translations:
   Random: ランダム
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
-  Re-apply spool: ''
+  'Re-apply spool': 'スプールを再適用'
   Re-identify: 再識別
   Re-measure: '再測定'
   Re-measure (~{} min): "再測定(約{}分)"
@@ -4045,7 +4045,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります
-  The linked spool says {}.: ''
+  'The linked spool says {}.': 'リンクされたスプールの情報: {}'
   The loaded slot is not known yet: "装填済みのスロットはまだ不明です"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
@@ -4966,7 +4966,7 @@ translations:
   'Reset to tag': 'タグから復元'
   'Save the changes to this spool?': 'このスプールの変更を保存しますか？'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'リンクされた Spoolman スプールと一致しません。Spoolman で更新するか、リンクを解除してこのスロットに保持しますか？'
-  Unlink: ''
+  'Unlink': 'リンク解除'
   'Unlink, keep on this slot': 'リンク解除、このスロットに保持'
   'Unsaved changes': '未保存の変更'
   Update heater model?: ヒーターモデルを更新しますか？

@@ -3324,7 +3324,7 @@ translations:
   Random: Aléatoire
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
-  Re-apply spool: ''
+  'Re-apply spool': 'Réappliquer la bobine'
   Re-identify: Ré-identifier
   Re-measure: 'Remesurer'
   Re-measure (~{} min): "Mesurer (~{} min)"
@@ -4279,7 +4279,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'Les macros d''aide sont installées et s''activent après un redémarrage de Klipper.'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.
   The left RFID reader in this CFS unit may need service: Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention
-  The linked spool says {}.: ''
+  'The linked spool says {}.': 'La bobine liée indique {}.'
   The loaded slot is not known yet: "Le slot chargé n'est pas encore connu"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : La bobine chargée est {}, mais ce fichier a été tranché pour {}. Un filament chargé fonctionne à un débit plus faible et nécessite une buse durcie.
@@ -5258,7 +5258,7 @@ translations:
   'Reset to tag': 'Rétablir depuis le tag'
   'Save the changes to this spool?': 'Enregistrer les modifications de cette bobine ?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Cela ne correspond pas à la bobine Spoolman liée. La mettre à jour dans Spoolman, ou délier et la garder sur cet emplacement ?'
-  Unlink: ''
+  'Unlink': 'Délier'
   'Unlink, keep on this slot': 'Délier, garder sur cet emplacement'
   'Unsaved changes': 'Modifications non enregistrées'
   Update heater model?: Mettre à jour le modèle de chauffage ?

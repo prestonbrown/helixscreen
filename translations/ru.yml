@@ -3358,7 +3358,7 @@ translations:
   Random: Случайный
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
-  Re-apply spool: ''
+  'Re-apply spool': 'Применить катушку снова'
   Re-identify: Определить снова
   Re-measure: 'Измерить снова'
   Re-measure (~{} min): "Замер (~{} мин)"
@@ -4307,7 +4307,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
-  The linked spool says {}.: ''
+  'The linked spool says {}.': 'Привязанная катушка указывает: {}.'
   The loaded slot is not known yet: "Загруженный слот пока неизвестен"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла.
@@ -5291,7 +5291,7 @@ translations:
   'Reset to tag': 'Восстановить по метке'
   'Save the changes to this spool?': 'Сохранить изменения этой катушки?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Не совпадает со связанной катушкой Spoolman. Обновить в Spoolman или отвязать и оставить на этом слоте?'
-  Unlink: ''
+  'Unlink': 'Отвязать'
   'Unlink, keep on this slot': 'Отвязать, оставить на этом слоте'
   'Unsaved changes': 'Несохранённые изменения'
   Update heater model?: Обновить модель нагревателя?
