@@ -70,10 +70,11 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     }
     set_material_source(addon::resolve_material_source(discovery));
     tinfo_macro_present_ = discovery.has_macro("T_INFO");
-    // Only the built-in AFC is known to read the map as heads on a Creator 5;
-    // with the flag alone (AFC off) the job rewrite stays until a hardware check.
-    print_start_takes_tool_slots_ =
-        discovery.has_zmod_afc() && helix::print_start::takes_tool_slots(discovery);
+    // Z-Mod hands `tools` to SET_ZCOLOR whatever its AFC setting, so the map
+    // goes wherever its Moonraker reads it. The afclite plugin opens its own
+    // lane picker at print start, so it keeps the job rewrite.
+    print_start_takes_tool_slots_ = !addon::firmware_picks_lanes_at_print(discovery) &&
+                                    helix::print_start::takes_tool_slots(discovery);
 }
 
 helix::PrintStartParams
