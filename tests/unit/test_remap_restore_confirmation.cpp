@@ -920,10 +920,16 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
         CHECK(std::filesystem::exists(record));
     }
 
-    SECTION("the active printer's record is restored") {
-        write_pending_record("{\"printers\":{\"" + active + "\":" + entry + "}}");
+    SECTION("the active printer's record is restored and cleared through the installer's link") {
+        const auto link = write_pending_record("{\"printers\":{\"" + active + "\":" + entry + "}}");
+        const auto target = config_dir.dir / "printer_data_pending_remap.json";
+        std::filesystem::rename(link, target);
+        std::filesystem::create_symlink(target, link);
         h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
         CHECK(be.backend->calls.size() == 2);
+        CHECK(std::filesystem::is_symlink(link));
+        std::ifstream ifs(target);
+        CHECK(std::string(std::istreambuf_iterator<char>(ifs), {}) == "{}\n");
     }
 
     SECTION("a print still running keeps it until that print ends") {
@@ -935,12 +941,6 @@ TEST_CASE("remap restore: startup replays only the active printer's record",
         h.report("complete", "remapped.gcode");
         CHECK(be.backend->calls.size() == 2);
         CHECK_FALSE(std::filesystem::exists(record));
-    }
-
-    SECTION("a record naming no printer is the active printer's") {
-        write_pending_record(entry);
-        h.controller.recover_pending_remap(ReportedPrintActivity::Idle);
-        CHECK(be.backend->calls.size() == 2);
     }
 }
 
