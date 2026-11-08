@@ -5,6 +5,8 @@
 
 #if HELIX_ENABLE_SCREENSAVER
 
+#include "ui_widget_ref.h"
+
 #include "screensaver_base.h"
 #include "screensaver_motion.h"
 
@@ -70,6 +72,17 @@ inline void fit_sprite(int box, int32_t src_w, int32_t src_h, int& out_w, int& o
     }
 }
 
+/**
+ * @brief Rows of an `src_h`-row sprite still grey at `pct` percent printed
+ *
+ * The picture fills with colour from the bottom: 0% is all grey, 100% none. `pct` is clamped
+ * to 0 to 100.
+ */
+inline int32_t grey_rows_for(int32_t src_h, int32_t pct) {
+    pct = pct < 0 ? 0 : (pct > 100 ? 100 : pct);
+    return src_h * (100 - pct) / 100;
+}
+
 } // namespace helix::screensaver_bounce
 
 namespace helix {
@@ -81,6 +94,11 @@ namespace helix {
  * reflects off the edges, changing tint on every wall. Landing a true corner
  * earns a celebration: the backdrop flashes and, above the ladder's lowest
  * level on a board that animates, a confetti burst.
+ *
+ * While a print runs the picture starts grey and fills with colour from the bottom as the
+ * print goes, and the wall tints pause. A finished print throws confetti on every bounce,
+ * one burst at a time (a green flash on the cheapest rung); a failed or cancelled one tints
+ * the sprite red.
  *
  * Position is computed from elapsed time rather than integrated per frame,
  * matching the rest of the subsystem, so a level that changes the frame period
@@ -96,6 +114,24 @@ class BouncingPrinterScreensaver : public helix::ui::SaverBase {
         return ScreensaverType::BOUNCING_PRINTER;
     }
 
+    /// The bouncing image, or nullptr while stopped.
+    lv_obj_t* sprite() const {
+        return img_.get();
+    }
+    /// The art in its own colours, or nullptr while stopped.
+    const lv_draw_buf_t* sprite_art() const {
+        return decoded_;
+    }
+    /// The copy of the art a print fills with colour, or nullptr while stopped or when the
+    /// art's format cannot be rewritten.
+    const lv_draw_buf_t* fill_art() const {
+        return fill_;
+    }
+    /// The confetti burst still alive, or nullptr.
+    lv_obj_t* confetti() const {
+        return confetti_.get();
+    }
+
   protected:
     /// LVGL path of the image that bounces on a screen `screen_w` pixels wide
     virtual std::string sprite_path(int screen_w) const;
@@ -103,7 +139,7 @@ class BouncingPrinterScreensaver : public helix::ui::SaverBase {
     virtual const char* subject_name() const {
         return "printer";
     }
-    /// Whether walls change the tint and a corner flashes and throws confetti
+    /// Whether, with no print, walls change the tint and a corner flashes and throws confetti
     virtual bool decorated() const {
         return true;
     }
@@ -145,12 +181,24 @@ class BouncingPrinterScreensaver : public helix::ui::SaverBase {
     void apply_geometry(int box);
     /// Recompute travel ranges after a resolution change without teleporting
     void rebase(int screen_w, int screen_h);
+    /// Sets the recolor the print state and, with no print, the wall tint call for.
     void apply_tint();
+    /// Shows the art for the print state, rewriting the grey rows of fill_ when the line moved.
+    void apply_fill();
+    /// A celebration: the backdrop flashes `flash`, and confetti flies when the level and the
+    /// board allow it and no earlier burst is still alive.
+    void celebrate(lv_color_t flash);
     /// Confetti particles a corner releases at `level`: full bursts, none on the flash-only rung.
     int confetti_count(size_t level) const;
 
-    lv_obj_t* img_ = nullptr;
+    helix::ui::WidgetRef img_;
     lv_draw_buf_t* decoded_ = nullptr;
+    // decoded_ with its top grey_rows_ rows in grey; nullptr when the format cannot be rewritten
+    lv_draw_buf_t* fill_ = nullptr;
+    int32_t grey_rows_ = 0;
+    helix::ui::WidgetRef confetti_;
+    bool animates_ = false;
+    helix::ui::ClockMode shown_mode_ = helix::ui::ClockMode::CLOCK;
 
     uint32_t elapsed_ms_ = 0;
 
@@ -187,7 +235,8 @@ class BouncingPrinterScreensaver : public helix::ui::SaverBase {
  * @brief Bouncing Logo screensaver
  *
  * The bouncing printer's motion with the HelixScreen logo as the sprite, in its own
- * colors on plain black: no tint, no corner flash, no confetti.
+ * colors on plain black: with no print, no tint, no corner flash, no confetti. A print shows
+ * on it as it does on the printer.
  */
 class BouncingLogoScreensaver : public BouncingPrinterScreensaver {
   public:

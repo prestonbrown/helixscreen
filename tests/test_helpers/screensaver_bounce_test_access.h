@@ -32,11 +32,6 @@ class BounceTestAccess {
     static int32_t source_h(const BouncingPrinterScreensaver& saver) {
         return saver.src_h_;
     }
-
-    /// The bouncing image object, or nullptr while stopped.
-    static lv_obj_t* sprite(const BouncingPrinterScreensaver& saver) {
-        return saver.img_;
-    }
 };
 
 } // namespace helix
