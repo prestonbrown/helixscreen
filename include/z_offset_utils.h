@@ -336,7 +336,9 @@ lv_subject_t* get_save_available_subject();
 /// ordering them the other way would strand them until the next save. When only
 /// tools are dirty and the firmware still needs a SAVE_CONFIG, this issues one;
 /// when the firmware persists immediately (a save-variables store) it does not,
-/// and the caller is told not to expect a restart.
+/// and the caller is told not to expect a restart. A firmware without the
+/// machine-wide apply command still gets the SAVE_CONFIG that commits staged
+/// tool offsets; on_error then says the machine-wide offset was not saved.
 ///
 /// @param api        Moonraker API (must not be null)
 /// @param save_watch Restart watch, shared with apply_and_save()
