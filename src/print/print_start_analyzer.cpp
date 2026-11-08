@@ -3,6 +3,8 @@
 
 #include "print_start_analyzer.h"
 
+#include "ui_update_queue.h"
+
 #include "i_moonraker_api.h"
 #include "klipper_config_includes.h"
 #include "moonraker_types.h"
@@ -11,9 +13,12 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <optional>
 #include <regex>
 #include <set>
 #include <sstream>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -129,6 +134,39 @@ std::string extract_gcode_from_section(const std::string& content, const std::st
     return content.substr(gcode_content_start, section_end - gcode_content_start);
 }
 
+/// The print start macro's body in Klipper's configfile.config, the config
+/// Klipper loaded merged across its includes, whether or not Moonraker serves
+/// the file it came from. Section names compare case-insensitively.
+std::optional<std::pair<std::string, std::string>>
+find_configfile_start_macro(const nlohmann::json& config) {
+    if (!config.is_object()) {
+        return std::nullopt;
+    }
+    for (size_t i = 0; i < PrintStartAnalyzer::MACRO_NAMES_COUNT; ++i) {
+        const std::string wanted =
+            to_lower(std::string("gcode_macro ") + PrintStartAnalyzer::MACRO_NAMES[i]);
+        for (const auto& [key, section] : config.items()) {
+            if (to_lower(key) != wanted || !section.is_object()) {
+                continue;
+            }
+            auto gcode = section.find("gcode");
+            if (gcode == section.end() || !gcode->is_string()) {
+                continue;
+            }
+            std::string body = gcode->get<std::string>();
+            // Klipper's value for a multi-line option starts with the newline
+            // after "gcode:"; a file's section body starts after it.
+            if (!body.empty() && body.front() == '\n') {
+                body.erase(0, 1);
+            }
+            if (!body.empty()) {
+                return std::make_pair(std::string(PrintStartAnalyzer::MACRO_NAMES[i]), body);
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 } // anonymous namespace
 
 void PrintStartAnalyzer::analyze(const std::set<std::string>& active_files,
@@ -196,24 +234,82 @@ void PrintStartAnalyzer::analyze(IMoonrakerAPI* api, AnalysisCallback on_complet
         return;
     }
 
+    // The config files come first: they name the file the macro lives in, which
+    // the enhance wizard edits. Klipper's configfile object answers when they
+    // cannot, as when a file under a reserved path answers 403
+    // (prestonbrown/helixscreen#2061). Its reply arrives off the main thread and
+    // is handled on it, where the lifetime token proves the API still alive.
+    // nullopt for the walk's result means it failed with that error.
+    auto from_configfile = [api, tok = api->lifetime_token(), on_complete,
+                            on_error](std::optional<PrintStartAnalysis> walk_result,
+                                      MoonrakerError walk_error) {
+        auto finish = [on_complete, on_error, walk_result, walk_error]() {
+            if (walk_result) {
+                if (on_complete) {
+                    on_complete(*walk_result);
+                }
+            } else if (on_error) {
+                on_error(walk_error);
+            }
+        };
+        helix::ui::queue_update([api, tok, on_complete, finish]() {
+            if (tok.expired()) {
+                finish();
+                return;
+            }
+            api->query_configfile(
+                [tok, on_complete, finish](const nlohmann::json& config) {
+                    auto macro = find_configfile_start_macro(config);
+                    helix::ui::queue_update([tok, on_complete, finish, macro]() {
+                        if (!macro || tok.expired()) {
+                            finish();
+                            return;
+                        }
+                        spdlog::info("[PrintStartAnalyzer] Found macro '{}' in Klipper's "
+                                     "configfile ({} chars)",
+                                     macro->first, macro->second.size());
+                        PrintStartAnalysis result = parse_macro(macro->first, macro->second);
+                        result.found = true;
+                        result.macro_name = macro->first;
+                        if (on_complete) {
+                            on_complete(result);
+                        }
+                    });
+                },
+                [finish](const MoonrakerError& err) {
+                    spdlog::debug("[PrintStartAnalyzer] configfile query failed: {}", err.message);
+                    helix::ui::queue_update(finish);
+                });
+        });
+    };
+
     spdlog::debug("[PrintStartAnalyzer] Resolving active config files to find macro location...");
 
     // Resolve active config files WITH content to avoid re-downloading each file
     helix::system::resolve_active_config_files_with_content(
         *api,
-        [on_complete](const std::set<std::string>& active_files,
-                      const std::map<std::string, std::string>& file_contents) {
+        [on_complete, from_configfile](const std::set<std::string>& active_files,
+                                       const std::map<std::string, std::string>& file_contents) {
             // Use the synchronous cached analyze path
             PrintStartAnalyzer analyzer;
-            analyzer.analyze(active_files, file_contents, on_complete);
-        },
-        [on_error](const std::string& error_msg) {
-            if (on_error) {
-                MoonrakerError err;
-                err.type = MoonrakerErrorType::CONNECTION_LOST;
-                err.message = error_msg;
-                on_error(err);
+            std::optional<PrintStartAnalysis> found;
+            analyzer.analyze(active_files, file_contents,
+                             [&found](const PrintStartAnalysis& analysis) { found = analysis; });
+            if (found && found->found) {
+                if (on_complete) {
+                    on_complete(*found);
+                }
+                return;
             }
+            spdlog::debug("[PrintStartAnalyzer] No print start macro in the readable config "
+                          "files; asking Klipper's configfile");
+            from_configfile(found.value_or(PrintStartAnalysis{}), MoonrakerError{});
+        },
+        [from_configfile](const std::string& error_msg) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::CONNECTION_LOST;
+            err.message = error_msg;
+            from_configfile(std::nullopt, err);
         });
 }
 
