@@ -1489,6 +1489,13 @@ bool AmsBackendToolChanger::apply_listing_to_tool_map_locked() {
     return true;
 }
 
+void AmsBackendToolChanger::clear_tool_listing_locked() {
+    // The seat and badges keep what they show until the next listing arrives.
+    listed_tool_numbers_.reset();
+    listed_tool_names_.reset();
+    home_tool_numbers_.clear();
+}
+
 int AmsBackendToolChanger::listed_number_for_slot_locked(int slot_index) const {
     if (slot_index < 0 || slot_index >= static_cast<int>(tool_names_.size()) ||
         !listed_tool_numbers_ || !listed_tool_names_ ||
@@ -2885,6 +2892,9 @@ void AmsBackendToolChanger::on_klipper_restarted() {
         ++dispatch_generation_;
         // Whatever the controller was doing died with it.
         last_operation_word_.clear();
+        // A restart may have reloaded a renumbered config and dropped every
+        // ASSIGN_TOOL: the next listing is the tools' numbering from scratch.
+        clear_tool_listing_locked();
     }
     // Everything the run had queued died with the restart. Klippy is ready
     // again, so what the run owes its heaters can go out now.
@@ -2899,6 +2909,7 @@ void AmsBackendToolChanger::on_connection_lost() {
         // the reconnect finds.
         std::lock_guard<std::mutex> lock(mutex_);
         last_operation_word_.clear();
+        clear_tool_listing_locked();
     }
     frame_print_state_current_ = false;
     stop_feed_run_unreachable();
@@ -3190,16 +3201,17 @@ std::vector<int> AmsBackendToolChanger::get_tool_mapping() const {
 }
 
 AmsError AmsBackendToolChanger::reset_tool_mappings() {
-    // Restore identity mapping: each tool number maps to its own physical tool.
-    // Sends ASSIGN_TOOL for each tool that was remapped away from identity.
+    // Return every tool to its own number, sending ASSIGN_TOOL for each tool
+    // that answers to another one.
     std::vector<std::pair<int, std::string>> remaps_needed;
+    bool listed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         int tool_count = static_cast<int>(tool_names_.size());
         // A printer that lists its tools may number them with gaps (0, 2, 3),
-        // so a slot index is not its tool's number: each tool goes back to the
-        // number it had when the tools were discovered.
-        const bool listed = !home_tool_numbers_.empty();
+        // so a slot index is not its tool's number: each tool goes back to its
+        // configured number, or the one the first listing gave it.
+        listed = !home_tool_numbers_.empty();
         if (listed) {
             for (int i = 0; i < tool_count; ++i) {
                 const auto& name = tool_names_[static_cast<size_t>(i)];
@@ -3225,33 +3237,32 @@ AmsError AmsBackendToolChanger::reset_tool_mappings() {
                 system_info_.tool_to_slot_map[i] = i;
             }
         }
-        // Re-derive every slot's mapped_tool from the identity map just
-        // written. The loop above touches only the forward direction, so
-        // without this the lane badges kept showing the remap the user just
-        // reset — the panel and the op buttons disagreeing again, one frame
-        // after we told the user the reset succeeded.
-        if (!remaps_needed.empty()) {
+        // Unlisted, re-derive every slot's mapped_tool from the identity map
+        // just written: the loop touches only the forward direction, and the
+        // lane badges would keep showing the remap being reset. Listed, the
+        // badges follow the listing Klipper sends once the ASSIGN_TOOLs apply.
+        if (!listed && !remaps_needed.empty()) {
             helix::printer::sync_tool_map_from_forward(system_info_,
                                                        /*identity_fallback=*/true);
         }
     }
 
     if (remaps_needed.empty()) {
-        spdlog::debug("[AMS ToolChanger] All tools already at identity mapping");
+        spdlog::debug("[AMS ToolChanger] All tools already on their own numbers");
         return AmsErrorHelper::success();
     }
 
     AmsError last_error = AmsErrorHelper::success();
     for (const auto& [tool_num, tool_name] : remaps_needed) {
-        spdlog::info("[AMS ToolChanger] Resetting T{} -> physical {} (identity)", tool_num,
-                     tool_name);
+        spdlog::info("[AMS ToolChanger] Resetting T{} -> physical {}", tool_num, tool_name);
         auto err = assign_tool(tool_name, tool_num);
         if (err.result != AmsResult::SUCCESS) {
             last_error = err;
         }
     }
 
-    spdlog::info("[AMS ToolChanger] Reset {} tool mapping(s) to identity", remaps_needed.size());
+    spdlog::info("[AMS ToolChanger] Reset {} tool mapping(s) to each tool's own number",
+                 remaps_needed.size());
     return last_error;
 }
 

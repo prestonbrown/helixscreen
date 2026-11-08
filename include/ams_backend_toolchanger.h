@@ -1007,6 +1007,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// holds mutex_.
     bool apply_listing_to_tool_map_locked();
 
+    /// Forget the tool listing and the home numbers taken from it, for a
+    /// connection or Klipper that may come back numbered differently. Caller
+    /// holds mutex_.
+    void clear_tool_listing_locked();
+
     /// Latch one firmware material reading: the types and palette it carried,
     /// and each slot's material and colour filed as vendor-cache observations.
     /// Caller holds mutex_.

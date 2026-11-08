@@ -2254,6 +2254,58 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         CHECK(tc.sent_.size() == 3);
     }
 
+    SECTION("set_discovery hands the configured numbers to the reset") {
+        AckingChanger tc(3);
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T2", "tool T3"}));
+        hw.parse_configured_tool_numbers({{"tool t0", {{"tool_number", 0}}},
+                                          {"tool t2", {{"tool_number", 2}}},
+                                          {"tool t3", {{"tool_number", 3}}}});
+        tc.set_discovery(hw);
+        tc.feed(json{{"toolchanger",
+                      {{"status", "ready"},
+                       {"tool_numbers", {0, 2, 3}},
+                       {"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                                   "ASSIGN_TOOL TOOL=\"tool T2\" N=2",
+                                                   "ASSIGN_TOOL TOOL=\"tool T3\" N=3"});
+    }
+
+    SECTION("a listed reset of a contiguous swap sends exactly the two ASSIGN_TOOLs") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T1", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                                    "ASSIGN_TOOL TOOL=\"tool T1\" N=1"});
+    }
+
+    SECTION("a listed reset on a machine with no ASSIGN_TOOL fails and keeps the listed badges") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->set_tool_commands(toolchanger_addon::ToolCommands{true, "test", "T", "", false});
+        // T2 dropped out of the numbering: the listing badges its head with nothing.
+        tc->feed(json{
+            {"toolchanger", {{"tool_numbers", {0, 1}}, {"tool_names", {"tool T1", "tool T0"}}}}});
+        REQUIRE(tc->get_slot_info(0).mapped_tool == 1);
+        REQUIRE(tc->get_slot_info(2).mapped_tool == -1);
+        CHECK_FALSE(tc->reset_tool_mappings().success());
+        CHECK(tc->get_slot_info(0).mapped_tool == 1);
+        CHECK(tc->get_slot_info(1).mapped_tool == 0);
+        CHECK(tc->get_slot_info(2).mapped_tool == -1);
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("a Klipper restart forgets the home numbers of the old config") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->on_klipper_restarted();
+        // The restarted config numbers the same tools 0, 1, 2.
+        tc->feed(json{
+            {"toolchanger",
+             {{"tool_numbers", {0, 1, 2}}, {"tool_names", {"tool T0", "tool T2", "tool T3"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_.empty());
+    }
+
     SECTION("a reset of tools already on their numbers sends nothing") {
         auto tc = numbered_changer({0, 2, 3});
         REQUIRE(tc->reset_tool_mappings().success());
