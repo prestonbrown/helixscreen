@@ -68,15 +68,23 @@ struct ClockLines {
 };
 ClockLines clock_lines(const ClockReading& reading);
 
-/// clock_lines() for the last reading asked about, built again only when clock_text_same()
-/// says the text changed.
+/// Lines a saver shows for a reading: clock_lines(), or a saver's own.
+using ClockLinesFn = ClockLines (*)(const ClockReading&);
+
+/// `build`'s lines for the last reading asked about, built again only when clock_text_same()
+/// says the text changed, or with `by_minute` the time of day's minute changed too.
 class ClockTextCache {
   public:
+    explicit ClockTextCache(ClockLinesFn build = clock_lines, bool by_minute = false)
+        : build_(build), by_minute_(by_minute) {}
+
     const ClockLines& get(const ClockReading& reading);
     /// Forgets the text and frees its strings.
     void reset();
 
   private:
+    ClockLinesFn build_;
+    bool by_minute_;
     ClockLines lines_;
     ClockReading built_for_;
     bool built_ = false;
