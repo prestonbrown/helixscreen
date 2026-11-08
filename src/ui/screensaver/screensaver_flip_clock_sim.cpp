@@ -79,6 +79,9 @@ constexpr float kRowGap = 0.3f;
 constexpr float kColonR = kGlyphStroke * 0.55f;
 /// Between the cards and the small row.
 constexpr float kSubGap = 0.25f;
+/// On the small row, between groups with no colon (the time and the percent): wide enough to
+/// read as two values, not one.
+constexpr float kSubSpacer = 1.6f;
 /// Share of the screen the layout fills along its tighter axis; the rest is drift room.
 constexpr float FILL = 0.9f;
 
@@ -93,6 +96,7 @@ struct Metrics {
     int32_t group_gap;
     int32_t row_gap;
     int32_t sub_gap;
+    int32_t spacer;
 };
 
 Metrics metrics_for(int32_t unit) {
@@ -108,6 +112,7 @@ Metrics metrics_for(int32_t unit) {
     m.group_gap = px(kGroupGap);
     m.row_gap = px(kRowGap);
     m.sub_gap = px(kSubGap);
+    m.spacer = px(kSubSpacer);
     return m;
 }
 
@@ -137,13 +142,24 @@ float row_width(const FlipShape& shape, float card_w, float gap, float group_gap
     return group_width(shape.card_count(), card_w, gap) + (groups - 1) * (group_gap - gap);
 }
 
-Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShape& sub) {
+/// Group boundaries on the small row that take the wide spacer instead of a colon gap.
+int32_t sub_spacers(const FlipShape& sub, uint8_t sub_colons) {
+    return std::max(0,
+                    static_cast<int32_t>(sub.group_count) - 1 - static_cast<int32_t>(sub_colons));
+}
+
+Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShape& sub,
+                    uint8_t sub_colons) {
     const auto groups = static_cast<float>(std::max<uint8_t>(1, shape.group_count));
     const float card_w = kGlyphW + 2 * kCardPadX;
     const float card_h = kGlyphH + 2 * kCardPadY;
     const bool has_sub = sub.group_count > 0;
     // The small row in main units: a scaled copy of the cards.
-    const float sub_w = has_sub ? kSubCardScale * row_width(sub, card_w, kCardGap, kGroupGap) : 0;
+    const float sub_w =
+        has_sub ? kSubCardScale *
+                      (row_width(sub, card_w, kCardGap, kGroupGap) +
+                       static_cast<float>(sub_spacers(sub, sub_colons)) * (kSubSpacer - kGroupGap))
+                : 0;
     const float tail = has_sub ? kSubGap + kSubCardScale * card_h : 0.0f;
     const float row_w = std::max(row_width(shape, card_w, kCardGap, kGroupGap), sub_w);
     const float row = std::min(FILL * static_cast<float>(w) / row_w,
@@ -164,7 +180,8 @@ Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShap
             metrics_for(std::max(1, static_cast<int32_t>(std::lround(kSubCardScale * a.unit))));
         const int32_t sn = sub.group_count;
         sub_w_px = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
-                   (sn - 1) * (sm.group_gap - sm.card_gap);
+                   (sn - 1) * (sm.group_gap - sm.card_gap) +
+                   sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap);
         tail_px = m.sub_gap + sm.card_h;
     }
     if (a.column) {
@@ -319,7 +336,7 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
         fit.groups[fit.group_count++] = 1;
     }
     const FlipShape sub = fit_shape(sub_shape, kFlipMaxSubCards);
-    const Arrangement a = arrange(w, h, fit, sub);
+    const Arrangement a = arrange(w, h, fit, sub, sub_colons);
     const Metrics m = metrics_for(a.unit);
     FlipLayout layout;
     layout.unit = a.unit;
@@ -360,7 +377,8 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
         layout.small = row_metrics(sub_unit);
         layout.sub_count = sub.card_count();
         const int32_t sub_w = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
-                              (sub.group_count - 1) * (sm.group_gap - sm.card_gap);
+                              (sub.group_count - 1) * (sm.group_gap - sm.card_gap) +
+                              sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap);
         const int32_t sy = layout.cards[layout.card_count - 1].y2 + 1 + m.sub_gap;
         int32_t sx = x0 + (a.content_w - sub_w) / 2;
         for (size_t g = 0; g < sub.group_count; g++) {
@@ -373,7 +391,9 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                 const int32_t cx = sx + static_cast<int32_t>(c) * (sm.card_w + sm.card_gap);
                 layout.cards[i] = {cx, sy, cx + sm.card_w - 1, sy + sm.card_h - 1};
             }
-            sx += group_width(sub.groups[g], sm.card_w, sm.card_gap) + sm.group_gap;
+            const bool colon_next = g + 1 <= sub_colons;
+            sx += group_width(sub.groups[g], sm.card_w, sm.card_gap) +
+                  (colon_next ? sm.group_gap : sm.spacer);
         }
     }
 
@@ -391,8 +411,8 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
 }
 
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
-                              const FlipShape& sub_shape) {
-    const Arrangement a = arrange(w, h, shape, fit_shape(sub_shape, kFlipMaxSubCards));
+                              const FlipShape& sub_shape, uint8_t sub_colons) {
+    const Arrangement a = arrange(w, h, shape, fit_shape(sub_shape, kFlipMaxSubCards), sub_colons);
     const int32_t x1 = (w - a.content_w) / 2;
     const int32_t y1 = (h - a.content_h) / 2;
     return {x1, y1, x1 + a.content_w - 1, y1 + a.content_h - 1};
@@ -426,8 +446,9 @@ void FlipClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face) 
     drift_.reset();
     drift_shape_ = face.shape;
     drift_sub_shape_ = face.sub_shape;
-    drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_),
-                     frame_w_, frame_h_);
+    drift_.set_range(
+        flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_, face.sub_colons),
+        frame_w_, frame_h_);
     PixelWriter(frame).fill(kBackground);
     ink_ = print_state_color(face.mode, kDigit);
     layout_ =
@@ -490,7 +511,8 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
     if (face.shape != drift_shape_ || face.sub_shape != drift_sub_shape_) {
         drift_shape_ = face.shape;
         drift_sub_shape_ = face.sub_shape;
-        drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_),
+        drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
+                                             face.sub_colons),
                          frame_w_, frame_h_);
     }
     const bool moved = drift_.step(dt_ms);

@@ -191,7 +191,7 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
-                              const FlipShape& sub_shape);
+                              const FlipShape& sub_shape, uint8_t sub_colons = 1);
 
 /**
  * @brief Draws the clock into a frame, redrawing only the cards that change

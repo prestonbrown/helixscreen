@@ -32,7 +32,7 @@ constexpr Stroke arc(float cx, float cy, float r, float start, float sweep) {
     return {true, cx, cy, r, start, sweep};
 }
 
-constexpr size_t kMaxStrokes = 5;
+constexpr size_t kMaxStrokes = 6;
 
 struct GlyphDef {
     size_t count;
@@ -83,9 +83,10 @@ constexpr LetterDef kLetters[] = {
       {arc(0.5f, 0.5f, 0.5f, 180.0f, 145.0f), line(0.0f, 0.5f, 0.0f, 1.1f),
        arc(0.5f, 1.1f, 0.5f, 35.0f, 145.0f)}}},
     {'D',
-     {5,
+     {6,
       {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 0.4f, 0.0f), line(0.0f, 1.6f, 0.4f, 1.6f),
-       arc(0.4f, 0.6f, 0.6f, 270.0f, 90.0f), arc(0.4f, 1.0f, 0.6f, 0.0f, 90.0f)}}},
+       arc(0.4f, 0.6f, 0.6f, 270.0f, 90.0f), line(1.0f, 0.6f, 1.0f, 1.0f),
+       arc(0.4f, 1.0f, 0.6f, 0.0f, 90.0f)}}},
     {'E',
      {4,
       {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 1.0f, 0.0f), line(0.0f, 0.8f, 0.8f, 0.8f),

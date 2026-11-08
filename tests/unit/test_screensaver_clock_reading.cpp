@@ -382,6 +382,15 @@ TEST_CASE("every stroke glyph has a centre line and only its own strokes",
         CHECK(nearest < 0.03f);
         CHECK(farthest > 0.2f);
     }
+    // Letters whose right side is straight run its full straight length, as O's does.
+    for (const char c : {'D', 'O', 'N', 'U'}) {
+        CAPTURE(c);
+        for (const float y : {0.7f, 0.8f, 0.9f}) {
+            CAPTURE(y);
+            CHECK(stroke_glyph_distance(c, 1.0f, y) < 0.01f);
+        }
+    }
+
     // Digits are the same glyphs as stroke_digit_distance draws.
     CHECK(stroke_glyph_distance('6', 0.3f, 0.7f) ==
           helix::ui::stroke_digit_distance(6, 0.3f, 0.7f));
