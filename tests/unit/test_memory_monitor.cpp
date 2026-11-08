@@ -7,13 +7,16 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/memory_monitor_test_access.h"
+#include "../test_helpers/thread_wakes.h"
 #include "core/update_queue.h"
 #endif
 
 #include <spdlog/spdlog.h>
 
 #include <atomic>
+#include <chrono>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -729,5 +732,23 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(deleted_at < lines.size());  // the deferred delete actually ran
     REQUIRE(complete_at < lines.size()); // ...and the completion sampled
     REQUIRE(deleted_at < complete_at);   // the sample lands after the delete
+}
+#endif
+
+#ifdef __linux__
+TEST_CASE("MemoryMonitor sleeps between samples and still stops at once", "[memory_monitor]") {
+    auto& monitor = MemoryMonitor::instance();
+    monitor.stop();
+    const auto fresh = helix::test::threads_started_by([&] { monitor.start(5000); });
+    REQUIRE(fresh.size() == 1);
+
+    const long start = helix::test::thread_voluntary_switches(fresh[0]);
+    REQUIRE(start >= 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    CHECK(helix::test::thread_voluntary_switches(fresh[0]) - start <= 2);
+
+    const auto t0 = std::chrono::steady_clock::now();
+    monitor.stop();
+    CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(1));
 }
 #endif
