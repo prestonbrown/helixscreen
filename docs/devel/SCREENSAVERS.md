@@ -472,7 +472,10 @@ Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SC
 (the flip clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
 creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in
 the state colour beside stroke-drawn text, 1h05 or 23m left, or 63% before an estimate, with a
-mark in the ring when paused or ended (`PrintCardPainter`). It drifts like the clocks and
+mark in the ring when paused or ended (`PrintCardPainter`). Its home is centred at the bottom
+of the screen (`print_card_home`), its top edge in the bottom third at every drift offset, so
+the middle of the screen, where the planet, the tunnel's light and the fireflies' text tell the
+print, stays clear. It drifts like the clocks and
 repaints only when `PrintCardFace` changes, which the text's whole minutes bound to once a
 minute. `print_card_visible` shows it for paused and ended prints always and for a running
 print with Settings > Display > Show Print Progress on (`settings_screensaver_print_progress`,
@@ -491,15 +494,22 @@ it does idle, which the plain fingerprint lines pin; each `<saver>_print` line p
 COUNTDOWN 40%. A saver started on a latched end opens in its end state rather than animating
 toward it.
 
+The DONE end scenes of pipes, starfield and hyperspace hold still once drawn, by design: the
+display's sleep timeout is the only timeout a finished print has, and the card keeps drifting
+over the still scene.
+
 #### Pipes
 
 A print gets one screen that fills as it goes (`src/ui/screensaver/screensaver_pipes_sim.cpp#step_print`):
 there is no pipe limit and no dissolve, and growth runs, at most `kPipesMaxStepsPerTick` steps
 a call, only while the grid's taken share is below the progress (carried between whole percents
-at the countdown's rate). Paused grows nothing. Done fills the rest of the grid, then sets one
-teapot in `kPipesDoneTeapotMaterial` (emerald) on the node reserved for it, nearest the camera
-in the middle of the view. Failed or cancelled stops growing and greys the frame once. A new
-print, or no print after an end, dissolves the screen first.
+at the countdown's rate). Paused stops the carry and grows only up to the reported progress.
+Done fills the rest of the grid, then sets one teapot in `kPipesDoneTeapotMaterial` (emerald) on
+the node reserved for it, nearest the camera in the middle of the view. Failed or cancelled
+stops growing and greys the frame once. A screen begun on a paused or ended print catches up at
+`kPipesFastForwardSteps` steps a call, then shows the end, so no single frame grows the whole
+grid. A new print, or no print after an end, dissolves the screen first. A level's raster scale
+waits for the next screen, so a print keeps one scale for its whole screen.
 
 #### Fireworks
 
@@ -514,7 +524,9 @@ or cancelled sends up one small red (`kPrintFailed`) willow, then nothing.
 
 A planet at the centre grows from `kStarfieldPlanetStartShare` to `kStarfieldPlanetEndShare` of
 the shorter side as the print goes, redrawn only when its centre or whole-pixel radius changes,
-with one dirty box over its old and new discs; a star never draws or erases a planet pixel.
+with one dirty box over its old and new discs; a star never draws or erases a planet pixel. A
+disc larger than a running print's, during the arrival or a new print's shrink back, repaints
+at most every `kStarfieldLargePlanetRepaintMs` (100 ms).
 Paused stars fly at `kStarfieldPausedSpeed`. Done arrives at the planet over
 `kStarfieldArriveMs` until it fills the view; failed or cancelled shrinks it and drifts it off
 over `kStarfieldDepartMs`. With no print there is no planet.
@@ -544,9 +556,11 @@ sends the baits to new waypoints once.
 While a print runs the sprite fills with colour from the bottom: an owned copy of the art has
 its top `grey_rows_for(src_h, pct)` rows rewritten to grey, only when that line moves
 (`src/ui/screensaver/screensaver_bounce.cpp#apply_fill`), and the
-wall tints pause. Done shows full colour and celebrates every bounce, at most one confetti
-burst alive at a time (the cheapest rung flashes a green `kPrintDone` corner instead), the logo
-included. Failed or cancelled holds a steady `kPrintFailed` recolor.
+wall tints pause. Done shows full colour and celebrates every bounce, the logo included: on
+every rung the backdrop flashes `kPrintDone` green, and above the cheapest rung, on boards that
+animate, a confetti burst flies too, at most one alive at a time and behind the card. With no
+print every corner hit still throws its own burst. Failed or cancelled holds a steady
+`kPrintFailed` recolor.
 
 #### Flying toasters
 
