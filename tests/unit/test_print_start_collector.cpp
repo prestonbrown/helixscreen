@@ -7854,3 +7854,35 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     collector().start();
     CHECK(collector().checklist_input().expected_order.empty());
 }
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Oversized console lines are not scanned by the phase patterns",
+                 "[print][collector][oversized-line]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    const std::string completion = "Print started";
+
+    SECTION("A firmware trace line longer than the limit is ignored") {
+        std::string line = completion + " // [PRES_TIME_CH0_FTR][";
+        while (line.size() <= 256) {
+            line += "-0.0475, ";
+        }
+        PrintStartCollectorTestAccess::on_gcode_response(
+            collector(), {{"method", "notify_gcode_response"}, {"params", {line}}});
+        drain_async_updates();
+        drain_async_updates();
+        REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+    }
+
+    SECTION("A line at the limit is still scanned") {
+        std::string line = completion;
+        line.resize(256, ' ');
+        PrintStartCollectorTestAccess::on_gcode_response(
+            collector(), {{"method", "notify_gcode_response"}, {"params", {line}}});
+        drain_async_updates();
+        drain_async_updates();
+        REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+    }
+}
