@@ -61,10 +61,9 @@
                               description_tag="View and rename fans" callback="on_fans_settings_clicked"/>
         </lv_obj>
         <!-- ================================================================== -->
-        <!-- SENSORS (hidden if no sensors detected) -->
+        <!-- SENSORS: always shown, it holds every sensor type and the chamber assignments -->
         <!-- ================================================================== -->
         <lv_obj name="container_filament_sensors" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="filament_sensor_count" flag="hidden" ref_value="0"/>
           <setting_action_row name="row_filament_sensors"
                               label="Sensors" label_tag="Sensors" icon="filament"
                               description="Configure printer sensors" description_tag="Configure printer sensors"
