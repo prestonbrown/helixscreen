@@ -2510,9 +2510,9 @@ void AmsBackendCfs::persist_slot_weight(int slot_index, float remaining_weight_g
 
 // The daemon's record for a bay just written, from what the write carried and
 // the slot as it now stands. rfid is the 5-char catalog code of the material
-// written ("" for a color-only write, as Creality Print sends for an untagged
-// spool). Temps and the product label prefer the slot's own values and fall
-// back to the catalog product of the code written, or of the user's pick.
+// written ("" for a color-only write or a code the catalog does not know, as
+// Creality Print sends for an untagged spool). Temps and the product label prefer the slot's own
+// values and fall back to the catalog product of the code written, or of the user's pick.
 static std::optional<helix::cfs::DaemonMaterial>
 daemon_material_for(int global_index, const SlotInfo* slot, const std::string& material,
                     const std::string& brand, const std::string& catalog_id,
@@ -2522,19 +2522,21 @@ daemon_material_for(int global_index, const SlotInfo* slot, const std::string& m
         return std::nullopt;
     }
     const auto catalog = FilamentCatalog::load_codes_cached("cfs");
-    const std::string rfid = CfsMaterialDb::strip_code(mat_code);
-    const EffectiveFilament* entry = rfid.empty() ? nullptr : catalog->resolve_code("cfs", rfid);
-    if (!entry && !catalog_id.empty()) {
-        entry = catalog->resolve_id(catalog_id);
-    }
+    // Only a code the catalog knows is a material id; anything else the
+    // firmware reported (a raw tag UID) would name nothing to the daemon.
+    const std::string code = CfsMaterialDb::strip_code(mat_code);
+    const EffectiveFilament* coded = code.empty() ? nullptr : catalog->resolve_code("cfs", code);
+    const EffectiveFilament* entry =
+        coded ? coded : (catalog_id.empty() ? nullptr : catalog->resolve_id(catalog_id));
+    const std::string usable_brand = helix::cfs::is_raw_tag_uid(brand) ? std::string{} : brand;
 
     helix::cfs::DaemonMaterial record;
     record.box_id = address->box_id;
     record.slot_id = address->slot_id;
-    record.rfid = rfid;
+    record.rfid = coded ? code : std::string{};
     record.color_rgb = color_rgb;
     record.type = !material.empty() ? material : (entry ? entry->type : std::string{});
-    record.vendor = !brand.empty() ? brand : (entry ? entry->brand : std::string{});
+    record.vendor = !usable_brand.empty() ? usable_brand : (entry ? entry->brand : std::string{});
     if (slot && !slot->product_name.empty()) {
         record.name = slot->product_name;
     } else if (entry && !entry->name.empty()) {

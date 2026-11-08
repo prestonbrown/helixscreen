@@ -222,6 +222,13 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
         CHECK(cfs.notices[0].slot_id == 3);
         CHECK(cfs.notices[0].rfid.empty());
         CHECK(cfs.notices[0].name == "Unobtanium");
+        CHECK(cfs.notices[0].vendor == "ACME");
+    }
+
+    SECTION("a raw tag UID is never sent as the vendor") {
+        cfs.push_slot_identity_to_firmware(3, "Unobtanium", "04A1B2C3D4E5F6", "", 0x00FF00);
+        REQUIRE(cfs.notices.size() == 1);
+        CHECK(cfs.notices[0].vendor.empty());
     }
 
     SECTION("a write Klipper rejects tells the daemon nothing") {
