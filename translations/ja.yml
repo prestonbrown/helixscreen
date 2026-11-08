@@ -166,6 +166,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください
   A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
+  "A new Print Status screen": "新しい印刷ステータス画面"
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
   A picture of your printer: プリンターの画像
   A print is already running.: すでに印刷中です。
@@ -907,21 +908,30 @@ translations:
     マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
   Could not answer the connection request: '接続リクエストに応答できませんでした'
   'Could not check {} - it stays in the queue': '{} を確認できませんでした – キューに残ります'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"
   "Every screen and setting explained": "すべての画面と設定の説明"
   "Getting Started": "はじめに"
+  "Here's a quick look at what changed since your last version.": "前回のバージョンからの変更点を簡単に説明します。"
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "基本：セットアップウィザード、画面の移動、タッチ操作。"
   Load all stopped: 'すべてのロードを停止しました'
+  "Load and unload": "装填と排出"
   Load stopped: 'ロードを停止しました'
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
   'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
+  "New in 1.1": "1.1 の新機能"
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
   Print hours between filter changes. Off hides this meter.: 'フィルター交換までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours between nozzle changes. Off hides this meter.: 'ノズル交換までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'レールの清掃と給油までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours this week and lifetime totals: '今週の印刷時間と累計'
   "Setup, navigation and gestures": "セットアップ、操作、ジェスチャー"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"
   Unload stopped: 'アンロードを停止しました'
   "User Guide": "ユーザーガイド"
+  "Your filament system": "フィラメントシステム"
   '{} could not be checked from Home - review it and tap Print': '{} をホームから確認できませんでした – 内容を確認して印刷をタップしてください'
   Could not change printer.cfg: printer.cfg を変更できませんでした
   ? "Could not check webcam status.\nCheck printer connection."
@@ -2102,8 +2112,6 @@ translations:
   Load or unload filament.: フィラメントを装填または排出します。
   Load Profile: 'プロファイルを読み込む'
   Load the required filaments or start anyway?: 必要なフィラメントを装填しますか？それともこのまま開始しますか？
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : スプールのロード、アンロード、交換を行います。マルチフィラメントシステムを一目で確認し、フィラメントをツールにマッピングし、ランアウトセンサーを監視できます。
   Load...: 装填...
   Loaded: 装填済み
   Loading: ロード中
@@ -2133,7 +2141,6 @@ translations:
   Login Required: 'ログインが必要です'
   Logs: ログ
   Long Press Time: '長押しの時間'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': タイルを長押しして編集モードに入ります — ウィジェットの並べ替え、サイズ変更、削除、追加や、好みのレイアウトに合わせたページの追加ができます。
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): 'ホーム画面のグリッドを長押しするとウィジェットを並べ替えできます（誤動作する場合はオフにしてください）'
   Longest Disconnect: 最長切断時間
   Loosen {0} noticeably: "{0}をはっきり緩める"
@@ -2283,7 +2290,6 @@ translations:
   Mixed-Temperature Materials: '温度の異なる素材'
   Mode: モード
   Modified: 変更日時
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 印刷の進行状況を監視します — 残り時間、現在のレイヤー、進捗。タップすれば進行中のジョブを一時停止、再開、キャンセルできます。
   Monitoring: モニタリング
   Month: 月
   Moonraker: Moonraker

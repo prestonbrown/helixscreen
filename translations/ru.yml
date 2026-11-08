@@ -213,6 +213,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
+  "A new Print Status screen": "Новый экран статуса печати"
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
   A picture of your printer: Изображение вашего принтера
   A print is already running.: Печать уже идёт.
@@ -1018,21 +1019,30 @@ translations:
     быть недоступны.
   Could not answer the connection request: 'Не удалось ответить на запрос подключения'
   'Could not check {} - it stays in the queue': 'Не удалось проверить {} – остаётся в очереди'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."
   "Every screen and setting explained": "Описание всех экранов и настроек"
   "Getting Started": "Начало работы"
+  "Here's a quick look at what changed since your last version.": "Краткий обзор изменений с вашей последней версии."
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Основы: мастер настройки, переход между экранами и жесты касания."
   Load all stopped: 'Загрузка всех остановлена'
+  "Load and unload": "Загрузка и выгрузка"
   Load stopped: 'Загрузка остановлена'
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Удерживайте плитку, чтобы войти в режим редактирования. Новая сетка позволяет переставлять, менять размер, удалять и добавлять виджеты, а также перетаскивать их между страницами."
   'Moonraker answered at {}.': "Moonraker ответил по адресу {}."
+  "New in 1.1": "Новое в 1.1"
   No filament was inserted in time: 'Филамент не был вставлен вовремя'
   Print hours between filter changes. Off hides this meter.: 'Часы печати между заменами фильтра. «Выкл» скрывает этот счётчик.'
   Print hours between nozzle changes. Off hides this meter.: 'Часы печати между заменами сопла. «Выкл» скрывает этот счётчик.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Часы печати между чисткой и смазкой направляющих. «Выкл» скрывает этот счётчик.'
   Print hours this week and lifetime totals: 'Часы печати за неделю и общие итоги'
   "Setup, navigation and gestures": "Настройка, навигация и жесты"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."
   Unload stopped: 'Выгрузка остановлена'
   "User Guide": "Руководство пользователя"
+  "Your filament system": "Ваша система филамента"
   '{} could not be checked from Home - review it and tap Print': 'Не удалось проверить {} с главного экрана – проверьте файл и нажмите «Печать»'
   Could not change printer.cfg: Не удалось изменить printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
@@ -2262,8 +2272,6 @@ translations:
   Load Profile: 'Загрузить профиль'
   Load the required filaments or start anyway?: Загрузить нужные филаменты или начать
     без них?
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : Загружайте, выгружайте и меняйте катушки. Просматривайте вашу мультифиламентную систему одним взглядом, сопоставляйте филамент с инструментами и отслеживайте датчики окончания филамента.
   Load...: Загрузить...
   Loaded: Загружен
   Loading: Загрузка
@@ -2293,7 +2301,6 @@ translations:
   Login Required: 'Требуется вход'
   Logs: Журналы
   Long Press Time: 'Время долгого нажатия'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Долгое нажатие на любую плитку переводит в режим редактирования — переставляйте, изменяйте размер, удаляйте или добавляйте виджеты, а также добавляйте дополнительные страницы под свой макет.'
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): 'Долгое нажатие на сетку главного экрана переставляет виджеты (отключите, если срабатывает случайно)'
   Longest Disconnect: Самое долгое отключение
   Loosen {0} noticeably: "Заметно ослабить {0}"
@@ -2448,7 +2455,6 @@ translations:
   Mixed-Temperature Materials: 'Материалы с разной температурой'
   Mode: Режим
   Modified: Изменён
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Отслеживайте выполняющиеся печати — оставшееся время, текущий слой и прогресс. Нажмите, чтобы приостановить, возобновить или отменить активное задание.'
   Monitoring: Мониторинг
   Month: Месяц
   Moonraker: Moonraker

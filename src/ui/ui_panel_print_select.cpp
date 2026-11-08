@@ -42,6 +42,7 @@
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "filament_mapper.h"
+#include "first_run_tour.h"
 #include "format_utils.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -3603,7 +3604,9 @@ void PrintSelectPanel::maybe_prompt_plugin_install() {
 
 helix::PluginScreenState PrintSelectPanel::plugin_screen_state() {
     lv_obj_t* print_status = PrintStatusPanel::get_cached_overlay();
-    return {!ModalStack::instance().empty(),
+    // The first-run tour's card would sit over the prompt, and it walks panels the
+    // prompt would cover.
+    return {!ModalStack::instance().empty() || helix::tour::FirstRunTour::instance().is_running(),
             print_status != nullptr && helix::nav::is_in_stack(print_status)};
 }
 
