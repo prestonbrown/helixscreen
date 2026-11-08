@@ -210,8 +210,11 @@ TEST_CASE_METHOD(TempGraphFeatureFixture, "Gradient opacity zeroed when GRADIENT
 // ============================================================================
 
 TEST_CASE("TempGraphWidget: registered in widget registry", "[temp_graph][panel_widget]") {
+    init_widget_registrations();
     const auto* def = find_widget_def("temp_graph");
     REQUIRE(def != nullptr);
+    REQUIRE(def->factory != nullptr);
+    REQUIRE(std::string(def->factory("temp_graph:7")->id()) == "temp_graph:7");
     REQUIRE(std::string(def->display_name) == "Temperature Graph");
     REQUIRE(std::string(def->icon) == "chart_line");
     REQUIRE(def->multi_instance == true);
