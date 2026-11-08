@@ -78,11 +78,28 @@ struct ToolInfo {
 `[tool <name>]` section name from the printer's Klipper config, so `[tool Left]` gives
 `"Left"`; everywhere else it is generated as `"T<n>"` (`tool_label()`). HelixScreen has no
 setting of its own for it: renaming a tool means renaming its Klipper section.
-`display_label` is always generated, from the backend's noun (`active_tool_noun()`).
+`display_label` is generated from the backend's noun (`active_tool_noun()`) and the
+printer's tool number style, keeping a configured name.
 UI text goes through `include/display_numbering.h` rather than either field directly:
 `tool_label_in_form()` renders a generated name as "Tool 1 (T0)" (`Full`) or "T0" (`Code`),
 and a configured one as "Left (T0)" or "T0"; `tool_name_label()` gives the friendly half
 alone ("Tool 1", "Left"), and `is_generated_tool_name()` tells the two kinds apart.
+
+**Tool number style.** Where a tool's number stands alone (the nozzle badge, the other-tools
+chip, "Nozzle 2", the extruder names, the nozzle temps number rung) it is spelled by
+`ToolNumberStyle`: `Physical` is the 1-based position ("1", "Tool 2"), `Gcode` is the G-code
+name the machine is labeled with ("T0"; `Full` then collapses to "T0" rather than "T0 (T0)").
+`tool_number_text()` and `tool_badge_label()` decide the text; every surface calls them, or
+`active_tool_badge_label()` / `active_tool_label()`, and none formats a number itself. The
+style comes from `active_tool_number_style()`: the per-printer setting
+(`SettingsManager::get_tool_number_style_setting()`, Settings > Appearance > Tool Numbers:
+Auto / "1, 2, 3" / "T0, T1, T2") resolved by `resolve_tool_number_style()` against the
+active backend's `tool_number_style()` trait. Only the tool-changer backend answers `Gcode`,
+on a plain klipper-toolchanger rig whose `[tool]` sections are all `T<n>`
+(`helix::toolchanger_addon::tool_number_style()`); every other backend, and a printer with
+none, is `Physical`. A change of the setting re-runs `helix::ui::refresh_display_texts()`,
+the same refresh a language switch runs, which bumps `tools_version`. Lane labels
+(`fed_lane_tool_label()`) have no style: a lane is not a tool number.
 
 **`effective_heater()` helper:** Returns the heater responsible for this tool. Prefers explicit `heater_name`, falls back to `extruder_name`, then `"extruder"`.
 
