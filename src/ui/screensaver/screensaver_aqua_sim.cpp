@@ -184,10 +184,11 @@ float AquaWater::cell_z(int32_t k) const {
 float AquaWater::height(float x, float z, double t) const {
     float h = 0.0f;
     for (const AquaMode& m : modes_) {
-        h += m.amp * fast_cos(m.k * (x + kTankL / 2.0f)) * fast_cos(phase_at(m.omega, t, m.phase));
+        h += amp_ * m.amp * fast_cos(m.k * (x + kTankL / 2.0f)) *
+             fast_cos(phase_at(m.omega, t, m.phase));
     }
     for (const AquaWave& w : waves_) {
-        h += aqua_gerstner_height(w, x, z, t);
+        h += amp_ * aqua_gerstner_height(w, x, z, t);
     }
     for (const AquaImpulse& e : impulses_) {
         const auto age = static_cast<float>(t - e.t0);
@@ -223,7 +224,8 @@ void AquaWater::evaluate(double t, std::minstd_rand& rng) {
 
     float mode_time[3];
     for (size_t m = 0; m < modes_.size(); m++) {
-        mode_time[m] = modes_[m].amp * fast_cos(phase_at(modes_[m].omega, t, modes_[m].phase));
+        mode_time[m] =
+            amp_ * modes_[m].amp * fast_cos(phase_at(modes_[m].omega, t, modes_[m].phase));
     }
     float wave_phase[4];
     for (size_t i = 0; i < waves_.size(); i++) {
@@ -257,7 +259,7 @@ void AquaWater::evaluate(double t, std::minstd_rand& rng) {
                 h += mode_time[m] * fast_cos(modes_[m].k * (x + kTankL / 2.0f));
             }
             for (size_t w = 0; w < waves_.size(); w++) {
-                h += gerstner_at_phase(waves_[w], x, z, wave_phase[w]);
+                h += amp_ * gerstner_at_phase(waves_[w], x, z, wave_phase[w]);
             }
             for (size_t n = 0; n < live_n; n++) {
                 if (row_env[n] < 1e-4f) {
@@ -470,6 +472,23 @@ AquaRings aqua_rings(const ClockReading& reading) {
     return rings;
 }
 
+float aqua_level_target(const ClockReading& reading) {
+    switch (reading.mode) {
+    case ClockMode::PROGRESS:
+    case ClockMode::COUNTDOWN:
+    case ClockMode::PAUSED:
+        return kAquaBrimRise * static_cast<float>(std::clamp(reading.progress_pct, 0, 100)) /
+               100.0f;
+    case ClockMode::DONE:
+        return kAquaBrimRise;
+    case ClockMode::CLOCK:
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED:
+        break;
+    }
+    return 0.0f;
+}
+
 AquaClockLayout layout_aqua_clock(int32_t w, int32_t h, int32_t dx, int32_t dy) {
     const float s = static_cast<float>(std::min(w, h)) / 480.0f;
     const auto px = [s](float v) { return static_cast<int32_t>(std::lround(v * s)); };
@@ -523,8 +542,8 @@ class AquaSim::Scene : public HeightfieldScene {
                                     0.0f, static_cast<float>(gz - 1));
         const int32_t k0 = std::min(static_cast<int32_t>(fk), gz - 2);
         const float fz = fk - static_cast<float>(k0);
-        const float amp =
-            kWrinkleAmp * std::clamp(1.4f - 1.6f * (z - kAquaZNear) / kAquaDepth, 0.1f, 1.0f);
+        const float amp = kWrinkleAmp * s.calm_ *
+                          std::clamp(1.4f - 1.6f * (z - kAquaZNear) / kAquaDepth, 0.1f, 1.0f);
         const float wv = z * 14.0f - shift_v;
         const float wv_floor = std::floor(wv);
         const float av = wv - wv_floor;
@@ -571,7 +590,7 @@ class AquaSim::Scene : public HeightfieldScene {
             const float nx = -hx * n_len;
             const float ny = n_len;
             const float nz = -hz * n_len;
-            const float vy0 = h - kCamH;
+            const float vy0 = h - sim_.cam_h();
             const float v_len = 1.0f / std::sqrt(x * x + vy0 * vy0 + z * z);
             const float vx = x * v_len;
             const float vy = vy0 * v_len;
@@ -737,6 +756,25 @@ void build_tint(std::vector<Rgb>& tint) {
 
 } // namespace
 
+float AquaSim::cam_h() const {
+    return kCamH - water_level_;
+}
+
+void AquaSim::follow_print(const ClockReading& reading, float dt_s) {
+    const float target = aqua_level_target(reading);
+    const float calm = reading.mode == ClockMode::PAUSED ? kAquaCalm : 1.0f;
+    if (dt_s < 0.0f) {
+        water_level_ = target;
+        calm_ = calm;
+    } else {
+        const float step = kAquaLevelRate * dt_s;
+        water_level_ += std::clamp(target - water_level_, -step, step);
+        const float ease = kAquaCalmRate * dt_s;
+        calm_ += std::clamp(calm - calm_, -ease, ease);
+    }
+    water_.set_amplitude(calm_);
+}
+
 void AquaSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
                    const ClockReading& reading) {
     w_ = static_cast<int32_t>(frame.w);
@@ -747,6 +785,10 @@ void AquaSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level
     const int32_t iw0 = (w_ + 1) / 2;
     const float focal0 = kFocalAt400 * static_cast<float>(iw0) / 400.0f;
     water_.init(rng, kAquaGridX, kAquaGridZ, (static_cast<float>(iw0) / 2.0f + 8.0f) / focal0);
+    // A saver that starts mid-print shows the water where the print has it, at once.
+    follow_print(reading, -1.0f);
+    last_mode_ = reading.mode;
+    painted_level_step_ = static_cast<int32_t>(std::lround(water_level_ / kAquaStillLevelStep));
     build_scene(rng);
 
     // Size every buffer for the finest rung any later step down reaches (the still rung renders
@@ -824,7 +866,8 @@ void AquaSim::apply_view() {
     v.horizon_row = horizon_;
     v.focal_x = focal_;
     v.focal_y = focal_;
-    v.cam_h = kCamH;
+    v.cam_h = cam_h();
+    viewed_level_ = water_level_;
     v.z_near = kAquaZNear;
     v.z_far = kAquaZNear + kAquaDepth;
     v.dz_grow = kDzGrow;
@@ -1011,7 +1054,7 @@ void AquaSim::draw_spray(FrameTarget& frame, std::vector<DirtyRect>& boxes) cons
     };
     for (const AquaDroplet& d : splashes_.droplets()) {
         const float px = d.x * f / d.z + cx;
-        const float py = hz + (kCamH - d.y) * f / d.z;
+        const float py = hz + (cam_h() - d.y) * f / d.z;
         // A short streak back along the motion, as a slow shutter sees it.
         const float tx = -d.vx * f / d.z * 0.035f;
         const float ty = d.vy * f / d.z * 0.035f;
@@ -1026,7 +1069,7 @@ void AquaSim::draw_spray(FrameTarget& frame, std::vector<DirtyRect>& boxes) cons
     }
     for (const Glint& g : glints_) {
         const float px = g.x * f / g.z + cx;
-        const float py = hz + (kCamH - g.y) * f / g.z;
+        const float py = hz + (cam_h() - g.y) * f / g.z;
         const float v = 0.8f * (1.0f - static_cast<float>(g.age_ms) / kGlintMs);
         splat_max(writer, tint_, px, py, v);
         splat_max(writer, tint_, px - 1.0f, py, v * 0.5f);
@@ -1175,6 +1218,14 @@ void AquaSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
                    const ClockReading& reading, std::vector<DirtyRect>& dirty) {
     dirty.clear();
     const AquaLevel& lv = kAquaLevels[level_];
+    const ClockMode prev_mode = last_mode_;
+    last_mode_ = reading.mode;
+    follow_print(reading, static_cast<float>(dt_ms) / 1000.0f);
+    const auto level_step = static_cast<int32_t>(std::lround(water_level_ / kAquaStillLevelStep));
+    if (lv.still && painted_ && level_step != painted_level_step_) {
+        // The water has risen or fallen a step: paint it once more where it stands.
+        painted_ = false;
+    }
     if (scene_released_ && (!lv.still || !painted_)) {
         // A rung change after the still one: the water comes back before it is drawn.
         build_scene(rng);
@@ -1192,6 +1243,7 @@ void AquaSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
         // The water stands still: draw it once, then only the clock when what it shows changes.
         if (!painted_) {
             paint_all(frame, reading);
+            painted_level_step_ = level_step;
             dirty.push_back(whole);
             release_scene();
         } else if (moved) {
@@ -1213,11 +1265,17 @@ void AquaSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
         return;
     }
 
-    const float dt_sim = static_cast<float>(dt_ms) / 1000.0f * kAquaTimeScale;
+    if (std::fabs(water_level_ - viewed_level_) > 0.002f) {
+        apply_view();
+    }
+    // Calm water moves slower as well as lower: flatter waves alone only sharpen the
+    // reflections sliding across them.
+    const float dt_sim = static_cast<float>(dt_ms) / 1000.0f * kAquaTimeScale * calm_;
     t_sim_ += dt_sim;
     water_.evaluate(t_sim_, rng);
     const uint32_t emits = emit_steps_.steps_due(dt_ms, kEmitStepMs, kEmitStepsMax);
-    if (lv.splashes) {
+    // Paused water lies calm: no crest throws a droplet.
+    if (lv.splashes && reading.mode != ClockMode::PAUSED) {
         for (uint32_t i = 0; i < emits; i++) {
             splashes_.emit_crests(water_, rng);
         }
@@ -1238,8 +1296,16 @@ void AquaSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
     }
     const float dt_s = static_cast<float>(dt_ms) / 1000.0f;
     const float rise = 24.0f * static_cast<float>(h_) / 480.0f;
+    if (reading.mode == ClockMode::DONE && prev_mode != ClockMode::DONE) {
+        // A finished print sends a burst up from the bottom, out of the bubbles already there.
+        const size_t n = std::min(kAquaDoneBurst, bubbles_.size());
+        for (size_t i = 0; i < n; i++) {
+            bubbles_[i].y = static_cast<float>(h_) + static_cast<float>(i % 12) * 3.0f;
+            bubbles_[i].speed = 0.6f;
+        }
+    }
     for (Bubble& b : bubbles_) {
-        b.y -= b.speed * rise * dt_s;
+        b.y -= b.speed * rise * dt_s * calm_;
         b.phase += 2.0f * dt_s;
         if (b.phase > kSaverTwoPi) {
             b.phase -= kSaverTwoPi;

@@ -1,6 +1,6 @@
 # Canvas pixel fingerprints; tests/unit/test_screensaver_fingerprint.cpp
 aqua 559477eaba1e0738 ab0554cfa98d6cdb
-aqua_print 06c4bf10743c2fd8 45114c963cf84258
+aqua_print 551716b57ebdc826
 fireflies 93decfb0c5ac455f
 fireworks c971f5362a748339
 flip_clock 3ec5bfa0db00639d b4c2bddfcebb2e81
