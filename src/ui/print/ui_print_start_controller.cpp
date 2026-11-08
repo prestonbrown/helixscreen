@@ -236,10 +236,10 @@ void PrintStartController::execute_print_start() {
     // print start takes the map, these are what decide this print.
     helix::PrintStartParams start_params = print_start_params();
 
-    // Timelapse application now lives SOLELY in
+    // Timelapse application lives SOLELY in
     // PrintPreparationManager::start_print(), which dispatches the timelapse
-    // RuntimeCommand in BOTH directions (on/off). The redundant enable-only
-    // write that used to live here caused a double write on print start (#1094).
+    // RuntimeCommand in BOTH directions (on/off). Writing it here too would
+    // double-write on print start (#1094).
 
     // Capture callbacks for use in lambdas
     auto on_started = on_print_started_;
@@ -247,7 +247,6 @@ void PrintStartController::execute_print_start() {
     auto update_button = update_print_button_;
     auto show_detail = show_detail_view_;
 
-    // Capture thumbnail path for lambda
     std::string thumbnail_path = thumbnail_path_;
     std::vector<std::string> exclude_picks = std::move(exclude_picks_);
     exclude_picks_.clear();
@@ -281,7 +280,6 @@ void PrintStartController::execute_print_start() {
             navigate_to_print_status_();
         }
 
-        // Delegate to PrintPreparationManager
         prep_manager->start_print(
             filename_to_print, path,
             // Navigation callback - called when Moonraker confirms print start

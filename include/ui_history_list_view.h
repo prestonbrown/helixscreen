@@ -36,7 +36,6 @@ class HistoryListView : public ContainerDeleteNet {
     HistoryListView() = default;
     ~HistoryListView();
 
-    // Non-copyable
     HistoryListView(const HistoryListView&) = delete;
     HistoryListView& operator=(const HistoryListView&) = delete;
 

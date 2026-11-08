@@ -117,7 +117,6 @@ void PrintSelectListView::init_pool() {
 
     spdlog::debug("[PrintSelectListView] Creating {} row widgets", kPoolSize);
 
-    // Reserve storage
     list_pool_.reserve(kPoolSize);
     list_pool_indices_.resize(kPoolSize, -1);
     list_data_pool_.reserve(kPoolSize);
@@ -140,7 +139,6 @@ void PrintSelectListView::init_pool() {
             // Create per-row data with subjects
             auto data = std::make_unique<ListRowWidgetData>();
 
-            // Initialize subjects
             lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
                                    sizeof(data->filename_buf), "");
             lv_subject_init_string(&data->size_subject, data->size_buf, nullptr,
@@ -150,7 +148,6 @@ void PrintSelectListView::init_pool() {
             lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
                                    sizeof(data->time_buf), "--");
 
-            // Bind labels to subjects
             lv_obj_t* filename_label =
                 helix::ui::find_required(row, "row_filename", "PrintSelectListView");
             if (filename_label) {
@@ -233,7 +230,6 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
         return;
     }
 
-    // Update display name
     std::string display_name =
         file.is_dir ? file.filename + "/" : strip_gcode_extension(file.filename);
 
@@ -269,7 +265,6 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
     // Store file index for click handler
     lv_obj_set_user_data(row, reinterpret_cast<void*>(file_index));
 
-    // Show the row
     lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -294,7 +289,6 @@ void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
         init_pool();
     }
 
-    // Create spacers if needed
     create_spacers();
 
     // Cache row dimensions on first populate (after pool exists but before hiding all rows)
@@ -312,7 +306,6 @@ void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
                       cached_row_height_, cached_row_gap_);
     }
 
-    // Reset visible range tracking
     visible_start_ = -1;
     visible_end_ = -1;
 

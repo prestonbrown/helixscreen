@@ -78,7 +78,6 @@ lv_obj_t* PrintTuneOverlay::create(lv_obj_t* parent) {
 // ============================================================================
 
 void PrintTuneOverlay::init_subjects() {
-    // Initialize tune panel subjects
     UI_MANAGED_SUBJECT_STRING(tune_speed_subject_, tune_speed_buf_, "100%", "tune_speed_display",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(tune_flow_subject_, tune_flow_buf_, "100%", "tune_flow_display",
