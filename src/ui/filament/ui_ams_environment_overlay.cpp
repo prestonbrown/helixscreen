@@ -273,10 +273,10 @@ void AmsEnvironmentOverlay::restore_remembered_dryer_inputs() {
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
-        char buf[8];
-        snprintf(buf, sizeof(buf), "%d",
-                 config->get<int>(config->df() + "ams/dryer_last_duration", 240));
-        lv_textarea_set_text(duration_input_, buf);
+        lv_textarea_set_text(
+            duration_input_,
+            format_duration_hours(config->get<int>(config->df() + "ams/dryer_last_duration", 240))
+                .c_str());
     }
     // Blank leaves the target to the printer's own default; a chosen target applies to
     // one start only.
@@ -343,18 +343,27 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     // it opened on rather than a default.
     const char* shown = lv_textarea_get_text(input);
     float initial = (shown && shown[0]) ? static_cast<float>(atoi(shown)) : 0.0f;
+    if (field == DryerField::Duration) {
+        // To the two places the field shows, so the keypad opens on the same number.
+        initial = std::round(static_cast<float>(parse_duration_hours(shown).value_or(0)) * 100.0f /
+                             60.0f) /
+                  100.0f;
+    }
 
     keypad_field_ = field;
 
     // The keypad clamps to this range itself, which is the same range Start Drying
     // clamps to. Bounding the entry means the field cannot show a number the
     // command would silently replace. A humidity target of 0 clears the field.
-    float min_value = 1.0f;
-    float max_value = static_cast<float>(dryer.max_duration_min);
-    const char* title = lv_tr("Minutes");
-    const char* unit = "";
+    // Duration is entered in hours, to two places, and sent in minutes.
+    float min_value = static_cast<float>(dryer.clamp_duration(1)) / 60.0f;
+    float max_value = static_cast<float>(dryer.max_duration_min) / 60.0f;
+    const char* title = lv_tr("Hours");
+    const char* unit = "h";
+    bool allow_decimal = true;
     switch (field) {
     case DryerField::Temperature:
+        allow_decimal = false;
         min_value = dryer.min_temp_c;
         max_value = dryer.max_temp_c;
         title = lv_tr("Temperature");
@@ -364,6 +373,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     case DryerField::Duration:
         break;
     case DryerField::HumidityTarget:
+        allow_decimal = false;
         min_value = 0.0f;
         max_value = DryerInfo::kMaxHumidityTargetPct;
         title = lv_tr("Target humidity");
@@ -376,7 +386,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
                                  .max_value = max_value,
                                  .title_label = title,
                                  .unit_label = unit,
-                                 .allow_decimal = false,
+                                 .allow_decimal = allow_decimal,
                                  .allow_negative = false,
                                  .callback = on_dryer_keypad_confirmed,
                                  .user_data = this};
@@ -389,8 +399,11 @@ void AmsEnvironmentOverlay::apply_dryer_keypad_value(DryerField field, float val
     if (!input) {
         return;
     }
-    char buf[8] = "";
-    if (field != DryerField::HumidityTarget || value > 0.0f) {
+    char buf[16] = "";
+    if (field == DryerField::Duration) {
+        snprintf(buf, sizeof(buf), "%s",
+                 format_duration_hours(static_cast<int>(std::lround(value * 60.0f))).c_str());
+    } else if (field != DryerField::HumidityTarget || value > 0.0f) {
         snprintf(buf, sizeof(buf), "%d", static_cast<int>(value));
     }
     lv_textarea_set_text(input, buf);
@@ -975,9 +988,9 @@ void AmsEnvironmentOverlay::populate_presets() {
             options += '\n';
         }
         char buf[64];
-        int hours = preset.duration_min / 60;
-        snprintf(buf, sizeof(buf), "%s %g°C/%dh", preset.name.c_str(),
-                 dryer.clamp_temp(preset.temp_c), hours);
+        snprintf(buf, sizeof(buf), "%s %g°C/%sh", preset.name.c_str(),
+                 dryer.clamp_temp(preset.temp_c),
+                 format_duration_hours(preset.duration_min).c_str());
         options += buf;
     }
 
@@ -1006,10 +1019,7 @@ void AmsEnvironmentOverlay::apply_preset(int index) {
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
-        // Duration field is in minutes (HH's MMU_HEATER TIMER takes minutes).
-        char buf[8];
-        snprintf(buf, sizeof(buf), "%d", preset.duration_min);
-        lv_textarea_set_text(duration_input_, buf);
+        lv_textarea_set_text(duration_input_, format_duration_hours(preset.duration_min).c_str());
     }
 
     spdlog::debug("[{}] Applied preset: {} ({}°C, {}min)", get_name(), preset.name, preset.temp_c,
@@ -1132,8 +1142,7 @@ void AmsEnvironmentOverlay::handle_start_stop() {
             }
         } else {
             // Start drying with textarea values, clamped to backend limits.
-            // Duration field is in minutes (HH's MMU_HEATER TIMER takes minutes,
-            // minval=0, so sub-hour cycles are valid).
+            // The duration field shows hours; every backend takes minutes.
             // Defaults remember the last values the user started a dry with
             // (per-printer); fall back to 55°C / 240 min on first use.
             Config* config = Config::get_instance();
@@ -1147,9 +1156,8 @@ void AmsEnvironmentOverlay::handle_start_stop() {
                     temp_c = static_cast<float>(atoi(text));
             }
             if (duration_input_) {
-                const char* text = lv_textarea_get_text(duration_input_);
-                if (text && text[0])
-                    duration_min = atoi(text);
+                duration_min = parse_duration_hours(lv_textarea_get_text(duration_input_))
+                                   .value_or(duration_min);
             }
             // Blank, or a dryer that takes no target, sends the plain temp + time command,
             // and the printer applies its own default target, if it has one.

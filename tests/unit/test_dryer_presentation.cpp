@@ -42,3 +42,24 @@ TEST_CASE_METHOD(HelixTestFixture, "The drying status line says what the dryer i
         CHECK(drying_status_text(d).empty());
     }
 }
+
+TEST_CASE("A dryer duration shows in hours and reads back in minutes",
+          "[ams][dryer][dryer_presentation]") {
+    using helix::ui::format_duration_hours;
+    using helix::ui::parse_duration_hours;
+    CHECK(format_duration_hours(240) == "4");
+    CHECK(format_duration_hours(270) == "4.5");
+    CHECK(format_duration_hours(15) == "0.25");
+    CHECK(format_duration_hours(260) == "4.33");
+
+    CHECK(parse_duration_hours("4") == 240);
+    CHECK(parse_duration_hours("4.5") == 270);
+    CHECK(parse_duration_hours("0.25") == 15);
+    // What the field shows reads back to the minutes it was made from.
+    CHECK(parse_duration_hours(format_duration_hours(260).c_str()) == 260);
+
+    CHECK_FALSE(parse_duration_hours("").has_value());
+    CHECK_FALSE(parse_duration_hours(nullptr).has_value());
+    CHECK_FALSE(parse_duration_hours("0").has_value());
+    CHECK_FALSE(parse_duration_hours("abc").has_value());
+}

@@ -1767,6 +1767,7 @@
   <translation tag="Hotend" zh="热端"/>
   <translation tag="Hotend Fan" zh="热端风扇"/>
   <translation tag="Hotend Heater" zh="热端加热器"/>
+  <translation tag="Hours" zh="小时"/>
   <translation tag="How Z-axis movement is displayed" zh="Z 轴移动的显示方式"/>
   <translation tag="How far and how fast a lane ejects" zh="料道弹出的距离和速度"/>
   <translation tag="How far filament is pushed back into the box on eject" zh="弹出时耗材被推回料盒的距离"/>

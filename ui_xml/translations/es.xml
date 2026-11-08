@@ -1767,6 +1767,7 @@
   <translation tag="Hotend" es="Hotend"/>
   <translation tag="Hotend Fan" es="Ventilador de Hotend"/>
   <translation tag="Hotend Heater" es="Calentador de Hotend"/>
+  <translation tag="Hours" es="Horas"/>
   <translation tag="How Z-axis movement is displayed" es="Cómo se muestra el movimiento del eje Z"/>
   <translation tag="How far and how fast a lane ejects" es="Cuánto y qué tan rápido expulsa un carril"/>
   <translation tag="How far filament is pushed back into the box on eject" es="Cuánto se empuja el filamento de vuelta a la caja al expulsar"/>

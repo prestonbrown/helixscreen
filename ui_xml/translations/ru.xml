@@ -1815,6 +1815,7 @@
   <translation tag="Hotend" ru="Хотенд"/>
   <translation tag="Hotend Fan" ru="Вентилятор хотенда"/>
   <translation tag="Hotend Heater" ru="Нагреватель хотенда"/>
+  <translation tag="Hours" ru="Часы"/>
   <translation tag="How Z-axis movement is displayed" ru="Как отображается движение по оси Z"/>
   <translation tag="How far and how fast a lane ejects" ru="Насколько далеко и быстро извлекает канал"/>
   <translation tag="How far filament is pushed back into the box on eject" ru="Насколько далеко филамент задвигается обратно в бокс при извлечении"/>

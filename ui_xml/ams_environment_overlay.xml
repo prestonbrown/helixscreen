@@ -246,8 +246,8 @@
                 <lv_obj width="1"
                         height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                         scrollable="false">
-                  <text_small text="Minutes" style_text_color="#text_muted"/>
-                  <text_input name="duration_input" width="100%" text="240" one_line="true" max_length="4">
+                  <text_small text="Hours" style_text_color="#text_muted"/>
+                  <text_input name="duration_input" width="100%" text="4" one_line="true" max_length="6">
                     <event_cb trigger="clicked" callback="on_ams_env_duration_clicked"/>
                   </text_input>
                 </lv_obj>

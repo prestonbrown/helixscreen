@@ -39,6 +39,7 @@ class RecordingDryerMock : public AmsBackendMock {
   public:
     struct Start {
         std::optional<float> humidity_pct;
+        int duration_min = 0;
     };
 
     explicit RecordingDryerMock(bool humidity_target,
@@ -48,13 +49,14 @@ class RecordingDryerMock : public AmsBackendMock {
         set_dryer_default_humidity(default_humidity);
     }
 
-    AmsError start_drying(float, int, int, int) override {
-        starts.push_back({std::nullopt});
+    AmsError start_drying(float, int duration_min, int, int) override {
+        starts.push_back({std::nullopt, duration_min});
         return AmsErrorHelper::success();
     }
 
-    AmsError start_drying_to_humidity(float, int, float humidity_pct, int, int) override {
-        starts.push_back({humidity_pct});
+    AmsError start_drying_to_humidity(float, int duration_min, float humidity_pct, int,
+                                      int) override {
+        starts.push_back({humidity_pct, duration_min});
         return AmsErrorHelper::success();
     }
 
@@ -132,6 +134,20 @@ TEST_CASE("A dryer reports no humidity target unless its backend takes one",
     CHECK_FALSE(targeted.get_dryer_info(0).supports_humidity_target);
     targeted.set_dryer_enabled(true);
     CHECK(targeted.get_dryer_info(0).supports_humidity_target);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "The duration field takes hours and the dryer gets minutes",
+                 "[ams][dryer][overlay]") {
+    reset_overlay_singleton();
+    auto* backend = show_overlay_with(false);
+
+    lv_textarea_set_text(find_widget("duration_input"), "4.5");
+    press_start();
+    REQUIRE(backend->starts.size() == 1);
+    CHECK(backend->starts[0].duration_min == 270);
+
+    reset_overlay_singleton();
+    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The humidity target field is hidden for a dryer that takes none",

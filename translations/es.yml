@@ -1931,6 +1931,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Ventilador de Hotend
   Hotend Heater: Calentador de Hotend
+  Hours: Horas
   How Z-axis movement is displayed: Cómo se muestra el movimiento del eje Z
   How far and how fast a lane ejects: "Cuánto y qué tan rápido expulsa un carril"
   How far filament is pushed back into the box on eject: "Cuánto se empuja el filamento de vuelta a la caja al expulsar"

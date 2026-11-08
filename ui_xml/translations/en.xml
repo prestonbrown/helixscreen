@@ -1767,6 +1767,7 @@
   <translation tag="Hotend" en="Hotend"/>
   <translation tag="Hotend Fan" en="Hotend Fan"/>
   <translation tag="Hotend Heater" en="Hotend Heater"/>
+  <translation tag="Hours" en="Hours"/>
   <translation tag="How Z-axis movement is displayed" en="How Z-axis movement is displayed"/>
   <translation tag="How far and how fast a lane ejects" en="How far and how fast a lane ejects"/>
   <translation tag="How far filament is pushed back into the box on eject" en="How far filament is pushed back into the box on eject"/>
