@@ -287,11 +287,16 @@ endif
 # rebuilds every object over identical flags. Instead, a dry run whose flags
 # differ marks the stamp phony, so it still reports the objects that would
 # rebuild.
+#
+# The land gate runs several makes in one tree at once, so each parse writes
+# its own temp file, suffixed with make's pid (the $(shell)'s parent), and
+# renames it over the stamp only when the text differs: a shared temp file
+# would let one parse truncate it while another compares it.
 FLAGS_STAMP_TEXT := $(CC) $(CFLAGS) $(CXX) $(CXXFLAGS) $(SUBMODULE_CXXFLAGS) $(SUBMODULE_CFLAGS) $(LVGL_C_CFLAGS)
 ifeq ($(findstring n,$(firstword -$(MAKEFLAGS)))$(findstring q,$(firstword -$(MAKEFLAGS))),)
-$(shell mkdir -p $(OBJ_DIR))
-$(file >$(FLAGS_STAMP).new,$(FLAGS_STAMP_TEXT))
-$(shell cmp -s $(FLAGS_STAMP).new $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP).new $(FLAGS_STAMP); rm -f $(FLAGS_STAMP).new)
+FLAGS_STAMP_TMP := $(FLAGS_STAMP).new.$(shell mkdir -p $(OBJ_DIR) && echo $$PPID)
+$(file >$(FLAGS_STAMP_TMP),$(FLAGS_STAMP_TEXT))
+$(shell cmp -s $(FLAGS_STAMP_TMP) $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP_TMP) $(FLAGS_STAMP); rm -f $(FLAGS_STAMP_TMP))
 else ifneq ($(file <$(FLAGS_STAMP)),$(FLAGS_STAMP_TEXT))
 .PHONY: $(FLAGS_STAMP)
 endif

@@ -802,6 +802,18 @@ teardown() {
     row TIMEOUT bats
     # The half is stopped at its own budget, not at the backstop around both.
     grep -Eq '^TIMEOUT [2-4] ' "$LAND_GATE_LOGDIR/rows/bats"
+    # Its log names the half's budget, which is the one that fired.
+    grep -qx "killed after 2s (LAND_GATE_STEP_TIMEOUT, bats half needs)" "$LAND_GATE_LOGDIR/bats.log"
+    refute_grep "killed after 6s" "$LAND_GATE_LOGDIR/bats.log"
+}
+
+@test "a red bats half outranks a timed-out one, in either order" {
+    LAND_GATE_STEP_TIMEOUT=2 HOOK_test_shell='case "$vars" in *without*) exit 4 ;; *needs*) sleep 30 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL bats
+    LAND_GATE_STEP_TIMEOUT=2 HOOK_test_shell='case "$vars" in *without*) sleep 30 ;; *needs*) exit 4 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL bats
 }
 
 @test "a red half of bats fails its row, and the other half still runs" {

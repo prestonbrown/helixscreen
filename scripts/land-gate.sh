@@ -136,7 +136,9 @@ step() {
     case "$rc" in
         0) status=PASS ;;
         124 | 137) status=TIMEOUT
-                   echo "killed after ${LAND_GATE_STEP_TIMEOUT}s (LAND_GATE_STEP_TIMEOUT)" >>"$log" ;;
+                   # A step that times out its own parts has already said which.
+                   grep -q '^killed after ' "$log" \
+                       || echo "killed after ${LAND_GATE_STEP_TIMEOUT}s (LAND_GATE_STEP_TIMEOUT)" >>"$log" ;;
         *) status=FAIL ;;
     esac
     printf '%s %s %s\n' "$status" $((SECONDS - t0)) "$log" >"$ROWS_DIR/$name"
@@ -230,8 +232,13 @@ app_build() {
 # between the halves never counts against bats.
 bats_half() {
     local mk=("$MAKE" --no-print-directory test-shell BATS_REQUIRED=1 "BATS_APP=$1")
+    local budget=${LAND_GATE_BATS_HALF_TIMEOUT:-$LAND_GATE_STEP_TIMEOUT} rc=0
     if [ -n "$TIMEOUT_BIN" ]; then
-        "$TIMEOUT_BIN" -k 30 "${LAND_GATE_BATS_HALF_TIMEOUT:-$LAND_GATE_STEP_TIMEOUT}" "${mk[@]}"
+        "$TIMEOUT_BIN" -k 30 "$budget" "${mk[@]}" || rc=$?
+        case "$rc" in
+            124 | 137) echo "killed after ${budget}s (LAND_GATE_STEP_TIMEOUT, bats half $1)" ;;
+        esac
+        return "$rc"
     else
         "${mk[@]}"
     fi
@@ -239,15 +246,23 @@ bats_half() {
 
 # bats_halves: the files that need no app first, then, once app-build has a
 # row (or its lane died), the files that drive the binary it links. Both halves
-# run whatever the other did; either red reds the step, a timed-out one as TIMEOUT.
+# run whatever the other did; either red reds the step. A failed half outranks a
+# timed-out one, so the step reads TIMEOUT only when no half failed.
 bats_halves() {
-    local rc=0 r
-    bats_half without || rc=$?
+    local without=0 needs=0
+    bats_half without || without=$?
     if [ -n "${APP_LANE_PID:-}" ]; then
         while [ ! -f "$ROWS_DIR/app-build" ] && kill -0 "$APP_LANE_PID" 2>/dev/null; do sleep 1; done
     fi
-    bats_half needs || { r=$?; [ "$rc" = 124 ] || rc=$r; }
-    case "$rc" in 0 | 124) return "$rc" ;; 137) return 124 ;; *) return 1 ;; esac
+    bats_half needs || needs=$?
+    local rc
+    for rc in "$without" "$needs"; do
+        case "$rc" in 0 | 124 | 137) ;; *) return 1 ;; esac
+    done
+    for rc in "$without" "$needs"; do
+        case "$rc" in 124 | 137) return 124 ;; esac
+    done
+    return 0
 }
 
 # run_step <name>: one step, by its table name. The gate's lanes and a rerun
