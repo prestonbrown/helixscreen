@@ -6940,6 +6940,41 @@ TEST_CASE("a Happy Hare tuning change is written to Moonraker, not the local con
     CHECK_FALSE(config->exists(config->df() + "hh_overrides"));
 }
 
+TEST_CASE("a Happy Hare tuning change before the document is read keeps what Moonraker holds",
+          "[ams][happy_hare][hh_overrides]") {
+    ScopedConfig config;
+    TuningRig rig({{"gear_unload_speed", {{"value", 90.0}, {"config_default", 80.0}}}});
+    // The tuning read, which follows the configfile answer, fails.
+    HappyHareTestAccess::on_started(*rig.reg);
+    helix::ui::UpdateQueue::instance().drain();
+    rig.printer.client.fail_next("server.database.get_item");
+    REQUIRE(rig.client.answer);
+    rig.client.answer(nlohmann::json{
+        {"result",
+         {{"status",
+           {{"configfile", {{"settings", v3_linear_fixture()["configfile_settings"]}}}}}}}});
+    for (int i = 0; i < 3; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    REQUIRE_FALSE(HappyHareTestAccess::user_overrides(*rig.reg).gear_unload_speed);
+    REQUIRE(rig.stored().contains("gear_unload_speed"));
+
+    REQUIRE(rig.reg->execute_device_action("gear_from_spool_speed", std::any(70.0)).success());
+    for (int i = 0; i < 3; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    // The change is read into the stored document, not written over it.
+    const nlohmann::json stored = rig.stored();
+    REQUIRE(stored.contains("gear_unload_speed"));
+    REQUIRE(stored.contains("gear_from_spool_speed"));
+    CHECK(stored["gear_unload_speed"]["value"] == Catch::Approx(90.0));
+    CHECK(stored["gear_from_spool_speed"]["value"] == Catch::Approx(70.0));
+    const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
+    REQUIRE(o.gear_from_spool_speed);
+    CHECK(*o.gear_from_spool_speed == Catch::Approx(70.0f));
+}
+
 TEST_CASE("a local Happy Hare tuning record moves to Moonraker once",
           "[ams][happy_hare][hh_overrides]") {
     ScopedConfig config;

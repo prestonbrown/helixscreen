@@ -103,13 +103,23 @@ TEST_CASE("a 1.0 tool_spools.json yields the printer's own tool links",
     const json single = file["printers"]["default"];
     CHECK(legacy::tool_spools_from_file(single, "anyone") == std::map<int, int>{{0, 12}, {1, 34}});
 
-    // Taking a printer's set out keeps the others; the last one goes with the file.
-    const auto rest = legacy::file_without_printer(file, "default");
+    // Imported links leave; owed ones stay. A set naming no spool leaves the
+    // file, and the last one takes the file with it.
+    const auto rest = legacy::file_keeping_tools(file, "default", {});
     REQUIRE(rest.has_value());
     CHECK_FALSE((*rest)["printers"].contains("default"));
     CHECK((*rest)["printers"].contains("voron"));
-    CHECK_FALSE(legacy::file_without_printer(*rest, "voron").has_value());
-    CHECK_FALSE(legacy::file_without_printer(single, "default").has_value());
+    CHECK_FALSE(legacy::file_keeping_tools(*rest, "voron", {}).has_value());
+    CHECK_FALSE(legacy::file_keeping_tools(single, "default", {}).has_value());
+
+    const auto owed_one = legacy::file_keeping_tools(file, "default", {{1, 34}});
+    REQUIRE(owed_one.has_value());
+    CHECK(legacy::tool_spools_from_file(*owed_one, "default") == std::map<int, int>{{1, 34}});
+    CHECK(legacy::tool_spools_from_file(*owed_one, "voron") == std::map<int, int>{{0, 56}});
+    const auto single_owed = legacy::file_keeping_tools(single, "default", {{0, 12}});
+    REQUIRE(single_owed.has_value());
+    CHECK(legacy::tool_spools_from_file(*single_owed, "x") == std::map<int, int>{{0, 12}});
+    CHECK(legacy::set_keeping_tools(single, {{1, 34}}) == json{{"1", single["1"]}});
 }
 
 TEST_CASE("a 1.0 settings external_spool block yields the bypass spool",
@@ -185,6 +195,73 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     fs::remove(file_path);
     fs::remove(dir);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a 1.0 tool link whose write is refused stays in the 1.0 copies",
+                 "[legacy_import][toolchanger][lane_truth]") {
+    MockPrinter printer;
+    printer.client.mock_db_set(legacy::kToolSpoolsDbNamespace, legacy::kToolSpoolsDbKey,
+                               one_oh_tool_spools()["printers"]["default"]);
+    // Another writer owns T0's record, so HelixScreen may not write into it.
+    printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}, {"writer", "afclite"}});
+    const std::string dir = test::unique_temp_dir("helix_legacy_import_refused");
+    fs::create_directories(dir);
+    const std::string file_path = fs::join_path(dir, legacy::kToolSpoolsFile);
+    REQUIRE(text_io::write_file_atomic(file_path, one_oh_tool_spools().dump()));
+
+    AmsOnPrinter scope(printer);
+    auto& ams = AmsState::instance();
+    test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+
+    ams.start_legacy_spool_import(file_path);
+    settle();
+    ams.sync_from_backend();
+    settle();
+
+    CHECK(printer.client.mock_db_get("lane_data", "T0")["spool_id"].is_null());
+    CHECK(printer.client.mock_db_get("lane_data", "T1")["spool_id"] == 34);
+
+    // T1's link is written and leaves; T0's is kept for the next connect.
+    const json key =
+        printer.client.mock_db_get(legacy::kToolSpoolsDbNamespace, legacy::kToolSpoolsDbKey);
+    CHECK(legacy::tool_spools_from_set(key) == std::map<int, int>{{0, 12}});
+    const auto text = text_io::read_file(file_path);
+    REQUIRE(text.has_value());
+    const json left = json::parse(*text, nullptr, false);
+    CHECK(legacy::tool_spools_from_file(left, "default") == std::map<int, int>{{0, 12}});
+    CHECK(left["printers"].contains("voron"));
+
+    fs::remove(file_path);
+    fs::remove(dir);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a 1.0 bypass spool whose write fails stays parked",
+                 "[legacy_import][bypass][lane_truth]") {
+    MockPrinter printer;
+    Config* config = Config::get_instance();
+    REQUIRE(config != nullptr);
+    const std::string parked = config->df() + legacy::kLegacyExternalSpoolPath;
+    config->get_json(parked) =
+        json{{"assigned", true}, {"material", "PETG"}, {"color_rgb", 0x1E5AA8}, {"spoolman_id", 7}};
+
+    AmsOnPrinter scope(printer);
+    auto& ams = AmsState::instance();
+    ams.refresh_bypass_record();
+    settle();
+    printer.client.fail_next("server.database.post_item");
+    ams.start_legacy_spool_import("/nonexistent/tool_spools.json");
+    settle();
+
+    CHECK_FALSE(printer.client.mock_db_get("lane_data", "lane1").is_object());
+    REQUIRE(config->try_get_json(parked) != nullptr);
+
+    // The next connect writes it, and only then lets the parked block go.
+    ams.start_legacy_spool_import("/nonexistent/tool_spools.json");
+    settle();
+    CHECK(printer.client.mock_db_get("lane_data", "lane1")["spool_id"] == 7);
+    CHECK(config->try_get_json(parked) == nullptr);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

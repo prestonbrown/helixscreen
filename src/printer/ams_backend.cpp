@@ -403,6 +403,7 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // The lane shows the edit from the moment it is written until its echo
     // lands. The edit states the new binding, so an earlier Pending it amends
     // names the new spool too.
+    const std::uint64_t filed_before = helix::ams::pending_filings(lane);
     helix::ams::file_pending(lane, helix::ams::user_edit_observation(original, applied));
 
     AmsError err = apply_user_edit(slot_index, applied);
@@ -413,11 +414,26 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
         return err;
     }
     // The previous spool's details go once the new binding is written; a
-    // refused relink keeps the spool still bound described.
+    // refused relink keeps the spool still bound described. A binding the
+    // firmware has yet to answer for is written once its echo lands.
     if (binding_changed) {
-        const auto spoolman = helix::ams::lane_sources(lane).spoolman;
-        if (spoolman.has_value() && spoolman->spoolman_id != info.spoolman_id) {
-            helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
+        const int new_spool = info.spoolman_id;
+        const auto drop_previous = [lane, new_spool]() {
+            const auto spoolman = helix::ams::lane_sources(lane).spoolman;
+            if (spoolman.has_value() && spoolman->spoolman_id != new_spool) {
+                helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Spoolman);
+            }
+        };
+        if (firmware_edit_out(slot_index)) {
+            helix::ams::await_pending(
+                lane, filed_before,
+                [drop_previous](helix::ams::PendingOutcome outcome, const std::string&) {
+                    if (outcome == helix::ams::PendingOutcome::Echoed) {
+                        drop_previous();
+                    }
+                });
+        } else {
+            drop_previous();
         }
     }
     repaint_slot_from_lane(slot_index);

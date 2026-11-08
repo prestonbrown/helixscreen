@@ -2301,6 +2301,14 @@ class AmsBackend {
      */
     virtual AmsError apply_user_edit(int slot_index, const SlotInfo& info) = 0;
 
+    /// True while @p slot_index's last apply_user_edit() waits on the
+    /// firmware's answer, so the edit is not yet written. Takes the backend's
+    /// own lock; never called with it held.
+    [[nodiscard]] virtual bool firmware_edit_out(int slot_index) {
+        (void)slot_index;
+        return false;
+    }
+
     /**
      * @brief Repaint a slot from the lane model once its lane was written from outside.
      *

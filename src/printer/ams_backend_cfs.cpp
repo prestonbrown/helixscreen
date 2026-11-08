@@ -421,6 +421,8 @@ void AmsBackendCfs::on_started() {
         // A Klipper restart keeps the last answer until the new one lands; a
         // start has none.
         unit_registration_ = client_ ? UnitRegistration::Unknown : UnitRegistration::None;
+        // The sink names the store being replaced; the new one's first read rebinds it.
+        rfid_tracker_.set_baseline_sink(nullptr);
     }
     begin_unit_settle();
 
@@ -5535,6 +5537,9 @@ void AmsBackendCfs::clear_slot_override(int slot_index) {
     // The lane half of Clear Spool. The box's own clear went out with the
     // cleared edit that precedes this (push_slot_identity_to_firmware), so
     // nothing is written to the box here.
+    if (defer_clear_to_firmware_write(slot_index)) {
+        return;
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.get_slot_global(slot_index);

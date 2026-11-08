@@ -2812,6 +2812,9 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
 }
 
 void AmsBackendAce::clear_slot_override(int slot_index) {
+    if (defer_clear_to_firmware_write(slot_index)) {
+        return;
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = mutable_slot_locked(slot_index);

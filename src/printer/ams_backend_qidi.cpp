@@ -385,6 +385,8 @@ void AmsBackendQidi::on_started() {
         // A start is a new session: the tag readings described the last one.
         std::lock_guard<std::mutex> lock(mutex_);
         tag_readings_.clear();
+        // The sink names the store being replaced; the new one's first read rebinds it.
+        rfid_tracker_.set_baseline_sink(nullptr);
     }
     open_lane_record_store("qidi");
 
@@ -1951,6 +1953,9 @@ void AmsBackendQidi::clear_slot_override(int slot_index) {
     // vendor ids back to 0, which names no row and reads as no identity) went
     // out with the cleared edit that precedes this, so nothing is written to
     // the Box here.
+    if (defer_clear_to_firmware_write(slot_index)) {
+        return;
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.get_slot_global(slot_index);

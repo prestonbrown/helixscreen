@@ -604,21 +604,80 @@ void AmsSubscriptionBackend::update_slot_weight_impl(int slot_index, float remai
 
 helix::SharedCallback<void()> AmsSubscriptionBackend::record_once_written(int slot_index,
                                                                           SlotInfo recorded) {
-    return [this, slot_index, recorded = std::move(recorded)]() {
+    auto fate = std::make_shared<FirmwareEditFate>();
+    {
         std::lock_guard<std::mutex> lock(mutex_);
-        persist_user_record_locked(slot_index, recorded);
+        firmware_edits_out_[slot_index] = fate;
+    }
+    return [this, slot_index, recorded = std::move(recorded), fate]() {
+        bool clear = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto it = firmware_edits_out_.find(slot_index);
+            if (it != firmware_edits_out_.end() && it->second.lock() == fate) {
+                firmware_edits_out_.erase(it);
+            }
+            clear = fate->clear_after;
+            if (!clear) {
+                persist_user_record_locked(slot_index, recorded);
+            }
+        }
+        if (clear) {
+            clear_slot_override(slot_index);
+        }
     };
 }
 
 helix::SharedCallback<void(const MoonrakerError&)>
 AmsSubscriptionBackend::withdraw_edit_if_rejected(int slot_index) {
-    return [this, slot_index](const MoonrakerError& err) {
+    std::shared_ptr<FirmwareEditFate> fate;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (const auto it = firmware_edits_out_.find(slot_index); it != firmware_edits_out_.end()) {
+            fate = it->second.lock();
+        }
+    }
+    return [this, slot_index, fate](const MoonrakerError& err) {
         spdlog::warn("{} edit of slot {} not written: {}", backend_log_tag(), slot_index,
                      err.message);
+        if (fate) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (fate->clear_after) {
+                spdlog::warn("{} Clear of slot {} not applied: its record is kept",
+                             backend_log_tag(), slot_index);
+            }
+            const auto it = firmware_edits_out_.find(slot_index);
+            if (it != firmware_edits_out_.end() && it->second.lock() == fate) {
+                firmware_edits_out_.erase(it);
+            }
+        }
         helix::ams::withdraw_pending(lane_id(slot_index), err.message);
         repaint_slot_from_lane(slot_index);
         emit_event(kEventSlotChanged, std::to_string(slot_index));
     };
+}
+
+bool AmsSubscriptionBackend::firmware_edit_out(int slot_index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = firmware_edits_out_.find(slot_index);
+    return it != firmware_edits_out_.end() && !it->second.expired();
+}
+
+bool AmsSubscriptionBackend::defer_clear_to_firmware_write(int slot_index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = firmware_edits_out_.find(slot_index);
+    if (it == firmware_edits_out_.end()) {
+        return false;
+    }
+    const std::shared_ptr<FirmwareEditFate> fate = it->second.lock();
+    if (!fate) {
+        firmware_edits_out_.erase(it);
+        return false;
+    }
+    fate->clear_after = true;
+    spdlog::info("{} Slot {} record clear waits for the firmware write", backend_log_tag(),
+                 slot_index);
+    return true;
 }
 
 void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,

@@ -74,7 +74,10 @@ class RecordingQidiBackend : public AmsBackendQidi {
         for (const auto line : helix::text_io::lines(gcode)) {
             sent.emplace_back(line);
         }
-        if (reject) {
+        if (hold) {
+            held_complete = on_complete;
+            held_error = on_error;
+        } else if (reject) {
             if (on_error) {
                 MoonrakerError err;
                 err.message = "rejected";
@@ -86,6 +89,10 @@ class RecordingQidiBackend : public AmsBackendQidi {
         return helix::AmsErrorHelper::success();
     }
     bool reject = false;
+    // While set, a completion form's answer waits for the test to fire it.
+    bool hold = false;
+    helix::SharedCallback<void()> held_complete;
+    helix::SharedCallback<void(const MoonrakerError&)> held_error;
     // While set, every dispatch fails - for the writes whose echo can never
     // arrive because the command never reached the box.
     bool fail_dispatch = false;
@@ -1847,6 +1854,75 @@ TEST_CASE("QIDI Box Clear Spool zeroes each variable once", "[ams][qidi_box]") {
                   return g.find(variable) != std::string::npos;
               }) == 1);
     }
+}
+
+TEST_CASE("QIDI Box Clear Spool erases the record only once Klipper runs the clear",
+          "[ams][qidi_box][clear]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+    SlotInfo branded = backend.get_slot_info(0);
+    branded.brand = "eSUN";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), branded).success());
+    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    // Clear Spool: the cleared edit, then the record's erase, while Klipper
+    // has not yet answered the clear.
+    backend.hold = true;
+    SlotInfo cleared = backend.get_slot_info(0);
+    cleared.material.clear();
+    cleared.color_rgb = kAmsDefaultSlotColor;
+    cleared.brand.clear();
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), cleared).success());
+    static_cast<helix::AmsBackend&>(backend).clear_slot_override(0);
+    REQUIRE(backend.held_complete);
+    REQUIRE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+
+    SECTION("Klipper rejects it: the record stays") {
+        MoonrakerError err;
+        err.message = "rejected";
+        backend.held_error(err);
+        const auto record = QidiBoxTestAccess::get_override(backend, 0);
+        REQUIRE(record.has_value());
+        CHECK(record->brand == "eSUN");
+    }
+    SECTION("Klipper runs it: the record goes, with no empty one after it") {
+        backend.held_complete();
+        CHECK_FALSE(QidiBoxTestAccess::get_override(backend, 0).has_value());
+    }
+}
+
+TEST_CASE("QIDI Box a relink Klipper rejects keeps the linked spool's Spoolman details",
+          "[ams][qidi_box][spoolman]") {
+    helix::test::RegisteredBackend<RecordingQidiBackend> harness;
+    RecordingQidiBackend& backend = *harness;
+    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
+    QidiBoxTestAccess::parse_vars(
+        backend, json{{"filament_slot0", 1}, {"color_slot0", 18}, {"vendor_slot0", 1}});
+    SlotInfo linked = backend.get_slot_info(0);
+    linked.spoolman_id = 5;
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), linked).success());
+    helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+    spoolman.spoolman_id = 5;
+    spoolman.brand = "Polymaker";
+    helix::ams::ingest(harness.lane(0), spoolman);
+
+    // The relink changes the Box's rows too, so it waits on Klipper.
+    backend.hold = true;
+    SlotInfo relinked = backend.get_slot_info(0);
+    relinked.spoolman_id = 7;
+    relinked.material = "ABS";
+    REQUIRE(backend.commit_user_edit(0, backend.get_slot_info(0), relinked).success());
+    REQUIRE(backend.held_error);
+    MoonrakerError err;
+    err.message = "rejected";
+    backend.held_error(err);
+
+    const auto sources = helix::ams::lane_sources(harness.lane(0));
+    REQUIRE(sources.spoolman.has_value());
+    CHECK(sources.spoolman->brand == std::string("Polymaker"));
 }
 
 TEST_CASE("QIDI Box a product name picks the row and becomes the spool's name",

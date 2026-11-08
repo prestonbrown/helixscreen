@@ -703,8 +703,14 @@ std::optional<int> FilamentSlotOverrideStore::load_seated_slot_blocking() {
         // OrcaSlicer reads as a record. It moves to the HelixScreen key.
         received = get_item_blocking(namespace_, "seated");
         if (received) {
-            save_key_async(backend_id_ + "_seated", *received, nullptr);
-            api_->database_delete_item(namespace_, "seated", []() {}, [](const MoonrakerError&) {});
+            // The old value goes only once the new key holds it.
+            save_key_async(backend_id_ + "_seated", *received,
+                           [api = api_, ns = namespace_](bool saved, const std::string&) {
+                               if (saved) {
+                                   api->database_delete_item(
+                                       ns, "seated", []() {}, [](const MoonrakerError&) {});
+                               }
+                           });
         }
     }
     // Must be a plain non-negative integer. The store doesn't know kNumPorts,

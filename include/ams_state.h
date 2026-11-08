@@ -2343,6 +2343,15 @@ class AmsState {
     /// Write what start_legacy_spool_import() read, each half once its lanes
     /// are read. Runs after every sync and bypass read. Main thread.
     void run_legacy_spool_import();
+    /// One tool's import write ended (@p written: Moonraker echoed it) in the
+    /// import @p generation started. Main thread.
+    void legacy_tool_settled(uint64_t generation, int tool, bool written);
+    /// Every tool's import write has ended: take the imported links out of
+    /// the 1.0 copies, keeping the owed ones for the next connect. Main thread.
+    void finish_legacy_tool_import();
+    /// The bypass import write ended in the import @p generation started; a
+    /// written one (or nothing to write) lets the parked block go. Main thread.
+    void legacy_bypass_settled(uint64_t generation, bool written);
 
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults(bool write_header = true);
@@ -2756,12 +2765,22 @@ class AmsState {
         nlohmann::json file;
         std::optional<std::map<int, int>> tool_spools;
         bool db_key_seen = false;
+        /// The Moonraker key's value as read.
+        nlohmann::json db_value;
         bool tools_done = false;
+        /// Links not yet written: a refused or failed write, or a tool with no
+        /// lane to take it. The 1.0 copies keep these for the next connect.
+        std::map<int, int> owed;
+        /// Tool writes dispatched whose outcome has not landed.
+        int awaiting = 0;
+        /// Told to each write's waiter, so one from an earlier connect is ignored.
+        uint64_t generation = 0;
         std::optional<SlotInfo> bypass;
         bool bypass_parked = false;
         bool bypass_done = false;
     };
     LegacyImport legacy_import_;
+    uint64_t legacy_import_generations_ = 0;
     bool bypass_read_in_flight_ = false;
     /// A read was asked for while one was out.
     bool bypass_read_again_ = false;

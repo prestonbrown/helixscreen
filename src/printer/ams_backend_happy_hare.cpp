@@ -2089,6 +2089,7 @@ void AmsBackendHappyHare::load_persisted_overrides() {
         adopt_hh_tuning(nlohmann::json::object(), /*writable=*/false);
         return;
     }
+    hh_tuning_reading_ = true;
     auto token = lifetime_.token();
     api_->database_get_item(
         kHhTuningNamespace, kHhTuningKey,
@@ -2111,6 +2112,7 @@ void AmsBackendHappyHare::load_persisted_overrides() {
 
 void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
     bool changed = false;
+    hh_tuning_reading_ = false;
     // Tuning kept in the local config before it lived in Moonraker belongs to
     // the printer this screen drives: it moves there, once.
     auto* config = helix::Config::get_instance();
@@ -2120,6 +2122,15 @@ void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
         config->get_json("").erase("hh_overrides");
         config->save();
         changed = true;
+    }
+    // A change made before the read lands on what the read found.
+    for (const auto& [key, entry] : hh_tuning_unsaved_.items()) {
+        doc[key] = entry;
+        changed = true;
+    }
+    if (writable) {
+        hh_tuning_read_ = true;
+        hh_tuning_unsaved_ = nlohmann::json::object();
     }
     // An override saved against the built-in default, not the printer's own,
     // still applies: the built-ins stood in whenever the printer's config
@@ -2188,8 +2199,20 @@ void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
     reapply_overrides();
 }
 
+void AmsBackendHappyHare::store_hh_tuning_entry(const std::string& key, nlohmann::json entry) {
+    if (hh_tuning_read_) {
+        hh_tuning_[key] = std::move(entry);
+        write_hh_tuning();
+        return;
+    }
+    hh_tuning_unsaved_[key] = std::move(entry);
+    if (api_ && !hh_tuning_reading_) {
+        load_persisted_overrides();
+    }
+}
+
 void AmsBackendHappyHare::write_hh_tuning() {
-    if (!api_) {
+    if (!api_ || !hh_tuning_read_) {
         return;
     }
     api_->database_post_item(
@@ -2256,8 +2279,8 @@ void AmsBackendHappyHare::save_override(const std::string& key, float value) {
             user_overrides_.toolhead_ooze_reduction = value;
     } // end mutex scope
 
-    hh_tuning_[key] = {{"value", value}, {"config_default", get_config_default_float(key)}};
-    write_hh_tuning();
+    store_hh_tuning_entry(key,
+                          {{"value", value}, {"config_default", get_config_default_float(key)}});
 }
 
 void AmsBackendHappyHare::save_override(const std::string& key, int value) {
@@ -2267,8 +2290,7 @@ void AmsBackendHappyHare::save_override(const std::string& key, int value) {
             user_overrides_.sync_to_extruder = value;
     } // end mutex scope
 
-    hh_tuning_[key] = {{"value", value}, {"config_default", get_config_default_int(key)}};
-    write_hh_tuning();
+    store_hh_tuning_entry(key, {{"value", value}, {"config_default", get_config_default_int(key)}});
 }
 
 std::string AmsBackendHappyHare::test_config_param_locked(std::string_view key) const {

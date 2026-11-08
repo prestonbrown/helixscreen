@@ -813,6 +813,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     static constexpr const char* kHhTuningKey = "hh_tuning";
     /// The tuning document as last read or written. Main thread.
     nlohmann::json hh_tuning_ = nlohmann::json::object();
+    /// Moonraker has answered for the document (it was read, or holds none).
+    /// Until then nothing is written over it. Main thread.
+    bool hh_tuning_read_ = false;
+    bool hh_tuning_reading_ = false;
+    /// Changes saved before the document was read, merged into it on the read.
+    nlohmann::json hh_tuning_unsaved_ = nlohmann::json::object();
 
     /// Read the tuning document from Moonraker, then adopt it. Main thread.
     void load_persisted_overrides();
@@ -823,6 +829,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     /// re-apply. Main thread.
     void adopt_hh_tuning(nlohmann::json doc, bool writable);
     void write_hh_tuning();
+    /// File @p entry under @p key: written now when the document has been
+    /// read, else kept for the read (started here if none is out). Main thread.
+    void store_hh_tuning_entry(const std::string& key, nlohmann::json entry);
     void save_override(const std::string& key, float value);
     void save_override(const std::string& key, int value);
     void reapply_overrides();

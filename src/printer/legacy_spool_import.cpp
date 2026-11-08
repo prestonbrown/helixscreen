@@ -43,18 +43,49 @@ std::map<int, int> tool_spools_from_file(const nlohmann::json& file,
     return mine == printers->end() ? std::map<int, int>{} : tool_spools_from_set(*mine);
 }
 
-std::optional<nlohmann::json> file_without_printer(const nlohmann::json& file,
-                                                   const std::string& printer_id) {
-    const auto printers = file.is_object() ? file.find(kPrinters) : file.end();
-    if (printers == file.end() || !printers->is_object()) {
+nlohmann::json set_keeping_tools(const nlohmann::json& set, const std::map<int, int>& owed) {
+    nlohmann::json kept = nlohmann::json::object();
+    if (!set.is_object()) {
+        return kept;
+    }
+    for (const auto& [key, entry] : set.items()) {
+        const auto tool = helix::text_io::parse_leading<int>(key);
+        if (tool && owed.count(*tool) != 0) {
+            kept[key] = entry;
+        }
+    }
+    return kept;
+}
+
+std::optional<nlohmann::json> file_keeping_tools(const nlohmann::json& file,
+                                                 const std::string& printer_id,
+                                                 const std::map<int, int>& owed) {
+    if (!file.is_object()) {
         return std::nullopt;
+    }
+    const auto printers = file.find(kPrinters);
+    if (printers == file.end() || !printers->is_object()) {
+        nlohmann::json kept = set_keeping_tools(file, owed);
+        if (tool_spools_from_set(kept).empty()) {
+            return std::nullopt;
+        }
+        return kept;
     }
     nlohmann::json rest = file;
-    rest[kPrinters].erase(printer_id);
-    if (rest[kPrinters].empty()) {
-        return std::nullopt;
+    if (printers->contains(printer_id)) {
+        nlohmann::json kept = set_keeping_tools((*printers)[printer_id], owed);
+        if (tool_spools_from_set(kept).empty()) {
+            rest[kPrinters].erase(printer_id);
+        } else {
+            rest[kPrinters][printer_id] = std::move(kept);
+        }
     }
-    return rest;
+    for (const auto& [id, set] : rest[kPrinters].items()) {
+        if (!tool_spools_from_set(set).empty()) {
+            return rest;
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<SlotInfo> external_spool_from_settings(const nlohmann::json& block) {

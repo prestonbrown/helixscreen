@@ -562,11 +562,23 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// the lane's pending edit is withdrawn with Klipper's message (the editor
     /// reports it) and the slot is repainted. Both run on the main thread
     /// without mutex_, as execute_gcode() delivers them.
+    ///
+    /// A Clear that arrives while such a write is out waits for it
+    /// (defer_clear_to_firmware_write()): Klipper's OK erases the record in
+    /// place of saving @p recorded, and a rejection keeps the record.
     [[nodiscard]] helix::SharedCallback<void()> record_once_written(int slot_index,
                                                                     SlotInfo recorded);
     [[nodiscard]] helix::SharedCallback<void(const MoonrakerError&)>
     withdraw_edit_if_rejected(int slot_index);
+    /// True when @p slot_index has a firmware write from record_once_written()
+    /// out: the record's erase then waits for Klipper's answer, and the caller
+    /// erases nothing now. Takes mutex_.
+    [[nodiscard]] bool defer_clear_to_firmware_write(int slot_index);
 
+  public:
+    [[nodiscard]] bool firmware_edit_out(int slot_index) override;
+
+  protected:
     /// Save @p slot_index's staged record. A failure is reported to the user
     /// and withdraws the lane's pending edit. Takes mutex_; call without it.
     void persist_override(int slot_index, const char* noun = "Override");
@@ -654,6 +666,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// since sources filed before it (a Spoolman fetch) were never painted.
     /// Main thread.
     bool lane_records_unread_ = false;
+    /// One firmware write from record_once_written(): whether a Clear waits on it.
+    struct FirmwareEditFate {
+        bool clear_after = false;
+    };
+    /// The latest such write per slot, alive while its callbacks are. Guarded
+    /// by mutex_.
+    std::unordered_map<int, std::weak_ptr<FirmwareEditFate>> firmware_edits_out_;
     /// A read is out, and another was asked for while it was. Main thread.
     bool refresh_in_flight_ = false;
     bool refresh_again_ = false;

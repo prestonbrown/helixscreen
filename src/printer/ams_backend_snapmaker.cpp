@@ -386,6 +386,8 @@ void AmsBackendSnapmaker::on_started() {
         pending_insert_passes_.fill(0);
         insert_verdict_.fill(InsertIdentity::NotRead);
         feed_presence_seen_.fill(false);
+        // The sink names the store being replaced; the new one's first read rebinds it.
+        rfid_tracker_.set_baseline_sink(nullptr);
     }
     open_lane_record_store("snapmaker");
 }

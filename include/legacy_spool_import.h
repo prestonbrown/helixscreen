@@ -36,10 +36,17 @@ inline constexpr const char* kLegacyExternalSpoolPath = "filament/legacy_externa
 [[nodiscard]] std::map<int, int> tool_spools_from_file(const nlohmann::json& file,
                                                        const std::string& printer_id);
 
-/// @p file without @p printer_id's set, or nullopt when nothing else remains and
-/// the file can go.
-[[nodiscard]] std::optional<nlohmann::json> file_without_printer(const nlohmann::json& file,
-                                                                 const std::string& printer_id);
+/// @p set with only the entries of @p owed's tools left: the links not yet
+/// imported. Pure.
+[[nodiscard]] nlohmann::json set_keeping_tools(const nlohmann::json& set,
+                                               const std::map<int, int>& owed);
+
+/// @p file with @p printer_id's set cut to @p owed's tools, or nullopt when
+/// nothing that names a spool remains and the file can go. A printer whose set
+/// is left naming no spool leaves the file.
+[[nodiscard]] std::optional<nlohmann::json> file_keeping_tools(const nlohmann::json& file,
+                                                               const std::string& printer_id,
+                                                               const std::map<int, int>& owed);
 
 /// The bypass spool a 1.0 settings.json filament/external_spool block states,
 /// or nullopt when it states none (no "assigned" and no colour).

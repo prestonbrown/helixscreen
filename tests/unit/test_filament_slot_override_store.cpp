@@ -673,6 +673,25 @@ TEST_CASE("the seated slot saves, loads and clears beside the lane records",
     CHECK_FALSE(store.load_seated_slot_blocking().has_value());
 }
 
+TEST_CASE("an older seated value moves to HelixScreen's key, and leaves only once that is saved",
+          "[filament_slot_override][seated]") {
+    MockPrinter mock_printer;
+    mock_printer.client.mock_db_set("lane_data", "seated", json(2));
+    FilamentSlotOverrideStore store(&mock_printer.api, "ifs");
+
+    SECTION("the new key's save fails: the old value stays") {
+        mock_printer.client.fail_next("server.database.post_item");
+        CHECK(store.load_seated_slot_blocking() == 2);
+        CHECK(mock_printer.client.mock_db_get("lane_data", "seated") == 2);
+        CHECK(mock_printer.client.mock_db_get("helix-screen", "ifs_seated").is_null());
+    }
+    SECTION("the new key is saved: the old value goes") {
+        CHECK(store.load_seated_slot_blocking() == 2);
+        CHECK(mock_printer.client.mock_db_get("helix-screen", "ifs_seated") == 2);
+        CHECK(mock_printer.client.mock_db_get("lane_data", "seated").is_null());
+    }
+}
+
 TEST_CASE("HelixScreen's own keys live outside the lane records' namespace",
           "[filament_slot_override][seated]") {
     MockPrinter mock_printer;
