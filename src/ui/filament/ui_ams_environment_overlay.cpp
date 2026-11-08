@@ -8,6 +8,7 @@
 
 #include "ui_ams_environment_overlay.h"
 
+#include "ui_ams_detail.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_callback_helpers.h"
 #include "ui_component_keypad.h"
@@ -745,11 +746,13 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
     lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
     const bool has_art =
-        info && helix::ui::unit_art_available(*info, zone.unit_index, /*has_dryer=*/true);
+        info && helix::ui::unit_art_available(*info, zone.unit_index,
+                                              helix::ui::unit_reports_climate(zone.unit_index));
     lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
     if (info)
         helix::ui::unit_art_set_unit(lv_obj_find_by_name(overlay_root_, "unit_art_picture"), *info,
-                                     zone.unit_index, /*has_dryer=*/true);
+                                     zone.unit_index,
+                                     helix::ui::unit_reports_climate(zone.unit_index));
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());

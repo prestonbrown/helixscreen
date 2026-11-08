@@ -427,7 +427,7 @@ void tray_front_draw_cb(lv_event_t* e) {
     const tray::PointF edges[][2] = {{fl_t, fr_t}, {fl_b, fr_b}, {fl_t, fl_b},
                                      {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
-    if (!s_tray.shell) {
+    if (!s_tray.shell || simple) {
         for (const auto& ab : edges)
             edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
     } else {
@@ -806,6 +806,10 @@ bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int u
     return false;
 }
 
+bool helix::ui::unit_reports_climate(int unit_index) {
+    return unit_lid_mode(unit_index) != tray::LidMode::None;
+}
+
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
     if (!unit_has_physical_tray())
         return calculate_ams_slot_layout(available_width, slot_count);
@@ -918,7 +922,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const float front_h = shell ? shell->front_wall_px * shell_scale
                                 : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
     box.ft = box.fb - front_h;
-    const float cap = shell ? tray::cap_width(*shell, size) : half;
+    const float cap = shell ? tray::cap_width(*shell, size, spacing) : half;
     box.fl = s_tray.lane_x[0] - cap;
     box.fr = s_tray.lane_x[n - 1] + cap;
 

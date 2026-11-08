@@ -190,15 +190,17 @@
             </lv_obj>
 
             <!-- The unit's picture beside the drying countdown + progress. The picture shows
-                 whenever the unit has art, with warm air rising over it while drying; the
-                 countdown only while drying. Micro and Tiny have no height for the picture. -->
+                 whenever the unit has art; the countdown only while drying. Micro and Tiny have no height for the picture. -->
             <lv_obj name="dryer_status_row"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
                     style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
               <bind_flag_if cond="(ui_breakpoint le 1 or (ams_env_overlay_unit_logo_visible eq 0 and ams_env_overlay_unit_art_visible eq 0)) and ams_env_overlay_drying_active eq 0"
                             flag="hidden"/>
-              <unit_art name="unit_art_picture"
-                        width="#dryer_unit_art_size" height="#dryer_unit_art_size" tier="full" hidden="true"/>
+              <lv_obj name="unit_art_slot"
+                      width="#dryer_unit_art_size" height="#dryer_unit_art_size" style_pad_all="0" scrollable="false">
+                <bind_flag_if cond="ams_env_overlay_unit_art_visible eq 0 or ui_breakpoint le 1" flag="hidden"/>
+                <unit_art name="unit_art_picture" width="100%" height="100%" align="center" tier="full"/>
+              </lv_obj>
               <lv_obj name="unit_picture"
                       width="#dryer_unit_picture_size" height="#dryer_unit_picture_size" style_pad_all="0"
                       scrollable="false">
@@ -209,12 +211,7 @@
                           bind_src="ams_env_overlay_unit_logo">
                   <bind_flag_if_eq subject="ams_env_overlay_unit_logo_visible" flag="hidden" ref_value="0"/>
                   <bind_style_if_eq name="styles.ams_logo_mono" subject="ams_env_overlay_unit_logo_color" ref_value="0"/>
-                  <bind_style_if_eq name="dryer_picture_drying" subject="ams_env_overlay_drying_active" ref_value="1"/>
                 </lv_image>
-                <dryer_airflow name="dryer_airflow"
-                               width="100%" height="100%" align="center" bind_phase="ams_env_overlay_drying_phase">
-                  <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
-                </dryer_airflow>
               </lv_obj>
               <lv_obj width="1"
                       height="content" flex_grow="1" style_pad_all="0" flex_flow="column"

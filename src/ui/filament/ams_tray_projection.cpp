@@ -30,9 +30,10 @@ float box_rise(float depth) {
     return std::round(kDepthRise * depth);
 }
 
-float cap_width(const UnitShell& shell, float spool_size) {
-    return spool_size * kSpoolWidth / 2.0f +
-           shell.cap_clearance_px * spool_size / kShellReferenceSpool;
+float cap_width(const UnitShell& shell, float spool_size, float pitch) {
+    return std::min(spool_size * kSpoolWidth / 2.0f +
+                        shell.cap_clearance_px * spool_size / kShellReferenceSpool,
+                    pitch / 2.0f);
 }
 
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i) {

@@ -47,8 +47,9 @@ float box_rise(float depth);
 float spool_pitch(float spool_size);
 PointF proj(const TrayBox& b, float x, float y, float z);
 
-/// Front-plane distance from an end spool's centre to the unit's end: it clears only the flange.
-float cap_width(const UnitShell& shell, float spool_size);
+/// Front-plane distance from an end spool's centre to the unit's end: it clears only the
+/// flange, and never more than half the lane pitch, so a squeezed row stays in its container.
+float cap_width(const UnitShell& shell, float spool_size, float pitch);
 /// Point @p i of the body's top edge, on the side plane at @p x.
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
 /// @p n points of a unit's real lid profile at plane @p x, front to back.

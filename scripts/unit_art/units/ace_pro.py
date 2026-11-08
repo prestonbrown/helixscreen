@@ -21,7 +21,7 @@ _REPO = Path(__file__).resolve().parents[3]
 
 def _lid_profile():
     """The lid's real side profile: up the front, a rounded corner, a flat top, a tighter rear corner."""
-    return kit.fillet([(0.018, ZR), (0.018, H), (D - 0.03, H), (D - 0.03, LOWER)], [0, 0.15, 0.09, 0], steps=7)
+    return kit.fillet([(0.018, ZR), (0.018, H), (D - 0.03, H), (D - 0.03, LOWER)], [0, 0.15, 0.09, 0], steps=6)
 
 
 def _rrect_x(x0, x1, z0, z1, r, y):

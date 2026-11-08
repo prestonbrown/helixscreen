@@ -2,6 +2,8 @@
 
 #include "ui_unit_art.h"
 
+#include "ui_utils.h"
+
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "core/data_root_resolver.h"
@@ -10,6 +12,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 
 #include <spdlog/spdlog.h>
 
@@ -30,6 +33,11 @@ struct ArtData {
     UnitArtTier tier = UnitArtTier::Thumb;
     const char* built_id = nullptr;
     std::vector<LaneImages> lanes;
+    lv_obj_t* layers = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_obj_t* flat = nullptr;   // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_draw_buf_t* flat_buf = nullptr;
+    std::vector<lv_draw_buf_t*> retired; // swapped out while widgets may still draw them
+    uint64_t flat_key = 0;
 };
 
 ArtData* data_of(lv_obj_t* art) {
@@ -47,20 +55,35 @@ lv_obj_t* add_layer(lv_obj_t* art, const std::string& path) {
 }
 
 void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell) {
-    lv_obj_clean(art);
+    // Runs under subject observers, where a synchronous delete corrupts the event batch.
+    helix::ui::safe_clean_children(art);
     data->lanes.clear();
+    data->flat_key = 0;
+    if (data->flat_buf) {
+        data->retired.push_back(data->flat_buf);
+        data->flat_buf = nullptr;
+    }
+    data->layers = lv_obj_create(art);
+    lv_obj_remove_style_all(data->layers);
+    lv_obj_set_size(data->layers, lv_pct(100), lv_pct(100));
+    lv_obj_set_clickable(data->layers, false);
+    data->flat = lv_image_create(art);
+    lv_obj_set_size(data->flat, lv_pct(100), lv_pct(100));
+    lv_obj_set_clickable(data->flat, false);
+    lv_obj_set_hidden(data->flat, true);
     const std::string base =
         helix::asset_component_uri(std::string("assets/images/units/") + shell->id + "/" +
                                    (data->tier == UnitArtTier::Full ? "full" : "thumb"));
-    add_layer(art, base + "_back.png");
+    add_layer(data->layers, base + "_back.png");
     for (int lane = 0; lane < shell->art_lanes; ++lane) {
         const std::string stem = base + "_lane" + std::to_string(lane);
-        LaneImages images{add_layer(art, stem + ".png"), add_layer(art, stem + "_shade.png")};
+        LaneImages images{add_layer(data->layers, stem + ".png"),
+                          add_layer(data->layers, stem + "_shade.png")};
         // DECLARATIVE_OK: each lane's colour is per-widget live data.
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
         data->lanes.push_back(images);
     }
-    add_layer(art, base + "_front.png");
+    add_layer(data->layers, base + "_front.png");
     data->built_id = shell->id;
 }
 
@@ -72,8 +95,39 @@ void set_lane_visible(lv_obj_t* image, bool visible) {
         lv_obj_set_hidden(image, true);
 }
 
+void destroy_buf(lv_draw_buf_t* buf) {
+    lv_image_cache_drop(buf);
+    lv_draw_buf_destroy(buf);
+}
+
+/// Replace the stack of decoded layers with one image of the current lane state.
+/// Each layer would otherwise be decoded from its PNG on every redraw.
+void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
+    lv_obj_update_layout(art);
+    if (lv_obj_get_width(art) <= 0 || lv_obj_get_height(art) <= 0 || key == data->flat_key)
+        return;
+    lv_obj_set_hidden(data->layers, false);
+    lv_obj_set_hidden(data->flat, true);
+    lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
+    if (!snap)
+        return;
+    lv_image_set_src(data->flat, snap);
+    if (data->flat_buf)
+        destroy_buf(data->flat_buf);
+    data->flat_buf = snap;
+    data->flat_key = key;
+    lv_obj_set_hidden(data->flat, false);
+    lv_obj_set_hidden(data->layers, true);
+}
+
 void delete_cb(lv_event_t* e) {
     lv_obj_t* art = lv_event_get_target_obj(e);
+    if (ArtData* data = data_of(art)) {
+        if (data->flat_buf)
+            lv_draw_buf_destroy(data->flat_buf);
+        for (lv_draw_buf_t* buf : data->retired)
+            lv_draw_buf_destroy(buf);
+    }
     delete data_of(art);
     lv_obj_set_user_data(art, nullptr);
 }
@@ -137,9 +191,11 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
     lv_obj_set_hidden(art, false);
 
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
+    uint64_t key = 1469598103934665603ull;
     for (size_t i = 0; i < data->lanes.size(); ++i) {
         const UnitArtLane lane =
             i < unit.slots.size() ? unit_art_lane(unit.slots[i]) : UnitArtLane{};
+        key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * 1099511628211ull;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);
         if (lane.filled) {
@@ -148,6 +204,12 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
                                            LV_PART_MAIN);
         }
     }
+    flatten(art, data, key);
+}
+
+bool unit_art_is_flattened(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    return data && data->flat_buf && !lv_obj_is_hidden(data->flat);
 }
 
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane) {

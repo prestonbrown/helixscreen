@@ -99,6 +99,22 @@ def test_the_open_box_turtle_has_no_lid_and_the_enclosed_one_does():
     assert box_turtle.ENCLOSED.tray.dome
 
 
+def test_a_lid_keeps_its_corners_at_the_trays_point_count():
+    square = [(0.0, 0.0), (0.0, 10.0), (1.0, 10.0), (1.0, 0.0)]
+    fitted = kit.fit_cap_points(square)
+    assert len(fitted) == kit.CAP_POINTS
+    assert all(corner in fitted for corner in square)
+
+
+def test_the_generator_refuses_a_lid_or_cheek_the_tray_cannot_draw():
+    with pytest.raises(ValueError):
+        kit.fit_cap_points([(0.0, 0.0)])
+    with pytest.raises(ValueError):
+        kit.fit_cap_points([(i / 20, 0.0) for i in range(20)])
+    with pytest.raises(ValueError):
+        kit.check_cheek([(0.0, 0.0), (0.5, 1.0), (0.5, 2.0)])
+
+
 def test_generated_shell_table_is_current():
     generated = REPO / "src/generated/ams_unit_shells_gen.cpp"
     assert generated.read_text() == build.generate_shell_table(build.UNITS)

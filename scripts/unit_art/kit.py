@@ -81,6 +81,32 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
+CAP_POINTS = 17  # kCapPoints in ui_ams_detail.cpp
+
+
+def fit_cap_points(dome):
+    """Pad a lid profile to the runtime's point count, repeating points so corners survive."""
+    if not dome:
+        return []
+    if len(dome) > CAP_POINTS:
+        raise ValueError(f"lid profile has {len(dome)} points; the tray draws {CAP_POINTS}")
+    if len(dome) < 2:
+        raise ValueError("lid profile needs a front and a back point")
+    points = list(dome)
+    i = 0
+    while len(points) < CAP_POINTS:
+        points.insert(i + 1, points[i])
+        i = (i + 2) % (len(points) - 1)
+    return points
+
+
+def check_cheek(cheek):
+    """The body's top edge: at least two points, strictly increasing in depth."""
+    if len(cheek) < 2 or any(b[0] <= a[0] for a, b in zip(cheek, cheek[1:])):
+        raise ValueError(f"cheek depths must strictly increase: {cheek}")
+    return cheek
+
+
 def tray_profile(profile, base_z, px_per_unit):
     """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
     y0, y1 = profile[0][0], profile[-1][0]

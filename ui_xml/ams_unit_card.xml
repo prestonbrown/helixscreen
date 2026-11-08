@@ -49,13 +49,15 @@
            5-unit rig it costs ~28px of a ~102px card, and the unit's NAME is what
            the row is for. No inline hidden="" here - an inline attr would outrank
            the binding. -->
-      <unit_art name="unit_thumb" width="#ams_logo_size" height="#ams_logo_size" tier="thumb" hidden="true">
+      <lv_obj name="unit_logo_slot"
+              width="#ams_logo_size" height="#ams_logo_size" style_pad_all="0" scrollable="false" clickable="false"
+              event_bubble="true" style_bg_opa="0" style_border_width="0">
         <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
-      </unit_art>
-      <lv_image name="unit_logo" width="#ams_logo_size" height="#ams_logo_size" inner_align="contain">
-        <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
-        <bind_style_if_eq name="styles.ams_logo_mono" subject="$logo_color" ref_value="0"/>
-      </lv_image>
+        <unit_art name="unit_thumb" width="100%" height="100%" align="center" tier="thumb" hidden="true"/>
+        <lv_image name="unit_logo" width="100%" height="100%" align="center" inner_align="contain">
+          <bind_style_if_eq name="styles.ams_logo_mono" subject="$logo_color" ref_value="0"/>
+        </lv_image>
+      </lv_obj>
       <!-- width="1"+flex_grow so the label is sized by the row rather than by its
            own content: a name longer than the card used to size to content, overflow
            the centered row, and get clipped at BOTH ends ("HTLF Claymore 1" read as

@@ -84,6 +84,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: tints filled lanes and hides
     CHECK(lv_obj_is_hidden(last));
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens its layers once sized",
+                 "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 0, 0);
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK_FALSE(unit_art_is_flattened(art)); // no size yet: the layers stay in use
+    lv_obj_set_size(art, 40, 40);
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK(unit_art_is_flattened(art));
+    AmsSystemInfo other = ace_system();
+    other.units[0].slots[0].color_rgb = 0x00ff00;
+    unit_art_set_unit(art, other, 0); // a new colour must flatten again, not keep the old image
+    CHECK(unit_art_is_flattened(art));
+    CHECK(lv_color_to_u32(
+              lv_obj_get_style_image_recolor(unit_art_lane_color_obj(art, 0), LV_PART_MAIN)) ==
+          lv_color_to_u32(lv_color_hex(0x00ff00)));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: hides itself with no art", "[ams][unit-art]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
     AmsSystemInfo info;
