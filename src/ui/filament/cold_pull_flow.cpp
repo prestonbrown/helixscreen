@@ -376,7 +376,9 @@ ColdPullActions ColdPullFlow::tick(TimePoint now) {
         }
         return {};
     case ColdPullStage::Feed:
-        if (!busy() && now - last_tap_ >= kFeedIdleTimeout) {
+        // Counted from the last tap or send: a command that never answers still
+        // lets the heater go off.
+        if (now - last_tap_ >= kFeedIdleTimeout) {
             return end(ColdPullStage::Abandoned, ColdPullEndReason::Timeout, true);
         }
         return {};

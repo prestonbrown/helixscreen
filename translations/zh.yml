@@ -156,6 +156,7 @@ translations:
   : "0.2 mm 喷嘴无法打印部分耗材，如 PA、PC、TPU、CF 或 GF 增强型。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: '用于提示和声音的蜂鸣器或扬声器。在声音设置中选择播放内容。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。'
+  A cold pull is already running.: ''
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: '让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
   ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
@@ -3935,6 +3936,7 @@ translations:
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: '已安装 Moonraker 延时摄影插件。在延时摄影设置中设定录制方式。'
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEI 板仍在热床上。请取下后点击下一步。
   The Spoolman spool currently loaded: 当前装载的 Spoolman 料盘
+  The active tool has no nozzle heater.: ''
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。

@@ -60,6 +60,10 @@ class SubjectInitializer {
     SubjectInitializer();
     ~SubjectInitializer();
 
+    /// Lets what this owns send its last commands while the client is still
+    /// connected: a live cold pull turns its heater off and restores its fan.
+    void before_disconnect();
+
     // Non-copyable, non-movable (owns observer guards)
     SubjectInitializer(const SubjectInitializer&) = delete;
     SubjectInitializer& operator=(const SubjectInitializer&) = delete;

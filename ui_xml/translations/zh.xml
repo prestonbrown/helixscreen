@@ -153,6 +153,7 @@
   <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." zh="0.2 mm 喷嘴无法打印部分耗材，如 PA、PC、TPU、CF 或 GF 增强型。如果此工具头装有其中之一，打印机会清除其耗材信息，需要重新设置。"/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." zh="用于提示和声音的蜂鸣器或扬声器。在声音设置中选择播放内容。"/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." zh="Moonraker 推流的摄像头。将摄像头小组件添加到主屏幕即可查看,打印时也能看到。"/>
+  <translation tag="A cold pull is already running."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
   <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one."/>
@@ -3804,6 +3805,7 @@
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." zh="已安装 Moonraker 延时摄影插件。在延时摄影设置中设定录制方式。"/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." zh="PEI 板仍在热床上。请取下后点击下一步。"/>
   <translation tag="The Spoolman spool currently loaded" zh="当前装载的 Spoolman 料盘"/>
+  <translation tag="The active tool has no nozzle heater."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." zh="为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 &gt; 显示中重新启用。"/>
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." zh="在任何移动之前，热床和喷嘴同时加热，使打印件重新附着，喷嘴脱离打印件。"/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." zh="热床已冷却。请从热床上取下料盘,然后确认。"/>

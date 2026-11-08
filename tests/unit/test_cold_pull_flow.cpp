@@ -306,6 +306,15 @@ TEST_CASE("cold pull: every stage times out at its limit and not before", "[cold
         (void)f.tick(t0 + 13min);
         CHECK(f.end_reason() == ColdPullEndReason::Timeout);
     }
+    SECTION("feed idle, with a command that never answers") {
+        ColdPullFlow f(params());
+        drive_to(f, ColdPullStage::Feed);
+        (void)f.extrude(t0 + 2s);
+        REQUIRE(f.busy());
+        const auto a = f.tick(t0 + 2s + 8min);
+        CHECK(f.end_reason() == ColdPullEndReason::Timeout);
+        CHECK(a.heater_target_c == 0);
+    }
     SECTION("cooling with a fan, and twice as long without one") {
         for (const bool fan : {true, false}) {
             auto p = params();

@@ -80,6 +80,15 @@
                       width="100%" long_mode="wrap" style_text_color="#danger" text="The printer is not ready.">
             <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="3"/>
           </text_small>
+          <text_small name="cold_pull_refused_no_heater"
+                      width="100%" long_mode="wrap" style_text_color="#danger"
+                      text="The active tool has no nozzle heater.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="4"/>
+          </text_small>
+          <text_small name="cold_pull_refused_running"
+                      width="100%" long_mode="wrap" style_text_color="#danger" text="A cold pull is already running.">
+            <bind_flag_if_not_eq subject="cold_pull_refusal" flag="hidden" ref_value="5"/>
+          </text_small>
         </lv_obj>
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">

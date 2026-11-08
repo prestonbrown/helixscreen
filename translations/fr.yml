@@ -163,6 +163,7 @@ translations:
   : "Une buse de 0,2 mm ne peut pas imprimer tous les filaments, notamment PA, PC, TPU et les types chargés en fibre de carbone ou de verre. Si l'un d'eux est chargé dans cette tête d'outil, l'imprimante efface ses informations de filament et vous devrez les saisir à nouveau."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un buzzer ou haut-parleur pour les alertes et les sons. Choisissez ce qui est joué dans les paramètres du son.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Une caméra diffusée par Moonraker. Ajoutez le widget caméra à l''écran d''accueil pour la regarder, y compris pendant une impression.'
+  A cold pull is already running.: ''
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
   ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
@@ -4175,6 +4176,7 @@ translations:
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Le plugin timelapse de Moonraker est installé. Définissez le mode d''enregistrement dans les paramètres du timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: La plaque PEI est toujours sur le plateau. Retirez-la, puis appuyez sur Suivant.
   The Spoolman spool currently loaded: La bobine Spoolman actuellement chargée
+  The active tool has no nozzle heater.: ''
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : L'économiseur d'écran animé a été désactivé sur cet appareil pour éviter qu'il

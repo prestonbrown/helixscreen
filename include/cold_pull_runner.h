@@ -58,6 +58,11 @@ class ColdPullRunner {
     /// Applies the flow's exit_actions() when a pull is still live.
     ~ColdPullRunner();
 
+    /// Ends a live pull with its cleanup sent while the client can still send, and
+    /// owes nothing to a later connection. Teardown calls it before the disconnect,
+    /// on exit and on a printer switch alike.
+    void before_disconnect();
+
     ColdPullRunner(const ColdPullRunner&) = delete;
     ColdPullRunner& operator=(const ColdPullRunner&) = delete;
 
@@ -117,6 +122,14 @@ class ColdPullRunner {
     void send_gcode(const std::string& gcode, bool report);
     void dispatch_unload();
     void settle_owed();
+    /// The owed cleanup, once the printer has answered with @p target_c, its heater's
+    /// live target (nullopt when it did not say).
+    void finish_owed(std::optional<int> target_c);
+    /// @p temps inside the range @p heater accepts.
+    [[nodiscard]] ColdPullTemps clamp_for(ColdPullTemps temps, const std::string& heater) const;
+    /// The pinned heater's reading and target, in degrees; 0 when it is gone.
+    [[nodiscard]] int heater_temp_c() const;
+    [[nodiscard]] int heater_target_c() const;
     void cancel_tick_timer();
     [[nodiscard]] bool printer_ready() const;
     [[nodiscard]] TimePoint now() const;
@@ -125,6 +138,7 @@ class ColdPullRunner {
     Clock clock_;
     std::optional<ColdPullFlow> flow_;
     std::optional<Owed> owed_;
+    bool owed_query_in_flight_ = false;
     ColdPullMaterial material_ = ColdPullMaterial::Pla;
     ColdPullTemps setup_temps_{};
     int last_sensor_ = -1;

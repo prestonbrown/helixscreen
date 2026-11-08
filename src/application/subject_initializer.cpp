@@ -95,11 +95,6 @@ SubjectInitializer::SubjectInitializer() = default;
 // their shared resources before that printer's SubjectInitializer registers its own, so a
 // slot left naming an object freed here is dereferenced on every printer switch.
 SubjectInitializer::~SubjectInitializer() {
-    // A pull still live at exit turns its heater off while the controller and the
-    // API are still reachable.
-    if (m_cold_pull_runner) {
-        m_cold_pull_runner->cancel();
-    }
     auto& widgets = helix::PanelWidgetManager::instance();
     widgets.unregister_shared_resource<helix::IMoonrakerAPI>(m_registered_api);
     widgets.unregister_shared_resource<TemperatureService>(m_temp_control_panel.get());
@@ -107,6 +102,12 @@ SubjectInitializer::~SubjectInitializer() {
     widgets.unregister_shared_resource<helix::TemperatureController>(m_temp_controller.get());
     widgets.unregister_shared_resource<helix::ui::FilamentOpHeater>(m_filament_op_heater.get());
     widgets.unregister_shared_resource<helix::ui::ColdPullRunner>(m_cold_pull_runner.get());
+}
+
+void SubjectInitializer::before_disconnect() {
+    if (m_cold_pull_runner) {
+        m_cold_pull_runner->before_disconnect();
+    }
 }
 
 void SubjectInitializer::init_core_and_state() {

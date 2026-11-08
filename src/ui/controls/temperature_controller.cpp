@@ -198,34 +198,6 @@ bool TemperatureController::preset_visible(HeaterType type, int value_c) const {
 }
 
 void TemperatureController::set_target(HeaterType type, double celsius, SendOptions opts) {
-    // Swap-preheat guard: when the caller signals "switching material" intent
-    // (keep_previous_hot), never drop the nozzle below what's needed to purge the
-    // previously loaded filament. Floor the requested target at the hotter of the
-    // latched last-nonzero nozzle target and the current actual nozzle temperature.
-    // Nozzle only — bed/chamber and any call without the flag are untouched, so
-    // cooldown-to-0 and deliberate manual lowers still work.
-    if (type == HeaterType::Nozzle && opts.keep_previous_hot) {
-        const int actual_deci =
-            lv_subject_get_int(state_.temperature_state().get_active_extruder_temp_subject());
-        const double actual_deg =
-            static_cast<double>(helix::ui::temperature::deci_to_degrees_f(actual_deci));
-        const double latched = static_cast<double>(
-            state_.temperature_state().get_active_extruder_last_nonzero_target());
-        const double floor_deg = std::max({latched, actual_deg});
-        if (celsius < floor_deg) {
-            celsius = floor_deg;
-            const int shown = static_cast<int>(std::lround(floor_deg));
-            spdlog::info("[TemperatureController] Swap-preheat: holding nozzle at {}C to purge "
-                         "previous filament (requested lower)",
-                         shown);
-            NOTIFY_INFO(lv_tr("Holding nozzle at {}°C to purge previous filament."), shown);
-            // The holding toast above is now the sole nozzle message. Drop the
-            // caller's success callback so it doesn't also fire a "target set to
-            // {requested}°C" toast that contradicts the temp we actually held.
-            opts.on_success = nullptr;
-        }
-    }
-
     const std::string name = resolved_name(type);
     if (name.empty()) {
         // Only the chamber resolves empty in practice (nozzle -> active extruder,
@@ -252,6 +224,37 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
                                        SendOptions opts) {
     if (!api_ || klipper_name.empty()) {
         return;
+    }
+    // Swap-preheat guard: when the caller signals "switching material" intent
+    // (keep_previous_hot), never drop this nozzle below what's needed to purge the
+    // previously loaded filament. Floor the requested target at the hotter of its
+    // latched last-nonzero target and its current actual temperature. Extruders
+    // only; any call without the flag is untouched, so cooldown-to-0 and deliberate
+    // manual lowers still work.
+    if (opts.keep_previous_hot && helix::is_extruder_name(klipper_name)) {
+        auto& temps = state_.temperature_state();
+        lv_subject_t* actual = temps.get_extruder_temp_subject(klipper_name);
+        const double actual_deg =
+            actual ? static_cast<double>(
+                         helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(actual)))
+                   : 0.0;
+        const auto it = temps.extruders().find(klipper_name);
+        const double latched = it != temps.extruders().end()
+                                   ? static_cast<double>(it->second.last_nonzero_target)
+                                   : 0.0;
+        const double floor_deg = std::max({latched, actual_deg});
+        if (celsius < floor_deg) {
+            celsius = floor_deg;
+            const int shown = static_cast<int>(std::lround(floor_deg));
+            spdlog::info("[TemperatureController] Swap-preheat: holding {} at {}C to purge "
+                         "previous filament (requested lower)",
+                         klipper_name, shown);
+            NOTIFY_INFO(lv_tr("Holding nozzle at {}°C to purge previous filament."), shown);
+            // The holding toast above is now the sole nozzle message. Drop the
+            // caller's success callback so it doesn't also fire a "target set to
+            // {requested}°C" toast that contradicts the temp we actually held.
+            opts.on_success = nullptr;
+        }
     }
     if (celsius > 0 && helix::is_extruder_name(klipper_name)) {
         // A direct heater target bypasses any M104 guard the printer's own

@@ -3,6 +3,7 @@
 
 #include "cold_pull_runner.h"
 
+#include "ui_manual_pull_prompt.h"
 #include "ui_temperature_utils.h"
 #include "ui_timer_guard.h"
 
@@ -15,6 +16,8 @@
 #include "filament_op_heater.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
+#include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "material_settings_manager.h"
 #include "moonraker_error.h"
 #include "panel_widget_manager.h"
@@ -31,6 +34,8 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+
+#include "hv/json.hpp"
 
 namespace helix::ui {
 
@@ -119,6 +124,20 @@ ColdPullRunner::~ColdPullRunner() {
     }
 }
 
+void ColdPullRunner::before_disconnect() {
+    owed_.reset();
+    owed_query_in_flight_ = false;
+    if (running()) {
+        spdlog::info("{} Disconnecting mid-pull: heater off, fan restored", kLogTag);
+        apply(flow_->exit_actions(job_holds_machine(state_.print_state().get_print_lifecycle())));
+        (void)flow_->disconnected();
+        after_event();
+    }
+    watch(false);
+    action_observer_.reset();
+    unload_watching_ = false;
+}
+
 ColdPullRunner::TimePoint ColdPullRunner::now() const {
     return clock_ ? clock_() : std::chrono::steady_clock::now();
 }
@@ -157,9 +176,11 @@ bool ColdPullRunner::printer_ready() const {
 
 ColdPullRefusal ColdPullRunner::can_start() const {
     const FilamentOpHeater* heater = get_filament_op_heater();
-    return cold_pull_refusal(
-        state_.print_state().get_print_lifecycle(), heater && heater->pending(), printer_ready(),
-        state_.temperature_state().get_active_extruder_temp_subject() != nullptr, running());
+    auto& temps = state_.temperature_state();
+    const std::string& extruder = temps.active_extruder_name();
+    const bool has_heater = !extruder.empty() && temps.get_extruder_temp_subject(extruder);
+    return cold_pull_refusal(state_.print_state().get_print_lifecycle(),
+                             heater && heater->pending(), printer_ready(), has_heater, running());
 }
 
 void ColdPullRunner::prepare_setup() {
@@ -199,8 +220,7 @@ ColdPullRefusal ColdPullRunner::start(ColdPullMaterial material, ColdPullTemps t
         limits = api->get_safety_limits();
     }
     p.floor_c = temperature::extrusion_floor_c(limits, p.heater);
-    p.temps =
-        clamp_cold_pull_temps(temps, p.floor_c, temperature::nozzle_max_temp_c(limits, p.heater));
+    p.temps = clamp_for(temps, p.heater);
     p.part_fan = commandable_part_fan(state_);
     if (!p.part_fan.empty()) {
         lv_subject_t* speed = state_.fan_state().get_fan_speed_subject(p.part_fan);
@@ -237,12 +257,19 @@ void ColdPullRunner::watch(bool on) {
     }
     auto& temps = state_.temperature_state();
     const SubjectLifetime life = state_.get_subjects_lifetime();
-    temp_observer_ = observe<int>(
-        temps.get_active_extruder_temp_subject(), this,
-        [](ColdPullRunner* self, int) { self->on_temperature(); }, life);
-    target_observer_ = observe<int>(
-        temps.get_active_extruder_target_subject(), this,
-        [](ColdPullRunner* self, int) { self->on_temperature(); }, life);
+    // The heater chosen at start, not the active one: a tool change elsewhere must
+    // not leave this head at the soak while the pull follows another.
+    const std::string& heater = flow_->params().heater;
+    SubjectLifetime temp_life;
+    SubjectLifetime target_life;
+    if (lv_subject_t* temp = temps.get_extruder_temp_subject(heater, temp_life)) {
+        temp_observer_ = observe<int>(
+            temp, this, [](ColdPullRunner* self, int) { self->on_temperature(); }, temp_life);
+    }
+    if (lv_subject_t* target = temps.get_extruder_target_subject(heater, target_life)) {
+        target_observer_ = observe<int>(
+            target, this, [](ColdPullRunner* self, int) { self->on_temperature(); }, target_life);
+    }
     lifecycle_observer_ = observe<int>(
         state_.print_state().get_print_lifecycle_subject(), this,
         [](ColdPullRunner* self, int) { self->on_lifecycle(); }, life);
@@ -319,12 +346,8 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
             PostOpCooldownManager::instance().cancel(std::string());
         }
         if (auto* tc = get_temperature_controller()) {
-            if (a.keep_previous_hot) {
-                tc->set_target(HeaterType::Nozzle, static_cast<double>(c),
-                               {.toast = false, .keep_previous_hot = true});
-            } else {
-                tc->set_target(p.heater, static_cast<double>(c), {.toast = false});
-            }
+            tc->set_target(p.heater, static_cast<double>(c),
+                           {.toast = false, .keep_previous_hot = a.keep_previous_hot});
         }
     }
     if (a.fan_percent && !p.part_fan.empty()) {
@@ -381,22 +404,29 @@ void ColdPullRunner::send_gcode(const std::string& gcode, bool report) {
         }
         return;
     }
+    auto finished = [this, report](bool ok) {
+        if (report && flow_) {
+            apply(flow_->command_finished(ok, now()));
+            after_event();
+        }
+    };
+    // Queued behind a blocking op, the command will run but neither reply comes;
+    // the step moves on rather than waiting for one.
     api->execute_gcode(
-        gcode,
-        lifetime_.bg_cb("ColdPullRunner::gcode_ok",
-                        [this, report]() {
-                            if (report && flow_) {
-                                apply(flow_->command_finished(true, now()));
-                                after_event();
-                            }
+        gcode, lifetime_.bg_cb("ColdPullRunner::gcode_ok", [finished]() { finished(true); }),
+        lifetime_.bg_cb("ColdPullRunner::gcode_err",
+                        [finished](const MoonrakerError& e) {
+                            spdlog::warn("{} Command failed: {}", kLogTag, e.message);
+                            finished(false);
                         }),
-        lifetime_.bg_cb("ColdPullRunner::gcode_err", [this, report](const MoonrakerError& e) {
-            spdlog::warn("{} Command failed: {}", kLogTag, e.message);
-            if (report && flow_) {
-                apply(flow_->command_finished(false, now()));
-                after_event();
-            }
-        }));
+        /*timeout_ms=*/0, /*silent=*/false,
+        /*on_queued=*/
+        lifetime_.bg_cb("ColdPullRunner::gcode_queued",
+                        [finished]() {
+                            spdlog::info("{} Command queued behind a running operation", kLogTag);
+                            finished(true);
+                        }),
+        /*caller_surfaces_errors=*/false); // the callback only logs: Klipper's message shows
 }
 
 void ColdPullRunner::dispatch_unload() {
@@ -417,6 +447,12 @@ void ColdPullRunner::dispatch_unload() {
             after_event();
         }
     };
+    // Where this head's unload is manual the executor only says so and never calls
+    // back; the step shows it as a failed unload, with the reason in the toast.
+    if (notify_if_filament_op_unavailable(backend, slot, /*load=*/false)) {
+        finish(false);
+        return;
+    }
     FilamentOpSurface surface;
     surface.log_tag = kLogTag;
     // A filament system's unload completes on its action feed, not a reply.
@@ -437,6 +473,7 @@ void ColdPullRunner::dispatch_unload() {
     // Refused because nothing is loaded leaves the head clear, which is the goal.
     surface.on_refused = [finish](const FilamentOpPlan&) { finish(!lane_seated()); };
     surface.on_async_success = [finish]() { finish(true); };
+    surface.on_preheat_ended = [finish]() { finish(false); };
     auto token = lifetime_.token();
     surface.guard = [token](helix::SharedCallback<void()> fn) mutable {
         token.defer("ColdPullRunner::unload", std::move(fn));
@@ -468,12 +505,7 @@ void ColdPullRunner::on_temperature() {
     if (!flow_) {
         return;
     }
-    auto& temps = state_.temperature_state();
-    const int current =
-        temperature::deci_to_degrees(lv_subject_get_int(temps.get_active_extruder_temp_subject()));
-    const int target = temperature::deci_to_degrees(
-        lv_subject_get_int(temps.get_active_extruder_target_subject()));
-    apply(flow_->temperature(current, target, now()));
+    apply(flow_->temperature(heater_temp_c(), heater_target_c(), now()));
     after_event();
 }
 
@@ -500,7 +532,45 @@ void ColdPullRunner::on_connection() {
 }
 
 void ColdPullRunner::settle_owed() {
-    if (!owed_ || !printer_ready()) {
+    if (!owed_ || owed_query_in_flight_ || !printer_ready()) {
+        return;
+    }
+    IMoonrakerClient* client = get_moonraker_client();
+    if (!client) {
+        return;
+    }
+    // The heater's subject still holds what it read before the link went down, so the
+    // printer is asked for the target it has now.
+    owed_query_in_flight_ = true;
+    const std::string heater = owed_->heater;
+    const json params = {{"objects", {{heater, json::array({"target"})}}}};
+    client->send_jsonrpc(
+        "printer.objects.query", params,
+        lifetime_.bg_cb("ColdPullRunner::owed_target",
+                        [this, heater](const json& response) {
+                            owed_query_in_flight_ = false;
+                            std::optional<int> target;
+                            const json* v = json_util::find_member(response, "result");
+                            for (const char* key : {"status", heater.c_str(), "target"}) {
+                                v = v ? json_util::find_member(*v, key) : nullptr;
+                            }
+                            if (v && v->is_number()) {
+                                target = static_cast<int>(std::lround(json_util::as_double(*v)));
+                            }
+                            finish_owed(target);
+                        }),
+        lifetime_.bg_cb("ColdPullRunner::owed_target_err",
+                        [this](const MoonrakerError& e) {
+                            // The next ready edge asks again.
+                            owed_query_in_flight_ = false;
+                            spdlog::warn("{} Could not read the owed heater's target: {}", kLogTag,
+                                         e.message);
+                        }),
+        /*timeout_ms=*/0, /*silent=*/true);
+}
+
+void ColdPullRunner::finish_owed(std::optional<int> target) {
+    if (!owed_) {
         return;
     }
     const Owed owed = std::move(*owed_);
@@ -510,8 +580,6 @@ void ColdPullRunner::settle_owed() {
     if (job_holds_machine(state_.print_state().get_print_lifecycle())) {
         return;
     }
-    const int target = temperature::deci_to_degrees(
-        lv_subject_get_int(state_.temperature_state().get_active_extruder_target_subject()));
     // A Klipper restart already zeroed it; a changed target is someone else's.
     if (owed.target_c == 0 || target != owed.target_c) {
         if (owed.actions.fan_percent) {
@@ -577,33 +645,45 @@ void ColdPullRunner::select_material(ColdPullMaterial material) {
     publish_setup();
 }
 
-void ColdPullRunner::adjust_soak(int delta_c) {
+ColdPullTemps ColdPullRunner::clamp_for(ColdPullTemps temps, const std::string& heater) const {
     SafetyLimits limits;
     if (auto* api = get_moonraker_api()) {
         limits = api->get_safety_limits();
     }
-    const std::string& heater = state_.temperature_state().active_extruder_name();
+    return clamp_cold_pull_temps(temps, temperature::extrusion_floor_c(limits, heater),
+                                 temperature::nozzle_max_temp_c(limits, heater));
+}
+
+int ColdPullRunner::heater_temp_c() const {
+    lv_subject_t* s =
+        flow_ ? state_.temperature_state().get_extruder_temp_subject(flow_->params().heater)
+              : nullptr;
+    return s ? temperature::deci_to_degrees(lv_subject_get_int(s)) : 0;
+}
+
+int ColdPullRunner::heater_target_c() const {
+    lv_subject_t* s =
+        flow_ ? state_.temperature_state().get_extruder_target_subject(flow_->params().heater)
+              : nullptr;
+    return s ? temperature::deci_to_degrees(lv_subject_get_int(s)) : 0;
+}
+
+void ColdPullRunner::adjust_soak(int delta_c) {
     ColdPullTemps t = setup_temps_;
     t.soak_c += delta_c;
-    setup_temps_ = clamp_cold_pull_temps(t, temperature::extrusion_floor_c(limits, heater),
-                                         temperature::nozzle_max_temp_c(limits, heater));
+    setup_temps_ = t;
     publish_setup();
 }
 
 void ColdPullRunner::adjust_pull(int delta_c) {
-    SafetyLimits limits;
-    if (auto* api = get_moonraker_api()) {
-        limits = api->get_safety_limits();
-    }
-    const std::string& heater = state_.temperature_state().active_extruder_name();
     ColdPullTemps t = setup_temps_;
     t.pull_c += delta_c;
-    setup_temps_ = clamp_cold_pull_temps(t, temperature::extrusion_floor_c(limits, heater),
-                                         temperature::nozzle_max_temp_c(limits, heater));
+    setup_temps_ = t;
     publish_setup();
 }
 
 ColdPullRefusal ColdPullRunner::start_from_setup() {
+    setup_temps_ = clamp_for(setup_temps_, state_.temperature_state().active_extruder_name());
     const bool hold = subjects_initialized_ && lv_subject_get_int(&hold_pressure_) != 0;
     if (setup_temps_ == cold_pull_default_temps(material_)) {
         MaterialSettingsManager::instance().reset_cold_pull_temps(material_);
@@ -618,6 +698,9 @@ ColdPullRefusal ColdPullRunner::start_from_setup() {
 // ============================================================================
 
 void ColdPullRunner::publish_setup() {
+    // Setup shows what start() will send: a stored edit outside this head's range
+    // shows clamped.
+    setup_temps_ = clamp_for(setup_temps_, state_.temperature_state().active_extruder_name());
     if (!subjects_initialized_) {
         return;
     }
@@ -634,10 +717,9 @@ void ColdPullRunner::publish() {
     }
     const ColdPullFlow& f = *flow_;
     const ColdPullStage stage = f.stage();
+    const int current = heater_temp_c();
     if (lv_subject_get_int(&stage_) != static_cast<int>(stage)) {
-        auto& temps = state_.temperature_state();
-        ring_from_c_ = temperature::deci_to_degrees(
-            lv_subject_get_int(temps.get_active_extruder_temp_subject()));
+        ring_from_c_ = current;
     }
     lv_subject_set_int(&stage_, static_cast<int>(stage));
     lv_subject_set_int(&feed_stage_, static_cast<int>(f.feed_stage()));
@@ -650,9 +732,6 @@ void ColdPullRunner::publish() {
     lv_subject_copy_string(&soak_text_, fmt::format("{}°C", f.params().temps.soak_c).c_str());
     lv_subject_copy_string(&pull_text_, fmt::format("{}°C", f.params().temps.pull_c).c_str());
 
-    auto& temps = state_.temperature_state();
-    const int current =
-        temperature::deci_to_degrees(lv_subject_get_int(temps.get_active_extruder_temp_subject()));
     const int goal = f.goal_c();
     int pct = 0;
     if (goal > 0) {
