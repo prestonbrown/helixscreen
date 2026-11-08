@@ -518,6 +518,36 @@ TEST_CASE_METHOD(Landscape800, "the checklist shows a row per step and none past
     CHECK_FALSE(hidden(root_, "ps_strip_print_line"));
 }
 
+TEST_CASE_METHOD(Landscape800,
+                 "the checklist shows no picture for a file without a thumbnail (#2057)",
+                 "[print_status]") {
+    tiles().set_checklist_source(five_steps);
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+    UpdateQueue::instance().drain();
+    process_lvgl(900);
+    REQUIRE_FALSE(hidden(root_, "ps_job_checklist"));
+
+    // The subject is seeded with the stand-in image before any print.
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(hidden(root_, "ps_checklist_thumbnail"));
+
+    auto& ps = state().print_state();
+    ps.set_print_thumbnail("part.gcode", "A:assets/images/part.png");
+    CHECK(subject_int("print_has_thumbnail") == 1);
+    CHECK_FALSE(hidden(root_, "ps_checklist_thumbnail"));
+
+    // A file with none, or a start whose file is not known yet, publishes the
+    // stand-in: that is a different model, so no picture shows at all.
+    ps.set_print_thumbnail("plain.gcode", PrinterPrintState::no_thumbnail_placeholder());
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(hidden(root_, "ps_checklist_thumbnail"));
+    CHECK_FALSE(hidden(root_, "ps_checklist_list"));
+
+    set_int(ps.get_print_start_phase_subject(), static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+}
+
 TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactly",
                  "[print_status]") {
     tiles().set_checklist_source(five_steps);

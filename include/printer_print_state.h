@@ -303,6 +303,14 @@ class PrinterPrintState {
         return &print_thumbnail_path_;
     }
 
+    /// 1 when print_thumbnail_path holds the print's own thumbnail, 0 while it
+    /// holds no_thumbnail_placeholder(): a file with none, or a start whose file
+    /// is not known yet. Surfaces that must not pass the stand-in off as the
+    /// print's model bind to this.
+    lv_subject_t* get_print_has_thumbnail_subject() {
+        return &print_has_thumbnail_;
+    }
+
 #if defined(HELIX_PLATFORM_ESP32)
     /// Bumped every time the PSRAM thumbnail below is replaced. ESP32 has no
     /// disk thumbnail cache, so print_thumbnail_path_ stays empty there and
@@ -1273,6 +1281,7 @@ class PrinterPrintState {
     lv_subject_t print_show_progress_{};    // Integer: 1 when active AND not starting
     lv_subject_t print_display_filename_{}; // String: clean filename
     lv_subject_t print_thumbnail_path_{};   // String: LVGL thumbnail path
+    lv_subject_t print_has_thumbnail_{};    // Integer: 1 unless the path is the placeholder
 
 #if defined(HELIX_PLATFORM_ESP32)
     // ESP32 thumbnail route (Task 11 R2): no disk cache on this platform, so

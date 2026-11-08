@@ -89,6 +89,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // an empty initial value would be delivered to every consumer before the
     // first print. See no_thumbnail_placeholder() for why "" is unsafe there.
     INIT_SUBJECT_STRING(print_thumbnail_path, no_thumbnail_placeholder(), subjects_, register_xml);
+    INIT_SUBJECT_INT(print_has_thumbnail, 0, subjects_, register_xml);
 #if defined(HELIX_PLATFORM_ESP32)
     INIT_SUBJECT_INT(print_psram_thumb_gen, 0, subjects_, register_xml);
 #endif
@@ -1287,6 +1288,11 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     print_thumbnail_file_ = for_file;
     if (strcmp(lv_subject_get_string(&print_thumbnail_path_), path.c_str()) != 0) {
         lv_subject_copy_string(&print_thumbnail_path_, path.c_str());
+    }
+    const int has_thumbnail =
+        !path.empty() && strcmp(path.c_str(), no_thumbnail_placeholder()) != 0 ? 1 : 0;
+    if (lv_subject_get_int(&print_has_thumbnail_) != has_thumbnail) {
+        lv_subject_set_int(&print_has_thumbnail_, has_thumbnail);
     }
 }
 
