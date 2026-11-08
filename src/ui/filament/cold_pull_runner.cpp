@@ -12,7 +12,6 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "fan_gcode.h"
-#include "filament_op_execute.h"
 #include "filament_op_heater.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
@@ -45,11 +44,6 @@ constexpr uint32_t kTickMs = 1000;
 constexpr const char* kLogTag = "[ColdPull]";
 /// Connection state value for an established printer link (PrinterNetworkState).
 constexpr int kPrinterConnected = 2;
-
-bool is_terminal(int action) {
-    return action == static_cast<int>(AmsAction::IDLE) ||
-           action == static_cast<int>(AmsAction::ERROR);
-}
 
 /// The part fan this head's tip cools under: its tool's own, else the printer's.
 /// Empty when the screen may not command it.
@@ -115,7 +109,6 @@ ColdPullRunner::~ColdPullRunner() {
         apply(flow_->exit_actions(job_holds_machine(state_.print_state().get_print_lifecycle())));
     }
     watch(false);
-    action_observer_.reset();
     lifetime_.invalidate();
     awake_.reset();
     if (subjects_initialized_) {
@@ -138,8 +131,6 @@ void ColdPullRunner::before_disconnect() {
         after_event();
     }
     watch(false);
-    action_observer_.reset();
-    unload_watching_ = false;
 }
 
 ColdPullRunner::TimePoint ColdPullRunner::now() const {
@@ -157,7 +148,9 @@ void ColdPullRunner::init_subjects() {
     UI_MANAGED_SUBJECT_INT(has_fan_, 1, "cold_pull_has_fan", subjects_);
     UI_MANAGED_SUBJECT_INT(can_home_park_, 0, "cold_pull_can_home_park", subjects_);
     UI_MANAGED_SUBJECT_INT(busy_, 0, "cold_pull_busy", subjects_);
-    UI_MANAGED_SUBJECT_INT(unload_failed_, 0, "cold_pull_unload_failed", subjects_);
+    UI_MANAGED_SUBJECT_INT(toolhead_loaded_, 0, "cold_pull_toolhead_loaded", subjects_);
+    UI_MANAGED_SUBJECT_INT(feed_mode_, 0, "cold_pull_feed_mode", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_needs_reseat_, 0, "cold_pull_lane_needs_reseat", subjects_);
     UI_MANAGED_SUBJECT_INT(material_subject_, static_cast<int>(material_), "cold_pull_material",
                            subjects_);
     UI_MANAGED_SUBJECT_INT(hold_pressure_, 0, "cold_pull_hold_pressure", subjects_);
@@ -244,8 +237,6 @@ ColdPullRefusal ColdPullRunner::start(ColdPullMaterial material, ColdPullTemps t
     if (owed_) {
         finish_owed_from_subject();
     }
-    action_observer_.reset();
-    unload_watching_ = false;
     ++flow_gen_;
     flow_.emplace(std::move(p));
     watch(true);
@@ -376,9 +367,6 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
                 spdlog::warn("{} Homing failed: {}", kLogTag, e.message);
             });
     }
-    if (a.unload_lane) {
-        dispatch_unload();
-    }
     if (a.reset_meter) {
         // No cold pull maintenance meter exists yet (#1901); nothing to reset.
         spdlog::debug("{} Done: no cold pull meter to reset", kLogTag);
@@ -442,81 +430,6 @@ void ColdPullRunner::send_gcode(const std::string& gcode, bool report) {
                             finished(true);
                         }),
         /*caller_surfaces_errors=*/false); // the callback only logs: Klipper's message shows
-}
-
-void ColdPullRunner::dispatch_unload() {
-    AmsBackend* backend = AmsState::instance().get_backend();
-    AmsSystemInfo info;
-    if (backend) {
-        info = backend->get_system_info();
-    }
-    const int slot = info.current_slot;
-    const bool loaded = read_unload_target_loaded(backend, info, slot);
-    spdlog::info("{} Unloading lane {} before the pull", kLogTag, slot);
-
-    auto finish = [this, gen = flow_gen_](bool ok) {
-        if (gen != flow_gen_) {
-            return;
-        }
-        action_observer_.reset();
-        unload_watching_ = false;
-        if (flow_) {
-            apply(flow_->lane_unloaded(ok, now()));
-            after_event();
-        }
-    };
-    // Where this head's unload is manual the executor only says so and never calls
-    // back; the step shows it as a failed unload, with the reason in the toast.
-    if (notify_if_filament_op_unavailable(backend, slot, /*load=*/false)) {
-        finish(false);
-        return;
-    }
-    FilamentOpSurface surface;
-    surface.log_tag = kLogTag;
-    // A filament system's unload completes on its action feed, not a reply.
-    surface.on_begin = [this](const FilamentOpPlan& plan) {
-        if (plan.tier != FilamentTier::AmsBackend) {
-            return;
-        }
-        lv_subject_t* action = AmsState::instance().get_ams_action_subject();
-        unload_last_action_ = action ? lv_subject_get_int(action) : -1;
-        unload_seen_busy_ = false;
-        unload_watching_ = true;
-        action_observer_ = observe<int>(
-            action, this, [](ColdPullRunner* self, int v) { self->on_ams_action(v); },
-            AmsState::instance().get_subjects_lifetime());
-    };
-    surface.on_failed = [finish](const FilamentOpPlan&, const AmsError&, bool&) { finish(false); };
-    surface.on_async_failed = [finish](const FilamentOpPlan&) { finish(false); };
-    // Refused because nothing is loaded leaves the head clear, which is the goal.
-    surface.on_refused = [finish](const FilamentOpPlan&) { finish(!lane_seated()); };
-    surface.on_async_success = [finish]() { finish(true); };
-    surface.on_preheat_ended = [finish]() { finish(false); };
-    auto token = lifetime_.token();
-    surface.guard = [token](helix::SharedCallback<void()> fn) mutable {
-        token.defer("ColdPullRunner::unload", std::move(fn));
-    };
-    execute_filament_unload(backend, slot, loaded, surface);
-}
-
-void ColdPullRunner::on_ams_action(int action) {
-    if (!unload_watching_ || action == unload_last_action_) {
-        return;
-    }
-    unload_last_action_ = action;
-    if (!is_terminal(action)) {
-        unload_seen_busy_ = true;
-        return;
-    }
-    if (!unload_seen_busy_) {
-        return;
-    }
-    action_observer_.reset();
-    unload_watching_ = false;
-    if (flow_) {
-        apply(flow_->lane_unloaded(action == static_cast<int>(AmsAction::IDLE), now()));
-        after_event();
-    }
 }
 
 void ColdPullRunner::on_temperature() {
@@ -652,8 +565,7 @@ void ColdPullRunner::on_sensor(int value) {
     }
 
 COLD_PULL_FORWARD(home_and_park)
-COLD_PULL_FORWARD(unload_lane)
-COLD_PULL_FORWARD(toolhead_clear)
+COLD_PULL_FORWARD(toolhead_ready)
 COLD_PULL_FORWARD(extrude)
 COLD_PULL_FORWARD(fed)
 COLD_PULL_FORWARD(pulled)
@@ -766,7 +678,9 @@ void ColdPullRunner::publish() {
     lv_subject_set_int(&pass_, f.pass());
     lv_subject_set_int(&end_reason_, static_cast<int>(f.end_reason()));
     lv_subject_set_int(&busy_, f.busy() ? 1 : 0);
-    lv_subject_set_int(&unload_failed_, f.unload_failed() ? 1 : 0);
+    lv_subject_set_int(&toolhead_loaded_, f.params().toolhead_loaded ? 1 : 0);
+    lv_subject_set_int(&feed_mode_, static_cast<int>(f.feed_mode()));
+    lv_subject_set_int(&lane_needs_reseat_, f.lane_needs_reseat() ? 1 : 0);
     lv_subject_set_int(&has_fan_, f.params().part_fan.empty() ? 0 : 1);
     lv_subject_set_int(&can_home_park_, f.params().has_park_macro && !f.params().homed ? 1 : 0);
     lv_subject_copy_string(&soak_text_, fmt::format("{}°C", f.params().temps.soak_c).c_str());
@@ -775,10 +689,7 @@ void ColdPullRunner::publish() {
     const int goal = f.goal_c();
     int pct = 0;
     if (goal > 0) {
-        // Rising toward the soak, or falling toward the pull, from where the stage began.
-        const int span = std::abs(goal - ring_from_c_);
-        const int done_c = span == 0 ? 1 : std::abs(current - ring_from_c_);
-        pct = span == 0 ? 100 : std::clamp(done_c * 100 / span, 0, 100);
+        pct = cold_pull_ring_percent(stage, ring_from_c_, current, goal);
         lv_subject_copy_string(&temp_text_, fmt::format("{} / {}°C", current, goal).c_str());
     } else {
         lv_subject_copy_string(&temp_text_, fmt::format("{}°C", current).c_str());

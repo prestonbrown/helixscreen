@@ -157,7 +157,6 @@
   <translation tag="A cold pull is already running." it="Un cold pull è già in corso."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." it="Una ventola che fa passare l&apos;aria della camera attraverso un filtro. Controllala nella schermata della temperatura camera."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." it="Pochi minuti, quasi tutti di riscaldamento. Non giudichi nulla a occhio."/>
-  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." it="Una corsia di filamento è caricata in questa testina. Scaricarla prima; inserire il filamento di pulizia dal bypass se il sistema ne ha uno."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." it="Un nome di cartella in moonraker.conf non è sicuro, quindi la pulizia è disattivata."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." it="Sulla stampante è configurata una macro di heat soak. HelixScreen la rileva ma non la esegue."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." it="Un riscaldatore che scalda l&apos;aria dentro la camera. Imposta la temperatura nella schermata della temperatura camera."/>
@@ -179,7 +178,6 @@
   <translation tag="A print started" it="È iniziata una stampa"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." it="È partita una stampa mentre le bobine risultano sul piano. Se sono ancora lì, ferma subito la stampante con l&apos;arresto emergenza."/>
   <translation tag="A print took the printer." it="Una stampa ha preso la stampante."/>
-  <translation tag="A printer command failed." it="Un comando della stampante non è riuscito."/>
   <translation tag="A restart is already in progress" it="Un riavvio è già in corso"/>
   <translation tag="A right, B left" it="A destra, B sinistra"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." it="Un sensore che misura la distanza dal piano. HelixScreen lo usa per la calibrazione dello Z Offset e per i test della sonda nella schermata Sonda."/>
@@ -765,6 +763,7 @@
   <translation tag="Clog Manual" it="Intasamento Manuale"/>
   <translation tag="Clog and flow health while printing" it="Intasamento e flusso durante la stampa"/>
   <translation tag="Clog detection" it="Rilevamento intasamento"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." it="Ugello ostruito? L&apos;estrusione è facoltativa: tocca Fatto per continuare."/>
   <translation tag="Close" it="Chiudi"/>
   <translation tag="Close feeder" it="Chiudi alimentatore"/>
   <translation tag="Close feeder macro" it="Macro di chiusura alimentatore"/>
@@ -1001,6 +1000,7 @@
   <translation tag="Cut &amp; retract" it="Taglia e retrai"/>
   <translation tag="Cut Distance" it="Distanza di taglio"/>
   <translation tag="Cut filament" it="Taglia filamento"/>
+  <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." it="Taglia la punta estratta e spingi di nuovo il filamento nell&apos;estrusore fino in fondo, poi tocca Estrusione."/>
   <translation tag="Cut position saved: {}" it="Posizione di taglio salvata: {}"/>
   <translation tag="Cut tip" it="Taglia la punta"/>
   <translation tag="Cutter Enabled" it="Taglierina abilitata"/>
@@ -1056,6 +1056,7 @@
   <translation tag="Deploy" it="Rileva"/>
   <translation tag="Depth and lighting on buttons and panels" it="Profondità e luce su pulsanti e pannelli"/>
   <translation tag="Describe the issue (optional)" it="Descrivi il problema (facoltativo)"/>
+  <translation tag="Detach the filament tube at the toolhead first so you can grip the filament." it="Stacca prima il tubo del filamento sulla testina per poter afferrare il filamento."/>
   <translation tag="Detailed" it="Dettagliato"/>
   <translation tag="Details" it="Dettagli"/>
   <translation tag="Detect automatically" it="Rileva automaticamente"/>
@@ -1469,6 +1470,7 @@
   <translation tag="Feed filament from current slot" it="Alimenta il filamento dallo slot corrente"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" it="Inserisci il filamento a mano oltre il sensore, poi premi Riprendi — oppure annulla la stampa per usare Carica/Scarica"/>
   <translation tag="Feed the cleaning filament" it="Inserire il filamento di pulizia"/>
+  <translation tag="Feed the filament back" it="Reinserisci il filamento"/>
   <translation tag="Feeder" it="Alimentatore"/>
   <translation tag="Feeders" it="Alimentatori"/>
   <translation tag="Feeding filament forward" it="Avanzamento filamento"/>
@@ -2044,6 +2046,7 @@
   <translation tag="Learn More" it="Scopri di più"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." it="Le basi: la procedura guidata di configurazione, come spostarsi tra le schermate e i gesti touch."/>
   <translation tag="Leave it" it="Lascia stare"/>
+  <translation tag="Leave this off for a clogged nozzle." it="Lascia disattivato se l&apos;ugello è ostruito."/>
   <translation tag="LedSelect" it="Seleziona LED"/>
   <translation tag="Left" it="Sinistra"/>
   <translation tag="Left belt" it="Cinghia sinistra"/>
@@ -2986,6 +2989,7 @@
   <translation tag="Purge chute position saved." it="Posizione del condotto di spurgo salvata."/>
   <translation tag="Purge failed: {}" it="Spurgo fallito: {}"/>
   <translation tag="Purge may still be running — response timed out" it="Spurgo potrebbe essere ancora in corso — tempo scaduto"/>
+  <translation tag="Purge the loaded filament" it="Spurga il filamento caricato"/>
   <translation tag="Purge to bucket" it="Spurga nel contenitore"/>
   <translation tag="Purge tower and brush settings" it="Impostazioni della torre di spurgo e della spazzola"/>
   <translation tag="Purging" it="Spurgo"/>
@@ -3751,6 +3755,7 @@
   <translation tag="Tangle prevention boosted" it="Prevenzione grovigli potenziata"/>
   <translation tag="Tangle sensitivity" it="Sensibilità ai grovigli"/>
   <translation tag="Tap + to add" it="Tocca + per aggiungere"/>
+  <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." it="Tocca Estrudi ancora finché dall&apos;ugello non esce filamento pulito, poi tocca Fatto."/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" it="Toccare Riavvia firmware per ripristinare. Sulla K2 questo riavvia anche il bridge MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." it="Tocca Riprendi per ritentare il caricamento da {}."/>
   <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." it="Tocca uno slot per caricarlo o scaricarlo, scegliere una bobina o modificarne i dati. Le tue modifiche restano allineate con la stampante e Spoolman."/>
@@ -3989,7 +3994,6 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" it="L&apos;unità sta già eseguendo un&apos;altra operazione. Attendere il completamento, oppure reimpostare il CFS se resta bloccato"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" it="L&apos;unità ha segnalato un guasto senza ulteriori dettagli. Riavviare la stampante se si ripete"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" it="La memoria interna dell&apos;unità è guasta. La scheda madre del CFS va sostituita"/>
-  <translation tag="The unload did not finish. Try again, or cancel." it="Lo scarico non è terminato. Riprovare o annullare."/>
   <translation tag="The unload did not start: unload by hand, then start again" it="Lo scarico non è partito: scarica a mano, poi ricomincia"/>
   <translation tag="The unload finishes on its own, but the plate will not move." it="Lo scaricamento termina da solo, ma il piano non si sposterà."/>
   <translation tag="Theme" it="Tema"/>
@@ -4019,6 +4023,7 @@
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." it="Questo canale offre la v{}, precedente alla v{} installata. Tutto ciò che è stato aggiunto da allora verrà rimosso."/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." it="Questo controllo esegue il test di risonanza di Klipper lungo ogni percorso della cinghia e confronta le due risposte. Cinghie bilanciate danno curve della stessa forma, con picchi alle stesse frequenze.&#10;&#10;Ogni scansione richiede qualche minuto e muove la testina; stai lontano dalla stampante mentre è in corso."/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." it="Questo cancella tutte le riserve della bobina infinita. La stampa si fermerà all&apos;esaurimento finché non riconfiguri la bobina infinita."/>
+  <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." it="Questo cold pull usa il filamento caricato in questa testina. L&apos;estrusore e la parte superiore del percorso del filamento devono essere raggiungibili a mano."/>
   <translation tag="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen." it="Questo dispositivo non dispone di una connessione di rete cablata. Se disattivi il WiFi, potrà essere riattivato solo da questa schermata."/>
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" it="Questo dispositivo ha solo {} MB di RAM. La calibrazione della risonanza usa molta memoria e può causare un errore &quot;Timer Too Close&quot; nel firmware della stampante o un riavvio a metà test. Continuare comunque?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" it="Questo dispositivo ha pochissima RAM. La calibrazione della risonanza usa molta memoria e può causare un errore &quot;Timer Too Close&quot;. Continuare comunque?"/>
@@ -4039,6 +4044,7 @@
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." it="Questo è uno stop di emergenza: la stampante si ferma e Klipper si riavvia."/>
   <translation tag="This is exactly the data that will be sent" it="Questi sono esattamente i dati che verranno inviati"/>
   <translation tag="This is what data would be sent if enabled" it="Questi sono i dati che verrebbero inviati se abilitato"/>
+  <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." it="Questa corsia risulta ancora caricata, ma il suo filamento è fuori dall&apos;ugello. Prima di stampare, spingilo di nuovo nell&apos;estrusore ed estrudi finché non scorre."/>
   <translation tag="This looks like a {}, but it is set up as a {}" it="Questa stampante sembra una {}, ma è configurata come {}"/>
   <translation tag="This may take up to 30 seconds" it="Questo potrebbe richiedere fino a 30 secondi"/>
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." it="Serve l&apos;analisi dei file del plugin, che non è in esecuzione."/>
@@ -4262,7 +4268,6 @@
   <translation tag="Unload filament" it="Scarica il filamento"/>
   <translation tag="Unload filament?" it="Scaricare il filamento?"/>
   <translation tag="Unload from toolhead first" it="Scarica prima dalla testina"/>
-  <translation tag="Unload lane" it="Scarica corsia"/>
   <translation tag="Unload macro not configured" it="Macro scaricamento non configurata"/>
   <translation tag="Unload stopped" it="Scaricamento interrotto"/>
   <translation tag="Unload the CFS filament before enabling bypass" it="Scarica il filamento del CFS prima di attivare il bypass"/>

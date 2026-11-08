@@ -212,8 +212,6 @@ translations:
   A cold pull is already running.: "Холодная протяжка уже выполняется."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : "В эту головку загружен канал филамента. Сначала выгрузите его; подайте чистящий филамент через обход, если он есть в вашей системе."
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Небезопасное имя папки в moonraker.conf, поэтому очистка выключена."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры.'
@@ -235,7 +233,6 @@ translations:
   A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
   A print took the printer.: "Печать заняла принтер."
-  A printer command failed.: "Команда принтера не выполнена."
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -883,6 +880,7 @@ translations:
   Clog Manual: 'Засор: вручную'
   Clog and flow health while printing: Засоры и поток во время печати
   Clog detection: Обнаружение засора
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."
   Close: Закрыть
   Close feeder: Закрыть фидер
   Close feeder macro: Макрос для закрытия фидера
@@ -1166,6 +1164,7 @@ translations:
   Cut & retract: 'Обрезка и ретракция'
   Cut Distance: 'Расстояние реза'
   Cut filament: Обрезать филамент
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "Отрежьте вытянутый кончик и вставьте филамент обратно в экструдер до упора, затем нажмите «Экструзия»."
   'Cut position saved: {}': 'Позиция реза сохранена: {}'
   Cut tip: 'Обрезка кончика'
   Cutter Enabled: 'Резак включён'
@@ -1221,6 +1220,7 @@ translations:
   Deploy: Развернуть
   Depth and lighting on buttons and panels: Объём и освещение кнопок и панелей
   Describe the issue (optional): Опишите проблему (необязательно)
+  Detach the filament tube at the toolhead first so you can grip the filament.: "Сначала отсоедините трубку филамента у печатающей головки, чтобы можно было взяться за филамент."
   Detailed: Подробно
   Details: 'Подробности'
   Detect automatically: 'Определить автоматически'
@@ -1660,6 +1660,7 @@ translations:
   Feed filament from current slot: 'Подать филамент из текущего слота'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать и воспользуйтесь «Загрузить»/«Выгрузить»
   Feed the cleaning filament: "Подайте чистящий филамент"
+  Feed the filament back: "Верните филамент"
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
@@ -2295,6 +2296,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Изменение раскладки отключено в безопасном режиме. Перезапустите, чтобы редактировать.'
   Learn More: Подробнее
   Leave it: 'Оставить'
+  Leave this off for a clogged nozzle.: "Если сопло забито, оставьте это выключенным."
   LedSelect: Выбрать LED
   Left: 'Слева'
   Left belt: "Левый ремень"
@@ -3301,6 +3303,7 @@ translations:
   'Purge failed: {}': 'Ошибка прочистки: {}'
   Purge may still be running — response timed out: Прочистка может ещё выполняться
     — время ожидания истекло
+  Purge the loaded filament: "Прочистить загруженный филамент"
   Purge to bucket: 'Продувка в контейнер'
   Purge tower and brush settings: 'Настройки башни продувки и щётки'
   Purging: Продувка
@@ -4142,6 +4145,7 @@ translations:
   Tangle prevention boosted: Защита от спутывания усилена
   'Tangle sensitivity': 'Чувствительность к спутыванию'
   Tap + to add: Нажмите +, чтобы добавить
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "Нажимайте «Ещё экструзия», пока из сопла не пойдёт чистый филамент, затем нажмите «Готово»."
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi
   Tap Resume to try the load again from {}.: 'Нажмите «Продолжить», чтобы повторить загрузку из {}.'
   Tap again to confirm this orientation: Нажмите ещё раз для подтверждения ориентации
@@ -4418,7 +4422,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
   The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
-  The unload did not finish. Try again, or cancel.: "Выгрузка не завершена. Повторите или отмените."
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
   Theme: Тема
@@ -4457,6 +4460,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Эта проверка запускает резонансный тест Klipper по каждому пути ремня и сравнивает два отклика. Сбалансированные ремни дают кривые одинаковой формы с пиками на одних и тех же частотах.\n\nКаждый свип занимает несколько минут и перемещает печатающую головку; держитесь подальше от принтера во время работы."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Это очистит все резервы бесконечной катушки. Печать будет останавливаться при окончании филамента, пока вы снова не настроите бесконечную катушку.
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : "Для этой холодной протяжки используется филамент, загруженный в эту головку. Экструдер и верх пути филамента должны быть доступны рукой."
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: У этого устройства нет проводного подключения к сети. Если выключить WiFi, включить его обратно можно будет только с этого экрана.
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : На этом устройстве всего {} МБ ОЗУ. Калибровка резонансов требует много памяти и может привести к тому, что прошивка принтера сообщит об ошибке "Timer Too Close" или перезапустится во время теста. Всё равно продолжить?
@@ -4481,6 +4486,8 @@ translations:
   This is exactly the data that will be sent: Это именно те данные, которые будут
     отправлены
   This is what data would be sent if enabled: Эти данные были бы отправлены при включении
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : "Этот канал всё ещё показан как загруженный, но филамент вышел из сопла. Перед печатью вставьте его обратно через экструдер и выдавливайте, пока он не потечёт."
   This looks like a {}, but it is set up as a {}: Похоже, это {}, но принтер настроен как {}
   This may take up to 30 seconds: Это может занять до 30 секунд
   This needs the plugin's file analysis, which isn't running.: "Нужен анализ файлов плагина, но он не запущен."
@@ -4735,7 +4742,6 @@ translations:
   Unload filament?: Выгрузить филамент?
 
   Unload from toolhead first: 'Сначала выгрузите из печатающей головки'
-  Unload lane: "Выгрузить канал"
   Unload macro not configured: Макрос выгрузки не настроен
   Unload the CFS filament before enabling bypass: 'Выгрузите филамент CFS перед включением обхода'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Выгрузите текущий филамент и продолжайте. Экструдер и верх пути филамента должны быть доступны рукой."

@@ -157,7 +157,6 @@
   <translation tag="A cold pull is already running." en="A cold pull is already running."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." en="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." en="A few minutes, nearly all of it heating. You judge nothing by eye."/>
-  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." en="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." en="A folder name in moonraker.conf is unsafe, so cleanup is off."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." en="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." en="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen."/>
@@ -179,7 +178,6 @@
   <translation tag="A print started" en="A print started"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
   <translation tag="A print took the printer." en="A print took the printer."/>
-  <translation tag="A printer command failed." en="A printer command failed."/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." en="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen."/>
@@ -765,6 +763,7 @@
   <translation tag="Clog Manual" en="Clog Manual"/>
   <translation tag="Clog and flow health while printing" en="Clog and flow health while printing"/>
   <translation tag="Clog detection" en="Clog detection"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." en="Clogged nozzle? Extruding is optional: tap Done to go on."/>
   <translation tag="Close" en="Close"/>
   <translation tag="Close feeder" en="Close feeder"/>
   <translation tag="Close feeder macro" en="Close feeder macro"/>
@@ -1001,6 +1000,7 @@
   <translation tag="Cut &amp; retract" en="Cut &amp; retract"/>
   <translation tag="Cut Distance" en="Cut Distance"/>
   <translation tag="Cut filament" en="Cut filament"/>
+  <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." en="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude."/>
   <translation tag="Cut position saved: {}" en="Cut position saved: {}"/>
   <translation tag="Cut tip" en="Cut tip"/>
   <translation tag="Cutter Enabled" en="Cutter Enabled"/>
@@ -1056,6 +1056,7 @@
   <translation tag="Deploy" en="Deploy"/>
   <translation tag="Depth and lighting on buttons and panels" en="Depth and lighting on buttons and panels"/>
   <translation tag="Describe the issue (optional)" en="Describe the issue (optional)"/>
+  <translation tag="Detach the filament tube at the toolhead first so you can grip the filament." en="Detach the filament tube at the toolhead first so you can grip the filament."/>
   <translation tag="Detailed" en="Detailed"/>
   <translation tag="Details" en="Details"/>
   <translation tag="Detect automatically" en="Detect automatically"/>
@@ -1469,6 +1470,7 @@
   <translation tag="Feed filament from current slot" en="Feed filament from current slot"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" en="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload"/>
   <translation tag="Feed the cleaning filament" en="Feed the cleaning filament"/>
+  <translation tag="Feed the filament back" en="Feed the filament back"/>
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
@@ -2044,6 +2046,7 @@
   <translation tag="Learn More" en="Learn More"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." en="Learn the basics: the setup wizard, moving around the screens, and touch gestures."/>
   <translation tag="Leave it" en="Leave it"/>
+  <translation tag="Leave this off for a clogged nozzle." en="Leave this off for a clogged nozzle."/>
   <translation tag="LedSelect" en="LedSelect"/>
   <translation tag="Left" en="Left"/>
   <translation tag="Left belt" en="Left belt"/>
@@ -2986,6 +2989,7 @@
   <translation tag="Purge chute position saved." en="Purge chute position saved."/>
   <translation tag="Purge failed: {}" en="Purge failed: {}"/>
   <translation tag="Purge may still be running — response timed out" en="Purge may still be running — response timed out"/>
+  <translation tag="Purge the loaded filament" en="Purge the loaded filament"/>
   <translation tag="Purge to bucket" en="Purge to bucket"/>
   <translation tag="Purge tower and brush settings" en="Purge tower and brush settings"/>
   <translation tag="Purging" en="Purging"/>
@@ -3751,6 +3755,7 @@
   <translation tag="Tangle prevention boosted" en="Tangle prevention boosted"/>
   <translation tag="Tangle sensitivity" en="Tangle sensitivity"/>
   <translation tag="Tap + to add" en="Tap + to add"/>
+  <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." en="Tap Extrude more until clean filament comes out of the nozzle, then tap Done."/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" en="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge"/>
   <translation tag="Tap Resume to try the load again from {}." en="Tap Resume to try the load again from {}."/>
   <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." en="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman."/>
@@ -3989,7 +3994,6 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" en="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" en="The unit reported a fault with no further detail. Restart the printer if it repeats"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
-  <translation tag="The unload did not finish. Try again, or cancel." en="The unload did not finish. Try again, or cancel."/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
   <translation tag="Theme" en="Theme"/>
@@ -4019,6 +4023,7 @@
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." en="This channel offers v{}, older than the installed v{}. Anything added since then will be removed."/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." en="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." en="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again."/>
+  <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." en="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand."/>
   <translation tag="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen." en="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen."/>
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" en="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" en="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?"/>
@@ -4039,6 +4044,7 @@
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." en="This is an emergency stop: the printer halts and Klipper restarts."/>
   <translation tag="This is exactly the data that will be sent" en="This is exactly the data that will be sent"/>
   <translation tag="This is what data would be sent if enabled" en="This is what data would be sent if enabled"/>
+  <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." en="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows."/>
   <translation tag="This looks like a {}, but it is set up as a {}" en="This looks like a {}, but it is set up as a {}"/>
   <translation tag="This may take up to 30 seconds" en="This may take up to 30 seconds"/>
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." en="This needs the plugin&apos;s file analysis, which isn&apos;t running."/>
@@ -4262,7 +4268,6 @@
   <translation tag="Unload filament" en="Unload filament"/>
   <translation tag="Unload filament?" en="Unload filament?"/>
   <translation tag="Unload from toolhead first" en="Unload from toolhead first"/>
-  <translation tag="Unload lane" en="Unload lane"/>
   <translation tag="Unload macro not configured" en="Unload macro not configured"/>
   <translation tag="Unload stopped" en="Unload stopped"/>
   <translation tag="Unload the CFS filament before enabling bypass" en="Unload the CFS filament before enabling bypass"/>

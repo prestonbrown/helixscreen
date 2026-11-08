@@ -193,7 +193,6 @@
   <translation tag="A cold pull is already running." ru="Холодная протяжка уже выполняется."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ru="Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз."/>
-  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." ru="В эту головку загружен канал филамента. Сначала выгрузите его; подайте чистящий филамент через обход, если он есть в вашей системе."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." ru="Небезопасное имя папки в moonraker.conf, поэтому очистка выключена."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ru="На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." ru="Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры."/>
@@ -215,7 +214,6 @@
   <translation tag="A print started" ru="Началась печать"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ru="Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."/>
   <translation tag="A print took the printer." ru="Печать заняла принтер."/>
-  <translation tag="A printer command failed." ru="Команда принтера не выполнена."/>
   <translation tag="A restart is already in progress" ru="Перезапуск уже выполняется"/>
   <translation tag="A right, B left" ru="A справа, B слева"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ru="Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд»."/>
@@ -807,6 +805,7 @@
   <translation tag="Clog Manual" ru="Засор: вручную"/>
   <translation tag="Clog and flow health while printing" ru="Засоры и поток во время печати"/>
   <translation tag="Clog detection" ru="Обнаружение засора"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." ru="Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."/>
   <translation tag="Close" ru="Закрыть"/>
   <translation tag="Close feeder" ru="Закрыть фидер"/>
   <translation tag="Close feeder macro" ru="Макрос для закрытия фидера"/>
@@ -1046,6 +1045,7 @@
   <translation tag="Cut &amp; retract" ru="Обрезка и ретракция"/>
   <translation tag="Cut Distance" ru="Расстояние реза"/>
   <translation tag="Cut filament" ru="Обрезать филамент"/>
+  <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ru="Отрежьте вытянутый кончик и вставьте филамент обратно в экструдер до упора, затем нажмите «Экструзия»."/>
   <translation tag="Cut position saved: {}" ru="Позиция реза сохранена: {}"/>
   <translation tag="Cut tip" ru="Обрезка кончика"/>
   <translation tag="Cutter Enabled" ru="Резак включён"/>
@@ -1101,6 +1101,7 @@
   <translation tag="Deploy" ru="Развернуть"/>
   <translation tag="Depth and lighting on buttons and panels" ru="Объём и освещение кнопок и панелей"/>
   <translation tag="Describe the issue (optional)" ru="Опишите проблему (необязательно)"/>
+  <translation tag="Detach the filament tube at the toolhead first so you can grip the filament." ru="Сначала отсоедините трубку филамента у печатающей головки, чтобы можно было взяться за филамент."/>
   <translation tag="Detailed" ru="Подробно"/>
   <translation tag="Details" ru="Подробности"/>
   <translation tag="Detect automatically" ru="Определить автоматически"/>
@@ -1514,6 +1515,7 @@
   <translation tag="Feed filament from current slot" ru="Подать филамент из текущего слота"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" ru="Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать и воспользуйтесь «Загрузить»/«Выгрузить»"/>
   <translation tag="Feed the cleaning filament" ru="Подайте чистящий филамент"/>
+  <translation tag="Feed the filament back" ru="Верните филамент"/>
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
@@ -2092,6 +2094,7 @@
   <translation tag="Learn More" ru="Подробнее"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ru="Основы: мастер настройки, переход между экранами и жесты касания."/>
   <translation tag="Leave it" ru="Оставить"/>
+  <translation tag="Leave this off for a clogged nozzle." ru="Если сопло забито, оставьте это выключенным."/>
   <translation tag="LedSelect" ru="Выбрать LED"/>
   <translation tag="Left" ru="Слева"/>
   <translation tag="Left belt" ru="Левый ремень"/>
@@ -3043,6 +3046,7 @@
   <translation tag="Purge chute position saved." ru="Позиция жёлоба продувки сохранена."/>
   <translation tag="Purge failed: {}" ru="Ошибка прочистки: {}"/>
   <translation tag="Purge may still be running — response timed out" ru="Прочистка может ещё выполняться — время ожидания истекло"/>
+  <translation tag="Purge the loaded filament" ru="Прочистить загруженный филамент"/>
   <translation tag="Purge to bucket" ru="Продувка в контейнер"/>
   <translation tag="Purge tower and brush settings" ru="Настройки башни продувки и щётки"/>
   <translation tag="Purging" ru="Продувка"/>
@@ -3814,6 +3818,7 @@
   <translation tag="Tangle prevention boosted" ru="Защита от спутывания усилена"/>
   <translation tag="Tangle sensitivity" ru="Чувствительность к спутыванию"/>
   <translation tag="Tap + to add" ru="Нажмите +, чтобы добавить"/>
+  <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." ru="Нажимайте «Ещё экструзия», пока из сопла не пойдёт чистый филамент, затем нажмите «Готово»."/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ru="Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." ru="Нажмите «Продолжить», чтобы повторить загрузку из {}."/>
   <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." ru="Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."/>
@@ -4052,7 +4057,6 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ru="Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ru="Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
-  <translation tag="The unload did not finish. Try again, or cancel." ru="Выгрузка не завершена. Повторите или отмените."/>
   <translation tag="The unload did not start: unload by hand, then start again" ru="Выгрузка не началась: выгрузите вручную и начните заново"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ru="Выгрузка завершится сама, но стол не будет перемещаться."/>
   <translation tag="Theme" ru="Тема"/>
@@ -4082,6 +4086,7 @@
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." ru="Этот канал предлагает v{}, старее установленной v{}. Всё добавленное с тех пор будет удалено."/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." ru="Эта проверка запускает резонансный тест Klipper по каждому пути ремня и сравнивает два отклика. Сбалансированные ремни дают кривые одинаковой формы с пиками на одних и тех же частотах.&#10;&#10;Каждый свип занимает несколько минут и перемещает печатающую головку; держитесь подальше от принтера во время работы."/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." ru="Это очистит все резервы бесконечной катушки. Печать будет останавливаться при окончании филамента, пока вы снова не настроите бесконечную катушку."/>
+  <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." ru="Для этой холодной протяжки используется филамент, загруженный в эту головку. Экструдер и верх пути филамента должны быть доступны рукой."/>
   <translation tag="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen." ru="У этого устройства нет проводного подключения к сети. Если выключить WiFi, включить его обратно можно будет только с этого экрана."/>
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" ru="На этом устройстве всего {} МБ ОЗУ. Калибровка резонансов требует много памяти и может привести к тому, что прошивка принтера сообщит об ошибке &quot;Timer Too Close&quot; или перезапустится во время теста. Всё равно продолжить?"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" ru="На этом устройстве очень мало ОЗУ. Калибровка резонансов требует много памяти и может вызвать ошибку &quot;Timer Too Close&quot;. Всё равно продолжить?"/>
@@ -4102,6 +4107,7 @@
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ru="Это аварийный останов: принтер останавливается, и Klipper перезапускается."/>
   <translation tag="This is exactly the data that will be sent" ru="Это именно те данные, которые будут отправлены"/>
   <translation tag="This is what data would be sent if enabled" ru="Эти данные были бы отправлены при включении"/>
+  <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." ru="Этот канал всё ещё показан как загруженный, но филамент вышел из сопла. Перед печатью вставьте его обратно через экструдер и выдавливайте, пока он не потечёт."/>
   <translation tag="This looks like a {}, but it is set up as a {}" ru="Похоже, это {}, но принтер настроен как {}"/>
   <translation tag="This may take up to 30 seconds" ru="Это может занять до 30 секунд"/>
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ru="Нужен анализ файлов плагина, но он не запущен."/>
@@ -4325,7 +4331,6 @@
   <translation tag="Unload filament" ru="Выгрузка филамента"/>
   <translation tag="Unload filament?" ru="Выгрузить филамент?"/>
   <translation tag="Unload from toolhead first" ru="Сначала выгрузите из печатающей головки"/>
-  <translation tag="Unload lane" ru="Выгрузить канал"/>
   <translation tag="Unload macro not configured" ru="Макрос выгрузки не настроен"/>
   <translation tag="Unload stopped" ru="Выгрузка остановлена"/>
   <translation tag="Unload the CFS filament before enabling bypass" ru="Выгрузите филамент CFS перед включением обхода"/>

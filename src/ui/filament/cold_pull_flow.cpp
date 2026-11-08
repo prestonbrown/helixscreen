@@ -26,6 +26,13 @@ bool within(int a, int b, int tolerance) {
 
 } // namespace
 
+int cold_pull_ring_percent(ColdPullStage stage, int from_c, int current_c, int goal_c) {
+    if (stage == ColdPullStage::Feed || stage == ColdPullStage::Pull || goal_c == from_c) {
+        return 100;
+    }
+    return std::clamp((current_c - from_c) * 100 / (goal_c - from_c), 0, 100);
+}
+
 ColdPullFlow::ColdPullFlow(ColdPullParams params) : params_(std::move(params)) {}
 
 bool ColdPullFlow::ended() const {
@@ -56,6 +63,13 @@ int ColdPullFlow::goal_c() const {
 
 GuidedLoadStage ColdPullFlow::feed_stage() const {
     return feed_ ? feed_->stage() : GuidedLoadStage::AwaitPush;
+}
+
+ColdPullFeedMode ColdPullFlow::feed_mode() const {
+    if (!params_.toolhead_loaded) {
+        return ColdPullFeedMode::ByHand;
+    }
+    return filament_out_ ? ColdPullFeedMode::Refeed : ColdPullFeedMode::Loaded;
 }
 
 std::optional<int> ColdPullFlow::owned_target_c() const {
@@ -96,7 +110,7 @@ ColdPullActions ColdPullFlow::start(TimePoint now) {
         return {};
     }
     stage_started_ = now;
-    stage_ = params_.toolhead_loaded ? ColdPullStage::AwaitClearToolhead : ColdPullStage::Preparing;
+    stage_ = ColdPullStage::Preparing;
     ColdPullActions a;
     // Nothing moves an unhomed machine on its own: homing is the user's tap.
     if (params_.homed && params_.has_park_macro) {
@@ -107,9 +121,7 @@ ColdPullActions ColdPullFlow::start(TimePoint now) {
 }
 
 ColdPullActions ColdPullFlow::home_and_park(TimePoint /*now*/) {
-    const bool preparing =
-        stage_ == ColdPullStage::Preparing || stage_ == ColdPullStage::AwaitClearToolhead;
-    if (!preparing || !params_.has_park_macro || parked_) {
+    if (stage_ != ColdPullStage::Preparing || !params_.has_park_macro || parked_) {
         return {};
     }
     parked_ = true;
@@ -118,32 +130,7 @@ ColdPullActions ColdPullFlow::home_and_park(TimePoint /*now*/) {
     return a;
 }
 
-ColdPullActions ColdPullFlow::unload_lane(TimePoint /*now*/) {
-    if (stage_ != ColdPullStage::AwaitClearToolhead || busy()) {
-        return {};
-    }
-    unload_failed_ = false;
-    in_flight_ = InFlight::Unload;
-    ColdPullActions a;
-    a.unload_lane = true;
-    return a;
-}
-
-ColdPullActions ColdPullFlow::lane_unloaded(bool ok, TimePoint now) {
-    if (stage_ != ColdPullStage::AwaitClearToolhead || in_flight_ != InFlight::Unload) {
-        return {};
-    }
-    in_flight_ = InFlight::None;
-    if (!ok) {
-        unload_failed_ = true;
-        return {};
-    }
-    return enter_heating(now);
-}
-
-ColdPullActions ColdPullFlow::toolhead_clear(TimePoint now) {
-    // A seated lane leaves only through its unload: heating with the old filament
-    // in the head would pull that instead.
+ColdPullActions ColdPullFlow::toolhead_ready(TimePoint now) {
     if (stage_ != ColdPullStage::Preparing) {
         return {};
     }
@@ -220,11 +207,13 @@ ColdPullActions ColdPullFlow::filament_detected(TimePoint now) {
 }
 
 ColdPullActions ColdPullFlow::fed(TimePoint now) {
-    if (stage_ != ColdPullStage::Feed || !feed_ ||
-        feed_->stage() != GuidedLoadStage::ConfirmOutput) {
+    // Never waits on an extrusion: a clogged nozzle may not flow at all, and the
+    // answer to one still in flight no longer matters.
+    if (stage_ != ColdPullStage::Feed || !feed_) {
         return {};
     }
-    (void)feed_->done();
+    feed_.reset();
+    in_flight_ = InFlight::None;
     return enter_cooling(now);
 }
 
@@ -243,10 +232,13 @@ ColdPullActions ColdPullFlow::command_finished(bool ok, TimePoint now) {
     }
     in_flight_ = InFlight::None;
     last_tap_ = now;
-    (void)feed_->command_finished(ok);
+    // A refused extrusion is what a clog looks like; the pull does not need it.
     if (!ok) {
-        return end(ColdPullStage::Abandoned, ColdPullEndReason::CommandFailed, true);
+        feed_.emplace(feed_steps(), /*waits_for_push=*/false);
+        return {};
     }
+    (void)feed_->command_finished(true);
+    filament_out_ = false;
     return {};
 }
 
@@ -256,6 +248,7 @@ ColdPullActions ColdPullFlow::pulled(TimePoint now) {
     }
     stage_ = ColdPullStage::Inspect;
     stage_started_ = now;
+    filament_out_ = true;
     // Nothing is hot while the user looks at the tip.
     ColdPullActions a;
     a.heater_target_c = 0;
@@ -341,7 +334,9 @@ ColdPullActions ColdPullFlow::temperature(int current_c, int target_c, TimePoint
             stage_ = ColdPullStage::Feed;
             stage_started_ = now;
             last_tap_ = now;
-            feed_.emplace(feed_steps(), /*waits_for_push=*/true);
+            // Filament already in the nozzle has nothing to push: only the purge is left.
+            feed_.emplace(feed_steps(),
+                          /*waits_for_push=*/feed_mode() != ColdPullFeedMode::Loaded);
         }
         return {};
     }

@@ -160,8 +160,6 @@ translations:
   A cold pull is already running.: "冷拉清理已在运行。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: '让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : "此工具头已加载耗材通道。请先卸载;如果系统有旁路,请从旁路送入清洁耗材。"
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.conf 中的文件夹名称不安全，因此清理功能已关闭。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: '打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: '为腔体内空气加热的加热器。在腔体温度界面设置温度。'
@@ -183,7 +181,6 @@ translations:
   A print started: '打印已开始'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
   A print took the printer.: "打印任务接管了打印机。"
-  A printer command failed.: "打印机命令失败。"
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -780,6 +777,7 @@ translations:
   Clog Manual: 手动堵料
   Clog and flow health while printing: 打印时的堵料与流量状况
   Clog detection: 堵料检测
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "喷嘴堵塞？挤出是可选的：点击“完成”继续。"
   Close: 关闭
   Close feeder: 关闭送料器
   Close feeder macro: 关闭送料器宏
@@ -1049,6 +1047,7 @@ translations:
   Cut & retract: '切断并回抽'
   Cut Distance: '切割距离'
   Cut filament: 切断耗材
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "剪掉拉出的尖端，将耗材重新推入挤出机直到推不动为止，然后点击“挤出”。"
   'Cut position saved: {}': '切割位置已保存: {}'
   Cut tip: '切断尖端'
   Cutter Enabled: '切刀已启用'
@@ -1104,6 +1103,7 @@ translations:
   Deploy: 部署
   Depth and lighting on buttons and panels: 为按钮和面板添加立体感和光照
   Describe the issue (optional): 描述问题（可选）
+  Detach the filament tube at the toolhead first so you can grip the filament.: "请先取下工具头处的耗材管，再拉出耗材。"
   Detailed: 详细
   Details: '详情'
   Detect automatically: '自动检测'
@@ -1528,6 +1528,7 @@ translations:
   Feed filament from current slot: '从当前槽位送入耗材'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: 用手将耗材送过传感器后按“恢复”，或取消打印以使用“加载/卸载”
   Feed the cleaning filament: "送入清洁耗材"
+  Feed the filament back: "重新送入耗材"
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
@@ -2127,6 +2128,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: '安全模式下无法更改布局。请重启后再编辑。'
   Learn More: 了解更多
   Leave it: '保持不变'
+  Leave this off for a clogged nozzle.: "喷嘴堵塞时请保持关闭。"
   LedSelect: 选择 LED
   Left: '左'
   Left belt: "左皮带"
@@ -3089,6 +3091,7 @@ translations:
 
   'Purge failed: {}': '清洗失败: {}'
   Purge may still be running — response timed out: 清洗可能仍在运行 — 响应超时
+  Purge the loaded filament: "清除已装载的耗材"
   Purge to bucket: '排料到废料桶'
   Purge tower and brush settings: '排料塔与刷子设置'
   Purging: 正在清料
@@ -3877,6 +3880,7 @@ translations:
   Tangle prevention boosted: 防打结已增强
   'Tangle sensitivity': '打结灵敏度'
   Tap + to add: 点击 + 添加
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "点击“继续挤出”直到喷嘴流出干净的耗材，然后点击“完成”。"
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: 点按“重启固件”以恢复。在 K2 上这也会重启 rpi MCU 桥接
   Tap Resume to try the load again from {}.: '点按恢复，从{}重新尝试装载。'
   Tap again to confirm this orientation: 再次点击确认此方向
@@ -4140,7 +4144,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
   The unit reported a fault with no further detail. Restart the printer if it repeats: 该单元报告了故障但无更多信息。若反复出现，请重启打印机
   The unit's onboard storage has failed. The CFS mainboard needs replacing: 该单元的板载存储已损坏。需更换 CFS 主板
-  The unload did not finish. Try again, or cancel.: "卸载未完成。请重试或取消。"
   'The unload did not start: unload by hand, then start again': 卸载未开始:请手动卸载,然后重新开始
   The unload finishes on its own, but the plate will not move.: '卸载会自行完成,但热床不会移动。'
   Theme: 主题
@@ -4177,6 +4180,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "此检查会沿每条皮带路径运行 Klipper 的共振测试，并比较两个响应。平衡的皮带会给出形状相同、峰值位于相同频率的曲线。\n\n每次扫频需要几分钟并会移动工具头；运行期间请远离打印机。"
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: 这会清除所有无限料盘备用设置。在重新设置无限料盘之前，耗材用尽时打印将停止。
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : "本次冷拉清理使用此工具头中已装载的耗材。挤出机及耗材路径顶部必须能用手够到。"
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: 此设备没有有线网络连接。关闭 WiFi 后，只能在此界面重新开启。
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : 此设备仅有 {} MB 内存。共振校准会占用大量内存，可能导致打印机固件报告 "Timer Too Close" 错误或在测试中途重启。仍要继续吗？
@@ -4199,6 +4204,8 @@ translations:
   'This is an emergency stop: the printer halts and Klipper restarts.': 这是紧急停止：打印机将停机并重启 Klipper。
   This is exactly the data that will be sent: 这正是将要发送的数据
   This is what data would be sent if enabled: 这是启用后将发送的数据
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : "此耗材通道仍显示为已装载，但耗材已离开喷嘴。打印前请将其重新推入挤出机并挤出，直到耗材流出。"
   This looks like a {}, but it is set up as a {}: 这台打印机看起来是 {}，但被设置为 {}
   This may take up to 30 seconds: 这可能需要 30 秒
   This needs the plugin's file analysis, which isn't running.: "这需要插件的文件分析，但它未在运行。"
@@ -4440,7 +4447,6 @@ translations:
   Unload filament?: 卸载耗材?
 
   Unload from toolhead first: '请先从工具头卸载'
-  Unload lane: "卸载通道"
   Unload macro not configured: 卸载宏未配置
   Unload the CFS filament before enabling bypass: '启用旁通前请先卸载 CFS 耗材'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "请先卸载当前耗材,然后继续。挤出机和耗材路径顶部必须用手能够到。"
