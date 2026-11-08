@@ -55,6 +55,10 @@ using json = nlohmann::json;
 
 namespace {
 
+bool was_offered(const PlrOfferController& controller) {
+    return PlrOfferControllerTestAccess::prompted(controller);
+}
+
 class PlrOfferPreparingFixture : public LVGLTestFixture {
   public:
     PlrOfferPreparingFixture() {
@@ -113,7 +117,7 @@ TEST_CASE_METHOD(PlrOfferPreparingFixture, "PLR offers recovery when the printer
     PlrOfferController controller;
     settle();
 
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PlrOfferPreparingFixture, "PLR does not offer while a print is running",
@@ -131,7 +135,7 @@ TEST_CASE_METHOD(PlrOfferPreparingFixture, "PLR does not offer while a print is 
     PlrOfferController controller;
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PlrOfferPreparingFixture, "PLR does not offer during a host-side pre-print block",
@@ -144,7 +148,7 @@ TEST_CASE_METHOD(PlrOfferPreparingFixture, "PLR does not offer during a host-sid
     PlrOfferController controller;
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PlrOfferPreparingFixture,
@@ -162,7 +166,7 @@ TEST_CASE_METHOD(PlrOfferPreparingFixture,
     PlrOfferController controller;
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 // ===========================================================================
@@ -210,7 +214,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR offers recovery when the printer
     PlrOfferController controller;
     settle();
 
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR does not offer while a print is running",
@@ -225,7 +229,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR does not offer while a print is 
     PlrOfferController controller;
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR does not offer without the macro capability",
@@ -240,7 +244,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR does not offer without the macro
     PlrOfferController controller;
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR capability is wired from discovery",
@@ -271,7 +275,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR: a disconnect reset lets a recon
 
     PlrOfferController controller;
     settle();
-    REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE(was_offered(controller));
 
     // Printer drops: the controller must force the PLR subjects back to 0, or
     // the subjects' same-value guard swallows the reconnect's identical
@@ -291,7 +295,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Qidi PLR: a disconnect reset lets a recon
     ps.update_from_status(json{{"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
     settle();
 
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 namespace {
@@ -323,7 +327,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: firmware with the detect
 
     PlrOfferController controller;
     settle();
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: no saved name on record still offers",
@@ -335,7 +339,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: no saved name on record 
 
     PlrOfferController controller;
     settle();
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: an empty saved name suppresses the offer",
@@ -347,7 +351,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: an empty saved name supp
 
     PlrOfferController controller;
     settle();
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: Discard sticks across a reconnect",
@@ -361,7 +365,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: Discard sticks across a 
 
     PlrOfferController controller;
     settle();
-    REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE(was_offered(controller));
 
     // The discard macro empties the name and leaves the flag true.
     ps.update_from_status(interrupted_frame(std::string()));
@@ -370,7 +374,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: Discard sticks across a 
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(ConnectionState::DISCONNECTED));
     settle();
-    REQUIRE_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE_FALSE(was_offered(controller));
 
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(ConnectionState::CONNECTED));
@@ -378,7 +382,7 @@ TEST_CASE_METHOD(QidiPlrOfferFixture, "Saved-file veto: Discard sticks across a 
     ps.update_from_status(interrupted_frame(std::string()));
     settle();
 
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 // ===========================================================================
@@ -441,12 +445,12 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR offers when its status offer
                  "[plr][generic]") {
     PlrOfferController controller;
     settle();
-    REQUIRE_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE_FALSE(was_offered(controller));
 
     PlrOfferControllerTestAccess::plugin_status_arrived(controller,
                                                         offering(helix::PlrPluginBackend::Generic));
     settle();
-    CHECK(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR does not offer without a resume to offer",
@@ -474,7 +478,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR does not offer without a res
     }
     PlrOfferControllerTestAccess::plugin_status_arrived(controller, status);
     settle();
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
     helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
 }
 
@@ -489,7 +493,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
     PlrOfferControllerTestAccess::plugin_status_arrived(controller, status);
     settle();
     CHECK_FALSE(PlrOfferControllerTestAccess::has_plugin_status(controller));
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
@@ -504,7 +508,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
     PlrOfferController controller;
     settle();
     // Before the plugin answers, the legacy backend is all there is.
-    REQUIRE(PlrOfferControllerTestAccess::prompted(controller));
+    REQUIRE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
@@ -523,7 +527,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
     lv_subject_set_int(ps.print_state().get_plr_resume_macro_subject(), 1);
     ps.update_from_status(json{{"save_variables", {{"variables", {{"was_interrupted", true}}}}}});
     settle();
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR: a disconnect drops the plugin's answer",
@@ -719,7 +723,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture, "Plugin PLR does not offer without room 
     CHECK(asks == 1);
     CHECK(asks_after == 1);
     CHECK(PlrOfferControllerTestAccess::has_plugin_status(controller));
-    CHECK_FALSE(PlrOfferControllerTestAccess::prompted(controller));
+    CHECK_FALSE(was_offered(controller));
 }
 
 TEST_CASE_METHOD(PluginPlrOfferFixture,
@@ -744,7 +748,7 @@ TEST_CASE_METHOD(PluginPlrOfferFixture,
     set_link(ps, ConnectionState::CONNECTED, helix::KlippyState::READY);
     PlrOfferController controller;
     settle();
-    const bool prompted = PlrOfferControllerTestAccess::prompted(controller);
+    const bool prompted = was_offered(controller);
     set_moonraker_api(nullptr);
     CHECK(prompted);
 }
