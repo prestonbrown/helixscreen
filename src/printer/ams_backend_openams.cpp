@@ -151,6 +151,7 @@ void AmsBackendOpenAms::present_nothing_locked() {
     unit_dryers_.clear();
     has_unit_climate_ = false;
     requested_dry_min_.clear();
+    peak_dry_remaining_min_.clear();
     unit_oams_idx_.clear();
     present_by_slot_id_.clear();
     remote_slot_ids_.clear();
@@ -212,20 +213,28 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
         lane_loaded_slots_.push_back(lane.loaded_slot);
     }
 
+    // The unit reports only the time left. A cycle's length is what this screen
+    // asked for, or else the most time left it has been seen with, so a dry
+    // started elsewhere or before a restart still shows its progress.
     for (std::size_t u = 0; u < parsed.dryers.size(); ++u) {
         DryerInfo& info = parsed.dryers[u].info;
-        const auto requested = requested_dry_min_.find(static_cast<int>(u));
         if (info.active) {
-            info.duration_min = std::max(
-                info.remaining_min, requested != requested_dry_min_.end() ? requested->second : 0);
+            int& peak = peak_dry_remaining_min_[static_cast<int>(u)];
+            peak = std::max(peak, info.remaining_min);
+            const auto requested = requested_dry_min_.find(static_cast<int>(u));
+            info.duration_min =
+                std::max(peak, requested != requested_dry_min_.end() ? requested->second : 0);
         }
     }
-    for (auto it = requested_dry_min_.begin(); it != requested_dry_min_.end();) {
-        const auto u = static_cast<std::size_t>(it->first);
-        it = (u < parsed.dryers.size() && parsed.dryers[u].info.active)
-                 ? std::next(it)
-                 : requested_dry_min_.erase(it);
-    }
+    const auto drop_inactive = [&parsed](std::unordered_map<int, int>& per_unit) {
+        for (auto it = per_unit.begin(); it != per_unit.end();) {
+            const auto u = static_cast<std::size_t>(it->first);
+            it = (u < parsed.dryers.size() && parsed.dryers[u].info.active) ? std::next(it)
+                                                                            : per_unit.erase(it);
+        }
+    };
+    drop_inactive(requested_dry_min_);
+    drop_inactive(peak_dry_remaining_min_);
 
     bool any_fault = false;
     for (std::size_t u = 0; u < next.units.size(); ++u) {
@@ -907,6 +916,7 @@ AmsError AmsBackendOpenAms::start_drying(float temp_c, int duration_min, int fan
         gcode = fmt::format("OAMS_DRYER_START OAMS={} TARGET={:g} DURATION={}", unit_oams_idx_[u],
                             target, seconds);
         requested_dry_min_[unit] = seconds / 60;
+        peak_dry_remaining_min_.erase(unit);
     }
     return execute_gcode(gcode);
 }
@@ -926,6 +936,7 @@ AmsError AmsBackendOpenAms::stop_drying(int unit) {
         }
         gcode = fmt::format("OAMS_DRYER_STOP OAMS={}", unit_oams_idx_[u]);
         requested_dry_min_.erase(unit);
+        peak_dry_remaining_min_.erase(unit);
     }
     return execute_gcode(gcode);
 }

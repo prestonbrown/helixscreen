@@ -1845,6 +1845,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Calentando la cama y la boquilla para que la impresión vuelva a adherirse y la boquilla se suelte de ella"
   Heating the nozzle: Calentando la boquilla
   Heating to %d°C... %.0f°C: Calentando a %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Calentando a %s: %d:%02d restante'
   Heating to {}°C before {}...: Calentando a {}°C antes de {}...
   Heating to {}°C for {}...: Calentando a {}°C durante {}...
   Heating to {}°C...: Calentando a {}°C...
@@ -1931,6 +1932,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Ventilador de Hotend
   Hotend Heater: Calentador de Hotend
+  Hours: Horas
   How Z-axis movement is displayed: Cómo se muestra el movimiento del eje Z
   How far and how fast a lane ejects: "Cuánto y qué tan rápido expulsa un carril"
   How far filament is pushed back into the box on eject: "Cuánto se empuja el filamento de vuelta a la caja al expulsar"
@@ -4041,6 +4043,8 @@ translations:
     está derecho
   Tap anywhere to begin: Toca en cualquier lugar para comenzar
   Tap anywhere to begin calibration: Toca en cualquier lugar para iniciar la calibración
+  Tap the bed's back-left corner: Toque la esquina trasera izquierda de la cama
+  Tap the bed's back-right corner: Toque la esquina trasera derecha de la cama
   Tap the bed's front-left corner: Toque la esquina delantera izquierda de la cama
   Tap the bed's front-right corner: Toque la esquina delantera derecha de la cama
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Toca la cruz

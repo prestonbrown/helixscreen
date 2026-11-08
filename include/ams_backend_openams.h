@@ -230,6 +230,9 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
     /// Length of the cycle this screen started, per unit index: the unit
     /// reports only the time left.
     std::unordered_map<int, int> requested_dry_min_;
+    /// Most time left seen while each unit's current cycle runs, standing in for
+    /// its length when this screen did not start it.
+    std::unordered_map<int, int> peak_dry_remaining_min_;
     std::vector<int> unit_oams_idx_; ///< `units[].id` as a number, -1 when it is not one
 
     /// The gcode that clears everything the manager and the units hold: a

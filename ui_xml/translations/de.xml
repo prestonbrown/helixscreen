@@ -1691,6 +1691,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" de="Bett und Düse heizen auf, damit der Druck wieder haftet und die Düse sich von ihm löst"/>
   <translation tag="Heating the nozzle" de="Düse wird aufgeheizt"/>
   <translation tag="Heating to %d°C... %.0f°C" de="Aufheizen auf %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" de="Aufheizen auf %s: %d:%02d übrig"/>
   <translation tag="Heating to {}°C before {}..." de="Aufheizen auf {}°C vor {}..."/>
   <translation tag="Heating to {}°C for {}..." de="Aufheizen auf {}°C für {}..."/>
   <translation tag="Heating to {}°C..." de="Aufheizen auf {}°C..."/>
@@ -1769,6 +1770,7 @@
   <translation tag="Hotend" de="Hotend"/>
   <translation tag="Hotend Fan" de="Hotend-Lüfter"/>
   <translation tag="Hotend Heater" de="Hotend-Heizung"/>
+  <translation tag="Hours" de="Stunden"/>
   <translation tag="How Z-axis movement is displayed" de="Wie Z-Achsen-Bewegung angezeigt wird"/>
   <translation tag="How far and how fast a lane ejects" de="Wie weit und wie schnell eine Spur auswirft"/>
   <translation tag="How far filament is pushed back into the box on eject" de="Wie weit das Filament beim Auswerfen in die Box zurückgeschoben wird"/>
@@ -3705,6 +3707,8 @@
   <translation tag="Tap anywhere if this text is right-side up" de="Tippen Sie irgendwo, wenn dieser Text richtig herum ist"/>
   <translation tag="Tap anywhere to begin" de="Tippen Sie irgendwo, um zu beginnen"/>
   <translation tag="Tap anywhere to begin calibration" de="Tippen Sie irgendwo, um die Kalibrierung zu starten"/>
+  <translation tag="Tap the bed&apos;s back-left corner" de="Auf die hintere linke Ecke des Heizbetts tippen"/>
+  <translation tag="Tap the bed&apos;s back-right corner" de="Auf die hintere rechte Ecke des Heizbetts tippen"/>
   <translation tag="Tap the bed&apos;s front-left corner" de="Auf die vordere linke Ecke des Heizbetts tippen"/>
   <translation tag="Tap the bed&apos;s front-right corner" de="Auf die vordere rechte Ecke des Heizbetts tippen"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" de="Fadenkreuz antippen (Punkt %1$d von 3) — Berührung %2$d von %3$d"/>

@@ -577,6 +577,15 @@
     <px name="button_height_sm_large" value="40"/>
     <px name="button_height_sm_xlarge" value="48"/>
     <px name="button_height_sm_xxlarge" value="56"/>
+    <!-- Filament panel motion glyph (toolhead + filament column) between
+         Extrude and Retract: narrow enough to leave both buttons their labels -->
+    <px name="filament_motion_glyph_w_micro" value="24"/>
+    <px name="filament_motion_glyph_w_tiny" value="28"/>
+    <px name="filament_motion_glyph_w_small" value="36"/>
+    <px name="filament_motion_glyph_w_medium" value="44"/>
+    <px name="filament_motion_glyph_w_large" value="44"/>
+    <px name="filament_motion_glyph_w_xlarge" value="52"/>
+    <px name="filament_motion_glyph_w_xxlarge" value="64"/>
 
     <!-- jog_mode_h / jog_mode_w: a jog mode key in the pad layout (icon over
          label). The height holds touch_target_min; the width cap keeps the key

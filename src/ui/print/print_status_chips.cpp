@@ -171,7 +171,7 @@ ChipContent heater_chip(bool present, int current_deci, int target_deci,
                      !ui::temperature::is_residual_hot(current_deci)))
         return c;
     c.shown = true;
-    c.glow = ui::temperature::heater_region_glows(status.heat);
+    c.glow = ui::temperature::heater_region_glows(status.heat) ? 1 : 0;
     c.heat = status.heat;
     c.status_state = static_cast<int>(status.state);
 
@@ -218,7 +218,7 @@ ChipContent fan_chip(CalloutKind kind, std::string_view label, bool present, int
         c.expendable = true;
     } else if (kind == CalloutKind::Fan) {
         c.tone = ChipTone::Active;
-        c.glow = true;
+        c.glow = 1;
     }
     if (kind == CalloutKind::HotendFan && automatic)
         c.expendable = true;
@@ -258,7 +258,7 @@ ChipContent light_chip(bool controllable, bool on) {
     c.text = "";
     if (on) {
         c.tone = ChipTone::Active;
-        c.glow = true;
+        c.glow = 1;
     } else {
         c.tone = ChipTone::Dim;
         c.expendable = true;

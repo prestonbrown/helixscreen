@@ -1739,6 +1739,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ru="Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"/>
   <translation tag="Heating the nozzle" ru="Нагрев сопла"/>
   <translation tag="Heating to %d°C... %.0f°C" ru="Нагрев до %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" ru="Нагрев до %s: осталось %d:%02d"/>
   <translation tag="Heating to {}°C before {}..." ru="Нагрев до {}°C перед «{}»..."/>
   <translation tag="Heating to {}°C for {}..." ru="Нагрев до {}°C в течение {}..."/>
   <translation tag="Heating to {}°C..." ru="Нагрев до {}°C..."/>
@@ -1817,6 +1818,7 @@
   <translation tag="Hotend" ru="Хотенд"/>
   <translation tag="Hotend Fan" ru="Вентилятор хотенда"/>
   <translation tag="Hotend Heater" ru="Нагреватель хотенда"/>
+  <translation tag="Hours" ru="Часы"/>
   <translation tag="How Z-axis movement is displayed" ru="Как отображается движение по оси Z"/>
   <translation tag="How far and how fast a lane ejects" ru="Насколько далеко и быстро извлекает канал"/>
   <translation tag="How far filament is pushed back into the box on eject" ru="Насколько далеко филамент задвигается обратно в бокс при извлечении"/>
@@ -3768,6 +3770,8 @@
   <translation tag="Tap anywhere if this text is right-side up" ru="Нажмите в любом месте, если текст расположен правильно"/>
   <translation tag="Tap anywhere to begin" ru="Нажмите в любом месте для начала"/>
   <translation tag="Tap anywhere to begin calibration" ru="Нажмите в любом месте для начала калибровки"/>
+  <translation tag="Tap the bed&apos;s back-left corner" ru="Нажмите на задний левый угол стола"/>
+  <translation tag="Tap the bed&apos;s back-right corner" ru="Нажмите на задний правый угол стола"/>
   <translation tag="Tap the bed&apos;s front-left corner" ru="Нажмите на передний левый угол стола"/>
   <translation tag="Tap the bed&apos;s front-right corner" ru="Нажмите на передний правый угол стола"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" ru="Нажмите на перекрестие (точка %1$d из 3) — касание %2$d из %3$d"/>

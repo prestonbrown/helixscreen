@@ -1749,6 +1749,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "正在加热热床和喷嘴，使打印件重新附着，喷嘴脱离打印件"
   Heating the nozzle: 正在加热喷嘴
   Heating to %d°C... %.0f°C: 加热至 %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': '正在加热至 %s：剩余 %d:%02d'
   Heating to {}°C before {}...: 正在加热至{}°C，然后{}...
   Heating to {}°C for {}...: 正在加热至{}°C，持续{}...
   Heating to {}°C...: 正在加热至{}°C...
@@ -1830,6 +1831,7 @@ translations:
   Hotend: 热端
   Hotend Fan: 热端风扇
   Hotend Heater: 热端加热器
+  Hours: 小时
   How Z-axis movement is displayed: Z 轴移动的显示方式
   How far and how fast a lane ejects: "料道弹出的距离和速度"
   How far filament is pushed back into the box on eject: "弹出时耗材被推回料盒的距离"
@@ -3828,6 +3830,8 @@ translations:
   Tap anywhere if this text is right-side up: 如果文字方向正确请点击任意位置
   Tap anywhere to begin: 点击任意位置开始
   Tap anywhere to begin calibration: 点击任意位置开始校准
+  Tap the bed's back-left corner: 点击热床的左后角
+  Tap the bed's back-right corner: 点击热床的右后角
   Tap the bed's front-left corner: 点击热床的左前角
   Tap the bed's front-right corner: 点击热床的右前角
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: 点击十字准星（第 %1$d

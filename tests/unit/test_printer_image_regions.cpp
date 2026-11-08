@@ -22,6 +22,9 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
       "full":    {"size": [100, 50], "nozzle": [0.5, 0.2], "part_fan": [0.5, 0.1],
                   "chamber": [0.3, 0.4], "light": [0.2, 0.1], "bed": [[0.2, 0.7], [0.8, 0.7]]},
       "minimal": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "quad":    {"size": [10, 10], "nozzle": [0.5, 0.5],
+                  "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6], [0.2, 0.6]]},
+      "bad_quad": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6]]},
       "no_bed":  {"size": [10, 10], "nozzle": [0.5, 0.5]},
       "bad_pt":  {"size": [10, 10], "nozzle": "x", "bed": [[0.1, 0.9], [0.9, 0.9]]}
     })");
@@ -31,6 +34,16 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
     CHECK(m.at("full").bed_right.x == Catch::Approx(0.8f));
     REQUIRE(m.count("minimal") == 1);
     CHECK_FALSE(m.at("minimal").chamber.has_value());
+    CHECK_FALSE(m.at("minimal").bed_far.has_value());
+    REQUIRE(m.at("quad").bed_far.has_value());
+    CHECK(m.at("quad").bed_far->left.x == Catch::Approx(0.2f));
+    CHECK(plate_quad(m.at("quad"))[3].y == Catch::Approx(0.6f));
+    CHECK(m.count("bad_quad") == 0);
+    // An untagged far edge is estimated above the near edge and inside its ends.
+    const auto est = plate_quad(m.at("minimal"));
+    CHECK(est[2].y < 0.9f);
+    CHECK(est[2].x < 0.9f);
+    CHECK(est[3].x > 0.1f);
     CHECK(m.count("no_bed") == 0);
     CHECK(m.count("bad_pt") == 0);
 }
@@ -184,12 +197,18 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     CHECK(s.prompt() == TagPrompt::BedRight);
     CHECK_FALSE(s.skip());
     s.tap({0.8f, 0.8f});
+    CHECK(s.prompt() == TagPrompt::BedFarRight);
+    CHECK(s.can_skip()); // the far edge can be estimated
+    s.tap({0.7f, 0.6f});
+    CHECK(s.prompt() == TagPrompt::BedFarLeft);
+    s.tap({0.3f, 0.6f});
     CHECK(s.prompt() == TagPrompt::Chamber);
 
     // Undo steps back one prompt and forgets its point.
     s.undo();
-    CHECK(s.prompt() == TagPrompt::BedRight);
-    s.tap({0.7f, 0.7f});
+    CHECK(s.prompt() == TagPrompt::BedFarLeft);
+    CHECK_FALSE(s.regions(300, 200).bed_far.has_value()); // one far corner is no edge
+    s.tap({0.25f, 0.6f});
     s.tap({0.3f, 0.4f});
     CHECK(s.prompt() == TagPrompt::Light);
     CHECK(s.skip());
@@ -201,7 +220,10 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     CHECK(r.src_w == 300);
     CHECK(r.src_h == 200);
     CHECK(r.nozzle.x == Catch::Approx(0.5f));
-    CHECK(r.bed_right.x == Catch::Approx(0.7f));
+    CHECK(r.bed_right.x == Catch::Approx(0.8f));
+    REQUIRE(r.bed_far.has_value());
+    CHECK(r.bed_far->right.x == Catch::Approx(0.7f));
+    CHECK(r.bed_far->left.x == Catch::Approx(0.25f));
     CHECK_FALSE(r.part_fan.has_value());
     REQUIRE(r.chamber.has_value());
     CHECK(r.chamber->y == Catch::Approx(0.4f));
@@ -224,6 +246,8 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     s.tap({0.5f, 0.125f});
     s.tap({0.25f, 0.75f});
     s.tap({0.75f, 0.75f});
+    s.tap({0.625f, 0.5f});
+    s.tap({0.375f, 0.5f});
     s.skip();
     s.tap({0.375f, 0.125f});
     REQUIRE(s.done());
@@ -233,7 +257,7 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     const auto doc = nlohmann::json::parse(read_user_file(cfg));
     CHECK(doc["custom:mine"] == nlohmann::json::parse(R"({"size": [300, 200], "nozzle": [0.5, 0.25],
                                     "part_fan": [0.5, 0.125], "light": [0.375, 0.125],
-                                    "bed": [[0.25, 0.75], [0.75, 0.75]]})"));
+                                    "bed": [[0.25, 0.75], [0.75, 0.75], [0.625, 0.5], [0.375, 0.5]]})"));
     // The file reads back through the same parser as regions.json.
     CHECK(parse_image_regions(read_user_file(cfg)).size() == 2);
     // The saved tags take effect without a reload.

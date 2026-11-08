@@ -1691,6 +1691,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" it="Riscaldamento di piano e ugello: la stampa torna ad aderire e l&apos;ugello si stacca"/>
   <translation tag="Heating the nozzle" it="Riscaldamento dell&apos;ugello"/>
   <translation tag="Heating to %d°C... %.0f°C" it="Riscaldamento a %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" it="Riscaldamento a %s: %d:%02d rimanente"/>
   <translation tag="Heating to {}°C before {}..." it="Riscaldamento a {}°C prima di {}..."/>
   <translation tag="Heating to {}°C for {}..." it="Riscaldamento a {}°C per {}..."/>
   <translation tag="Heating to {}°C..." it="Riscaldamento a {}°C..."/>
@@ -1769,6 +1770,7 @@
   <translation tag="Hotend" it="Hotend"/>
   <translation tag="Hotend Fan" it="Ventola hotend"/>
   <translation tag="Hotend Heater" it="Riscaldatore hotend"/>
+  <translation tag="Hours" it="Ore"/>
   <translation tag="How Z-axis movement is displayed" it="Come viene visualizzato il movimento dell&apos;asse Z"/>
   <translation tag="How far and how fast a lane ejects" it="Quanto e quanto velocemente espelle una corsia"/>
   <translation tag="How far filament is pushed back into the box on eject" it="Quanto il filamento viene spinto nella scatola all&apos;espulsione"/>
@@ -3705,6 +3707,8 @@
   <translation tag="Tap anywhere if this text is right-side up" it="Tocca ovunque se questo testo è dritto"/>
   <translation tag="Tap anywhere to begin" it="Tocca ovunque per iniziare"/>
   <translation tag="Tap anywhere to begin calibration" it="Tocca ovunque per avviare la calibrazione"/>
+  <translation tag="Tap the bed&apos;s back-left corner" it="Tocca l&apos;angolo posteriore sinistro del piano"/>
+  <translation tag="Tap the bed&apos;s back-right corner" it="Tocca l&apos;angolo posteriore destro del piano"/>
   <translation tag="Tap the bed&apos;s front-left corner" it="Tocca l&apos;angolo anteriore sinistro del piano"/>
   <translation tag="Tap the bed&apos;s front-right corner" it="Tocca l&apos;angolo anteriore destro del piano"/>
   <translation tag="Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d" it="Tocca il mirino (punto %1$d di 3) — tocco %2$d di %3$d"/>

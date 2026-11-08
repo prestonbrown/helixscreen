@@ -1797,6 +1797,7 @@ translations:
   Heating the bed and nozzle so the print re-grips and the nozzle lets go of it: Heating the bed and nozzle so the print re-grips and the nozzle lets go of it
   Heating the nozzle: Heating the nozzle
   Heating to %d°C... %.0f°C: Heating to %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Heating to %s: %d:%02d left'
   Heating to {}°C before {}...: Heating to {}°C before {}...
   Heating to {}°C for {}...: Heating to {}°C for {}...
   Heating to {}°C...: Heating to {}°C...
@@ -1881,6 +1882,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Hotend Fan
   Hotend Heater: Hotend Heater
+  Hours: Hours
   How Z-axis movement is displayed: How Z-axis movement is displayed
   How far and how fast a lane ejects: How far and how fast a lane ejects
   How far filament is pushed back into the box on eject: How far filament is pushed back into the box on eject
@@ -3954,6 +3956,8 @@ translations:
     up
   Tap anywhere to begin: Tap anywhere to begin
   Tap anywhere to begin calibration: Tap anywhere to begin calibration
+  Tap the bed's back-left corner: Tap the bed's back-left corner
+  Tap the bed's back-right corner: Tap the bed's back-right corner
   Tap the bed's front-left corner: Tap the bed's front-left corner
   Tap the bed's front-right corner: Tap the bed's front-right corner
   Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: Tap the crosshair

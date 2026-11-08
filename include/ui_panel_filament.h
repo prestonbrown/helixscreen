@@ -7,11 +7,13 @@
 #include "ui_filament_catalog_picker.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "active_material_provider.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "filament_motion.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"
@@ -454,7 +456,22 @@ class FilamentPanel : public PanelBase {
     /// fail_op_on_unknown_command().
     std::optional<FilamentOp> op_aborted_;
     uint32_t op_busy_started_tick_ = 0; ///< lv_tick when busy began (min-spinner floor)
-    bool backend_op_active_ = false;    ///< true while an AMS-backend op awaits ams_action IDLE
+
+    /// The manual move running (helix::FilamentMotion), published as
+    /// "filament_manual_motion" for the motion glyph and the AMS path canvas.
+    lv_subject_t manual_motion_subject_{};
+    /// One-shot timer for the move's own duration (Klipper answers a G1 once
+    /// queued). The guard neuters it on reset and on destruction.
+    helix::ui::LvglTimerGuard motion_timer_;
+    bool motion_rpc_pending_ = false; ///< the move's G1 has not answered yet
+
+    /// Show @p motion for the move about to be sent, timed by its length and speed.
+    void begin_manual_motion(helix::FilamentMotion motion, int speed_mm_s);
+    /// The move's G1 answered: the motion ends now if its duration already ran out.
+    void manual_motion_answered();
+    /// End the motion display immediately (failure, timeout, teardown).
+    void end_manual_motion();
+    bool backend_op_active_ = false; ///< true while an AMS-backend op awaits ams_action IDLE
     /// This load takes the macro tier on an unhomed toolhead, so execute_load()
     /// homes right before the macro is sent, after any preheat. Consumed there.
     bool home_before_load_macro_ = false;

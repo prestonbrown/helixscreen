@@ -253,6 +253,15 @@ class AmsEnvironmentOverlay : public OverlayBase {
     char drying_text_buf_[64] = {};
 
     lv_subject_t drying_progress_subject_{};
+    /// The running cycle's DryingPhase as an int; Unknown while idle.
+    lv_subject_t drying_phase_subject_{};
+
+    /// The shown unit's picture: its logo art, whether it is full colour (drawn as
+    /// is) or a mono mark (tinted), and whether there is one at all.
+    lv_subject_t unit_logo_subject_{};
+    char unit_logo_buf_[128] = {};
+    lv_subject_t unit_logo_color_subject_{};
+    lv_subject_t unit_logo_visible_subject_{};
 
     static constexpr int kMaxComfortRows = 4;
     lv_subject_t comfort_visible_[kMaxComfortRows] = {};

@@ -1861,6 +1861,9 @@
     },
     "filament_path_canvas": {
       "attributes": {
+        "bind_motion": {
+          "type": "string"
+        },
         "topology": {
           "type": "string"
         },
@@ -1973,6 +1976,10 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
+    "plate_glow": {
+      "attributes": {},
+      "inherits": "lv_obj"
+    },
     "swatch_paint": {
       "attributes": {
         "color": {
@@ -2020,6 +2027,22 @@
         },
         "slot_index": {
           "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "dryer_airflow": {
+      "attributes": {
+        "bind_phase": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "filament_motion_glyph": {
+      "attributes": {
+        "bind_motion": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"
@@ -3021,9 +3044,12 @@
     "belt_path_sketch",
     "helix_sparkline",
     "leader_line",
+    "plate_glow",
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "dryer_airflow",
+    "filament_motion_glyph",
     "humidity_drop",
     "lv_obj-bind_tile_rung",
     "setting_group"
@@ -3545,6 +3571,10 @@
     "dialog_content_recovery_max_xlarge",
     "dialog_content_recovery_max_xxlarge",
     "dot_size",
+    "dryer_unit_picture_size",
+    "dryer_unit_picture_size_large",
+    "dryer_unit_picture_size_medium",
+    "dryer_unit_picture_size_small",
     "elevated_bg",
     "fan_arc_size",
     "fan_arc_size_large",
@@ -3624,6 +3654,14 @@
     "filament_idle_dark",
     "filament_idle_light",
     "filament_metal",
+    "filament_motion_glyph_w",
+    "filament_motion_glyph_w_large",
+    "filament_motion_glyph_w_medium",
+    "filament_motion_glyph_w_micro",
+    "filament_motion_glyph_w_small",
+    "filament_motion_glyph_w_tiny",
+    "filament_motion_glyph_w_xlarge",
+    "filament_motion_glyph_w_xxlarge",
     "filament_portrait_row_h",
     "filament_portrait_row_h_large",
     "filament_portrait_row_h_medium",

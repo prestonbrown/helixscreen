@@ -100,5 +100,15 @@ int lane_passes(const LaneStyle& style, TubePass* out, bool simple = reduced_eff
 /// it reads blue rather than navy against the card.
 lv_color_t tube_accent();
 
+/// Paint the chevrons chevrons_along() places on @p path: each one two
+/// round-capped arms of @p size.stroke in @p color, skipping any that would
+/// touch one of the @p n_avoid boxes (labels drawn over the tube). Shows
+/// filament moving through a tube on the AMS path canvas and the filament
+/// panel's motion glyph.
+void draw_flow_chevrons(lv_layer_t* layer, const pg::FilamentPath& path,
+                        const pg::ChevronSize& size, float phase, bool reverse, lv_color_t color,
+                        lv_opa_t opa, const bool* seg_shown = nullptr,
+                        const pg::PathBox* avoid = nullptr, int n_avoid = 0);
+
 } // namespace ui
 } // namespace helix

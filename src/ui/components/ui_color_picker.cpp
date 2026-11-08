@@ -566,7 +566,8 @@ void ColorPicker::switch_tab(bool show_custom) {
         if (active) {
             lv_obj_set_style_bg_color(btn, primary, LV_PART_MAIN);
             lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-            lv_obj_set_style_text_color(btn, text, LV_PART_MAIN);
+            lv_obj_set_style_text_color(
+                btn, theme_manager_get_contrast_adjusted_text(text, primary), LV_PART_MAIN);
         } else {
             lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_set_style_text_color(btn, text_muted, LV_PART_MAIN);
