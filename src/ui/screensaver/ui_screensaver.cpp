@@ -8,6 +8,7 @@
 
 #include "lv_draw_buf_guard.h"
 #include "screensaver_image.h"
+#include "screensaver_print_colors.h"
 
 #include <spdlog/spdlog.h>
 
@@ -15,6 +16,7 @@
 #include <cstdlib>
 #include <iterator>
 
+using helix::ui::ClockMode;
 using helix::ui::DirtyRect;
 using helix::ui::screensaver::flap_frame_at;
 using helix::ui::screensaver::flight_pos_at;
@@ -29,6 +31,20 @@ static constexpr const char* kToasterFrames[] = {
 };
 static constexpr const char* kToastImg = "A:assets/images/screensaver/toast.png";
 static constexpr int kNumToasterFrames = sizeof(kToasterFrames) / sizeof(kToasterFrames[0]);
+
+// Each shade multiplies the toast's own colours, light to dark, as a print goes; the last is
+// a failed print's burnt toast. Animation content, not UI chrome, so not theme tokens.
+static constexpr helix::ui::Rgb kToastShadeTints[] = {
+    {255, 236, 200}, {238, 200, 150}, {214, 160, 104}, {184, 122, 72},
+    {150, 92, 52},   {116, 68, 38},   {44, 36, 32},
+};
+static_assert(std::size(kToastShadeTints) == FlyingToasterScreensaver::kToastShadeCount + 1);
+
+// A finished print pops a toast this often, and each pop rises and falls over this long.
+static constexpr uint32_t kToastPopPeriodMs = 3000;
+static constexpr uint32_t kToastPopMs = 1200;
+// Peak height of a pop, as a fraction of the sprite.
+static constexpr float kToastPopRise = 0.9f;
 
 // CSS reference: translate(-1600px, 1600px) — fixed travel distance
 static constexpr int kFlightDistance = 1600;
@@ -179,12 +195,41 @@ bool FlyingToasterScreensaver::on_start() {
 
     m_elapsed_ms = 0;
     decode_sprites();
+    build_toast_shades();
+    m_toast_shade = -1;
+    if (print_reading().mode != ClockMode::CLOCK) {
+        apply_toast_shade();
+    }
+
+    // DECLARATIVE_OK: a C++-built sprite, created first so a pop rises from behind its toaster
+    m_pop = lv_image_create(overlay().obj());
+    lv_image_set_src(m_pop, toast_buffer(m_toast_shade));
+    if (get_scale_factor() != 256) {
+        lv_image_set_scale(m_pop, get_scale_factor());
+    }
+    lv_obj_set_floating(m_pop, true);
+    lv_obj_set_clickable(m_pop, false);
+    lv_obj_set_hidden(m_pop, true);
+    m_pop_from = -1;
+    m_pop_ms = 0;
+    m_since_pop_ms = kToastPopPeriodMs; // a finished print pops at once
+
     spawn_objects(sprite_limit(level()));
     return true;
 }
 
 void FlyingToasterScreensaver::on_stop() {
-    // The sprites are children of the overlay the base has already queued for deletion.
+    // The sprites are children of the overlay the base has already queued for deletion; they
+    // let go of the buffers before those are freed.
+    for (auto& obj : m_objects) {
+        if (obj.img) {
+            lv_image_set_src(obj.img, nullptr);
+        }
+    }
+    if (m_pop) {
+        lv_image_set_src(m_pop, nullptr);
+    }
+    m_pop = nullptr;
     m_objects.clear();
     free_sprites();
 }
@@ -260,7 +305,7 @@ void FlyingToasterScreensaver::create_flying_object(int start_x, int start_y, bo
     if (is_toaster) {
         lv_image_set_src(img, m_decoded_frames[initial_frame]);
     } else {
-        lv_image_set_src(img, m_decoded_toast);
+        lv_image_set_src(img, toast_buffer(m_toast_shade));
     }
 
     // Scale on larger displays
@@ -301,6 +346,8 @@ void FlyingToasterScreensaver::on_frame(uint32_t dt_ms, std::vector<DirtyRect>& 
     if (scale != 256) {
         obj_size = obj_size * scale / 256;
     }
+
+    apply_toast_shade();
 
     for (auto& obj : m_objects) {
         if (!obj.img)
@@ -350,6 +397,87 @@ void FlyingToasterScreensaver::on_frame(uint32_t dt_ms, std::vector<DirtyRect>& 
             lv_image_set_src(obj.img, m_decoded_frames[frame]);
         }
     }
+
+    step_pop(dt_ms, screen_w, screen_h, obj_size);
+}
+
+// DECLARATIVE_OK: per-frame print state on C++-built sprites
+void FlyingToasterScreensaver::apply_toast_shade() {
+    const helix::ui::ClockReading& reading = print_reading();
+    int shade = -1;
+    if (reading.mode == ClockMode::FAILED || reading.mode == ClockMode::CANCELLED) {
+        shade = kToastBurnt;
+    } else if (reading.mode != ClockMode::CLOCK) {
+        shade = std::clamp(reading.progress_pct * kToastShadeCount / 100, 0, kToastShadeCount - 1);
+    }
+    if (shade == m_toast_shade) {
+        return;
+    }
+    m_toast_shade = shade;
+    lv_draw_buf_t* art = toast_buffer(shade);
+    for (auto& obj : m_objects) {
+        if (obj.img && !obj.is_toaster) {
+            lv_image_set_src(obj.img, art);
+        }
+    }
+    if (m_pop) {
+        lv_image_set_src(m_pop, art);
+    }
+}
+
+// DECLARATIVE_OK: per-frame motion of a C++-built sprite
+void FlyingToasterScreensaver::step_pop(uint32_t dt_ms, int screen_w, int screen_h, int obj_size) {
+    if (!m_pop) {
+        return;
+    }
+    const auto end_pop = [this] {
+        m_pop_from = -1;
+        lv_obj_set_hidden(m_pop, true);
+    };
+    if (print_reading().mode != ClockMode::DONE) {
+        end_pop();
+        m_since_pop_ms = kToastPopPeriodMs;
+        return;
+    }
+
+    m_since_pop_ms += dt_ms;
+    if (m_pop_from >= 0) {
+        m_pop_ms += dt_ms;
+    } else if (m_since_pop_ms >= kToastPopPeriodMs) {
+        // The first toaster wholly on screen pops; with none, the next frame looks again.
+        for (size_t i = 0; i < m_objects.size(); i++) {
+            const FlyingObject& obj = m_objects[i];
+            if (obj.is_toaster && obj.img && !lv_obj_is_hidden(obj.img) && obj.prev_x >= 0 &&
+                obj.prev_y >= 0 && obj.prev_x + obj_size <= screen_w &&
+                obj.prev_y + obj_size <= screen_h) {
+                m_pop_from = static_cast<int>(i);
+                m_pop_ms = 0;
+                m_since_pop_ms = 0;
+                break;
+            }
+        }
+    }
+    if (m_pop_from < 0) {
+        return;
+    }
+
+    const auto from = static_cast<size_t>(m_pop_from);
+    if (m_pop_ms >= kToastPopMs || from >= m_objects.size() || !m_objects[from].img ||
+        lv_obj_is_hidden(m_objects[from].img)) {
+        end_pop();
+        return;
+    }
+    // Up and back down on a parabola, riding along with its toaster.
+    const float t = static_cast<float>(m_pop_ms) / static_cast<float>(kToastPopMs);
+    const int rise =
+        static_cast<int>(kToastPopRise * static_cast<float>(obj_size) * 4.0f * t * (1.0f - t));
+    const FlyingObject& toaster = m_objects[from];
+    if (rise <= 0) {
+        lv_obj_set_hidden(m_pop, true);
+        return;
+    }
+    lv_obj_set_pos(m_pop, toaster.prev_x, toaster.prev_y - rise);
+    lv_obj_set_hidden(m_pop, false);
 }
 
 void FlyingToasterScreensaver::decode_sprites() {
@@ -371,7 +499,42 @@ void FlyingToasterScreensaver::free_sprites() {
     for (auto& buf : m_decoded_frames) {
         helix::safe_draw_buf_destroy(buf, "toaster");
     }
+    for (auto& buf : m_toast_shades) {
+        helix::safe_draw_buf_destroy(buf, "toast_shade");
+    }
     helix::safe_draw_buf_destroy(m_decoded_toast, "toast");
+}
+
+void FlyingToasterScreensaver::build_toast_shades() {
+    if (!m_decoded_toast || !helix::ui::saver_rows_mappable(m_decoded_toast->header.cf)) {
+        return;
+    }
+    const auto rows = static_cast<int32_t>(m_decoded_toast->header.h);
+    for (size_t s = 0; s < std::size(m_toast_shades); s++) {
+        m_toast_shades[s] = lv_draw_buf_dup(m_decoded_toast);
+        if (!m_toast_shades[s]) {
+            continue;
+        }
+        const helix::ui::Rgb tint = kToastShadeTints[s];
+        helix::ui::saver_map_rows(*m_decoded_toast, *m_toast_shades[s], 0, rows,
+                                  [tint](lv_color32_t p) {
+                                      p.red = static_cast<uint8_t>(p.red * tint.r / 255);
+                                      p.green = static_cast<uint8_t>(p.green * tint.g / 255);
+                                      p.blue = static_cast<uint8_t>(p.blue * tint.b / 255);
+                                      return p;
+                                  });
+    }
+}
+
+lv_draw_buf_t* FlyingToasterScreensaver::toast_buffer(int shade) const {
+    if (shade < 0 || shade > kToastBurnt || !m_toast_shades[shade]) {
+        return m_decoded_toast;
+    }
+    return m_toast_shades[shade];
+}
+
+const lv_draw_buf_t* FlyingToasterScreensaver::toast_art(int shade) const {
+    return toast_buffer(shade);
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

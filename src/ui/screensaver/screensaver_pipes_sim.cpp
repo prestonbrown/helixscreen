@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using helix::ui::screensaver::random_below;
 using helix::ui::screensaver::random_int;
@@ -333,6 +334,7 @@ void PipesScreen::begin(PipeGridDims dims, std::minstd_rand& rng, std::vector<Pi
     straight_ = 0;
     started_ = 0;
     max_pipes_ = kPipesPerScreen;
+    fills_ = false;
     const int n = std::min(kPipesPerScreen, kPipesActive);
     counted_ = n;
     for (size_t i = 0; i < static_cast<size_t>(n); i++) {
@@ -359,8 +361,8 @@ bool PipesScreen::start_pipe(size_t i, std::minstd_rand& rng, std::vector<PipePi
     started_++;
     const PipeDir first = pipes_choose_direction(grid_, node, p.last, p.weight_straight, rng);
     if (first == PipeDir::NONE) {
-        out.push_back(
-            joint_piece(PipePieceKind::TEAPOT, pipes_node_world(node, grid_.dims()), p.material));
+        out.push_back(joint_piece(fills_ ? PipePieceKind::BALL : PipePieceKind::TEAPOT,
+                                  pipes_node_world(node, grid_.dims()), p.material));
         p.stuck = true;
         return true;
     }
@@ -381,6 +383,9 @@ void PipesScreen::grow_pipe(PipeState& p, std::minstd_rand& rng, std::vector<Pip
     PipeJoint joint = PipeJoint::ELBOW;
     if (next != p.last) {
         joint = pipes_choose_joint(rng);
+        if (fills_ && joint == PipeJoint::TEAPOT) {
+            joint = PipeJoint::BALL;
+        }
         joints_[static_cast<size_t>(joint)]++;
     } else {
         straight_++;
@@ -413,6 +418,11 @@ bool PipesScreen::step(std::minstd_rand& rng, std::vector<PipePiece>& out) {
     return !finished();
 }
 
+void PipesScreen::fill_grid() {
+    fills_ = true;
+    max_pipes_ = std::numeric_limits<int>::max();
+}
+
 bool PipesScreen::finished() const {
     return std::none_of(pipes_.begin(), pipes_.end(), [](const PipeState& p) { return p.alive; });
 }
@@ -424,6 +434,7 @@ void PipesScreen::release() {
     started_ = 0;
     joints_ = {};
     straight_ = 0;
+    fills_ = false;
 }
 
 // ============================================================================
@@ -691,6 +702,10 @@ bool PipesRenderer::project(PipeVec3 p, float& sx, float& sy) const {
     return true;
 }
 
+float PipesRenderer::depth(PipeVec3 p) const {
+    return -to_eye(p).z;
+}
+
 const PipeMesh& PipesRenderer::mesh_for(PipePieceKind kind) const {
     switch (kind) {
     case PipePieceKind::CYLINDER:
@@ -920,7 +935,61 @@ void PipesDissolve::step(uint32_t dt_ms, const FrameTarget& frame, std::vector<D
 // PipesSim
 // ============================================================================
 
-void PipesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level) {
+namespace {
+
+bool print_running(ClockMode m) {
+    return m == ClockMode::PROGRESS || m == ClockMode::COUNTDOWN || m == ClockMode::PAUSED;
+}
+
+/// True for a reading a print screen shows: a running or an ended print.
+bool print_shown(ClockMode m) {
+    return print_running(m) || clock_mode_is_end(m);
+}
+
+float reported_progress(const ClockReading& r) {
+    return std::clamp(static_cast<float>(r.progress_pct) / 100.0f, 0.0f, 1.0f);
+}
+
+/// The share of the grid a running print's screen should have taken, `dt_ms` after `fill`:
+/// the reported progress, carried on between whole percents at the rate the countdown gives
+/// and never past the next percent, so growth does not come in a burst per percent. Paused,
+/// the carry stops: the reported progress, or what the carry already reached.
+float advance_fill(float fill, const ClockReading& r, uint32_t dt_ms) {
+    const float reported = reported_progress(r);
+    if (r.mode == ClockMode::PAUSED) {
+        return std::max(fill, reported);
+    }
+    const float next = std::min(1.0f, reported + 0.01f);
+    if (fill < reported || fill > next) {
+        fill = reported;
+    }
+    if (r.mode == ClockMode::COUNTDOWN && r.has_countdown && r.countdown_s > 0) {
+        fill += (1.0f - reported) * static_cast<float>(dt_ms) /
+                (1000.0f * static_cast<float>(r.countdown_s));
+        fill = std::min(fill, next);
+    }
+    return fill;
+}
+
+/// One pass turning every pixel of `frame` to its grey; the whole frame's box.
+DirtyRect grey_frame(const FrameTarget& frame) {
+    PixelWriter px(frame);
+    const auto w = static_cast<int32_t>(frame.w);
+    const auto h = static_cast<int32_t>(frame.h);
+    for (int32_t y = 0; y < h; y++) {
+        for (int32_t x = 0; x < w; x++) {
+            const Rgb c = px.get(x, y);
+            const auto l = static_cast<uint8_t>((c.r * 77 + c.g * 150 + c.b * 29) >> 8);
+            px.put(x, y, {l, l, l});
+        }
+    }
+    return {0, 0, w - 1, h - 1};
+}
+
+} // namespace
+
+void PipesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+                    const ClockReading& print) {
     level_ = std::min(level, kPipesLevelCount - 1);
     renderer_.init(frame.w, frame.h, kPipesLevels[level_].scale);
     dissolve_.init(frame.w, frame.h);
@@ -929,11 +998,11 @@ void PipesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t leve
     yrot_deg_ = 0.0f;
     screens_ = 0;
     std::vector<DirtyRect> unused;
-    start_screen(frame, rng, unused);
+    start_screen(frame, rng, print, unused);
 }
 
 void PipesSim::start_screen(const FrameTarget& frame, std::minstd_rand& rng,
-                            std::vector<DirtyRect>& dirty) {
+                            const ClockReading& print, std::vector<DirtyRect>& dirty) {
     const uint8_t scale = kPipesLevels[level_].scale;
     if (renderer_.scale() != scale) {
         renderer_.set_scale(scale);
@@ -948,6 +1017,131 @@ void PipesSim::start_screen(const FrameTarget& frame, std::minstd_rand& rng,
     steps_.reset();
     phase_ = PipesPhase::GROWING;
     screens_++;
+    print_screen_ = print_shown(print.mode);
+    end_ = PipesEnd::NONE;
+    end_drawn_ = false;
+    teapot_reserved_ = false;
+    catching_up_ = false;
+    fill_ = 0.0f;
+    if (!print_screen_) {
+        return;
+    }
+    screen_.fill_grid();
+    reserve_teapot_node(frame);
+    // A screen begun on a paused or ended print catches up to it over the next frames instead
+    // of growing from empty at the running rate.
+    catching_up_ = print.mode == ClockMode::PAUSED || clock_mode_is_end(print.mode);
+}
+
+void PipesSim::reserve_teapot_node(const FrameTarget& frame) {
+    const PipesGrid& grid = screen_.grid();
+    const PipeGridDims dims = grid.dims();
+    const float w = static_cast<float>(frame.w);
+    const float h = static_cast<float>(frame.h);
+    bool found = false;
+    bool found_central = false;
+    float nearest = 0.0f;
+    PipeNode best;
+    for (int x = 0; x < dims.x; x++) {
+        for (int y = 0; y < dims.y; y++) {
+            for (int z = 0; z < dims.z; z++) {
+                const PipeNode n{x, y, z};
+                if (!grid.empty(n)) {
+                    continue;
+                }
+                const PipeVec3 p = pipes_node_world(n, dims);
+                float sx = 0.0f;
+                float sy = 0.0f;
+                if (!renderer_.project(p, sx, sy)) {
+                    continue;
+                }
+                // The middle half of the view: away from the edges, and above all but the
+                // top of the progress card, which keeps to the bottom third.
+                const bool central =
+                    std::fabs(sx - w * 0.5f) <= w * 0.25f && std::fabs(sy - h * 0.5f) <= h * 0.25f;
+                const float d = renderer_.depth(p);
+                if (!found || (central && !found_central) ||
+                    (central == found_central && d < nearest)) {
+                    found = true;
+                    found_central = central;
+                    nearest = d;
+                    best = n;
+                }
+            }
+        }
+    }
+    if (found) {
+        screen_.grid().take(best);
+        teapot_node_ = best;
+        teapot_reserved_ = true;
+    }
+}
+
+bool PipesSim::grow_to(size_t target, uint32_t max_steps, const FrameTarget& frame,
+                       std::minstd_rand& rng, std::vector<DirtyRect>& dirty) {
+    for (uint32_t i = 0; i < max_steps && nodes_taken() < target && !screen_.finished(); i++) {
+        screen_.step(rng, pieces_);
+        draw_pieces(frame, dirty);
+    }
+    return nodes_taken() >= target || screen_.finished();
+}
+
+void PipesSim::follow_end(ClockMode mode, uint32_t max_steps, const FrameTarget& frame,
+                          std::minstd_rand& rng, std::vector<DirtyRect>& dirty) {
+    if (end_ == PipesEnd::NONE) {
+        end_ = mode == ClockMode::DONE ? PipesEnd::DONE : PipesEnd::FAILED;
+    }
+    if (end_drawn_) {
+        return;
+    }
+    if (end_ == PipesEnd::FAILED) {
+        dirty.push_back(grey_frame(frame));
+        end_drawn_ = true;
+        return;
+    }
+    if (!grow_to(node_count(), max_steps, frame, rng, dirty)) {
+        return;
+    }
+    if (teapot_reserved_) {
+        pieces_.push_back(joint_piece(PipePieceKind::TEAPOT,
+                                      pipes_node_world(teapot_node_, screen_.grid().dims()),
+                                      kPipesDoneTeapotMaterial));
+        draw_pieces(frame, dirty);
+    }
+    end_drawn_ = true;
+}
+
+bool PipesSim::needs_new_screen(const ClockReading& print) const {
+    if (!print_screen_) {
+        return print_shown(print.mode);
+    }
+    if (print.mode == ClockMode::CLOCK) {
+        return true;
+    }
+    return end_ != PipesEnd::NONE && print_running(print.mode);
+}
+
+void PipesSim::step_print(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
+                          const ClockReading& print, std::vector<DirtyRect>& dirty) {
+    const uint32_t steps = catching_up_ ? kPipesFastForwardSteps : kPipesMaxStepsPerTick;
+    if (end_ != PipesEnd::NONE || clock_mode_is_end(print.mode)) {
+        // Catching up to a print that stopped short, the screen grows to where it stopped
+        // before it greys.
+        if (catching_up_ && end_ == PipesEnd::NONE && print.mode != ClockMode::DONE &&
+            !grow_to(static_cast<size_t>(
+                         std::lround(reported_progress(print) * static_cast<float>(node_count()))),
+                     steps, frame, rng, dirty)) {
+            return;
+        }
+        follow_end(print.mode, steps, frame, rng, dirty);
+        catching_up_ = catching_up_ && !end_drawn_;
+        return;
+    }
+    fill_ = advance_fill(fill_, print, dt_ms);
+    if (grow_to(static_cast<size_t>(std::lround(fill_ * static_cast<float>(node_count()))), steps,
+                frame, rng, dirty)) {
+        catching_up_ = false;
+    }
 }
 
 void PipesSim::draw_pieces(const FrameTarget& frame, std::vector<DirtyRect>& dirty) {
@@ -961,8 +1155,17 @@ void PipesSim::draw_pieces(const FrameTarget& frame, std::vector<DirtyRect>& dir
 }
 
 void PipesSim::step(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
-                    std::vector<DirtyRect>& dirty) {
+                    const ClockReading& print, std::vector<DirtyRect>& dirty) {
     if (phase_ == PipesPhase::GROWING) {
+        if (needs_new_screen(print)) {
+            dissolve_.begin(rng);
+            phase_ = PipesPhase::DISSOLVING;
+            return;
+        }
+        if (print_screen_) {
+            step_print(dt_ms, frame, rng, print, dirty);
+            return;
+        }
         const uint32_t due = steps_.steps_due(dt_ms, kPipesStepMs, kPipesMaxStepsPerTick);
         for (uint32_t i = 0; i < due; i++) {
             const bool more = screen_.step(rng, pieces_);
@@ -982,7 +1185,16 @@ void PipesSim::step(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& 
         return;
     }
     yrot_deg_ = std::fmod(yrot_deg_ + kPipesYrotStepDeg, 360.0f);
-    start_screen(frame, rng, dirty);
+    start_screen(frame, rng, print, dirty);
+}
+
+size_t PipesSim::node_count() const {
+    const PipeGridDims d = screen_.grid().dims();
+    return static_cast<size_t>(d.x) * d.y * d.z;
+}
+
+size_t PipesSim::nodes_taken() const {
+    return node_count() - screen_.grid().empty_count();
 }
 
 void PipesSim::request_level(size_t level) {
@@ -996,6 +1208,10 @@ void PipesSim::clear() {
     release_buffer(pieces_);
     phase_ = PipesPhase::GROWING;
     steps_.reset();
+    print_screen_ = false;
+    end_ = PipesEnd::NONE;
+    end_drawn_ = false;
+    teapot_reserved_ = false;
 }
 
 size_t PipesSim::heap_bytes() const {

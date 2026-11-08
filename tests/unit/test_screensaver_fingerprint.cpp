@@ -115,29 +115,43 @@ uint64_t saver_run(Saver& ss, uint32_t seed, int frames, int sample_every,
     return run;
 }
 
-uint64_t pipes_run(uint32_t seed) {
+uint64_t pipes_run(uint32_t seed, bool printing) {
     PipesScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kSteadyMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 120, 20, kSteadyMs, &elapsed_ms);
 }
 
-uint64_t starfield_run(uint32_t seed) {
+uint64_t starfield_run(uint32_t seed, bool printing = false) {
     StarfieldScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t fireworks_run(uint32_t seed) {
+uint64_t fireworks_run(uint32_t seed, bool printing) {
     FireworksScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t hyperspace_run(uint32_t seed) {
+uint64_t hyperspace_run(uint32_t seed, bool printing = false) {
     HyperspaceScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 120, 20, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t fireflies_run(uint32_t seed) {
+uint64_t fireflies_run(uint32_t seed, bool printing) {
     FirefliesScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t maze_run(uint32_t seed) {
@@ -286,34 +300,49 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "draws different pixels",
                  "[screensaver][screensaver_fingerprint]") {
     SECTION("pipes") {
-        const uint64_t other = pipes_run(43);
-        const uint64_t run = pipes_run(42);
-        check_replay("pipes", run, [] { return pipes_run(42); });
+        const uint64_t other = pipes_run(43, false);
+        const uint64_t run = pipes_run(42, false);
+        const uint64_t print = pipes_run(42, true);
+        check_replay("pipes", run, [] { return pipes_run(42, false); });
+        check_replay("pipes_print", print, [] { return pipes_run(42, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("starfield") {
         const uint64_t other = starfield_run(6);
         const uint64_t run = starfield_run(5);
+        const uint64_t print = starfield_run(5, true);
         check_replay("starfield", run, [] { return starfield_run(5); });
+        check_replay("starfield_print", print, [] { return starfield_run(5, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireworks") {
-        const uint64_t other = fireworks_run(8);
-        const uint64_t run = fireworks_run(7);
-        check_replay("fireworks", run, [] { return fireworks_run(7); });
+        const uint64_t other = fireworks_run(8, false);
+        const uint64_t run = fireworks_run(7, false);
+        const uint64_t print = fireworks_run(7, true);
+        check_replay("fireworks", run, [] { return fireworks_run(7, false); });
+        check_replay("fireworks_print", print, [] { return fireworks_run(7, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("hyperspace") {
         const uint64_t other = hyperspace_run(12);
         const uint64_t run = hyperspace_run(11);
+        const uint64_t print = hyperspace_run(11, true);
         check_replay("hyperspace", run, [] { return hyperspace_run(11); });
+        check_replay("hyperspace_print", print, [] { return hyperspace_run(11, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireflies") {
-        const uint64_t other = fireflies_run(14);
-        const uint64_t run = fireflies_run(13);
-        check_replay("fireflies", run, [] { return fireflies_run(13); });
+        const uint64_t other = fireflies_run(14, false);
+        const uint64_t run = fireflies_run(13, false);
+        const uint64_t print = fireflies_run(13, true);
+        check_replay("fireflies", run, [] { return fireflies_run(13, false); });
+        check_replay("fireflies_print", print, [] { return fireflies_run(13, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("maze") {
         const uint64_t other = maze_run(18);
