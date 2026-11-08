@@ -892,6 +892,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return;
     }
 
+    // Lines this long are firmware telemetry, such as the K2 nozzle pressure traces
+    // printed on every probe touch. std::regex recurses per character, and scanning
+    // one overflows the websocket thread's stack.
+    if (line.size() > kMaxScannedConsoleLineChars) {
+        return;
+    }
+
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
 
     // Check for HELIX:PHASE signals (highest priority - definitive signals from plugin/macros)

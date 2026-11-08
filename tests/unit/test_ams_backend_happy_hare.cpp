@@ -1,9 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_ams_device_section_detail_overlay.h"
+#include "ui_nav_manager.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -16,6 +20,7 @@
 #include "preflight_validator.h"
 #include "printer_state.h"
 #include "test_helpers/config_test_access.h"
+#include "test_helpers/device_action_controls.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/registered_backend.h"
 
@@ -3220,6 +3225,35 @@ TEST_CASE("Type A topology shows all actions", "[ams][happy_hare][device_actions
             REQUIRE(a.enabled);
         }
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a Happy Hare speed slider in the section overlay opens at its value and applies",
+                 "[ams][happy_hare][device_actions][device-section]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+    helper.set_config_defaults_for_test();
+
+    auto& overlay = helix::ui::get_ams_device_section_detail_overlay();
+    overlay.init_subjects();
+    overlay.show(test_screen(), "speed", "Speed");
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* slider =
+        helix::test::find_device_action_slider(overlay.get_root(), "gear_from_buffer_speed");
+    REQUIRE(slider != nullptr);
+    CHECK(lv_slider_get_value(slider) == 180);
+
+    lv_slider_set_value(slider, 200, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_RELEASED, nullptr);
+    CHECK(helper.has_gcode_containing("GEAR_FROM_BUFFER_SPEED=200"));
+
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(10);
+    helix::ui::destroy_static_panels();
 }
 
 // ============================================================================
