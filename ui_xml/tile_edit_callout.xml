@@ -12,7 +12,7 @@
     <context_menu_card title_subject="tile_callout_title"
                        hide_close="true" title_grow="1" title_long_mode="dots" pad_gap="#space_xs">
       <ui_button name="tile_callout_configure"
-                 height="#button_height_sm" icon="settings" text="Configure" translation_tag="Configure" variant="ghost"
+                 height="#button_height_sm" icon="settings" text="Configure" variant="ghost"
                  style_flex_main_place="start">
         <bind_flag_if_eq subject="tile_callout_configure" flag="hidden" ref_value="0"/>
         <event_cb trigger="pressed" callback="tile_callout_row_pressed_cb"/>
@@ -20,8 +20,7 @@
         <event_cb trigger="clicked" callback="tile_callout_configure_cb"/>
       </ui_button>
       <ui_button name="tile_callout_remove"
-                 height="#button_height_sm" icon="delete" text="Remove" translation_tag="Remove" variant="ghost"
-                 style_flex_main_place="start">
+                 height="#button_height_sm" icon="delete" text="Remove" variant="ghost" style_flex_main_place="start">
         <event_cb trigger="pressed" callback="tile_callout_row_pressed_cb"/>
         <event_cb trigger="press_lost" callback="tile_callout_row_press_lost_cb"/>
         <event_cb trigger="clicked" callback="tile_callout_remove_cb"/>

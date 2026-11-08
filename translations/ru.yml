@@ -209,11 +209,11 @@ translations:
   : "Сопло 0,2 мм может печатать не все филаменты: в их числе PA, PC, TPU и материалы с углеволокном или стекловолокном. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати.'
-  A cold pull is already running.: ''
+  A cold pull is already running.: "Холодная протяжка уже выполняется."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
   ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : ''
+  : "В эту головку загружен канал филамента. Сначала выгрузите его; подайте чистящий филамент через обход, если он есть в вашей системе."
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Небезопасное имя папки в moonraker.conf, поэтому очистка выключена."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры.'
@@ -226,15 +226,15 @@ translations:
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
   A picture of your printer: Изображение вашего принтера
-  A print holds the printer.: ''
+  A print holds the printer.: "Принтер занят печатью."
   A print is already running.: Печать уже идёт.
   A print is in progress - restart still pending: 'Идёт печать - перезапуск ещё отложен'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: На этом шлюзе идёт печать. HelixScreen очистил свою копию; после окончания печати очистите его снова.
   A print is running. Apply the result after it ends.: Идёт печать. Примените результат после её завершения.
   A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
-  A print took the printer.: ''
-  A printer command failed.: ''
+  A print took the printer.: "Печать заняла принтер."
+  A printer command failed.: "Команда принтера не выполнена."
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -387,7 +387,7 @@ translations:
   Anonymous stats — no personal data, ever.: Анонимная статистика — никаких личных
     данных.
   Anonymous usage statistics: Анонимная статистика использования
-  Another filament operation is heating the nozzle.: ''
+  Another filament operation is heating the nozzle.: "Другая операция с филаментом нагревает сопло."
   Any notes...: Заметки...
   App Background: Фон приложения
   App startup encountered an error. Some features may be unavailable.: При запуске
@@ -560,7 +560,7 @@ translations:
   Bowden Length: 'Длина боудена'
   Bowden tube length from hub to toolhead: 'Длина боуден-трубки от хаба до печатающей головки'
   Bowden tube length to this tool: "Длина боуден-трубки до этого инструмента"
-  'Bowden: pull the tube from the extruder end, then pull the filament.': ''
+  'Bowden: pull the tube from the extruder end, then pull the filament.': "Боуден: снимите трубку со стороны экструдера, затем вытяните филамент."
   Box: Бокс
   Brand: Бренд
   Brand and material come from Spoolman: Бренд и материал берутся из Spoolman
@@ -848,11 +848,11 @@ translations:
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
   Clean Up Storage: 'Очистка хранилища'
-  Clean a clogged nozzle, step by step: ''
+  Clean a clogged nozzle, step by step: "Пошаговая очистка забитого сопла"
   Clean nozzle: 'Очистить сопло'
   Clean up: 'Очистить'
   Clean {}: Очистите {}
-  Cleaning: ''
+  Cleaning: "Очистка"
   Cleaning Nozzle...: Очистка сопла...
   Cleaning nozzle: Очистка сопла
   Cleaning nozzle...: Очистка сопла...
@@ -893,10 +893,10 @@ translations:
   Coarse Outer: Грубо (внешний)
   Code: Код
   Coil Temperature: Температура катушки
-  Cold Pull: ''
-  Cold pull cancelled: ''
-  Cold pull finished: ''
-  Cold pull stopped: ''
+  Cold Pull: "Холодная протяжка"
+  Cold pull cancelled: "Холодная протяжка отменена"
+  Cold pull finished: "Холодная протяжка завершена"
+  Cold pull stopped: "Холодная протяжка остановлена"
   Collect logs and system info for support: Собрать логи и информацию о системе для
     поддержки
   Collecting data...: Сбор данных...
@@ -1032,9 +1032,9 @@ translations:
   Cooling Tube Length: 'Длина трубки охлаждения'
   Cooling Tube Retraction: 'Ретракция в трубке охлаждения'
   Cooling for probing...: Охлаждение перед зондированием...
-  Cooling the nozzle: ''
+  Cooling the nozzle: "Охлаждение сопла"
   "Cooling the nozzle to standby while you check the print": "Охлаждение сопла до режима ожидания, пока вы проверяете печать"
-  Cooling without a fan; this takes longer.: ''
+  Cooling without a fan; this takes longer.: "Охлаждение без вентилятора займёт больше времени."
   Cooling {}...: 'Охлаждение: {}...'
   Copied to clipboard!: Скопировано в буфер обмена!
   Copy: "Копировать"
@@ -1232,7 +1232,7 @@ translations:
   Different filament?: Другой филамент?
   Digital Clock: 'Цифровые часы'
   Direct drive: Директ
-  'Direct drive: release the extruder tension and pull the filament out in one firm motion.': ''
+  'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Директ: ослабьте прижим экструдера и вытяните филамент одним уверенным движением."
   Disable: Отключить
   Disable Bypass: Отключить байпас
   Disable Motors?: Отключить моторы?
@@ -1261,16 +1261,16 @@ translations:
   Distance from toolhead sensor to nozzle tip: 'Расстояние от датчика печатающей головки до кончика сопла'
   Distance moved per jog button tap: Расстояние за одно нажатие кнопки перемещения
   Distance moved per jog button tap. The arrow layouts offer every distance as a step.: 'Расстояние за одно нажатие кнопки перемещения. Раскладки со стрелками предлагают каждое расстояние как шаг.'
-  Do not cold pull a coated nozzle. The cold pull runs on the active tool.: ''
+  Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "Не выполняйте холодную протяжку на сопле с покрытием. Протяжка выполняется на активном инструменте."
   Do not power off your printer.: Не выключайте принтер.
-  Do not touch the filament yet.: ''
+  Do not touch the filament yet.: "Пока не трогайте филамент."
   Do not touch the printer during calibration: Не трогайте принтер во время калибровки
   Dock: Парковать
   Dock sensors cannot tell which tool is mounted: Датчики стыковки не могут определить, какой инструмент установлен
   Dock sensors disagree: Противоречие датчиков стыковки
   Dock tool: Состыковать инструмент
   Docking tool: Парковка инструмента
-  Does clean filament come out of the nozzle?: ''
+  Does clean filament come out of the nozzle?: "Из сопла выходит чистый филамент?"
   Don't Save: Не сохранять
   Don't ask again: Больше не спрашивать
   Done: Готово
@@ -1648,7 +1648,7 @@ translations:
   Feed filament directly to extruder: Подать филамент напрямую в экструдер
   Feed filament from current slot: 'Подать филамент из текущего слота'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Вставьте филамент вручную за датчик и нажмите «Продолжить» — либо отмените печать и воспользуйтесь «Загрузить»/«Выгрузить»
-  Feed the cleaning filament: ''
+  Feed the cleaning filament: "Подайте чистящий филамент"
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament forward: Подача филамента вперёд
@@ -1965,7 +1965,7 @@ translations:
   Home & Continue: Запарковать и продолжить
   Home All: "Парковка всех осей"
   Home all axes to use the map: Выполните парковку всех осей, чтобы использовать карту
-  Home and park: ''
+  Home and park: "Домой и парковка"
   Home and sweep the cutter to re-find its position: Ищет ноль и прощупывает резак, чтобы заново найти его позицию
   Home failed: Парковка не удалась
   Home layout copied from the printer's screen: "Макет главного экрана скопирован с экрана принтера"
@@ -2052,7 +2052,7 @@ translations:
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Если
     Moonraker локальный или экран подключён к принтеру напрямую, подключение произойдёт
     автоматически
-  If the extruder has no tension lever, see your printer's manual.: ''
+  If the extruder has no tension lever, see your printer's manual.: "Если у экструдера нет рычага прижима, см. руководство к принтеру."
   Ignore: Игнорировать
   Ignore the click that fires when you lift after scrolling: Игнорировать клик, возникающий
     при отпускании после прокрутки
@@ -2187,7 +2187,7 @@ translations:
   Keep hands clear. The printer moves on its own.: Держите руки подальше. Принтер двигается сам.
 
   Keep its own data on this screen (up to 256 KB).: 'Хранит собственные данные на этом экране (до 256 КБ).'
-  Keep pushing filament while it cools: ''
+  Keep pushing filament while it cools: "Продолжайте подавать филамент, пока он остывает"
   Keep the bypass spool visible when bypass is off: Показывать катушку байпаса, даже когда байпас выключен
   Keep Tuning: Продолжить
   Keep waiting: 'Продолжить ожидание'
@@ -2377,7 +2377,7 @@ translations:
     попробуйте снова
   Lost connection to CFS unit: Потеряна связь с блоком CFS
   Lost the connection to the printer.: Связь с принтером потеряна.
-  Lost the printer.: ''
+  Lost the printer.: "Связь с принтером потеряна."
   'Lot # (optional)': 'Партия # (необязательно)'
   Lot/Batch Nr: Nr. партии/серии
   Low Memory: Мало памяти
@@ -2837,7 +2837,7 @@ translations:
   'Nozzle:': 'Сопло:'
   'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'
   Number Pad Layout: Раскладка цифровой клавиатуры
-  Nylon: ''
+  Nylon: "Нейлон"
   OD: OD
   'OFF': ВЫКЛ
   OK: OK
@@ -2958,7 +2958,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Часть плагина не загрузилась. Переустановите плагин."
   Part of the plugin is missing. Reinstall the plugin.: "Часть плагина отсутствует. Переустановите плагин."
   Part, hotend, and auxiliary fan speeds: 'Скорости вентиляторов обдува, хотэнда и дополнительного'
-  Pass: ''
+  Pass: "Проход"
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
@@ -3072,7 +3072,7 @@ translations:
   Preheating and homing...: Преднагрев и парковка осей...
   Preload: 'Предзагрузка'
   Preload failed: Ошибка предварительной загрузки
-  Prepare the toolhead: ''
+  Prepare the toolhead: "Подготовьте головку"
   Prepared: Готово
   Preparing: Подготовка
   Preparing Print: Подготовка печати
@@ -3272,9 +3272,9 @@ translations:
   Provide a {}: 'Укажите {}'
   Provide an on/off value: 'Укажите значение вкл/выкл'
   Provide {}: 'Укажите {}'
-  Pull: ''
-  Pull now: ''
-  Pulled: ''
+  Pull: "Вытянуть"
+  Pull now: "Тяните сейчас"
+  Pulled: "Вытянуто"
   Pulling filament back: Откат филамента
   Purge: Продуть
   Purge & Wipe: 'Продувка и очистка'
@@ -3292,7 +3292,7 @@ translations:
   Purging: Продувка
   Purging nozzle: Продувка сопла
   Purging...: Продувка...
-  Push the cleaning filament into the extruder until it stops, then tap Extrude.: ''
+  Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
   QGL: QGL
   'QGL failed: {}': 'Ошибка QGL: {}'
@@ -3440,7 +3440,7 @@ translations:
   Rename failed at remove step: Ошибка переименования при удалении
   Render Now: Отрендерить сейчас
   Rendering timelapse...: Рендеринг таймлапса...
-  Repeat: ''
+  Repeat: "Повторить"
   Replace: "Заменить"
   Replace Profile?: "Заменить профиль?"
   Replay Welcome Tour: Повторить приветственный тур
@@ -3897,8 +3897,8 @@ translations:
   Snapmaker SnapSwap: Snapmaker SnapSwap
   Snapmaker U1: Snapmaker U1
   Snapshot only: Только снимок
-  Soak: ''
-  Soaking hot enough to melt what is left in the nozzle.: ''
+  Soak: "Прогрев"
+  Soaking hot enough to melt what is left in the nozzle.: "Прогрев до температуры, расплавляющей остатки в сопле."
   Soft: Мягкий
   Soft filament is never unloaded: "Мягкий филамент никогда не выгружается"
   Software Updates: Обновления ПО
@@ -4061,7 +4061,7 @@ translations:
   Storage: 'Хранилище'
   Storage report: 'Отчёт о хранилище'
   Stow: Убрать
-  'Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step.': ''
+  'Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step.': "Растянулся тонко: тяните чуть холоднее. Оборвался: тяните чуть горячее. Температура вытягивания задаётся на шаге настройки."
   Subnet mask: 'Маска подсети'
   Subtle: Сдержанный
   Success: Успех
@@ -4224,7 +4224,7 @@ translations:
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Плагин таймлапса Moonraker установлен. Способ записи задается в настройках таймлапса.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: Лист PEI всё ещё на столе. Снимите его и нажмите «Далее».
   The Spoolman spool currently loaded: Текущая катушка Spoolman
-  The active tool has no nozzle heater.: ''
+  The active tool has no nozzle heater.: "У активного инструмента нет нагревателя сопла."
   ? The animated screensaver has been turned off on this device to prevent it from
     interfering with prints. You can re-enable it in Settings > Display.
   : Анимированная заставка была отключена на данном устройстве, чтобы она не мешала
@@ -4299,8 +4299,8 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее».
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "Сопло поднято над печатью, X и Y запаркованы. При продолжении оно опустится на высоту, где остановилось."
-  The nozzle target never arrived.: ''
-  The nozzle waited too long; start again.: ''
+  The nozzle target never arrived.: "Заданная температура сопла не поступила."
+  The nozzle waited too long; start again.: "Сопло ждало слишком долго; начните заново."
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Деталь на столе слишком высокая, над ней не пройти. Уберите её, затем нажмите «Очищено».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Пик ({0}) вышел из зоны. Проверьте, что крутили только натяжитель: {1}. Не знаете, где какой? Коснитесь значка карандаша, чтобы определить ремни."
@@ -4352,7 +4352,7 @@ translations:
 
   The printer homes, then probes each screw position.: "Принтер выполняет парковку, затем измеряет каждую позицию винта."
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
-  The printer is not ready.: ''
+  The printer is not ready.: "Принтер не готов."
   The printer is shut down.: 'Принтер выключен.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя.'
@@ -4385,7 +4385,7 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
   The speed of one fan you choose: Скорость выбранного вентилятора
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
-  The temperature was changed elsewhere.: ''
+  The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
@@ -4404,7 +4404,7 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
   The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
-  The unload did not finish. Try again, or cancel.: ''
+  The unload did not finish. Try again, or cancel.: "Выгрузка не завершена. Повторите или отмените."
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
   Theme: Тема
@@ -4721,10 +4721,10 @@ translations:
   Unload filament?: Выгрузить филамент?
 
   Unload from toolhead first: 'Сначала выгрузите из печатающей головки'
-  Unload lane: ''
+  Unload lane: "Выгрузить канал"
   Unload macro not configured: Макрос выгрузки не настроен
   Unload the CFS filament before enabling bypass: 'Выгрузите филамент CFS перед включением обхода'
-  Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: ''
+  Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Выгрузите текущий филамент и продолжайте. Экструдер и верх пути филамента должны быть доступны рукой."
   Unload the toolhead when a print ends: 'Выгружать печатающую головку по окончании печати'
   Unload this unit first: 'Сначала выгрузите этот узел'
   Unload which tool?: 'Из какого инструмента выгрузить?'

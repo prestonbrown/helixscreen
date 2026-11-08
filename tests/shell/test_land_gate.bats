@@ -659,7 +659,7 @@ PY
         BATS_BIN=fake-bats BATS_APP=needs
     grep -qx "select --app needs" "$CALLS"
     : >"$CALLS"
-    FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell BATS_BIN=fake-bats
+    FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell BATS_BIN=fake-bats BATS_APP=
     grep -qx "select" "$CALLS"
     : >"$CALLS"
     FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell \
