@@ -588,3 +588,16 @@ TEST_CASE_METHOD(SentStartFixture, "The chamber phase keeps the chamber wait fla
     ps().reset_print_start_state();
     drain();
 }
+
+TEST_CASE_METHOD(SentStartFixture, "A printer switch forgets the start this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    get_printer_state().deinit_subjects();
+    get_printer_state().init_subjects(false);
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
