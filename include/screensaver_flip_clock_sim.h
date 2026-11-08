@@ -42,12 +42,9 @@ inline constexpr size_t kFlipClockLevelCount = std::size(kFlipClockLevels);
 /// How long one card takes to flip.
 inline constexpr uint32_t kFlipDurationMs = 300;
 
-/// The line under the cards.
-enum class FlipCaption : uint8_t { NONE, DONE_AT, PAUSED, DONE, FAILED, CANCELLED };
-
-/// One card: a single digit, or blank.
+/// One card: a single character, or blank.
 struct FlipCard {
-    char digit = '\0'; ///< '0' to '9', or NUL for a blank card
+    char digit = '\0'; ///< one of kStrokeGlyphChars, or NUL for a blank card
 
     bool operator==(const FlipCard& o) const {
         return digit == o.digit;
@@ -61,6 +58,10 @@ struct FlipCard {
 inline constexpr size_t kFlipMaxGroups = 3;
 /// Three hour cards, two minute cards, two second cards.
 inline constexpr size_t kFlipMaxCards = 7;
+/// The small row under the cards: up to two hour, two minute and four percent cards.
+inline constexpr size_t kFlipMaxSubCards = 8;
+/// Size of a small card against a main one.
+inline constexpr float kSubCardScale = 0.32f;
 
 /// How the cards fall into groups (hours, minutes and seconds), one card per digit.
 struct FlipShape {
@@ -68,10 +69,6 @@ struct FlipShape {
     std::array<uint8_t, kFlipMaxGroups> groups{}; ///< cards in each group
 
     uint8_t card_count() const;
-    /// Only the countdown, three groups, has a line under its cards.
-    bool has_caption() const {
-        return group_count >= kFlipMaxGroups;
-    }
     bool operator==(const FlipShape& o) const {
         return group_count == o.group_count && groups == o.groups;
     }
@@ -83,11 +80,18 @@ struct FlipShape {
 /// Everything the screen shows, without pixels.
 struct FlipFace {
     FlipShape shape;
-    std::array<FlipCard, kFlipMaxCards> cards{}; ///< shape.card_count() of them, left to right
-    ClockMeridiem meridiem = ClockMeridiem::NONE;
-    FlipCaption caption = FlipCaption::NONE;
-    int32_t eta_minute_of_day = 0; ///< DONE_AT: local minute the print ends, 0 to 1439
-    int32_t progress_pct = 0;      ///< DONE_AT: percent done
+    std::array<FlipCard, kFlipMaxCards> cards{};  ///< shape.card_count() of them, left to right
+    ClockMeridiem meridiem = ClockMeridiem::NONE; ///< the time of day only
+    ClockMode mode = ClockMode::CLOCK;            ///< sets the ink: print_state_color()
+    /// The small row under the cards, empty with no print.
+    FlipShape sub_shape;
+    std::array<FlipCard, kFlipMaxSubCards> sub{};
+    /// The small row has a colon after its first `sub_colons` groups, a gap after the rest.
+    uint8_t sub_colons = 0;
+
+    bool has_sub() const {
+        return sub_shape.group_count > 0;
+    }
 };
 
 /// Two hour and two minute cards for `seconds_of_day`: 24-hour with a leading zero, or
@@ -98,8 +102,14 @@ FlipFace clock_face(int32_t seconds_of_day, bool use_24h);
 /// for `seconds`, clamped to 0 and kClockMaxCountdownS.
 FlipFace countdown_face(int32_t seconds);
 
-/// The cards and caption for `reading`: the time of day (also while a print has no estimate),
-/// or the countdown with DONE_AT, PAUSED, DONE, FAILED or CANCELLED under it.
+/**
+ * @brief The cards for `reading`
+ *
+ * No print: the time of day. A print shows its state on the cards and its details on the small
+ * row: before an estimate the percent over the time of day; counting down, the time left over
+ * the finish time and percent; paused PAUSE over the time left and percent; ended DONE, FAIL
+ * or STOP over the percent reached.
+ */
 FlipFace flip_face(const ClockReading& reading);
 
 /// ClockState read as cards: every decision is ClockState's, the cards are flip_face()'s.
@@ -129,20 +139,42 @@ class FlipClockState {
     FlipFace face_;
 };
 
-/// Where the cards and their text sit on a screen.
-struct FlipLayout {
-    int32_t unit = 0; ///< glyph scale: pixels per glyph width unit
-    FlipShape shape;
-    uint8_t card_count = 0;
-    std::array<DirtyRect, kFlipMaxCards> cards{};
-    uint8_t colon_count = 0;
-    /// The colon between two groups in a row; a column of groups has none.
-    std::array<DirtyRect, kFlipMaxGroups - 1> colons{};
-    DirtyRect caption;        ///< the line under the cards, empty for the clock
-    DirtyRect meridiem;       ///< AM/PM, in the first card's top-left corner
+/// One row of cards' sizes.
+struct FlipRowMetrics {
+    int32_t unit = 0;  ///< glyph scale: pixels per glyph width unit
+    int32_t pad_x = 0; ///< glyph inset in a card
+    int32_t pad_y = 0;
     int32_t split_top = 0;    ///< first row of the split line, relative to a card's top
     int32_t split_bottom = 0; ///< first row below the split line
     int32_t corner = 0;       ///< card corner radius
+};
+
+/// Where the cards and their text sit on a screen.
+struct FlipLayout {
+    int32_t unit = 0; ///< main cards' glyph scale
+    FlipShape shape;
+    FlipShape sub_shape;
+    uint8_t sub_colons = 0;
+    uint8_t card_count = 0; ///< main cards, first in `cards`
+    uint8_t sub_count = 0;  ///< small cards, after the main ones in `cards`
+    std::array<DirtyRect, kFlipMaxCards + kFlipMaxSubCards> cards{};
+    uint8_t colon_count = 0;
+    /// The colons between two groups in a row (a column of main groups has none), the main
+    /// row's first.
+    std::array<DirtyRect, kFlipMaxGroups + 1> colons{};
+    uint8_t main_colon_count = 0; ///< colons[0 .. main_colon_count) belong to the main row
+    DirtyRect meridiem;           ///< AM/PM, in the first card's top-left corner
+    FlipRowMetrics main;
+    FlipRowMetrics small;
+    // The main row's metrics, as most callers read them.
+    int32_t split_top = 0;
+    int32_t split_bottom = 0;
+    int32_t corner = 0;
+
+    /// The metrics of card `i`'s row.
+    const FlipRowMetrics& row(size_t i) const {
+        return i < card_count ? main : small;
+    }
 
     /// Box around every card and the caption.
     DirtyRect bounds() const;
@@ -150,12 +182,16 @@ struct FlipLayout {
 
 /// Lays out the cards of `shape` as large as fit on a `w` x `h` screen: every group in one
 /// row with a colon between groups, or, when that makes them larger (portrait), one group per
-/// row; centred, then moved by (`dx`, `dy`).
-FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape, int32_t dx, int32_t dy);
+/// row; the small row of `sub_shape` centred under them (a colon after its first `sub_colons`
+/// groups); centred, then moved by (`dx`, `dy`).
+FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
+                             const FlipShape& sub_shape, int32_t dx, int32_t dy,
+                             uint8_t sub_colons = 1);
 
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
-DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape);
+DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
+                              const FlipShape& sub_shape);
 
 /**
  * @brief Draws the clock into a frame, redrawing only the cards that change
@@ -222,13 +258,14 @@ class FlipClockSim {
         uint32_t elapsed_ms = kFlipDurationMs;
     };
 
-    void relayout(FrameTarget& frame, const FlipShape& shape, std::vector<DirtyRect>& dirty);
-    void build_glyphs();
+    void relayout(FrameTarget& frame, const FlipFace& face, std::vector<DirtyRect>& dirty);
+    /// Sizes the glyph sets for the layout and builds every character `face` shows.
+    void build_glyphs(const FlipFace& face);
     void draw_card(FrameTarget& frame, size_t i) const;
     void draw_colons(FrameTarget& frame) const;
     /// Card face pixel at card-local (x, y) for `card`, before the corner mask.
-    Rgb face_pixel(const FlipCard& card, int32_t x, int32_t y) const;
-    uint8_t corner_coverage(int32_t x, int32_t y) const;
+    Rgb face_pixel(size_t i, const FlipCard& card, int32_t x, int32_t y) const;
+    uint8_t corner_coverage(size_t i, int32_t x, int32_t y) const;
 
     size_t level_ = 0;
     int32_t frame_w_ = 0;
@@ -236,10 +273,15 @@ class FlipClockSim {
     ClockDrift drift_;
     /// The shape drift_'s range was set for.
     FlipShape drift_shape_;
+    FlipShape drift_sub_shape_;
+    /// The digits' colour for the face shown.
+    Rgb ink_ = kDigit;
     FlipLayout layout_;
-    std::array<CardAnim, kFlipMaxCards> anims_{};
-    /// Coverage of digits 0-9 at the layout's unit.
-    StrokeDigitSet glyphs_;
+    /// One per card in layout order: the main row, then the small row.
+    std::array<CardAnim, kFlipMaxCards + kFlipMaxSubCards> anims_{};
+    /// Coverage of the characters shown, at the main and small rows' units.
+    StrokeGlyphSet glyphs_;
+    StrokeGlyphSet sub_glyphs_;
 };
 
 } // namespace helix::ui

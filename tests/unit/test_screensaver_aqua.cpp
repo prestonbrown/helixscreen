@@ -348,6 +348,139 @@ TEST_CASE("during a print the top ring is progress", "[screensaver][aqua][clock]
     CHECK(aqua_rings(r).top == Catch::Approx(1.0f));
 }
 
+TEST_CASE("the water stands higher as the print goes", "[screensaver][aqua][clock]") {
+    using helix::ui::aqua_level_target;
+    using helix::ui::kAquaBrimRise;
+    ClockReading r = reading_at(9 * 3600);
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::PROGRESS;
+    r.progress_pct = 0;
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 50;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise * 0.5f));
+    r.progress_pct = 100;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise));
+    r.mode = ClockMode::PAUSED;
+    r.progress_pct = 50;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise * 0.5f));
+    r.mode = ClockMode::DONE;
+    CHECK(aqua_level_target(r) == Catch::Approx(kAquaBrimRise));
+    r.mode = ClockMode::FAILED;
+    CHECK(aqua_level_target(r) == 0.0f);
+    r.mode = ClockMode::CANCELLED;
+    CHECK(aqua_level_target(r) == 0.0f);
+    CHECK(kAquaBrimRise < 0.8f);
+}
+
+namespace {
+
+/// Water pixels (not black) in the top half of an 800x480 aqua frame after 30 frames of `r`.
+size_t water_above_middle(const ClockReading& r) {
+    TestFrame frame(800, 480, PixelFormat::XRGB8888);
+    std::minstd_rand rng(7);
+    AquaSim sim;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 30; i++) {
+        sim.step(33, frame.target, rng, r, dirty);
+    }
+    const PixelWriter writer(frame.target);
+    size_t n = 0;
+    for (int32_t y = 0; y < 240; y++) {
+        for (int32_t x = 0; x < 800; x++) {
+            const Rgb c = writer.get(x, y);
+            n += (c.r + c.g + c.b) > 12 ? 1 : 0;
+        }
+    }
+    return n;
+}
+
+/// Bytes per frame that move by more than the water's shimmer, over 60 frames of `r` at rung 1:
+/// a measure of motion, not of the fine per-frame flicker every rung keeps.
+double frame_change(const ClockReading& r) {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(5);
+    AquaSim sim;
+    sim.init(frame.target, rng, 1, r);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 10; i++) {
+        sim.step(33, frame.target, rng, r, dirty);
+    }
+    size_t changed = 0;
+    for (int i = 0; i < 60; i++) {
+        const std::vector<uint8_t> before = frame.bytes;
+        sim.step(33, frame.target, rng, r, dirty);
+        for (size_t b = 0; b < before.size(); b++) {
+            changed += std::abs(before[b] - frame.bytes[b]) > 6 ? 1 : 0;
+        }
+    }
+    return static_cast<double>(changed) / 60.0;
+}
+
+} // namespace
+
+TEST_CASE("the water line rises with progress", "[screensaver][aqua][clock]") {
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 0;
+    const size_t low = water_above_middle(r);
+    r.progress_pct = 100;
+    const size_t high = water_above_middle(r);
+    // Ten more rows of water across the screen, at least: the far water is dim enough that
+    // part of the rise does not count.
+    CHECK(high > low + 800 * 10);
+}
+
+TEST_CASE("paused water calms", "[screensaver][aqua][clock]") {
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 40;
+    const double running = frame_change(r);
+    r.mode = ClockMode::PAUSED;
+    const double paused = frame_change(r);
+    REQUIRE(running > 0.0);
+    CHECK(paused < running * 0.8);
+}
+
+TEST_CASE("the still rung repaints the water only per level step", "[screensaver][aqua][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    AquaSim sim;
+    ClockReading r = reading_at(9 * 3600);
+    r.mode = ClockMode::COUNTDOWN;
+    r.progress_pct = 0;
+    sim.init(frame.target, rng, helix::ui::kAquaLevelCount - 1, r);
+    std::vector<DirtyRect> dirty;
+    const DirtyRect whole = DirtyRect::whole(400, 240);
+    size_t full = 0;
+    // A whole print at the still rung's 250 ms frames, 100 frames per percent.
+    for (int pct = 0; pct <= 100; pct++) {
+        r.progress_pct = pct;
+        for (int i = 0; i < 100; i++) {
+            sim.step(250, frame.target, rng, r, dirty);
+            full += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+        }
+    }
+    CHECK(full >= 5);
+    CHECK(full <=
+          static_cast<size_t>(helix::ui::kAquaBrimRise / helix::ui::kAquaStillLevelStep) + 2);
+
+    // The print ends and the printer goes idle: the water drops back in one repaint, not one
+    // per step on the way down.
+    r.mode = ClockMode::DONE;
+    for (int i = 0; i < 40; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+    }
+    r.mode = ClockMode::CLOCK;
+    size_t after = 0;
+    for (int i = 0; i < 400; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+        after += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+    }
+    CHECK(after <= 1);
+}
+
 TEST_CASE("the clock fits in the water at every drift and screen size",
           "[screensaver][aqua][clock]") {
     struct Size {
