@@ -128,6 +128,10 @@ class AfcTestAccess {
     template <class B> static auto& unit_oams_names(B& b) {
         return b.unit_oams_names_;
     }
+    /// A read of the lane records, as the poll and every write start one.
+    template <class B> static void refresh_lane_records(B& b) {
+        b.refresh_lane_records();
+    }
     template <class B> static void apply_unit_environment(B& b) {
         b.apply_unit_environment();
     }
