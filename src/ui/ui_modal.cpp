@@ -823,19 +823,6 @@ bool Modal::show_owned(std::unique_ptr<Modal> modal, lv_obj_t* parent, const cha
     return true;
 }
 
-lv_obj_t* helix::ui::ComponentModal::show_owned(const char* component_name, const char** attrs) {
-    if (!component_name) {
-        spdlog::error("[Modal] ComponentModal::show_owned() called with null component_name");
-        return nullptr;
-    }
-    auto modal = std::make_unique<ComponentModal>(component_name);
-    ComponentModal* raw = modal.get();
-    if (!Modal::show_owned(std::move(modal), lv_screen_active(), attrs)) {
-        return nullptr;
-    }
-    return raw->dialog();
-}
-
 void ModalStack::raise_visible_to_foreground() {
     for (const auto& entry : stack_) {
         if (!entry.exiting && entry.backdrop) {

@@ -693,7 +693,17 @@ class ComponentModal : public Modal {
 
     /// Show @p component_name owned by ModalStack. The dialog, or nullptr when
     /// the component could not be created.
-    static lv_obj_t* show_owned(const char* component_name, const char** attrs = nullptr);
+    static lv_obj_t* show_owned(const char* component_name, const char** attrs = nullptr) {
+        if (!component_name) {
+            return nullptr;
+        }
+        auto modal = std::make_unique<ComponentModal>(component_name);
+        ComponentModal* raw = modal.get();
+        if (!Modal::show_owned(std::move(modal), lv_screen_active(), attrs)) {
+            return nullptr;
+        }
+        return raw->dialog();
+    }
 
     const char* get_name() const override {
         return component_name_.c_str();
