@@ -1329,6 +1329,13 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return;
     }
 
+    // Lines this long are firmware telemetry, such as the K2 nozzle pressure traces
+    // printed on every probe touch. The phase patterns have nothing to find in them,
+    // and scanning them is unbounded work on the websocket thread.
+    if (line.size() > kMaxScannedConsoleLineChars) {
+        return;
+    }
+
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
 
     if (armed_by_printer_.load()) {
