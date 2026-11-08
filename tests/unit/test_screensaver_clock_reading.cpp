@@ -217,6 +217,21 @@ TEST_CASE("an end seen without a running print still reads as that end",
     CHECK(state.mode() == ClockMode::DONE);
 }
 
+TEST_CASE("the print text redraws when a running print's percent changes before its estimate",
+          "[screensaver][clock_reading]") {
+    helix::ui::ClockReading a;
+    a.mode = ClockMode::PROGRESS;
+    a.progress_pct = 37;
+    helix::ui::ClockReading b = a;
+    CHECK(helix::ui::clock_text_same(a, b));
+    b.progress_pct = 38;
+    CHECK_FALSE(helix::ui::clock_text_same(a, b));
+    // Counting down, the text shows the time, not the percent.
+    a.mode = ClockMode::COUNTDOWN;
+    b.mode = ClockMode::COUNTDOWN;
+    CHECK(helix::ui::clock_text_same(a, b));
+}
+
 TEST_CASE("the drift range keeps a spare pixel and at most a 25th of the screen",
           "[screensaver][clock_reading]") {
     int32_t dx = 0;

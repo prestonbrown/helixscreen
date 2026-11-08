@@ -11,6 +11,7 @@
 #include "printer_state.h"
 #include "screensaver_aqua.h"
 #include "screensaver_canvas.h"
+#include "screensaver_clock.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_flip_clock.h"
 #include "screensaver_flip_clock_sim.h"
