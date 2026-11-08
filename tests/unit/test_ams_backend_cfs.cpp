@@ -3321,11 +3321,17 @@ TEST_CASE("CFS writes no lane record before the first read of them lands",
     mock_printer.client.mock_db_set("lane_data", "lane1",
                                     helix::ams::to_lane_data_record(0, saved));
 
-    helix::test::RegisteredBackend<helix::test::WiredBackend<AmsBackendCfs>> backend(
+    // Delivered straight to the handler, so the frame runs with the read's
+    // adoption still queued.
+    struct FrameFirstCfs : AmsBackendCfs {
+        using AmsBackendCfs::AmsBackendCfs;
+        using AmsBackendCfs::handle_status_update;
+    };
+    helix::test::RegisteredBackend<helix::test::WiredBackend<FrameFirstCfs>> backend(
         &mock_printer.api);
     REQUIRE(backend->start().success());
     // A box frame beats the read: the bay is loaded and states a colour.
-    backend->fire_status(make_cfs_notification(
+    backend->handle_status_update(make_cfs_notification(
         make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
 
     const auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
