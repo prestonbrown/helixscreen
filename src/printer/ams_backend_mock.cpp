@@ -3146,6 +3146,12 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
     }
 }
 
+void AmsBackendMock::rename_unit(int unit_index, const std::string& name) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (unit_index >= 0 && unit_index < static_cast<int>(system_info_.units.size()))
+        system_info_.units[static_cast<size_t>(unit_index)].name = name;
+}
+
 void AmsBackendMock::set_ace_identity() {
     std::lock_guard<std::mutex> lock(mutex_);
     system_info_.type = AmsType::ACE;

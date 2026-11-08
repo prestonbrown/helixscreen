@@ -851,8 +851,13 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
     const tray::UnitShell* shell = view_shell(unit_index);
-    const tray::LidMode lid =
-        shell && shell->lid_spans_row ? tray::LidMode::Unit : unit_lid_mode(unit_index);
+    const tray::LidMode climate_lid = unit_lid_mode(unit_index);
+    // Climate readings mean a closed unit, which an open shell does not depict.
+    if (shell && shell->dome_n == 0 && climate_lid != tray::LidMode::None)
+        shell = nullptr;
+    const tray::LidMode lid = !shell               ? climate_lid
+                              : shell->dome_n == 0 ? tray::LidMode::None
+                                                   : tray::LidMode::Unit;
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;

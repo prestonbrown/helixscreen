@@ -11,9 +11,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro  # noqa: E402
+from unit_art.units import ace_pro, box_turtle  # noqa: E402
 
-UNITS = [ace_pro.UNIT]
+UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
@@ -73,11 +73,13 @@ def generate_shell_table(units):
         if t is None:
             continue
         out.append(f"constexpr ProfilePoint k_{unit.id}_cheek[] = {{{points(t.cheek)}}};")
-        out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(t.dome)}}};")
+        if t.dome:
+            out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(t.dome)}}};")
+        dome = f"k_{unit.id}_dome" if t.dome else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
         latch = "true" if t.has_latch else "false"
         rows.append(
-            f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, k_{unit.id}_dome, {len(t.dome)}, {unit.lanes}, '
+            f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(t.dome)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
             f"{lid}, {latch}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}}},"
         )

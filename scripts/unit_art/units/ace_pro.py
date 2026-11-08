@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Anycubic ACE Pro and Pro 2, which share one body."""
-import math
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
 
 from .. import kit, spool
+from ..kit import TrayShellDef, UnitDef
 
 W, D, H = 1.0, 0.72, 0.707
 RAIL0, ZR = 0.293, 0.357
@@ -24,30 +22,6 @@ _REPO = Path(__file__).resolve().parents[3]
 def _lid_profile():
     """The lid's real side profile: up the front, a rounded corner, a flat top, a tighter rear corner."""
     return kit.fillet([(0.018, ZR), (0.018, H), (D - 0.03, H), (D - 0.03, LOWER)], [0, 0.15, 0.09, 0], steps=7)
-
-
-@dataclass
-class TrayShellDef:
-    cheek: List[Tuple[float, float]]
-    dome: List[Tuple[float, float]]
-    back_extra_px: float
-    front_wall_px: float
-    rail_px: float
-    cap_clearance_px: float
-    lid_spans_row: bool
-    has_latch: bool
-    body: int
-    panel: int
-    rail: int
-    accent: int
-
-
-@dataclass
-class UnitDef:
-    id: str
-    lanes: int
-    draw_art: Callable
-    tray: Optional[TrayShellDef] = None
 
 
 def _rrect_x(x0, x1, z0, z1, r, y):

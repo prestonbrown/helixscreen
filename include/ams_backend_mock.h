@@ -242,6 +242,9 @@ class AmsBackendMock : public AmsBackend,
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
     // Dryer
+    /// Rename a unit, so screens that key on hardware names see a different unit.
+    void rename_unit(int unit_index, const std::string& name);
+
     /// Report as an Anycubic ACE, so screens that draw that unit can be exercised.
     void set_ace_identity();
 

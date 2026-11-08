@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro  # noqa: E402
+from unit_art.units import ace_pro, box_turtle  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -67,6 +67,36 @@ def test_lane_items_are_kept_apart_from_the_shell():
 def test_an_empty_lane_draws_no_filament():
     scene = _scene("full", ["#ff0000", "#00ff00", "#0000ff", None])
     assert not [i for i in scene.items if i.lane == 3]
+
+
+@pytest.mark.parametrize("unit", build.UNITS, ids=lambda u: u.id)
+def test_every_unit_keeps_its_filament_tintable(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(unit.lanes))
+    assert "<text" not in scene.svg(100)
+
+
+def test_every_unit_is_baked_through_the_one_camera(tmp_path):
+    seen = []
+    real = build.kit.Scene
+
+    def spy(camera):
+        seen.append(camera)
+        return real(camera)
+
+    build.kit.Scene = spy
+    try:
+        for unit in build.UNITS:
+            build.bake_unit(unit, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    finally:
+        build.kit.Scene = real
+    assert seen and all(c is kit.ART_CAMERA for c in seen)
+
+
+def test_the_open_box_turtle_has_no_lid_and_the_enclosed_one_does():
+    assert box_turtle.UNIT.tray.dome == []
+    assert box_turtle.ENCLOSED.tray.dome
 
 
 def test_generated_shell_table_is_current():

@@ -29,6 +29,14 @@ TEST_CASE("unit shell: an ACE resolves to its shell", "[ams][unit-art]") {
     CHECK(std::string(shell->id) == "ace_pro");
 }
 
+TEST_CASE("unit shell: a Box Turtle is found by its unit's name", "[ams][unit-art]") {
+    const UnitShell* shell = unit_shell_for(one_unit(AmsType::AFC, "Box_Turtle Turtle_1"), 0);
+    REQUIRE(shell != nullptr);
+    CHECK(std::string(shell->id) == "box_turtle");
+    CHECK(shell->dome_n == 0);
+    CHECK(unit_shell_for(one_unit(AmsType::AFC, "Night_Owl Owl_1"), 0) == nullptr);
+}
+
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);

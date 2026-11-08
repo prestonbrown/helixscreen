@@ -2,6 +2,7 @@
 """Projection, shading and SVG layers shared by every unit drawing."""
 import math
 from dataclasses import dataclass
+from typing import Callable, List, Optional, Tuple
 
 
 def norm(v):
@@ -84,6 +85,30 @@ def tray_profile(profile, base_z, px_per_unit):
     """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
     y0, y1 = profile[0][0], profile[-1][0]
     return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
+
+
+@dataclass
+class TrayShellDef:
+    cheek: List[Tuple[float, float]]
+    dome: List[Tuple[float, float]]
+    back_extra_px: float
+    front_wall_px: float
+    rail_px: float
+    cap_clearance_px: float
+    lid_spans_row: bool
+    has_latch: bool
+    body: int
+    panel: int
+    rail: int
+    accent: int
+
+
+@dataclass
+class UnitDef:
+    id: str
+    lanes: int
+    draw_art: Callable
+    tray: Optional[TrayShellDef] = None
 
 
 @dataclass
