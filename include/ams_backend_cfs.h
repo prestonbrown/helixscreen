@@ -228,6 +228,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
         return t;
     }
 
+    /// The bay's label on the box: box number then bay letter, "1A".."4D".
+    [[nodiscard]] std::string lane_name(int global_slot) const override {
+        const std::string tnn = CfsMaterialDb::slot_to_tnn(global_slot);
+        return tnn.empty() ? std::string() : tnn.substr(1);
+    }
+
   protected:
     // Operations. Gated by AmsSubscriptionBackend's NVI wrapper.
     // select_slot_moves_toolhead() stays false: CFS has no select at all

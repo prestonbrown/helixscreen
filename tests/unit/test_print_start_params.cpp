@@ -67,6 +67,40 @@ TEST_CASE("only Z-Mod with its built-in AFC takes the tools map", "[print_start_
     CHECK_FALSE(takes_tool_slots(afc));
 }
 
+TEST_CASE("server.info's print_start_tools flag is read from zmod.features",
+          "[print_start_params][2033]") {
+    using nlohmann::json;
+    CHECK(server_takes_tool_slots(
+        json{{"zmod", {{"features", json::array({"print_start_tools"})}}}}));
+    CHECK(server_takes_tool_slots(
+        json{{"zmod", {{"features", json::array({"other", "print_start_tools"})}}}}));
+
+    CHECK_FALSE(server_takes_tool_slots(json::object()));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", json::object()}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", json::array()}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", "print_start_tools"}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", {{"features", json::array({1, 2})}}}}));
+    CHECK_FALSE(server_takes_tool_slots(json{{"zmod", "print_start_tools"}}));
+    CHECK_FALSE(server_takes_tool_slots(json::array()));
+    // Only Z-Mod's own member counts.
+    CHECK_FALSE(server_takes_tool_slots(json{{"features", json::array({"print_start_tools"})}}));
+}
+
+TEST_CASE("a Moonraker advertising print_start_tools takes the map with AFC off",
+          "[print_start_params][2033]") {
+    helix::PrinterDiscovery ifs;
+    ifs.set_server_takes_print_start_tools(true);
+    // Discovery reads server.info before the object list; parsing keeps the flag.
+    ifs.parse_objects(nlohmann::json::array({"zmod_color", "zmod_ifs"}));
+    REQUIRE_FALSE(ifs.has_zmod_afc());
+    CHECK(takes_tool_slots(ifs));
+
+    helix::PrinterDiscovery quiet;
+    quiet.parse_objects(nlohmann::json::array({"zmod_color", "zmod_ifs"}));
+    CHECK_FALSE(quiet.server_takes_print_start_tools());
+    CHECK_FALSE(takes_tool_slots(quiet));
+}
+
 namespace {
 const helix::test::FakeMoonrakerClient::RpcCall*
 find_start(const helix::test::FakeMoonrakerClient& client) {
@@ -94,6 +128,38 @@ TEST_CASE("printer.print.start carries the extra parameters beside the filename"
         const auto* start = find_start(client);
         REQUIRE(start != nullptr);
         CHECK(start->params == nlohmann::json{{"filename", "part.gcode"}});
+    }
+}
+
+TEST_CASE("the HelixPrint plugin's starts carry the extra parameters beside the copy",
+          "[print_start_params][2038]") {
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerJobAPI job(client);
+    const std::string method = GENERATE(std::string("server.helix.print_modified"),
+                                        std::string("server.helix.print_edited"));
+    CAPTURE(method);
+    const bool with_tools = GENERATE(true, false);
+    CAPTURE(with_tools);
+    const helix::PrintStartParams extra =
+        with_tools ? helix::PrintStartParams{{"tools", "2,,1"}} : helix::PrintStartParams{};
+
+    if (method == "server.helix.print_modified") {
+        job.start_modified_print(
+            "part.gcode", ".helix_temp/part.gcode", {}, nullptr, [](const MoonrakerError&) {},
+            extra);
+    } else {
+        job.start_edited_print(
+            "part.gcode", ".helix_temp/part.gcode", nlohmann::json::array(), {}, 0, nullptr,
+            [](const MoonrakerError&) {}, extra);
+    }
+    const auto it = std::find_if(client.rpc_calls.begin(), client.rpc_calls.end(),
+                                 [&](const auto& c) { return c.method == method; });
+    REQUIRE(it != client.rpc_calls.end());
+    CHECK(it->params["original_filename"] == "part.gcode");
+    if (with_tools) {
+        CHECK(it->params["tools"] == "2,,1");
+    } else {
+        CHECK_FALSE(it->params.contains("tools"));
     }
 }
 

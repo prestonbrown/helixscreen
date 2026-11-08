@@ -132,9 +132,10 @@ TEST_CASE("Z-offset approach: an unknown plate sends no move", "[zoffset_center]
 TEST_CASE("Z-offset calibration command: strategy and probe pick the command and reading point",
           "[zoffset_center]") {
     using S = ZOffsetCalibrationStrategy;
-    auto check = [](S s, ProbeSensorType t, const std::string& gcode, ReadingPoint point) {
-        const auto c = calibration_command(s, t);
-        CHECK(std::string(c.gcode) == gcode);
+    auto check = [](S s, ProbeSensorType t, const std::string& gcode, ReadingPoint point,
+                    std::string_view chip = "btt") {
+        const auto c = calibration_command(s, t, chip);
+        CHECK(c.gcode == gcode);
         CHECK(c.point == point);
     };
     check(S::PROBE_CALIBRATE, ProbeSensorType::STANDARD, "PROBE_CALIBRATE", ReadingPoint::Probe);
@@ -142,6 +143,11 @@ TEST_CASE("Z-offset calibration command: strategy and probe pick the command and
     check(S::PROBE_CALIBRATE, ProbeSensorType::CARTOGRAPHER, "CARTOGRAPHER_SCAN_CALIBRATE",
           ReadingPoint::Nozzle);
     check(S::PROBE_CALIBRATE, ProbeSensorType::BEACON, "BEACON_CALIBRATE", ReadingPoint::Nozzle);
+    // The eddy calibration is a paper test at the nozzle; after ACCEPT Klipper
+    // moves the coil over that point and sweeps it.
+    check(S::PROBE_CALIBRATE, ProbeSensorType::EDDY_CURRENT,
+          "PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy", ReadingPoint::Nozzle, "btt_eddy");
+    check(S::ENDSTOP, ProbeSensorType::EDDY_CURRENT, "Z_ENDSTOP_CALIBRATE", ReadingPoint::Nozzle);
     check(S::ENDSTOP, ProbeSensorType::BLTOUCH, "Z_ENDSTOP_CALIBRATE", ReadingPoint::Nozzle);
     check(S::FIRMWARE_MANAGED, ProbeSensorType::STANDARD, "", ReadingPoint::Nozzle);
 }

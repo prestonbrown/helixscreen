@@ -34,4 +34,21 @@ std::optional<KlippyState> parse_klippy_state(std::string_view state);
 /// The inverse of parse_klippy_state(): Klipper's own name for `state`.
 const char* klippy_state_name(KlippyState state);
 
+/**
+ * @brief Whether a Klipper state_message reports a printer.cfg that failed to load
+ *
+ * Matches the wording of Klipper's own config errors (configfile.py, pins.py):
+ * an option or section the config got wrong. A restart cannot clear one of these
+ * until the file is fixed, which is what the recovery dialog has to tell the user.
+ */
+bool is_klippy_config_error(std::string_view state_message);
+
+/**
+ * @brief Whether a Klipper state_message reports an MCU it could not reach at startup
+ *
+ * Klipper's wording from mcu.py and serialhdl.py ("mcu 'mcu': Unable to connect").
+ * This is what an unpowered mainboard looks like from the host.
+ */
+bool is_klippy_mcu_connect_error(std::string_view state_message);
+
 } // namespace helix

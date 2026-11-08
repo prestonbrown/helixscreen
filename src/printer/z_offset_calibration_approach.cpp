@@ -19,7 +19,7 @@ ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<
 }
 
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
-                                       sensors::ProbeSensorType probe_type) {
+                                       sensors::ProbeSensorType probe_type, std::string_view chip) {
     switch (strategy) {
     case ZOffsetCalibrationStrategy::FIRMWARE_MANAGED:
         return {"", ReadingPoint::Nozzle};
@@ -35,6 +35,8 @@ CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
         return {"CARTOGRAPHER_SCAN_CALIBRATE", ReadingPoint::Nozzle};
     case sensors::ProbeSensorType::BEACON:
         return {"BEACON_CALIBRATE", ReadingPoint::Nozzle};
+    case sensors::ProbeSensorType::EDDY_CURRENT:
+        return {fmt::format("PROBE_EDDY_CURRENT_CALIBRATE CHIP={}", chip), ReadingPoint::Nozzle};
     default:
         return {"PROBE_CALIBRATE", ReadingPoint::Probe};
     }

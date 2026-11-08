@@ -20,12 +20,13 @@ namespace helix {
  * the firmware owns what happens next (FlashForge, ForgeX-mod and Artillery M1 persist it; the
  * Snapmaker U1 does not, see ZOffsetTuneHint). PROBE_CALIBRATE: standard Klipper
  * PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG. ENDSTOP: Z_ENDSTOP_CALIBRATE -> ACCEPT ->
- * Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG.
+ * SAVE_CONFIG. ACCEPT stages the calibrated value; a baby-step save, which has no ACCEPT,
+ * stages it with Z_OFFSET_APPLY_PROBE or Z_OFFSET_APPLY_ENDSTOP before SAVE_CONFIG.
  */
 enum class ZOffsetCalibrationStrategy {
     PROBE_CALIBRATE,  ///< Standard Klipper: PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG
     FIRMWARE_MANAGED, ///< No HelixScreen Save step: SET_GCODE_OFFSET, then the firmware's call
-    ENDSTOP ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
+    ENDSTOP           ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> SAVE_CONFIG
 };
 
 /**

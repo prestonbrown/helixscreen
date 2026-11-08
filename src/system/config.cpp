@@ -1666,11 +1666,25 @@ bool preset_targets_this_device(const std::string& moonraker_host) {
 
 } // namespace
 
+namespace {
+
+/// Where presets/<name>.json resolves: the writable user dir first, then the
+/// shipped read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/.
+std::string preset_file_path(const std::string& preset_name) {
+    return helix::find_readable(std::string("presets/") + preset_name + ".json");
+}
+
+} // namespace
+
+bool Config::preset_file_exists(const std::string& preset_name) {
+    return !preset_name.empty() && hfs::exists(preset_file_path(preset_name));
+}
+
 bool Config::apply_preset_file(const std::string& preset_name) {
     // Guard: only full-apply if wizard hasn't been completed for this printer.
     // Post-wizard, still allow narrow migrations for an already-provisioned printer:
     // filament_sensors, default_macros, role keys the stored config never held
-    // (fans/*, heaters/*, temp_sensors/*, seeded only when absent or empty), and a
+    // (fans/*, heaters/*, temp_sensors/*, seeded only when absent), and a
     // hardware/expected union. Without this, fixing a preset only helps fresh
     // installs: existing users stay broken even after an update.
     const bool wizard_done = get<bool>(df() + "wizard_completed", false);
@@ -1682,8 +1696,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
         }
-        std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-        std::string preset_path = helix::find_readable(preset_relpath);
+        std::string preset_path = preset_file_path(preset_name);
         if (!hfs::exists(preset_path)) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
@@ -1803,9 +1816,9 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         }
 
         // Migration 3: role keys. Seed the hardware mappings the preset defines onto a
-        // machine provisioned before the preset landed, writing only absent-or-empty
-        // stored values: a present value is the user's (or the auto-heal path's) call,
-        // and a wrong-but-present one is the auto-heal path's job, not the preset's.
+        // machine provisioned before the preset landed, writing only absent keys. A present
+        // value is the user's or the auto-heal path's call; an empty one is a declined
+        // role, and reseeding it reopens the Fans wizard every boot (#2040).
         // leds/strip is deliberately excluded — a preset LED name the machine lacks
         // raises "Configured LED strip not found", which notify_user reports ahead of
         // the toast this migration exists to silence.
@@ -1825,8 +1838,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                     }
                     const std::string rel = std::string(group) + "/" + key;
                     const json* stored = try_get_json(df() + rel);
-                    const bool held = stored != nullptr && stored->is_string() &&
-                                      !stored->get<std::string>().empty();
+                    const bool held = stored != nullptr && stored->is_string();
                     if (!held) {
                         printer_node[group][key] = val;
                         changed = true;
@@ -1885,8 +1897,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     // to the shipped read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/.
     // The seed location is where install tarballs land presets — looking only in
     // the writable config dir would miss every preset on a fresh install.
-    std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-    std::string preset_path = helix::find_readable(preset_relpath);
+    std::string preset_path = preset_file_path(preset_name);
     if (!hfs::exists(preset_path)) {
         spdlog::warn("[Config] Preset file not found: {} (looked in writable + seed bundle)",
                      preset_path);

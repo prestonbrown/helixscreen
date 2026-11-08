@@ -17,6 +17,7 @@
 #include "ams_status_json.h"
 #include "config.h"
 #include "filament_variants.h"
+#include "gcode_help.h"
 #include "gcode_response_lines.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
@@ -3938,17 +3939,16 @@ void AmsBackendAfc::detect_afc_commands() {
 }
 
 bool AmsBackendAfc::apply_gcode_help_response(const nlohmann::json& response) {
-    const auto result = response.find("result");
-    if (result == response.end() || !result->is_object()) {
+    const auto has_toolhead_cal = gcode_help_lists(response, "AFC_TOOLHEAD_CALIBRATION");
+    if (!has_toolhead_cal) {
         return false;
     }
-    const bool has_toolhead_cal = result->contains("AFC_TOOLHEAD_CALIBRATION");
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        has_toolhead_calibration_ = has_toolhead_cal;
+        has_toolhead_calibration_ = *has_toolhead_cal;
     }
     spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}",
-                  has_toolhead_cal ? "available" : "not registered");
+                  *has_toolhead_cal ? "available" : "not registered");
     return true;
 }
 

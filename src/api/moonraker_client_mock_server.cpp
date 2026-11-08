@@ -928,6 +928,9 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                            {"registered_directories", json::array({"gcodes", "config", "logs"})},
                            {"warnings", json::array()},
                            {"websocket_count", 1}}}};
+        for (const auto& [key, value] : self->mock_server_info_extra().items()) {
+            response["result"][key] = value;
+        }
 
         if (success_cb) {
             success_cb(response);
@@ -959,7 +962,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             break;
         case MoonrakerClientMock::KlippyState::ERROR:
             state_str = "error";
-            state_message = "Printer is in error state";
+            state_message = self->klippy_error_message().empty() ? "Printer is in error state"
+                                                                 : self->klippy_error_message();
             break;
         }
 

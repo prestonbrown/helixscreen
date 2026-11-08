@@ -195,8 +195,8 @@ ModifiedPrintResult linked_print_result(const json& response,
 void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
                                            const std::string& temp_file_path,
                                            const std::vector<std::string>& modifications,
-                                           ModifiedPrintCallback on_success,
-                                           ErrorCallback on_error) {
+                                           ModifiedPrintCallback on_success, ErrorCallback on_error,
+                                           const helix::PrintStartParams& extra_params) {
     // Validate filename paths
     if (reject_invalid_path(original_filename, "start_modified_print", on_error))
         return;
@@ -216,6 +216,9 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
                    {"temp_file_path", temp_file_path},
                    {"modifications", mods_array},
                    {"copy_metadata", true}};
+    for (const auto& [name, value] : extra_params) {
+        params[name] = value;
+    }
 
     spdlog::info("[Moonraker API] Starting modified print via helix_print plugin: {} (temp: {})",
                  original_filename, temp_file_path);
@@ -241,7 +244,8 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
         // The callback runs on the WebSocket background thread and only touches
         // spdlog + client_ (via start_print) — no LVGL/subject work here; the
         // caller's on_success/on_error handle their own thread bouncing.
-        [this, original_filename, temp_file_path, on_success, on_error](const MoonrakerError& err) {
+        [this, original_filename, temp_file_path, on_success, on_error,
+         extra_params](const MoonrakerError& err) {
             // Only an answer from the plugin justifies a second start. The endpoint
             // starts the print before it replies, so an error carrying no reply
             // leaves the print's fate unknown and it may already be running. Firing
@@ -261,6 +265,15 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
             // deleted and no start may replace it.
             if (helix::storage::is_no_space_refusal(err.code)) {
                 spdlog::warn("[Moonraker API] helix_print refused '{}' for space: {}",
+                             temp_file_path, err.message);
+                helix::screen_start_ledger().withdraw_any();
+                on_error(err);
+                return;
+            }
+            // A 400 refuses the request itself (a path or tool map the plugin
+            // rejected): printer.print.start with the same values is no better.
+            if (err.code == 400) {
+                spdlog::warn("[Moonraker API] helix_print refused '{}' as invalid: {}",
                              temp_file_path, err.message);
                 helix::screen_start_ledger().withdraw_any();
                 on_error(err);
@@ -291,7 +304,7 @@ void MoonrakerJobAPI::start_modified_print(const std::string& original_filename,
                     on_success(result);
                 },
                 // Fallback ALSO failed — only now surface the error to the caller.
-                on_error);
+                on_error, extra_params);
         },
         kPrintModifiedTimeoutMs);
 }
@@ -300,7 +313,8 @@ void MoonrakerJobAPI::start_edited_print(const std::string& original_filename,
                                          const std::string& temp_file_path, const json& edits,
                                          const std::vector<std::string>& modifications,
                                          uint64_t file_size, ModifiedPrintCallback on_success,
-                                         ErrorCallback on_error) {
+                                         ErrorCallback on_error,
+                                         const helix::PrintStartParams& extra_params) {
     if (reject_invalid_path(original_filename, "start_edited_print", on_error))
         return;
     if (reject_invalid_path(temp_file_path, "start_edited_print", on_error))
@@ -312,6 +326,9 @@ void MoonrakerJobAPI::start_edited_print(const std::string& original_filename,
                    {"temp_file_path", temp_file_path},
                    {"edits", edits},
                    {"modifications", modifications}};
+    for (const auto& [name, value] : extra_params) {
+        params[name] = value;
+    }
 
     spdlog::info("[Moonraker API] Starting edited print via helix_print plugin: {} ({} edits, "
                  "copy: {})",

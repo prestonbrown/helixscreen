@@ -443,7 +443,7 @@ class TestStatusAPI:
         assert result["temp_dir"] == ".helix_temp"
         assert result["symlink_dir"] == ".helix_print"
         assert result["cleanup_delay"] == 3600
-        assert result["version"] == "1.4.0"
+        assert result["version"] == "1.4.1"
         assert result["active_prints"] == 0
 
 
@@ -647,6 +647,107 @@ class TestPrintModifiedAPI:
 # ============================================================================
 # Symlink Conflict Tests
 # ============================================================================
+
+class TestPrintModifiedToolsMap:
+    """#2038: a print the plugin starts carries the app's tool map to a
+    Moonraker whose start_print takes one (Z-Mod's print_start_tools)."""
+
+    @staticmethod
+    def _stage(temp_gcodes_dir):
+        (Path(temp_gcodes_dir) / "benchy.gcode").write_text("G28\n")
+        temp_dir = Path(temp_gcodes_dir) / ".helix_temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        (temp_dir / "mod_benchy.gcode").write_text("G28\n")
+
+    @staticmethod
+    def _request(**extra):
+        params = {
+            "original_filename": "benchy.gcode",
+            "temp_file_path": ".helix_temp/mod_benchy.gcode",
+            "modifications": [],
+        }
+        params.update(extra)
+        return MockWebRequest(params)
+
+    @staticmethod
+    def _tools_start_print(apis):
+        calls = []
+
+        async def start_print(filename, wait_klippy_started=False, user=None, tools=None):
+            calls.append((filename, tools))
+
+        apis.start_print = start_print
+        return calls
+
+    @pytest.mark.asyncio
+    async def test_tools_go_through_start_print_when_it_takes_them(
+        self, helix_print_component, mock_server, temp_gcodes_dir
+    ):
+        self._stage(temp_gcodes_dir)
+        await helix_print_component.component_init()
+        apis = mock_server.components["klippy_apis"]
+        calls = self._tools_start_print(apis)
+
+        handler = mock_server.endpoints["/server/helix/print_modified"]
+        result = await handler(self._request(tools="2,,1"))
+
+        assert result["status"] == "printing"
+        assert calls == [(".helix_print/full/benchy.gcode", "2,,1")]
+        assert apis.run_gcode.await_count == 0
+
+    @pytest.mark.asyncio
+    async def test_stock_start_print_starts_without_the_map(
+        self, helix_print_component, mock_server, temp_gcodes_dir
+    ):
+        self._stage(temp_gcodes_dir)
+        await helix_print_component.component_init()
+        apis = mock_server.components["klippy_apis"]
+
+        async def start_print(filename, wait_klippy_started=False, user=None):
+            raise AssertionError("stock start_print must not be called with tools")
+
+        apis.start_print = start_print
+
+        handler = mock_server.endpoints["/server/helix/print_modified"]
+        await handler(self._request(tools="2,1"))
+
+        assert apis.run_gcode.await_count == 1
+        sent = apis.run_gcode.await_args.args[0]
+        assert sent == 'SDCARD_PRINT_FILE FILENAME=".helix_print/full/benchy.gcode"'
+
+    @pytest.mark.asyncio
+    async def test_no_map_keeps_the_plain_start(
+        self, helix_print_component, mock_server, temp_gcodes_dir
+    ):
+        self._stage(temp_gcodes_dir)
+        await helix_print_component.component_init()
+        apis = mock_server.components["klippy_apis"]
+        calls = self._tools_start_print(apis)
+
+        handler = mock_server.endpoints["/server/helix/print_modified"]
+        await handler(self._request())
+
+        assert calls == []
+        assert apis.run_gcode.await_count == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tools", ["2;M112", "T0=2", "1, 2", "x" * 600])
+    async def test_a_malformed_map_starts_nothing(
+        self, helix_print_component, mock_server, temp_gcodes_dir, tools
+    ):
+        self._stage(temp_gcodes_dir)
+        await helix_print_component.component_init()
+        apis = mock_server.components["klippy_apis"]
+        calls = self._tools_start_print(apis)
+
+        handler = mock_server.endpoints["/server/helix/print_modified"]
+        with pytest.raises(Exception, match="400"):
+            await handler(self._request(tools=tools))
+
+        assert calls == []
+        assert apis.run_gcode.await_count == 0
+        assert (Path(temp_gcodes_dir) / ".helix_temp" / "mod_benchy.gcode").exists()
+
 
 class TestSymlinkConflicts:
     """Tests for symlink conflict handling."""

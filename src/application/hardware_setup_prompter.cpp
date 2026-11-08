@@ -485,9 +485,12 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
     // Session guard: one warning per boot. The toast and history entry stay until the
     // user answers the review; only an answer persists TYPE_MISMATCH_SHOWN_FOR.
     guards.type_mismatch_shown = true;
+    // An ambiguous detection reaches Warn only through the contender for the
+    // saved machine, which is the type to offer.
+    const std::string offered = PrinterDetector::mismatch_subject(saved, detected);
     spdlog::info("[HardwareSetup] Printer type mismatch: saved '{}' but detected '{}' ({}%)", saved,
-                 detected.type_name, detected.confidence);
-    warn_type_mismatch({detected.type_name, detected.confidence, saved});
+                 offered, detected.confidence);
+    warn_type_mismatch({offered, detected.confidence, saved});
 }
 
 void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {

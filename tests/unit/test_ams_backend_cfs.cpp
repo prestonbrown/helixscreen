@@ -1040,6 +1040,18 @@ TEST_CASE("CFS data model extensions", "[ams][cfs]") {
 
 using helix::printer::CfsMaterialDb;
 
+TEST_CASE("CFS names each lane by its box number and bay letter", "[ams][cfs][lane_name]") {
+    const helix::printer::AmsBackendCfs backend(nullptr, nullptr);
+    CHECK(backend.lane_name(0) == "1A");
+    CHECK(backend.lane_name(3) == "1D");
+    CHECK(backend.lane_name(5) == "2B");
+    CHECK(backend.lane_name(15) == "4D");
+    // No bay: the bypass sentinel and indexes past the fourth box have no name,
+    // so the caller falls back to the numbered label.
+    CHECK(backend.lane_name(-2).empty());
+    CHECK(backend.lane_name(16).empty());
+}
+
 TEST_CASE("CFS material database", "[ams][cfs]") {
     // Material resolution now goes through FilamentCatalog's transient
     // "cfs"-coded slice (Task 5, filament-catalog merge) rather than the

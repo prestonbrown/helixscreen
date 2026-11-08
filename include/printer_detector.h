@@ -787,12 +787,31 @@ class PrinterDetector {
      * fields the decision depends on - the margin included - off the result,
      * so a caller cannot silently drop one and still compile.
      *
+     * An ambiguous result is weighed through mismatch_subject(): when one of
+     * the tied machines is the saved one, the saved type has answered the
+     * question detection could not, and the comparison is against that
+     * machine's contender.
+     *
      * @param detected A result from detect()/auto_detect(). A result that
      *        identified nothing classifies as NoDetection.
      */
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const PrinterDetectionResult& detected,
                                                    const std::string& flag_value);
+
+    /**
+     * @brief The detected type a saved-vs-detected comparison is about.
+     *
+     * The winner, unless the result is ambiguous and one of its contenders
+     * pictures the same machine as @p saved_type. Detection then failed to
+     * choose between machines, but the user has already chosen one, and that
+     * contender is the detected entry for it: a firmware variant of the saved
+     * model, or the saved type itself. Same machine means the same variant
+     * family (relate_types), never a shared image: one picture can stand for
+     * several sizes of one model line.
+     */
+    static std::string mismatch_subject(const std::string& saved_type,
+                                        const PrinterDetectionResult& detected);
 
     /// The variant fields of one database entry. An entry with "variant_of"
     /// is the same machine as the entry with that id, differing only by a

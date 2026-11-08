@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -170,6 +171,13 @@ class ActivePrintMediaManager {
      * layers 0/0 for its entire duration.
      */
     void rearm_media_if_incomplete();
+    /// The archive plate printing (printing_archive_plate()) is not the one the
+    /// last load described the active .3mf job from.
+    [[nodiscard]] bool printing_plate_changed() const;
+    /// Load the active job's media again, for the plate now known to print.
+    void reload_for_printing_plate();
+    /// Start the active job's media load over with a fresh retry budget.
+    void restart_media_load();
     /// Body of the retry timer: re-validates filename + generation, then reloads.
     void on_retry_timer_fired();
     static void retry_timer_cb(lv_timer_t* timer);
@@ -208,6 +216,18 @@ class ActivePrintMediaManager {
     void self_serve_from_gcode(const std::string& filename, const std::string& gcode_path,
                                const ThumbnailLoadContext& ctx);
 
+    /// The plate of @p archive (the active job's file) that is printing, by
+    /// print_3mf::printing_plate(); nullopt when the printer picked it.
+    [[nodiscard]] std::optional<int> printing_archive_plate(const std::string& archive) const;
+
+    /// Describe the active job from plate @p plate of @p archive instead of the
+    /// printer's metadata, which describes the plate the printer picks by
+    /// default: the plate's predicted time, materials and, unless
+    /// @p skip_thumbnail, its render. A failed read retries like a failed
+    /// metadata fetch. Main thread only.
+    void describe_archive_plate(const std::string& filename, const std::string& archive, int plate,
+                                const ThumbnailLoadContext& ctx, bool skip_thumbnail);
+
     PrinterState& printer_state_;
     IMoonrakerAPI* api_ = nullptr;
     ObserverGuard print_filename_observer_;
@@ -220,6 +240,8 @@ class ActivePrintMediaManager {
     /// plate extracted from a .3mf names its plate only there.
     std::string last_raw_filename_;
     std::string last_loaded_thumbnail_filename_;
+    /// The archive plate the last load described the job from; nullopt: the metadata.
+    std::optional<int> described_plate_;
     bool last_was_empty_ = false; ///< Prevents repeated "empty filename" log spam
 
     /// Max total metadata/thumbnail load attempts per filename (1 initial + 9 retries).

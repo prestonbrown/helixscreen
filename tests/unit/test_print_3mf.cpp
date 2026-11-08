@@ -174,6 +174,15 @@ TEST_CASE("a reprint with no recorded start names a plate only when that is cert
     CHECK_FALSE(unrecorded_reprint_plate(md));
 }
 
+TEST_CASE("the printing plate is the one this screen knows started", "[print_3mf][2063]") {
+    CHECK(printing_plate(0, 5) == 5);
+    CHECK(printing_plate(3, std::nullopt) == 3);
+    CHECK(printing_plate(3, 5) == 3);
+    // A start that named no plate, or none recorded: the printer picked it.
+    CHECK_FALSE(printing_plate(0, 0));
+    CHECK_FALSE(printing_plate(0, std::nullopt));
+}
+
 TEST_CASE("every refusal has words for its toast", "[print_3mf]") {
     CHECK(std::string(refusal_message(Refusal::None)).empty());
     for (Refusal r :

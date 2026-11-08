@@ -2499,29 +2499,26 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         on_print_success();
     };
 
-    if ((plugin_edits || job->use_plugin) && !start_params_.empty()) {
-        // The plugin starts the copy with SDCARD_PRINT_FILE, which takes no
-        // printer.print.start parameters.
-        spdlog::warn("[PrintPreparationManager] HelixPrint plugin start for {} cannot carry its "
-                     "{} print start parameter(s); the firmware chooses the tool map",
-                     job->file_path, start_params_.size());
-        start_params_.clear();
-    }
+    // A staged copy is G-code: the builder adds no plate to its tool map. The
+    // plugin hands the map to a Moonraker whose start takes it.
+    const helix::PrintStartParams start_params =
+        helix::print_start::start_request_params({}, std::exchange(start_params_, {}));
 
     if (plugin_edits) {
         // The plugin writes the copy itself, and removes it if the start fails, so no
         // branch here deletes it.
-        auto on_edit_error = [this, token, job, on_navigate_to_status, on_completion, ps,
-                              epoch](const MoonrakerError& error) {
+        auto on_edit_error = [this, token, job, on_navigate_to_status, on_completion, ps, epoch,
+                              start_params](const MoonrakerError& error) {
             switch (gcode::classify_print_edited_failure(error)) {
             case gcode::EditedPrintFailure::Unsupported:
                 spdlog::warn("[PrintPreparationManager] Plugin cannot edit {} ({}); rewriting "
                              "on the screen",
                              job->file_path, error.message);
                 token.defer("PrintPreparationManager::edit_fallback",
-                            [this, job, on_navigate_to_status, on_completion]() {
+                            [this, job, on_navigate_to_status, on_completion, start_params]() {
                                 // Refused before anything ran: the fallback
-                                // sends its own start.
+                                // sends its own start, with this print's map.
+                                start_params_ = start_params;
                                 if (printer_state_) {
                                     printer_state_->print_state().note_preparing_start_answered(
                                         job->preparing_epoch, false);
@@ -2565,17 +2562,14 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         };
         api_->job().start_edited_print(job->file_path, remote_temp_path, *job->server_edits,
                                        job->mod_names, job->file_size, on_plugin_accepted,
-                                       on_edit_error);
+                                       on_edit_error, start_params);
     } else if (job->use_plugin) {
         // The plugin symlinks the copy under the original name,
         // patches history, and starts the print.
         api_->job().start_modified_print(job->file_path, remote_temp_path, job->mod_names,
-                                         on_plugin_accepted, on_print_error);
+                                         on_plugin_accepted, on_print_error, start_params);
     } else {
-        // A staged copy is G-code: the builder adds no plate to its tool map.
-        api_->job().start_print(
-            remote_temp_path, on_print_success, on_print_error,
-            helix::print_start::start_request_params({}, std::exchange(start_params_, {})));
+        api_->job().start_print(remote_temp_path, on_print_success, on_print_error, start_params);
     }
 }
 
