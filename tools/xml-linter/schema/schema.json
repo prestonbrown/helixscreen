@@ -1973,6 +1973,10 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
+    "plate_glow": {
+      "attributes": {},
+      "inherits": "lv_obj"
+    },
     "swatch_paint": {
       "attributes": {
         "color": {
@@ -3021,6 +3025,7 @@
     "belt_path_sketch",
     "helix_sparkline",
     "leader_line",
+    "plate_glow",
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
