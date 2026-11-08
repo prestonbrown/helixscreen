@@ -317,16 +317,19 @@ void BouncingPrinterScreensaver::celebrate(lv_color_t flash) {
 
     // The particle system is dozens of objects repositioned and resized every frame. That is
     // the cost profile BASIC and EMBEDDED tiers had the screensaver taken away over, so boards
-    // that cannot animate and the ladder's lowest rung get the flash alone. One burst at a
-    // time keeps a finished print bouncing for hours at one burst's cost; confetti_ reads
-    // nullptr once ui_confetti deletes a spent burst's container.
+    // that cannot animate and the ladder's lowest rung get the flash alone. A print shows one
+    // burst at a time, which keeps a finished print bouncing for hours at one burst's cost;
+    // confetti_ reads nullptr once ui_confetti deletes a spent burst's container. A corner
+    // with no print throws its own burst whatever is still flying.
     const int particles = confetti_count(level());
-    if (particles <= 0 || !animates_ || confetti_) {
+    const bool one_at_a_time = print_reading().mode != ClockMode::CLOCK;
+    if (particles <= 0 || !animates_ || (one_at_a_time && confetti_)) {
         return;
     }
     if (lv_obj_t* confetti = ui_confetti_create(overlay().obj())) {
         confetti_ = confetti;
         ui_confetti_burst(confetti, particles);
+        keep_print_card_on_top();
     }
 }
 

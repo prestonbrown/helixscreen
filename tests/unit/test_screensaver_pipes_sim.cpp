@@ -1443,6 +1443,20 @@ void step_frames(helix::test::SimRun<PipesSim>& run, const ClockReading& print, 
     }
 }
 
+/// Steps `run` by 100 ms on `print` until its end is drawn, at most `frames` times, checking
+/// that no call grows more than kPipesFastForwardSteps steps' worth of nodes (a step takes at
+/// most two: a new pipe's start and its first growth); returns the calls it took.
+int fast_forward_to_end(helix::test::SimRun<PipesSim>& run, const ClockReading& print, int frames) {
+    int calls = 0;
+    for (; calls < frames && !run.sim.end_drawn(); calls++) {
+        const size_t before = run.sim.nodes_taken();
+        run.step(100, print);
+        run.dirty.clear();
+        REQUIRE(run.sim.nodes_taken() - before <= 2 * kPipesFastForwardSteps);
+    }
+    return calls;
+}
+
 bool all_grey(const TestFrame& f) {
     return helix::test::count_pixels(f.target, [](Rgb c) { return c.r != c.g || c.g != c.b; }) == 0;
 }
@@ -1478,11 +1492,16 @@ TEST_CASE("a print fills one screen as it goes", "[screensaver][pipes_sim]") {
 TEST_CASE("a finished print sets a teapot on the full screen", "[screensaver][pipes_sim]") {
     helix::test::SimRun<PipesSim> run(6, 160, 96);
     const ClockReading done = print_reading_for(ClockMode::DONE, 100);
-    SECTION("a saver started after the end opens on it") {
+    SECTION("a saver started after the end fast-forwards to it in bounded calls") {
         run.init(0, done);
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK(run.sim.nodes_taken() <= 2 + 2 * kPipesFastForwardSteps);
+        const int calls = fast_forward_to_end(run, done, 400);
+        REQUIRE(run.sim.end_drawn());
+        CHECK(calls > 1);
         CHECK(run.sim.print_end() == PipesEnd::DONE);
-        CHECK(run.sim.end_drawn());
         CHECK(run.sim.nodes_taken() == run.sim.node_count());
+        CHECK(run.sim.screens_started() == 1);
     }
     SECTION("the print finishing fills the rest, then sets the teapot") {
         run.init(0, print_at(ClockMode::PROGRESS, 97));
@@ -1529,6 +1548,25 @@ TEST_CASE("a finished print sets a teapot on the full screen", "[screensaver][pi
     CHECK(helix::test::bytes_differing(held, run.frame.snapshot()) == 0);
 }
 
+TEST_CASE("a screen opened on a paused print shows the paused progress",
+          "[screensaver][pipes_sim]") {
+    helix::test::SimRun<PipesSim> run(9, 160, 96);
+    const ClockReading paused = print_at(ClockMode::PAUSED, 70);
+    run.init(0, paused);
+    REQUIRE(run.sim.print_screen());
+    for (int i = 0; i < 400; i++) {
+        const size_t before = run.sim.nodes_taken();
+        run.step(100, paused);
+        run.dirty.clear();
+        REQUIRE(run.sim.nodes_taken() - before <= 2 * kPipesFastForwardSteps);
+    }
+    CHECK(std::abs(taken_share(run.sim) - 0.70) <= 0.05);
+    // Paused, it carries nothing past the reported progress.
+    const size_t held = run.sim.nodes_taken();
+    step_frames(run, paused, 600);
+    CHECK(run.sim.nodes_taken() == held);
+}
+
 TEST_CASE("a failed print greys the pipes and stops", "[screensaver][pipes_sim]") {
     helix::test::SimRun<PipesSim> run(7, 160, 96);
     const ClockReading failed = print_reading_for(ClockMode::FAILED, 40);
@@ -1544,8 +1582,12 @@ TEST_CASE("a failed print greys the pipes and stops", "[screensaver][pipes_sim]"
         CHECK(run.dirty[0].y2 == 95);
         run.dirty.clear();
     }
-    SECTION("a saver started after the end opens on it") {
+    SECTION("a saver started after the end fast-forwards to it in bounded calls") {
         run.init(0, failed);
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK(run.sim.nodes_taken() <= 2 + 2 * kPipesFastForwardSteps);
+        CHECK(fast_forward_to_end(run, failed, 400) > 1);
+        REQUIRE(run.sim.end_drawn());
         CHECK(std::abs(taken_share(run.sim) - 0.40) <= 0.05);
     }
     CHECK(run.sim.print_end() == PipesEnd::FAILED);
@@ -1565,6 +1607,7 @@ TEST_CASE("a failed print greys the pipes and stops", "[screensaver][pipes_sim]"
 TEST_CASE("a new print clears the screen and starts again", "[screensaver][pipes_sim]") {
     helix::test::SimRun<PipesSim> run(8, 160, 96);
     run.init(0, print_reading_for(ClockMode::DONE, 100));
+    fast_forward_to_end(run, print_reading_for(ClockMode::DONE, 100), 400);
     REQUIRE(run.sim.end_drawn());
     const auto dissolve_on = [&run](const ClockReading& next) {
         run.step(100, next);

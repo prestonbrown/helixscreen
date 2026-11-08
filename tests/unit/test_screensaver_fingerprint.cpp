@@ -84,16 +84,6 @@ ClockInput clock_input_at(uint32_t elapsed_ms, bool printing) {
     return in;
 }
 
-/// The same clock with a print that ended as `phase` (COMPLETE, FAILED or CANCELLED): a
-/// finished print reached 100%, one that stopped short reached 40%.
-[[maybe_unused]] ClockInput clock_input_end(uint32_t elapsed_ms, ClockPrintPhase phase) {
-    ClockInput in = clock_input_at(elapsed_ms, false);
-    in.print.phase = phase;
-    in.print.remaining_s = phase == ClockPrintPhase::COMPLETE ? 0 : -1;
-    in.print.progress_pct = phase == ClockPrintPhase::COMPLETE ? 100 : 40;
-    return in;
-}
-
 /**
  * @brief Hash of a run: the canvas after start(), then after every `sample_every`th frame
  *

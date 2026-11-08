@@ -25,8 +25,9 @@
 // changes, rows stay inside their stride, XRGB8888 stays opaque, a seed replays and another
 // seed differs, the heap never grows past what init sized and a still rung frees its scene
 // (rule 7 in docs/devel/SCREENSAVERS.md), and clear() frees it all. A sim that takes a
-// ClockReading is checked again on a print counting down: adding it to HELIX_EVERY_PRINT_SIM is
-// all it takes. A sim's own tests cover the runs particular to it.
+// ClockReading is checked again on a print counting down and on a finished and a failed one:
+// adding it to HELIX_EVERY_PRINT_SIM is all it takes. A sim's own tests cover the runs
+// particular to it.
 
 using helix::test::check_replays;
 using helix::test::diff_against;
@@ -165,7 +166,9 @@ template <typename Sim> void check_dirty_contract(ClockMode mode) {
     CHECK(changed > 0);
 }
 
-template <typename Sim> void check_replays_by_seed(ClockMode mode) {
+/// With `seed_shows` false the scene hides everything the seed decides, so only the replay is
+/// checked.
+template <typename Sim> void check_replays_by_seed(ClockMode mode, bool seed_shows = true) {
     auto run = [mode](uint32_t seed) {
         ContractRun<Sim> r(seed, W, H, PixelFormat::XRGB8888, mode);
         r.init(0);
@@ -174,7 +177,11 @@ template <typename Sim> void check_replays_by_seed(ClockMode mode) {
         }
         return helix::test::frame_fnv1a(r.run.frame.target);
     };
-    check_replays(run, 11, 12);
+    if (seed_shows) {
+        check_replays(run, 11, 12);
+    } else {
+        CHECK(run(11) == run(11));
+    }
 }
 
 template <typename Sim> void check_heap_contract(ClockMode mode) {
@@ -247,6 +254,31 @@ TEMPLATE_TEST_CASE("during a print, a sim run still replays from a seed and diff
 TEMPLATE_TEST_CASE("during a print, a sim still holds no more than init sized and clear frees it",
                    "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
     check_heap_contract<TestType>(ClockMode::COUNTDOWN);
+}
+
+TEMPLATE_TEST_CASE("on an ended print, a sim's dirty boxes still cover what it changes, inside its "
+                   "rows and opaque",
+                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
+    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    CAPTURE(static_cast<int>(mode));
+    check_dirty_contract<TestType>(mode);
+}
+
+TEMPLATE_TEST_CASE("on an ended print, a sim run still replays from a seed and differs by seed",
+                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
+    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    CAPTURE(static_cast<int>(mode));
+    // A finished print's planet fills the starfield's view, covering every star.
+    check_replays_by_seed<TestType>(
+        mode, !(std::is_same_v<TestType, StarfieldSim> && mode == ClockMode::DONE));
+}
+
+TEMPLATE_TEST_CASE("on an ended print, a sim still holds no more than init sized and clear frees "
+                   "it",
+                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
+    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    CAPTURE(static_cast<int>(mode));
+    check_heap_contract<TestType>(mode);
 }
 
 TEMPLATE_TEST_CASE("sim frame cost per level", "[.][saver_bench]", HELIX_EVERY_SIM) {

@@ -48,6 +48,9 @@ inline constexpr float kStarfieldPlanetEndShare = 0.22f;
 inline constexpr uint32_t kStarfieldArriveMs = 4000;
 /// How long the planet of a failed or cancelled print takes to shrink and drift off the view.
 inline constexpr uint32_t kStarfieldDepartMs = 6000;
+/// Shortest gap between repaints of a planet larger than a running print's, which the arrival
+/// at a finished print and a new print's shrink back repaint almost whole-frame.
+inline constexpr uint32_t kStarfieldLargePlanetRepaintMs = 100;
 /// Star speed while a print is paused, as a share of the flight's own.
 inline constexpr float kStarfieldPausedSpeed = 0.15f;
 
@@ -139,7 +142,8 @@ class StarfieldSim {
      * @brief Draws the next frame into `target`
      *
      * Moves the planet toward where `reading` puts it and redraws it when its centre or
-     * whole-pixel radius changes; erases the stars where the previous step drew them, moves
+     * whole-pixel radius changes, a disc larger than a running print's at most every
+     * kStarfieldLargePlanetRepaintMs; erases the stars where the previous step drew them, moves
      * each active star by `dt_ms` of flight and draws it, recycling a star that reaches the
      * camera or leaves the frame. A star neither draws nor erases a pixel of the planet.
      *
@@ -173,7 +177,9 @@ class StarfieldSim {
     /// Moves the planet and the star speed toward where `reading` puts them after `dt_ms`, or
     /// there at once when `snap` is set.
     void follow_print(const ClockReading& reading, uint32_t dt_ms, bool snap);
-    /// Redraws the planet when the disc follow_print() placed differs from the drawn one.
+    /// Redraws the planet when the disc follow_print() placed differs from the drawn one, and
+    /// is no larger than a running print's or was last redrawn kStarfieldLargePlanetRepaintMs
+    /// ago.
     void draw_planet(PixelWriter& writer, const FrameTarget& target, std::vector<DirtyRect>& dirty);
 
     std::vector<Star> stars_;
@@ -195,6 +201,8 @@ class StarfieldSim {
     uint32_t end_ms_ = 0;
     float speed_scale_ = 1.0f;
     StarfieldPlanet planet_; ///< as drawn in the frame
+    /// Time since the planet was last redrawn, up to kStarfieldLargePlanetRepaintMs.
+    uint32_t since_planet_ms_ = 0;
 };
 
 } // namespace helix::ui

@@ -94,7 +94,8 @@ TEST_CASE("each print state has its own colour, distinct at 16-bit",
     }
 }
 
-TEST_CASE("the card fits every screen shape at every drift offset",
+TEST_CASE("the card sits centred at the bottom of every screen shape, inside it and clear of the "
+          "centre band at every drift offset",
           "[screensaver][screensaver_print_card]") {
     struct Screen {
         int32_t w;
@@ -119,6 +120,10 @@ TEST_CASE("the card fits every screen shape at every drift offset",
         CHECK(home.y1 - max_dy >= 0);
         CHECK(home.x2 + max_dx < s.w);
         CHECK(home.y2 + max_dy < s.h);
+        CHECK(home.x1 == (s.w - layout.w) / 2);
+        // The planet, the tunnel's light and the fireflies' text sit in the middle of the
+        // screen: the card stays in its bottom third.
+        CHECK(home.y1 - max_dy >= s.h * 2 / 3);
     }
 }
 

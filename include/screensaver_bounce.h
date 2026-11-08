@@ -185,8 +185,9 @@ class BouncingPrinterScreensaver : public helix::ui::SaverBase {
     void apply_tint();
     /// Shows the art for the print state, rewriting the grey rows of fill_ when the line moved.
     void apply_fill();
-    /// A celebration: the backdrop flashes `flash`, and confetti flies when the level and the
-    /// board allow it and no earlier burst is still alive.
+    /// A celebration: the backdrop flashes `flash`, and confetti flies, behind the progress
+    /// card, when the level and the board allow it and, during a print, no earlier burst is
+    /// still alive.
     void celebrate(lv_color_t flash);
     /// Confetti particles a corner releases at `level`: full bursts, none on the flash-only rung.
     int confetti_count(size_t level) const;

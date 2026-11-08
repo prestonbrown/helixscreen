@@ -153,6 +153,7 @@ void StarfieldSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t 
     set_active_count(starfield_star_count(level));
 
     planet_ = {};
+    since_planet_ms_ = kStarfieldLargePlanetRepaintMs;
     planet_r_ = 0;
     planet_dx_ = 0;
     planet_dy_ = 0;
@@ -235,6 +236,15 @@ void StarfieldSim::draw_planet(PixelWriter& writer, const FrameTarget& target,
     if (want == planet_) {
         return;
     }
+    // Larger than a running print's planet, a disc covers most of the frame, and repainting
+    // it each frame of an arrival or a shrink costs a whole-frame redraw per frame.
+    const auto largest =
+        static_cast<int32_t>(std::lround(kStarfieldPlanetEndShare * 2.0f * std::min(cx_, cy_)));
+    if (std::max(want.r, planet_.r) > largest &&
+        since_planet_ms_ < kStarfieldLargePlanetRepaintMs) {
+        return;
+    }
+    since_planet_ms_ = 0;
     const StarfieldPlanet old = planet_;
     planet_ = want;
 
@@ -296,6 +306,7 @@ void StarfieldSim::step(uint32_t dt_ms, FrameTarget& target, std::minstd_rand& r
     star_dirty_.resize(stars_.size());
 
     follow_print(reading, dt_ms, false);
+    since_planet_ms_ = std::min(kStarfieldLargePlanetRepaintMs, since_planet_ms_ + dt_ms);
     draw_planet(writer, target, dirty);
 
     // Erase previous star positions (an incremental clear, which avoids a full-frame fill).

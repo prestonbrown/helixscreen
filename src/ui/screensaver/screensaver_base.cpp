@@ -147,6 +147,12 @@ void SaverBase::start_print_card() {
     step_print_card(0, print_input_);
 }
 
+void SaverBase::keep_print_card_on_top() {
+    if (lv_obj_t* obj = card_.canvas.obj()) {
+        lv_obj_move_foreground(obj);
+    }
+}
+
 void SaverBase::step_print_card(uint32_t dt_ms, const ClockInput& in) {
     if (!card_.enabled) {
         return;

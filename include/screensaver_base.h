@@ -140,6 +140,10 @@ class SaverBase : public Screensaver, public ClockInputSink {
         return print_.reading();
     }
 
+    /// Raises the progress card above what the saver added to the overlay since the card was
+    /// created; nothing for a saver without one.
+    void keep_print_card_on_top();
+
     SaverOverlay& overlay() {
         return overlay_;
     }

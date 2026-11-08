@@ -3,6 +3,7 @@
 #include "ui_screensaver.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/screensaver_bounce_test_access.h"
 #include "../test_helpers/screensaver_test_access.h"
 #include "platform_capabilities.h"
 #include "screensaver_bounce.h"
@@ -216,6 +217,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
         }
         // Its own timer never runs here, so the first burst is still alive.
         CHECK(bursts == 1);
+        // The confetti flies behind the progress card.
+        lv_obj_t* card = ss->print_card_obj();
+        REQUIRE(card != nullptr);
+        CHECK(lv_obj_get_index(card) ==
+              static_cast<int32_t>(lv_obj_get_child_count(lv_obj_get_parent(card))) - 1);
 
         for (int round = 0; round < 3; round++) {
             CAPTURE(round);
@@ -263,6 +269,30 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(ss->confetti() == nullptr);
         CHECK(extra_children(*ss) == 0);
         CHECK(lv_image_get_src(ss->sprite()) == ss->fill_art());
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "with no print, every corner hit throws its own burst, however many are alive",
+                 "[screensaver][bounce]") {
+    if (!helix::PlatformCapabilities::detect().supports_animations) {
+        SKIP("this board does not animate, so a corner flashes instead");
+    }
+    BouncingPrinterScreensaver ss;
+    ScreensaverStopOnExit<BouncingPrinterScreensaver> stop_on_exit{ss};
+    ClockInput in = print_input(ClockPrintPhase::NONE, 0);
+    ss.set_input_source([&in] { return in; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    REQUIRE(extra_children(ss) == 0);
+    for (int hit = 1; hit <= 2; hit++) {
+        CAPTURE(hit);
+        helix::BounceTestAccess::aim_at_corner(ss, 0.5f);
+        for (int i = 0; i < 1000 / 33; i++) {
+            advance_saver(ss, 33);
+        }
+        // Its own timer never runs here, so every burst thrown is still alive.
+        CHECK(extra_children(ss) == hit);
     }
 }
 
@@ -448,6 +478,75 @@ TEST_CASE_METHOD(LVGLTestFixture, "a finished print pops toast", "[screensaver][
         advance_saver(ss, 33);
         REQUIRE(lv_obj_has_flag(pop, LV_OBJ_FLAG_HIDDEN));
     }
+}
+
+// ============================================================================
+// Restarting on a finished print
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a bouncing saver restarted on a finished print, its old overlay not yet deleted, "
+                 "runs on",
+                 "[screensaver][bounce]") {
+    if (!helix::PlatformCapabilities::detect().supports_animations) {
+        SKIP("this board does not animate, so a finished print throws no confetti");
+    }
+    const bool logo = GENERATE(false, true);
+    CAPTURE(logo);
+    auto ss = make_bounce(logo);
+    ScreensaverStopOnExit<BouncingPrinterScreensaver> stop_on_exit{*ss};
+    ClockInput in = print_input(ClockPrintPhase::COMPLETE, 100);
+    ss->set_input_source([&in] { return in; });
+    ss->start();
+    REQUIRE(ss->is_active());
+    for (int i = 0; i < 30000 / 33 && ss->confetti() == nullptr; i++) {
+        advance_saver(*ss, 33);
+    }
+    REQUIRE(ss->confetti() != nullptr);
+
+    // No lv_timer_handler between: the old overlay and its burst still await deletion.
+    ss->stop();
+    ss->start();
+    REQUIRE(ss->is_active());
+    CHECK(ss->confetti() == nullptr);
+    for (int i = 0; i < 30000 / 33 && ss->confetti() == nullptr; i++) {
+        advance_saver(*ss, 33);
+    }
+    REQUIRE(ss->confetti() != nullptr);
+    CHECK(lv_obj_get_parent(ss->confetti()) == lv_obj_get_parent(ss->sprite()));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the toasters restarted on a finished print, their old overlay not yet deleted, "
+                 "pop on",
+                 "[screensaver][toasters]") {
+    FlyingToasterScreensaver ss;
+    ScreensaverStopOnExit<FlyingToasterScreensaver> stop_on_exit{ss};
+    ClockInput in = print_input(ClockPrintPhase::COMPLETE, 100);
+    ss.set_input_source([&in] { return in; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    lv_obj_t* first = ss.popped_toast();
+    REQUIRE(first != nullptr);
+    bool popped = false;
+    for (int i = 0; i < 6000 / 33 && !popped; i++) {
+        advance_saver(ss, 33);
+        popped = !lv_obj_has_flag(first, LV_OBJ_FLAG_HIDDEN);
+    }
+    REQUIRE(popped);
+
+    // No lv_timer_handler between: the old overlay and its toast still await deletion.
+    ss.stop();
+    ss.start();
+    REQUIRE(ss.is_active());
+    lv_obj_t* pop = ss.popped_toast();
+    REQUIRE(pop != nullptr);
+    popped = false;
+    for (int i = 0; i < 6000 / 33 && !popped; i++) {
+        advance_saver(ss, 33);
+        popped = !lv_obj_has_flag(pop, LV_OBJ_FLAG_HIDDEN);
+    }
+    CHECK(popped);
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

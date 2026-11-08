@@ -333,6 +333,38 @@ TEST_CASE("a finished print arrives at the planet", "[screensaver][starfield_sim
         CHECK(sky.dirty.empty());
         CHECK(sky.uncovered == 0);
     }
+    SECTION("a disc larger than a running print's repaints at most every 100 ms") {
+        const int32_t largest = planet_radius_at(100);
+        for (const bool arriving : {true, false}) {
+            CAPTURE(arriving);
+            Sky sky(arriving ? print_at(ClockMode::COUNTDOWN, 90) : print_at(ClockMode::DONE, 100));
+            sky.step();
+            // Arriving at a finished print's planet, or a new print shrinking it back.
+            sky.reading =
+                arriving ? print_at(ClockMode::DONE, 100) : print_at(ClockMode::COUNTDOWN, 0);
+            int large_frames = 0;
+            int large_repaints = 0;
+            for (uint32_t t = 0; t < helix::ui::kStarfieldArriveMs + 400; t += 33) {
+                const StarfieldPlanet was = sky.sim.planet();
+                const std::vector<uint8_t> before = sky.frame.snapshot();
+                sky.step();
+                sky.uncovered += helix::test::diff_against(before, sky.frame, sky.dirty).uncovered;
+                const StarfieldPlanet now = sky.sim.planet();
+                const bool large = std::max(now.r, was.r) > largest;
+                large_frames += large ? 1 : 0;
+                large_repaints += large && !(now == was) ? 1 : 0;
+            }
+            CAPTURE(large_frames);
+            CHECK(large_repaints <= large_frames * 33 / 100 + 2);
+            CHECK(large_repaints >= 3);
+            CHECK(sky.uncovered == 0);
+            if (arriving) {
+                CHECK(helix::test::lit_pixels(sky.frame.target) == all);
+            } else {
+                CHECK(sky.sim.planet().r == planet_radius_at(0));
+            }
+        }
+    }
     SECTION("a sky started after the print finished opens on the planet") {
         Sky sky(print_at(ClockMode::DONE, 100));
         sky.step();

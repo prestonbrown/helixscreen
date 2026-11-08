@@ -51,6 +51,9 @@ inline constexpr float kPipesYrotStepDeg = 9.73156f; ///< view turn per new scre
 inline constexpr int kPipesSlices = 16;              ///< facets round a pipe; a multiple of 4
 inline constexpr uint32_t kPipesStepMs = 100;        ///< one growth step per pipe
 inline constexpr uint32_t kPipesMaxStepsPerTick = 3;
+/// Growth steps a call while a print screen catches up to a print it opened on, paused or
+/// ended, so the screen fills over a few dozen frames instead of in one.
+inline constexpr uint32_t kPipesFastForwardSteps = 60;
 inline constexpr int kPipesActive =
     1; ///< pipes growing at once: the original's single-pipe default
 inline constexpr int kPipesPerScreen = 5; ///< NORMAL_PIPE_COUNT
@@ -504,12 +507,13 @@ enum class PipesEnd : uint8_t { NONE, DONE, FAILED };
  *
  * A print gets one screen (a print screen) that fills as the print goes: growth runs, at most
  * kPipesMaxStepsPerTick steps a call, only while the grid's taken share is below the print's
- * progress (carried between whole percents at the countdown's rate), and not at all while
- * paused. The node nearest the camera in the middle of the view stays free for the teapot a
- * finished print sets there once the rest of the grid is full; a failed or cancelled print
- * stops growing and greys the frame once. A print screen started on an ended print opens as
- * it ends. A print beginning over a screen without one, a new print after an end, or no print
- * after one dissolves the screen first.
+ * progress (carried between whole percents at the countdown's rate; paused, only up to the
+ * reported progress). The node nearest the camera in the middle of the view stays free for the
+ * teapot a finished print sets there once the rest of the grid is full; a failed or cancelled
+ * print stops growing and greys the frame once. A print screen begun on a paused or ended print
+ * catches up to it at kPipesFastForwardSteps steps a call, then shows the end. A print beginning
+ * over a screen without one, a new print after an end, or no print after one dissolves the screen
+ * first.
  */
 class PipesSim {
   public:
@@ -597,6 +601,9 @@ class PipesSim {
     PipesEnd end_ = PipesEnd::NONE;
     bool end_drawn_ = false;
     bool teapot_reserved_ = false;
+    /// True while a screen begun on a paused or ended print grows toward it at
+    /// kPipesFastForwardSteps a call.
+    bool catching_up_ = false;
     PipeNode teapot_node_;
     float fill_ = 0.0f; ///< share of the grid the running print's screen should have taken
 };

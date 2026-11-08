@@ -953,12 +953,12 @@ float reported_progress(const ClockReading& r) {
 /// The share of the grid a running print's screen should have taken, `dt_ms` after `fill`:
 /// the reported progress, carried on between whole percents at the rate the countdown gives
 /// and never past the next percent, so growth does not come in a burst per percent. Paused,
-/// it stands still.
+/// the carry stops: the reported progress, or what the carry already reached.
 float advance_fill(float fill, const ClockReading& r, uint32_t dt_ms) {
-    if (r.mode == ClockMode::PAUSED) {
-        return fill;
-    }
     const float reported = reported_progress(r);
+    if (r.mode == ClockMode::PAUSED) {
+        return std::max(fill, reported);
+    }
     const float next = std::min(1.0f, reported + 0.01f);
     if (fill < reported || fill > next) {
         fill = reported;
@@ -1021,20 +1021,16 @@ void PipesSim::start_screen(const FrameTarget& frame, std::minstd_rand& rng,
     end_ = PipesEnd::NONE;
     end_drawn_ = false;
     teapot_reserved_ = false;
+    catching_up_ = false;
     fill_ = 0.0f;
     if (!print_screen_) {
         return;
     }
     screen_.fill_grid();
     reserve_teapot_node(frame);
-    if (clock_mode_is_end(print.mode)) {
-        // A screen started on an ended print opens as the print ended, not growing from empty.
-        if (print.mode != ClockMode::DONE) {
-            grow_to(static_cast<size_t>(std::lround(reported_progress(print) * node_count())),
-                    std::numeric_limits<uint32_t>::max(), frame, rng, dirty);
-        }
-        follow_end(print.mode, std::numeric_limits<uint32_t>::max(), frame, rng, dirty);
-    }
+    // A screen begun on a paused or ended print catches up to it over the next frames instead
+    // of growing from empty at the running rate.
+    catching_up_ = print.mode == ClockMode::PAUSED || clock_mode_is_end(print.mode);
 }
 
 void PipesSim::reserve_teapot_node(const FrameTarget& frame) {
@@ -1059,8 +1055,8 @@ void PipesSim::reserve_teapot_node(const FrameTarget& frame) {
                 if (!renderer_.project(p, sx, sy)) {
                     continue;
                 }
-                // The middle half of the view, where neither an edge nor the progress card
-                // near the bottom hides it.
+                // The middle half of the view: away from the edges, and above all but the
+                // top of the progress card, which keeps to the bottom third.
                 const bool central =
                     std::fabs(sx - w * 0.5f) <= w * 0.25f && std::fabs(sy - h * 0.5f) <= h * 0.25f;
                 const float d = renderer_.depth(p);
@@ -1127,16 +1123,25 @@ bool PipesSim::needs_new_screen(const ClockReading& print) const {
 
 void PipesSim::step_print(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
                           const ClockReading& print, std::vector<DirtyRect>& dirty) {
+    const uint32_t steps = catching_up_ ? kPipesFastForwardSteps : kPipesMaxStepsPerTick;
     if (end_ != PipesEnd::NONE || clock_mode_is_end(print.mode)) {
-        follow_end(print.mode, kPipesMaxStepsPerTick, frame, rng, dirty);
-        return;
-    }
-    if (print.mode == ClockMode::PAUSED) {
+        // Catching up to a print that stopped short, the screen grows to where it stopped
+        // before it greys.
+        if (catching_up_ && end_ == PipesEnd::NONE && print.mode != ClockMode::DONE &&
+            !grow_to(static_cast<size_t>(
+                         std::lround(reported_progress(print) * static_cast<float>(node_count()))),
+                     steps, frame, rng, dirty)) {
+            return;
+        }
+        follow_end(print.mode, steps, frame, rng, dirty);
+        catching_up_ = catching_up_ && !end_drawn_;
         return;
     }
     fill_ = advance_fill(fill_, print, dt_ms);
-    grow_to(static_cast<size_t>(std::lround(fill_ * static_cast<float>(node_count()))),
-            kPipesMaxStepsPerTick, frame, rng, dirty);
+    if (grow_to(static_cast<size_t>(std::lround(fill_ * static_cast<float>(node_count()))), steps,
+                frame, rng, dirty)) {
+        catching_up_ = false;
+    }
 }
 
 void PipesSim::draw_pieces(const FrameTarget& frame, std::vector<DirtyRect>& dirty) {
