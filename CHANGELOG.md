@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spool information comes from the printer on every filament system** - HelixScreen now reads and writes each lane's spool through the printer's own records (AFC, Happy Hare, OpenAMS, CFS, QIDI, ACE, AD5X IFS, Snapmaker U1 and tool changers), so Mainsail, Fluidd and other screens see the same spool, and nothing stale is kept on the screen. Spool details from 1.0 are carried over on first start.
 - **AFC lane changes made elsewhere show up live** - brand, name, temperature, colour and Keep Spool Info changes made in Mainsail or by AFC now reach HelixScreen as they happen, instead of after a restart.
 - **Spool details cleared elsewhere clear here too** - when Mainsail or another client removes an AFC lane's brand or name, or unlinks or ejects its spool, HelixScreen stops showing the old brand and name.
+- **A lane with no colour stays uncoloured** - clearing a lane on a CFS, AD5X, Snapmaker U1 or tool changer no longer records it as grey for Mainsail and other screens.
+- **The spool editor's Save waits for a change** - Save is disabled until you edit something and the printer's records have loaded.
+- **Tool changers with gaps in their tool numbers** - on a klipper-toolchanger numbered T0, T2, T3 and so on, HelixScreen marks the right head as mounted, unloads the right head, labels each tool with its own number, and Reset Tool Mappings returns every tool to its own number instead of its position. Gapped tools can be remapped from the screen.
 - **The colour palette leads with filament colours** - the colour picker now opens with the colours people actually load: black, white, grey, red, orange, yellow, green, teal, blue, navy, purple, pink, brown, silver and gold, with fewer near-identical browns and yellows.
 - **Picking a spool on a five-slot or larger system selects that spool** - a tap could select the neighbouring spool, and the slot numbers were hidden.
 - **A recovered AFC lane loses its error marking** (#2049) - a successful lane reset clears AFC's leftover error, and a lane that still shows one has Clear Error in its menu. A faulted spool glows red (#2050).
@@ -64,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **No page swipe with the paging arrows** (#1978), and **the keyboard has an underscore key** (#1977).
 - **The flip clock's folding flap** shows its edge and casts a shadow.
 - **Sound** (#2010) - a race when playing sounds is fixed.
+- **Less CPU after a sound plays** - a finished sound no longer keeps the audio device busy every millisecond until the next one.
 
 ## [1.1.0-beta.17] - 2026-11-06
 
