@@ -334,6 +334,17 @@ EOF
     contains "grew by 4" "$output"
 }
 
+@test "ACTIVE_INSTANCE_OK opts one declaration out and leaves its neighbour counted" {
+    cat > "$REPO/src/ui/statics.cpp" <<'EOF'
+static Hook* s_active = nullptr; // ACTIVE_INSTANCE_OK: platform callback context
+static Panel* s_active_panel = nullptr;
+EOF
+    commit_all "one exempt static"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "grew by 1 (src/ui/statics.cpp: s_active_panel)" "$output"
+}
+
 @test "an out-of-line definition, an accessor, a local, a singleton slot and a test file are not counted" {
     cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
 Panel* Panel::active_instance_ = nullptr;
