@@ -69,6 +69,11 @@ def test_an_empty_lane_draws_no_filament():
     assert not [i for i in scene.items if i.lane == 3]
 
 
+def test_generated_shell_table_is_current():
+    generated = REPO / "src/generated/ams_unit_shells_gen.cpp"
+    assert generated.read_text() == build.generate_shell_table(build.UNITS)
+
+
 def test_manifest_lists_every_lane_mask(tmp_path):
     def fake_render(svg_text, width, png_path):
         assert "<svg" in svg_text

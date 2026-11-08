@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Anycubic ACE Pro and Pro 2, which share one body."""
+import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, List, Optional, Tuple
 
 from .. import kit, spool
 
@@ -17,10 +18,26 @@ _REPO = Path(__file__).resolve().parents[3]
 
 
 @dataclass
+class TrayShellDef:
+    cheek: List[Tuple[float, float]]
+    dome: List[Tuple[float, float]]
+    back_extra_px: float
+    front_wall_px: float
+    rail_px: float
+    cap_clearance_px: float
+    lid_spans_row: bool
+    body: int
+    panel: int
+    rail: int
+    accent: int
+
+
+@dataclass
 class UnitDef:
     id: str
     lanes: int
     draw_art: Callable
+    tray: Optional[TrayShellDef] = None
 
 
 def _rrect_x(x0, x1, z0, z1, r, y):
@@ -79,4 +96,20 @@ def draw_art(sc, colors, tier):
         sc.line([(lx, 0.018, ZR), (lx, 0.018, H - 0.15)], EDGE, 0.003 * thick, op)
 
 
-UNIT = UnitDef("ace_pro", 4, draw_art)
+BACK_EXTRA_PX = 40.0
+DOME_RISE_PX = 49.0
+CHEEK_KNEE = 0.42
+
+
+def _tray_shell():
+    cheek = [(0.0, 0.0), (CHEEK_KNEE, 0.0), (1.0, BACK_EXTRA_PX)]
+    dome = []
+    n = 16
+    for i in range(n + 1):
+        th = math.pi - math.pi * i / n
+        depth = (1 + math.cos(th)) / 2
+        dome.append((depth, BACK_EXTRA_PX * depth + DOME_RISE_PX * max(0.0, math.sin(th)) ** 0.42))
+    return TrayShellDef(cheek, dome, BACK_EXTRA_PX, 44.0, 13.0, 7.0, True, 0x3a3b3f, 0x4a4c52, 0xb4b7bc, 0xee6a1f)
+
+
+UNIT = UnitDef("ace_pro", 4, draw_art, _tray_shell())
