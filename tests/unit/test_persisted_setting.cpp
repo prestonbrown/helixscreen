@@ -200,6 +200,10 @@ const std::vector<Row>& rows() {
         {"settings_glass_effects", Mgr::Display, false, "/display/glass_effects", true, 0, 0, 1,
          "glass_effects", true, SETB(dm().set_glass_effects), GET(dm().get_glass_effects),
          SUBJ(dm().subject_glass_effects)},
+        {"settings_screensaver_print_progress", Mgr::Display, false,
+         "/display/screensaver_print_progress", true, 1, 0, 1, "screensaver_print_progress", true,
+         SETB(dm().set_screensaver_print_progress), GET(dm().get_screensaver_print_progress),
+         SUBJ(dm().subject_screensaver_print_progress)},
 
         // SystemSettingsManager
         {"update_channel", Mgr::System, false, "/update/channel", false, 0, 0, 2, "update_channel",
