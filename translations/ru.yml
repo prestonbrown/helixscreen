@@ -146,6 +146,7 @@ translations:
   1 print: '1 печать'
   1 profile: '1 профиль'
   '1 unit': '1 ед.'
+  1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой
   1. Printer homes all axes (~1 minute): 1. Принтер ищет ноль по всем осям (~1 минута)
   1. Printer homes and probes the bed: 1. Принтер паркуется и зондирует стол
@@ -1989,6 +1990,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : 'Как приводятся в движение оси принтера, согласно конфигурации Klipper. HelixScreen использует это, чтобы определить, как работает хоуминг и какие инструменты для ремней и движения применимы.'
   How the toolhead icon appears: Как отображается значок печатающей головки
+  How tools are numbered on badges and labels: 'Как нумеруются инструменты на значках и подписях'
   Hub: Хаб
   Hub & Cutter: 'Хаб и резак'
   Hub Bowden Length: 'Длина боудена хаба'
@@ -4062,6 +4064,7 @@ translations:
   System default: Системное по умолчанию
   System detected: Обнаружена система
   System is {}: 'Состояние системы: {}'
+  T0, T1, T2: 'T0, T1, T2'
   TANGLE: СПУТЫВАНИЕ
   TD-1 filament color detection: Определение цвета филамента TD-1
   TEMPERATURE SENSORS: ДАТЧИКИ ТЕМПЕРАТУРЫ
@@ -4526,6 +4529,7 @@ translations:
   Tool: Инструмент
   Tool Change Failed: 'Ошибка смены инструмента'
   Tool Changer: Сменщик инструментов
+  Tool Numbers: 'Номера инструментов'
   Tool Offsets: Смещения инструментов
   Tool Switcher: 'Переключатель инструментов'
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'

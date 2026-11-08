@@ -133,6 +133,7 @@
   <translation tag="1 print" ru="1 печать"/>
   <translation tag="1 profile" ru="1 профиль"/>
   <translation tag="1 unit" ru="1 ед."/>
+  <translation tag="1, 2, 3" ru="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ru="1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой"/>
   <translation tag="1. Printer homes all axes (~1 minute)" ru="1. Принтер ищет ноль по всем осям (~1 минута)"/>
   <translation tag="1. Printer homes and probes the bed" ru="1. Принтер паркуется и зондирует стол"/>
@@ -1826,6 +1827,7 @@
   <translation tag="How the Jog tab arranges its buttons" ru="Как вкладка «Джог» располагает кнопки"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." ru="Как приводятся в движение оси принтера, согласно конфигурации Klipper. HelixScreen использует это, чтобы определить, как работает хоуминг и какие инструменты для ремней и движения применимы."/>
   <translation tag="How the toolhead icon appears" ru="Как отображается значок печатающей головки"/>
+  <translation tag="How tools are numbered on badges and labels" ru="Как нумеруются инструменты на значках и подписях"/>
   <translation tag="Hub" ru="Хаб"/>
   <translation tag="Hub &amp; Cutter" ru="Хаб и резак"/>
   <translation tag="Hub Bowden Length" ru="Длина боудена хаба"/>
@@ -3736,6 +3738,7 @@
   <translation tag="System default" ru="Системное по умолчанию"/>
   <translation tag="System detected" ru="Обнаружена система"/>
   <translation tag="System is {}" ru="Состояние системы: {}"/>
+  <translation tag="T0, T1, T2" ru="T0, T1, T2"/>
   <translation tag="TANGLE" ru="СПУТЫВАНИЕ"/>
   <translation tag="TD-1 filament color detection" ru="Определение цвета филамента TD-1"/>
   <translation tag="TEMPERATURE SENSORS" ru="ДАТЧИКИ ТЕМПЕРАТУРЫ"/>
@@ -4124,6 +4127,7 @@
   <translation tag="Tool" ru="Инструмент"/>
   <translation tag="Tool Change Failed" ru="Ошибка смены инструмента"/>
   <translation tag="Tool Changer" ru="Сменщик инструментов"/>
+  <translation tag="Tool Numbers" ru="Номера инструментов"/>
   <translation tag="Tool Offsets" ru="Смещения инструментов"/>
   <translation tag="Tool Switcher" ru="Переключатель инструментов"/>
   <translation tag="Tool change failed: {}" ru="Ошибка смены инструмента: {}"/>

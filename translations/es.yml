@@ -98,6 +98,7 @@ translations:
   1 print: '1 impresión'
   1 profile: '1 perfil'
   '1 unit': '1 unidad'
+  1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Cada boquilla se calienta, se limpia y se aparca delante para que la cepilles
   1. Printer homes all axes (~1 minute): 1. La impresora referencia todos los ejes (~1 minuto)
   1. Printer homes and probes the bed: 1. La impresora hace origen y sondea la cama
@@ -1945,6 +1946,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : 'Cómo se mueven los ejes de la impresora, según lo declara su configuración de Klipper. HelixScreen lo usa para decidir cómo funciona el homing y qué herramientas de correa y movimiento se aplican.'
   How the toolhead icon appears: Cómo se muestra el icono del cabezal
+  How tools are numbered on badges and labels: 'Cómo se numeran las herramientas en insignias y etiquetas'
   Hub: Hub
   Hub & Cutter: 'Hub y cortador'
   Hub Bowden Length: 'Longitud del bowden del hub'
@@ -4009,6 +4011,7 @@ translations:
   System default: Predeterminado del sistema
   System detected: Sistema detectado
   System is {}: 'El sistema está: {}'
+  T0, T1, T2: 'T0, T1, T2'
   TANGLE: ENREDO
   TD-1 filament color detection: Detección de color de filamento TD-1
   TEMPERATURE SENSORS: SENSORES DE TEMPERATURA
@@ -4482,6 +4485,7 @@ translations:
   Tool: Herramienta
   Tool Change Failed: 'Fallo al cambiar de herramienta'
   Tool Changer: Cambiador de Herramientas
+  Tool Numbers: 'Números de herramienta'
   Tool Offsets: Offsets de herramienta
   Tool Switcher: 'Selector de herramientas'
   'Tool change failed: {}': 'Error al cambiar herramienta: {}'

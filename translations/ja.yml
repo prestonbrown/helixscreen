@@ -98,6 +98,7 @@ translations:
   1 print: '1 件'
   1 profile: '1 個のプロファイル'
   '1 unit': '1ユニット'
+  1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 各ノズルを加熱・拭き取りし、ブラシで清掃できるよう前方に移動します
   1. Printer homes all axes (~1 minute): 1. プリンターが全軸の原点復帰を行います（約1分）
   1. Printer homes and probes the bed: 1. プリンターがホーミングしてベッドをプローブします
@@ -1848,6 +1849,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : 'Klipper設定で宣言されている、プリンターの軸の駆動方式。HelixScreenはこれを使って、ホーミングの動作と、適用するベルトや動作のツールを決めます。'
   How the toolhead icon appears: ツールヘッドアイコンの表示スタイル
+  How tools are numbered on badges and labels: 'バッジとラベルでのツールの番号の付け方'
   Hub: ハブ
   Hub & Cutter: 'ハブとカッター'
   Hub Bowden Length: 'ハブのボーデン長'
@@ -3805,6 +3807,7 @@ translations:
   System default: システムデフォルト
   System detected: システムを検出しました
   System is {}: 'システムの状態: {}'
+  T0, T1, T2: 'T0, T1, T2'
   TANGLE: 絡み
   TD-1 filament color detection: TD-1 フィラメント色検出
   TEMPERATURE SENSORS: 温度センサー
@@ -4244,6 +4247,7 @@ translations:
   Tool: ツール
   Tool Change Failed: 'ツール変更に失敗しました'
   Tool Changer: ツールチェンジャー
+  Tool Numbers: 'ツール番号'
   Tool Offsets: ツールオフセット
   Tool Switcher: 'ツール切り替え'
   'Tool change failed: {}': 'ツール変更に失敗しました: {}'

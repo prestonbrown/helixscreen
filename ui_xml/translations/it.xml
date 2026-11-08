@@ -97,6 +97,7 @@
   <translation tag="1 print" it="1 stampa"/>
   <translation tag="1 profile" it="1 profilo"/>
   <translation tag="1 unit" it="1 unità"/>
+  <translation tag="1, 2, 3" it="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" it="1. Ogni ugello viene riscaldato, pulito e parcheggiato davanti perché tu lo spazzoli"/>
   <translation tag="1. Printer homes all axes (~1 minute)" it="1. La stampante azzererà tutti gli assi (~1 minuto)"/>
   <translation tag="1. Printer homes and probes the bed" it="1. La stampante esegue homing e sonda il piano"/>
@@ -1778,6 +1779,7 @@
   <translation tag="How the Jog tab arranges its buttons" it="Come la scheda Jog dispone i suoi pulsanti"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." it="Come sono azionati gli assi della stampante, secondo la configurazione Klipper. HelixScreen lo usa per decidere come funziona l&apos;homing e quali strumenti per cinghie e movimento si applicano."/>
   <translation tag="How the toolhead icon appears" it="Aspetto dell&apos;icona della testina"/>
+  <translation tag="How tools are numbered on badges and labels" it="Come sono numerati gli strumenti su badge ed etichette"/>
   <translation tag="Hub" it="Hub"/>
   <translation tag="Hub &amp; Cutter" it="Hub e taglierina"/>
   <translation tag="Hub Bowden Length" it="Lunghezza del bowden dell&apos;hub"/>
@@ -3673,6 +3675,7 @@
   <translation tag="System default" it="Predefinito di sistema"/>
   <translation tag="System detected" it="Sistema rilevato"/>
   <translation tag="System is {}" it="Il sistema è: {}"/>
+  <translation tag="T0, T1, T2" it="T0, T1, T2"/>
   <translation tag="TANGLE" it="GROVIGLIO"/>
   <translation tag="TD-1 filament color detection" it="Rilevamento colore filamento TD-1"/>
   <translation tag="TEMPERATURE SENSORS" it="SENSORI DI TEMPERATURA"/>
@@ -4061,6 +4064,7 @@
   <translation tag="Tool" it="Strumento"/>
   <translation tag="Tool Change Failed" it="Cambio utensile non riuscito"/>
   <translation tag="Tool Changer" it="Cambia utensile"/>
+  <translation tag="Tool Numbers" it="Numeri strumento"/>
   <translation tag="Tool Offsets" it="Offset strumenti"/>
   <translation tag="Tool Switcher" it="Selettore utensile"/>
   <translation tag="Tool change failed: {}" it="Cambio utensile fallito: {}"/>

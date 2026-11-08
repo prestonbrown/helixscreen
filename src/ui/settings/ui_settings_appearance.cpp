@@ -96,6 +96,11 @@ void AppearanceSettingsOverlay::register_callbacks() {
              SettingsManager::instance().set_toolhead_style(
                  SettingsManager::dropdown_index_to_toolhead_style(event_selected(e)));
          }},
+        {"on_tool_number_style_changed",
+         [](lv_event_t* e) {
+             SettingsManager::instance().set_tool_number_style_setting(
+                 static_cast<helix::ui::ToolNumberStyleSetting>(event_selected(e)));
+         }},
         {"on_gcode_mode_changed",
          [](lv_event_t* e) {
              int index = event_selected(e);

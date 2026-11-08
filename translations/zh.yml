@@ -97,6 +97,7 @@ translations:
   1 print: '1 次打印'
   1 profile: '1 个配置'
   '1 unit': '1 个单元'
+  1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁
   1. Printer homes all axes (~1 minute): 1. 打印机全部轴归零（约1分钟）
   1. Printer homes and probes the bed: 1. 打印机归位并探测热床
@@ -1843,6 +1844,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : '打印机各轴的驱动方式,取自其 Klipper 配置。HelixScreen 据此决定归零方式,以及适用哪些皮带和运动工具。'
   How the toolhead icon appears: 工具头图标的显示方式
+  How tools are numbered on badges and labels: '角标和标签上工具的编号方式'
   Hub: 集线器
   Hub & Cutter: '集线器与切刀'
   Hub Bowden Length: '集线器波顿管长度'
@@ -3797,6 +3799,7 @@ translations:
   System default: 系统默认
   System detected: 检测到系统
   System is {}: '系统状态: {}'
+  T0, T1, T2: 'T0, T1, T2'
   TANGLE: 打结
   TD-1 filament color detection: TD-1 耗材颜色检测
   TEMPERATURE SENSORS: 温度传感器
@@ -4235,6 +4238,7 @@ translations:
   Tool: 工具
   Tool Change Failed: '工具切换失败'
   Tool Changer: 换刀器
+  Tool Numbers: '工具编号'
   Tool Offsets: 工具偏移
   Tool Switcher: '工具切换器'
   'Tool change failed: {}': '工具切换失败: {}'
