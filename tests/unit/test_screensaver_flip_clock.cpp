@@ -16,6 +16,7 @@
 #include "screensaver_flip_clock_sim.h"
 #include "screensaver_highfly.h"
 #include "screensaver_pixel_writer.h"
+#include "screensaver_print_colors.h"
 
 #include <algorithm>
 #include <cstring>
@@ -38,7 +39,6 @@ using helix::ui::ClockMode;
 using helix::ui::ClockPrintPhase;
 using helix::ui::countdown_face;
 using helix::ui::DirtyRect;
-using helix::ui::FlipCaption;
 using helix::ui::FlipClockScreensaver;
 using helix::ui::FlipClockSim;
 using helix::ui::FlipClockState;
@@ -69,6 +69,22 @@ std::string cards_text(const FlipFace& face) {
         }
         for (size_t c = 0; c < face.shape.groups[g]; c++, i++) {
             out += face.cards[i].digit == '\0' ? ' ' : face.cards[i].digit;
+        }
+    }
+    return out;
+}
+
+/// The small row the same way, a colon after the first `sub_colons` groups and a space after
+/// the rest.
+std::string sub_text(const FlipFace& face) {
+    std::string out;
+    size_t i = 0;
+    for (size_t g = 0; g < face.sub_shape.group_count; g++) {
+        if (g > 0) {
+            out += g <= face.sub_colons ? ':' : ' ';
+        }
+        for (size_t c = 0; c < face.sub_shape.groups[g]; c++, i++) {
+            out += face.sub[i].digit == '\0' ? ' ' : face.sub[i].digit;
         }
     }
     return out;
@@ -146,7 +162,7 @@ TEST_CASE("the clock face shows 24-hour time with a leading zero and no marker",
     CHECK(cards_text(clock_face(hms(0, 0), true)) == "00:00");
     CHECK(cards_text(clock_face(hms(23, 59, 59), true)) == "23:59");
     CHECK(clock_face(hms(13, 0), true).meridiem == ClockMeridiem::NONE);
-    CHECK(clock_face(hms(13, 0), true).caption == FlipCaption::NONE);
+    CHECK_FALSE(clock_face(hms(13, 0), true).has_sub());
 }
 
 TEST_CASE("the clock face shows 12-hour time with a blank leading card, marked AM or PM",
@@ -184,7 +200,8 @@ TEST_CASE("the countdown face shows H:MM:SS under an hour, past ten hours and at
 // FlipClockState
 // ============================================================================
 
-TEST_CASE("the cards show the time unless a print has a remaining-time estimate",
+TEST_CASE("the cards show the time, a running print's percent before its estimate, then the "
+          "countdown",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in;
@@ -200,7 +217,8 @@ TEST_CASE("the cards show the time unless a print has a remaining-time estimate"
         in.print.phase = ClockPrintPhase::PREPARING;
         state.step(16, in);
         CHECK(state.mode() == ClockMode::PROGRESS);
-        CHECK(cards_text(state.face()) == "21:05");
+        CHECK(cards_text(state.face()) == "0%");
+        CHECK(sub_text(state.face()) == "21:05");
     }
     SECTION("preparing once an estimate exists") {
         in.print.phase = ClockPrintPhase::PREPARING;
@@ -214,32 +232,84 @@ TEST_CASE("the cards show the time unless a print has a remaining-time estimate"
         in.print.remaining_s = -1;
         state.step(16, in);
         CHECK(state.mode() == ClockMode::PROGRESS);
-        CHECK(cards_text(state.face()) == "21:05");
+        CHECK(cards_text(state.face()) == "0%");
     }
 }
 
-TEST_CASE("a running print counts down with the end time and progress under the cards",
+TEST_CASE("the cards spell how the print stands, with its details on the small row",
           "[screensaver][screensaver_flip_clock]") {
+    const auto face_for = [](ClockPrintPhase phase, int32_t remaining, int32_t pct, bool h24) {
+        FlipClockState state;
+        ClockInput in = printing(hms(1, 12), pct);
+        in.seconds_of_day = hms(20, 40, 0);
+        in.use_24h = h24;
+        state.step(16, in);
+        in.print.phase = phase;
+        in.print.remaining_s = remaining;
+        state.step(16, in);
+        return state.face();
+    };
+    struct Row {
+        const char* name;
+        ClockPrintPhase phase;
+        int32_t remaining;
+        int32_t pct;
+        bool h24;
+        const char* main;
+        const char* sub;
+        ClockMode mode;
+    };
+    // 20:40 + 1:12 = 21:52; 8:40 PM + 1:12 = 9:52.
+    const Row rows[] = {
+        {"countdown 24h", ClockPrintPhase::PRINTING, hms(1, 12), 63, true, "1:12:00", "21:52 63%",
+         ClockMode::COUNTDOWN},
+        {"countdown 12h", ClockPrintPhase::PRINTING, hms(1, 12), 63, false, "1:12:00", "9:52 63%",
+         ClockMode::COUNTDOWN},
+        {"paused", ClockPrintPhase::PAUSED, hms(1, 12), 63, true, "PAUSE", "1:12 63%",
+         ClockMode::PAUSED},
+        {"done", ClockPrintPhase::COMPLETE, 0, 100, true, "DONE", "100%", ClockMode::DONE},
+        {"failed", ClockPrintPhase::FAILED, 0, 41, true, "FAIL", "41%", ClockMode::FAILED},
+        {"cancelled", ClockPrintPhase::CANCELLED, 0, 72, true, "STOP", "72%", ClockMode::CANCELLED},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(r.name);
+        const FlipFace face = face_for(r.phase, r.remaining, r.pct, r.h24);
+        CHECK(cards_text(face) == r.main);
+        CHECK(sub_text(face) == r.sub);
+        CHECK(face.mode == r.mode);
+    }
+
+    // Before an estimate the cards show the percentage over the time of day.
     FlipClockState state;
-    ClockInput in = printing(hms(1, 2, 3), 63);
+    ClockInput in = printing(-1, 37);
     in.seconds_of_day = hms(20, 40, 0);
+    in.use_24h = true;
     state.step(16, in);
-    REQUIRE(state.mode() == ClockMode::COUNTDOWN);
-    const FlipFace face = state.face();
-    CHECK(cards_text(face) == "1:02:03");
-    CHECK(face.meridiem == ClockMeridiem::NONE);
-    CHECK(face.caption == FlipCaption::DONE_AT);
-    CHECK(face.progress_pct == 63);
-    // 20:40:00 + 1:02:03 = 21:42:03
-    CHECK(face.eta_minute_of_day == 21 * 60 + 42);
+    CHECK(cards_text(state.face()) == "37%");
+    CHECK(sub_text(state.face()) == "20:40");
 }
 
-TEST_CASE("the end time wraps past midnight", "[screensaver][screensaver_flip_clock]") {
+TEST_CASE("letter faces carry no AM/PM marker", "[screensaver][screensaver_flip_clock]") {
+    for (const ClockPrintPhase end :
+         {ClockPrintPhase::PAUSED, ClockPrintPhase::COMPLETE, ClockPrintPhase::FAILED}) {
+        FlipClockState state;
+        ClockInput in = printing(600, 40);
+        in.use_24h = false;
+        state.step(16, in);
+        in.print.phase = end;
+        state.step(16, in);
+        CHECK(state.face().meridiem == ClockMeridiem::NONE);
+    }
+}
+
+TEST_CASE("the finish time on the small row wraps past midnight",
+          "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in = printing(hms(0, 30));
     in.seconds_of_day = hms(23, 50);
+    in.use_24h = true;
     state.step(16, in);
-    CHECK(state.face().eta_minute_of_day == 20);
+    CHECK(sub_text(state.face()) == "00:20 40%");
 }
 
 TEST_CASE("the countdown ticks at wall-clock rate and ignores small estimate jitter",
@@ -286,12 +356,12 @@ TEST_CASE("a paused print freezes the countdown under PAUSED until it resumes",
     in.print.phase = ClockPrintPhase::PAUSED;
     state.step(16, in);
     CHECK(state.mode() == ClockMode::PAUSED);
-    CHECK(state.face().caption == FlipCaption::PAUSED);
     for (int i = 0; i < 300; i++) {
         state.step(1000, in);
     }
     CHECK(state.countdown_s() == hms(0, 29, 55));
-    CHECK(cards_text(state.face()) == "0:29:55");
+    CHECK(cards_text(state.face()) == "PAUSE");
+    CHECK(sub_text(state.face()) == "0:29 40%");
 
     in.print.phase = ClockPrintPhase::PRINTING;
     state.step(0, in);
@@ -300,7 +370,7 @@ TEST_CASE("a paused print freezes the countdown under PAUSED until it resumes",
     CHECK(state.countdown_s() == hms(0, 29, 54));
 }
 
-TEST_CASE("a finished print holds 0:00:00 and DONE until the print goes idle",
+TEST_CASE("a finished print holds DONE until the print goes idle",
           "[screensaver][screensaver_flip_clock]") {
     FlipClockState state;
     ClockInput in = printing(30, 99);
@@ -312,8 +382,7 @@ TEST_CASE("a finished print holds 0:00:00 and DONE until the print goes idle",
     in.print.remaining_s = 0;
     state.step(16, in);
     CHECK(state.mode() == ClockMode::DONE);
-    CHECK(cards_text(state.face()) == "0:00:00");
-    CHECK(state.face().caption == FlipCaption::DONE);
+    CHECK(cards_text(state.face()) == "DONE");
 
     state.step(3600 * 1000, in);
     CHECK(state.mode() == ClockMode::DONE);
@@ -367,7 +436,7 @@ TEST_CASE("the flip clock reads every print lifecycle state, and an idle printer
 // Layout
 // ============================================================================
 
-TEST_CASE("one card per digit fits every screen shape at the widest drift, in rows or one row",
+TEST_CASE("every face fits every screen shape at the widest drift, small row included",
           "[screensaver][screensaver_flip_clock]") {
     struct Screen {
         int32_t w;
@@ -375,14 +444,25 @@ TEST_CASE("one card per digit fits every screen shape at the widest drift, in ro
     };
     const Screen screen = GENERATE(Screen{800, 480}, Screen{480, 272}, Screen{1024, 600},
                                    Screen{480, 800}, Screen{272, 480}, Screen{1280, 720});
-    // The clock, then countdowns with one, two and three hour digits.
-    const FlipShape shape =
-        GENERATE(shape_of({2, 2}), shape_of({1, 2, 2}), shape_of({2, 2, 2}), shape_of({3, 2, 2}));
+    struct Faces {
+        FlipShape shape;
+        FlipShape sub;
+    };
+    // The clock; countdowns with one, two and three hour digits and the finish time and
+    // percent under them; PAUSE over time left and percent; DONE over 100%; 37% over the time.
+    const Faces faces = GENERATE(
+        Faces{shape_of({2, 2}), shape_of({})}, Faces{shape_of({1, 2, 2}), shape_of({1, 2, 3})},
+        Faces{shape_of({2, 2, 2}), shape_of({2, 2, 3})},
+        Faces{shape_of({3, 2, 2}), shape_of({2, 2, 4})}, Faces{shape_of({5}), shape_of({2, 2, 4})},
+        Faces{shape_of({4}), shape_of({4})}, Faces{shape_of({3}), shape_of({2, 2})});
+    const FlipShape& shape = faces.shape;
     const uint8_t count = shape.card_count();
-    CAPTURE(screen.w, screen.h, count, shape.groups[0]);
+    const uint8_t sub_count = faces.sub.card_count();
+    CAPTURE(screen.w, screen.h, count, shape.groups[0], sub_count);
 
     helix::ui::ClockDrift drift;
-    drift.set_range(helix::ui::flip_centred_bounds(screen.w, screen.h, shape), screen.w, screen.h);
+    drift.set_range(helix::ui::flip_centred_bounds(screen.w, screen.h, shape, faces.sub), screen.w,
+                    screen.h);
     const int32_t max_dx = drift.max_dx;
     const int32_t max_dy = drift.max_dy;
     CHECK(max_dx > 0);
@@ -390,12 +470,22 @@ TEST_CASE("one card per digit fits every screen shape at the widest drift, in ro
     const DirtyRect whole{0, 0, screen.w - 1, screen.h - 1};
     for (int sx : {-1, 0, 1}) {
         for (int sy : {-1, 0, 1}) {
-            const FlipLayout layout =
-                helix::ui::layout_flip_cards(screen.w, screen.h, shape, sx * max_dx, sy * max_dy);
+            const FlipLayout layout = helix::ui::layout_flip_cards(
+                screen.w, screen.h, shape, faces.sub, sx * max_dx, sy * max_dy);
             REQUIRE(layout.card_count == count);
+            REQUIRE(layout.sub_count == sub_count);
             CHECK(layout.shape == shape);
             CHECK(inside(layout.bounds(), whole));
-            CHECK(inside(layout.caption, whole));
+            for (size_t j = count; j < count + sub_count; j++) {
+                CHECK(inside(layout.cards[j], whole));
+                // Small cards sit below the main row and are smaller than its cards.
+                CHECK(layout.cards[j].y1 > layout.cards[count - 1].y2);
+                CHECK(layout.cards[j].y2 - layout.cards[j].y1 <
+                      layout.cards[0].y2 - layout.cards[0].y1);
+                for (size_t k = j + 1; k < count + sub_count; k++) {
+                    CHECK_FALSE(layout.cards[j].intersects(layout.cards[k]));
+                }
+            }
             CHECK(inside(layout.meridiem, layout.cards[0]));
             for (size_t i = 0; i < count; i++) {
                 CHECK(inside(layout.cards[i], whole));
@@ -406,7 +496,6 @@ TEST_CASE("one card per digit fits every screen shape at the widest drift, in ro
                 for (size_t j = i + 1; j < count; j++) {
                     CHECK_FALSE(layout.cards[i].intersects(layout.cards[j]));
                 }
-                CHECK_FALSE(layout.cards[i].intersects(layout.caption));
                 for (size_t c = 0; c < layout.colon_count; c++) {
                     CHECK_FALSE(layout.cards[i].intersects(layout.colons[c]));
                 }
@@ -419,20 +508,21 @@ TEST_CASE("one card per digit fits every screen shape at the widest drift, in ro
         }
     }
 
-    const FlipLayout layout = helix::ui::layout_flip_cards(screen.w, screen.h, shape, 0, 0);
-    // The cards take a large share of the screen.
-    CHECK(layout.bounds().area() * 100 > static_cast<int64_t>(screen.w) * screen.h * 25);
-    // Only the countdown carries a line under its cards; the clock centres without one.
-    CHECK(layout.caption.empty() == !shape.has_caption());
-    if (!shape.has_caption()) {
+    const FlipLayout layout =
+        helix::ui::layout_flip_cards(screen.w, screen.h, shape, faces.sub, 0, 0);
+    // The cards take a large share of the screen; a single word across a portrait screen is
+    // bound by its width.
+    CHECK(layout.bounds().area() * 100 > static_cast<int64_t>(screen.w) * screen.h * 15);
+    // A face with no small row centres its cards.
+    if (sub_count == 0) {
         const DirtyRect b = layout.bounds();
         CHECK(std::abs((b.y1 + b.y2) - (screen.h - 1)) <= 1);
     }
     // A portrait screen puts each group on its own row with no colons; a landscape one lines
-    // every card up with a colon between groups.
+    // every card up with a colon between groups. A single group has nothing to stack.
     const bool rows = layout.cards[count - 1].y1 > layout.cards[0].y2;
-    CHECK(rows == (screen.h > screen.w));
-    CHECK(layout.colon_count == (rows ? 0 : shape.group_count - 1));
+    CHECK(rows == (screen.h > screen.w && shape.group_count > 1));
+    CHECK(layout.main_colon_count == (rows ? 0 : shape.group_count - 1));
     // The cards of a group always share a row.
     size_t i = 0;
     for (size_t g = 0; g < shape.group_count; g++) {
@@ -712,6 +802,70 @@ TEST_CASE("a level that does not animate swaps the digits at once",
     }
 }
 
+TEST_CASE("the letters draw in the state colour", "[screensaver][screensaver_flip_clock]") {
+    const PixelFormat format = GENERATE(PixelFormat::XRGB8888, PixelFormat::RGB565);
+    CAPTURE(static_cast<int>(format));
+    struct Row {
+        ClockMode mode;
+        Rgb colour;
+    };
+    for (const Row r : {Row{ClockMode::DONE, helix::ui::kPrintDone},
+                        Row{ClockMode::FAILED, helix::ui::kPrintFailed},
+                        Row{ClockMode::CANCELLED, helix::ui::kPrintFailed},
+                        Row{ClockMode::PAUSED, helix::ui::kPrintPaused},
+                        Row{ClockMode::COUNTDOWN, helix::ui::kPrintDone}}) {
+        CAPTURE(static_cast<int>(r.mode));
+        helix::ui::ClockReading reading;
+        reading.mode = r.mode;
+        reading.progress_pct = 64;
+        reading.countdown_s = 600;
+        reading.has_countdown = true;
+        TestFrame frame(800, 480, format);
+        FlipClockSim sim;
+        sim.init(frame.target, 0, helix::ui::flip_face(reading));
+        TestFrame probe(1, 1, format);
+        PixelWriter(probe.target).put(0, 0, r.colour);
+        const Rgb stored = PixelWriter(probe.target).get(0, 0);
+        const PixelWriter writer(frame.target);
+        size_t hits = 0;
+        const DirtyRect& card = sim.layout().cards[0];
+        for (int32_t y = card.y1; y <= card.y2; y++) {
+            for (int32_t x = card.x1; x <= card.x2; x++) {
+                hits += writer.get(x, y) == stored ? 1 : 0;
+            }
+        }
+        // A running print stays white; every end and the pause draw in their own colour.
+        if (r.mode == ClockMode::COUNTDOWN) {
+            CHECK(hits == 0);
+        } else {
+            CHECK(hits > 50);
+        }
+    }
+}
+
+TEST_CASE("small cards flip only where their character changes",
+          "[screensaver][screensaver_flip_clock]") {
+    TestFrame frame(800, 480, PixelFormat::XRGB8888);
+    FlipClockSim sim;
+    FlipClockState state;
+    ClockInput in = printing(hms(1, 0), 63);
+    in.seconds_of_day = hms(20, 0, 0);
+    in.use_24h = true;
+    state.step(0, in);
+    sim.init(frame.target, 0, state.face());
+    REQUIRE(sim.layout().sub_count == 7);
+
+    // Hold the countdown still so only the percent changes.
+    in.print.progress_pct = 64;
+    std::vector<DirtyRect> dirty;
+    state.step(0, in);
+    sim.step(0, frame.target, state.face(), dirty);
+    REQUIRE(dirty.size() == 1);
+    // "21:00 64%": the units card of the percent, the sixth small card.
+    const FlipLayout& layout = sim.layout();
+    CHECK(dirty[0] == layout.cards[layout.card_count + 5]);
+}
+
 TEST_CASE("every pixel a flip clock frame changes lies in one of its dirty boxes",
           "[screensaver][screensaver_flip_clock]") {
     const PixelFormat format = GENERATE(PixelFormat::XRGB8888, PixelFormat::RGB565);
@@ -745,6 +899,8 @@ TEST_CASE("every pixel a flip clock frame changes lies in one of its dirty boxes
             in.print.remaining_s = 0;
         }
         in.seconds_of_day = (in.seconds_of_day + (i % 3 == 0 ? 1 : 0)) % 86400;
+        // The percent on the small row ticks while the big cards fold.
+        in.print.progress_pct = 40 + i / 150;
         const uint32_t dt = i % 50 == 0 ? kClockDriftStepMs / 4 : 33;
         state.step(dt, in);
         const std::vector<uint8_t> before = frame.bytes;
@@ -799,16 +955,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "the flip clock saver counts down the print it
     CHECK(ss.clock().mode() == ClockMode::PAUSED);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "the clock that follows a finished print shows whole cards where the caption was",
-                 "[screensaver][screensaver_flip_clock]") {
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "the clock that follows a finished print shows whole cards where the small row was",
+    "[screensaver][screensaver_flip_clock]") {
     FlipClockScreensaver ss;
     ScreensaverStopOnExit<FlipClockScreensaver> stop_on_exit{ss};
     ClockInput reported = printing(30, 90);
     ss.set_input_source([&reported] { return reported; });
     ss.start();
     REQUIRE(ss.is_active());
-    REQUIRE(!ss.sim().layout().caption.empty());
+    REQUIRE(ss.sim().layout().sub_count > 0);
     advance_saver(ss, 33);
     reported.print.phase = ClockPrintPhase::COMPLETE;
     advance_saver(ss, 500);
@@ -823,7 +980,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::test::frame_of(lv_canvas_get_draw_buf(SaverTestAccess::canvas(ss)));
     const PixelWriter writer(frame);
     const FlipLayout& layout = ss.sim().layout();
-    REQUIRE(layout.caption.empty());
+    REQUIRE(layout.sub_count == 0);
     size_t black = 0;
     for (size_t i = 0; i < layout.card_count; i++) {
         const DirtyRect& card = layout.cards[i];
