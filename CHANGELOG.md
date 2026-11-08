@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Z-offset tools respect per-head firmware** - on the Creator 5 and Snapmaker U1, HelixScreen no longer offers the single-offset calibration screens, and the Tune nudge says it is saved for the mounted head only.
 - **Saved Z-offset in Print Tune** (#1998) - the Z-offset adjustment shows the saved value beside it. Printers that keep a Z-offset per head do not show this line.
 - **MPC calibration uses the right fan** (#2016).
+- **The layer line after a cancel shows the last layer printed** (#2055) - after a cancelled print, print status shows the height of the last layer printed instead of the height the head parked at.
+- **The G-code preview keeps up after a slow frame** (#2035) - the print status preview no longer gets stuck drawing one layer at a time for the rest of a print after a single slow frame.
+- **A pending tool-map restore survives an update** (#2032) - a tool-map restore HelixScreen still owes the printer is kept across a HelixScreen update.
 
 **Filament**
 
@@ -41,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Your Standard Macros choice for Load and Unload is used** (#2067) - a Load or Unload macro you pick in Standard Macros now runs on filament systems that otherwise load or unload by hand, instead of only showing the manual message.
 - **Purge uses the waste chute on Creality printers with a CFS** (#2065) - without a purge macro, Purge on the Filament panel now moves the nozzle over the CFS waste chute before extruding and parks it afterwards, the way loading does, so filament no longer lands on the bed or a paused print. Printers without a configured chute position, or not yet homed, purge in place as before.
 - **Tool changers with gaps in their tool numbers** - on a klipper-toolchanger numbered T0, T2, T3 and so on, HelixScreen marks the right head as mounted, unloads the right head, labels each tool with its own number, and Reset Tool Mappings returns every tool to its own number instead of its position. Gapped tools can be remapped from the screen.
+- **An empty tool changer carriage mounts no tool** (#2058) - on a klipper-toolchanger printer with no tool on the carriage, HelixScreen no longer reports tool 0 as mounted.
 - **The colour palette leads with filament colours** - the colour picker now opens with the colours people actually load: black, white, grey, red, orange, yellow, green, teal, blue, navy, purple, pink, brown, silver and gold, with fewer near-identical browns and yellows.
 - **Picking a spool on a five-slot or larger system selects that spool** - a tap could select the neighbouring spool, and the slot numbers were hidden.
 - **A recovered AFC lane loses its error marking** (#2049) - a successful lane reset clears AFC's leftover error, and a lane that still shows one has Clear Error in its menu. A faulted spool glows red (#2050).
