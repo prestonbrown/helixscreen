@@ -40,6 +40,14 @@ PrinterState& fresh_state() {
 
 } // namespace
 
+/// The process-wide PrinterState with its subjects initialized and registered.
+struct InitedPrinterState {
+    PrinterState& state = (lv_init_safe(), get_printer_state());
+    InitedPrinterState() {
+        state.init_subjects();
+    }
+};
+
 // ============================================================================
 // Singleton Behavior Tests
 // ============================================================================
@@ -54,12 +62,8 @@ TEST_CASE("PrinterState: Singleton returns same instance", "[core][state][single
     REQUIRE(&instance1 == &instance2);
 }
 
-TEST_CASE("PrinterState: Singleton persists modifications", "[core][state][singleton]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Singleton persists modifications",
+                 "[core][state][singleton]") {
     // Modify a value through one reference
     state.set_printer_connection_state(static_cast<int>(ConnectionState::CONNECTED), "Connected");
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -298,11 +302,8 @@ TEST_CASE("PrinterState: temperatures from status are stored in decidegrees",
 // Print Progress Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: Update print progress from notification", "[state][progress]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Update print progress from notification",
+                 "[state][progress]") {
     json notification = {{"method", "notify_status_update"},
                          {"params", {{{"virtual_sdcard", {{"progress", 0.45}}}}, 1234567890.0}}};
 
@@ -311,11 +312,8 @@ TEST_CASE("PrinterState: Update print progress from notification", "[state][prog
     REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 45);
 }
 
-TEST_CASE("PrinterState: Update print state and filename", "[state][progress]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Update print state and filename",
+                 "[state][progress]") {
     json notification = {
         {"method", "notify_status_update"},
         {"params",
@@ -487,11 +485,8 @@ TEST_CASE("PrinterState: a pause takes no exception latched earlier in the print
     }
 }
 
-TEST_CASE("PrinterState: Progress percentage edge cases", "[state][progress][edge]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Progress percentage edge cases",
+                 "[state][progress][edge]") {
     SECTION("0% progress") {
         json notification = {{"method", "notify_status_update"},
                              {"params", {{{"virtual_sdcard", {{"progress", 0.0}}}}, 0.0}}};
@@ -518,11 +513,7 @@ TEST_CASE("PrinterState: Progress percentage edge cases", "[state][progress][edg
 // Motion/Position Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: Update toolhead position", "[state][motion]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Update toolhead position", "[state][motion]") {
     json notification = {
         {"method", "notify_status_update"},
         {"params",
@@ -540,11 +531,7 @@ TEST_CASE("PrinterState: Update toolhead position", "[state][motion]") {
     REQUIRE(std::string(homed) == "xyz");
 }
 
-TEST_CASE("PrinterState: Homed axes variations", "[state][motion]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Homed axes variations", "[state][motion]") {
     for (const char* axes : {"xy", "", "z", "xyz"}) {
         INFO("homed_axes '" << axes << "'");
         state.update_from_status(json{{"toolhead", {{"homed_axes", axes}}}});
@@ -557,11 +544,8 @@ TEST_CASE("PrinterState: Homed axes variations", "[state][motion]") {
 // Speed/Flow Factor Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: Update speed and flow factors", "[state][speed]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Update speed and flow factors",
+                 "[state][speed]") {
     json notification = {
         {"method", "notify_status_update"},
         {"params",
@@ -573,11 +557,7 @@ TEST_CASE("PrinterState: Update speed and flow factors", "[state][speed]") {
     REQUIRE(lv_subject_get_int(state.motion_state().get_flow_factor_subject()) == 95);
 }
 
-TEST_CASE("PrinterState: Update fan speed", "[state][fan]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Update fan speed", "[state][fan]") {
     json notification = {{"method", "notify_status_update"},
                          {"params", {{{"fan", {{"speed", 0.75}}}}, 1234567890.0}}};
 
@@ -590,11 +570,8 @@ TEST_CASE("PrinterState: Update fan speed", "[state][fan]") {
 // Connection State Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: Set printer connection state", "[state][connection]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Set printer connection state",
+                 "[state][connection]") {
     state.set_printer_connection_state(static_cast<int>(ConnectionState::CONNECTED), "Connected");
     helix::ui::UpdateQueue::instance().drain();
 
@@ -606,11 +583,8 @@ TEST_CASE("PrinterState: Set printer connection state", "[state][connection]") {
     REQUIRE(std::string(message) == "Connected");
 }
 
-TEST_CASE("PrinterState: Connection state transitions", "[state][connection]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Connection state transitions",
+                 "[state][connection]") {
     SECTION("Disconnected -> Connecting") {
         state.set_printer_connection_state(static_cast<int>(ConnectionState::DISCONNECTED),
                                            "Disconnected");
@@ -842,12 +816,8 @@ TEST_CASE("PrinterState: Network status initialization", "[state][network]") {
             static_cast<int>(NetworkStatus::CONNECTED));
 }
 
-TEST_CASE("PrinterState: set_network_status publishes every status", "[state][network]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: set_network_status publishes every status",
+                 "[state][network]") {
     for (auto status :
          {NetworkStatus::DISCONNECTED, NetworkStatus::CONNECTING, NetworkStatus::CONNECTED}) {
         INFO(static_cast<int>(status));
@@ -862,12 +832,8 @@ TEST_CASE("PrinterState: set_network_status publishes every status", "[state][ne
           static_cast<int>(NetworkStatus::CONNECTED));
 }
 
-TEST_CASE("PrinterState: Printer and network status are independent", "[state][integration]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Printer and network status are independent",
+                 "[state][integration]") {
     // Set printer connected but network disconnected
     state.set_printer_connection_state(static_cast<int>(ConnectionState::CONNECTED), "Connected");
     state.network_state().set_network_status(static_cast<int>(NetworkStatus::DISCONNECTED));
@@ -940,11 +906,8 @@ TEST_CASE("PrinterState: Partial status updates work", "[state][error]") {
 // Comprehensive State Update Tests
 // ============================================================================
 
-TEST_CASE("PrinterState: Complete printing state update", "[state][integration]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: Complete printing state update",
+                 "[state][integration]") {
     json notification = {
         {"method", "notify_status_update"},
         {"params",
@@ -1069,11 +1032,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     }
 }
 
-TEST_CASE("PrinterState: can_start_new_print logic", "[state][enum]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState, "PrinterState: can_start_new_print logic", "[state][enum]") {
     SECTION("Can start from STANDBY") {
         json notification = {{"method", "notify_status_update"},
                              {"params", {{{"print_stats", {{"state", "standby"}}}}, 0.0}}};
@@ -1117,11 +1076,9 @@ TEST_CASE("PrinterState: can_start_new_print logic", "[state][enum]") {
     }
 }
 
-TEST_CASE("PrinterState: Enum subject value reflects all state transitions", "[state][enum]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    state.init_subjects();
-
+TEST_CASE_METHOD(InitedPrinterState,
+                 "PrinterState: Enum subject value reflects all state transitions",
+                 "[state][enum]") {
     // Test all state transitions are reflected in the enum subject
 
     // STANDBY
