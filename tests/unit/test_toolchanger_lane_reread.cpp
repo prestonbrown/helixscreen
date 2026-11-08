@@ -218,8 +218,11 @@ TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Ejec
           "[toolchanger][zmod][keep_spool][lane_truth]") {
     const bool keep = GENERATE(true, false);
     auto& settings = SettingsManager::instance();
+    // An uninitialized setting reads its default whatever was set.
+    settings.init_subjects();
     const bool previous = settings.get_ams_keep_spool_info_on_eject();
     settings.set_ams_keep_spool_info_on_eject(keep);
+    REQUIRE(settings.get_ams_keep_spool_info_on_eject() == keep);
 
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "T0",
