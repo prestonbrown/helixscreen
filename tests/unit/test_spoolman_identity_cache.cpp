@@ -21,6 +21,7 @@
 #include "ui_color_picker.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_backend_mock.h"
@@ -620,7 +621,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
         ext.global_index = -2;
         ext.color_rgb = 0xFFB6C1;
         ext.material = "PLA";
-        ams.set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
 
         ams.sync_current_loaded_from_backend();
 
@@ -645,7 +646,7 @@ TEST_CASE_METHOD(IdentityCacheFixture,
         ext.spoolman_id = 55;
         ext.color_rgb = 0xFFB6C1;
         ext.material = "PLA";
-        ams.set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
 
         SpoolmanManager::cache_identity(make_spool(55, "Polymaker", "Ambrosia Pink", "PLA"));
         ams.sync_current_loaded_from_backend();

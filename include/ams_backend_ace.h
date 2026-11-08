@@ -156,19 +156,20 @@ class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
     // Configuration
     // ========================================================================
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsSubscriptionBackend::IdentityWrite
-    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
+    /// Without the ACEPRO driver no edit reaches the hub, so the lane record
+    /// is a lane's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override;
 
     /// A bay's last identified tag read (rfid true, or 2): material, colour and
     /// the temperatures the frame carried. Dropped when the bay empties or a
     /// finished read finds no tag.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+
+    /// Clear Spool's lane half; on ACEPRO it waits for the hub's own clear
+    /// when one is still out.
+    void clear_slot_override(int slot_index) override;
 
     // clear_slot_override()'s ACE half: the user's temperature claims go with
     // the override. ACE firmware doesn't populate brand / spool_name /
@@ -315,8 +316,24 @@ class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
     void note_tag_frame_locked(int slot_index, const helix::ace::SlotDelta& entry,
                                std::optional<bool> present);
 
-    /// Lay the REST bridge's temp_min / temp_max onto @p slot, unless a user
-    /// edit moved the slot's temperatures this session. Caller holds mutex_.
+    /// File @p hub as @p slot_index's Firmware reading. On a driver that
+    /// stores no edit (anything but ACEPRO) the colour, material and brand the
+    /// lane record states stand over the hub's memory. Caller holds mutex_.
+    void file_hub_reading_locked(int slot_index, helix::ams::Observation& hub);
+
+    /// Put an edit that went through onto the live slot, marking its
+    /// temperatures the user's when it moved them. Takes mutex_.
+    void apply_edit_to_slot(int slot_index, const SlotInfo& info);
+
+    /// The ACE_SET_SLOT command writing @p info to @p slot_index's ACEPRO
+    /// inventory entry (EMPTY=1 for an edit naming no material and no colour),
+    /// or "" when the edit lacks the material or nozzle temperature the
+    /// command requires. Takes mutex_ (slot_command()); call without it.
+    [[nodiscard]] std::string set_slot_gcode(int slot_index, const SlotInfo& info) const;
+
+    /// Lay the hub's temperatures (temp_min / temp_max, or the ACEPRO
+    /// driver's single `temp`) onto @p slot, unless a user edit moved the
+    /// slot's temperatures this session. Caller holds mutex_.
     void apply_hub_temps_locked(int slot_index, SlotInfo& slot,
                                 const helix::ace::SlotDelta& entry) const;
 
@@ -801,12 +818,6 @@ class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
     bool path_sensors_seen_ = false;
     bool rdm_sensor_ = false;
     bool toolhead_sensor_ = false;
-
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
 
     // Previous slot status per slot index. Used as the insert-edge signal:
     // an EMPTY -> present transition runs the insert rule. Map presence also

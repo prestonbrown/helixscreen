@@ -174,12 +174,14 @@ src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
 src/printer/ams_runout_grace.cpp
 src/printer/ams_tag_reading.cpp
+src/printer/legacy_spool_import.cpp
 src/printer/tag_spool_link.cpp
 src/printer/ams_state.cpp
 src/printer/ams_state_buffer.cpp
 src/printer/ams_state_clog.cpp
 src/printer/ams_state_dryer.cpp
 src/printer/ams_state_external_spool.cpp
+src/printer/ams_state_legacy_import.cpp
 src/printer/ams_state_subjects.cpp
 src/printer/ams_state_tool_mapping.cpp
 src/printer/buffer_reading.cpp
@@ -187,12 +189,10 @@ src/printer/ams_subscription_backend.cpp
 src/printer/batch_feed_reconcile.cpp
 src/printer/cfs_daemon_sync.cpp
 src/printer/cfs_status_parse.cpp
-src/printer/lane_echo.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_apply.cpp
 src/printer/lane_source_store.cpp
 src/printer/lane_translation.cpp
-src/printer/lane_legacy_migration.cpp
 src/printer/lane_binding.cpp
 src/printer/bed_dimensions.cpp
 src/printer/capability_chip_text.cpp

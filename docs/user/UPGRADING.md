@@ -39,6 +39,33 @@ What to expect after the update:
 - **Some installs move on disk, automatically.** On the Adventurer 5M, settings, logs and caches move to `/data/.helixscreen`, out of the printer's file list. On the K2, the install moves off the small system overlay onto the user partition (`/mnt/UDISK`). Both moves happen during the update and keep everything.
 - **Going back to 1.0 and returning is safe for your settings, with one exception.** A 1.0 build reads a newer settings file without rewriting it, and 1.1 picks the file back up afterwards. The exception is **Material Temperatures**: 1.1 moves your per-material temperature and preheat changes out of `settings.json` into `user_filaments.json`, which 1.0 does not read, so a 1.0 build uses its built-in values instead. Note your changes down before going back. The home screen arrangement is the one thing that can suffer: a 1.0 build saves tile positions in its own grid's units, so after returning to 1.1 the tiles may sit in the wrong spots, or, from some 1.0 builds, the home screen comes back with its default layout. Long-press the home screen to enter Edit Mode and arrange it again.
 
+### Coming from a 1.1 beta
+
+From this release, HelixScreen keeps no spool or lane details of its own: everything a lane shows
+lives on the printer, where every screen, Mainsail and OrcaSlicer read the same thing (see
+[Where a lane's details come from](guide/filament-tracking.md#where-a-lanes-details-come-from)).
+That retires a few things earlier betas kept on the screen:
+
+- **The local copy of your lanes** (used when the printer could not be reached) is gone. Lanes fill
+  in from the printer as soon as HelixScreen connects.
+- **Edits held while disconnected** are gone too. Editing is unavailable until the printer is
+  connected and its lanes have been read, so nothing waits to be sent later.
+- **`tool_spools.json`**, the per-tool spool list, and the **external spool** saved in
+  `settings.json` are read once, the first time this release connects, and then deleted. On a
+  tool changer, a tool's spool is linked to the lane that feeds it, unless that lane already
+  names a spool; the external spool becomes the printer's bypass record, unless the printer
+  already has one. From then on a tool's spool is the spool of the lane that feeds it, and the
+  external spool is kept on the printer like any lane.
+
+What carries over: everything already on the printer. Spool links, materials and colors your
+filament system holds, and the lane records earlier betas wrote, are read as they are, with no
+conversion step. Happy Hare tuning values set from HelixScreen move from the screen's settings to
+the printer the first time 1.1 connects. A detail that only ever lived on the screen (an edit
+made while the printer was offline and never sent) does not carry over; set it again.
+
+On an AFC printer, AFC's own **remember spool** setting now decides what a lane keeps when the
+spool comes out, and an unlink only sticks if AFC drops the spool's id.
+
 ---
 
 ## If the Setup Wizard Keeps Appearing

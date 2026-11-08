@@ -101,7 +101,6 @@ tests/shell/test_json_dump_utf8_gate.bats	scripts/check_json_dump_utf8.py
 tests/shell/test_keep_unchanged_mtimes.bats	Makefile mk/deps.mk scripts/keep-unchanged-mtimes.sh
 tests/shell/test_l081_gate.bats	scripts/check_l081_anti_pattern.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/check_no_mocks.py scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
-tests/shell/test_lane_binding_reconcile_gate.bats	scripts/check_lane_binding_reconcile.py
 tests/shell/test_latest_green_sha.bats	scripts/latest-green-sha.sh
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
 tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/home/ui_panel_home.cpp

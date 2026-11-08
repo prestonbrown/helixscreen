@@ -18,6 +18,7 @@
 #include "ui_filament_runout_handler.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/armed_timers.h"
 #include "../test_helpers/filament_runout_handler_test_access.h"
 #include "../test_helpers/filament_sensor_widget_test_access.h"
@@ -233,7 +234,7 @@ class HeaterFixture : public LVGLTestFixture {
     void set_spool(const char* material) {
         helix::SlotInfo spool;
         spool.material = material;
-        helix::AmsState::instance().set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
     }
 
     void set_print_state(const char* wire) {

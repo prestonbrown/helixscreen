@@ -93,6 +93,7 @@ void ExternalSpoolSink::snapshot(float filament_used_mm) {
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info.remaining_weight_g;
     last_written_weight_g_ = info.remaining_weight_g;
+    last_persisted_weight_g_ = info.remaining_weight_g;
     last_persist_tick_ms_ = lv_tick_get();
     active_ = true;
     spdlog::info("[ConsumptionSink:external] Snapshot: material={}, density={} g/cm3, "
@@ -121,12 +122,12 @@ void ExternalSpoolSink::apply_delta(float filament_used_mm) {
         return;
     }
 
-    // External-write detection: someone other than us updated remaining_weight_g.
-    // Treat as authoritative and rebase our snapshot from it.
-    if (std::abs(info.remaining_weight_g - last_written_weight_g_) > kRebaselineThresholdG) {
+    // External-write detection: the record moved away from what this sink last
+    // wrote to it (a user edit, another client). Treat it as authoritative.
+    if (std::abs(info.remaining_weight_g - last_persisted_weight_g_) > kRebaselineThresholdG) {
         spdlog::info("[ConsumptionSink:external] External write detected (was {} g, now "
                      "{} g); rebaselining",
-                     last_written_weight_g_, info.remaining_weight_g);
+                     last_persisted_weight_g_, info.remaining_weight_g);
         rebaseline(filament_used_mm);
         return;
     }
@@ -135,8 +136,7 @@ void ExternalSpoolSink::apply_delta(float filament_used_mm) {
     if (consumed_mm < 0.0f) {
         // filament_used was reset under us (e.g. new print). Rebase.
         snapshot_mm_ = filament_used_mm;
-        snapshot_weight_g_ = info.remaining_weight_g;
-        last_written_weight_g_ = info.remaining_weight_g;
+        snapshot_weight_g_ = last_written_weight_g_;
         return;
     }
 
@@ -147,31 +147,36 @@ void ExternalSpoolSink::apply_delta(float filament_used_mm) {
     }
 
     // Avoid noise writes for sub-gram changes the UI can't show anyway.
-    if (std::abs(new_remaining_g - info.remaining_weight_g) < kDeltaWriteThresholdG) {
+    if (std::abs(new_remaining_g - last_written_weight_g_) < kDeltaWriteThresholdG) {
         return;
     }
 
-    info.remaining_weight_g = new_remaining_g;
-    AmsState::instance().set_external_spool_info_in_memory(info);
     file_metered_weight(new_remaining_g, info.total_weight_g);
-
-    // Throttled disk persist (crash-safety).
-    if (lv_tick_elaps(last_persist_tick_ms_) >= persist_interval_ms()) {
-        AmsState::instance().set_external_spool_info(info);
-        last_persist_tick_ms_ = lv_tick_get();
-    }
+    AmsState::instance().refresh_external_spool();
     last_written_weight_g_ = new_remaining_g;
+
+    // Throttled write of the bypass record (crash-safety).
+    if (lv_tick_elaps(last_persist_tick_ms_) >= persist_interval_ms()) {
+        persist(info);
+    }
+}
+
+void ExternalSpoolSink::persist(SlotInfo info) {
+    info.remaining_weight_g = last_written_weight_g_;
+    AmsState::instance().set_external_spool_info(info);
+    last_persisted_weight_g_ = last_written_weight_g_;
+    last_persist_tick_ms_ = lv_tick_get();
 }
 
 void ExternalSpoolSink::flush() {
     auto info_opt = AmsState::instance().raw_external_spool_info();
-    if (!info_opt.has_value()) {
+    if (!info_opt.has_value() || !active_) {
         return;
     }
-    // Full write updates settings.json via SettingsManager and re-fires the subject.
-    AmsState::instance().set_external_spool_info(*info_opt);
-    last_written_weight_g_ = info_opt->remaining_weight_g;
-    last_persist_tick_ms_ = lv_tick_get();
+    if (std::abs(last_written_weight_g_ - last_persisted_weight_g_) < kDeltaWriteThresholdG) {
+        return;
+    }
+    persist(*info_opt);
 }
 
 void ExternalSpoolSink::rebaseline(float filament_used_mm) {
@@ -183,7 +188,8 @@ void ExternalSpoolSink::rebaseline(float filament_used_mm) {
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info_opt->remaining_weight_g;
     last_written_weight_g_ = info_opt->remaining_weight_g;
-    // The external number is now the meter's baseline, so the lane's Metered
+    last_persisted_weight_g_ = info_opt->remaining_weight_g;
+    // The record's number is now the meter's baseline, so the lane's Metered
     // record must say so - otherwise resolve() keeps showing the count the
     // external write just replaced.
     file_metered_weight(info_opt->remaining_weight_g, info_opt->total_weight_g);

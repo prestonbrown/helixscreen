@@ -186,28 +186,51 @@ dryer glyph when one is drying) on either side of the hub. See "The unit view" i
 
 ## Slot identity
 
-OpenAMS reports no colour, material or spool identity, so identity is HelixScreen's:
+OpenAMS reports no colour, material or spool identity, so a lane's identity is its
+`lane_data` record (`laneN`, 1-based), read at start, after each write of ours and on the
+10 s poll like every lane record (`AmsSubscriptionBackend::refresh_lane_records`):
 
-- a `FilamentSlotOverrideStore` on the shared `lane_data` namespace (`laneN`, 1-based),
-  loaded at start with legacy records ingested;
-- `apply_user_edit()`, `persist_slot_weight()`, `persist_external_identity_impl()` and
-  `clear_slot_override()` keep the stored record in step, so edits, Spoolman links and
-  metered weights survive a restart, and "clear slot metadata" empties both the record
-  and the live slot;
-- `firmware_publishes_lane_identity()` is false and `lane_record_store()` names the
-  store, so a resync re-reads what other `lane_data` writers changed. A repaint between
-  frames takes identity from the lane alone: `overrides_` is what the store persists and
-  a resync does not refresh it, so nothing is decided from it;
-- a spool link written after start is picked up from `notify_openams_spoolman_status` (sent
-  by the openams `[openams_spoolman]` Moonraker component whenever it updates
-  `lane_data`): the store re-reads the namespace without blocking, the records are filed
-  onto the lanes (every source except a person's own edit, which stands) and the slots are
-  repainted. A manager without the component never sends it;
-- a spool inserted into a slot last seen empty is, under the insert rule
-  (`docs/specs/filament_slots.md` §6), always "no evidence": the record stays and
-  the "same spool?" notice offers Clear. The first frame after start is a baseline, and
-  a frame from an offline unit or a manager that is not `ready` neither raises the notice
-  nor moves the baseline, since those bays have not been read.
+- **Writer, without `[openams_spoolman]`.** HelixScreen writes the record: `apply_user_edit()`
+  goes through `persist_user_record_locked()`, metered
+  weights and Spoolman's details through the shared persist helpers. A record whose `writer`
+  names another producer is never overwritten (the store's writer rule).
+- **With `[openams_spoolman]`** (the openams Moonraker component, `moonraker/openams_spoolman/`
+  in OpenAMSOrg/openams): it registers `lane_data` as a Moonraker local namespace, which clients
+  can read but not write, and its records there are one per tool for slicers (`laneN`,
+  N = tool + 1), carry no `writer`, and do not describe bays. The backend learns the component is
+  loaded from `server.openams_spoolman.status` at start or from `notify_openams_spoolman_status`
+  (`spoolman_component_`). Until that query is answered (a status, or an error from a server
+  without the component) the backend files no record onto a bay and reports its lane records not
+  ready, so the editor waits; a server without the component then has its records read again and
+  filed. With the component it:
+  - **reads each bay from the component's status**, not from `lane_data`
+    (`lane_records_describe_slots()` is false, so the poll's read files nothing onto the slots):
+    `bays["<unit>-<bay>"]` gives the linked `spool_id` and the cached Spoolman summary
+    (`material`, `color_hex`, `vendor`, `remaining_g`, `initial_g`), filed as the slot's
+    `Firmware` source (`adopt_component_status()`). The notification carries the same status
+    object, so a link or edit made anywhere shows at once; Spoolman's own fetch for the linked
+    id fills the rest;
+  - **edits** go to `server.openams_spoolman.edit` with `unit` (the manager's unit name, its
+    `devices` key), `bay` (0-based) and the fields that moved: `material`, `color_hex`
+    (`rrggbb`), `vendor`, `remaining_weight`, `initial_weight`. A material, colour or vendor
+    change moves that one spool to a matching filament (found or created,
+    the component's edit.py, _retarget); the filament other spools share is never edited. The component writes Spoolman
+    (creating and linking a spool for an unlinked bay) and notifies its new status, which is
+    the echo; its answer acknowledges whatever that summary does not restate
+    (`acknowledge_pending()`). Its error (409 no spool, 503 Spoolman offline, a validation
+    message) withdraws the edit with that message, which the spool editor shows inline;
+  - a name, colour name, catalog pick or link change is refused before anything is sent, since
+    the component has nowhere to keep it;
+  - **Clear Spool is the component's**: `clear_spool_refusal()` answers "OpenAMS manages this
+    spool's link", so the slot menu greys Clear with that reason, the editor hides its Clear,
+    and the dispatch and `clear_slot_override()` refuse it;
+  - metered weights and Spoolman amends are not written: the component owns both.
+- **Clear.** "Clear slot metadata" deletes the record and empties the live slot.
+- **Insert.** A spool inserted into a slot last seen empty is, under the insert rule
+  (`docs/specs/filament_slots.md` §6), always "no evidence": the record stays and the "same
+  spool?" notice offers Clear. The first frame after start is a baseline, and a frame from an
+  offline unit or a manager that is not `ready` neither raises the notice nor moves the
+  baseline, since those bays have not been read.
 
 ## Capabilities
 

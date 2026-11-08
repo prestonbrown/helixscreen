@@ -608,8 +608,9 @@ the miss is the frame picture, not the capabilities.
 
 Not yet reconciled, and worth knowing before extending this:
 
-(Per-tool spool metadata used to be listed here. It is now persisted - see
-[FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
+Per-tool filament identity is the tool changer's `lane_data` record `T<n>`, written by
+HelixScreen and read back on the 10 s poll; the MedusaHC firmware holds none of it (see
+the Slot metadata row in [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md)).
 
 - **`layer` and the prime flags** - per-tool priming scheduled against the layer number.
   The layer command is `_LAYER_SET L=` (wrapping `MHC_LAYER_SET`), the first-use flags are

@@ -30,6 +30,7 @@
 #include "ui_swatch.h"
 
 #include "../mapping_card_render_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_remap.h"
 #include "ams_state.h"
@@ -257,7 +258,7 @@ void load_lane(helix::AmsBackendMock* mock, int index, uint32_t rgb, const char*
     auto slot = mock->get_slot_info(index);
     slot.color_rgb = rgb;
     slot.material = material;
-    mock->sync_external_identity(index, slot);
+    helix::test::apply_edit(*mock, index, slot);
 }
 
 // One explicit mapping per tool (-1: none), so what a chip shows is a pure
@@ -445,7 +446,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip's spool paints the slot's s
     slot.multi_color_hexes = "#FF0000,#00FF00,#0000FF";
     slot.material = "PLA";
     slot.product_name = "Silk Rainbow";
-    mock->sync_external_identity(0, slot);
+    helix::test::apply_edit(*mock, 0, slot);
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PLA"});
     card.set_mappings(mappings_to_slots({0, 1}));
     REQUIRE(chip_count() == 2);

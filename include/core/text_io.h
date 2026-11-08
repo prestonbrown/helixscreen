@@ -270,6 +270,26 @@ inline std::string to_lower(std::string_view s) {
     return out;
 }
 
+/// @p value as one quoted G-code parameter value (`"..."`), which Klipper's
+/// extended-command parser splits like a shell word: quotes and backslashes are
+/// escaped, and a line break, which would end the command, becomes a space.
+inline std::string quote_gcode_param(std::string_view value) {
+    std::string quoted;
+    quoted.reserve(value.size() + 2);
+    quoted += '"';
+    for (char c : value) {
+        if (c == '\n' || c == '\r') {
+            quoted += ' ';
+        } else {
+            if (c == '\\' || c == '"')
+                quoted += '\\';
+            quoted += c;
+        }
+    }
+    quoted += '"';
+    return quoted;
+}
+
 namespace detail {
 inline char ascii_lower(char c) {
     return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;

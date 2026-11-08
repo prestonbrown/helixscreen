@@ -25,9 +25,9 @@ static const struct {
     uint32_t hex;
     const char* name;
 } SPECIAL_COLOR_NAMES[] = {
-    {0xD4AF37, "Gold"},  {0xCD7F32, "Bronze"}, {0x8B4513, "Wood"},
-    {0xE8E8FF, "Clear"}, {0xC0C0C0, "Silver"}, {0xE0D5C7, "Marble"},
-    {0xFF7043, "Coral"}, {0x1A237E, "Navy"},   {0xBCAAA4, "Taupe"},
+    {0xD4AF37, "Gold"},   {0xCD7F32, "Bronze"},   {0x8B4513, "Wood"},         {0xE8E8FF, "Clear"},
+    {0xC0C0C0, "Silver"}, {0xE0D5C7, "Marble"},   {0xFF7043, "Coral"},        {0x1A237E, "Navy"},
+    {0xBCAAA4, "Taupe"},  {0x7A1E2C, "Burgundy"}, {0x1B5E20, "Forest Green"},
 };
 
 std::string get_color_name_from_hex(uint32_t rgb) {
@@ -99,12 +99,15 @@ void set_selected_swatch(int index) {
 } // namespace
 
 const std::vector<uint32_t>& swatch_palette(ColorPicker::Palette palette) {
-    // Grays, warm, cool, purple/pink/special, more colors.
+    // Ordered by the filament colours people load most, because the spool
+    // editor shows only the first row or two: black, white, grey, then the
+    // hue wheel (red to pink), then brown and the two metallics. The less
+    // common tones, earth shades and pastels follow.
     static const std::vector<uint32_t> general = {
-        0x1A1A1A, 0x4A4A4A, 0x7F7F7F, 0xB0B0B0, 0xE8E8E8, 0xFFFFFF, 0xE53935, 0xFF9800,
-        0xFFEB3B, 0xD4AF37, 0xCD7F32, 0x8B4513, 0x43A047, 0xAEEA00, 0x009688, 0x00BCD4,
-        0x1E88E5, 0x1A237E, 0x7B1FA2, 0xE91E63, 0xF48FB1, 0xFF7043, 0xC0C0C0, 0xE0D5C7,
-        0x00E676, 0x18FFFF, 0x536DFE, 0xEA80FC, 0xFF80AB, 0xBCAAA4,
+        0x1A1A1A, 0xFFFFFF, 0x7F7F7F, 0xE53935, 0xFF9800, 0xFFEB3B, 0x43A047, 0x009688,
+        0x1E88E5, 0x1A237E, 0x7B1FA2, 0xE91E63, 0x8B4513, 0xC0C0C0, 0xD4AF37, 0x4A4A4A,
+        0xB0B0B0, 0xE8E8E8, 0xAEEA00, 0x1B5E20, 0x00BCD4, 0x536DFE, 0xEA80FC, 0xF48FB1,
+        0x7A1E2C, 0xFF7043, 0xCD7F32, 0xE0D5C7, 0xBCAAA4, 0x00E676,
     };
     // Rows 1-2: a 12-step surface ramp, dark to light. Rows 3-5: six hue
     // families (red, amber, green, teal, blue, violet) by column, in muted, mid
