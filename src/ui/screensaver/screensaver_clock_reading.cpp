@@ -89,6 +89,7 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     reading_.time = clock_time(in.seconds_of_day, in.use_24h);
     reading_.date = in.date;
     reading_.use_24h = in.use_24h;
+    reading_.spell_states = in.spell_states;
     reading_.mode = mode_;
     switch (mode_) {
     case ClockMode::CLOCK:

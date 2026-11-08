@@ -395,8 +395,14 @@ a print runs, a row of small cards under them (`kSubCardScale` of the main size)
 | Paused | `PAUSE` | the time left as H:MM when there is an estimate, then the percent |
 | Done, failed, cancelled | `DONE`, `FAIL`, `STOP` | the percent the print reached |
 
+The words are English. In any other UI language (`SaverHost::spell_states`, false when
+`locale_current_language()` is not `en`) the main row is one card with the state's symbol
+instead: two bars paused, a check mark done, a cross failed, a solid square cancelled
+(`kGlyphPause`, `kGlyphCheck`, `kGlyphCross`, `kGlyphSquare`). The small row is the same in
+every language.
+
 The cards draw in the state colour (`print_state_color`): white while running, amber paused,
-green done, red failed or cancelled. Letters and `%` are stroke glyphs like the digits
+green done, red failed or cancelled. Letters, symbols and `%` are stroke glyphs like the digits
 (`stroke_glyph_distance`); `StrokeGlyphSet` rasterises each character the first time a face
 shows it. An estimate within `kClockCountdownResyncS` of the running count is ignored, so
 estimator jitter never flips the seconds backwards. An ended print holds for as long as the
