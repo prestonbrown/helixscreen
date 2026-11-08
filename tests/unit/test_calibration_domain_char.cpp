@@ -34,6 +34,7 @@
  * - Motor state derived from idle_timeout.state string ("Ready"/"Printing" vs "Idle")
  */
 
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -168,14 +169,8 @@ TEST_CASE("Calibration characterization: firmware retraction updates from JSON",
 // Manual Probe Update Tests - Verify is_active and z_position parsing
 // ============================================================================
 
-TEST_CASE("Calibration characterization: manual probe updates from JSON",
-          "[characterization][calibration][manual_probe]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Calibration characterization: manual probe updates from JSON",
+                 "[characterization][calibration][manual_probe]") {
     SECTION("manual_probe.is_active true sets subject to 1") {
         json status = {{"manual_probe", {{"is_active", true}, {"z_position", 0.125}}}};
         state.update_from_status(status);
@@ -261,14 +256,8 @@ TEST_CASE("Calibration characterization: manual probe updates from JSON",
 // Motor State Update Tests - Verify stepper_enable.steppers parsing
 // ============================================================================
 
-TEST_CASE("Calibration characterization: motor state updates from JSON",
-          "[characterization][calibration][motors]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Calibration characterization: motor state updates from JSON",
+                 "[characterization][calibration][motors]") {
     SECTION("all steppers enabled sets motors_enabled to 1") {
         json status = {{"stepper_enable",
                         {{"steppers",
@@ -451,14 +440,9 @@ TEST_CASE("Calibration characterization: combined status updates",
 // Observer Notification Tests - Verify observers fire on calibration changes
 // ============================================================================
 
-TEST_CASE("Calibration characterization: observer fires when manual_probe_active changes",
-          "[characterization][calibration][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Calibration characterization: observer fires when manual_probe_active changes",
+                 "[characterization][calibration][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         int* value_ptr = count_ptr + 1;
@@ -486,14 +470,9 @@ TEST_CASE("Calibration characterization: observer fires when manual_probe_active
     lv_observer_remove(observer);
 }
 
-TEST_CASE("Calibration characterization: observer fires when motors_enabled changes",
-          "[characterization][calibration][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Calibration characterization: observer fires when motors_enabled changes",
+                 "[characterization][calibration][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         int* value_ptr = count_ptr + 1;
@@ -694,14 +673,9 @@ TEST_CASE("Calibration characterization: subjects are independent",
 // Stepper Enable State Tests - Comprehensive coverage of motor state
 // ============================================================================
 
-TEST_CASE("Calibration characterization: stepper_enable motor state tracking",
-          "[characterization][calibration][stepper_enable]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Calibration characterization: stepper_enable motor state tracking",
+                 "[characterization][calibration][stepper_enable]") {
     SECTION("all steppers enabled = motors_enabled is 1") {
         json status = {{"stepper_enable",
                         {{"steppers",
@@ -810,14 +784,8 @@ TEST_CASE("Calibration characterization: stepper_enable motor state tracking",
 // indicator. stepper_enable.steppers is not reported by all firmware (e.g. AD5M).
 // ============================================================================
 
-TEST_CASE("Calibration characterization: homed_axes motor state tracking",
-          "[characterization][calibration][homed_axes]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Calibration characterization: homed_axes motor state tracking",
+                 "[characterization][calibration][homed_axes]") {
     SECTION("homed_axes 'xyz' sets motors_enabled to 1") {
         json status = {{"toolhead", {{"homed_axes", "xyz"}}}};
         state.update_from_status(status);

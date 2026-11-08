@@ -864,10 +864,11 @@ TEST_CASE_METHOD(LedConfigFixture, "apply_startup_preference with no targets def
     clear_led_config_paths();
     ctrl.init(nullptr, nullptr);
     ctrl.set_led_on_at_start(true);
-    ctrl.apply_startup_preference({});
-    // Still armed: the next call with a target applies (last_brightness follows the preference).
     ctrl.set_startup_brightness(40);
     ctrl.set_last_brightness(100);
+    ctrl.apply_startup_preference({});
+    CHECK(ctrl.last_brightness() == 100);
+    // Still armed: the next call with a target applies (last_brightness follows the preference).
     ctrl.apply_startup_preference({"neopixel a"});
     CHECK(ctrl.last_brightness() == 40);
     ctrl.deinit();

@@ -615,50 +615,60 @@ TEST_CASE_METHOD(XMLTestFixture,
     helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
 }
 
+namespace {
+
+/// A PrinterImageWidget attached for a printer of @p type, with the image it shows.
+struct VariantScene {
+    lv_obj_t* img = nullptr;
+    helix::PrinterImageWidget widget;
+
+    VariantScene(lv_obj_t* screen, const char* type) {
+        helix::init_widget_registrations();
+        helix::PanelWidgetManager::instance().init_widget_subjects();
+        get_printer_state().init_subjects(false);
+        AmsState::instance().clear_backends();
+        AmsState::instance().init_subjects(true);
+        Config* cfg = Config::get_instance();
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, type);
+
+        lv_obj_t* widget_obj = lv_obj_create(screen);
+        lv_obj_set_size(widget_obj, 200, 200);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_refr_now(nullptr);
+        widget.attach(widget_obj, screen);
+    }
+    ~VariantScene() {
+        widget.detach();
+        process_async_timers();
+        Config* cfg = Config::get_instance();
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    }
+    /// The image shown once every queued refresh has run.
+    std::string source() const {
+        helix::ui::UpdateQueue::instance().drain();
+        process_async_timers();
+        return static_cast<const char*>(lv_image_get_src(img));
+    }
+};
+
+} // namespace
+
 // A filament system registers after connect, after the home panel is built. A
 // database entry's image_variants can pick another image for it, so the widget
 // re-resolves when the detected filament systems change, and back when they go.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget switches to an image variant when a filament system registers",
                  "[panel_widget][printer_image][printer_image_variants]") {
-    helix::init_widget_registrations();
-    helix::PanelWidgetManager::instance().init_widget_subjects();
-    get_printer_state().init_subjects(false);
-    AmsState& ams = AmsState::instance();
-    ams.clear_backends();
-    ams.init_subjects(false);
-
-    Config* cfg = Config::get_instance();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Creality K2");
-
-    lv_obj_t* widget_obj = lv_obj_create(test_screen());
-    lv_obj_set_size(widget_obj, 200, 200);
-    lv_obj_t* img = lv_image_create(widget_obj);
-    lv_obj_set_name(img, "printer_image");
-    process_lvgl(2);
-
-    helix::PrinterImageWidget w;
-    w.attach(widget_obj, test_screen());
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    auto source = [&]() { return std::string(static_cast<const char*>(lv_image_get_src(img))); };
-    const std::string plain = source();
+    VariantScene scene(test_screen(), "Creality K2");
+    const std::string plain = scene.source();
     REQUIRE(plain.find("creality-k2") != std::string::npos);
     REQUIRE(plain.find("creality-k2-cfs") == std::string::npos);
 
-    ams.add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("creality-k2-cfs") != std::string::npos);
-
-    ams.clear_backends();
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
-    w.detach();
-    process_async_timers();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    AmsState::instance().add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
+    CHECK(scene.source().find("creality-k2-cfs") != std::string::npos);
+    AmsState::instance().clear_backends();
+    CHECK(scene.source() == plain);
 }
 
 // The top can be fitted or lifted off while connected, so the widget follows the
@@ -666,57 +676,22 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget switches to the with-top image when the top is fitted",
                  "[panel_widget][printer_image][printer_image_variants][enclosure_top]") {
-    helix::init_widget_registrations();
-    helix::PanelWidgetManager::instance().init_widget_subjects();
-    get_printer_state().init_subjects(false);
-    AmsState& ams = AmsState::instance();
-    ams.clear_backends();
-    ams.init_subjects(false);
     auto& caps = get_printer_state().capabilities_state();
     caps.set_enclosure_top_fitted(false);
     caps.set_has_chamber_heater(false);
-
-    Config* cfg = Config::get_instance();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Snapmaker U1");
-
-    lv_obj_t* widget_obj = lv_obj_create(test_screen());
-    lv_obj_set_size(widget_obj, 200, 200);
-    lv_obj_t* img = lv_image_create(widget_obj);
-    lv_obj_set_name(img, "printer_image");
-    process_lvgl(2);
-
-    helix::PrinterImageWidget w;
-    w.attach(widget_obj, test_screen());
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    auto source = [&]() { return std::string(static_cast<const char*>(lv_image_get_src(img))); };
-    const std::string plain = source();
+    VariantScene scene(test_screen(), "Snapmaker U1");
+    const std::string plain = scene.source();
     REQUIRE(plain.find("snapmaker-u1") != std::string::npos);
     REQUIRE(plain.find("snapmaker-u1-tophat") == std::string::npos);
 
     caps.set_enclosure_top_fitted(true);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("snapmaker-u1-tophat") != std::string::npos);
-
+    CHECK(scene.source().find("snapmaker-u1-tophat") != std::string::npos);
     caps.set_enclosure_top_fitted(false);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
+    CHECK(scene.source() == plain);
     caps.set_has_chamber_heater(true);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("snapmaker-u1-tophat") != std::string::npos);
-
+    CHECK(scene.source().find("snapmaker-u1-tophat") != std::string::npos);
     caps.set_has_chamber_heater(false);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
-    w.detach();
-    process_async_timers();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    CHECK(scene.source() == plain);
 }
 
 // A chamber with only a sensor still has a reading worth showing, so the home
