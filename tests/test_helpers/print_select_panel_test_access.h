@@ -19,6 +19,11 @@
 // assert which files the panel currently holds without driving widget-level
 // scroll state. Same pattern as BedMeshPanelTestAccess.
 struct PrintSelectPanelTestAccess {
+    /// What the install prompt checks before it may cover the screen.
+    static helix::PluginScreenState plugin_screen_state() {
+        return PrintSelectPanel::plugin_screen_state();
+    }
+
     /// The installer the install prompt runs, for pointing it at a stub install.sh.
     static helix::HelixPluginInstaller& plugin_installer(PrintSelectPanel& panel) {
         return panel.plugin_installer_;
