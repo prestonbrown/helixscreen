@@ -26,7 +26,7 @@ class PrinterState;
  * Interactive panel that guides the user through the paper test calibration
  * process. Supports three strategies based on printer configuration:
  * - PROBE_CALIBRATE: Klipper's PROBE_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
- * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
+ * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - FIRMWARE_MANAGED: G28 -> move to center -> G1 Z adjustments -> SET_GCODE_OFFSET
  *
  * ## State Machine:

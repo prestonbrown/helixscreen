@@ -28,7 +28,9 @@
 #include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -119,4 +121,54 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     set_printing(true);
 
     CHECK(accept_sends() == "SET_GCODE_OFFSET Z=-0.150");
+}
+
+// ============================================================================
+// Saving an accepted calibration (#1994)
+// ============================================================================
+
+namespace {
+
+/// Accept a calibration under @p strategy and return every script that went on
+/// the wire.
+std::vector<std::string> accept_scripts(ZOffsetCalibrationStrategy strategy) {
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(get_printer_state(), strategy);
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, get_printer_state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::send_accept(panel);
+    for (int i = 0; i < 20; ++i) {
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    }
+    return client.gcode_script_history();
+}
+
+/// The scripts after ACCEPT: what the save wrote.
+std::vector<std::string> after_accept(const std::vector<std::string>& scripts) {
+    auto it = std::find(scripts.begin(), scripts.end(), "ACCEPT");
+    return it == scripts.end() ? std::vector<std::string>{}
+                               : std::vector<std::string>(std::next(it), scripts.end());
+}
+
+} // namespace
+
+// ACCEPT has staged the result; Z_OFFSET_APPLY_* would replace it with the
+// loaded value minus the live gcode offset, so the save only commits.
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration accept: a live gcode offset does not reach the saved result",
+                 "[ui_integration][zoffset][regression]") {
+    state().update_from_status(json{{"gcode_move", {{"homing_origin", {0.0, 0.0, -0.2, 0.0}}}}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(lv_subject_get_int(state().get_gcode_z_offset_subject()) == -200);
+
+    SECTION("probe") {
+        const auto sent = accept_scripts(ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+        CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+    }
+    SECTION("endstop") {
+        const auto sent = accept_scripts(ZOffsetCalibrationStrategy::ENDSTOP);
+        CHECK(after_accept(sent) == std::vector<std::string>{"SAVE_CONFIG"});
+    }
 }

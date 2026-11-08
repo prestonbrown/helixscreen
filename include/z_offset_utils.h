@@ -95,6 +95,22 @@ void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                     std::function<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
 
+/// Save a calibration that ACCEPT has just staged in the printer config.
+///
+/// PROBE_CALIBRATE and Z_ENDSTOP_CALIBRATE write their result into configfile
+/// on ACCEPT, so the save is SAVE_CONFIG alone. Z_OFFSET_APPLY_* is for
+/// baby-step saves: it writes the value Klipper loaded at start minus the live
+/// gcode Z offset, which here would replace the fresh result whenever an offset
+/// is set, and which Creality's Klipper always writes over it (#1994).
+/// FIRMWARE_MANAGED forwards to apply_and_save().
+///
+/// Parameters and callbacks are apply_and_save()'s.
+void save_accepted_calibration(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
+                               ZOffsetCalibrationStrategy strategy,
+                               std::function<void()> on_success,
+                               std::function<void(const std::string& error)> on_error,
+                               PrinterState* ps = nullptr);
+
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
 ///
 /// Sampling "is a restart expected right now" at the moment a save timeout fires
