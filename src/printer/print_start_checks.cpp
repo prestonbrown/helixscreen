@@ -681,16 +681,15 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx) {
 
 std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintStartContext& ctx) {
     // The external spool is the ONE spool this rule can weigh, and a lane-fed
-    // print does not draw from it. Every sibling rule here already scopes itself
-    // on bypass; this one never did, because it predates bypass existing (it is
-    // from the single-extruder era, 39a576ddc).
+    // print does not draw from it, so like every sibling rule here it scopes
+    // itself on bypass.
     //
-    // The consequence is not a merely-inaccurate warning, it is an unanswerable
-    // one: the rule compares the file's WHOLE-FILE total against that spool, so
-    // no lane assignment or tool remap can change either input. On a K2 Plus the
-    // user mapped a print from T1 to T2 and kept getting "needs about 1900g but
+    // Unscoped, the warning would be not merely inaccurate but unanswerable:
+    // the rule compares the file's WHOLE-FILE total against that spool, so
+    // no lane assignment or tool remap can change either input. On a K2 Plus a
+    // print mapped from T1 to T2 would keep reading "needs about 1900g but
     // the spool has about 386g" - 386g being the bypass spool, which the print
-    // was never going to touch. Worse, assigning a spool to a LANE calls
+    // never touches. Worse, assigning a spool to a LANE calls
     // set_active_spool(), and Moonraker's active spool is what populates
     // external_spool - so editing a lane silently re-aims this comparison.
     //

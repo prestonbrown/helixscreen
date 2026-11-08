@@ -300,7 +300,7 @@ PrimaryFanSlots PrinterFanState::possible_primary_fan_slots() const {
 std::string PrinterFanState::resolve_part_fan(const std::string& configured) const {
     // The bare [fan] is Klipper's canonical part cooling object, but some printers
     // leave it a stale 0% stub and drive a manually-commandable named fan instead
-    // (output_pin fanN / fan_generic; user Discord report, e3f92c3f4). Auto-controlled
+    // (output_pin fanN / fan_generic). Auto-controlled
     // fans (heater/controller/temperature) can never be the M106 part fan, so they are
     // never candidates — promoting an idle controller_fan/temperature_fan over the
     // live [fan] is what stuck the Sovol SV08 part fan at 0% (#1124).
