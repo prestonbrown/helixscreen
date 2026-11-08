@@ -29,6 +29,19 @@ constexpr uint32_t kPanelSettleMs = 280;
 PanelId base_panel_for(TourPanel panel) {
     return panel == TourPanel::Home ? PanelId::Home : PanelId::Filament;
 }
+
+// By name rather than go_back(): something else can have opened on top of it.
+bool close_ams_overlay() {
+    lv_obj_t* screen = lv_screen_active();
+    for (const char* name : {"ams_panel", "ams_overview_panel"}) {
+        lv_obj_t* overlay = lv_obj_find_by_name(screen, name);
+        if (overlay && helix::nav::is_in_stack(overlay)) {
+            NavigationManager::instance().close_overlay(overlay);
+            return true;
+        }
+    }
+    return false;
+}
 } // namespace
 
 FirstRunTour& FirstRunTour::instance() {
@@ -53,6 +66,13 @@ bool FirstRunTour::should_auto_start() {
 
     if (cfg->is_wizard_required()) {
         spdlog::debug("[FirstRunTour] gate: wizard_required");
+        return false;
+    }
+
+    // Finishing the tour is final, so it waits until it knows whether the
+    // printer has a filament system; on_printer_ready() offers it again.
+    if (!instance().printer_ready_) {
+        spdlog::debug("[FirstRunTour] gate: printer_not_discovered");
         return false;
     }
 
@@ -116,6 +136,11 @@ void FirstRunTour::maybe_start() {
         start_impl(auto_start_seen_version(cfg->get<bool>("/tour/completed", false),
                                            cfg->get<int>("/tour/last_seen_version", 0)));
     });
+}
+
+void FirstRunTour::on_printer_ready() {
+    printer_ready_ = true;
+    maybe_start();
 }
 
 void FirstRunTour::start() {
@@ -214,21 +239,45 @@ void FirstRunTour::end_tour() {
     nav_observer_.reset();
     breakpoint_observer_.reset();
     panel_settle_timer_.reset();
-    overlay_.reset();
+    // This can run from the card's own button or inside an update-queue batch,
+    // and neither may delete the widgets or callback currently executing.
+    if (TourOverlay* overlay = overlay_.release()) {
+        overlay->hide_card();
+        helix::ui::run_next_tick([overlay]() { delete overlay; });
+    }
     show_panel(TourPanel::Home);
+}
+
+void FirstRunTour::arm_panel_timer(lv_timer_cb_t callback) {
+    lv_timer_t* timer = lv_timer_create(callback, kPanelSettleMs, this);
+    lv_timer_set_repeat_count(timer, 1);
+    panel_settle_timer_.reset(timer);
 }
 
 void FirstRunTour::show_panel(TourPanel panel) {
     if (panel == shown_panel_)
         return;
     const bool leaving_ams = shown_panel_ == TourPanel::AmsOverlay;
-    // Set first: the active-panel observer reads it during set_active().
+    // Set first: the active-panel observer compares against it.
     shown_panel_ = panel;
-    if (leaving_ams && NavigationManager::instance().has_open_overlays())
-        helix::nav::go_back();
+    // Switching panels before the close lands would activate the destination
+    // twice: once for the switch and once as the panel the overlay restores.
+    if (leaving_ams && close_ams_overlay()) {
+        arm_panel_timer(on_ams_closed);
+        return;
+    }
     helix::nav::set_active(base_panel_for(panel));
     if (panel == TourPanel::AmsOverlay)
         navigate_to_ams_panel();
+}
+
+void FirstRunTour::on_ams_closed(lv_timer_t* timer) {
+    auto* self = static_cast<FirstRunTour*>(lv_timer_get_user_data(timer));
+    // A one-shot timer frees itself when this returns.
+    self->panel_settle_timer_.release();
+    helix::nav::set_active(base_panel_for(self->shown_panel_));
+    if (self->running_ && self->overlay_)
+        self->arm_panel_timer(on_panel_settled);
 }
 
 void FirstRunTour::on_panel_settled(lv_timer_t* timer) {
@@ -249,9 +298,8 @@ void FirstRunTour::render_current_step() {
     }
     overlay_->hide_card();
     show_panel(wanted);
-    lv_timer_t* timer = lv_timer_create(on_panel_settled, kPanelSettleMs, this);
-    lv_timer_set_repeat_count(timer, 1);
-    panel_settle_timer_.reset(timer);
+    if (!panel_settle_timer_)
+        arm_panel_timer(on_panel_settled);
 }
 
 } // namespace helix::tour
