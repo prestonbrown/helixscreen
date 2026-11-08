@@ -443,6 +443,10 @@ class MoonrakerManager {
 
     // Print start collector (monitors PRINT_START macro progress)
     std::shared_ptr<PrintStartCollector> m_print_start_collector;
+    /// What the collector's observers share: the collector, its arming state and
+    /// the progress subjects. One per init_print_start_collector(), held by the
+    /// observers themselves (moonraker_manager.cpp).
+    struct PrintStartWiring;
     std::unique_ptr<helix::PrintStopReasonTracker> m_print_stop_reason;
     ObserverGuard m_preparing_epoch_observer;
     ObserverGuard m_print_start_profile_observer;

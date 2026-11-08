@@ -855,16 +855,8 @@ TEST_CASE("PrintCollectorArming re-arms on reset so a printer switch cannot join
     // "Preparing..." overlay over a running print.
     helix::PrintCollectorArming arming;
 
-    SECTION("a fresh instance is armed") {
-        REQUIRE(arming.is_initial_transition());
-    }
-
-    SECTION("consuming the first transition disarms it") {
-        arming.consume_initial_transition();
-        REQUIRE_FALSE(arming.is_initial_transition());
-    }
-
     SECTION("reset re-arms after the first transition was consumed") {
+        REQUIRE(arming.is_initial_transition());
         arming.consume_initial_transition();
         REQUIRE_FALSE(arming.is_initial_transition());
 
@@ -879,35 +871,6 @@ TEST_CASE("PrintCollectorArming re-arms on reset so a printer switch cannot join
         arming.reset();
         REQUIRE(arming.prev_state() == PrintJobState::STANDBY);
     }
-}
-
-TEST_CASE("PrintCollectorArming drives the boot-join suppression across a printer switch",
-          "[application][print_start][regression]") {
-    // The end-to-end shape of the bug: connect to printer A, run a print to
-    // completion, then switch to printer B which is already 60% through a job.
-    // After the switch the collector must be suppressed, exactly as it would be
-    // on a cold boot into that same running print.
-    helix::PrintCollectorArming arming;
-
-    // Printer A: a normal print start consumes the initial transition.
-    REQUIRE(MoonrakerManager::should_start_print_collector(
-        arming.prev_state(), PrintJobState::PRINTING,
-        /*current_progress=*/0, arming.is_initial_transition(),
-        /*current_print_duration=*/0));
-    arming.consume_initial_transition();
-    arming.note_transition(PrintJobState::PRINTING);
-    arming.note_transition(PrintJobState::COMPLETE);
-
-    // Printer switch: init_print_start_collector() runs again.
-    arming.reset();
-
-    // Printer B is already 60% in. This presents as STANDBY -> PRINTING with
-    // stale progress, which is the genuine boot-into-running-print case and
-    // must be suppressed.
-    REQUIRE_FALSE(MoonrakerManager::should_start_print_collector(
-        arming.prev_state(), PrintJobState::PRINTING,
-        /*current_progress=*/60, arming.is_initial_transition(),
-        /*current_print_duration=*/4200));
 }
 
 // ============================================================================
@@ -1148,4 +1111,40 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
     CHECK(lv_subject_get_int(ps.print_state().get_print_start_phase_subject()) ==
           static_cast<int>(PrintStartPhase::HOMING));
     collector->stop();
+}
+
+TEST_CASE_METHOD(ManagerCollectorArmingFixture,
+                 "a printer switch re-arms the boot-join suppression on the new collector only",
+                 "[application][print_start][regression]") {
+    auto& print = get_printer_state().print_state();
+    auto set = [](lv_subject_t* subject, int value) {
+        lv_subject_set_int(subject, value);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    auto* state = print.get_print_state_enum_subject();
+    // Printer A: a normal start consumes the initial transition, then the print ends.
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    const auto first = mgr.print_start_collector();
+    REQUIRE(first->is_active());
+    set(state, static_cast<int>(PrintJobState::COMPLETE));
+    set(state, static_cast<int>(PrintJobState::STANDBY));
+    REQUIRE_FALSE(first->is_active());
+
+    // Printer B is already 60% through a job: suppressed, as on a cold boot into it.
+    mgr.init_print_start_collector();
+    const auto second = mgr.print_start_collector();
+    REQUIRE(second != first);
+    set(print.get_print_progress_subject(), 60);
+    set(print.get_print_duration_subject(), 4200);
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    CHECK_FALSE(second->is_active());
+
+    // Its next print arms the new collector; nothing still drives the old one.
+    set(state, static_cast<int>(PrintJobState::COMPLETE));
+    set(print.get_print_progress_subject(), 0);
+    set(print.get_print_duration_subject(), 0);
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    CHECK(second->is_active());
+    CHECK_FALSE(first->is_active());
+    second->stop();
 }
