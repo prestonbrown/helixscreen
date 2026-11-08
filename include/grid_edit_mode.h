@@ -686,9 +686,9 @@ class GridEditMode {
     /// consumed, and whether there is one.
     uint32_t pill_press_tick_ = 0;
     bool pill_press_latched_ = false;
-    /// One-shot flip a majority crossing requested, due
-    /// kCrossPageCrossingDelayMs after the crossing, and its direction.
-    /// Dwell changes never cancel it.
+    /// One-shot flip a majority crossing requested, due the step's
+    /// flip_delay_ms after the crossing, and its direction.
+    /// Dwell changes never cancel it; the widget coming back inside does.
     lv_timer_t* crossing_flip_timer_ = nullptr;
     int crossing_flip_dir_ = 0;
     /// One-shot flip counting kCrossPageDwellMs while the pointer stays in an
@@ -716,8 +716,11 @@ class GridEditMode {
     /// commit that emptied the page saves once and reports the change through
     /// notify_pages_changed().
     bool prune_empty_page(int page);
-    /// Schedule the crossing flip toward @p dir, replacing one still pending.
-    void start_crossing_flip(int dir);
+    /// Schedule the crossing flip toward @p dir in @p delay_ms, replacing one
+    /// still pending.
+    void start_crossing_flip(int dir, uint32_t delay_ms);
+    /// Cancel the pending crossing flip, if any.
+    void cancel_crossing_flip();
     /// Restart the dwell toward @p dir, or cancel it when @p dir is 0.
     void restart_dwell_flip(int dir);
     /// Cancel both flip timers. Cancel-safe from the destructor and from
