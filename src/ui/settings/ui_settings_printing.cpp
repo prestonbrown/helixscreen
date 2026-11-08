@@ -150,6 +150,10 @@ void PrintingSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              SettingsManager::instance().set_filament_auto_open_editor(event_checked(e));
          }},
+        {"on_number_lanes_from_zero_changed",
+         [](lv_event_t* e) {
+             SettingsManager::instance().set_number_lanes_from_zero(event_checked(e));
+         }},
         {"on_retraction_row_clicked",
          [](lv_event_t*) {
              get_global_retraction_settings().show(get_printing_settings_overlay().parent_screen_);

@@ -10,6 +10,7 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include <atomic>
 #include <cstdio>
 
 namespace helix::ui {
@@ -40,6 +41,8 @@ std::string noun_text_plural(LaneNoun noun) {
     }
     return lv_tr("Slots");
 }
+
+std::atomic<bool> g_lane_numbering_from_zero{false};
 } // namespace
 
 std::string tool_label(int gcode_tool) {
@@ -113,7 +116,21 @@ ToolLabelForm pick_tool_label_form(const std::function<bool(ToolLabelForm)>& fit
     return ToolLabelForm::Code;
 }
 
+void set_lane_numbering_from_zero(bool from_zero) {
+    g_lane_numbering_from_zero.store(from_zero, std::memory_order_relaxed);
+}
+
+bool lane_numbering_from_zero() {
+    return g_lane_numbering_from_zero.load(std::memory_order_relaxed);
+}
+
 int lane_number(int index) {
+    if (index < 0)
+        return -1;
+    return lane_numbering_from_zero() ? index : index + 1;
+}
+
+int display_ordinal(int index) {
     if (index < 0)
         return -1;
     return index + 1;

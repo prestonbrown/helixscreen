@@ -491,7 +491,7 @@ std::optional<int> AmsBackendMultiAce::upstream_slot(int slot_index) const {
 
 int AmsBackendMultiAce::spool_display_number(int slot_index) const {
     if (slot_index < 0) {
-        return slot_index + 1;
+        return -1;
     }
     std::lock_guard<std::mutex> lock(mutex_);
     // A routed head aliases its bay; every other lane (bays, unrouted heads)
@@ -515,7 +515,7 @@ int AmsBackendMultiAce::spool_display_number(int slot_index) const {
             break;
         }
     }
-    return n;
+    return n > 0 ? ui::lane_number(n - 1) : -1;
 }
 
 bool AmsBackendMultiAce::can_unload_from_toolhead(int slot_index) const {

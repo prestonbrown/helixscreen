@@ -34,6 +34,8 @@ void refresh_display_texts() {
     for (int i = 0; i < ams.backend_count(); ++i) {
         ams.sync_backend(i);
     }
+    // Slot badges repaint on this version, and a renumber changes no slot data.
+    ams.bump_slots_version();
 }
 
 void init_language_refresh() {

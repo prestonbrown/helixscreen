@@ -415,9 +415,7 @@ static void apply_badge_number(AmsSlotData* data) {
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     const int number = backend ? backend->spool_display_number(data->slot_index)
                                : helix::ui::lane_number(data->slot_index);
-    char badge_text[16];
-    snprintf(badge_text, sizeof(badge_text), "%d", number);
-    lv_label_set_text(data->slot_badge, badge_text);
+    lv_label_set_text(data->slot_badge, ams_draw::lane_badge_text(number).c_str());
 }
 
 /**

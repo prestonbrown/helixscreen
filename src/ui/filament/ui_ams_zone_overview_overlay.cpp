@@ -61,7 +61,7 @@ std::string zone_status_text(const ZoneStatus& status) {
 // header names the box the zones are grouped by, not the zone the user picked.
 std::string unit_group_text(const helix::printer::EnvironmentZone& zone,
                             const std::string& type_name) {
-    const int unit_number = lane_number(zone.unit_index);
+    const int unit_number = display_ordinal(zone.unit_index);
     if (unit_number < 0) {
         // Unresolved unit (see ui_zone_presentation.cpp#zone_display_label): no
         // number a user would trust, so the header falls back to the system type.

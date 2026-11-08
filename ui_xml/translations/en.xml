@@ -2574,6 +2574,7 @@
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>
   <translation tag="Number Pad Layout" en="Number Pad Layout"/>
+  <translation tag="Number slots from 0" en="Number slots from 0"/>
   <translation tag="Nylon" en="Nylon"/>
   <translation tag="OD" en="OD"/>
   <translation tag="OFF" en="OFF"/>
@@ -3404,7 +3405,7 @@
   <translation tag="Select Spool" en="Select Spool"/>
   <translation tag="Select a filament slot to load" en="Select a filament slot to load"/>
   <translation tag="Select a valid number" en="Select a valid number"/>
-  <translation tag="Select a valid number (1-{})" en="Select a valid number (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" en="Select a valid number ({}-{})"/>
   <translation tag="Select a valid tool" en="Select a valid tool"/>
   <translation tag="Select a valid {}" en="Select a valid {}"/>
   <translation tag="Select a {}" en="Select a {}"/>
@@ -3500,6 +3501,7 @@
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" en="Show print speed and flow as mm/s and mm³/s instead of percent"/>
   <translation tag="Show printer icon in navigation bar" en="Show printer icon in navigation bar"/>
   <translation tag="Show sliced colors" en="Show sliced colors"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" en="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code"/>
   <translation tag="Show temp for" en="Show temp for"/>
   <translation tag="Show text labels on icon-only home screen widgets" en="Show text labels on icon-only home screen widgets"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" en="Show this screen as a webcam in Mainsail and Fluidd"/>

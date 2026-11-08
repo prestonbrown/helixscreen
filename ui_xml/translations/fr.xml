@@ -2574,6 +2574,7 @@
   <translation tag="Nozzle:" fr="Buse :"/>
   <translation tag="Nozzles still heating: {}" fr="Buses encore en chauffe : {}"/>
   <translation tag="Number Pad Layout" fr="Disposition du pavé numérique"/>
+  <translation tag="Number slots from 0" fr="Numéroter les slots à partir de 0"/>
   <translation tag="Nylon" fr="Nylon"/>
   <translation tag="OD" fr="OD"/>
   <translation tag="OFF" fr="OFF"/>
@@ -3404,7 +3405,7 @@
   <translation tag="Select Spool" fr="Sélectionner une bobine"/>
   <translation tag="Select a filament slot to load" fr="Sélectionnez un emplacement de filament à charger"/>
   <translation tag="Select a valid number" fr="Sélectionnez un numéro valide"/>
-  <translation tag="Select a valid number (1-{})" fr="Sélectionnez un numéro valide (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" fr="Sélectionnez un numéro valide ({}-{})"/>
   <translation tag="Select a valid tool" fr="Sélectionnez un outil valide"/>
   <translation tag="Select a valid {}" fr="Sélectionnez une valeur valide pour {}"/>
   <translation tag="Select a {}" fr="Sélectionnez {}"/>
@@ -3500,6 +3501,7 @@
   <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" fr="Afficher la vitesse et le débit en mm/s et mm³/s plutôt qu&apos;en pourcentage"/>
   <translation tag="Show printer icon in navigation bar" fr="Afficher l&apos;icône de l&apos;imprimante dans la barre de navigation"/>
   <translation tag="Show sliced colors" fr="Afficher les couleurs tranchées"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" fr="Compter les slots, voies, gates et outils à partir de 0, comme T0 dans le G-code"/>
   <translation tag="Show temp for" fr="Afficher la température de"/>
   <translation tag="Show text labels on icon-only home screen widgets" fr="Afficher les libellés sur les widgets de l&apos;écran d&apos;accueil"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" fr="Afficher cet écran comme webcam dans Mainsail et Fluidd"/>

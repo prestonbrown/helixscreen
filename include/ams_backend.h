@@ -1030,12 +1030,14 @@ class AmsBackend : public AmsCapabilityHost {
     /**
      * @brief The number a spool badge shows for this lane
      *
-     * The base numbers lanes 1-based in global order. A backend whose lanes
+     * The base numbers lanes in global order. A backend whose lanes
      * share spools resolves through upstream_slot(), so a fed lane and the
      * storage lane feeding it wear one number and each spool counts once.
+     *
+     * @return the number, or a negative value for a lane with none to show
      */
     [[nodiscard]] virtual int spool_display_number(int slot_index) const {
-        return slot_index + 1;
+        return ui::lane_number(slot_index);
     }
 
     // ========================================================================

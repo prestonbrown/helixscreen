@@ -2849,6 +2849,7 @@ translations:
   'Nozzle:': 'Сопло:'
   'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'
   Number Pad Layout: Раскладка цифровой клавиатуры
+  Number slots from 0: Нумеровать слоты с 0
   Nylon: "Нейлон"
   OD: OD
   'OFF': ВЫКЛ
@@ -3751,7 +3752,7 @@ translations:
   Select Spool: Выбрать катушку
   Select a filament slot to load: Выберите слот филамента для загрузки
   Select a valid number: Выберите корректный номер
-  Select a valid number (1-{}): Выберите корректный номер (1-{})
+  Select a valid number ({}-{}): Выберите корректный номер ({}-{})
   Select a valid tool: Выберите корректный инструмент
   Select a valid {}: 'Выберите допустимое значение для {}'
   Select a {}: 'Выберите {}'
@@ -3860,6 +3861,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "Показывать скорость и поток в мм/с и мм³/с вместо процентов"
   Show printer icon in navigation bar: Показывать значок принтера в панели навигации
   Show sliced colors: Показать цвета из слайсера
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Считать слоты, каналы, шлюзы и инструменты с 0, как T0 в G-коде
   Show temp for: Показывать темп. для
   Show text labels on icon-only home screen widgets: Показывать текстовые подписи
     на виджетах главного экрана
