@@ -20,8 +20,8 @@
  * point ahead; and a slow plasma of iridescent goo glows behind it all.
  *
  * A print shows as a light at the vanishing point, the end of the tunnel, growing as the print
- * goes. A paused print slows the flight; a finished one drops out of hyperspace into still
- * stars; a failed or cancelled one dims the light and closes the tunnel.
+ * goes. A paused print slows the flight; a finished one drops out of hyperspace into
+ * slowly drifting stars; a failed or cancelled one dims the light and closes the tunnel.
  *
  * No LVGL, no clock and no shared random sequence: the saver passes the frame time, its own
  * random sequence, the print reading and the frame, so a seed replays exactly. Buffers are sized in
@@ -58,8 +58,10 @@ inline constexpr float kHyperspaceLightEndShare = 0.18f;
 inline constexpr float kHyperspaceCheapLightEndShare = 0.09f;
 /// Camera speed while a print is paused, as a share of the flight's own.
 inline constexpr float kHyperspacePausedSpeed = 0.25f;
-/// How long a finished print takes to drop out of hyperspace to a standstill.
+/// How long a finished print takes to drop out of hyperspace to its drift.
 inline constexpr uint32_t kHyperspaceDropOutMs = 3000;
+/// Camera speed once a finished print has dropped out, as a share of the flight's own.
+inline constexpr float kHyperspaceDoneDriftSpeed = 0.06f;
 
 /// Largest roll either way, in radians.
 inline constexpr float kHyperspaceMaxRoll = 0.3f;
@@ -94,9 +96,7 @@ class HyperspaceSim {
     /**
      * @brief Advances the flight by `dt_ms`, following `reading`, and draws the whole frame
      *
-     * Every pixel is written, opaque, so `dirty` is replaced with one box over the frame; once
-     * a finished print has come to a standstill and been drawn, a frame draws nothing and
-     * `dirty` is left empty.
+     * Every pixel is written, opaque, so `dirty` is replaced with one box over the frame.
      */
     void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
               const ClockReading& reading, std::vector<DirtyRect>& dirty);
@@ -180,8 +180,6 @@ class HyperspaceSim {
     /// Moves the speed, tunnel and light toward where `reading` puts them after `dt_ms`, or
     /// there at once when `snap` is set.
     void follow_print(const ClockReading& reading, uint32_t dt_ms, bool snap);
-    /// True when a finished print has stopped the flight: nothing left moves.
-    bool standing_still() const;
     void advance(uint32_t dt_ms, std::minstd_rand& rng);
     void advance_phase(uint32_t dt_ms, std::minstd_rand& rng);
     void throw_starburst(std::minstd_rand& rng);
@@ -223,7 +221,6 @@ class HyperspaceSim {
     uint8_t shown_tunnel_ = 0;    ///< tunnel_amount_ by tunnel_fade_
     float light_progress_ = 0.0f; ///< 0 to 1, the light's radius between start and end
     float light_gain_ = 0.0f;
-    bool still_drawn_ = false; ///< the standstill has been drawn, so frames draw nothing
 
     // Tunnel lookup for one quadrant around the vanishing point, at the level's block size and
     // wide enough for the drift: a pixel's distance into the tunnel and its angle within the

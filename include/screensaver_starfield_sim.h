@@ -44,8 +44,13 @@ inline constexpr StarfieldLevel kStarfieldLevels[] = {
 /// print.
 inline constexpr float kStarfieldPlanetStartShare = 0.02f;
 inline constexpr float kStarfieldPlanetEndShare = 0.22f;
-/// How long a finished print takes to arrive at the planet, which then fills the view.
+/// The radius a finished print's planet arrives at, as a share of the frame's shorter side.
+/// The disc stops short of the corners so the stars stay in view around it.
+inline constexpr float kStarfieldDoneShare = 0.45f;
+/// How long a finished print takes to arrive at the planet.
 inline constexpr uint32_t kStarfieldArriveMs = 4000;
+/// Star speed once a print has finished, as a share of the flight's own.
+inline constexpr float kStarfieldDoneSpeed = 0.1f;
 /// How long the planet of a failed or cancelled print takes to shrink and drift off the view.
 inline constexpr uint32_t kStarfieldDepartMs = 6000;
 /// Shortest gap between repaints of a planet larger than a running print's, which the arrival
@@ -87,8 +92,8 @@ constexpr int starfield_star_count(size_t level) {
  * be stepped and checked without a display.
  *
  * A print shows as a planet at the centre that grows as the print goes, the flight
- * approaching it: it fills the view when the print finishes, and shrinks and drifts away when
- * it fails or is cancelled. With no print there is no planet.
+ * approaching it: it looms large with the stars drifting by when the print finishes, and shrinks
+ * and drifts away when it fails or is cancelled. With no print there is no planet.
  */
 class StarfieldSim {
   public:
