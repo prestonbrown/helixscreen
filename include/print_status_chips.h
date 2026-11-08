@@ -7,6 +7,7 @@
 #include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
+#include "display_numbering.h"
 
 #include <functional>
 #include <string>
@@ -65,21 +66,21 @@ struct OtherHead {
 [[nodiscard]] std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads,
                                                  int active_tool, bool heads_share_heater);
 
-/// What the other-tools chip calls tool `index`: its configured name ("Left")
-/// verbatim, or the 1-based display number for a generated "T<n>" name.
-[[nodiscard]] std::string other_tool_badge(std::string_view name, int index);
-
 /// One head's reading for the other-tools chip. `start_deci` is the reading
 /// when its target was set, for the progress bar.
 struct OtherToolReading {
-    std::string badge; ///< other_tool_badge(): "2", or a configured "Left"
+    std::string badge; ///< ui::tool_badge_label(): "2" or "T1", or a configured "Left"
     int current_deci = 0;
     int target_deci = 0;
     int start_deci = 0;
-    /// The 1-based number a configured name gives way to where names do not
-    /// fit; empty when `badge` is that number already.
+    /// The number a configured name gives way to where names do not fit
+    /// (ui::tool_number_text()); empty when `badge` is that number already.
     std::string number;
 };
+
+/// The badge and fallback number of tool `index` in `style`, the readings left at zero.
+[[nodiscard]] OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name,
+                                                int index);
 
 /// The chip listing every head but the printing one: "2 150° · 3 off · 4 off".
 /// A head climbing to its target leads with value / target, the chip is

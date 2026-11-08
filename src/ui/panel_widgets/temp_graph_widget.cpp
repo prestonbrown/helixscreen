@@ -589,7 +589,9 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
         // guessing multi. "extruderN" (N >= 1) implies multi and gets a number.
         if (*tool_number == 0)
             return lv_tr("Nozzle");
-        return std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(*tool_number);
+        return std::string(lv_tr("Nozzle")) + " " +
+               helix::ui::tool_number_text(helix::ui::active_tool_number_style(),
+                                           helix::ui::tool_label(*tool_number), *tool_number);
     }
     if (klipper_name == "heater_bed")
         return lv_tr("Bed");

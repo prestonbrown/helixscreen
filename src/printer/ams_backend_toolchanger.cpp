@@ -61,6 +61,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     set_tool_commands(addon::resolve_tool_commands(discovery));
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
+    tool_number_style_ = addon::tool_number_style(discovery);
     set_resume_rule(addon::resume_rule(discovery));
     set_clean_nozzle_gcode(addon::clean_nozzle_gcode(discovery));
     {
@@ -830,8 +831,9 @@ int AmsBackendToolChanger::recovery_target_locked() const {
 }
 
 std::string AmsBackendToolChanger::target_tool_label_locked(int target) const {
-    return helix::ui::tool_label_in_form(lane_noun(), tool_names_[static_cast<size_t>(target)],
-                                         target, helix::ui::ToolLabelForm::Full);
+    return helix::ui::tool_label_in_form(lane_noun(), tool_number_style_,
+                                         tool_names_[static_cast<size_t>(target)], target,
+                                         helix::ui::ToolLabelForm::Full);
 }
 
 void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCallback on_ready) {

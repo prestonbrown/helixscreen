@@ -5,6 +5,7 @@
 
 #include "ams_types.h"
 #include "bed_drying.h"
+#include "display_numbering.h"
 #include "lvgl/lvgl.h"
 #include "maintenance_meters.h"
 #include "mount_feed_sequence.h"
@@ -246,6 +247,26 @@ class SettingsManager {
      * 4=JabberWocky) */
     lv_subject_t* subject_toolhead_style() {
         return settings_.subject(Key::ToolheadStyle);
+    }
+
+    // =========================================================================
+    // TOOL NUMBER STYLE (per printer: "1, 2, 3" or "T0, T1, T2")
+    // =========================================================================
+
+    /** @brief The per-printer tool number override; Auto follows the backend */
+    helix::ui::ToolNumberStyleSetting get_tool_number_style_setting() const {
+        return static_cast<helix::ui::ToolNumberStyleSetting>(
+            std::clamp(settings_.get(Key::ToolNumberStyle), 0, 2));
+    }
+
+    /** @brief Set the per-printer tool number override and persist */
+    void set_tool_number_style_setting(helix::ui::ToolNumberStyleSetting setting) {
+        settings_.set(Key::ToolNumberStyle, static_cast<int>(setting));
+    }
+
+    /** @brief Tool number style subject (integer: 0=Auto, 1=Physical, 2=Gcode) */
+    lv_subject_t* subject_tool_number_style() {
+        return settings_.subject(Key::ToolNumberStyle);
     }
 
     // =========================================================================
@@ -943,6 +964,7 @@ class SettingsManager {
         AmsEjectDistance,
         AmsEjectVelocity,
         ToolheadStyle,
+        ToolNumberStyle,
         ShowPrinterSwitcher,
         ShowWidgetLabels,
         AutoColorMap,

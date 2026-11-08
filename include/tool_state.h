@@ -357,6 +357,11 @@ class ToolState {
     lv_subject_t* get_show_tool_badge_subject() {
         return &show_tool_badge_;
     }
+    /// names_mounted_nozzle() as a subject (1/0), written beside the badge: the
+    /// printers where a tool number appears at all.
+    lv_subject_t* get_names_mounted_nozzle_subject() {
+        return &names_mounted_nozzle_;
+    }
 
     // ---- Per-tool offsets (helix::tool_offsets) -----------------------------
     //
@@ -461,6 +466,7 @@ class ToolState {
     lv_subject_t tool_badge_text_{};
     char tool_badge_text_buf_[16] = {};
     lv_subject_t show_tool_badge_{};
+    lv_subject_t names_mounted_nozzle_{};
 
     // Per-tool offsets (helix::tool_offsets). Only a tool changer has any; on
     // every other printer the *_supported trio stays 0 and the aggregate is

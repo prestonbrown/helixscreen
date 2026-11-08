@@ -569,9 +569,11 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
 
     row.short_name = std::move(short_name);
     row.long_name = std::move(long_name);
-    // The number rung: the 1-based display number, the one label that fits
-    // where no spelling does and still tells four icon rows apart.
-    row.number_name = helix::ui::lane_number_text(static_cast<int>(extruder_rows_.size()));
+    // The number rung: the tool's number in the printer's style ("1" or "T0"),
+    // the one label that fits where no spelling does and still tells four icon
+    // rows apart.
+    row.number_name = helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
+                                                  static_cast<int>(extruder_rows_.size()));
 
     // Create row from XML template. All three spellings are written once as
     // data; which one shows, the row width and the font are bound off the

@@ -64,9 +64,11 @@ bool subjects_ready(bool initialized, const char* what) {
     return false;
 }
 
-/// "Tool 2", in the active backend's noun, for the tool at zero-based @p index.
-std::string noun_tool_label(int index) {
-    return helix::ui::lane_label(helix::ui::active_tool_noun(), index);
+/// "Tool 2" (or "T1"), in the active backend's noun and tool number style, for the
+/// tool @p name at zero-based @p index.
+std::string noun_tool_label(std::string_view name, int index) {
+    return helix::ui::tool_name_label(helix::ui::active_tool_noun(),
+                                      helix::ui::active_tool_number_style(), name, index);
 }
 
 } // namespace
@@ -95,6 +97,7 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(tools_version, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(tool_badge_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(show_tool_badge, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(names_mounted_nozzle, 0, subjects_, register_xml);
 
     // Per-tool offsets: which axes this printer keeps per toolhead, and the
     // aggregate save affordance. Defaults say "this printer has none and we
@@ -171,7 +174,7 @@ void ToolState::deinit_subjects() {
 
 void ToolState::refresh_display_labels() {
     for (auto& tool : tools_) {
-        tool.display_label = noun_tool_label(tool.index);
+        tool.display_label = noun_tool_label(tool.name, tool.index);
     }
     lv_subject_set_int(&tools_version_, lv_subject_get_int(&tools_version_) + 1);
 }
@@ -229,7 +232,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             ToolInfo tool;
             tool.index = index;
             tool.name = helix::ui::tool_label(index);
-            tool.display_label = noun_tool_label(index);
+            tool.display_label = noun_tool_label(tool.name, index);
             tool.extruder_name = fixed_tools[i].extruder;
             tool.heater_name = fixed_tools[i].heater;
             if (!fixed_tools[i].fan.empty()) {
@@ -259,7 +262,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             // custom-named [tool Left]), so it is not always the generated
             // "T{i}" pattern and must not be overwritten.
             tool.name = tool_names[i];
-            tool.display_label = noun_tool_label(i);
+            tool.display_label = noun_tool_label(tool.name, i);
 
             // Map extruder by index if available
             if (i < static_cast<int>(extruder_names.size())) {
@@ -285,7 +288,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             ToolInfo tool;
             tool.index = i;
             tool.name = helix::ui::tool_label(i);
-            tool.display_label = noun_tool_label(i);
+            tool.display_label = noun_tool_label(tool.name, i);
             tool.extruder_name = extruder_names[i];
             tool.heater_name = std::nullopt;
 
@@ -362,7 +365,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             ToolInfo t;
             t.index = i;
             t.name = helix::ui::tool_label(i);
-            t.display_label = noun_tool_label(i);
+            t.display_label = noun_tool_label(t.name, i);
             t.backend_index = topo.backend_index;
             t.backend_slot =
                 (i < static_cast<int>(topo.tool_to_slot.size())) ? topo.tool_to_slot[i] : -1;
@@ -927,14 +930,11 @@ std::string ToolState::nozzle_label() const {
     }
     const auto* tool = active_tool();
     if (tool) {
-        // The number, not the gcode identity: the three other producers of a
-        // nozzle label (PrinterTemperatureState, the temp graph, the print
-        // status widget) all spell this nozzle with lane_number_text(), and two
-        // names for one physical nozzle is the confusion. A tool its owner
-        // named keeps that name.
-        const std::string suffix = helix::ui::is_generated_tool_name(tool->name)
-                                       ? helix::ui::lane_number_text(tool->index)
-                                       : tool->name;
+        // The badge text, so this label and the nozzle badge, the extruder names
+        // and the other-tools chip spell one nozzle one way: "Nozzle 2" or
+        // "Nozzle T1" by the printer's tool number style, "Nozzle Left" for a
+        // tool its owner named.
+        const std::string suffix = helix::ui::active_tool_badge_label(tool->name, tool->index);
         if (!suffix.empty()) {
             return std::string(lv_tr("Nozzle")) + " " + suffix;
         }

@@ -82,8 +82,13 @@ std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int a
     return out;
 }
 
-std::string other_tool_badge(std::string_view name, int index) {
-    return ui::is_generated_tool_name(name) ? ui::lane_number_text(index) : std::string(name);
+OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name, int index) {
+    OtherToolReading r;
+    r.badge = ui::tool_badge_label(style, name, index);
+    if (std::string number = ui::tool_number_text(style, name, index); number != r.badge) {
+        r.number = std::move(number);
+    }
+    return r;
 }
 
 ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,

@@ -157,10 +157,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
-        if (tool_feed_.present) {
-            return kTraitsWithFeed;
-        }
-        return mounts_to_feed_ ? kTraitsMountFeed : kTraits;
+        BackendTraits t = tool_feed_.present ? kTraitsWithFeed
+                          : mounts_to_feed_  ? kTraitsMountFeed
+                                             : kTraits;
+        t.tool_number_style = tool_number_style_;
+        return t;
     }
 
     /// Whether this machine moves filament only through the mounted tool
@@ -723,6 +724,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] std::string park_gcode() const;
 
     bool mounts_to_feed_ = false;
+    /// toolchanger_addon::tool_number_style() of the discovered printer. Set
+    /// by set_discovery() before start(), read-only after.
+    helix::ui::ToolNumberStyle tool_number_style_ = helix::ui::ToolNumberStyle::Physical;
     /// A mount-to-feed load's purge past the nozzle, from the purge_length
     /// device setting. Guarded by mutex_.
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;

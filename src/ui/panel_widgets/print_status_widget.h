@@ -541,7 +541,7 @@ class PrintStatusWidget : public PanelWidget {
         char flow_text_buf_[24];      // "· 123.4 mm³/s"
         size_t speed_flow_len_ = 0;
         char nozzle_text_buf_[32];       // "265 / 270°C" — kept for tool_override test
-        char nozzle_badge_text_buf_[16]; // the nozzle icon's 1-based tool number
+        char nozzle_badge_text_buf_[16]; // the nozzle icon's tool badge ("1", "T0", "Left")
         char idle_filename_buf_[160];
         char idle_when_buf_[64]; // "Completed 2 hours ago"
         char idle_meta_buf_[64]; // "12.4m filament • 4h 12m"
