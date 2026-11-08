@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "klippy_state.h"
 #include "moonraker_client_mock.h"
+#include "power_device_state.h"
 #include "printer_state.h"
 
 #include <string>
@@ -196,6 +197,45 @@ TEST_CASE_METHOD(StartupFaultFixture,
     CHECK_FALSE(lv_obj_has_flag(actions, LV_OBJ_FLAG_HIDDEN));
 }
 
+TEST_CASE_METHOD(StartupFaultFixture, "A mainboard powered off at connect shows no dialog",
+                 "[klippy_startup_fault][power]") {
+    constexpr const char* kUnreachable = "mcu 'mcu': Unable to connect";
+    struct PowerReset {
+        ~PowerReset() {
+            PowerDeviceState::instance().deinit_subjects();
+        }
+    } power_reset;
+
+    SECTION("the printer's power device is off") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "off", false}});
+        report("error", kUnreachable);
+        CHECK(recovery_card() == nullptr);
+    }
+    SECTION("the power device is on, so the MCU really is unreachable") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "on", false}});
+        report("error", kUnreachable);
+        REQUIRE(recovery_card() != nullptr);
+        CHECK(recovery_label("recovery_message").find(kUnreachable) != std::string::npos);
+    }
+    SECTION("a config error still shows while the power is off") {
+        PowerDeviceState::instance().set_devices({PowerDevice{"printer", "gpio", "off", false}});
+        report("error", kConfigError);
+        CHECK(recovery_card() != nullptr);
+    }
+}
+
+TEST_CASE("Klipper's MCU connect failures are told apart from other faults",
+          "[klippy_startup_fault][power]") {
+    CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Unable to connect"));
+    CHECK(is_klippy_mcu_connect_error("mcu 'toolboard': Unable to connect\nOnce the underlying "
+                                      "issue is corrected, use the \"FIRMWARE_RESTART\" command"));
+    CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Timeout on connect"));
+
+    CHECK_FALSE(is_klippy_mcu_connect_error(""));
+    CHECK_FALSE(is_klippy_mcu_connect_error("MCU 'mcu' shutdown: Timer too close"));
+    CHECK_FALSE(is_klippy_mcu_connect_error(kConfigError));
+}
+
 TEST_CASE_METHOD(StartupFaultFixture, "Klipper coming up after a startup fault dismisses it",
                  "[klippy_startup_fault][recovery]") {
     report("error", kConfigError);
@@ -228,5 +268,33 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The wizard's Connection step shows Klipper'
     process_lvgl(100);
 
     CHECK(std::string(lv_label_get_text(status)).find(kConfigError) != std::string::npos);
+    step->cleanup();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A printer switch does not carry the old printer's Klipper error into the wizard",
+                 "[klippy_startup_fault][wizard][connection]") {
+    state().apply_klippy_status(json{{"state", "error"}, {"state_message", kConfigError}});
+    process_lvgl(50);
+    REQUIRE(state().network_state().get_klippy_fault_message() == kConfigError);
+
+    // Add Printer and a switch tear printer state down and build it again for
+    // the next printer, which has reported nothing yet.
+    state().deinit_subjects();
+    state().init_subjects(true);
+    CHECK(state().network_state().get_klippy_fault_message().empty());
+
+    ui_wizard_init_subjects();
+    WizardConnectionStep* step = get_wizard_connection_step();
+    step->init_subjects();
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
+    REQUIRE(status != nullptr);
+    process_lvgl(300);
+
+    step->allow_continue_without_klipper();
+    process_lvgl(50);
+    CHECK(std::string(lv_label_get_text(status)).find("preload_length") == std::string::npos);
     step->cleanup();
 }

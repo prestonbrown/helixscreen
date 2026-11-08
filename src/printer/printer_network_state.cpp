@@ -68,6 +68,14 @@ bool is_klippy_config_error(std::string_view state_message) {
     return false;
 }
 
+bool is_klippy_mcu_connect_error(std::string_view state_message) {
+    if (state_message.find("mcu '") == std::string_view::npos) {
+        return false;
+    }
+    return state_message.find("Unable to connect") != std::string_view::npos ||
+           state_message.find("Timeout on connect") != std::string_view::npos;
+}
+
 PrinterNetworkState::PrinterNetworkState() {
     // Initialize string buffer
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
@@ -94,7 +102,10 @@ void PrinterNetworkState::init_subjects(bool register_xml) {
     // Klipper firmware state subject (default to SHUTDOWN until confirmed ready)
     INIT_SUBJECT_INT(klippy_state, static_cast<int>(KlippyState::SHUTDOWN), subjects_,
                      register_xml);
+    // A fresh subject has heard from no printer, so no reason describes it yet.
     klippy_state_reported_ = false;
+    klippy_state_message_.clear();
+    klippy_state_message_describes_.reset();
 
     // Combined nav button enabled subject (connected AND klippy ready)
     // Starts disabled (0) - will be updated when connection/klippy state changes
