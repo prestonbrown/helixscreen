@@ -4567,7 +4567,8 @@ TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: offered only on a printer 
     SECTION("a detected soak macro gives a row that runs that macro") {
         GateFixture fx(PrePrintOptionSet{});
         fx.ps.set_hardware(hardware_with_objects({"gcode_macro SOAK"}));
-        const PrePrintOption* soak = fx.manager.displayed_options().find("heat_soak");
+        const PrePrintOptionSet displayed = fx.manager.displayed_options();
+        const PrePrintOption* soak = displayed.find("heat_soak");
         REQUIRE(soak != nullptr);
         CHECK(render_pre_start_gcode(*soak, true) == "SOAK");
         CHECK(PrePrintOptionsRenderer::label_for(*soak) == "Heat soak");
