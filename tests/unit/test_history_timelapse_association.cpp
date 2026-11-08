@@ -6,8 +6,8 @@
  * @brief Regression test for timelapse<->job association on non-.gcode jobs.
  *
  * HistoryListPanel::associate_timelapse_files() derives a job's base name and
- * looks for it inside each timelapse video's filename. The base name used to be
- * hand-rolled as `rfind(".gcode")`, which:
+ * looks for it inside each timelapse video's filename. A base name hand-rolled
+ * as `rfind(".gcode")`:
  *   - misses .gco / .g / .3mf entirely, and
  *   - is case-sensitive, so "PART.GCODE" keeps its extension.
  *

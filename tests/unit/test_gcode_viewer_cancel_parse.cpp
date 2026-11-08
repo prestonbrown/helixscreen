@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The viewer's background load parses the whole file in a `while (getline)`
-// loop. That loop used to run to completion regardless of cancellation — the
-// only check happened AFTER the parse (and after the 3D geometry build).
+// loop. That loop must honour cancellation itself: a check only AFTER the parse
+// (and after the 3D geometry build) is too late.
 //
 // cancel_build() joins that thread, and it is called from start_build(), which
-// runs on the MAIN thread when the user opens a different file. So switching
-// files blocked the LVGL loop until the previous file had finished parsing:
+// runs on the MAIN thread when the user opens a different file. A parse that
+// ignores cancellation blocks the LVGL loop until the previous file finishes:
 // seconds for a multi-megabyte print on a 2-core board, on top of the
 // layer-cache stall from the same report.
 //

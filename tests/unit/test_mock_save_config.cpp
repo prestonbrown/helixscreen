@@ -12,10 +12,10 @@
  *      live, only marks the config dirty via configfile.save_config_pending;
  *   3. the COMMIT (SAVE_CONFIG) - writes printer.cfg and restarts Klipper.
  *
- * The mock previously modelled only step 1, so an offset that was set and never
- * saved survived a restart exactly like a saved one. That made the persist path
- * unfalsifiable: no test could tell a working save from a forgotten one, which
- * is the whole failure mode worth guarding.
+ * The mock models all three steps. Modelling only step 1 would let an offset
+ * that was set and never saved survive a restart exactly like a saved one,
+ * making the persist path unfalsifiable: no test could tell a working save
+ * from a forgotten one, which is the whole failure mode worth guarding.
  *
  * These tests drive raw gcode through the mock's synchronous
  * printer.gcode.script handler and assert on the mock's own state, so they

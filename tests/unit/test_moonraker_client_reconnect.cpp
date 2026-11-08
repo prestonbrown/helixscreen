@@ -5,11 +5,11 @@
  * @file test_moonraker_client_reconnect.cpp
  * @brief Regression tests for install-once WebSocket callbacks.
  *
- * Root cause being guarded against: connect() used to reassign the inherited libhv
- * std::function callbacks (onopen/onmessage/onclose) on EVERY call. During a
- * change-host reconnect (disconnect() then connect()), the libhv event-loop thread
- * could be mid-invoke on the OLD onclose while the main thread reassigned it — freeing
- * the running lambda's heap storage → use-after-free → SIGSEGV with a garbage `this`.
+ * connect() must not reassign the inherited libhv std::function callbacks
+ * (onopen/onmessage/onclose) on every call. During a change-host reconnect
+ * (disconnect() then connect()), the libhv event-loop thread can be mid-invoke on
+ * the OLD onclose while the main thread reassigns it, freeing the running
+ * lambda's heap storage: use-after-free, SIGSEGV with a garbage `this`.
  *
  * Fix: install the three callbacks exactly ONCE (install_ws_callbacks(), guarded by
  * ws_callbacks_installed_ under connect_mutex_). The trampolines read per-connect state

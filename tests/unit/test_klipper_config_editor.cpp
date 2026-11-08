@@ -556,10 +556,10 @@ TEST_CASE("MoonrakerAPIMock serves injected config files by full path", "[config
 // ============================================================================
 // load_config_files() over Moonraker — the glob-include layout
 //
-// resolve_includes() is pure and already handles globs, but the download step
-// used to skip any include containing '*', so a section living in a
-// glob-included file was never in the map and safe_multi_edit() failed with
-// "Section not found".
+// resolve_includes() is pure and handles globs, so the download step must not
+// skip an include containing '*': a section living in a glob-included file
+// would never be in the map and safe_multi_edit() would fail with "Section not
+// found".
 // ============================================================================
 
 TEST_CASE("KlipperConfigEditor::load_config_files finds sections behind a glob include",
@@ -797,9 +797,9 @@ TEST_CASE("add_section places a new section above SAVE_CONFIG", "[config][editor
 // ============================================================================
 // safe_multi_edit() and a section no active file declares
 //
-// apply_edits() creates an absent section for an all-ADD_KEY list, but it never
-// used to get the chance: safe_multi_edit() bailed at the section-map lookup, so
-// Save on a printer that had never been shaper-calibrated failed outright. The
+// apply_edits() creates an absent section for an all-ADD_KEY list, so
+// safe_multi_edit() must not bail at the section-map lookup first: Save on a
+// printer that had never been shaper-calibrated would fail outright. The
 // fallback picks printer.cfg - and it must stay scoped to ADD_KEY, or a typo'd
 // section name in a SET_VALUE caller would silently create a new section
 // instead of erroring.

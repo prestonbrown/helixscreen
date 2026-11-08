@@ -7,17 +7,17 @@
  *
  * Klipper emits `position_endstop: null` in configfile.settings for any printer
  * configured with `endstop_pin: probe:z_virtual_endstop` — i.e. most
- * probe-equipped machines. The parse used to read it with a bare
- * `.get<double>()`, which throws type_error.302 on that null.
+ * probe-equipped machines. A bare `.get<double>()` throws type_error.302 on
+ * that null.
  *
  * The whole callback body is a single try block whose catch still calls
- * on_success(), so the throw was invisible: every temperature limit parsed
- * AFTER the endstop line silently kept its compiled default while the
+ * on_success(), so such a throw is invisible: every temperature limit parsed
+ * AFTER the endstop line would silently keep its compiled default while the
  * connection reported success. These tests pin that the temperature-limit loop
  * still runs when the endstop is null.
  *
  * The endstop value itself is deliberately NOT asserted: 0.0mm is a legal
- * endstop, so the fix writes nothing at all rather than substituting a sentinel
+ * endstop, so the parse writes nothing at all rather than substituting a sentinel
  * a reader could not distinguish from a real value — and PrinterState exposes
  * it only through get_configured_z_offset_microns(), which prefers the probe
  * offset whenever a probe exists. The consequential behaviour (the temperature

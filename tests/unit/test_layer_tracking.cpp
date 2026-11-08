@@ -398,10 +398,10 @@ TEST_CASE("Layer tracking: virtual_sdcard.layer updates subject",
 //
 // When both sources arrive in the same status update, slicer-supplied data
 // (print_stats.info.current_layer / total_layer via SET_PRINT_STATS_INFO)
-// must win over the Klipper-side virtual_sdcard fallback. Previously the
-// virtual_sdcard branch ran second and silently overwrote the info value —
-// preventing slicers that emit accurate per-feature layer numbering from
-// being trusted on printers that also report sdcard layers.
+// must win over the Klipper-side virtual_sdcard fallback. A virtual_sdcard
+// branch that runs second must not overwrite the info value, or slicers that
+// emit accurate per-feature layer numbering are never trusted on printers that
+// also report sdcard layers.
 
 TEST_CASE("Layer tracking: print_stats.info wins over virtual_sdcard in same update",
           "[layer_tracking][precedence]") {
@@ -624,7 +624,7 @@ TEST_CASE("Layer tracking: layer-reporting printer never estimates during prepri
 
     // --- reset_for_new_print() runs (async, after the collector starts). It
     //     clears the PER-PRINT has_real_layer_data_ flag but NOT the sticky
-    //     capability flag. This is the exact window that used to break. ---
+    //     capability flag. This is the window under test. ---
     state.print_state().reset_for_new_print();
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(state.print_state().has_real_layer_data());
@@ -794,11 +794,11 @@ TEST_CASE("A pre-print step the printer reports holds the first-extrusion fallba
 //
 // For printers whose slicer never reports a layer number (no
 // print_stats.info.current_layer, no virtual_sdcard.layer — printer_reports_layers
-// stays false), HelixScreen used to fall back straight to a progress-fraction
-// estimate round(progress% * total). Progress is byte/time based and drifts high
-// early in a print: at 12% of 75 layers it yields ~9 while the true layer is 5.
+// stays false), a straight progress-fraction estimate round(progress% * total)
+// is not enough. Progress is byte/time based and drifts high early in a print:
+// at 12% of 75 layers it yields ~9 while the true layer is 5.
 //
-// The fix inserts a Z-height derivation tier between the real-layer sources and
+// A Z-height derivation tier sits between the real-layer sources and
 // the progress estimate. When slice geometry (layer_height) is known and a
 // commanded Z is available, the layer is derived as
 //   round((z - first_layer_height) / layer_height) + 1, clamped [1, total].
