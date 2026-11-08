@@ -113,6 +113,14 @@ class PrintStartControllerTestAccess {
         return helix::AmsState::instance().pending_tool_map_restore().backend_index;
     }
 
+    static void persist_record() {
+        helix::ui::PrintStartController::persist_remap_state();
+    }
+
+    static void clear_record() {
+        helix::ui::PrintStartController::clear_persisted_remap_state();
+    }
+
     static void restore(helix::ui::PrintStartController& c) {
         c.restore_filament_mapping();
     }
