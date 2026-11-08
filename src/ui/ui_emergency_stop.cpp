@@ -162,6 +162,7 @@ void EmergencyStopOverlay::init_subjects() {
         {"advanced_estop_clicked", advanced_estop_clicked},
         {"advanced_restart_klipper_clicked", advanced_restart_klipper_clicked},
         {"advanced_firmware_restart_clicked", advanced_firmware_restart_clicked},
+        {"advanced_restart_moonraker_clicked", advanced_restart_moonraker_clicked},
         // Home panel firmware restart button (shown during klippy SHUTDOWN)
         {"firmware_restart_clicked", home_firmware_restart_clicked},
     });
@@ -977,6 +978,52 @@ void EmergencyStopOverlay::firmware_restart() {
         });
 }
 
+bool EmergencyStopOverlay::refuse_moonraker_restart() {
+    if (!api_ || !api_->is_connected()) {
+        spdlog::error("[KlipperRecovery] Cannot restart Moonraker: not connected");
+        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Restart failed: not connected"),
+                                      4000);
+        return true;
+    }
+    if (printer_state_ &&
+        lv_subject_get_int(printer_state_->print_state().get_job_holds_machine_subject()) != 0) {
+        spdlog::warn("[KlipperRecovery] Moonraker restart refused: a job holds the machine");
+        ToastManager::instance().show(ToastSeverity::WARNING,
+                                      lv_tr("Cannot restart Moonraker while printing"), 3000);
+        return true;
+    }
+    return refuse_restart_in_flight();
+}
+
+void EmergencyStopOverlay::restart_moonraker() {
+    if (refuse_moonraker_restart()) {
+        return;
+    }
+
+    // The websocket closes with Moonraker and libhv reconnects by itself, so
+    // the close is not reported as a lost connection.
+    helix::ui::begin_expected_klippy_restart("Restarting Moonraker...");
+
+    api_->restart_moonraker(
+        []() { spdlog::info("[KlipperRecovery] Moonraker restart command sent"); },
+        [](const MoonrakerError& err) {
+            // Moonraker going down fails its own pending reply: success, not an error.
+            if (restart_may_be_running(err)) {
+                spdlog::info("[KlipperRecovery] Moonraker restart reply lost: {}", err.message);
+                return;
+            }
+            spdlog::error("[KlipperRecovery] Moonraker restart failed: {}", err.message);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Restart failed: {}")), err.localized_message())
+                        .c_str(),
+                    5000);
+            });
+        });
+}
+
 // Static callback trampolines
 void EmergencyStopOverlay::emergency_stop_clicked(lv_event_t* e) {
     LV_UNUSED(e);
@@ -1051,6 +1098,20 @@ void EmergencyStopOverlay::advanced_firmware_restart_clicked(lv_event_t* e) {
     LV_UNUSED(e);
     spdlog::info("[Advanced] Firmware Restart clicked from Advanced panel");
     EmergencyStopOverlay::instance().firmware_restart();
+}
+
+void EmergencyStopOverlay::advanced_restart_moonraker_clicked(lv_event_t* e) {
+    LV_UNUSED(e);
+    spdlog::info("[Advanced] Restart Moonraker clicked from Advanced panel");
+    auto& instance = EmergencyStopOverlay::instance();
+    if (instance.refuse_moonraker_restart()) {
+        return;
+    }
+    helix::ui::modal_confirm(
+        lv_tr("Restart Moonraker?"),
+        lv_tr("The screen will lose its connection to the printer for a few seconds."),
+        ModalSeverity::Warning, lv_tr("Restart"),
+        [] { EmergencyStopOverlay::instance().restart_moonraker(); });
 }
 
 void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
