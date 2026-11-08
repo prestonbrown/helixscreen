@@ -630,6 +630,13 @@ void PrintPreparationManager::publish_macro_option_count() {
             ++macro_rows;
         }
     }
+    std::set<std::string> hidden;
+    for (const auto& opt : declared.options) {
+        if (!displayed.find(opt.id)) {
+            hidden.insert(opt.id);
+        }
+    }
+    printer_state_->set_hidden_option_ids(std::move(hidden));
     printer_state_->set_macro_option_count(macro_rows);
 }
 

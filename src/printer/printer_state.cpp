@@ -720,12 +720,22 @@ void PrinterState::set_macro_option_count(size_t count) {
     update_gcode_modification_visibility();
 }
 
+void PrinterState::set_hidden_option_ids(std::set<std::string> ids) {
+    hidden_option_ids_ = std::move(ids);
+}
+
 void PrinterState::update_gcode_modification_visibility() {
-    // Delegate to composite visibility component
+    // The card shows for rows that render: a declared option the detail view
+    // leaves out, or one whose required macro is missing, draws nothing.
+    size_t rendered_rows = 0;
+    for (const PrePrintOption& opt : profile_state_.pre_print_option_set().options) {
+        if (hidden_option_ids_.count(opt.id) == 0 && !is_macro_gate_closed(opt)) {
+            ++rendered_rows;
+        }
+    }
     bool plugin = plugin_status_state_.service_has_helix_plugin();
-    composite_visibility_state_.update_visibility(
-        plugin, capabilities_state_, profile_state_.pre_print_option_set().options.size(),
-        macro_option_count_);
+    composite_visibility_state_.update_visibility(plugin, capabilities_state_, rendered_rows,
+                                                  macro_option_count_);
     composite_visibility_state_.set_timelapse_owner(
         timelapse_owner(profile_state_.firmware_owns_timelapse(), timelapse_available()));
 }

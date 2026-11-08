@@ -4662,3 +4662,42 @@ TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: what reaches the start for
         CHECK(sends_line(lines(), "HEAT_SOAK"));
     }
 }
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Print options card: hidden when none of the declared rows would render",
+                 "[print_preparation][preprint][heat_soak][composite_visibility]") {
+    GateFixture fx(PrePrintOptionSet{});
+    fx.ps.set_helix_plugin_installed(false);
+    const auto card_shown = [&]() {
+        helix::ui::UpdateQueue::instance().drain();
+        return lv_subject_get_int(
+            fx.ps.composite_visibility_state().get_has_any_preprint_options_subject());
+    };
+
+    SECTION("the soak row hidden by a PRINT_START that soaks leaves no row") {
+        fx.ps.set_hardware(
+            hardware_with_objects({"gcode_macro PRINT_START", "gcode_macro HEAT_SOAK"}));
+        REQUIRE(card_shown() == 1);
+        fx.manager.set_macro_analysis(
+            start_macro_with(helix::OperationCategory::CHAMBER_SOAK, "HEAT_SOAK"));
+        CHECK(card_shown() == 0);
+        // Another row beside it keeps the card.
+        PrePrintOptionSet db;
+        db.macro_name = "START_PRINT";
+        db.options.push_back(make_pre_start_gcode_opt("ai_detect"));
+        PrinterStateTestAccess::set_option_set(fx.ps, std::move(db));
+        fx.ps.set_hardware(
+            hardware_with_objects({"gcode_macro PRINT_START", "gcode_macro HEAT_SOAK"}));
+        CHECK(card_shown() == 1);
+    }
+
+    SECTION("a row whose required macro is missing is not a row") {
+        PrePrintOptionSet db;
+        db.macro_name = "START_PRINT";
+        db.options.push_back(make_pre_start_gcode_opt("ai_detect"));
+        db.options.back().requires_macro = "HELIX_TEST_NEVER_REGISTERED";
+        PrinterStateTestAccess::set_option_set(fx.ps, std::move(db));
+        PrinterStateTestAccess::refresh_option_visibility(fx.ps);
+        CHECK(card_shown() == 0);
+    }
+}

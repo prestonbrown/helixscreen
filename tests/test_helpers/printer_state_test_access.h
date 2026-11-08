@@ -281,6 +281,7 @@ class PrinterStateTestAccess {
         PrinterProfileStateTestAccess::clear_data(ps.profile_state_);
         ps.auto_detected_bed_moves_ = false;
         ps.macro_option_count_ = 0;
+        ps.hidden_option_ids_.clear();
         ps.skip_gates_ = {};
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();
