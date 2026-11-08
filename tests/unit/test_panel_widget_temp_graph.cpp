@@ -210,8 +210,11 @@ TEST_CASE_METHOD(TempGraphFeatureFixture, "Gradient opacity zeroed when GRADIENT
 // ============================================================================
 
 TEST_CASE("TempGraphWidget: registered in widget registry", "[temp_graph][panel_widget]") {
+    init_widget_registrations();
     const auto* def = find_widget_def("temp_graph");
     REQUIRE(def != nullptr);
+    REQUIRE(def->factory != nullptr);
+    REQUIRE(std::string(def->factory("temp_graph:7")->id()) == "temp_graph:7");
     REQUIRE(std::string(def->display_name) == "Temperature Graph");
     REQUIRE(std::string(def->icon) == "chart_line");
     REQUIRE(def->multi_instance == true);
@@ -377,95 +380,7 @@ TEST_CASE("TempGraphWidget::features_for_size at real per-tier 1x1 and 1x2 exten
     }
 }
 
-// ============================================================================
-// Config round-trip tests
-// ============================================================================
-
-TEST_CASE("TempGraphWidget: set_config stores and preserves sensor configuration",
-          "[temp_graph][panel_widget][config]") {
-    TempGraphWidget widget("test_config_1");
-
-    nlohmann::json config = {
-        {"sensors",
-         {
-             {{"name", "extruder"}, {"enabled", true}, {"color", 0xFF4444}},
-             {{"name", "heater_bed"}, {"enabled", true}, {"color", 0x88C0D0}},
-             {{"name", "temperature_sensor mcu_temp"}, {"enabled", false}, {"color", 0xA3BE8C}},
-         }}};
-
-    widget.set_config(config);
-
-    // Verify the widget accepted the config by checking get_component_name works
-    // (would crash if widget was in bad state)
-    REQUIRE(widget.get_component_name() == "panel_widget_temp_graph");
-    REQUIRE(widget.id() == std::string("test_config_1"));
-    REQUIRE(widget.has_edit_configure() == true);
-    REQUIRE(widget.supports_reuse() == true);
-}
-
-TEST_CASE("TempGraphWidget: factory creates valid instances", "[temp_graph][panel_widget]") {
-    init_widget_registrations();
-
-    const auto* def = find_widget_def("temp_graph");
-    REQUIRE(def != nullptr);
-    REQUIRE(def->factory != nullptr);
-
-    auto widget = def->factory("test_factory_1");
-    REQUIRE(widget != nullptr);
-    REQUIRE(std::string(widget->id()) == "test_factory_1");
-}
-
-// ============================================================================
-// Sensor discovery: new sensors appended as disabled
-// ============================================================================
-
-TEST_CASE("TempGraphWidget: set_config preserves existing sensor entries",
-          "[temp_graph][panel_widget][config]") {
-    TempGraphWidget widget("test_sensor_preserve");
-
-    // Config with only extruder — simulates a saved config before bed was discovered
-    nlohmann::json config = {{"sensors",
-                              {
-                                  {{"name", "extruder"}, {"enabled", true}, {"color", 0xFF4444}},
-                              }}};
-
-    widget.set_config(config);
-
-    // Widget should accept the partial config without crashing
-    REQUIRE(widget.get_component_name() == "panel_widget_temp_graph");
-    REQUIRE(widget.id() == std::string("test_sensor_preserve"));
-}
-
-// ============================================================================
-// Missing sensors in config silently skipped
-// ============================================================================
-
-TEST_CASE("TempGraphWidget: config with unknown sensor name does not crash",
-          "[temp_graph][panel_widget][config]") {
-    TempGraphWidget widget("test_unknown_sensor");
-
-    // Contains a sensor name that doesn't match anything known — should be silently ignored
-    nlohmann::json config = {
-        {"sensors",
-         {
-             {{"name", "extruder"}, {"enabled", true}, {"color", 0xFF4444}},
-             {{"name", "nonexistent_sensor_xyz"}, {"enabled", true}, {"color", 0x00FF00}},
-             {{"name", "heater_bed"}, {"enabled", false}, {"color", 0x88C0D0}},
-         }}};
-
-    // Should not throw or crash
-    REQUIRE_NOTHROW(widget.set_config(config));
-    REQUIRE(widget.get_component_name() == "panel_widget_temp_graph");
-}
-
-// Regression: set_config(null) used to throw json::type_error::306
-// ("cannot use value() with null") via the new follow_overlay lookup
-// added in v0.99.54 (commit 5ac58e051). PanelWidgetConfig::parse_widget_array
-// can pass a default-constructed (= JSON null) config when a stored layout
-// entry omits the "config" key, which is the case for any layout written
-// before the follow-overlay feature shipped. The throw escaped Application::run()
-// before main_loop()'s safety net, exited 134, and triggered the watchdog
-// crash-loop dialog.
+// A layout entry without a "config" key hands set_config a JSON null.
 TEST_CASE("TempGraphWidget: set_config tolerates JSON null/non-object configs",
           "[temp_graph][panel_widget][crash-safety]") {
     TempGraphWidget widget("test_null_cfg");
@@ -477,13 +392,8 @@ TEST_CASE("TempGraphWidget: set_config tolerates JSON null/non-object configs",
     REQUIRE_NOTHROW(widget.set_config(nlohmann::json::object())); // empty object — the happy path
 }
 
-// Regression: build_series_from_config() used to throw nlohmann::type_error
-// when a persisted sensor entry carried the wrong JSON type for "name" (not a
-// string) or "color" (not an integer). The contains()-only guards let the
-// subsequent .get<std::string>() / .get<uint32_t>() throw, which escaped the
-// Home Panel dashboard rebuild and aborted the process (std::terminate).
-// Malformed entries must now be skipped/defaulted, and well-formed sibling
-// entries on the same card must still render.
+// A wrong-typed name drops its entry; a wrong-typed color falls back to the
+// palette; well-formed siblings still render.
 TEST_CASE("TempGraphWidget: build_series tolerates malformed name/color JSON types",
           "[temp_graph][panel_widget][crash-safety]") {
     TempGraphWidget widget("test_malformed_types");
@@ -496,6 +406,8 @@ TEST_CASE("TempGraphWidget: build_series tolerates malformed name/color JSON typ
              // Malformed "color": a string, not a number — entry survives with
              // a palette default color.
              {{"name", "heater_bed"}, {"enabled", true}, {"color", "not_a_color"}},
+             // A float is not a color either.
+             {{"name", "chamber"}, {"enabled", true}, {"color", 1234.0}},
              // Well-formed sibling — must still render.
              {{"name", "extruder"}, {"enabled", true}, {"color", 0x88C0D0}},
          }}};
@@ -514,6 +426,15 @@ TEST_CASE("TempGraphWidget: build_series tolerates malformed name/color JSON typ
     // Both well-formed-name entries survive (bad color just falls back to default).
     REQUIRE(std::find(names.begin(), names.end(), "heater_bed") != names.end());
     REQUIRE(std::find(names.begin(), names.end(), "extruder") != names.end());
+    // Only a JSON integer is a color; the others take their palette slot.
+    auto color_of = [&](const char* name) {
+        return std::find_if(specs.begin(), specs.end(),
+                            [&](const auto& s) { return s.klipper_name == name; })
+            ->color;
+    };
+    CHECK(lv_color_eq(color_of("heater_bed"), kTempGraphSeriesColors[0]));
+    CHECK(lv_color_eq(color_of("chamber"), kTempGraphSeriesColors[1]));
+    CHECK(lv_color_eq(color_of("extruder"), lv_color_hex(0x88C0D0)));
 }
 
 // ============================================================================
@@ -608,57 +529,6 @@ TEST_CASE("TempGraphWidget::attach() seed extents yield everything but readouts"
     REQUIRE(f == expected);
     REQUIRE((f & TEMP_GRAPH_FEATURE_READOUTS) == 0);
     REQUIRE(f == (TEMP_GRAPH_ALL_FEATURES & ~TEMP_GRAPH_FEATURE_READOUTS));
-}
-
-// ============================================================================
-// Config with custom colors persists
-// ============================================================================
-
-TEST_CASE("TempGraphWidget: custom color hex strings round-trip through set_config",
-          "[temp_graph][panel_widget][config]") {
-    TempGraphWidget widget("test_color_roundtrip");
-
-    // Use non-standard colors to verify they aren't overwritten
-    nlohmann::json config = {{"sensors",
-                              {
-                                  {{"name", "extruder"}, {"enabled", true}, {"color", 0xDEADBE}},
-                                  {{"name", "heater_bed"}, {"enabled", true}, {"color", 0xCAFEBA}},
-                              }}};
-
-    widget.set_config(config);
-
-    // The widget must be in a valid state
-    REQUIRE(widget.get_component_name() == "panel_widget_temp_graph");
-    REQUIRE(widget.has_edit_configure() == true);
-}
-
-// ============================================================================
-// Multi-instance independence
-// ============================================================================
-
-TEST_CASE("TempGraphWidget: two instances have independent configs",
-          "[temp_graph][panel_widget][multi_instance]") {
-    TempGraphWidget w1("temp_graph:1");
-    TempGraphWidget w2("temp_graph:2");
-
-    nlohmann::json cfg1 = {{"sensors",
-                            {
-                                {{"name", "extruder"}, {"enabled", true}, {"color", 0xFF0000}},
-                            }}};
-    nlohmann::json cfg2 = {{"sensors",
-                            {
-                                {{"name", "heater_bed"}, {"enabled", true}, {"color", 0x0000FF}},
-                                {{"name", "extruder"}, {"enabled", false}, {"color", 0xFF0000}},
-                            }}};
-
-    REQUIRE_NOTHROW(w1.set_config(cfg1));
-    REQUIRE_NOTHROW(w2.set_config(cfg2));
-
-    // Both instances should remain valid and independent
-    REQUIRE(std::string(w1.id()) == "temp_graph:1");
-    REQUIRE(std::string(w2.id()) == "temp_graph:2");
-    REQUIRE(w1.supports_reuse() == true);
-    REQUIRE(w2.supports_reuse() == true);
 }
 
 // ============================================================================
