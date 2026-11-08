@@ -270,6 +270,7 @@ class GCodeGLESRenderer {
     bool init_gl();
 #if !LV_USE_SDL
     bool try_egl_display(void* native_display, const char* label);
+    bool create_egl_context(void* egl_display, const char* label, bool owns_display);
 #endif
     bool compile_shaders();
     bool create_fbo(int width, int height);
@@ -390,8 +391,11 @@ class GCodeGLESRenderer {
     void* egl_display_ = nullptr; // EGLDisplay
     void* egl_context_ = nullptr; // EGLContext
     void* egl_surface_ = nullptr; // EGLSurface (PBuffer for non-surfaceless drivers)
-    void* gbm_device_ = nullptr;  // struct gbm_device*
-    int drm_fd_ = -1;             // DRM file descriptor (owned by us)
+    // False when egl_display_ is the display backend's own EGLDisplay: the renderer
+    // only adds a context to it, and terminating it would take the screen with it.
+    bool owns_egl_display_ = true;
+    void* gbm_device_ = nullptr; // struct gbm_device*
+    int drm_fd_ = -1;            // DRM file descriptor (owned by us)
 #endif
     bool gl_initialized_ = false;
     bool gl_init_failed_ = false;   // Prevents repeated init attempts
