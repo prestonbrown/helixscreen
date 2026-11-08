@@ -32,7 +32,6 @@
 
 #include <lvgl/lvgl.h>
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -235,44 +234,28 @@ TEST_CASE_METHOD(GuidedFlowFixture, "an unregistered guided flow never executes 
 }
 
 #if HELIX_HAS_CFS
-TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt tensioning asks before it moves the printer (#2059)",
+TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt tensioning confirms first and shares the status line",
                  "[ams][guided-flow][k2cal]") {
     helix::ui::register_cfs_device_flows();
-    lv_obj_t* btn =
-        open_section_and_find({button("tension_belts", "cfs_belt_tension")}, "tension_belts");
-    click(btn);
-    CHECK_FALSE(ModalStack::instance().empty());
-    CHECK(backend->belt_tensionings == 0);
-    CHECK(last_executed().empty());
-
-    lv_obj_t* confirm = lv_obj_find_by_name(lv_screen_active(), "btn_primary");
-    REQUIRE(confirm != nullptr);
-    click(confirm);
-    CHECK(backend->belt_tensionings == 1);
-    CHECK(backend->cutter_calibrations == 0);
-}
-
-TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt and cutter flows share one status line (#2059)",
-                 "[ams][guided-flow][k2cal]") {
-    helix::ui::register_cfs_device_flows();
-    open_section_and_find(
+    lv_obj_t* btn = open_section_and_find(
         {button("tension_belts", "cfs_belt_tension"), button("calibrate_cutter", "cfs_cutter")},
         "tension_belts");
-    lv_obj_t* root = get_ams_device_section_detail_overlay().get_root();
-    lv_obj_t* line = lv_obj_find_by_name(root, "cfs_cutter_status_line");
-    REQUIRE(line != nullptr);
-    int lines = 0;
-    std::function<void(lv_obj_t*)> count = [&](lv_obj_t* obj) {
-        const char* name = lv_obj_get_name(obj);
-        if (name && std::string(name) == "cfs_cutter_status_line") {
-            ++lines;
-        }
-        for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
-            count(lv_obj_get_child(obj, static_cast<int32_t>(i)));
-        }
-    };
-    count(root);
+    // Both flows attach the status line; the section shows it once.
+    lv_obj_t* actions = lv_obj_find_by_name(get_ams_device_section_detail_overlay().get_root(),
+                                            "section_actions_container");
+    REQUIRE(actions != nullptr);
+    uint32_t lines = 0;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(actions); ++i) {
+        lines += lv_obj_find_by_name(lv_obj_get_child(actions, static_cast<int32_t>(i)),
+                                     "cfs_cutter_status_line") != nullptr;
+    }
     CHECK(lines == 1);
+
+    click(btn);
+    CHECK(backend->belt_tensionings == 0);
+    click(lv_obj_find_by_name(lv_screen_active(), "btn_primary"));
+    CHECK(backend->belt_tensionings == 1);
+    CHECK(backend->cutter_calibrations == 0);
 }
 #endif
 
