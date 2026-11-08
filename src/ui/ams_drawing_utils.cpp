@@ -809,7 +809,7 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
     return out;
 }
 
-std::string lane_badge_text(int number) {
+std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane_badge in ams_draw
     return number < 0 ? std::string() : std::to_string(number);
 }
 
