@@ -9,7 +9,7 @@ W, D, H = 1.0, 0.76, 0.70
 ZR = 0.29
 CHEEK_TOP = ZR + 0.19
 CHEEK_KNEE_Y = 0.07
-BODY, PANEL, TRIM, CLEAR, ROOF = "#55585e", "#0a0b0d", "#c4c7cc", "#b4bac2", "#33363b"
+BODY, PANEL, TRIM, CLEAR, ROOF = "#7e8288", "#0a0b0d", "#c4c7cc", "#b4bac2", "#33363b"
 LED = "#7fb6ff"
 LEDS = [0.28, 0.42, 0.56, 0.70]
 ROOF_Y0, ROOF_Y1 = 0.34, 0.54
@@ -110,9 +110,11 @@ def _tray_shell():
 UNIT = UnitDef("cfs", 4, draw_art, _tray_shell())
 
 UNIT.tray.front = [
-    kit.span(2, 2, 1, 3, 0xc4c7cc),
-    kit.span(3, 3, 5, UNIT.tray.front_wall_px - 3, 0x0a0b0d, 4),
-    kit.lane(-1.5, 1.5, 1.2, 2.8, 0x8fd0ff),
-    kit.center(-11, 11, 14, 28, 0x1b2a30, 2),
-    kit.center(-8, 2, 17, 25, 0x7fe0a0),
+    kit.span(2, 2, 6, UNIT.tray.front_wall_px - 1.5, 0xd2d5da, 5),
+    kit.span(3, 3, 7, UNIT.tray.front_wall_px - 2.5, 0x0a0b0d, 4),
+    kit.span(30, 30, 0, 7, 0x3a3d43, 2),
+    kit.lane(-1.5, 1.5, 2, 5, 0x8fd0ff),
+    kit.center(-34, 34, 12, 32, 0x030405, 2),
+    kit.center(-31, 8, 15, 29, 0x1b3a36, 1),
+    kit.center(12, 30, 15, 29, 0x2b2e33, 1),
 ]
