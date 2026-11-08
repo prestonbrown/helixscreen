@@ -113,6 +113,33 @@ TEST_CASE_METHOD(
     CHECK(afc.get_slot_info(1).spoolman_id == 0);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "an AFC lane unlinked on the printer stops showing the spool's brand",
+                 "[ams][afc][remember_spool]") {
+    helix::SettingsManager::instance().init_subjects();
+    helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
+    AfcRetentionHelper& afc = *afc_reg;
+
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}, {"spool_id", 35}});
+    helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+    spoolman.spoolman_id = 35;
+    spoolman.brand = "Sunlu";
+    spoolman.spool_name = "Grey ASA";
+    helix::ams::ingest(afc_reg.lane(1), spoolman);
+    afc.feed_stepper("lane2", nlohmann::json{{"material", "ASA"}});
+    REQUIRE(afc.get_slot_info(1).brand == "Sunlu");
+    REQUIRE(afc.get_slot_info(1).spool_name == "Grey ASA");
+
+    // SET_SPOOL_ID with no id: AFC clears the lane and names no spool.
+    afc.feed_stepper("lane2", nlohmann::json{{"spool_id", nullptr},
+                                             {"material", ""},
+                                             {"color", ""},
+                                             {"filament_name", ""}});
+    CHECK(afc.get_slot_info(1).spoolman_id == 0);
+    CHECK(afc.get_slot_info(1).brand.empty());
+    CHECK(afc.get_slot_info(1).spool_name.empty());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "an AFC lane with remember_spool on keeps its record on eject",
                  "[ams][afc][remember_spool]") {
     helix::SettingsManager::instance().init_subjects();
