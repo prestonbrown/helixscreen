@@ -79,7 +79,7 @@ enum class ModalCloseReason {
  *
  * ## Usage - Simple Modals (no subclass):
  * @code
- * lv_obj_t* modal = Modal::show("print_cancel_confirm_modal");
+ * lv_obj_t* modal = helix::ui::ComponentModal::show_owned("fan_rename_modal");
  * // ...later...
  * Modal::hide(modal);
  * @endcode
@@ -118,9 +118,12 @@ class Modal {
     // ========================================================================
 
     /**
-     * @brief Show a simple modal (no subclass needed)
+     * @brief Show a modal with no owner (tests only)
      *
-     * Creates and displays a modal from the specified XML component.
+     * Creates and displays a modal from the specified XML component. Nothing
+     * owns it, so nothing hears it close; app code uses
+     * helix::ui::ComponentModal::show_owned() instead, and
+     * scripts/check_growth_ratchets.py refuses this form under src/ and include/.
      * Backdrop is created in C++ and XML content is placed inside it.
      *
      * @param component_name XML component name
@@ -666,6 +669,46 @@ class ModalDialogAttrs {
     const char* hide_error_;
     const char* hide_secondary_;
     std::vector<const char*> attrs_;
+};
+
+/**
+ * @brief A modal for an XML component that wires its own buttons
+ *
+ * For a dialog whose buttons are XML event callbacks, or are wired by the
+ * caller on the dialog show_owned() returns, and that needs no C++ hooks of
+ * its own. ModalStack owns the instance like any show_owned() modal, so the
+ * dialog has an owner: Modal::hide(dialog) runs the instance teardown and
+ * Modal::from_event() resolves it. ESC closes it the way a backdrop tap does,
+ * without pressing either button.
+ *
+ * A dialog with buttons wired in C++ that do more than close it gets its own
+ * Modal subclass instead, with the wiring in on_show().
+ */
+class ComponentModal : public Modal {
+  public:
+    explicit ComponentModal(std::string component_name)
+        : component_name_(std::move(component_name)) {}
+
+    HELIX_KIND_TAG(ComponentModal)
+
+    /// Show @p component_name owned by ModalStack. The dialog, or nullptr when
+    /// the component could not be created.
+    static lv_obj_t* show_owned(const char* component_name, const char** attrs = nullptr);
+
+    const char* get_name() const override {
+        return component_name_.c_str();
+    }
+    const char* component_name() const override {
+        return component_name_.c_str();
+    }
+
+  protected:
+    void on_escape() override {
+        hide(ModalCloseReason::EscKey);
+    }
+
+  private:
+    std::string component_name_;
 };
 
 inline lv_obj_t* modal_show(const char* name, const char** attrs = nullptr) {
