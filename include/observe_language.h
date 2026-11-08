@@ -17,6 +17,31 @@
 namespace helix::ui {
 
 /**
+ * @brief Run @p on_change(panel) each time an int @p subject takes a new value.
+ *
+ * Not on registration, and not on a re-publish of the value already shown.
+ *
+ * @tparam Panel Owner class type
+ * @tparam OnChange Callable: void(Panel*)
+ */
+template <typename Panel, typename OnChange>
+ObserverGuard observe_int_change(lv_subject_t* subject, SubjectLifetime lifetime, Panel* panel,
+                                 OnChange&& on_change) {
+    // Held by pointer so the non-mutable handler can update it.
+    auto shown = std::make_shared<int>(lv_subject_get_int(subject));
+    return observe<int>(
+        subject, panel,
+        [shown, on_change = std::forward<OnChange>(on_change)](Panel* p, int value) {
+            if (value == *shown) {
+                return;
+            }
+            *shown = value;
+            on_change(p);
+        },
+        std::move(lifetime));
+}
+
+/**
  * @brief Re-render C++-formatted text after every language switch
  *
  * XML re-translates what it bound through translation_tag. Text C++ produced
@@ -31,19 +56,8 @@ namespace helix::ui {
 template <typename Panel, typename OnChange>
 ObserverGuard observe_language_change(Panel* panel, OnChange&& on_change) {
     auto& settings = SystemSettingsManager::instance();
-    lv_subject_t* language = settings.subject_language();
-    // Held by pointer so the non-mutable handler can update it.
-    auto shown = std::make_shared<int>(lv_subject_get_int(language));
-    return observe<int>(
-        language, panel,
-        [shown, on_change = std::forward<OnChange>(on_change)](Panel* p, int index) {
-            if (index == *shown) {
-                return;
-            }
-            *shown = index;
-            on_change(p);
-        },
-        settings.get_subjects_lifetime());
+    return observe_int_change(settings.subject_language(), settings.get_subjects_lifetime(), panel,
+                              std::forward<OnChange>(on_change));
 }
 
 } // namespace helix::ui

@@ -5,6 +5,7 @@
 // state: what each chip and checklist subject publishes, and how the callout
 // layout drops, glows and relayouts across a phase switch.
 
+#include "ui_gcode_viewer.h"
 #include "ui_print_status_tiles.h"
 
 #include "../test_helpers/print_status_panel_fixture.h"
@@ -193,6 +194,40 @@ TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[p
     CHECK(subject_int("preparing_visible") == 0);
     CHECK(subject_int("ps_step_count") == 0);
     CHECK(subject_str("ps_step_position_text").empty());
+}
+
+TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    settle();
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source([]() -> std::optional<PreprintChecklistInput> {
+        PreprintChecklistInput in;
+        in.current = PrintStartPhase::HOMING;
+        return in;
+    });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HOMING));
+    UpdateQueue::instance().drain();
+    process_lvgl(900); // the preparing view shows after its debounce
+    REQUIRE(subject_int("preparing_visible") == 1);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    // The deferred G-code load re-shows the viewer while the checklist still covers it.
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source(
+        []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+    REQUIRE(subject_int("preparing_visible") == 0);
+    CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
 }
 
 TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glows",
@@ -890,6 +925,43 @@ TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the 
     CHECK(subject_int("ps_chip_part_fan_tone") == static_cast<int>(ChipTone::Active));
     CHECK(subject_int("ps_callout_mode") == mode);
     CHECK(same_rect(image_rect(root_), before));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a heater duty change places the chips without a full chip pass",
+                 "[print_status]") {
+    // Beside the picture with labeled fans, the column has room for the bed's duty.
+    auto& temps = state().temperature_state();
+    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Bed);
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_bed_temp_subject(), 600);
+    set_int(duty, 7);
+    size_printer_area(root_, 400, 260);
+    three_fans_stopped(*this);
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::OneSide));
+    REQUIRE(subject_str("ps_chip_bed_text") == "60° · 7%");
+    const int layouts = tiles().layout_count();
+
+    set_int(duty, 12);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(tiles().layout_count() == layouts);
+    const std::string text = subject_str("ps_chip_bed_text");
+    CHECK(text.find("12%") != std::string::npos);
+
+    // What a full pass would publish and place.
+    const auto bed_rect = [&] {
+        for (const auto& c : tiles().last_layout().chips) {
+            if (c.kind == CalloutKind::Bed) {
+                return c.rect;
+            }
+        }
+        return CalloutRect{};
+    };
+    const CalloutRect placed = bed_rect();
+    tiles().update_now();
+    CHECK(subject_str("ps_chip_bed_text") == text);
+    CHECK(same_rect(bed_rect(), placed));
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 

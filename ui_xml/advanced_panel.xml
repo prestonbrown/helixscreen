@@ -59,6 +59,11 @@
                             label="G-code Console" icon="console" description="Send commands directly to printer">
           <event_cb trigger="clicked" callback="on_console_row_clicked"/>
         </setting_action_row>
+        <!-- Guided cold pull (#2011) -->
+        <setting_action_row name="row_cold_pull"
+                            label="Cold Pull" icon="nozzle" description="Clean a clogged nozzle, step by step">
+          <event_cb trigger="clicked" callback="on_cold_pull_row_clicked"/>
+        </setting_action_row>
         <!-- Print History -->
         <setting_action_row name="row_print_history"
                             label="Print History" icon="clock" description="View print statistics and job history">

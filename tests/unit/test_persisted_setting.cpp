@@ -253,6 +253,12 @@ const std::vector<Row>& rows() {
          7, "toolhead_style", true,
          [](int v) { sm().set_toolhead_style(static_cast<ToolheadStyle>(v)); },
          GET(sm().get_toolhead_style), SUBJ(sm().subject_toolhead_style)},
+        {"settings_tool_number_style", Mgr::Settings, true, "appearance/tool_number_style", false,
+         0, 0, 2, "tool_number_style", false,
+         [](int v) {
+             sm().set_tool_number_style_setting(static_cast<helix::ui::ToolNumberStyleSetting>(v));
+         },
+         GET(sm().get_tool_number_style_setting), SUBJ(sm().subject_tool_number_style)},
         {"show_printer_switcher", Mgr::Settings, false, "/printers/show_printer_switcher", true, 0,
          0, 1, "show_printer_switcher", true, SETB(sm().set_show_printer_switcher),
          GET(sm().get_show_printer_switcher), SUBJ(sm().subject_show_printer_switcher)},

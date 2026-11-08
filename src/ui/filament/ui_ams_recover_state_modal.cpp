@@ -117,7 +117,7 @@ void AmsRecoverStateModal::on_show() {
 
     std::string slots = lv_tr("Keep current");
     for (int i : choices_.slots) {
-        slots += "\n" + lane_label(noun, i);
+        slots += "\n" + active_tool_lane_label(noun, i);
     }
     if (choices_.has_bypass) {
         slots += std::string("\n") + lv_tr("Bypass");

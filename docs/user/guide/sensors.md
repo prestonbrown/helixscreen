@@ -119,7 +119,7 @@ Clog and flow detection surface through the **Clog Detection** dashboard widget 
 
 ### Configuring it
 
-On the Home Panel, long-press to enter **Edit Mode**, tap the **Clog Detection** widget to select it, then tap the **gear icon**. The Clog Detection config modal opens with these settings:
+On the Home Panel, long-press to enter **Edit Mode**, tap the **Clog Detection** widget to select it, tap it again to open its menu, then tap **Configure**. The Clog Detection config modal opens with these settings:
 
 | Setting | What it controls |
 |---------|------------------|

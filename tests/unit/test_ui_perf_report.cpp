@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "system/debug_bundle_collector.h"
 #include "ui_overlay_open_trace.h"
 #include "ui_perf_report.h"
 
-#include "hv/json.hpp"
+#include "system/debug_bundle_collector.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::nav::OverlayOpenTracker;
 

@@ -17,6 +17,7 @@
 #include "observe_language.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -162,6 +163,14 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                                  self->cached_bed_temp_, self->cached_bed_target_, true);
         self->relayout_for_granted_size();
     });
+    // Each row's number rung and name spell the tool in the printer's tool number style.
+    auto& settings = helix::SettingsManager::instance();
+    tool_number_style_observer_ = helix::ui::observe_int_change(
+        settings.subject_tool_number_style(), settings.get_subjects_lifetime(), this,
+        [](NozzleTempsWidget* self) {
+            if (self->widget_obj_)
+                self->rebuild_rows();
+        });
 
     spdlog::debug("[NozzleTempsWidget] Attached with {} extruder rows", extruder_rows_.size());
 }
@@ -170,6 +179,7 @@ void NozzleTempsWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     language_observer_.reset();
+    tool_number_style_observer_.reset();
     mounted_tool_observer_.reset();
     clear_rows();
     uninstall_delete_hook();
@@ -569,9 +579,11 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
 
     row.short_name = std::move(short_name);
     row.long_name = std::move(long_name);
-    // The number rung: the 1-based display number, the one label that fits
-    // where no spelling does and still tells four icon rows apart.
-    row.number_name = helix::ui::lane_number_text(static_cast<int>(extruder_rows_.size()));
+    // The number rung: the tool's number in the printer's style ("1" or "T0"),
+    // the one label that fits where no spelling does and still tells four icon
+    // rows apart.
+    row.number_name = helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
+                                                  static_cast<int>(extruder_rows_.size()));
 
     // Create row from XML template. All three spellings are written once as
     // data; which one shows, the row width and the font are bound off the

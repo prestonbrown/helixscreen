@@ -403,6 +403,19 @@ bool present(const PrinterDiscovery& hw) {
     return match(hw) != nullptr;
 }
 
+bool tools_named_by_gcode(const std::vector<std::string>& tool_names) {
+    return !tool_names.empty() &&
+           std::all_of(tool_names.begin(), tool_names.end(),
+                       [](const std::string& n) { return helix::ui::is_generated_tool_name(n); });
+}
+
+helix::ui::ToolNumberStyle tool_number_style(const PrinterDiscovery& hw) {
+    if (hw.has_tool_changer() && !present(hw) && tools_named_by_gcode(hw.tool_names())) {
+        return helix::ui::ToolNumberStyle::Gcode;
+    }
+    return helix::ui::ToolNumberStyle::Physical;
+}
+
 bool zmod_c5_present(const PrinterDiscovery& hw) {
     return zmod_c5_detect(hw);
 }

@@ -90,7 +90,9 @@ bool close(File& f);
 
 /// Reads a file one delimited record at a time with std::getline's contract:
 /// the delimiter is removed, a final record with no delimiter is still
-/// returned, and nothing is returned for an empty file.
+/// returned, and nothing is returned for an empty file. Reads the file in
+/// chunks and finds delimiters with memchr: a multi-megabyte G-code parse
+/// otherwise spends most of its time in per-character getc.
 class LineReader {
   public:
     explicit LineReader(const std::string& path, char delim = '\n');
@@ -110,9 +112,16 @@ class LineReader {
     }
 
   private:
+    /// Refills buf_ from the file. False at end of file or on a read error.
+    bool fill();
+
     File file_;
     char delim_;
     bool last_had_delimiter_ = false;
+    bool at_end_ = false;
+    std::vector<char> buf_;
+    std::size_t pos_ = 0;
+    std::size_t len_ = 0;
 };
 
 // ---------------------------------------------------------------------------

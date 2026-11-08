@@ -321,6 +321,17 @@ MD
     contains "says 17 theme presets" "$output"
 }
 
+@test "counts: the Play Store listing is checked, and \"N themes\" counts as a theme claim" {
+    make_counts_fixture
+    LISTING=android/fastlane/metadata/android/en-US/full_description.txt
+    mkdir -p "$(dirname "$LISTING")"
+    printf -- '- 70+ printer models\n- 17 themes with light/dark mode\n' > "$LISTING"
+    run python3 "$CHECK" --counts
+    [ "$status" -eq 1 ]
+    contains "$LISTING:1: says \"70+ printer models\"" "$output"
+    contains "$LISTING:2: says 17 theme presets" "$output"
+}
+
 @test "counts: a printer floor below the current step or above the database fails" {
     make_counts_fixture
     printf -- '- 80+ printers\n- over 101 models\n- 100+ models\n' > docs/user/GUIDE.md

@@ -18,9 +18,15 @@ The table is checked on every run: a listed file that does not exist, a row
 listed twice, or a trigger path that matches no tracked path is an error, since
 a renamed script would otherwise stop triggering its test without a word.
 
+--app needs|without splits the selection in two for a gate that starts bats
+before its app build ends: "needs" keeps the files that drive the binary the
+build links (a file calling require_app, or naming build/bin/), "without" keeps
+the rest. CI's bats job builds no app, so every "without" file already passes
+there with no binary on disk.
+
 Prints the selected files, one per line, and a one-line summary on stderr.
 
-Usage: bats_select.py [--base REF] [--all] [--check] [--root DIR]
+Usage: bats_select.py [--base REF] [--all] [--app needs|without] [--check] [--root DIR]
 """
 
 import argparse
@@ -43,6 +49,14 @@ RUN_ALL = (
     'scripts/bats_select.py',
     'scripts/diff_base.py',
 )
+
+
+# A file that drives the built app: require_app is the helper every such test
+# skips through (the app-skip lint in test_code_lint.bats holds it to that), and
+# build/bin/ catches a file that runs or reads the binary some other way. A file
+# matched only by a comment or a fixture string waits too, which costs a few
+# seconds of overlap and never a run against a half-linked binary.
+NEEDS_APP = re.compile(r'\brequire_app\b|build/bin/')
 
 
 class TableError(Exception):
@@ -144,10 +158,24 @@ def select(all_files, rows, changed, run_all=False):
                     f'{len(triggers)} tooling file(s) whose paths changed')
 
 
+def needs_app(text):
+    """Does a bats file's text drive the binary the app build links?"""
+    return NEEDS_APP.search(text) is not None
+
+
+def split_by_app(root, files, which):
+    """The files of one half: 'needs' the built app, or 'without' it."""
+    want = which == 'needs'
+    return [f for f in files
+            if needs_app((root / f).read_text(errors='replace')) == want]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--base', help='diff against this ref (default: the fork point)')
     ap.add_argument('--all', action='store_true', help='select every file')
+    ap.add_argument('--app', choices=('needs', 'without'),
+                    help='keep only the files that drive the built app, or only the rest')
     ap.add_argument('--check', action='store_true', help='validate the table and exit')
     ap.add_argument('--root', default='.')
     args = ap.parse_args(argv)
@@ -179,6 +207,10 @@ def main(argv=None):
             run_all = True
         base_note = diff_base.base_line(root, base, why)
     chosen, why = select(all_files, rows, changed, run_all)
+    if args.app:
+        chosen = split_by_app(root, chosen, args.app)
+        why += ('; only those that drive the built app' if args.app == 'needs'
+                else '; only those that do not drive the built app')
     print(f'bats_select: {base_note}; {len(changed)} changed path(s); '
           f'running {len(chosen)} of {len(all_files)} file(s): {why}', file=sys.stderr)
     print('\n'.join(chosen))

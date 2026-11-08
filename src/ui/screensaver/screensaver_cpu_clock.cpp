@@ -14,10 +14,14 @@ CpuSample read_process_cpu_clock() {
         sample.cpu_ns =
             static_cast<uint64_t>(cpu.tv_sec) * 1000000000ULL + static_cast<uint64_t>(cpu.tv_nsec);
     }
-    sample.wall_ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                               std::chrono::steady_clock::now().time_since_epoch())
-                                               .count());
+    sample.wall_ns = read_steady_clock_ns();
     return sample;
+}
+
+uint64_t read_steady_clock_ns() {
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                     std::chrono::steady_clock::now().time_since_epoch())
+                                     .count());
 }
 
 } // namespace helix::ui

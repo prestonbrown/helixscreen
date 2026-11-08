@@ -6,6 +6,7 @@
 #include "ams_state.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
+#include "settings_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -57,22 +58,42 @@ bool is_generated_tool_name(std::string_view name) {
     return true;
 }
 
-std::string tool_name_label(LaneNoun noun, std::string_view name, int index) {
+std::string tool_number_text(ToolNumberStyle style, std::string_view name, int index) {
     if (index < 0)
         return {};
-    if (is_generated_tool_name(name))
-        return lane_label(noun, index);
-    return std::string(name);
+    if (style == ToolNumberStyle::Physical)
+        return lane_number_text(index);
+    return is_generated_tool_name(name) ? std::string(name) : tool_label(index);
 }
 
-std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index,
-                               ToolLabelForm form) {
+std::string tool_badge_label(ToolNumberStyle style, std::string_view name, int index) {
+    if (index < 0)
+        return {};
+    if (!is_generated_tool_name(name))
+        return std::string(name);
+    return tool_number_text(style, name, index);
+}
+
+std::string tool_name_label(LaneNoun noun, ToolNumberStyle style, std::string_view name,
+                            int index) {
+    if (index < 0)
+        return {};
+    if (!is_generated_tool_name(name))
+        return std::string(name);
+    return style == ToolNumberStyle::Gcode ? std::string(name) : lane_label(noun, index);
+}
+
+std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string_view name,
+                               int index, ToolLabelForm form) {
     if (index < 0)
         return {};
     const std::string code = is_generated_tool_name(name) ? std::string(name) : tool_label(index);
     if (form == ToolLabelForm::Code)
         return code;
-    return fmt::format(lv_tr("{} ({})"), tool_name_label(noun, name, index), code);
+    const std::string label = tool_name_label(noun, style, name, index);
+    if (label == code)
+        return code;
+    return fmt::format(lv_tr("{} ({})"), label, code);
 }
 
 std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm form) {
@@ -146,6 +167,12 @@ std::string lane_label(LaneNoun noun, int index) {
     if (n < 0)
         return {};
     return noun_text(noun) + " " + std::to_string(n);
+}
+
+std::string tool_lane_label(LaneNoun noun, ToolNumberStyle style, int index) {
+    if ((noun == LaneNoun::Tool || noun == LaneNoun::Toolhead) && style == ToolNumberStyle::Gcode)
+        return tool_label(index);
+    return lane_label(noun, index);
 }
 
 std::string clear_spool_blocked_hint(LaneNoun noun, int index) {
@@ -237,8 +264,41 @@ LaneNoun active_tool_noun() {
     return backend ? backend->tool_noun() : LaneNoun::Tool;
 }
 
+ToolNumberStyle resolve_tool_number_style(ToolNumberStyleSetting setting,
+                                          ToolNumberStyle backend_hint) {
+    switch (setting) {
+    case ToolNumberStyleSetting::Physical:
+        return ToolNumberStyle::Physical;
+    case ToolNumberStyleSetting::Gcode:
+        return ToolNumberStyle::Gcode;
+    case ToolNumberStyleSetting::Auto:
+        break;
+    }
+    return backend_hint;
+}
+
+ToolNumberStyle tool_number_style_with_setting(ToolNumberStyle backend_hint) {
+    return resolve_tool_number_style(
+        SettingsManager::instance().get_tool_number_style_setting_any_thread(), backend_hint);
+}
+
+ToolNumberStyle active_tool_number_style() {
+    auto& ams = AmsState::instance();
+    const auto* backend = ams.get_backend(ams.active_backend_index());
+    return tool_number_style_with_setting(backend ? backend->tool_number_style()
+                                                  : ToolNumberStyle::Physical);
+}
+
+std::string active_tool_lane_label(LaneNoun noun, int index) {
+    return tool_lane_label(noun, active_tool_number_style(), index);
+}
+
+std::string active_tool_badge_label(std::string_view name, int index) {
+    return tool_badge_label(active_tool_number_style(), name, index);
+}
+
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form) {
-    return tool_label_in_form(active_tool_noun(), name, index, form);
+    return tool_label_in_form(active_tool_noun(), active_tool_number_style(), name, index, form);
 }
 
 bool tool_badges_add_information(const std::vector<int>& tool_to_slot, int slot_count) {

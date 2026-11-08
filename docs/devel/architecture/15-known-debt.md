@@ -8,11 +8,11 @@ The debt is deliberately bounded. The imperative-UI count is frozen by a ratchet
 flowchart TD
     NEW["New code"] -->|"fully declarative or annotated"| GATE
 
-    subgraph LEDGER["The ledger - 531 sites (issue #1140)"]
-        V["visibility 136"]
-        T["text 83"]
-        S["style 59"]
-        E["event 41"]
+    subgraph LEDGER["The ledger - 523 sites (issue #1140)"]
+        V["visibility 231"]
+        T["text 159"]
+        S["style 80"]
+        E["event 53"]
     end
 
     GATE["scripts/check_imperative_ui.py<br/>baseline in scripts/qc/decl_ui.sh"]
@@ -53,14 +53,14 @@ Six catalogues: the ledger and its ratchet, the duplication debt, the open corre
 
 ### The imperative-UI ledger and the ratchet
 
-[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`, `find_widget()`) and then mutated in C++, anywhere in the file, since the lookup usually sits in `setup()` and the mutation in `update_*()`: `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **531**:
+[`scripts/check_imperative_ui.py`](../../../scripts/check_imperative_ui.py) flags one specific shape: a widget fetched from an XML tree by name (`lv_obj_find_by_name()`, `find_required()`, `find_optional()`, `find_widget()`) and then mutated in C++, anywhere in the file, since the lookup usually sits in `setup()` and the mutation in `update_*()`: `lv_label_set_text()` instead of `bind_text`, `lv_obj_add_flag(HIDDEN)` instead of `<bind_flag_if_eq>`, `lv_obj_set_style_*` instead of XML styles, `lv_obj_add_event_cb()` instead of `<event_cb>`. At this writing the count is **523**:
 
 ```
-  event          55   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()
+  event          53   → <event_cb trigger="clicked" callback="name"/> + lv_xml_register_event_cb()
   style          80   → XML style attribute (style_bg_color="#card_bg") or bind_style
-  text          162   → bind_text="subject" on the XML element
-  visibility    234   → <bind_flag_if_eq subject=... flag="hidden"> or <if cond=...>
-  TOTAL         531
+  text          159   → bind_text="subject" on the XML element
+  visibility    231   → <bind_flag_if_eq subject=... flag="hidden"> or <if cond=...>
+  TOTAL         523
 ```
 
 (verbatim from `python3 scripts/check_imperative_ui.py --summary`; regenerate any number in this section with `--list`). The count is enforced as a ratchet: [`scripts/qc/decl_ui.sh#qc_decl_ui`](../../../scripts/qc/decl_ui.sh) runs the gate with `--max-allowed` set to the baseline, so a change that adds a site past it fails the commit, and a port lowers both the count and the baseline. The baseline can sit a few sites above the live count after ports land; lowering it to the count is a one-line change. The porting epic is prestonbrown/helixscreen#1140.
@@ -69,14 +69,14 @@ Where the sites live, by directory:
 
 | Area | Sites | Notes |
 |------|-------|-------|
-| `src/ui/` flat files | 434 | panels, overlays, wizards, services |
+| the rest of `src/ui/` | 426 | panels, overlays, wizards, services |
 | `src/ui/panel_widgets/` | 55 | home-screen widgets |
 | `src/ui/modals/` | 15 | modal dialogs |
 | `src/ui/tour/` | 5 | first-run tour |
 | `src/ui/widgets/` | 18 | home-screen widget helpers |
 | `src/xml_registration.cpp`, `src/plugin/` | 4 | two each |
 
-The worst files: [`src/ui/plugin/ui_plugin_install_modal.cpp`](../../../src/ui/plugin/ui_plugin_install_modal.cpp) and [`src/ui/controls/ui_fan_dial.cpp`](../../../src/ui/controls/ui_fan_dial.cpp) (27 each), [`src/ui/settings/ui_overlay_network_settings.cpp`](../../../src/ui/settings/ui_overlay_network_settings.cpp) and [`src/ui/filament/ui_panel_filament.cpp`](../../../src/ui/filament/ui_panel_filament.cpp) (18 each), then [`src/ui/filament/ui_panel_ams.cpp`](../../../src/ui/filament/ui_panel_ams.cpp) and [`src/ui/widgets/power_device_widget.cpp`](../../../src/ui/widgets/power_device_widget.cpp) at 16.
+The worst files: [`src/ui/plugin/ui_plugin_install_modal.cpp`](../../../src/ui/plugin/ui_plugin_install_modal.cpp) and [`src/ui/controls/ui_fan_dial.cpp`](../../../src/ui/controls/ui_fan_dial.cpp) (27 each), [`src/ui/filament/ui_panel_filament.cpp`](../../../src/ui/filament/ui_panel_filament.cpp) (18), then [`src/ui/filament/ui_panel_ams.cpp`](../../../src/ui/filament/ui_panel_ams.cpp) and [`src/ui/widgets/power_device_widget.cpp`](../../../src/ui/widgets/power_device_widget.cpp) at 16.
 
 Why the sites exist: most were written when the XML engine could not yet express what was needed (`<if>`, `<repeat>`, `<subject_expr>` and the word-form `cond` operators came after chunks of this UI were built). Others are plain mistakes that got through review. Both are debt. **None of it is precedent**: do not imitate a nearby imperative site just because it is there, and do not port one opportunistically inside an unrelated change; the ratchet falls through dedicated, reviewable port commits.
 

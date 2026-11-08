@@ -829,6 +829,8 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// The backstop, as a multiple of the ceiling. The one fallback that waits
     /// for nothing, so a firmware that chatters forever still leaves Preparing.
     static constexpr int kBackstopCeilingMultiple = 2;
+    /// Longest console line the phase patterns scan; real status lines are far shorter.
+    static constexpr size_t kMaxScannedConsoleLineChars = 256;
     /// How long the printer must say nothing before a timeout may complete the
     /// pre-print. Longer than the gap between mesh probe points on a slow bed
     /// (the K2 spends ~5s per point, ~3s on a manual sweep) with margin for a
