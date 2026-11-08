@@ -172,6 +172,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Une macro qui nettoie la buse. HelixScreen peut l''exécuter avant une impression depuis les options de pré-impression.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Une broche d'E/S moteur n'a pas pu être restaurée. Éteignez et rallumez l'imprimante pour récupérer
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Les paramètres d'un moteur n'ont pas pu être écrits. Éteignez et rallumez l'imprimante pour réessayer
+  "A new Print Status screen": "Un nouvel écran d'état de l'impression"
   A newer version of the helper macros is available: 'Une version plus récente des macros d''aide est disponible'
   A picture of your printer: Une photo de votre imprimante
   A print is already running.: Une impression est déjà en cours.
@@ -986,21 +987,30 @@ translations:
     d'analyser la macro PRINT_START. Certaines options d'impression peuvent être indisponibles.
   Could not answer the connection request: 'Impossible de répondre à la demande de connexion'
   'Could not check {} - it stays in the queue': 'Impossible de vérifier {} – reste dans la file'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Pendant une impression, retrouvez une pastille pour chaque chauffage, ventilateur et lumière, la liste des étapes de démarrage, ainsi que la progression et les commandes dans un seul bandeau."
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
+  "Here's a quick look at what changed since your last version.": "Un aperçu rapide de ce qui a changé depuis votre dernière version."
   'Klipper: {}': "Klipper : {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Les bases : l'assistant de configuration, la navigation entre les écrans et les gestes tactiles."
   Load all stopped: 'Chargement global arrêté'
+  "Load and unload": "Charger et décharger"
   Load stopped: 'Chargement arrêté'
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Chargez, déchargez et purgez ici. Choisissez d'abord un matériau pour régler ses températures."
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Chargez, déchargez et changez de bobine, réglez les températures et surveillez les capteurs de filament."
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Appuyez longuement sur une tuile pour passer en mode édition. La nouvelle grille permet de réorganiser, redimensionner, retirer ou ajouter des widgets, et de les faire glisser entre les pages."
   'Moonraker answered at {}.': "Moonraker a répondu à {}."
+  "New in 1.1": "Nouveautés de la 1.1"
   No filament was inserted in time: 'Aucun filament n''a été inséré à temps'
   Print hours between filter changes. Off hides this meter.: 'Heures d’impression entre deux changements de filtre. Désactivé masque ce compteur.'
   Print hours between nozzle changes. Off hides this meter.: 'Heures d’impression entre deux changements de buse. Désactivé masque ce compteur.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Heures d’impression entre deux nettoyages et graissages des rails. Désactivé masque ce compteur.'
   Print hours this week and lifetime totals: 'Heures d''impression cette semaine et totaux cumulés'
   "Setup, navigation and gestures": "Configuration, navigation et gestes"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Touchez un slot pour le charger ou le décharger, choisir une bobine ou modifier ses informations. Vos modifications restent synchronisées avec l'imprimante et Spoolman."
   Unload stopped: 'Déchargement arrêté'
   "User Guide": "Guide d'utilisation"
+  "Your filament system": "Votre système de filament"
   '{} could not be checked from Home - review it and tap Print': '{} n''a pas pu être vérifié depuis l''accueil – vérifiez-le et touchez Imprimer'
   Could not change printer.cfg: Impossible de modifier printer.cfg
   ? "Could not check webcam status.\nCheck printer connection."
@@ -2246,8 +2256,6 @@ translations:
   Load Profile: 'Charger un profil'
   Load the required filaments or start anyway?: Charger les filaments requis ou démarrer
     quand même ?
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : Chargez, déchargez et changez les bobines. Visualisez votre système multi-filaments en un coup d'œil, associez le filament aux outils et surveillez les capteurs de fin de filament.
   Load...: Charger...
   Loaded: Chargé
   Loading: Chargement
@@ -2279,7 +2287,6 @@ translations:
   Login Required: 'Connexion requise'
   Logs: Journaux
   Long Press Time: 'Durée d''appui long'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Appui long sur n''importe quelle tuile pour entrer en mode édition — réorganisez, redimensionnez, supprimez ou ajoutez des widgets, et ajoutez des pages supplémentaires pour votre disposition préférée.'
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): 'Appui long sur la grille d''accueil pour réorganiser les widgets (désactivez si cela se déclenche par accident)'
   Longest Disconnect: Déconnexion la plus longue
   Loosen {0} noticeably: "Détendre {0} nettement"
@@ -2436,7 +2443,6 @@ translations:
   Mixed-Temperature Materials: 'Matériaux à températures mixtes'
   Mode: Mode
   Modified: Modifié
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Surveillez les impressions en cours — temps restant, couche actuelle et progression. Appuyez pour mettre en pause, reprendre ou annuler la tâche active.'
   Monitoring: Surveillance
   Month: Mois
   Moonraker: Moonraker

@@ -162,6 +162,7 @@
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." en="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" en="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" en="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
+  <translation tag="A new Print Status screen" en="A new Print Status screen"/>
   <translation tag="A newer version of the helper macros is available" en="A newer version of the helper macros is available"/>
   <translation tag="A picture of your printer" en="A picture of your printer"/>
   <translation tag="A print is already running." en="A print is already running."/>
@@ -1105,6 +1106,7 @@
   <translation tag="Duplicate" en="Duplicate"/>
   <translation tag="Duplicated" en="Duplicated"/>
   <translation tag="Duration" en="Duration"/>
+  <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." en="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."/>
   <translation tag="E-Stop (M112)" en="E-Stop (M112)"/>
   <translation tag="E-Stop Confirmation" en="E-Stop Confirmation"/>
   <translation tag="EDDY CURRENT" en="EDDY CURRENT"/>
@@ -1701,6 +1703,7 @@
   <translation tag="Helper Macros" en="Helper Macros"/>
   <translation tag="Helper macros already installed" en="Helper macros already installed"/>
   <translation tag="Helper macros are up to date" en="Helper macros are up to date"/>
+  <translation tag="Here&apos;s a quick look at what changed since your last version." en="Here&apos;s a quick look at what changed since your last version."/>
   <translation tag="Hide Firmware Noise" en="Hide Firmware Noise"/>
   <translation tag="Hide Temperature Reports" en="Hide Temperature Reports"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" en="Hide the on-screen keyboard while a USB keyboard is attached"/>
@@ -2020,6 +2023,7 @@
   <translation tag="Load a filament first before trying to unload" en="Load a filament first before trying to unload"/>
   <translation tag="Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one" en="Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one"/>
   <translation tag="Load all stopped" en="Load all stopped"/>
+  <translation tag="Load and unload" en="Load and unload"/>
   <translation tag="Load and unload filament at the tool by hand" en="Load and unload filament at the tool by hand"/>
   <translation tag="Load canceled: nozzle target dropped" en="Load canceled: nozzle target dropped"/>
   <translation tag="Load complete" en="Load complete"/>
@@ -2032,7 +2036,8 @@
   <translation tag="Load or unload filament." en="Load or unload filament."/>
   <translation tag="Load stopped" en="Load stopped"/>
   <translation tag="Load the required filaments or start anyway?" en="Load the required filaments or start anyway?"/>
-  <translation tag="Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors." en="Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors."/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." en="Load, unload, and purge from here. Choose a material to set its temperatures first."/>
+  <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." en="Load, unload, and swap spools, set temperatures, and monitor runout sensors."/>
   <translation tag="Load..." en="Load..."/>
   <translation tag="Loaded" en="Loaded"/>
   <translation tag="Loading" en="Loading"/>
@@ -2064,7 +2069,7 @@
   <translation tag="Login Required" en="Login Required"/>
   <translation tag="Logs" en="Logs"/>
   <translation tag="Long Press Time" en="Long Press Time"/>
-  <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." en="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout."/>
+  <translation tag="Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages." en="Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."/>
   <translation tag="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)" en="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)"/>
   <translation tag="Longest Disconnect" en="Longest Disconnect"/>
   <translation tag="Looking for the active spool..." en="Looking for the active spool..."/>
@@ -2214,7 +2219,6 @@
   <translation tag="Modifying G-code needs the HelixPrint plugin. Printing original file." en="Modifying G-code needs the HelixPrint plugin. Printing original file."/>
   <translation tag="Monitor for print abnormalities (K2 Plus camera-based)" en="Monitor for print abnormalities (K2 Plus camera-based)"/>
   <translation tag="Monitor for print abnormalities (camera-based)" en="Monitor for print abnormalities (camera-based)"/>
-  <translation tag="Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job." en="Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job."/>
   <translation tag="Monitoring" en="Monitoring"/>
   <translation tag="Month" en="Month"/>
   <translation tag="Moonraker" en="Moonraker"/>
@@ -2306,6 +2310,7 @@
   <translation tag="New Spool: Step {} of {}" en="New Spool: Step {} of {}"/>
   <translation tag="New Version Available" en="New Version Available"/>
   <translation tag="New fan name" en="New fan name"/>
+  <translation tag="New in 1.1" en="New in 1.1"/>
   <translation tag="New plugin available: {}. Enable it in Settings &gt; Plugins." en="New plugin available: {}. Enable it in Settings &gt; Plugins."/>
   <translation tag="New printer successfully added" en="New printer successfully added"/>
   <translation tag="New profile name" en="New profile name"/>
@@ -3665,6 +3670,7 @@
   <translation tag="Tap + to add" en="Tap + to add"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" en="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge"/>
   <translation tag="Tap Resume to try the load again from {}." en="Tap Resume to try the load again from {}."/>
+  <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." en="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman."/>
   <translation tag="Tap again to confirm this orientation" en="Tap again to confirm this orientation"/>
   <translation tag="Tap an empty spot inside the enclosure" en="Tap an empty spot inside the enclosure"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." en="Tap any tile to open its full controls or toggle its state."/>
@@ -4367,6 +4373,7 @@
   <translation tag="You can skip this and calibrate later in Settings." en="You can skip this and calibrate later in Settings."/>
   <translation tag="You have unsaved changes. Discard them?" en="You have unsaved changes. Discard them?"/>
   <translation tag="Your completed prints will appear here" en="Your completed prints will appear here"/>
+  <translation tag="Your filament system" en="Your filament system"/>
   <translation tag="Your files" en="Your files"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." en="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other."/>
   <translation tag="Your printer at a glance" en="Your printer at a glance"/>
