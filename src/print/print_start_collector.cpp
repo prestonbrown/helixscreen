@@ -169,15 +169,22 @@ void PrintStartCollector::start() {
         real_signal_seen_.store(false, std::memory_order_relaxed);
         // Arm the layer-1 completion edge fresh for this print. The current
         // subject value may be a stale positive carried over from the previous
-        // print (reset_for_new_print() runs async, after start()), so we do NOT
-        // seed layer_zero_seen_ from it — only a freshly observed current_layer<1
-        // (post-reset) latches it. See MoonrakerManager::should_complete_preprint().
+        // print (reset_for_new_print() runs async, after start()), so a positive is
+        // never seeded: only a 0 read below or a freshly observed current_layer<1
+        // latches it. See MoonrakerManager::should_complete_preprint().
         layer_zero_seen_.store(false, std::memory_order_relaxed);
         first_layer_observed_.store(-1, std::memory_order_relaxed);
         layer_advanced_.store(false, std::memory_order_relaxed);
         // Snapshot stale subject values so fallbacks only trigger on real changes
         baseline_layer_ = lv_subject_get_int(state_.get_print_layer_current_subject());
         baseline_progress_ = lv_subject_get_int(state_.get_print_progress_subject());
+        // A layer already at 0 is this print's layer 0: a slicer's
+        // SET_PRINT_STATS_INFO TOTAL_LAYER reports it before PRINT_START, and an
+        // unchanged subject never reaches the layer observer. Only a stale
+        // positive needs a fresh 0 to arm the first-layer edge.
+        if (baseline_layer_ < 1) {
+            layer_zero_seen_.store(true, std::memory_order_relaxed);
+        }
     }
     fallbacks_enabled_.store(false); // Will be enabled after initial window
     spdlog::info("[PrintStartCollector] Baselines: layer={}, progress={}", baseline_layer_,
