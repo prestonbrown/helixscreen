@@ -87,13 +87,16 @@ GLRenderbufferHandle::~GLRenderbufferHandle() {
 
 /// Check for GL errors after significant GPU operations.
 /// Returns true if no error, false on error (with spdlog output).
-static inline bool check_gl_error(const char* operation) {
-    GLenum err = glGetError();
+static inline GLenum read_gl_error(const char* operation) {
+    const GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
         spdlog::error("[GCode GLES] GL error after {}: 0x{:04X}", operation, err);
-        return false;
     }
-    return true;
+    return err;
+}
+
+static inline bool check_gl_error(const char* operation) {
+    return read_gl_error(operation) == GL_NO_ERROR;
 }
 
 // ============================================================
@@ -349,8 +352,8 @@ GCodeGLESRenderer::~GCodeGLESRenderer() {
 // ============================================================
 
 #if !LV_USE_SDL
-// Try to set up EGL with a given display, returning true on success.
-// On success, egl_display_, egl_context_, and optionally egl_surface_ are set.
+// Open and initialize a native EGL display, then create the renderer's context
+// on it. The renderer owns that display and terminates it on teardown.
 bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label) {
     auto display = eglGetDisplay(static_cast<EGLNativeDisplayType>(native_display));
     if (!display || display == EGL_NO_DISPLAY) {
@@ -365,6 +368,19 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
     }
     spdlog::info("[GCode GLES] EGL {}.{} via {}", major, minor, label);
 
+    if (!create_egl_context(display, label, /*owns_display=*/true)) {
+        eglTerminate(display);
+        return false;
+    }
+    return true;
+}
+
+// Create the renderer's context on an initialized display, returning true on
+// success. On success, egl_display_, egl_context_, and optionally egl_surface_
+// are set. Never terminates @p display: on failure the caller decides that.
+bool GCodeGLESRenderer::create_egl_context(void* egl_display, const char* label,
+                                           bool owns_display) {
+    auto display = static_cast<EGLDisplay>(egl_display);
     eglBindAPI(EGL_OPENGL_ES_API);
 
     // Check surfaceless support
@@ -388,7 +404,6 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
     }
     if (num_configs == 0) {
         spdlog::debug("[GCode GLES] {} — no suitable config", label);
-        eglTerminate(display);
         return false;
     }
 
@@ -397,7 +412,6 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
     auto context = eglCreateContext(display, egl_config, EGL_NO_CONTEXT, ctx_attribs);
     if (context == EGL_NO_CONTEXT) {
         spdlog::debug("[GCode GLES] {} — context creation failed: 0x{:X}", label, eglGetError());
-        eglTerminate(display);
         return false;
     }
 
@@ -410,7 +424,6 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
             spdlog::debug("[GCode GLES] {} — PBuffer creation failed: 0x{:X}", label,
                           eglGetError());
             eglDestroyContext(display, context);
-            eglTerminate(display);
             return false;
         }
     }
@@ -439,7 +452,6 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
         if (surface != EGL_NO_SURFACE)
             eglDestroySurface(display, surface);
         eglDestroyContext(display, context);
-        eglTerminate(display);
         return false;
     }
 
@@ -455,6 +467,7 @@ bool GCodeGLESRenderer::try_egl_display(void* native_display, const char* label)
     egl_display_ = display;
     egl_context_ = context;
     egl_surface_ = (surface != EGL_NO_SURFACE) ? static_cast<void*>(surface) : nullptr;
+    owns_egl_display_ = owns_display;
     spdlog::info("[GCode GLES] Context ready via {} ({})", label,
                  has_surfaceless ? "surfaceless" : "PBuffer");
     return true;
@@ -510,11 +523,19 @@ bool GCodeGLESRenderer::init_gl() {
 
 #else  // !LV_USE_SDL — EGL backend
     // EGL initialization with fallback chain:
-    // 1. GBM/DRM (Pi, embedded — surfaceless FBO rendering)
-    // 2. Default EGL display (desktop Linux with X11/Wayland — PBuffer)
+    // 1. The display backend's own EGLDisplay, when one is current
+    // 2. GBM/DRM (Pi, embedded — surfaceless FBO rendering)
+    // 3. Default EGL display (desktop Linux with X11/Wayland — PBuffer)
     bool egl_ok = false;
 
-    // Path 1: Try GBM/DRM render nodes first (don't need DRM master, works alongside compositor)
+    // An EGL screen already has the GPU driver loaded and a display up. Opening a
+    // second device beside it loads the driver a second time, which faults inside
+    // the dynamic loader on some Mesa stacks (prestonbrown/helixscreen#1742).
+    if (EGLDisplay current = eglGetCurrentDisplay(); current != EGL_NO_DISPLAY) {
+        egl_ok = create_egl_context(current, "the display's EGLDisplay", /*owns_display=*/false);
+    }
+
+    // Path 2: Try GBM/DRM render nodes first (don't need DRM master, works alongside compositor)
     // Then try card nodes (needed on Pi where render nodes may not exist)
     static const char* DRM_DEVICES[] = {"/dev/dri/renderD128", "/dev/dri/renderD129",
                                         "/dev/dri/card1", "/dev/dri/card0", nullptr};
@@ -539,7 +560,7 @@ bool GCodeGLESRenderer::init_gl() {
         }
     }
 
-    // Path 2: Default EGL display (Mesa on X11/Wayland)
+    // Path 3: Default EGL display (Mesa on X11/Wayland)
     if (!egl_ok) {
         if (try_egl_display(EGL_DEFAULT_DISPLAY, "EGL_DEFAULT_DISPLAY")) {
             egl_ok = true;
@@ -660,6 +681,20 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
         return true; // Already correct size
     }
 
+    // Each scale switch rebuilds the FBO, so an out-of-memory here would otherwise repeat
+    // on every frame against an exhausted driver.
+    auto renderbuffer_stored = [this](const char* what) {
+        const GLenum err = read_gl_error(what);
+        if (err == GL_NO_ERROR) {
+            return true;
+        }
+        destroy_fbo();
+        if (gl_draw_error_is_fatal(err)) {
+            abandon_gpu(what);
+        }
+        return false;
+    };
+
     destroy_fbo();
 
     glGenFramebuffers(1, &fbo_.id);
@@ -676,8 +711,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
     glGenRenderbuffers(1, &color_rbo_.id);
     glBindRenderbuffer(GL_RENDERBUFFER, color_rbo_.id);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8_OES, width, height);
-    if (!check_gl_error("glRenderbufferStorage(color)")) {
-        destroy_fbo();
+    if (!renderbuffer_stored("glRenderbufferStorage(color)")) {
         return false;
     }
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_rbo_.id);
@@ -687,8 +721,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
     glGenRenderbuffers(1, &depth_rbo_.id);
     glBindRenderbuffer(GL_RENDERBUFFER, depth_rbo_.id);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
-    if (!check_gl_error("glRenderbufferStorage(depth)")) {
-        destroy_fbo();
+    if (!renderbuffer_stored("glRenderbufferStorage(depth)")) {
         return false;
     }
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rbo_.id);
@@ -818,7 +851,8 @@ void GCodeGLESRenderer::destroy_gl() {
     }
 
     if (egl_display_) {
-        eglTerminate(static_cast<EGLDisplay>(egl_display_));
+        if (owns_egl_display_)
+            eglTerminate(static_cast<EGLDisplay>(egl_display_));
         egl_display_ = nullptr;
     }
 
@@ -985,11 +1019,16 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
             glBufferData(GL_ARRAY_BUFFER,
                          static_cast<GLsizeiptr>(prepared.vertex_count * VERTEX_STRIDE),
                          prepared.data.data(), GL_STATIC_DRAW);
-            bool buf_ok = check_gl_error("glBufferData (prepared)");
+            const GLenum buf_err = read_gl_error("glBufferData (prepared)");
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            if (!buf_ok) {
+            if (buf_err != GL_NO_ERROR) {
                 spdlog::error("[GCode GLES] VBO creation failed for layer {} (prepared)", layer);
+                if (gl_draw_error_is_fatal(buf_err)) {
+                    abandon_gpu("VBO upload");
+                    next_layer = 0;
+                    return false;
+                }
                 vbos[layer].vbo = GLBufferHandle();
                 vbos[layer].vertex_count = 0;
             } else {
@@ -1012,11 +1051,16 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
             glBindBuffer(GL_ARRAY_BUFFER, vbo_handle.id);
             glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(total_verts * VERTEX_STRIDE),
                          buf.data(), GL_STATIC_DRAW);
-            bool buf_ok = check_gl_error("glBufferData");
+            const GLenum buf_err = read_gl_error("glBufferData");
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            if (!buf_ok) {
+            if (buf_err != GL_NO_ERROR) {
                 spdlog::error("[GCode GLES] VBO creation failed for layer {}", layer);
+                if (gl_draw_error_is_fatal(buf_err)) {
+                    abandon_gpu("VBO upload");
+                    next_layer = 0;
+                    return false;
+                }
                 vbos[layer].vbo = GLBufferHandle();
                 vbos[layer].vertex_count = 0;
             } else {
@@ -1040,6 +1084,16 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
                       total_layers);
     }
     return done;
+}
+
+// A driver that has run out of memory can fault on the next allocation anyone makes, the
+// display's own included, so the buffers already uploaded go back and nothing more is drawn.
+void GCodeGLESRenderer::abandon_gpu(const char* during) {
+    spdlog::error("[GCode GLES] Fatal GL error during {} — disabling GPU rendering, "
+                  "falling back to 2D",
+                  during);
+    free_vbos(layer_vbos_);
+    gl_render_failed_ = true;
 }
 
 void GCodeGLESRenderer::free_vbos(std::vector<LayerVBO>& vbos) {
@@ -1110,6 +1164,10 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
 
         bool done = upload_geometry_chunk(*geometry_, layer_vbos_, upload_next_layer_,
                                           upload_total_layers_);
+        if (gl_render_failed_) {
+            upload_total_layers_ = 0;
+            return;
+        }
         if (done) {
             geometry_uploaded_ = true;
             upload_next_layer_ = 0;

@@ -16,9 +16,11 @@
 #include "ams_backend_ace.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_device_action_value.h"
 #include "ams_types.h"
 
 #include <any>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -730,6 +732,17 @@ TEST_CASE("ACE device actions - execute valid actions", "[ams][device_actions][a
         CHECK_FALSE(result);
         CHECK(result.result == AmsResult::NOT_CONNECTED);
     }
+    SECTION("NaN") {
+        CHECK_FALSE(device_action_number(std::any(std::nan(""))).has_value());
+        CHECK_FALSE(device_action_value<double>(std::any(std::nan("")), "speed").second.success());
+    }
+}
+
+TEST_CASE("device_action_value reads bools and strings exactly",
+          "[ams][device_actions][device_action_value]") {
+    CHECK(device_action_value<bool>(std::any(true), "state").first);
+    CHECK(device_action_value<std::string>(std::any(std::string("Auto")), "mode").first == "Auto");
+    CHECK_FALSE(device_action_value<std::string>(std::any("Auto"), "mode").second.success());
 }
 
 // =============================================================================
