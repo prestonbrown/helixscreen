@@ -355,29 +355,6 @@ TEST_CASE_METHOD(Landscape800, "chips lay out again when the printer tile resize
     CHECK(tiles().layout_count() > before);
 }
 
-TEST_CASE_METHOD(Landscape800, "a heater duty change that keeps the chip's width skips layout",
-                 "[print_status]") {
-    auto& temps = state().temperature_state();
-    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Nozzle);
-    set_int(temps.get_active_extruder_target_subject(), 2200);
-    set_int(temps.get_active_extruder_temp_subject(), 2200);
-    set_int(duty, 41);
-    settle();
-    REQUIRE(subject_int("ps_chip_nozzle_shown") == 1);
-    const int layouts = tiles().layout_count();
-
-    // The same digits in another order: where the duty shows, new text of the same width.
-    set_int(duty, 14);
-    UpdateQueue::instance().drain();
-    process_lvgl(50);
-    CHECK(tiles().layout_count() == layouts);
-    const std::string text = subject_str("ps_chip_nozzle_text");
-    const int status = subject_int("ps_chip_nozzle_state");
-    tiles().update_now();
-    CHECK(subject_str("ps_chip_nozzle_text") == text);
-    CHECK(subject_int("ps_chip_nozzle_state") == status);
-}
-
 TEST_CASE_METHOD(Landscape800, "speed 104 sets speed_flow tone Warn", "[print_status]") {
     set_int(state().motion_state().get_speed_factor_subject(), 100);
     settle();
@@ -873,6 +850,43 @@ TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the 
     CHECK(subject_int("ps_chip_part_fan_tone") == static_cast<int>(ChipTone::Active));
     CHECK(subject_int("ps_callout_mode") == mode);
     CHECK(same_rect(image_rect(root_), before));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a heater duty change places the chips without a full chip pass",
+                 "[print_status]") {
+    // Beside the picture with labeled fans, the column has room for the bed's duty.
+    auto& temps = state().temperature_state();
+    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Bed);
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_bed_temp_subject(), 600);
+    set_int(duty, 7);
+    size_printer_area(root_, 400, 260);
+    three_fans_stopped(*this);
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::OneSide));
+    REQUIRE(subject_str("ps_chip_bed_text") == "60° · 7%");
+    const int layouts = tiles().layout_count();
+
+    set_int(duty, 12);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(tiles().layout_count() == layouts);
+    const std::string text = subject_str("ps_chip_bed_text");
+    CHECK(text.find("12%") != std::string::npos);
+
+    // What a full pass would publish and place.
+    const auto bed_rect = [&] {
+        for (const auto& c : tiles().last_layout().chips) {
+            if (c.kind == CalloutKind::Bed) {
+                return c.rect;
+            }
+        }
+        return CalloutRect{};
+    };
+    const CalloutRect placed = bed_rect();
+    tiles().update_now();
+    CHECK(subject_str("ps_chip_bed_text") == text);
+    CHECK(same_rect(bed_rect(), placed));
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 

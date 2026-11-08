@@ -99,8 +99,8 @@ class PrintStatusTiles {
     /// Schedule one chip pass and layout for the next tick.
     void request_update();
     /// Schedule a pass over the heater chips alone, for a reading such as heater duty
-    /// that changes their text and status every few hundred milliseconds. It lays the
-    /// chips out again only when the new text would change what the layout reads.
+    /// that changes their text and status every few hundred milliseconds. It reads only
+    /// the heaters again and places the chips from the last full pass's other inputs.
     void request_heater_update();
     /// Run the pending update now.
     void update_now();
@@ -123,6 +123,7 @@ class PrintStatusTiles {
         image_stale_ = true;
     }
 
+    /// Full chip passes run; a heater pass is not one.
     [[nodiscard]] int layout_count() const {
         return layout_count_;
     }
@@ -167,6 +168,8 @@ class PrintStatusTiles {
     /// `full`: a layout pass; otherwise the heater chips alone. A full request wins.
     void schedule_update(bool full);
     void update_heater_chips();
+    /// Lay laid_out_ out, publish every chip from it and the toolhead text.
+    void place_and_publish(const std::string& th_text);
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
@@ -236,21 +239,19 @@ class PrintStatusTiles {
     lv_timer_t* update_timer_ = nullptr;
     bool pending_full_ = false;
     int layout_count_ = 0;
-    /// What the last layout pass read from, and published for, each heater chip: a
-    /// heater pass whose chips match it can publish without laying out again.
-    struct HeaterLaidOut {
+    /// The last full pass's layout input and chip content. A heater pass edits the
+    /// heater entries and places the chips again without re-reading the others.
+    struct LaidOut {
         bool valid = false;
-        bool active = false;
-        bool expendable = false;
-        bool glowing = false;
-        int w_full = 0;
-        int w_compact = 0;
-        bool shown = false;
-        bool glow = false;
-        bool line = false;
+        lv_obj_t* probe = nullptr;
+        CalloutPresenter::Parts parts;
+        CalloutPresenter::Config cfg;
+        Image image;
+        std::array<ChipContent, kPrintStatusChipCount> contents{};
+        std::array<ChipContent, kPrintStatusChipCount> bare{};
+        int column_w = 0;
     };
-    std::array<HeaterLaidOut, 3> heaters_laid_out_{};
-    int last_column_w_ = 0;
+    LaidOut laid_out_;
     CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 
