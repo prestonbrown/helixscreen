@@ -173,6 +173,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "a bypass edit writes an RFC record and shows 
     CHECK(AmsState::instance().get_external_spool_info()->spoolman_id == 7);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a bypass record carries the spool's Orca filament id",
+                 "[bypass][lane][refresh][orca]") {
+    MockPrinter printer;
+    OwnBypassStore store(printer);
+    SlotInfo spool = petg_spool();
+    spool.spoolman_filament_id = 55;
+    spool.spoolman_orca_filament_id = "OGFL99";
+
+    CHECK(helix::ams::external_lane_record(spool).spoolman_orca_filament_id == "OGFL99");
+
+    AmsState::instance().set_external_spool_info(spool);
+    const json written = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(written.is_object());
+    CHECK(written["filament_id"] == "OGFL99");
+    CHECK(written["helix_filament_id_source"] == "spoolman");
+    settle();
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "a bypass edit whose write fails is withdrawn",
                  "[bypass][lane][refresh][pending]") {
     MockPrinter printer;

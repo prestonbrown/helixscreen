@@ -345,3 +345,12 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         CHECK(ev->recovery_actions[0].gcode.empty());
     }
 }
+
+TEST_CASE("Keep Spool Info on Eject applies where the lane record is the only identity",
+          "[ams][capabilities][keep_spool]") {
+    CHECK(helix::AmsBackendToolChanger(nullptr, nullptr).lane_record_is_only_identity());
+    // Firmware that holds the spool decides an eject itself.
+    CHECK_FALSE(helix::AmsBackendAfc(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendHappyHare(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendAd5xIfs(nullptr, nullptr).lane_record_is_only_identity());
+}
