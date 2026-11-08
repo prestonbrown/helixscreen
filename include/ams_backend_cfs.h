@@ -446,6 +446,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     AmsError tension_belts(
         std::function<void(bool ok, const std::string& detail)> on_result = nullptr) override;
 
+    /// The K1's BOX_FIND_CUT_POS sweep only; a K2's CALIBRATE_CUT_POS was never timed.
+    [[nodiscard]] bool cutter_calibration_takes_a_minute() const override;
+
     /// Chute steps 1+2: XYZ_ZERO (~55s full home) then
     /// COORDINATES_ADJUST_PREPARE (parks Y at the box's safe position).
     /// on_ready fires on the main thread once both completed and jogging may

@@ -34,6 +34,12 @@ class ICfsCalibration {
         return AmsErrorHelper::not_supported("Belt tensioning");
     }
 
+    /// True when the cutter calibration is the K1 box sweep, which takes about a
+    /// minute. Other firmware's cutter command has no measured duration.
+    [[nodiscard]] virtual bool cutter_calibration_takes_a_minute() const {
+        return false;
+    }
+
     /// Home and park for chute calibration; @p on_ready fires when jogging may start.
     virtual AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,

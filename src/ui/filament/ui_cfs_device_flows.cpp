@@ -69,16 +69,22 @@ void set_cutter_row_state(const char* status_text, bool busy) {
     }
 }
 
-/// Cutter calibration confirm: BOX_FIND_CUT_POS homes X/Y and takes about a
-/// minute, so the click asks before moving the printer.
+/// Cutter calibration confirm: the printer homes before it finds the cutter,
+/// so the click asks before moving it. Only the K1 sweep has a measured duration.
 void confirm_cutter_calibration() {
+    AmsBackend* current = AmsState::instance().get_backend();
+    auto* current_calibration = current ? current->as<ICfsCalibration>() : nullptr;
+    const bool timed =
+        current_calibration && current_calibration->cutter_calibration_takes_a_minute();
     helix::ui::ConfirmOptions opts;
     helix::ui::modal_confirm(
         lv_tr("Calibrate Cutter"),
-        lv_tr("The printer homes and sweeps the cutter (about 1 minute). Keep the filament "
-              "path clear."),
+        timed ? lv_tr("The printer homes and sweeps the cutter (about 1 minute). Keep the filament "
+                      "path clear.")
+              : lv_tr("The printer homes if needed, then finds the cutter's position. Keep the "
+                      "filament path clear."),
         ModalSeverity::Warning, lv_tr("Start"),
-        []() {
+        [timed]() {
             AmsBackend* backend = AmsState::instance().get_backend();
             auto* calibration = backend ? backend->as<ICfsCalibration>() : nullptr;
             if (!calibration) {
@@ -101,7 +107,9 @@ void confirm_cutter_calibration() {
                 set_cutter_row_state(text.c_str(), false);
             });
             if (result.success()) {
-                set_cutter_row_state(lv_tr("Calibrating... (about 1 minute)"), true);
+                set_cutter_row_state(timed ? lv_tr("Calibrating... (about 1 minute)")
+                                           : lv_tr("Calibrating..."),
+                                     true);
             } else {
                 set_cutter_row_state("", false);
                 helix::ui::notify_ams_error(result);

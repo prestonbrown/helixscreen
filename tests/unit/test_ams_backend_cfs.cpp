@@ -635,11 +635,14 @@ TEST_CASE("CFS K2 calibration buttons follow the printer's macros", "[ams][cfs][
     REQUIRE(cutter.has_value());
     CHECK(cutter->guided_flow == "cfs_cutter");
     CHECK_FALSE(find_action(cutter_only, "tension_belts").has_value());
+    // Only the K1 sweep has a measured duration for the confirm to quote.
+    CHECK_FALSE(cutter_only.cutter_calibration_takes_a_minute());
 
     // A K1 macro that happens to share the name is not a motorized tensioner.
     CfsK1RemapHelper k1;
     MacroCacheScope macros({"BELT_TENSION"});
     CHECK_FALSE(find_action(k1, "tension_belts").has_value());
+    CHECK(k1.cutter_calibration_takes_a_minute());
 }
 
 TEST_CASE("CFS K2 calibration sends the printer's macros, one at a time",

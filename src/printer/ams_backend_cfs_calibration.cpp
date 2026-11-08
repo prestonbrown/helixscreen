@@ -34,6 +34,10 @@ std::string AmsBackendCfs::cutter_calibration_gcode() const {
     return {};
 }
 
+bool AmsBackendCfs::cutter_calibration_takes_a_minute() const {
+    return macro_variant_ == CfsMacroVariant::K1;
+}
+
 bool AmsBackendCfs::can_tension_belts() const {
     return macro_variant_ != CfsMacroVariant::K1 &&
            helix::MacroParamCache::instance().has_macro(kK2BeltTensionMacro);
