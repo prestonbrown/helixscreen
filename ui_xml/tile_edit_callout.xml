@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Home Edit Mode: one selected tile's actions, anchored around the tile over
+       the shared backdrop. The ring outlines the tile on the backdrop so the dim
+       does not hide which tile the menu is for; C++ places it at the tile. -->
+  <view name="tile_edit_callout" extends="context_menu_backdrop">
+    <lv_obj name="tile_callout_ring"
+            width="0" height="0" style_bg_opa="0" style_border_width="3" style_border_color="#primary"
+            style_radius="#border_radius" style_pad_all="0" clickable="false" scrollable="false"/>
+    <context_menu_card title_subject="tile_callout_title"
+                       hide_close="true" title_grow="1" title_long_mode="dots" pad_gap="#space_xs">
+      <ui_button name="tile_callout_configure"
+                 height="#button_height_sm" icon="settings" text="Configure" translation_tag="Configure" variant="ghost"
+                 style_flex_main_place="start">
+        <bind_flag_if_eq subject="tile_callout_configure" flag="hidden" ref_value="0"/>
+        <event_cb trigger="pressed" callback="tile_callout_row_pressed_cb"/>
+        <event_cb trigger="press_lost" callback="tile_callout_row_press_lost_cb"/>
+        <event_cb trigger="clicked" callback="tile_callout_configure_cb"/>
+      </ui_button>
+      <ui_button name="tile_callout_remove"
+                 height="#button_height_sm" icon="delete" text="Remove" translation_tag="Remove" variant="ghost"
+                 style_flex_main_place="start">
+        <event_cb trigger="pressed" callback="tile_callout_row_pressed_cb"/>
+        <event_cb trigger="press_lost" callback="tile_callout_row_press_lost_cb"/>
+        <event_cb trigger="clicked" callback="tile_callout_remove_cb"/>
+      </ui_button>
+    </context_menu_card>
+  </view>
+</component>

@@ -1228,6 +1228,7 @@ void HomePanel::on_home_grid_long_press(lv_event_t* e) {
                 // non-grab, so moving the widget takes a fresh press on it or
                 // a hold within the session.
                 panel.grid_edit_mode_.handle_click(e);
+                panel.grid_edit_mode_.open_tile_callout_next_tick();
             }
         } else {
             // Already in edit mode: the hold grabs, or opens the catalog on

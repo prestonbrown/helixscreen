@@ -799,6 +799,7 @@ src/ui/home/grid_edit_mode.cpp
 src/ui/home/grid_edit_cross_page.cpp
 src/ui/home/grid_edit_drop.cpp
 src/ui/home/grid_edit_page_set.cpp
+src/ui/home/ui_tile_edit_callout.cpp
 src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp

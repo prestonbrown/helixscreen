@@ -518,7 +518,18 @@ helix-screen ctl long_press 90 145      # centre of that rect
 # 2. Open the widget catalog - click the nav bar's "+", NOT a second long press
 helix-screen ctl click nav_btn_edit_add
 helix-screen ctl ls
+
+# A tile's actions: tap the tile to select it, tap it again to open its callout,
+# then click a row (tile_callout_configure, tile_callout_remove)
+helix-screen ctl click 90 145
+helix-screen ctl click 90 145
+helix-screen ctl click tile_callout_remove
 ```
+
+A row clicked by name acts at once: a click with no input device behind it skips the rows'
+300 ms tap lockout (`include/tap_lockout.h`). A row tapped by coordinates (`ctl tap <x> <y>`)
+goes through the synthetic pointer like a finger, so a tap within 300 ms of the card's first
+frame is dropped; the log says so at info (`Row tap ignored`).
 
 The grid handlers are registered on `carousel_host`, the grid's own container
 (`ui_xml/home_panel.xml#carousel_host`), and a press reaches them by bubbling. Page containers

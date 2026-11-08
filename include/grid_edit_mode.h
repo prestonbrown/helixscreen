@@ -20,6 +20,11 @@
 #include <utility>
 #include <vector>
 
+namespace helix::ui {
+class TileEditCallout;
+enum class TileCalloutAction : int;
+} // namespace helix::ui
+
 namespace helix {
 
 class PanelWidgetConfig;
@@ -219,7 +224,8 @@ class GridEditMode {
         return selected_;
     }
 
-    /// Select a widget (shows corner brackets + X button), or nullptr to deselect
+    /// Select a widget (shows corner brackets and edge handles), or nullptr to
+    /// deselect. A selection change closes the tile callout.
     void select_widget(lv_obj_t* widget);
 
     /// Handle a click event on the container — hit-tests children for selection
@@ -337,78 +343,49 @@ class GridEditMode {
     /// half-cell widget still resizes from just outside its edges.
     static int inward_edge_reach(int band, int widget_px, int min_drag_px);
 
-    /// The top corner of the selected widget a selection pill belongs to.
-    enum class PillCorner { TopLeft, TopRight };
+    /// The facts of one gesture's release that decide whether it opens the
+    /// tile callout.
+    struct CalloutReleaseFacts {
+        bool press_on_selected = false; ///< the press landed inside the selected tile
+        bool resized = false;           ///< the gesture ran a resize
+        bool committed = false;         ///< a drop or resize changed the layout
+        int max_travel_px = 0;          ///< farthest the pointer got from the press
+        bool inert = false;             ///< the gesture took no grid action (gesture_inert_)
+        bool input_acts = false;        ///< grid input acted at the release
+    };
 
-    /// Whether a widget of @p widget_w x @p widget_h px is too small to carry
-    /// its selection pills on top of it.
-    ///
-    /// A pill drawn on the widget covers @p pill_inside_px of each axis at its
-    /// corner. A widget that cannot hold that footprint plus a @p min_drag_px
-    /// drag interior on both axes would lose its drag target to the pills, so
-    /// its pills go outside instead.
-    static bool pills_go_outside(int widget_w, int widget_h, int pill_inside_px, int min_drag_px);
+    /// True for a tap on the selected tile: a press inside the selected tile, no resize, nothing
+    /// committed, at most kDragThresholdPx of travel, not inert, while grid input acts.
+    [[nodiscard]] static bool release_opens_callout(const CalloutReleaseFacts& f);
 
-    /// Screen rect of a @p pill_px selection pill placed just outside @p tile,
-    /// @p gap px clear of it, or nullopt when no spot outside it is safe.
-    ///
-    /// The preferred spot is diagonally off @p corner, which keeps the pill off
-    /// every edge's resize band except the corner square two bands share. When
-    /// that has no room the pill goes beside the tile, top-aligned with it, on
-    /// the @p corner side and then the other; then diagonally off the other top
-    /// corner; then the same four one pill further out; then below, the last
-    /// resort.
-    ///
-    /// A spot must lie inside @p bounds (the grid container, which excludes the
-    /// navbar and its Done button) and clear of every rect in @p blocked (a
-    /// pill already placed). A pill above another
-    /// widget would take the tap that selects it, so a spot clear of every rect
-    /// in @p tiles wins, and a spot over another tile's centre, or over more
-    /// than a sliver of it, never qualifies: a tap meant to select that tile
-    /// would land on the pill.
-    static std::optional<lv_area_t> outside_pill_area(const lv_area_t& tile, int pill_px,
-                                                      const lv_area_t& bounds, int gap,
-                                                      PillCorner corner,
-                                                      const std::vector<lv_area_t>& blocked = {},
-                                                      const std::vector<lv_area_t>& tiles = {});
+    /// Whether the tile callout is on screen.
+    bool is_callout_open() const;
 
-    /// Screen rect of a @p pill_px selection pill on @p tile's @p corner, a
-    /// pill that overhangs the corner by @p overhang px on each axis.
-    ///
-    /// A pill over a rect in @p blocked (a pill already placed) would take
-    /// its taps, so the pill slides down the
-    /// tile's side, then along its top edge toward its middle, @p gap px clear
-    /// of the rect. A pill over the tile's centre would leave no drag target,
-    /// so on a tile too small for the corner spot to miss it the pill moves
-    /// out past the centre, and a slide never ends on it nor on more than a
-    /// sliver of any of @p tiles. With no clear spot the pill keeps its
-    /// corner.
-    static lv_area_t corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
-                                      PillCorner corner, const std::vector<lv_area_t>& blocked = {},
-                                      const std::vector<lv_area_t>& tiles = {});
+    /// Raise the tile callout for the selected tile: its Configure (for a
+    /// widget with an edit-mode configure action) and Remove. A no-op without a
+    /// selection or while grid input does not act.
+    void open_tile_callout();
 
-    /// A selection pill ignores taps this long after it appears. A tap
-    /// selects a widget and draws its trash pill under the finger, so a
-    /// double tap's second tap would otherwise remove the widget.
-    static constexpr uint32_t kPillLockoutMs = 300;
+    /// Close the tile callout without acting. Safe when it is not open.
+    void close_tile_callout();
 
-    /// Whether the release that produced @p e acts on the pill it ended on:
-    /// it lifted over the pill, and its press landed kPillLockoutMs or more
-    /// after the pill was first drawn. Consumes the press.
-    bool pill_release_acts(lv_event_t* e);
+    /// Open the callout on the next tick for the selected tile, once the
+    /// gesture that asked for it has settled the selection. A press since then
+    /// cancels it.
+    void open_tile_callout_next_tick();
 
   private:
     friend struct helix::GridEditModeTestAccess;
 
     /// Whether input on the grid acts: a press, hold or click the grid handlers
-    /// pass on, and a tap on the selection's configure or remove button or the
-    /// navbar's delete-page button. True while the session is live and the widget
-    /// catalog is closed. The catalog places onto the page and cell it was
-    /// opened from; navigation's dismiss backdrop normally takes every press
-    /// beside it, and when that backdrop could not be created the grid still
-    /// takes no action.
+    /// pass on, a tile callout action and the navbar's delete-page button. True
+    /// while the session is live and neither the widget catalog nor the tile
+    /// callout is open. The catalog places onto the page and cell it was opened
+    /// from; navigation's dismiss backdrop, or the callout's, normally takes
+    /// every press beside it, and when that backdrop could not be created the
+    /// grid still takes no action.
     bool grid_input_acts() const {
-        return active_ && !catalog_open_;
+        return active_ && !catalog_open_ && !is_callout_open();
     }
 
     /// Whether the session's page may be deleted: a config page other than the
@@ -664,9 +641,17 @@ class GridEditMode {
     helix::ui::WidgetRef shield_;
     helix::ui::WidgetRef selected_;
     helix::ui::WidgetRef selection_overlay_;
-    helix::ui::WidgetRef remove_btn_; // Trash button (container child, not overlay child)
-    helix::ui::WidgetRef
-        configure_btn_; // Configure button (upper-left, shown if widget supports it)
+    /// The selected tile's action menu, and the config id it was raised for: an
+    /// action whose tile is no longer the selection does nothing.
+    std::unique_ptr<helix::ui::TileEditCallout> callout_;
+    std::string callout_widget_id_;
+    /// Run the action the callout sent for the tile it was raised for.
+    void on_callout_action(helix::ui::TileCalloutAction action);
+    /// Whether @p pt is past the drag threshold from the press.
+    [[nodiscard]] bool past_drag_threshold(lv_point_t pt) const;
+    /// Whether this hold, latched on the selected tile, raises its callout
+    /// instead of grabbing at once: a hold inside the tile, outside a resize edge.
+    [[nodiscard]] bool hold_raises_callout() const;
     PanelWidgetConfig* config_ = nullptr;
     int page_index_ = 0;
     RebuildCallback rebuild_cb_;
@@ -684,15 +669,6 @@ class GridEditMode {
     /// lv_tick_get() at the previous drag step, so the edge push advances by
     /// the time between reads rather than per read.
     uint32_t drag_step_tick_ = 0;
-    /// lv_tick_get() when the selection pills were first drawn (when they were
-    /// created, until a frame shows them); kPillLockoutMs runs from it.
-    uint32_t pills_drawn_tick_ = 0;
-    /// A frame has drawn the current pills, so pills_drawn_tick_ is final.
-    bool pills_shown_ = false;
-    /// lv_tick_get() at the press on a pill that its release has not yet
-    /// consumed, and whether there is one.
-    uint32_t pill_press_tick_ = 0;
-    bool pill_press_latched_ = false;
     /// One-shot flip a majority crossing requested, due
     /// kCrossPageCrossingDelayMs after the crossing, and its direction.
     /// Dwell changes never cancel it.
@@ -769,6 +745,24 @@ class GridEditMode {
     /// the press on the next tick.
     /// clear_gesture_state() resets it.
     bool gesture_inert_ = false;
+    /// The current gesture is the hold that entered edit mode.
+    bool gesture_entered_ = false;
+    /// The current gesture's press landed inside the tile that was selected
+    /// before it, or its hold grabbed the tile it landed in.
+    bool gesture_on_selected_ = false;
+    /// Where the current gesture's press landed, and the farthest the pointer
+    /// has been from it since.
+    lv_point_t gesture_start_ = {0, 0};
+    bool gesture_start_known_ = false;
+    int gesture_max_travel_px_ = 0;
+    /// Record the pointer at @p pt into gesture_max_travel_px_.
+    void track_gesture_travel(lv_point_t pt);
+    /// The last drag end committed a drop. Read by handle_released after the
+    /// end handler, which clears the gesture state.
+    bool last_drop_committed_ = false;
+    /// Counts the presses begin_press() starts, so a callout a release asked for
+    /// opens only if no press has begun since.
+    uint32_t gesture_serial_ = 0;
 
     // Drag state
     bool dragging_ = false;

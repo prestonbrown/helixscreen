@@ -66,6 +66,13 @@ callouts-untagged  navigate home
 widget-catalog           navigate home; long_press 200 111; click nav_btn_edit_add
 widget-catalog-category  navigate home; home remove fan_stack; wait_idle; long_press 200 111; click nav_btn_edit_add; wait_idle; click action_row[2]
 
+# Home Edit Mode tile menu (docs/user/guide/home-panel.md). The long press that
+# enters Edit Mode and lifts in place opens the menu of the tile under it: at
+# 800x480 the default layout puts fan_stack (a widget with Configure) at
+# 560,7 114x113 and temp_graph at 560,125 233x348.
+home-edit-mode           navigate home; long_press 617 63; wait_idle
+home-widget-trash        navigate home; long_press 676 300; wait_idle
+
 # Control overlays
 motion             navigate controls; click btn_motion
 nozzle-temp        navigate controls; click btn_nozzle_temp
