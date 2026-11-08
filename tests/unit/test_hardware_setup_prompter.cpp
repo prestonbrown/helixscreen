@@ -23,6 +23,7 @@
 #include "../test_helpers/hardware_setup_prompter_test_access.h"
 #include "../test_helpers/notification_history_panel_test_access.h"
 #include "../test_helpers/scoped_config_write_counter.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
@@ -30,6 +31,8 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "hardware_setup_prompter.h"
+#include "printer_detector.h"
+#include "printer_discovery.h"
 #include "wizard_config_paths.h"
 
 #include <memory>
@@ -278,6 +281,40 @@ TEST_CASE_METHOD(TypeMismatchFixture,
 
     // Warning is not answering: nothing is settled yet.
     CHECK(dismissed_for().empty());
+}
+
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: an ambiguous detection warns about the saved machine's contender",
+                 "[type-mismatch][hardware_setup][mismatch_subject]") {
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = false;
+    cfg_->set<bool>(cfg_->df() + "wizard_completed", true);
+    cfg_->set<bool>("/wizard_completed", true);
+
+    // A K2 on k2-improvements that declares no bed ties the Plus and Pro mod entries.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"extruder", "heater_bed", "motor_control", "fan_feedback", "load_ai",
+                               "gcode_macro _START_PRINT_VARS", "gcode_macro START_PRINT"}));
+    hw.set_hostname("k2plus");
+    hw.set_kinematics("corexy");
+    REQUIRE(PrinterDetector::auto_detect(hw).ambiguous());
+
+    // Whichever entry detection ranks first, one of these two saved models is the other one.
+    const bool saved_plus = GENERATE(false, true);
+    const std::string saved = saved_plus ? "Creality K2 Plus" : "Creality K2 Pro";
+    const std::string other_model = saved_plus ? "Creality K2 Pro" : "Creality K2 Plus";
+    set_config(helix::wizard::PRINTER_TYPE, saved);
+
+    REQUIRE(prompter_->run_discovery_prompts(hw, true, false, false) ==
+            helix::HardwarePrompt::TypeMismatch);
+    drain();
+
+    REQUIRE(toast_.has_value());
+    INFO(toast_->message);
+    CHECK(toast_->message.find("k2-improvements") != std::string::npos);
+    CHECK(toast_->message.find(saved) != std::string::npos);
+    CHECK(toast_->message.find(other_model) == std::string::npos);
 }
 
 TEST_CASE_METHOD(TypeMismatchFixture,
