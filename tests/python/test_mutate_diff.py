@@ -1283,8 +1283,11 @@ def test_the_printer_database_reaches_the_tests_reading_it_through_code():
 @pytest.mark.parametrize("path,expected", [
     ("assets/config/presets/k1.json",
      ("test_config_preset", "test_preset_database_links")),
+    # Tests opening a preset by its quoted path segment ("presets/ad5x.json",
+    # "config" / "presets") read it without naming the loader.
     ("assets/config/presets/ad5x.json",
-     ("test_config_preset", "test_preset_database_links")),
+     ("test_config_preset", "test_preset_database_links", "test_display_manager",
+      "test_display_metrics", "test_hardware_validator")),
     ("assets/config/default_layout.json",
      ("test_default_layout", "test_default_layout_resolver", "test_panel_widget_live_default")),
 ])

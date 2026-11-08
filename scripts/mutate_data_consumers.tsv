@@ -7,11 +7,12 @@
 # source must contain (the file name it opens, or the loader it calls). Names,
 # comma-separated, replace the source's stem, header and class when the loader is
 # one function of a file too many tests name: each is the loader's name in the
-# source, or a path fragment of the data file that tests open directly.
+# source, or a path fragment of the data file that tests open directly; a fragment
+# with a leading quote ("presets) finds a quoted path that starts at that segment.
 # tests/python/test_mutate_diff.py fails when a source no longer contains them.
 assets/config/printer_database.json	src/printer/printer_detector.cpp	"printer_database.json"
 assets/config/printer_database.json	src/printer/probe_preparation.cpp	database_rules()
-assets/config/presets/*.json	src/system/config.cpp	"presets/"	apply_preset_file,get_preset,config/presets
+assets/config/presets/*.json	src/system/config.cpp	"presets/"	apply_preset_file,get_preset,config/presets,"presets
 assets/config/print_start_profiles/*.json	src/print/print_start_profile.cpp	"print_start_profiles/
 assets/config/printing_tips.json	src/system/tips_manager.cpp	"printing_tips.json"
 assets/config/default_layout.json	src/system/panel_widget_config.cpp	"default_layout.json"	load_default_table,resolve_default_layout
