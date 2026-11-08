@@ -488,8 +488,9 @@ void AmsBackendHappyHare::apply_mmu_status_locked(const happy_hare::MmuStatusDel
     frame.was_faulted = !reason_for_pause_.empty();
     // Only v4 publishes tangle_prevention: the frame names the layout before
     // the connect-time query answers.
-    if (delta.telemetry.v4_marker) {
+    if (delta.telemetry.v4_marker && !machine_layout_.v4) {
         machine_layout_.v4 = true;
+        sync_extras_fields_locked();
     }
 
     apply_mmu_selector_locked(delta.core);
@@ -2065,6 +2066,7 @@ void AmsBackendHappyHare::query_config_from_printer() {
                     machine_layout_ = layout;
                     system_info_.version = layout.version;
                     apply_bypass_support_locked();
+                    sync_extras_fields_locked();
                 }
                 spdlog::info("[AMS HappyHare] Happy Hare {} ({} layout)",
                              layout.version.empty() ? "version unknown" : layout.version,
@@ -2797,12 +2799,13 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     std::string rejected_material;
 
     // Clear Spool: wipe everything the gate map holds for this gate. Happy
-    // Hare keeps omitted params at their current value, so each writable field
-    // is named with an explicit empty value - the only form that empties
-    // MATERIAL, COLOR, NAME and VENDOR (v2/v3 ignore params they do not fetch;
-    // VENDOR is v4-only). Never RESET: on v2/v3 it ignores GATE and wipes
-    // every gate. Never TEMP=0 (falsy means "keep") or AVAILABLE=0 (that
-    // marks the gate EMPTY, not unknown).
+    // Hare keeps omitted MATERIAL, COLOR, NAME and VENDOR at their current
+    // value, so each is named with an explicit empty value, the only form that
+    // empties it (v2/v3 ignore params they do not fetch; VENDOR is v4-only).
+    // TEMP is omitted: an omitted TEMP is default_extruder_temp, the
+    // temperature of a gate with no spool. Never RESET: on v2/v3 it ignores
+    // GATE and wipes every gate. Never AVAILABLE=0 (that marks the gate EMPTY,
+    // not unknown).
     if (is_full_clear(info) && old_had_identity) {
         // A job on this gate: the print UI refuses clears while a job holds
         // the machine, so one reaching here is a backstop - rewriting the gate
@@ -2898,13 +2901,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         has_changes = true;
     }
 
-    // Temperature: one per gate. Never TEMP=0, which Happy Hare reads as
-    // "keep".
-    if (const int temp = gate_map_temperature(info); temp > 0 && temp != old_temp) {
-        cmd += fmt::format(" TEMP={}", temp);
-        has_changes = true;
-    }
-
     // Spoolman ID (-1 to clear)
     if (info.spoolman_id > 0) {
         cmd += fmt::format(" SPOOLID={}", info.spoolman_id);
@@ -2912,6 +2908,16 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     } else if (info.spoolman_id == 0 && old_spoolman_id > 0) {
         cmd += " SPOOLID=-1"; // Clear existing link
         has_changes = true;
+    }
+
+    // Temperature: one per gate, named on every write. Happy Hare reads an
+    // omitted TEMP as default_extruder_temp, which would overwrite the gate's
+    // own, and TEMP=0 as "keep the stored value".
+    if (const int temp = gate_map_temperature(info); temp > 0 && temp != old_temp) {
+        cmd += fmt::format(" TEMP={}", temp);
+        has_changes = true;
+    } else if (has_changes) {
+        cmd += " TEMP=0";
     }
 
     if (has_changes) {
@@ -2946,7 +2952,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 }
 
 AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotInfo& info) {
-    std::string link;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2959,20 +2964,10 @@ AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotI
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
         }
 
-        // The gate map holds the link, so a link from elsewhere is written to
-        // it, except where Spoolman fills the gate map itself.
-        if (info.spoolman_id > 0 && info.spoolman_id != entry->info.spoolman_id &&
-            system_info_.spoolman_mode != SpoolmanMode::PULL) {
-            link = fmt::format("MMU_GATE_MAP GATE={} SPOOLID={} QUIET=1", slot_index,
-                               info.spoolman_id);
-        }
         if (slots_.write_edit(slot_index, info)) {
             spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
                          info.color_name);
         }
-    }
-    if (!link.empty()) {
-        execute_gcode(link);
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks

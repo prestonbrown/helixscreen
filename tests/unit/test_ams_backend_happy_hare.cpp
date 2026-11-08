@@ -521,7 +521,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with color", "[ams][happy_hare][
 
     // Should send: MMU_GATE_MAP GATE=0 COLOR=FF0000
     // Color: uppercase hex, no # prefix
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP color uppercase no prefix",
@@ -536,7 +536,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP color uppercase no prefix",
     helix::test::apply_edit(helper, 1, info);
 
     // Should send: MMU_GATE_MAP GATE=1 COLOR=00FF00 (uppercase, no #)
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR=00FF00"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR=00FF00 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with material", "[ams][happy_hare][persistence]") {
@@ -550,7 +550,7 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with material", "[ams][happy_har
     helix::test::apply_edit(helper, 1, info);
 
     // Should send: MMU_GATE_MAP GATE=1 MATERIAL=PLA
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 MATERIAL=PLA TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with Spoolman ID",
@@ -611,13 +611,13 @@ TEST_CASE("Happy Hare persistence: clearing one field names it empty",
     SlotInfo cleared_material = *slot;
     cleared_material.material.clear();
     helix::test::apply_edit(helper, 0, cleared_material);
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=ED2C2C MATERIAL="));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=ED2C2C MATERIAL= TEMP=0"));
 
     // The same edit on the colour, keeping the material.
     SlotInfo cleared_color = *second;
     cleared_color.color_rgb = helix::kAmsDefaultSlotColor;
     helix::test::apply_edit(helper, 1, cleared_color);
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR= MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=1 COLOR= MATERIAL=PLA TEMP=0"));
 
     // Neither took the full wipe: a single-field clear keeps every other
     // field the gate map holds.
@@ -674,8 +674,9 @@ TEST_CASE("Happy Hare clear: the wipe names every gate-map field", "[ams][happy_
     // echo out of the printer console.
     REQUIRE(
         helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1"));
-    // RESET ignores GATE on v2/v3 and wipes every gate; TEMP=0 is "keep the
-    // current value"; AVAILABLE=0 marks the gate EMPTY, not unknown.
+    // RESET ignores GATE on v2/v3 and wipes every gate; an omitted TEMP
+    // returns the gate to default_extruder_temp; AVAILABLE=0 marks the gate
+    // EMPTY, not unknown.
     REQUIRE_FALSE(helper.has_gcode_containing("RESET="));
     REQUIRE_FALSE(helper.has_gcode_containing("TEMP="));
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
@@ -694,7 +695,7 @@ TEST_CASE("Happy Hare clear: a material edit does not take the wipe path",
 
     // An editor commit carries the whole slot, so a kept material arrives
     // non-empty and stays on the incremental path.
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA TEMP=0"));
     REQUIRE_FALSE(helper.has_gcode_containing("SPOOLID=-1"));
     REQUIRE_FALSE(helper.has_gcode_containing("QUIET=1"));
 }
@@ -748,24 +749,25 @@ TEST_CASE("Happy Hare writes the name and temperature to the gate map", "[ams][h
     CHECK(helper.has_gcode_containing("NAME=PolyTerra"));
     CHECK(helper.has_gcode_containing("TEMP=210"));
 
-    // A cleared name is an explicit empty; an unchanged temperature is not
-    // restated, and no temperature is never TEMP=0.
+    // A cleared name is an explicit empty, and an unchanged temperature is
+    // TEMP=0: an omitted TEMP is Happy Hare's default_extruder_temp, which
+    // would overwrite the gate's 210.
     helper.clear_captured_gcodes();
     SlotInfo cleared = *helper.get_mutable_slot(0);
     cleared.spool_name.clear();
     REQUIRE(helix::test::apply_edit(helper, 0, cleared).success());
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME="));
-    CHECK_FALSE(helper.has_gcode_containing("TEMP="));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME= TEMP=0"));
 }
 
-TEST_CASE("a link from outside the editor is written to the gate map", "[ams][happy_hare]") {
+TEST_CASE("a sync from outside the editor writes nothing to the gate map", "[ams][happy_hare]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
     helper.initialize_test_gates(2);
     SlotInfo linked = *helper.get_mutable_slot(1);
     linked.spoolman_id = 77;
     REQUIRE(helper.sync_external_identity(1, linked).success());
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=1 SPOOLID=77 QUIET=1"));
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+    CHECK(helper.get_slot_info(1).spoolman_id == 77);
 }
 
 TEST_CASE("Happy Hare clear: slot stays blank across the status echo", "[ams][happy_hare][clear]") {
@@ -882,8 +884,8 @@ TEST_CASE("Happy Hare persistence: full slot info generates complete command",
 
     helix::test::apply_edit(helper, 0, info);
 
-    // Should send: MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99"));
+    // Should send: MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99 TEMP=0
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=0000FF MATERIAL=PETG SPOOLID=99 TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: skips COLOR for default grey",
@@ -917,7 +919,7 @@ TEST_CASE("Happy Hare persistence: dispatches COLOR for pure black",
 
     helix::test::apply_edit(helper, 0, info);
 
-    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS"));
+    REQUIRE(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=000000 MATERIAL=ABS TEMP=0"));
 }
 
 TEST_CASE("Happy Hare persistence: skips MATERIAL for empty string",
@@ -6914,6 +6916,41 @@ TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has ou
     CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
 }
 
+TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes",
+          "[ams][happy_hare][review]") {
+    TuningRig rig;
+    rig.connect(v3_linear_fixture());
+    const SlotInfo original = rig.reg->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.remaining_weight_g = 500.0f;
+    REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    const nlohmann::json kept =
+        rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
+    REQUIRE(kept.is_object());
+    CHECK(kept["remaining_weight_g"] == Catch::Approx(500.0));
+    CHECK_FALSE(helix::ams::lane_sources(rig.reg->lane_id(0)).pending.has_value());
+}
+
+TEST_CASE("a gate name another client clears shows as cleared", "[ams][happy_hare][review]") {
+    TuningRig rig;
+    rig.printer.client.mock_db_set(
+        "helix-screen-hh-overrides", "lane1",
+        {{"lane", "0"}, {"writer", "helixscreen"}, {"name", "PolyTerra Charcoal"}});
+    rig.connect(v3_linear_fixture());
+    // The extras record is read and filed on the lane.
+    REQUIRE(helix::ams::lane_sources(rig.reg->lane_id(0)).record.has_value());
+    rig.reg->feed_mmu_status(
+        {{"gate_name", nlohmann::json::array({"PolyTerra Charcoal", "", "", ""})}});
+    REQUIRE(rig.reg->get_slot_info(0).spool_name == "PolyTerra Charcoal");
+
+    // Mainsail's MMU_GATE_MAP GATE=0 NAME= empties the gate map's name.
+    rig.reg->feed_mmu_status({{"gate_name", nlohmann::json::array({"", "", "", ""})}});
+    CHECK(rig.reg->get_slot_info(0).spool_name.empty());
+}
+
 TEST_CASE("a Happy Hare tuning change is written to Moonraker, not the local config",
           "[ams][happy_hare][hh_overrides]") {
     ScopedConfig config;
@@ -7220,7 +7257,7 @@ TEST_CASE("Happy Hare v4 slot edit writes VENDOR to the gate map", "[ams][happy_
     info.brand = "Prusament";
     helix::test::apply_edit(helper, 0, info);
 
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 VENDOR=Prusament"));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 VENDOR=Prusament TEMP=0"));
 }
 
 TEST_CASE("Happy Hare v3 slot edit never sends VENDOR", "[ams][happy_hare][hh_v4]") {
@@ -7233,7 +7270,7 @@ TEST_CASE("Happy Hare v3 slot edit never sends VENDOR", "[ams][happy_hare][hh_v4
     info.brand = "Prusament";
     helix::test::apply_edit(helper, 0, info);
 
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000"));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 COLOR=FF0000 TEMP=0"));
     CHECK_FALSE(helper.has_gcode_containing("VENDOR"));
 }
 

@@ -95,6 +95,11 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    /// False until the component probe answers: an edit before it would pick
+    /// the wrong write path.
+    [[nodiscard]] bool lane_records_ready() const override {
+        return !component_probe_out_ && AmsSubscriptionBackend::lane_records_ready();
+    }
     void clear_slot_override(int slot_index) override;
     /// With [openams_spoolman] loaded the bay's link is the component's.
     [[nodiscard]] std::string clear_spool_refusal(int slot_index) const override;
@@ -175,6 +180,9 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// status endpoint at start and from its status notification. Written on
     /// the main thread; the persist hooks read it from wherever they run.
     std::atomic<bool> spoolman_component_{false};
+    /// The start-time component probe is out: whether the server has the
+    /// component is not known yet.
+    std::atomic<bool> component_probe_out_{false};
 
     /// An edit through the component: refused inline for a field it cannot
     /// hold, otherwise posted, with the lane's pending edit acknowledged or
@@ -189,9 +197,10 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// Ask the component for its status and adopt the answer. Main thread.
     void query_component_status();
 
-    /// With the component loaded its lane_data is per tool, not per slot.
+    /// With the component loaded its lane_data is per tool, not per slot,
+    /// and until the probe answers nobody knows which.
     [[nodiscard]] bool lane_records_describe_slots() const override {
-        return !spoolman_component_;
+        return !component_probe_out_ && !spoolman_component_;
     }
 
     /// One entry of a unit's published fault list.

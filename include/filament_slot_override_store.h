@@ -5,7 +5,9 @@
 #include "filament_slot_override.h"
 #include "lane_source_store.h"
 
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -60,11 +62,21 @@ inline constexpr const char* kLaneDataNamespace = "lane_data";
 [[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
 from_lane_data_record(const nlohmann::json& j);
 
+/// Which of the fields a firmware may or may not hold an extras record keeps.
+/// The defaults are AFC's: its lane holds the weight, not the brand or name.
+struct ExtrasFields {
+    bool remaining_weight = false;
+    bool brand = true;
+    bool spool_name = true;
+};
+
 /// The record an extras namespace stores: only what the firmware cannot hold
-/// (brand, name, colour name, catalog pick, total weight) and HelixScreen's
-/// bookkeeping. A spool id, material or colour in it is ignored on read and
-/// never written: the firmware's value is the lane's.
-[[nodiscard]] FilamentSlotOverride extras_only(const FilamentSlotOverride& o);
+/// (colour name, catalog pick, total weight, and whichever of @p fields the
+/// firmware does not hold) and HelixScreen's bookkeeping. A spool id, material
+/// or colour in it is ignored on read and never written: the firmware's value
+/// is the lane's.
+[[nodiscard]] FilamentSlotOverride extras_only(const FilamentSlotOverride& o,
+                                               ExtrasFields fields = {});
 
 /// True when @p wire names a writer other than HelixScreen (RFC 0001 S2). A
 /// record with no writer is legacy and replaceable.
@@ -104,6 +116,32 @@ class FilamentSlotOverrideStore {
         return namespace_ != kLaneDataNamespace;
     }
 
+    /// On an extras namespace, which firmware-holdable fields the records
+    /// keep. A read already out is narrowed by the fields it was sent with.
+    void set_extras_fields(ExtrasFields fields) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        extras_fields_ = fields;
+    }
+
+    /// Refuse every write until the first read has been adopted: a record
+    /// nobody has seen would be replaced by one built from nothing. Set by a
+    /// backend that opens the store; a store a test builds writes at once.
+    void require_read_before_write() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        read_required_ = true;
+    }
+
+    /// Where the store's writes stood when a read was sent. A read whose
+    /// reply arrives after a write was in flight or landed may predate it.
+    struct ReadTicket {
+        std::uint64_t writes_landed = 0;
+        bool no_write_in_flight = true;
+    };
+    [[nodiscard]] ReadTicket read_ticket() const;
+    /// True when no write was in flight when @p ticket was taken, none is in
+    /// flight now, and none has landed since.
+    [[nodiscard]] bool read_still_current(const ReadTicket& ticket) const;
+    [[nodiscard]] bool write_in_flight() const;
     /// One database get for the whole namespace. @p cb receives the parsed
     /// records (narrowed by extras_only() on an extras namespace) on the
     /// requesting thread's callback; an absent namespace is an empty read. A
@@ -163,6 +201,19 @@ class FilamentSlotOverrideStore {
     mutable std::mutex mutex_;
     /// The writer of each slot's record at the last read.
     std::unordered_map<int, std::string> writers_;
+    bool read_required_ = false;
+    bool read_adopted_ = false;
+    ExtrasFields extras_fields_;
+
+    /// Shared with the write callbacks, which may outlive the store.
+    struct WriteClock {
+        std::atomic<int> in_flight{0};
+        std::atomic<std::uint64_t> landed{0};
+    };
+    std::shared_ptr<WriteClock> clock_ = std::make_shared<WriteClock>();
+
+    /// Why no write may go yet, or empty. Takes mutex_.
+    [[nodiscard]] std::string write_gate(int slot_index) const;
 };
 
 // =============================================================================
@@ -205,19 +256,20 @@ void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex
 //     can safely overwrite the override with firmware values because
 //     firmware-truth and user-truth converge.
 //
-//   - CFS: apply_user_edit does NOT touch the firmware-side material_type /
-//     RFID values. If the mirror unconditionally overwrote ovr.color_rgb with
-//     firmware-truth, every status poll would erase the user's color
-//     override. So this backend uses FillUnsetOnly: only fill fields the
-//     user hasn't explicitly set. clear_slot_override resets the entry,
-//     after which auto-mirror takes over again.
+//   - CFS: apply_user_edit writes the colour to the box, but the material
+//     only when the box already reports a material code for it, and a linked
+//     spool's material never reaches the box. If the mirror overwrote the
+//     record with what the box reports, a poll would erase a material the box
+//     cannot hold. So this backend uses FillUnsetOnly: only fill fields the
+//     record does not state. clear_slot_override resets the entry, after
+//     which auto-mirror takes over again.
 enum class MirrorPolicy {
     /// Overwrite ovr.color_rgb / ovr.material with firmware values. Use when
     /// user edits propagate back to firmware so the two views stay in sync
     /// (AD5X IFS, Snapmaker paxx12).
     OverwriteAlways,
     /// Only fill ovr.color_rgb / ovr.material when they're currently UNSET.
-    /// Use when user edits don't reach firmware (CFS).
+    /// Use when the record can hold a value firmware cannot restate (CFS).
     FillUnsetOnly,
 };
 

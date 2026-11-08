@@ -2284,6 +2284,9 @@ void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& c
     const helix::ams::LaneId lane =
         backend ? backend->lane_id(cap.slot_index) : helix::ams::kInvalidLaneId;
     const std::uint64_t filed_before = helix::ams::pending_filings(lane);
+    // Only a result the completion leaves is this save's: one an earlier
+    // caller left on the slot and never took says nothing about it.
+    (void)AmsState::instance().take_slot_edit_result(cap.slot_index);
     if (cap.owed) {
         EditResult result;
         result.saved = true;

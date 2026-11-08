@@ -200,7 +200,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC's spool vendor reads as a value, a clear 
     CHECK_FALSE(helix::ams::lane_sources(afc_reg.lane(0)).firmware->brand.has_value());
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "a link from outside the editor is written to AFC",
+TEST_CASE_METHOD(LVGLTestFixture, "a link from outside the editor is not written to AFC",
                  "[ams][afc][spoolman]") {
     helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
     AfcRetentionHelper& afc = *afc_reg;
@@ -208,5 +208,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "a link from outside the editor is written to 
     helix::SlotInfo linked = afc.get_slot_info(0);
     linked.spoolman_id = 77;
     REQUIRE(afc.sync_external_identity(0, linked).success());
-    CHECK(afc.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=77"));
+    CHECK_FALSE(afc.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=77"));
+    CHECK(afc.get_slot_info(0).spoolman_id == 77);
 }

@@ -392,6 +392,25 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
+    /// The gate map holds the name on every version and the vendor on v4,
+    /// and no remaining weight: the extras record keeps the rest.
+    void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override {
+        store.set_extras_fields(extras_fields_locked());
+    }
+    [[nodiscard]] helix::ams::ExtrasFields extras_fields_locked() const {
+        helix::ams::ExtrasFields fields;
+        fields.remaining_weight = true;
+        fields.spool_name = false;
+        fields.brand = !is_v4_locked();
+        return fields;
+    }
+    /// Re-point the store's extras fields once the layout names the version.
+    /// Caller holds mutex_.
+    void sync_extras_fields_locked() {
+        if (override_store_) {
+            override_store_->set_extras_fields(extras_fields_locked());
+        }
+    }
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS HappyHare]";

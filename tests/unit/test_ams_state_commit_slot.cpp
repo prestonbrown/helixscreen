@@ -876,3 +876,26 @@ TEST_CASE("a relink drops the previous spool's catalog pick and Spoolman details
     CHECK(after.product_name.empty());
     CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).spoolman.has_value());
 }
+
+TEST_CASE("a refused relink keeps the linked spool's Spoolman details",
+          "[ams][commit][lane][spoolman][review]") {
+    CommitFixture f;
+    auto owned = std::make_unique<RefusingMock>(4);
+    RefusingMock* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+    helix::ams::Observation firmware(helix::ams::ObservationSource::Firmware);
+    firmware.spoolman_id = 5;
+    helix::ams::ingest(lane_of(0), firmware);
+    helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+    spoolman.spoolman_id = 5;
+    spoolman.brand = "Polymaker";
+    helix::ams::ingest(lane_of(0), spoolman);
+
+    const SlotInfo original = backend->get_slot_info(0);
+    SlotInfo relinked = original;
+    relinked.spoolman_id = 7;
+    REQUIRE_FALSE(AmsState::instance().commit_slot_edit(0, original, relinked).success());
+    const auto sources = helix::ams::lane_sources(lane_of(0));
+    REQUIRE(sources.spoolman.has_value());
+    CHECK(sources.spoolman->brand == std::string("Polymaker"));
+}

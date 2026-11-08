@@ -1318,6 +1318,9 @@ void AmsBackendOpenAms::query_component_status() {
     if (!client_) {
         return;
     }
+    if (!spoolman_component_) {
+        component_probe_out_ = true;
+    }
     auto token = lifetime_.token();
     client_->send_jsonrpc(
         "server.openams_spoolman.status", json::object(),
@@ -1326,11 +1329,21 @@ void AmsBackendOpenAms::query_component_status() {
             token.defer("AmsBackendOpenAms::component_status",
                         [this, status]() { adopt_component_status(status); });
         },
-        [](const MoonrakerError&) {}, 0, /*silent=*/true);
+        [this, token](const MoonrakerError&) {
+            // No component: the records are per slot, read before this knew.
+            token.defer("AmsBackendOpenAms::no_component", [this]() {
+                if (component_probe_out_.exchange(false) && !spoolman_component_) {
+                    reread_lane_records();
+                    emit_event(EVENT_STATE_CHANGED);
+                }
+            });
+        },
+        0, /*silent=*/true);
 }
 
 void AmsBackendOpenAms::adopt_component_status(const json& status) {
     const bool first = !spoolman_component_.exchange(true);
+    component_probe_out_ = false;
     const json* bays = object_member(status, "bays");
     std::vector<std::pair<int, std::string>> slots;
     {
@@ -1486,14 +1499,7 @@ AmsError AmsBackendOpenAms::sync_external_identity(int slot_index, const SlotInf
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 system_info_.total_slots - 1);
         }
-        // The record holds the link, so a link from elsewhere is written to it.
-        // With [openams_spoolman] the record is its own, so only the slot moves.
-        const bool relinked =
-            info.spoolman_id > 0 && info.spoolman_id != slot->spoolman_id && !spoolman_component_;
         slot->assign_filament_fields(info);
-        if (relinked) {
-            persist_user_record_locked(slot_index, info);
-        }
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();

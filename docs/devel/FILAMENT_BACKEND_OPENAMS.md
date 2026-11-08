@@ -191,15 +191,18 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
 10 s poll like every lane record (`AmsSubscriptionBackend::refresh_lane_records`):
 
 - **Writer, without `[openams_spoolman]`.** HelixScreen writes the record: `apply_user_edit()`
-  and a link from `sync_external_identity()` go through `persist_user_record_locked()`, metered
-  weights and Spoolman's details through the shared persist helpers. A record whose `writer`
+  goes through `persist_user_record_locked()`, metered weights and Spoolman's details through the
+  shared persist helpers; `sync_external_identity()` only updates the slot in memory. A record whose `writer`
   names another producer is never overwritten (the store's writer rule).
 - **With `[openams_spoolman]`** (the openams Moonraker component, `moonraker/openams_spoolman/`
   in OpenAMSOrg/openams): it registers `lane_data` as a Moonraker local namespace, which clients
   can read but not write, and its records there are one per tool for slicers (`laneN`,
   N = tool + 1), carry no `writer`, and do not describe bays. The backend learns the component is
   loaded from `server.openams_spoolman.status` at start or from `notify_openams_spoolman_status`
-  (`spoolman_component_`), and then:
+  (`spoolman_component_`). Until that query is answered (a status, or an error from a server
+  without the component) the backend files no record onto a bay and reports its lane records not
+  ready, so the editor waits; a server without the component then has its records read again and
+  filed. With the component it:
   - **reads each bay from the component's status**, not from `lane_data`
     (`lane_records_describe_slots()` is false, so the poll's read files nothing onto the slots):
     `bays["<unit>-<bay>"]` gives the linked `spool_id` and the cached Spoolman summary
@@ -209,7 +212,9 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
     id fills the rest;
   - **edits** go to `server.openams_spoolman.edit` with `unit` (the manager's unit name, its
     `devices` key), `bay` (0-based) and the fields that moved: `material`, `color_hex`
-    (`rrggbb`), `vendor`, `remaining_weight`, `initial_weight`. The component writes Spoolman
+    (`rrggbb`), `vendor`, `remaining_weight`, `initial_weight`. A material, colour or vendor
+    change moves that one spool to a matching filament (found or created,
+    the component's edit.py, _retarget); the filament other spools share is never edited. The component writes Spoolman
     (creating and linking a spool for an unlinked bay) and notifies its new status, which is
     the echo; its answer acknowledges whatever that summary does not restate
     (`acknowledge_pending()`). Its error (409 no spool, 503 Spoolman offline, a validation

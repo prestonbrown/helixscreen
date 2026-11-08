@@ -201,7 +201,12 @@ writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC
 - **Fields AFC cannot hold** (brand, name, colour name, catalog pick, total weight) go to
   HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
   every lane record; a spool id, material or colour found there is ignored.
-- **A link from outside the editor** (`sync_external_identity`) is written with `SET_SPOOL_ID`.
+- **A link from outside the editor** (`sync_external_identity`) only updates the slot in memory;
+  the editor's link path is the one that writes `SET_SPOOL_ID`.
+- **No Spoolman on AFC** (its status `spoolman` is `false` or null): `SET_SPOOL_ID` does nothing
+  and still answers OK (in AFC's AFC_spool.py, cmd_SET_SPOOL_ID runs only with Spoolman configured), so a
+  link is refused in the editor ("AFC has no Spoolman configured") before anything is sent. With
+  Spoolman, AFC also answers OK on a bad id or lane, so the echo, not the reply, is the success.
 - **An unlink** is `SET_SPOOL_ID LANE=x SPOOL_ID=` (empty). A lane with `remember_spool` keeps
   its id through it (prestonbrown/helixscreen#1717); the lane then shows the id AFC still holds
   once the pending unlink times out.
@@ -339,7 +344,8 @@ politeness mirror of an upstream guard.* Do not remove it as redundant.
 carrying a Spoolman `spool_id` survive; lanes without one silently revert. HelixScreen follows
 AFC: a lane whose `remember_spool` is `false` that empties drops HelixScreen's extras record and
 lane sources too (`forget_lane_spool_locked`), and the Keep Spool Info switch writes
-`AFC_SET_REMEMBER_SPOOL`.
+`AFC_SET_REMEMBER_SPOOL`. Turning `remember_spool` off with `AFC_SET_REMEMBER_SPOOL` also wipes
+the identity of a lane that is unloaded at that moment, not only at its next swap.
 
 **Moonraker database** (AFC namespace, `lane_data` key -- v1.0.32+; outer keys
 are `T(n)` per mapping on the virtual-tools firmware, `laneN` before):

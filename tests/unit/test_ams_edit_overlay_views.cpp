@@ -4676,6 +4676,27 @@ TEST_CASE_METHOD(SaveAckFixture, "an edit that only clears still reports a faile
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(SaveAckFixture, "a commit result nobody took is not reported by a later save",
+                 "[ams_edit_overlay][save_ack][review]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    // A refusal from an earlier commit on the same slot, never taken.
+    helix::AmsStateTestAccess::leave_slot_edit_result(
+        AmsState::instance(), 1, AmsError(AmsResult::NOT_CONNECTED, "stale", "stale refusal"));
+    auto& overlay = get_ams_edit_overlay();
+    // A completion that commits nothing (the external spool's, for one).
+    REQUIRE(overlay.show_for_slot(test_screen(), 1, backend->get_slot_info(1), &api,
+                                  [](const AmsEditOverlay::EditResult&) {}));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo edited = backend->get_slot_info(1);
+    edited.material = "PETG";
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+    CHECK(access.save_error().find("stale") == std::string::npos);
+    CHECK(access.closed());
+}
+
 TEST_CASE("a save that is not confirmed names the reason, or a generic one",
           "[ams_edit_overlay][save_ack]") {
     CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed,

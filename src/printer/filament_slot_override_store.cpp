@@ -208,10 +208,17 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     return std::make_pair(slot_index, o);
 }
 
-FilamentSlotOverride extras_only(const FilamentSlotOverride& o) {
+FilamentSlotOverride extras_only(const FilamentSlotOverride& o, ExtrasFields fields) {
     FilamentSlotOverride kept;
-    kept.brand = o.brand;
-    kept.spool_name = o.spool_name;
+    if (fields.remaining_weight) {
+        kept.remaining_weight_g = o.remaining_weight_g;
+    }
+    if (fields.brand) {
+        kept.brand = o.brand;
+    }
+    if (fields.spool_name) {
+        kept.spool_name = o.spool_name;
+    }
     kept.color_name = o.color_name;
     kept.catalog_id = o.catalog_id;
     kept.product_name = o.product_name;
@@ -369,10 +376,15 @@ void FilamentSlotOverrideStore::reload_async(ReloadCallback cb, std::function<vo
     const std::string id = backend_id_;
     const std::string ns = namespace_;
     const bool extras = holds_extras_only();
-    const auto narrowed = [extras](std::unordered_map<int, LaneDataRecord> records) {
+    ExtrasFields fields;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        fields = extras_fields_;
+    }
+    const auto narrowed = [extras, fields](std::unordered_map<int, LaneDataRecord> records) {
         if (extras) {
             for (auto& [slot, entry] : records) {
-                entry.record = extras_only(entry.record);
+                entry.record = extras_only(entry.record, fields);
             }
         }
         return records;
@@ -404,10 +416,34 @@ void FilamentSlotOverrideStore::reload_async(ReloadCallback cb, std::function<vo
 
 void FilamentSlotOverrideStore::adopt_read(const std::unordered_map<int, LaneDataRecord>& records) {
     std::lock_guard<std::mutex> lock(mutex_);
+    read_adopted_ = true;
     writers_.clear();
     for (const auto& [slot, entry] : records) {
         writers_[slot] = helix::json_util::safe_string(entry.wire, "writer");
     }
+}
+
+FilamentSlotOverrideStore::ReadTicket FilamentSlotOverrideStore::read_ticket() const {
+    return ReadTicket{clock_->landed.load(), clock_->in_flight.load() == 0};
+}
+
+bool FilamentSlotOverrideStore::read_still_current(const ReadTicket& ticket) const {
+    return ticket.no_write_in_flight && clock_->in_flight.load() == 0 &&
+           clock_->landed.load() == ticket.writes_landed;
+}
+
+bool FilamentSlotOverrideStore::write_in_flight() const {
+    return clock_->in_flight.load() != 0;
+}
+
+std::string FilamentSlotOverrideStore::write_gate(int slot_index) const {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (read_required_ && !read_adopted_) {
+            return "the lane records have not been read yet";
+        }
+    }
+    return writer_refusal(slot_index);
 }
 
 std::string FilamentSlotOverrideStore::writer_refusal(int slot_index) const {
@@ -431,7 +467,7 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             cb(false, "invalid slot_index");
         return;
     }
-    if (std::string refusal = writer_refusal(slot_index); !refusal.empty()) {
+    if (std::string refusal = write_gate(slot_index); !refusal.empty()) {
         spdlog::warn("[FilamentSlotOverrideStore:{}] save refused: {}", backend_id_, refusal);
         if (cb)
             cb(false, refusal);
@@ -439,23 +475,33 @@ void FilamentSlotOverrideStore::save_async(int slot_index, const FilamentSlotOve
             on_write_failed_(slot_index);
         return;
     }
-    nlohmann::json record =
-        to_lane_data_record(slot_index, holds_extras_only() ? extras_only(ovr) : ovr, key_style_);
+    ExtrasFields fields;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        fields = extras_fields_;
+    }
+    nlohmann::json record = to_lane_data_record(
+        slot_index, holds_extras_only() ? extras_only(ovr, fields) : ovr, key_style_);
     record["scan_time"] = format_iso8601(std::chrono::system_clock::now());
     // One key per slot: no read-modify-write, so edits on different slots
     // cannot race. Callbacks carry copies only; the store may be gone first.
     const std::string key = format_lane_key(slot_index, key_style_);
     const std::string backend_id_copy = backend_id_;
+    ++clock_->in_flight;
     api_->database_post_item(
         namespace_, key, record,
-        [cb, on_written = on_written_]() {
+        [cb, on_written = on_written_, clock = clock_]() {
+            --clock->in_flight;
+            ++clock->landed;
             if (on_written)
                 on_written();
             if (cb)
                 cb(true, "");
         },
-        [cb, backend_id_copy, key, slot_index,
-         on_failed = on_write_failed_](const MoonrakerError& err) {
+        [cb, backend_id_copy, key, slot_index, on_failed = on_write_failed_,
+         clock = clock_](const MoonrakerError& err) {
+            --clock->in_flight;
+            ++clock->landed;
             spdlog::warn("[FilamentSlotOverrideStore:{}] save failed for key {}: {}",
                          backend_id_copy, key, err.message);
             if (cb)
@@ -476,27 +522,37 @@ void FilamentSlotOverrideStore::clear_async(int slot_index, SaveCallback cb) {
             cb(false, "invalid slot_index");
         return;
     }
-    if (std::string refusal = writer_refusal(slot_index); !refusal.empty()) {
+    if (std::string refusal = write_gate(slot_index); !refusal.empty()) {
         spdlog::warn("[FilamentSlotOverrideStore:{}] clear refused: {}", backend_id_, refusal);
         if (cb)
             cb(false, refusal);
+        if (on_write_failed_)
+            on_write_failed_(slot_index);
         return;
     }
     const std::string key = format_lane_key(slot_index, key_style_);
     const std::string backend_id_copy = backend_id_;
+    ++clock_->in_flight;
     api_->database_delete_item(
         namespace_, key,
-        [cb, on_written = on_written_]() {
+        [cb, on_written = on_written_, clock = clock_]() {
+            --clock->in_flight;
+            ++clock->landed;
             if (on_written)
                 on_written();
             if (cb)
                 cb(true, "");
         },
-        [cb, backend_id_copy, key](const MoonrakerError& err) {
+        [cb, backend_id_copy, key, slot_index, on_failed = on_write_failed_,
+         clock = clock_](const MoonrakerError& err) {
+            --clock->in_flight;
+            ++clock->landed;
             spdlog::warn("[FilamentSlotOverrideStore:{}] clear failed for key {}: {}",
                          backend_id_copy, key, err.message);
             if (cb)
                 cb(false, err.message);
+            if (on_failed)
+                on_failed(slot_index);
         });
 }
 

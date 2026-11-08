@@ -1228,6 +1228,50 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(info.material == "PLA");
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a per-tool record is not filed on a bay before the component answers",
+                 "[ams][openams][openams_spoolman][review]") {
+    MockPrinter mock_printer;
+    mock_printer.client.set_openams_spoolman(true);
+    mock_printer.client.set_openams_spoolman_status(component_status(41, "PETG", "1F3A93"));
+    mock_printer.client.mock_db_set("lane_data", "lane3",
+                                    json{{"lane", "2"}, {"material", "ABS"}, {"spool_id", 7}});
+    mock_printer.client.defer_next("server.openams_spoolman.status");
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&mock_printer.api,
+                                                               &mock_printer.client);
+    OpenAmsHarness& backend = *backend_reg;
+    backend.feed(shared_manager(0));
+    helix::OpenAmsTestAccess::start(backend);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+
+    // The lane_data read is in; what it describes is not known yet.
+    CHECK_FALSE(helix::ams::lane_sources(backend.lane_id(2)).record.has_value());
+    CHECK(backend.get_slot_info(2).material != "ABS");
+    CHECK_FALSE(backend.lane_records_ready());
+
+    mock_printer.client.fire_deferred("server.openams_spoolman.status");
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(backend.lane_records_ready());
+    CHECK(backend.get_slot_info(2).material == "PETG");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "without the component the records read before the probe are filed after it",
+                 "[ams][openams][openams_spoolman][review]") {
+    MockPrinter mock_printer;
+    mock_printer.client.set_openams_spoolman(false);
+    mock_printer.client.mock_db_set("lane_data", "lane3",
+                                    json{{"lane", "2"}, {"material", "ABS"}, {"spool_id", 7}});
+    helix::test::RegisteredBackend<OpenAmsHarness> backend_reg(&mock_printer.api,
+                                                               &mock_printer.client);
+    OpenAmsHarness& backend = *backend_reg;
+    backend.feed(shared_manager(0));
+    helix::OpenAmsTestAccess::start(backend);
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(backend.lane_records_ready());
+    CHECK(backend.get_slot_info(2).material == "ABS");
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Clear Spool is the component's on an OpenAMS it manages",
                  "[ams][openams][openams_spoolman]") {
     MockPrinter mock_printer;

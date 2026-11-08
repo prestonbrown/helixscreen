@@ -663,6 +663,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     SlotInfo* cached_slot_locked(int slot_index) override;
 
   private:
+    /// Whether AFC has Spoolman configured, from its status `spoolman` (a URL,
+    /// or false/null without one); unset until a frame states it. AFC's
+    /// SET_SPOOL_ID does nothing without one and still answers OK.
+    std::optional<bool> afc_spoolman_configured_;
+
     // === User-attached slot identity (FilamentSlotOverrideStore) =============
     //
     // AFC firmware cannot hold brand, color_name or the Spoolman filament/vendor

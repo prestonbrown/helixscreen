@@ -147,13 +147,17 @@ and Happy Hare writes `lane_data` itself, so HelixScreen never writes `lane_data
 lane shows the gate map, filed as the lane's `Firmware` source.
 
 - **Edits** (`AmsBackendHappyHare::apply_user_edit`) are one `MMU_GATE_MAP` naming each moved
-  field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `TEMP`, `SPOOLID`), plus `MMU_TTG_MAP`
-  for a tool remap.
-- **Fields the gate map cannot hold** (brand before v4, total weight, colour name, catalog
-  pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the same
-  10 s poll as every lane record.
-- **A link from outside the editor** (`sync_external_identity`) is
-  `MMU_GATE_MAP GATE={n} SPOOLID={id} QUIET=1`.
+  field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `SPOOLID`), plus `MMU_TTG_MAP` for a tool
+  remap. Every edit names `TEMP`: the new value when it moved, else `TEMP=0`. Happy Hare reads an
+  omitted `TEMP` as `default_extruder_temp` and overwrites the gate's own, and reads `TEMP=0` as
+  "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py cmd_MMU_GATE_MAP). Clear Spool omits
+  it, so a cleared gate returns to the default temperature.
+- **Fields the gate map cannot hold** (brand before v4, total and remaining weight, colour name,
+  catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the
+  same 10 s poll as every lane record. The name, and the vendor on v4, are the gate map's alone,
+  so another client clearing them shows as cleared.
+- **A link from outside the editor** (`sync_external_identity`) only updates the slot in
+  memory; the editor's link path is the one that writes `SPOOLID`.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
   vendor and spool id, and only logs the refusal. An edit that moves any of those is refused
