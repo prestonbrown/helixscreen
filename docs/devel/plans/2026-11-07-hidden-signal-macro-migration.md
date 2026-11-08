@@ -440,6 +440,19 @@ Phases 1 and 2 are implemented on `docs/plan-hidden-macros`: phase 1 in `002bc3f
 `9846e065c2`. Phases 3 (the plugin rename) and 4 (telling the user, sliced files) are next; both
 change the moonraker plugin or its reporting and need a check on real printers.
 
+Phase 3 is implemented on the same branch (plugin 1.5.0). Beyond the plan's interfaces: the
+report carries `planned` (what a `disabled`, `firmware_managed` or `waiting_for_pack` run would
+rename) and a `firmware_managed` state; the real run passes the checked names as
+`allowed_names`, so a file that changed between plan and write into calling another hidden name
+is skipped instead of renamed past the gate; a `nothing` run keeps a stored `done` report. Q5
+stays open: on a firmware-managed install (the installer's `/oem/apps/helixscreen` or
+`/etc/hooks/lmd.d/30-helixscreen.sh` markers) the plugin only reports. Left for phase 4: the
+`server.helix.signal_migration` Lua allowlist entry, the mock's feature and endpoint, and the
+`kKnownPluginFeatures` row. Owed on a real printer before release: an instrumented 1.0.x
+`PRINT_START` with the hidden pack loaded renames once with one backup, a restart then runs a
+print with every phase and the ready signal, and a printer still on the visible pack stays
+`waiting_for_pack` with its config untouched.
+
 Where the open questions had no answer, the implementation takes the plan's recommendation:
 
 - Q3: only the names a config calls get a forwarder. Before discovery has read `configfile.settings`,

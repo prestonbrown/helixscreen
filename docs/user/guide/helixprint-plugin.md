@@ -366,6 +366,28 @@ turn on hidden files in Mainsail's or Fluidd's file manager and copy the file ou
 **Setting:** none. The plugin is used whenever it is installed, on attached and remote screens
 alike.
 
+### Tidier macro lists after an older HelixScreen
+
+HelixScreen tells the screen how a print's start is going through a few small macros
+(`_HELIX_READY`, `_HELIX_PHASE_HOMING` and the like). Their names start with an underscore, so
+Mainsail and Fluidd leave them out of their macro lists. HelixScreen versions before 1.1 could
+add calls to the same macros without the underscore to your `PRINT_START`, each one between two
+`# <<< HELIX_TRACKING v2 >>>` comment lines.
+
+**With the plugin**, each time Klipper starts the plugin adds the underscore to those calls and
+changes nothing else. It waits until Klipper has loaded the underscore names, which happens once
+you update the helper macros from the screen and restart. Before it changes a file it copies it
+beside the original as `printer.cfg.bak.<date>_<time>`, once: after the first change there is
+nothing left to rename. It never restarts Klipper for you; the change takes effect at your next
+restart. A file that looks hand-edited around those comment lines is left alone. On a Snapmaker
+U1 running the extended firmware it changes nothing and only reports what it would do.
+
+**Setting:** on by default. To turn it off, add `migrate_signal_macros: False` under
+`[helix_print]` in `moonraker.conf` and restart Moonraker.
+
+**Without the plugin**, the calls keep their old names, and HelixScreen keeps those names working
+by leaving them in your macro list.
+
 ### Faster filament updates on AD5X and ACE
 
 On an AD5X running ZMOD, and on printers with an Anycubic ACE Pro read through its Moonraker

@@ -66,7 +66,7 @@ HELIX_TEMP_TABLE = "helix_temp_files"
 DB_RECORD_MAX_AGE = 30 * 86400
 
 # Plugin version - used for API version detection by clients
-PLUGIN_VERSION = "1.4.0"
+PLUGIN_VERSION = "1.5.0"
 
 # Shape of the status reply; 2 added the `features` map
 STATUS_API = 2
@@ -171,6 +171,9 @@ helix_filament = _load_sibling("helix_filament")
 helix_vendor_push = _load_sibling("helix_vendor_push")
 helix_vendor_ad5x = _load_sibling("helix_vendor_ad5x")
 helix_vendor_ace = _load_sibling("helix_vendor_ace")
+# Dependencies first: helix_signal_migration imports strip_phase_tracking by name.
+strip_phase_tracking = _load_sibling("strip_phase_tracking")
+helix_signal_migration = _load_sibling("helix_signal_migration")
 
 
 # ============================================================================
@@ -494,6 +497,7 @@ class HelixPrint:
         self.enabled = config.getboolean("enabled", True)
         self.convert_3mf = config.getboolean("convert_3mf", True)
         self.start_3mf_on_upload = config.getboolean("start_3mf_on_upload", False)
+        self.migrate_signal_macros = config.getboolean("migrate_signal_macros", True)
         self.converter: Optional[Any] = None
         self.plr: Optional[Any] = None
         self.analysis: Optional[Any] = None
@@ -503,6 +507,7 @@ class HelixPrint:
         self.storage: Optional[Any] = None
         self.filament: Optional[Any] = None
         self.photos: Optional[Any] = None
+        self.signal_migration: Optional[Any] = None
         self._history_rewrite_lock: Optional[asyncio.Lock] = None
         self.vendor_pushes: List[Any] = []
         self._link_lock: Optional[asyncio.Lock] = None
@@ -836,6 +841,9 @@ class HelixPrint:
         await self._start_isolated("fit_check_blocks_autostart", True, self._start_fit_check)
         await self._start_isolated("vendor_ad5x", False, self._start_vendor_ad5x)
         await self._start_isolated("vendor_ace", False, self._start_vendor_ace)
+        await self._start_isolated(
+            "signal_macro_migration", True, self._start_signal_migration
+        )
 
         await self._load_job_markers()
         if self.plr is not None:
@@ -1124,6 +1132,28 @@ class HelixPrint:
             helix_fitcheck.FIT_CHECK_FEATURE, helix_fitcheck.FIT_CHECK_FEATURE_VERSION,
             acts=True, probe=self.fit_check.availability,
         )
+
+    async def _start_signal_migration(self) -> None:
+        """Rename of the legacy marker blocks to the hidden signal macro names
+        (helix_signal_migration.py), switched by migrate_signal_macros in
+        moonraker.conf rather than plugin_features."""
+        if helix_signal_migration is None or strip_phase_tracking is None:
+            self.register_feature(
+                "signal_macro_migration", 1, acts=True, available=False,
+                reason=SIBLING_LOAD_ERRORS.get("strip_phase_tracking")
+                or SIBLING_LOAD_ERRORS.get("helix_signal_migration", "module_missing"),
+            )
+            return
+        self.signal_migration = helix_signal_migration.HelixSignalMigration(
+            self, self.migrate_signal_macros
+        )
+        self.signal_migration.start()
+        self.register_feature(
+            helix_signal_migration.SIGNAL_MIGRATION_FEATURE,
+            helix_signal_migration.SIGNAL_MIGRATION_FEATURE_VERSION,
+            acts=True, switch=self.signal_migration.switch,
+        )
+        await self.signal_migration.load()
 
     def _start_vendor_push(
         self, name: str, module_name: str, version: int, factory: Optional[Callable[[Any], Any]]

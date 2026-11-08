@@ -443,7 +443,7 @@ class TestStatusAPI:
         assert result["temp_dir"] == ".helix_temp"
         assert result["symlink_dir"] == ".helix_print"
         assert result["cleanup_delay"] == 3600
-        assert result["version"] == "1.4.0"
+        assert result["version"] == "1.5.0"
         assert result["active_prints"] == 0
 
 

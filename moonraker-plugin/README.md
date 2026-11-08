@@ -122,6 +122,11 @@ convert_3mf: True
 # Start the converted print when the slicer's upload asked to print it
 # (OctoPrint-style `print=true`, as OrcaSlicer's Print button sends). Default: False.
 start_3mf_on_upload: False
+
+# Rename the phase-tracking calls an earlier HelixScreen put in PRINT_START to the
+# hidden signal macro names (_HELIX_READY, _HELIX_PHASE_*). Default: True.
+# See "Signal Macro Migration" below.
+migrate_signal_macros: True
 ```
 
 Restart Moonraker after configuration:
@@ -148,7 +153,7 @@ Response:
     "symlink_dir": ".helix_print",
     "cleanup_delay": 86400,
     "active_prints": 0,
-    "version": "1.4.0",
+    "version": "1.5.0",
     "convert_3mf": true,
     "start_3mf_on_upload": false,
     "api": 2,
@@ -949,6 +954,68 @@ polls in every other state. It reads the state once whenever a probe finds it re
 reconnect a change may have been missed), and keeps a 30 s backstop poll while pushing, so a
 push that stops mid-session costs at most that long. A plugin newer than the screen reads
 the ACE bridge beside the screen's own poll; both are cheap Klipper queries.
+
+### Signal Macro Migration
+
+Feature `signal_macro_migration` (`helix_signal_migration.py`, built on
+`strip_phase_tracking.py`). HelixScreen before 1.1 could add phase-tracking calls to a
+printer's `PRINT_START`, each one a `HELIX_PHASE_*` or `HELIX_READY` line between two marker
+comments:
+
+```
+    # <<< HELIX_TRACKING v2 >>>
+    HELIX_READY
+    # <<< /HELIX_TRACKING >>>
+```
+
+HelixScreen now names those macros with a leading underscore, which Fluidd and Mainsail leave
+out of their macro lists. At every Klipper start the plugin gives each such call line that
+underscore (`_HELIX_READY`), and changes nothing else in the file:
+
+- It first plans the change without writing and logs one line, e.g.
+  `HelixPrint: signal macro migration: renaming 9 call(s) in 1 file(s): printer.cfg (9)`.
+- It writes nothing until Klipper's loaded config (`configfile.settings`) defines every hidden
+  name the renamed lines would call. Until then the state is `waiting_for_pack`; updating the
+  helper macros from the screen and restarting Klipper loads them.
+- Only a well-formed three-line block inside a `[gcode_macro]` body is touched. A file with any
+  odd marker is left byte-for-byte alone and reported in `skipped`, as the uninstall strip does.
+- Each file gets a verified backup, `<file>.bak.<YYYYmmdd_HHMMSS>`, before an atomic replace. A
+  renamed block already calls the hidden name, so a second start edits nothing and writes no
+  second backup. A file another program wrote meanwhile is skipped and tried again at the next
+  Klipper start.
+- It never restarts Klipper. The renamed lines load at the next restart.
+- On a printer whose firmware installs HelixScreen (the Snapmaker U1 extended firmware), it
+  only reports what it would rename (`firmware_managed`).
+
+`migrate_signal_macros: False` under `[helix_print]` switches it off: it then only logs the
+plan, with `would rename`. That option is the feature's own switch; no `plugin_features` key
+changes it. The same rename by hand: `strip_phase_tracking.py --rename-hidden [--dry-run]
+CONFIG_DIR`. Uninstalling still strips the blocks, renamed or not.
+
+```http
+GET /server/helix/signal_migration
+```
+
+JSON-RPC: `server.helix.signal_migration`. The last result, kept in Moonraker's database
+(namespace `helix_print`, key `signal_migration_last`) so it survives a Moonraker restart:
+
+```json
+{"state": "done", "missing": [], "planned": [],
+ "edited": [{"path": "printer.cfg", "backup": "/home/pi/printer_data/config/printer.cfg.bak.20261108_101500", "blocks": 9}],
+ "skipped": [], "failed": [], "at": 1794115756.2}
+```
+
+| `state` | Meaning |
+|---------|---------|
+| `nothing` | No visible call left to rename. A run that finds nothing keeps a stored `done` report |
+| `disabled` | Switched off; `planned` lists what it would rename |
+| `firmware_managed` | The firmware owns the install; `planned` lists what it would rename |
+| `waiting_for_pack` | `missing` lists the hidden names Klipper has not loaded yet; `planned` what waits for them |
+| `done` | `edited` lists each file, its backup and how many calls it renamed |
+| `needs_attention` | A file was left alone (`skipped`, with the reason) |
+| `failed` | A file's write failed (`failed`, with the reason); the original stays in place |
+
+Paths in `planned`, `edited`, `skipped` and `failed` are relative to the config directory.
 
 ## Visible symlink directory
 
