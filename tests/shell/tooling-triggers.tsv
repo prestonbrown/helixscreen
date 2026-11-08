@@ -19,7 +19,7 @@ tests/shell/test_ad5m_br_platform.bats	Makefile
 tests/shell/test_ams_error_translation_keys.bats	include/ams_error.h translations/en.yml
 tests/shell/test_ams_xml_mirror_gate.bats	scripts/check_ams_xml_mirror.py scripts/qc/ams_xml_mirror.sh scripts/quality-checks.sh src/printer/ams_state_subjects.cpp
 tests/shell/test_android_asset_staging_gate.bats	android/.gitignore android/app/build.gradle assets/filaments.json mk/filaments.mk scripts/check_android_asset_staging.py scripts/qc/design_pixels.sh
-tests/shell/test_android_feature_gates.bats	Makefile android/app/build.gradle android/app/jni/CMakeLists.txt include/helix_features.h include/lvgl_pch.h lv_conf.h mk/cross.mk
+tests/shell/test_android_feature_gates.bats	Makefile android/app/build.gradle android/app/jni/CMakeLists.txt include/lvgl_pch.h lv_conf.h mk/cross.mk
 tests/shell/test_android_libhv_isolation.bats	android/app/jni/CMakeLists.txt lib/libhv
 tests/shell/test_android_release_abis.bats	.github/workflows/build.yml .github/workflows/cache-prune.yml .github/workflows/ccache-warm.yml .github/workflows/release.yml android/app/build.gradle
 tests/shell/test_android_version_code.bats	.github/workflows/release.yml VERSION.txt android/app/build.gradle scripts/android-version-code.sh scripts/generate-whatsnew.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp scripts/changelog-section.sh
@@ -40,7 +40,7 @@ tests/shell/test_clang_diagnostics_gate.bats	Makefile VERSION.txt firmware/helix
 tests/shell/test_clang_format_pin.bats	requirements.txt scripts/qc/*.sh scripts/qc/_lib.sh scripts/qc/phase2.sh scripts/quality-checks.sh
 tests/shell/test_cloud_env_setup.bats	scripts/cloud/env-setup.sh
 tests/shell/test_cloud_session_start.bats	Makefile scripts/cloud/session-start.sh
-tests/shell/test_code_lint.bats	.github/workflows/nightly.yml CHANGELOG.md android/ assets/filaments.json docs/devel/LVGL9_XML_GUIDE.md docs/specs/filament_slots.md firmware/ include/ lib/helix-xml mk/tests.mk moonraker-plugin/ scripts/check_tool_labels.sh scripts/check_vacuous_tests.py scripts/check_vendor_branches.py scripts/qc/translation_coverage.sh scripts/quality-checks.sh scripts/rename_observers.py scripts/translations/cpp_tables.py scripts/vendor_branch_baseline.txt server/ src/ tests/ tools/ translations/ ui_xml/
+tests/shell/test_code_lint.bats	.github/workflows/nightly.yml include/ams_backend_afc.h include/lane_source_store.h include/subject_managed_panel.h mk/tests.mk scripts/check_tool_labels.sh scripts/check_vacuous_tests.py scripts/check_vendor_branches.py scripts/qc/translation_coverage.sh scripts/quality-checks.sh src/application/printer_switch_flow.cpp src/printer/ams_backend_mock.cpp src/printer/spoolman_manager.cpp src/ui/ui_observer_guard.cpp scripts/qc/ scripts/translation_sync.py scripts/translations/ scripts/rename_observers.py scripts/vendor_branch_baseline.txt
 tests/shell/test_comment_archaeology_gate.bats	scripts/check_comment_archaeology.py
 tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh scripts/lib/installer/competing_uis.sh scripts/lib/installer/uninstall.sh
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
@@ -55,13 +55,12 @@ tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json
 tests/shell/test_drm_mmap_lfs_gate.bats	mk/patches.mk patches/lvgl-drm-mmap64.patch scripts/check_drm_mmap_lfs.py
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/staged_content.py
 tests/shell/test_env_file_vars_are_live.bats	config/helixscreen.env include/ scripts/helix-launcher.sh src/
-tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py src/printer/ams_backend_mock.cpp
+tests/shell/test_esp32_app_srcs_gate.bats	Makefile scripts/check_esp32_app_srcs.py scripts/qc/esp32_app_srcs.sh src/printer/ams_backend_mock.cpp
 tests/shell/test_esp32_build_debug_heap.bats	scripts/esp32_build_debug_heap.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/pool-docker.sh
 tests/shell/test_esp32_compile_gate.bats	firmware/helixscreen-esp32/CMakeLists.txt include/printer_state.h scripts/esp32_syntax_check.py scripts/qc/_lib.sh scripts/qc/esp32_compile.sh src/printer/ams_state.cpp tests/python/test_esp32_syntax_check.py ui_xml/globals.xml
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
-tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh
-tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
+tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh scripts/esp32_xml_binding_baseline.txt
 tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_filament_ops_neutral.py src/ui/filament_op_execute.cpp src/ui/ui_ams_sidebar.cpp src/ui/ui_wizard_ams_identify.cpp
 tests/shell/test_font_tier_coverage_gate.bats	assets/fonts/noto_sans_10.c assets/fonts/noto_sans_12.c assets/fonts/noto_sans_14.c assets/fonts/noto_sans_16.c assets/fonts/noto_sans_26.c assets/fonts/noto_sans_28.c assets/fonts/noto_sans_32.c assets/fonts/noto_sans_40.c assets/fonts/noto_sans_8.c mk/cross.mk mk/fonts.mk scripts/check_font_tier_coverage.py src/application/asset_manager.cpp src/system/cjk_font_manager.cpp
 tests/shell/test_fork_assertion_gate.bats	tests/shell/*.bats
@@ -75,7 +74,6 @@ tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsne
 tests/shell/test_gpu_lib_callers_gate.bats	scripts/check_gpu_lib_callers.py
 tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml scripts/ci/gpu_libs_hidden_smoke.sh
 tests/shell/test_grid_metrics_gate.bats	scripts/check_grid_metrics_single_source.py src/ui/grid_edit_mode.cpp
-tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh ui_xml/globals.xml
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/staged_content.py src/ui/ui_swatch.cpp ui_xml/components/color_swatch.xml
 tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/staged_content.py src/ui/ui_fatal_error.cpp ui_xml/globals.xml
 tests/shell/test_helix_claim_date.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
@@ -97,7 +95,6 @@ tests/shell/test_json_dump_utf8_gate.bats	scripts/check_json_dump_utf8.py
 tests/shell/test_keep_unchanged_mtimes.bats	Makefile mk/deps.mk scripts/keep-unchanged-mtimes.sh
 tests/shell/test_l081_gate.bats	scripts/check_l081_anti_pattern.py scripts/staged_content.py
 tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
-tests/shell/test_lane_binding_reconcile_gate.bats	scripts/check_lane_binding_reconcile.py
 tests/shell/test_latest_green_sha.bats	scripts/latest-green-sha.sh
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
 tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/ui_panel_home.cpp
@@ -105,7 +102,6 @@ tests/shell/test_load_base_rule_conformance.bats	scripts/resolve-backtrace.sh sc
 tests/shell/test_lvgl_event_code_gate.bats	Makefile lib/lvgl lv_conf.h mk/tools.mk scripts/gen_lvgl_event_codes.py scripts/qc/lvgl_event_codes.sh scripts/quality-checks.sh server/crash-worker/
 tests/shell/test_make_t_timeout.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh
 tests/shell/test_makefile_continuation.bats	Makefile mk/*.mk
-tests/shell/test_mem_available.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_merge_claim_hooks.bats	.githooks/ scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_merge_compile_commands.bats	mk/rules.mk scripts/merge_compile_commands.py scripts/quality-checks.sh scripts/version-compare.sh
 tests/shell/test_modal_chrome_budget_gate.bats	scripts/check_modal_chrome_budget.py
@@ -130,12 +126,10 @@ tests/shell/test_plugin_host_matrix.bats	scripts/lib/build_hosts.sh scripts/lib/
 tests/shell/test_plugin_i18n_shadow_gate.bats	scripts/check_plugin_i18n_shadow.py
 tests/shell/test_pool_heavy_runners.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/parallel-jobs-file.sh scripts/pool-docker.sh
 tests/shell/test_prepush_land_gate_stamp.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push scripts/lib/build_hosts.sh scripts/quality-checks.sh
-tests/shell/test_prepush_work_branches.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push scripts/quality-checks.sh
 tests/shell/test_print_compile_command.bats	Makefile VERSION.txt include/lvgl_pch.h scripts/compile_command.py scripts/merge_compile_commands.py src/system/config.cpp tests/mocks/mock_websocket_server.cpp tests/unit/application/application_test_fixture.cpp tests/unit/test_json_utils.cpp
 tests/shell/test_print_state_cast_gate.bats	scripts/check_print_state_cast.py
 tests/shell/test_pytest_asyncio_deps_gate.bats	moonraker-plugin/tests/test_helix_print.py requirements.txt scripts/check_pytest_asyncio_deps.py
 tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-checks.sh
-tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
 tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
 tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/staged_content.py src/ui/ui_spool_wizard.cpp
@@ -173,9 +167,8 @@ tests/shell/test_telemetry_pull_args.bats	scripts/telemetry-pull.sh tests/shell/
 tests/shell/test_telemetry_pull_download.bats	scripts/telemetry-pull.sh tests/shell/helpers.bash
 tests/shell/test_telemetry_update_printer_db.bats	scripts/telemetry-update-printer-db.py
 tests/shell/test_test_binary_current.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh src/system/helix_version.cpp src/ui/ui_panel_home.cpp
-tests/shell/test_test_budget_gate.bats	scripts/check_test_budget.py scripts/qc/_lib.sh scripts/qc/test_budget.sh ui_xml/globals.xml
-tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh
-tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh
+tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
+tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py src/ui/ui_toast_manager.cpp tests/ui_test_utils.cpp
 tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
@@ -194,9 +187,9 @@ tests/shell/test_tsan_resplit_shard.bats	scripts/tsan_resplit_shard.sh
 tests/shell/test_update_platform_coverage.bats	.github/workflows/release.yml mk/cross.mk scripts/lib/installer/platform.sh server/crash-worker/src/index.ts src/system/platform_table.cpp tests/unit/test_update_checker.cpp
 tests/shell/test_update_queue_leak_gate.bats	scripts/check_update_queue_leaks.py scripts/update_queue_leak_baseline.txt
 tests/shell/test_upload_gating.bats	.github/workflows/release.yml Makefile mk/cross.mk mk/pi-dual-link.mk mk/rules.mk src/system/crash_reporter.cpp src/system/debug_bundle_collector.cpp src/ui/ui_crash_report_modal.cpp src/ui/ui_debug_bundle_modal.cpp tests/unit/test_diag_upload_gate.cpp
-tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py
-tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_status_panel.xml ui_xml/print_status_panel.xml ui_xml/translations/en.xml
-tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/header_bar.xml
+tests/shell/test_vacuous_test_gate.bats	scripts/check_vacuous_tests.py scripts/vacuous_test_baseline.txt
+tests/shell/test_variant_content_drift_gate.bats	scripts/check_variant_content_drift.py scripts/check_variant_parity.py ui_xml/portrait/print_tune_panel.xml ui_xml/print_tune_panel.xml ui_xml/translations/en.xml
+tests/shell/test_variant_parity_gate.bats	scripts/check_variant_parity.py ui_xml/micro/controls_panel.xml
 tests/shell/test_version_compare.bats	.github/workflows/ scripts/version-compare.sh tests/fixtures/version_precedence.txt tests/unit/test_version.cpp
 tests/shell/test_wifi_pii_gate.bats	scripts/check_wifi_pii_logging.py scripts/staged_content.py src/network/
 tests/shell/test_workflow_concurrency_gate.bats	.github/workflows/ tests/shell/helpers.bash
