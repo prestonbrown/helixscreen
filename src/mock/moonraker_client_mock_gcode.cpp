@@ -831,7 +831,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_move(const std::stri
     auto [has_y, y_val] = parse_axis('Y');
     auto [has_z, z_val] = parse_axis('Z');
 
-    // Calculate target positions
     double target_x = has_x ? (is_relative ? pos_x_.load() + x_val : x_val) : pos_x_.load();
     double target_y = has_y ? (is_relative ? pos_y_.load() + y_val : y_val) : pos_y_.load();
     double target_z = has_z ? (is_relative ? pos_z_.load() + z_val : z_val) : pos_z_.load();
@@ -886,7 +885,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_move(const std::stri
             spdlog::debug("[MoonrakerClientMock] Move {} X={} Y={} Z={} (mode={})",
                           gcode.find("G0") != std::string::npos ? "G0" : "G1", sx, sy, sz,
                           is_relative ? "relative" : "absolute");
-            // Reset idle timeout when moving
             reset_idle_timeout();
             // Dispatch immediate position update (matches real Moonraker):
             // live_position is in gcode space (includes the z offset),
@@ -958,7 +956,6 @@ MoonrakerClientMock::gcode_sdcard_print_file(const std::string& gcode) {
                 (end != std::string::npos) ? gcode.substr(start, end - start) : gcode.substr(start);
         }
 
-        // Use unified internal handler
         start_print_internal(filename);
     }
     return std::nullopt;
@@ -1122,7 +1119,6 @@ MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
 }
 
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_set_led(const std::string& gcode) {
-    // Parse LED name
     std::string led_name;
     auto led_pos = gcode.find("LED=");
     if (led_pos != std::string::npos) {
@@ -1174,7 +1170,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_set_led(const std::s
     }
 
     if (!full_led_name.empty()) {
-        // Update LED state
         {
             std::lock_guard<std::mutex> lock(led_mutex_);
             led_states_[full_led_name] = LedColor{red, green, blue, white};
@@ -1201,7 +1196,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_set_led(const std::s
 
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_exclude_object(const std::string& gcode) {
-    // Parse NAME parameter
     size_t name_pos = gcode.find("NAME=");
     if (name_pos != std::string::npos) {
         size_t start = name_pos + 5;
@@ -1225,7 +1219,7 @@ MoonrakerClientMock::gcode_exclude_object(const std::string& gcode) {
             if (mock_state_) {
                 mock_state_->add_excluded_object(object_name);
             }
-            // Also update local state for backward compatibility
+            // Local state too, for a client read without the shared state
             {
                 std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
                 excluded_objects_.insert(object_name);

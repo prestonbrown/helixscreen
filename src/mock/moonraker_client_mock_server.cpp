@@ -839,7 +839,6 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         [](MoonrakerClientMock* self, const json& /*params*/,
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
-        // Map KlippyState enum to string
         std::string klippy_state_str;
         bool klippy_connected = false;
         switch (self->get_klippy_state()) {
