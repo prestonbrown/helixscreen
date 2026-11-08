@@ -149,15 +149,6 @@ the spool from the tag (the read itself, a user clear, a swap-detected clear) go
 through `tag_spool_name`, which blanks a known product line beside a non-Snapmaker brand:
 `build_filament_config_gcode` writes `Basic` for any slot that names no product line, so
 "Generic" + "Basic" names no line.
-On load, a stored product line the record does not declare, beside a non-Snapmaker
-brand, is dropped and the record saved back (`src/printer/ams_backend_snapmaker.cpp#on_started`). A channel whose firmware states no
-identity at all (tag `MAIN_TYPE`/`SUB_TYPE` NONE, `print_task_config` vendor NONE and not
-official) retracts a Snapmaker product line its stored record only remembers, and the
-Snapmaker brand beside it, and saves the record back. Nothing else is touched: declared
-fields, any other remembered name or brand, a brand beside a catalog pick, and a record
-bound to a Spoolman spool all stay
-(`src/printer/ams_backend_snapmaker.cpp#retract_unbacked_identity_locked`).
-
 The vendor-cache record mirrors `filament_detect.info`, so an entry that names no tag
 (`MAIN_TYPE` NONE, `SUB_TYPE` absent or NONE) drops it: a clear then cannot restate the
 product line, material, brand or colour of a tag the reader no longer reports. A slot
@@ -219,8 +210,11 @@ that empties while the toolhead holds nothing, call `filament_detect`'s
 `request_clear_filament_info`, which resets the head's `print_task_config` record to
 `NONE` / `FFFFFFFF` without a log line. A
 tagless spool resting in the feeder after an unload-at-end therefore reads `NONE` to
-every other client while its lane still declares it. The backend writes the lane's
-declaration back when the record reads unset, the lane declares a material, the port or
+every other client while its lane record still names it. The backend writes the lane
+record's type and colour back when the firmware's record reads unset, the lane record holds a
+type and names the spool (a link, brand or name, which only an edit or a Spoolman link puts
+there; a record that only copied the firmware's type is not written back, since every write
+resets the head's flow calibration), the port or
 the nozzle latch holds filament, no spool has gone into the port since the declaration,
 no feed is moving the head, and the heads are free (the same hold as an edit). It sends
 once per drop: the record naming a type re-arms it, and an edit's own write counts as the
@@ -238,24 +232,45 @@ nothing on the machine but the endpoint itself and spoollink (which looks only a
 `print_task_config`, and OrcaSlicer takes only `BED_TEMP` and `FIRST_LAYER_TEMP` from
 `filament_detect`. Temperatures from an edit live in `lane_data`.
 
-Every record write runs `FLOW_RESET_K` on its head, so none lands under a running print.
-A save made while the backend's own `print_stats.state` reads `printing` is kept and
-written by the first frame that reads neither `printing` nor `paused`, since a pause the
-print raised (a runout, an M600) is no moment to reset a head's flow calibration. A save
-made while already paused goes straight out, as the resume path writes then too, and a
-held save is dropped with the head's override (a Clear Spool, a swap) and at a restart;
-before the backend's frames name a state, the app's print job
-state decides (`src/printer/ams_backend_snapmaker.cpp#record_writes_held_locked`). A save
-the record already agrees with sends nothing, forced head or not; FORCE=1 only decides
-the flag and that both lines go.
+Every record write runs `FLOW_RESET_K` on its head, which resets its pressure advance,
+and the firmware never refuses one mid-print (Snapmaker's print_task_config.py,
+cmd_SET_PRINT_FILAMENT_CONFIG).
+An edit that would rewrite the record is refused, and the editor says so ("Printer is busy
+with a print"), while the print state (the backend's own `print_stats.state`, else the
+app's print job state) reads `printing`; while it reads `paused` and the firmware still
+holds a type for the head; while no print state has been read at all; and while the offset
+calibration holds the heads. The one paused edit that goes out is the runout reload: the
+firmware reset the head's record when the filament left, and the resume must write one
+before `RESUME` runs, so naming the new spool costs no reset the resume would not make.
+Nothing is held for later, so the lane never shows a type the firmware has not taken. An
+edit that leaves the record alone (a spool link, weights, a name) still saves
+(`src/printer/ams_backend_snapmaker.cpp#record_writes_held_locked`). A save the record
+already agrees with sends nothing, forced head or not. On an official head with no card
+behind it the write goes with FORCE=1 (both lines); on a head whose official flag a real
+tag backs, nothing is sent (`record_write_needs_force_locked`).
+
+**Lane identity.** Type, vendor, subtype and colour are the firmware's
+(`print_task_config`), filed as the lane's Firmware reading over the tag's
+(`src/printer/ams_backend_snapmaker.cpp#file_head_firmware_locked`): its type and colour.
+Its vendor (Snapmaker or the placeholder Generic) is a category, not the spool's brand, so
+the brand stays the tag's or the record's. It outranks the record, so a change from the stock screen or a slicer shows at
+once, and an edit stands as pending until it echoes. A record reset to `NONE` states
+nothing, and the tag's reading or the record shows. The `lane_data` record (`T<n>`, writer `helixscreen`) holds the
+spool id, name, brand, weights and temperatures from an edit, and copies type and colour
+from `print_task_config` (else the tag the reader names) on every frame for a head that
+holds filament, never from the painted slot, so it never names an edit still on its way
+(`src/printer/ams_backend_snapmaker.cpp#converge_lanes_locked`). Nothing is copied before
+the first record read lands. A head whose record the firmware reset to `NONE` is not
+copied: the record keeps the last type, which the write-back above restores (the
+write-back sends the record's type and colour).
 
 A head an earlier endpoint write left official is repaired once per session: official,
 its `filament_detect` entry filled with `CARD_UID` known to be no card, no card seen on
 the channel this session, and a record whose type (and colour, when both are known)
-matches the stored edit gets a `FORCE=1` rewrite of that edit. It waits for a
+matches the edit this session last wrote gets a `FORCE=1` rewrite of that edit. It waits for a
 `print_stats.state` the backend has read itself that is neither `printing` nor `paused`.
 An empty entry (what a reader that is off reports for a real spool), a real card, a
-record naming anything else, or a head with no stored edit is never touched
+record naming anything else, or a head this session wrote no edit to is never touched
 (`src/printer/ams_backend_snapmaker.cpp#official_flag_repairs_locked`).
 
 A filled entry with no card behind it was written over the API, not read off a spool, so
@@ -266,7 +281,7 @@ it files no vendor-cache reading and retracts one an earlier tag left
 holding a real Snapmaker RFID spool is unmeasured. The endpoint builds the entry fresh
 from the POST body, which carried no `CARD_UID`, so the entry may read as filled with no
 card until the reader next reads the spool: a vendor-cache retraction, and an
-official-flag repair if the record matches the stored edit and no card was seen this
+official-flag repair if the record matches the edit this session wrote and no card was seen this
 session. Needs a real RFID spool to check. A `SET_PRINT_FILAMENT_CONFIG` was measured on
 the rig to change `print_task_config` only, leaving `filament_detect.info` and
 `filament_official` untouched.

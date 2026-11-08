@@ -121,13 +121,14 @@ class SpoolmanManager {
      * breaker's failure count. The poll walks every linked slot through here;
      * refresh_spool() walks the slots linked to one id.
      *
+     * The bypass spool is a lane like any other: @p slot_index
+     * helix::ams::kBypassSlotIndex names it (@p backend_index is then unused),
+     * and its answer is filed on the bypass lane and written to the bypass
+     * record.
+     *
      * Called with mutex_ held, which is what makes api_ safe to read.
      */
     void fetch_linked_slot(int backend_index, int slot_index, int spoolman_id);
-
-    /// fetch_linked_slot() for the external spool: files the answer on the
-    /// bypass lane and the stored record. Called with mutex_ held.
-    void fetch_linked_external_spool(int ext_spoolman_id);
 
   public:
     // ========================================================================

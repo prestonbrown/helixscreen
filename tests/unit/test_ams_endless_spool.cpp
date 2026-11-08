@@ -13,6 +13,7 @@
 
 #include "ui_endless_spool_arrows.h"
 
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
@@ -400,7 +401,7 @@ TEST_CASE("Backup eligibility separates a grade change from a material mismatch"
     auto set_material = [&backend](int slot, const char* material) {
         SlotInfo info = backend.get_slot_info(slot);
         info.material = material;
-        REQUIRE(backend.sync_external_identity(slot, info));
+        REQUIRE(helix::test::apply_edit(backend, slot, info));
     };
 
     set_material(0, "PLA");

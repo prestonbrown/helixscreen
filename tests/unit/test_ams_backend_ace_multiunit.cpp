@@ -786,12 +786,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE refuses an unknown slot naming the chain'
     AmsBackendAceTestHelper helper(&client);
     start_units(helper, client, 2, -1);
 
-    for (const AmsError& err : {helix::test::apply_edit(helper, 8, SlotInfo{}),
-                                helper.sync_external_identity(8, SlotInfo{})}) {
-        CHECK(err.result == AmsResult::INVALID_SLOT);
-        CHECK(err.technical_msg == "Slot 8 out of range (0-7)");
-        CHECK(err.suggestion == "Select a valid number (1-8)");
-    }
+    const AmsError err = helix::test::apply_edit(helper, 8, SlotInfo{});
+    CHECK(err.result == AmsResult::INVALID_SLOT);
+    CHECK(err.technical_msg == "Slot 8 out of range (0-7)");
+    CHECK(err.suggestion == "Select a valid number (1-8)");
 }
 
 // A load sent from here stays LOADING until its own ack: the unit's status

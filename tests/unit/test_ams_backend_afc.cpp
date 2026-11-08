@@ -908,6 +908,51 @@ TEST_CASE("AFC segment: works with discovered lanes", "[ams][afc][discovery][seg
     REQUIRE(helper.test_compute_filament_segment() == PathSegment::LANE);
 }
 
+TEST_CASE("AFC's lane subscription names every lane field the parser reads",
+          "[afc][ams_status_objects]") {
+    // After the first snapshot Moonraker sends only the listed fields, so a
+    // key the parser reads but the list omits never updates live.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"AFC", "AFC_stepper lane1"}));
+    const nlohmann::json objects = AmsBackendAfc::required_status_objects(hw);
+    REQUIRE(objects.contains("AFC_stepper lane1"));
+    const nlohmann::json& lane = objects["AFC_stepper lane1"];
+    REQUIRE(lane.is_array());
+    std::vector<std::string> listed;
+    for (const auto& field : lane) {
+        listed.push_back(field.get<std::string>());
+    }
+    for (const char* field : {"bed_temp",
+                              "buffer_status",
+                              "color",
+                              "dist_hub",
+                              "endstops",
+                              "extruder_temp",
+                              "filament_name",
+                              "filament_status",
+                              "filament_status_led",
+                              "initial_weight",
+                              "load",
+                              "loaded_to_hub",
+                              "material",
+                              "multi_color_hexes",
+                              "prep",
+                              "remember_spool",
+                              "selector",
+                              "spool_id",
+                              "spool_vendor",
+                              "status",
+                              "td1_color",
+                              "td1_scan_time",
+                              "td1_td",
+                              "tool_loaded",
+                              "vendor_name",
+                              "weight"}) {
+        INFO(field);
+        CHECK(std::count(listed.begin(), listed.end(), std::string(field)) == 1);
+    }
+}
+
 // ============================================================================
 // apply_user_edit() persistence
 // ============================================================================
@@ -1154,13 +1199,13 @@ namespace {
 /// An AFC lane carrying a user's edit that declared its colour, material and
 /// brand, with a store behind it so a persist can be read back
 /// from the record a restart would load.
-struct AfcLockedLaneFixture : HelixTestFixture {
+struct AfcEditedLaneFixture : HelixTestFixture {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
     std::optional<MoonrakerAPIMock> api;
     AmsBackendAfcTestHelper helper;
 
-    AfcLockedLaneFixture() {
+    AfcEditedLaneFixture() {
         state.init_subjects(false);
         api.emplace(client, state);
         helper.initialize_test_lanes_with_slots(4);
@@ -1173,9 +1218,6 @@ struct AfcLockedLaneFixture : HelixTestFixture {
         edit.color_rgb = 0x1E5AA8;
         REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
 
-        const auto locked = record();
-        REQUIRE(helix::ams::declared_field_names(locked.declared) ==
-                nlohmann::json::array({"color_rgb", "material", "brand"}));
         helper.clear_captured_gcodes();
     }
 
@@ -1190,35 +1232,7 @@ struct AfcLockedLaneFixture : HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight persist writes the weight and no identity",
-                 "[ams][afc][persistence][filament_slot_override][1652]") {
-    // What the consumption meter's pause and completion flushes do.
-    helper.update_slot_weight(0, 730.0f, 1000.0f, /*persist=*/true);
-
-    // Both of AFC's durable homes for a weight: the lane's own, and the record
-    // a restart reads back.
-    CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=730"));
-    const nlohmann::json stored = client.mock_db_get("lane_data", "lane1");
-    REQUIRE_FALSE(stored.is_null());
-    CHECK(stored["remaining_weight_g"] == 730.0f);
-
-    // A meter has no identity to state. Restating the edit's would overwrite
-    // whatever has changed the lane's colour, material or spool since.
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_COLOR"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_MATERIAL"));
-    CHECK_FALSE(helper.has_gcode_starting_with("SET_SPOOL_ID"));
-
-    const auto after = record();
-    CHECK(after.remaining_weight_g == Catch::Approx(730.0f));
-    CHECK(after.total_weight_g == Catch::Approx(1000.0f));
-    CHECK(helix::ams::declared_field_names(after.declared) ==
-          nlohmann::json::array({"color_rgb", "material", "brand"}));
-    CHECK(stored["helix_locked_color"] == true);
-    CHECK(stored["helix_locked_material"] == true);
-    CHECK(stored["helix_declared"] == nlohmann::json::array({"color_rgb", "material", "brand"}));
-}
-
-TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight update without persist writes nothing durable",
+TEST_CASE_METHOD(AfcEditedLaneFixture, "AFC weight update without persist writes nothing durable",
                  "[ams][afc][persistence][filament_slot_override][1652]") {
     const nlohmann::json stored_before = client.mock_db_get("lane_data", "lane1");
     REQUIRE_FALSE(stored_before.is_null());
@@ -1234,59 +1248,31 @@ TEST_CASE_METHOD(AfcLockedLaneFixture, "AFC weight update without persist writes
     CHECK(record().remaining_weight_g == Catch::Approx(recorded_before));
 }
 
-// ============================================================================
-// sync_external_identity() Tests
-// ============================================================================
-//
-// sync_external_identity() should update in-memory slot state but
-// NOT send any G-code commands to firmware. This is critical for preventing an
-// infinite feedback loop when Spoolman weight polling updates slot data:
-//
-//   apply_user_edit() → G-code to firmware → firmware status_update
-//   via WebSocket → sync_from_backend → refresh_spoolman_weights →
-//   apply_user_edit again → ∞
-//
-// Through sync_external_identity() the cycle breaks because no G-code is sent, so firmware
-// doesn't emit a status_update, and the loop terminates.
-// ============================================================================
-
-TEST_CASE("AFC persist=false: updates local state without G-code",
-          "[ams][afc][persistence][persist_flag]") {
+TEST_CASE("an AFC with no Spoolman refuses a spool link before writing it",
+          "[ams][afc][persistence][review]") {
     AmsBackendAfcTestHelper helper;
-
-    // on any version, old ones included (#644)
-    helper.set_afc_version("1.0.19");
+    helper.set_afc_version("1.0.20");
     helper.initialize_test_lanes_with_slots(4);
 
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
-    info.remaining_weight_g = 850;
-    info.spoolman_id = 42;
-    info.spoolman_filament_id = 77;
-    info.spoolman_vendor_id = 3;
+    SlotInfo linked;
+    linked.material = "PLA";
+    linked.spoolman_id = 7;
 
-    REQUIRE(helper.sync_external_identity(0, info).success());
-
-    REQUIRE(helper.captured_gcodes.empty());
-
-    // But local state SHOULD be updated
-    SlotInfo stored = helper.get_slot_info(0);
-    REQUIRE(stored.color_rgb == 0xFF0000);
-    REQUIRE(stored.material == "PLA");
-    REQUIRE(stored.remaining_weight_g == Catch::Approx(850.0f));
-    REQUIRE(stored.spoolman_id == 42);
-    // the whole Spoolman link, not only the spool id
-    CHECK(stored.spoolman_filament_id == 77);
-    CHECK(stored.spoolman_vendor_id == 3);
-
-    // The same edit through apply_user_edit on the now-linked lane still writes
-    // every field, however the link owns them.
-    helix::test::apply_edit(helper, 0, info);
-    CHECK(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
-    CHECK(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=PLA"));
-    CHECK(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=850"));
-    CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=42"));
+    SECTION("Spoolman off: refused, nothing sent") {
+        // AFC publishes false for its Spoolman URL when none is configured.
+        helper.feed_afc_state({{"spoolman", false}});
+        helper.clear_captured_gcodes();
+        const AmsError err = helix::test::apply_edit(helper, 0, linked);
+        CHECK_FALSE(err.success());
+        CHECK(err.user_msg == "AFC has no Spoolman configured");
+        CHECK(helper.captured_gcodes.empty());
+        CHECK(helper.get_slot_info(0).spoolman_id == 0);
+    }
+    SECTION("Spoolman on: the link is sent") {
+        helper.feed_afc_state({{"spoolman", "http://192.0.2.1:7912"}});
+        REQUIRE(helix::test::apply_edit(helper, 0, linked).success());
+        CHECK(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
+    }
 }
 
 // ============================================================================
@@ -6892,72 +6878,28 @@ TEST_CASE("AFC version never gates behaviour", "[ams][afc][version]") {
     CHECK(slot.material == "PLA");
 }
 
-TEST_CASE_METHOD(AfcFourZeroBasedLanes,
-                 "AFC lane_data reads vendor_name for the brand, with brand as fallback (#808)",
-                 "[ams][afc][lane_data]") {
-    // Upstream is naming this vendor_name, NOT vendor, to match Happy Hare's
-    // mmu_server.py so both backends share one spelling.
-    //
+TEST_CASE("AFC lane_data's vendor_name is the brand, and an empty one clears it (#808)",
+          "[ams][afc][lane_data]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(4);
+    helper.initialize_slots_from_discovery();
+
     // All four lanes in one payload, matching the slots discovery seeded.
     nlohmann::json lanes;
-    lanes["lane0"] = {{"brand", "Prusament"}}; // legacy spelling
-    lanes["lane1"] = {{"vendor_name", "Polymaker"},
-                      {"brand", "Prusament"}};       // both -> upstream wins
-    lanes["lane2"] = {{"vendor_name", "Polymaker"}}; // upstream spelling
-    lanes["lane3"] = {{"material", "PLA"}};          // neither
-    helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Prusament");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Polymaker");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE_METHOD(AfcFourZeroBasedLanes,
-                 "AFC lane_data also reads the `vendor` spelling we write ourselves (#808)",
-                 "[ams][afc][lane_data]") {
-    // `vendor` is the name we originally proposed upstream AND the key our own
-    // FilamentSlotOverrideStore::to_lane_data_record() emits alongside vendor_name.
-    //
-    // For AFC that record currently lands in a PRIVATE namespace (#1158), so this
-    // reader does not meet it yet — but it will the moment #1158 migrates AFC's
-    // overrides into lane_data proper, and a record written by any other producer
-    // using the originally-proposed spelling reads correctly today.
-    nlohmann::json lanes;
-    lanes["lane0"] = {{"vendor", "Hatchbox"}};
-    lanes["lane1"] = {{"vendor_name", "Polymaker"}, {"vendor", "Hatchbox"}}; // upstream wins
-    lanes["lane2"] = {{"vendor", "Hatchbox"}, {"brand", "Prusament"}}; // vendor outranks brand
+    lanes["lane0"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane1"] = {{"vendor_name", "Polymaker"}};
+    lanes["lane2"] = {{"brand", "Prusament"}, {"vendor", "Hatchbox"}}; // not AFC's spellings
     lanes["lane3"] = {{"material", "PLA"}};
     helper.feed_afc_state({{"lanes", lanes}});
-
-    CHECK(helper.get_slot_info(0).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(1).brand == "Polymaker");
-    CHECK(helper.get_slot_info(2).brand == "Hatchbox");
-    CHECK(helper.get_slot_info(3).brand.empty());
-}
-
-TEST_CASE_METHOD(AfcFourZeroBasedLanes, "AFC an empty vendor never clears an existing brand (#808)",
-                 "[ams][afc][lane_data]") {
-    nlohmann::json lanes;
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", "Polymaker"}};
-    helper.feed_afc_state({{"lanes", lanes}});
     REQUIRE(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(2).brand.empty());
+    CHECK(helper.get_slot_info(3).brand.empty());
 
-    // #808 is unimplemented, so we do not know whether an unlinked lane will omit
-    // the key or publish "". Treating "" as a clear would silently wipe a user's
-    // brand override, and apply_lane_data does NOT call apply_overrides() to put it
-    // back. Ignoring empties is the recoverable direction.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"vendor_name", ""}};
+    lanes["lane0"] = {{"vendor_name", ""}}; // AFC states no vendor
+    lanes["lane1"] = {{"material", "PLA"}}; // a record silent on the vendor
     helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
-
-    // Absent behaves the same as empty.
-    for (int i = 0; i < 4; ++i)
-        lanes["lane" + std::to_string(i)] = {{"material", "PLA"}};
-    helper.feed_afc_state({{"lanes", lanes}});
-    CHECK(helper.get_slot_info(0).brand == "Polymaker");
+    CHECK(helper.get_slot_info(0).brand.empty());
+    CHECK(helper.get_slot_info(1).brand == "Polymaker");
 }
 
 TEST_CASE_METHOD(AfcFourZeroBasedLanes,
@@ -8090,24 +8032,6 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC unresolvable extruder makes no lane attribut
 
 // A persisted override IS a user edit. The lock flags are how any consumer of
 // the record tells one from a firmware reading (#965, #1649).
-TEST_CASE("AFC marks a persisted edit as the user's own", "[ams][afc][filament_slot_override]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.material = "PETG";
-    info.color_rgb = 0x1188FF;
-    info.color_name = "Blue";
-    helix::test::apply_edit(helper, 0, info);
-
-    auto& overrides = AfcTestAccess::overrides(helper);
-    REQUIRE(overrides.count(0) == 1);
-    REQUIRE(overrides.at(0).material == "PETG");
-    REQUIRE(overrides.at(0).color_rgb == 0x1188FFu);
-    CHECK(helix::ams::declares_color(overrides.at(0)));
-    CHECK(helix::ams::declares_material(overrides.at(0)));
-}
-
 TEST_CASE("AFC configfile topology parses to a small result", "[ams][afc][configfile]") {
     using Topo = AmsBackendAfc::ConfigfileTopology;
 

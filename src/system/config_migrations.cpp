@@ -1452,6 +1452,41 @@ static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Retire the bypass spool settings: the bypass spool is a lane record in
+/// Moonraker's database (lane_name "bypass"). A printer's block is parked under
+/// filament/legacy_external_spool, which AmsState writes into an empty bypass
+/// record at the next connect (Moonraker is out of reach here) and then
+/// removes. The pre-v22 root copy was fanned out to every printer, so it goes.
+static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/) {
+    int parked = 0;
+    if (json* filament = find_relative(config, "filament");
+        filament != nullptr && filament->is_object()) {
+        filament->erase("external_spool");
+    }
+    if (config.contains("printers") && config["printers"].is_object()) {
+        for (auto& [printer_id, printer] : config["printers"].items()) {
+            if (!printer.is_object() || !printer.contains("filament") ||
+                !printer["filament"].is_object()) {
+                continue;
+            }
+            json& filament = printer["filament"];
+            const auto old = filament.find("external_spool");
+            if (old == filament.end()) {
+                continue;
+            }
+            if (old->is_object() && !old->empty()) {
+                filament["legacy_external_spool"] = *old;
+                ++parked;
+            }
+            filament.erase("external_spool");
+        }
+    }
+    if (parked > 0) {
+        spdlog::info("[Config] Migration v34: parked {} bypass spool(s) for the lane record import",
+                     parked);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1468,6 +1503,7 @@ constexpr struct {
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
     {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32}, {33, migrate_v32_to_v33},
+    {34, migrate_v33_to_v34},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,

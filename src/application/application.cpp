@@ -1108,17 +1108,6 @@ bool Application::init_config() {
     spdlog::info("[Application] Using config: {}", config_path);
     m_config->init(config_path);
 
-    // Route per-tool writable state (tool_spools.json) through the same
-    // HELIX_CONFIG_DIR override that Config::init honors. Without this,
-    // ToolState::config_dir_ stays at the default "config" (relative to CWD)
-    // and spool-per-tool saves silently fail on read-only baseline installs
-    // where the install tree is on a squashfs rootfs.
-    if (const char* env_dir = std::getenv("HELIX_CONFIG_DIR");
-        env_dir != nullptr && env_dir[0] != '\0') {
-        helix::ToolState::instance().set_config_dir(env_dir);
-        spdlog::info("[Application] ToolState config dir: {}", env_dir);
-    }
-
     // Load persisted thermal heating rates so estimates are available immediately
     ThermalRateManager::instance().load_from_config(*m_config);
 

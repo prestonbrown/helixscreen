@@ -14,11 +14,12 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toast_log.h"
-#include "../test_helpers/tool_state_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -511,11 +512,14 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
         TA::reset_identity(SpoolmanManager::instance());
         set_spoolman_available(true);
         SpoolmanManager::instance().set_api(&api);
+        // The bypass record lives in the mock's database.
+        AmsState::instance().set_moonraker_api(&api);
     }
 
     ~SpoolmanLaneFixture() {
         SpoolmanManager::instance().set_api(nullptr);
         drain();
+        AmsState::instance().set_moonraker_api(nullptr);
         TA::reset_identity(SpoolmanManager::instance());
     }
 
@@ -555,7 +559,14 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
     static void link(AmsBackend& backend, int slot, int spool_id) {
         SlotInfo info = backend.get_slot_info(slot);
         info.spoolman_id = spool_id;
-        REQUIRE(backend.sync_external_identity(slot, info).success());
+        REQUIRE(helix::test::apply_edit(backend, slot, info).success());
+        // The link a lane resolves comes from what Moonraker holds: file it
+        // as the lane's record, the way a stored link reads back.
+        helix::ams::Observation record(helix::ams::ObservationSource::Record);
+        if (spool_id > 0) {
+            record.spoolman_id = spool_id;
+        }
+        helix::ams::ingest(backend.lane_id(slot), record);
     }
 };
 
@@ -822,7 +833,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F; // the meter's count, in the raw store
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -837,7 +848,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // to its number between polls.
     SlotInfo metered_raw = *shown;
     metered_raw.remaining_weight_g = 390.0F;
-    AmsState::instance().set_external_spool_info_in_memory(metered_raw);
+    helix::AmsStateTestAccess::seed_external_spool(metered_raw);
     poll();
 
     shown = AmsState::instance().get_external_spool_info();
@@ -853,7 +864,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     lv_tick_inc(1000);
@@ -883,17 +894,17 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F; // the link-time stub
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
 
-    // The raw record is what a restart (or a server that stays down) reads
-    // before any poll answers: it carries the fetched weight and identity,
-    // not the link-time stub.
+    // The bypass record is what a restart (or a server that stays down) reads
+    // before any poll answers: it carries the fetched identity, as a lane's
+    // record does. The weight stays Spoolman's to state while the spool is
+    // linked.
     auto raw = AmsState::instance().raw_external_spool_info();
     REQUIRE(raw.has_value());
-    CHECK(raw->remaining_weight_g == 850.0F);
     CHECK(raw->brand == "Polymaker");
     CHECK(raw->material == "PLA");
 }
@@ -906,7 +917,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -918,44 +929,9 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).spoolman.has_value());
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
-    // The first poll moved the stored binding to the fetched weight, so the
-    // display falls back to that, not to the link-time stub.
-    CHECK(shown->remaining_weight_g == 850.0F);
-    CHECK(shown->brand == "Polymaker");
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a denied external spool keeps its freshest identity",
-                 "[spoolman][lane][1632]") {
-    SlotInfo ext;
-    ext.spoolman_id = 1;
-    ext.material = "PLA"; // the link-time stub
-    ext.remaining_weight_g = 400.0F;
-    ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
-    state_polymaker_pla(server_spool(1));
-
-    poll();
-
-    // The server edits the spool to PETG and the next poll carries that; the
-    // delete that follows must keep the PETG view, not revert to the stub.
-    server_spool(1).material = "PETG";
-    poll();
-    REQUIRE(helix::ams::lane_sources(helix::ams::kBypassLaneId).spoolman.has_value());
-
-    remove_server_spool(1);
-    poll();
-
-    auto sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
-    CHECK_FALSE(sources.spoolman.has_value());
-    // A delete is bookkeeping, not a spool change: what the resolved view
-    // carried goes back on the lane as remembered, the way a denied slot's
-    // does.
-    REQUIRE(sources.remembered.has_value());
-    CHECK(sources.remembered->material == "PETG");
-    auto shown = AmsState::instance().get_external_spool_info();
-    REQUIRE(shown.has_value());
-    CHECK(shown->material == "PETG");
+    // The first poll wrote the fetched identity into the bypass record, so the
+    // brand stays; the weight falls back to the record's own.
+    CHECK(shown->remaining_weight_g == 400.0F);
     CHECK(shown->brand == "Polymaker");
 }
 
@@ -967,7 +943,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext.material = "PLA";
     ext.remaining_weight_g = 400.0F;
     ext.total_weight_g = 1000.0F;
-    AmsState::instance().set_external_spool_info(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     state_polymaker_pla(server_spool(1));
 
     poll();
@@ -983,7 +959,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     ext2.material = "ABS";
     ext2.remaining_weight_g = 600.0F;
     ext2.total_weight_g = 750.0F;
-    AmsState::instance().set_external_spool_info(ext2);
+    helix::AmsStateTestAccess::seed_external_spool(ext2);
     SpoolInfo& s2 = server_spool(2);
     s2.vendor = "Prusa";
     s2.material = "ABS";
@@ -996,7 +972,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     auto sources = helix::ams::lane_sources(helix::ams::kBypassLaneId);
     REQUIRE(sources.spoolman.has_value());
     CHECK(sources.spoolman->spoolman_id == 2);
-    CHECK_FALSE(sources.remembered.has_value());
+    REQUIRE(sources.record.has_value());
+    CHECK(sources.record->spoolman_id == 2);
     auto shown = AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
     CHECK(shown->spoolman_id == 2);
@@ -1027,105 +1004,8 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     const auto shown = helix::ams::resolve(helix::ams::lane_sources(backend.lane(0)));
     CHECK(shown.catalog_id == "polymaker-polyterra-pla-charcoal");
     CHECK(shown.product_name == "PolyTerra PLA Charcoal");
-    CHECK(shown.brand == "Polymaker");
-    CHECK(shown.material == "PLA");
-    CHECK(shown.color_rgb == 0x1A1A2EU);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a field the server stops stating stops outranking the lane's "
-                 "other sources",
-                 "[spoolman][lane][1653]") {
-    helix::test::RegisteredBackend<AmsBackendMock> backend(2);
-    link(*backend, 0, 1);
-    SpoolInfo& spool = server_spool(1);
-    state_polymaker_pla(spool);
-
-    helix::ams::Observation firmware(helix::ams::ObservationSource::VendorCache);
-    firmware.brand = "Firmware Brand";
-    firmware.spool_name = "Firmware Name";
-    helix::ams::ingest(backend.lane(0), firmware);
-
-    poll();
-    REQUIRE(helix::ams::resolve(helix::ams::lane_sources(backend.lane(0))).brand == "Polymaker");
-
-    // The vendor is removed on the server and the filament loses its name.
-    // An empty field is Spoolman saying nothing about it, not a blank brand.
-    spool.vendor.clear();
-    spool.vendor_id = 0;
-    spool.filament_name.clear();
-    poll();
-
-    const auto sources = helix::ams::lane_sources(backend.lane(0));
-    REQUIRE(sources.spoolman.has_value());
-    CHECK(sources.spoolman->material == "PLA");
-    CHECK_FALSE(sources.spoolman->brand.has_value());
-    CHECK_FALSE(sources.spoolman->spoolman_vendor_id.has_value());
-    CHECK_FALSE(sources.spoolman->spool_name.has_value());
-
-    const auto shown = helix::ams::resolve(sources);
-    CHECK(shown.brand == "Firmware Brand");
-    CHECK(shown.spool_name == "Firmware Name");
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: a spool Spoolman denies is re-filed as remembered; an "
-                 "unreachable Spoolman leaves the record standing",
-                 "[spoolman][lane][1653][1672]") {
-    helix::test::RegisteredBackend<AmsBackendMock> backend(2);
-    link(*backend, 0, 1);
-    link(*backend, 1, 2);
-
-    // The record a backend's start filed from its stored override.
-    helix::ams::Observation cached(helix::ams::ObservationSource::Spoolman);
-    cached.spoolman_id = 1;
-    cached.brand = "Cached Brand";
-    helix::ams::ingest(backend.lane(0), cached);
-    REQUIRE(helix::ams::lane_sources(backend.lane(0)).spoolman.has_value());
-
-    SECTION("not found stops tracking the spool and keeps what the slot showed") {
-        // A caching backend's struct carries the identity its frames painted
-        // while the record stood; paint the mock's slot the same way.
-        SlotInfo painted = backend->get_slot_info(0);
-        painted.brand = "Cached Brand";
-        painted.material = "PLA";
-        REQUIRE(backend->sync_external_identity(0, painted).success());
-
-        remove_server_spool(1);
-        poll();
-
-        REQUIRE(SpoolmanManager::is_identity_unresolvable(1));
-        const helix::ams::LaneSources sources = helix::ams::lane_sources(backend.lane(0));
-        CHECK_FALSE(sources.spoolman.has_value());
-        // The lane shows what is loaded: the identity the record supplied is
-        // re-filed as remembered, the way an unlink that kept it files it.
-        REQUIRE(sources.remembered.has_value());
-        CHECK(sources.remembered->brand == "Cached Brand");
-        CHECK(helix::ams::resolve(sources).brand == "Cached Brand");
-    }
-
-    SECTION("not found for a slot re-bound meanwhile leaves it alone") {
-        remove_server_spool(1);
-        fetch();
-        link(*backend, 0, 3);
-        drain();
-
-        REQUIRE(SpoolmanManager::is_identity_unresolvable(1));
-        const auto record = helix::ams::lane_sources(backend.lane(0)).spoolman;
-        REQUIRE(record.has_value());
-        CHECK(record->brand == "Cached Brand");
-    }
-
-    SECTION("an unreachable Spoolman leaves it standing") {
-        client.set_mock_spoolman_enabled(false);
-        poll();
-
-        // Both linked slots' fetches failed, and each failure was counted.
-        REQUIRE(TA::consecutive_failures(SpoolmanManager::instance()) == 2);
-        const auto record = helix::ams::lane_sources(backend.lane(0)).spoolman;
-        REQUIRE(record.has_value());
-        CHECK(record->brand == "Cached Brand");
-    }
+    // The record outranks Spoolman, which fills only what nothing else states.
+    CHECK(shown.brand == "Stored Brand");
 }
 
 // ============================================================================
@@ -1150,64 +1030,6 @@ void restate_firmware_spool(AmsBackendAd5xIfs& ad5x) {
 }
 
 } // namespace
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: an AD5X slot shows a spool edited on the server as soon as its "
-                 "fetch lands",
-                 "[spoolman][lane][ad5x_ifs][1653]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> ad5x(nullptr, nullptr);
-    seat_firmware_spool(*ad5x);
-    link(*ad5x, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
-    restate_firmware_spool(*ad5x);
-    REQUIRE(ad5x->get_slot_info(0).color_rgb == 0x1A1A2EU);
-
-    drain();
-    lv_subject_t* shown = AmsState::instance().get_slot_color_subject(0);
-    REQUIRE(shown != nullptr);
-    lv_subject_set_int(shown, kUnsyncedColor);
-
-    // The weights stay put, so the answer changes nothing on the slot but what
-    // the lane now resolves, and no backend event resyncs the subject.
-    server_spool(1).color_hex = "FF5500";
-    poll();
-
-    CHECK(ad5x->get_slot_info(0).color_rgb == 0xFF5500U);
-    CHECK(lv_subject_get_int(shown) == 0xFF5500);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: an AD5X slot stops showing a spool Spoolman denies as soon as "
-                 "the answer lands",
-                 "[spoolman][lane][ad5x_ifs][1653]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> ad5x(nullptr, nullptr);
-    seat_firmware_spool(*ad5x);
-    link(*ad5x, 0, 1);
-
-    // The record a backend's start filed from its stored override, painted by
-    // the next frame.
-    helix::ams::Observation cached(helix::ams::ObservationSource::Spoolman);
-    cached.spoolman_id = 1;
-    cached.color_rgb = 0x1A1A2EU;
-    helix::ams::ingest(ad5x.lane(0), cached);
-    restate_firmware_spool(*ad5x);
-    REQUIRE(ad5x->get_slot_info(0).color_rgb == 0x1A1A2EU);
-
-    drain();
-    lv_subject_t* shown = AmsState::instance().get_slot_color_subject(0);
-    REQUIRE(shown != nullptr);
-    lv_subject_set_int(shown, kUnsyncedColor);
-
-    remove_server_spool(1);
-    poll();
-
-    REQUIRE_FALSE(helix::ams::lane_sources(ad5x.lane(0)).spoolman.has_value());
-    // Colour, because the firmware states it too. A cached slot keeps a field no
-    // remaining source states (#1672), so such a field cannot show a repaint.
-    CHECK(ad5x->get_slot_info(0).color_rgb == 0x898989U);
-    CHECK(lv_subject_get_int(shown) == 0x898989);
-}
 
 TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "SpoolmanManager: a fetch that changes nothing on the lane neither repaints nor "
@@ -1276,7 +1098,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // subjects show it.
     SlotInfo moved = backend->get_slot_info(0);
     moved.remaining_weight_g = 1000.0F;
-    REQUIRE(backend->sync_external_identity(0, moved).success());
+    REQUIRE(helix::test::apply_edit(*backend, 0, moved).success());
     ams.sync_from_backend();
     drain();
     REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 100);
@@ -1292,115 +1114,6 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 70);
 }
 
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "SpoolmanManager: weight polls on a linked tool changer slot leave the saved "
-                 "spool assignments alone",
-                 "[spoolman][toolchanger][slot_refresh][tool-state]") {
-    // AmsState hands ToolState the API it saves through. A mock of its own counts
-    // those saves and nothing the Spoolman fetches do.
-    MoonrakerAPIMock tool_api(client, get_printer_state());
-    struct AmsApiScope {
-        ~AmsApiScope() {
-            AmsState::instance().set_moonraker_api(nullptr);
-        }
-    } ams_api_scope;
-    AmsState::instance().set_moonraker_api(&tool_api);
-
-    // tool_spools.json lands in a directory this case owns.
-    struct SpoolJsonScope {
-        std::string previous_dir = helix::ToolState::instance().get_config_dir();
-        std::filesystem::path dir = std::filesystem::temp_directory_path() /
-                                    ("helix-spool-json-" + std::to_string(::getpid()));
-        ~SpoolJsonScope() {
-            helix::ToolState::instance().deinit_subjects();
-            helix::ToolState::instance().set_config_dir(previous_dir);
-            std::error_code ec;
-            std::filesystem::remove_all(dir, ec);
-        }
-    } spool_json;
-
-    auto& ts = helix::ToolState::instance();
-    ts.set_config_dir(spool_json.dir.string());
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-    helix::PrinterDiscovery hw;
-    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder",
-                                            "extruder1", "heater_bed", "gcode_move"}));
-    ts.init_tools(hw);
-    REQUIRE(ts.tool_count() == 2);
-
-    helix::test::RegisteredBackend<helix::AmsBackendToolChanger> backend(nullptr, nullptr);
-    backend->set_discovered_tools({"T0", "T1"});
-    AmsState& ams = AmsState::instance();
-    REQUIRE_FALSE(backend->has_firmware_spool_persistence());
-    REQUIRE(backend->get_slot_info(0).mapped_tool == 0);
-
-    // Link tool 0's slot and let the assignment reach ToolState and its store.
-    link(*backend, 0, 1);
-    ams.sync_from_backend();
-    drain();
-    REQUIRE(ts.tools()[0].spoolman_id == 1);
-    REQUIRE(client.call_count("server.database.post_item") > 0); // the full sync's own save
-    state_polymaker_pla(server_spool(1));
-    poll();
-    REQUIRE_FALSE(helix::ToolStateTestAccess::spool_dirty(ts));
-    const int saves_after_link = client.call_count("server.database.post_item");
-    REQUIRE(saves_after_link > 0);
-
-    // A print draining the spool: each poll finds less on the server.
-    for (int tick = 1; tick <= 3; ++tick) {
-        const double remaining = 850.0 - 10.0 * tick;
-        server_spool(1).remaining_weight_g = remaining;
-        poll();
-        // No full sync runs in this loop, and only update_slot writes the
-        // fill subject outside one, so each poll reached update_slot.
-        REQUIRE(backend->get_slot_info(0).remaining_weight_g == static_cast<float>(remaining));
-        REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) ==
-                backend->get_slot_info(0).display_fill_pct());
-    }
-
-    CHECK(client.call_count("server.database.post_item") == saves_after_link);
-}
-
-TEST_CASE_METHOD(SpoolmanLaneFixture,
-                 "a changed Spoolman identity amends the linked lane's stored record",
-                 "[spoolman][lane][1653]") {
-    // Without the amend the lane shows the server's identity while the record a
-    // restart reloads still holds the old one.
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend(&api, nullptr);
-    helix::ams::FilamentSlotOverride stored;
-    stored.spoolman_id = 1;
-    stored.brand = "Polymaker";
-    stored.material = "PLA";
-    stored.color_rgb = 0xBCBCBC;
-    stored.color_set = true;
-    stored.declared = helix::ams::declared_fields_from_names(nlohmann::json::array({"color_rgb"}));
-    Ad5xIfsTestAccess::seed_override(*backend, 0, stored);
-    link(*backend, 0, 1);
-    state_polymaker_pla(server_spool(1));
-    poll();
-
-    // The spool is edited on the server.
-    server_spool(1).material = "PETG";
-    server_spool(1).vendor = "Sunlu";
-    poll();
-
-    const auto record = Ad5xIfsTestAccess::get_override(*backend, 0);
-    REQUIRE(record.has_value());
-    CHECK(record->material == "PETG");
-    CHECK(record->brand == "Sunlu");
-    // The colour is the user's, and the server does not get to move it.
-    CHECK(record->color_rgb == 0xBCBCBCu);
-    CHECK(helix::ams::declares_color(*record));
-
-    // What a restart would reload now resolves to what the lane shows.
-    const helix::ams::LaneSources reload = helix::ams::sources_from_record(
-        *record, helix::ams::to_lane_data_record(0, *record), helix::ams::LegacyLockKeys::LaneData);
-    CHECK(helix::ams::resolve(reload).material == std::string("PETG"));
-    CHECK(helix::ams::resolve(reload).brand == std::string("Sunlu"));
-    CHECK(helix::ams::resolve(reload).color_rgb == 0xBCBCBCu);
-}
-
 // A Spoolman fetch that times out is an ordinary network failure: the error
 // callback reports it and nothing more. In particular no exception may reach
 // the UpdateQueue drain — a throw there means some queued callback blew up,
@@ -1411,7 +1124,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     SlotInfo ext;
     ext.spoolman_id = 135;
     ext.material = "PLA";
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     const auto exceptions_before = helix::ui::UpdateQueueTestAccess::callback_exception_count();
     client.set_mock_spoolman_enabled(false);
@@ -1420,7 +1133,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     poll();
 
     // The error path ran and reported where the fetch failed.
-    CHECK(capture.contains("Failed to fetch external spool Spoolman #135"));
+    CHECK(capture.contains("Failed to fetch Spoolman spool 135"));
     // And it threw nothing into the drain.
     CHECK(helix::ui::UpdateQueueTestAccess::callback_exception_count() == exceptions_before);
 

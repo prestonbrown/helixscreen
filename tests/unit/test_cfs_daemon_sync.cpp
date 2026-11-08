@@ -211,7 +211,14 @@ json stock_unit_box(const std::vector<std::string>& material_types,
 class DaemonCaptureCfs : public helix::printer::AmsBackendCfs {
   public:
     using AmsBackendCfs::AmsBackendCfs;
-    using AmsBackendCfs::push_slot_identity_to_firmware;
+    /// An edit of bay @p slot to these fields, as apply_user_edit writes it.
+    void push_edit(int slot, const std::string& material, const std::string& brand, uint32_t rgb) {
+        helix::SlotInfo info;
+        info.material = material;
+        info.brand = brand;
+        info.color_rgb = rgb;
+        (void)push_slot_identity_to_firmware(slot, info, nullptr, nullptr);
+    }
 
     AmsError execute_gcode(const std::string& gcode) override {
         captured.push_back(gcode);
@@ -256,7 +263,7 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
     cfs.fire_status(stock_unit_box({"-1", "000003", "-1", "-1"}, {"-1", "01B04AE", "-1", "-1"}));
 
     SECTION("material code and color, addressed to T1A") {
-        cfs.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        cfs.push_edit(0, "PETG", "Generic", 0xFF0000);
         REQUIRE(cfs.captured.size() == 2);
         REQUIRE(cfs.captured[0].find("PART=material_type DATA=000003") != std::string::npos);
         REQUIRE(cfs.notices.size() == 1);
@@ -271,8 +278,15 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
         CHECK(n.max_temp_c >= n.min_temp_c);
     }
 
+    SECTION("a write emptying the material or the colour sends no notice") {
+        cfs.push_edit(0, "", "", 0xFF0000);
+        cfs.push_edit(0, "PETG", "Generic", helix::kAmsDefaultSlotColor);
+        CHECK(cfs.captured.size() >= 2);
+        CHECK(cfs.notices.empty());
+    }
+
     SECTION("a color-only write names the material the box still holds, never the pick") {
-        cfs.push_slot_identity_to_firmware(1, "Unobtanium", "ACME", "", 0x00FF00);
+        cfs.push_edit(1, "Unobtanium", "ACME", 0x00FF00);
         REQUIRE(cfs.captured[0].find("PART=material_type") == std::string::npos);
         REQUIRE(cfs.notices.size() == 1);
         const auto& n = cfs.notices[0];
@@ -287,20 +301,20 @@ TEST_CASE("CFS slot write tells the daemon what Klipper accepted", "[cfs][daemon
     }
 
     SECTION("a color-only write to a bay holding no known material tells the daemon nothing") {
-        cfs.push_slot_identity_to_firmware(3, "Unobtanium", "ACME", "", 0x00FF00);
+        cfs.push_edit(3, "Unobtanium", "ACME", 0x00FF00);
         REQUIRE(cfs.captured[0].find("PART=material_type") == std::string::npos);
         CHECK(cfs.notices.empty());
     }
 
     SECTION("a raw tag UID is never sent as the vendor") {
-        cfs.push_slot_identity_to_firmware(0, "PETG", "04A1B2C3D4E5F6", "", 0x00FF00);
+        cfs.push_edit(0, "PETG", "04A1B2C3D4E5F6", 0x00FF00);
         REQUIRE(cfs.notices.size() == 1);
         CHECK(cfs.notices[0].vendor != "04A1B2C3D4E5F6");
     }
 
     SECTION("a write Klipper rejects tells the daemon nothing") {
         cfs.klipper_rejects = true;
-        cfs.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+        cfs.push_edit(0, "PETG", "Generic", 0xFF0000);
         REQUIRE_FALSE(cfs.captured.empty());
         CHECK(cfs.notices.empty());
     }
@@ -312,7 +326,7 @@ TEST_CASE("CFS slot write completes at once with no daemon listening", "[cfs][da
     cfs.point_daemon_at(LoopbackWsServer::closed_port());
 
     const auto start = Clock::now();
-    cfs.push_slot_identity_to_firmware(0, "PETG", "Generic", "", 0xFF0000);
+    cfs.push_edit(0, "PETG", "Generic", 0xFF0000);
     // The send runs on a worker, so the write never waits on even the connect.
     CHECK(ms_since(start) < 50);
     REQUIRE(cfs.captured.size() == 2);
@@ -327,7 +341,7 @@ TEST_CASE("CFS slot write reaches a listening daemon as a modifyMaterial frame",
     LoopbackWsServer server;
     cfs.point_daemon_at(server.port());
 
-    cfs.push_slot_identity_to_firmware(1, "PETG", "Generic", "", 0x123456);
+    cfs.push_edit(1, "PETG", "Generic", 0x123456);
     const auto text = server.wait_for_text_frame(std::chrono::seconds(3));
     REQUIRE(text);
     const json frame = json::parse(*text, nullptr, false);

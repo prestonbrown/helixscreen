@@ -683,6 +683,7 @@ translations:
   Change heater control?: 更改加热器控制？
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : '通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。'
+  Change the name or the linked spool in Spoolman.: "请在 Spoolman 中更改名称或关联的料盘。"
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
@@ -2186,6 +2187,8 @@ translations:
   Loading filament...: 正在加载耗材...
   Loading filaments...: 正在加载耗材...
   Loading history...: 正在加载历史...
+  Loading lane details. Try again in a moment.: 正在加载耗材通道详情，请稍后重试。
+  Loading lane details…: 正在加载耗材通道详情…
   Loading photo: '正在加载照片'
   Loading spools...: 正在加载料盘...
   Loading vendors...: 正在加载供应商…
@@ -2269,6 +2272,7 @@ translations:
   Main LED Strip: 主 LED 灯带
   Maintaining: 保持中
   Maintenance: '维护'
+  Make color, material and spool changes in Spoolman.: "请在 Spoolman 中更改颜色、材料和料盘。"
   Make sure every nozzle is clean.: 请确保所有喷嘴都干净。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。
 
@@ -2605,6 +2609,7 @@ translations:
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not turned: '未转动'
+  'Not saved: {}. Try again.': "未保存：{}。请重试。"
   Not set: 未设置
   Not yet available on this display: '此屏幕暂不支持'
   Not yet calibrated: 尚未校准
@@ -2709,6 +2714,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: '请在打印文件中打开该 .3mf 以再次打印此板。'
   Open the CFS unit and remove the broken filament from the slot: 请打开 CFS 单元并从槽位中取出断裂的耗材
   Open the slot editor when you load a new spool: '装入新料盘时打开槽位编辑器'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS 在 Spoolman 中管理此料盘，此处只能更改材料、颜色、品牌和重量"
+  OpenAMS manages this spool's link: "此料盘的关联由 OpenAMS 管理"
+  AFC has no Spoolman configured: "AFC 未设置 Spoolman"
   Opened: 已打开
   Operation already in progress: 操作正在进行中
   Operation timed out: 操作超时
@@ -4799,11 +4807,18 @@ translations:
   tall: 高
   target {}%: '目标 {}%'
   target {}°: '目标 {}°'
+  the ACE needs a material and its nozzle temperature: "ACE 需要材料及其喷嘴温度"
+  "the CFS can't change a slot while a print is running": "打印期间 CFS 无法更改槽位"
+  the QIDI Box filament list has not loaded: "QIDI Box 的耗材列表尚未加载"
+  the QIDI Box has no {} in its filament list: "QIDI Box 的耗材列表中没有 {}"
   the extruder: 挤出机
   the left belt: "左皮带"
   the lower belt: "下皮带"
+  the printer did not confirm it: "打印机未确认"
+  the printer refused it: "打印机拒绝了"
   the right belt: "右皮带"
   the upper belt: "上皮带"
+  this printer fills its gates from Spoolman, so change the spool there: "此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"
   this week: 本周
   too slow: 太慢
   tool(s): 工具

@@ -35,12 +35,10 @@ namespace {
 
 /// The mock's traits with the fields it answers from itself copied from @p real,
 /// so the comparison covers every other field. Environment data is faked for
-/// every persona (HELIX_MOCK_AMS_ENV); the mock has no firmware store, so spool
-/// persistence is always ToolState's job; consumption tracking is a test hook.
+/// every persona (HELIX_MOCK_AMS_ENV); consumption tracking is a test hook.
 BackendTraits comparable(const AmsBackendMock& mock, const BackendTraits& real) {
     BackendTraits t = mock.traits();
     t.has_environment_sensors = real.has_environment_sensors;
-    t.has_firmware_spool_persistence = real.has_firmware_spool_persistence;
     t.tracks_consumption_natively = real.tracks_consumption_natively;
     return t;
 }
@@ -128,11 +126,7 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK(AmsBackendAce::kTraits.has_per_slot_loaded_authority);
     CHECK(AmsBackendAd5xIfs::kTraits.has_per_slot_loaded_authority);
     CHECK_FALSE(AmsBackendHappyHare::kTraits.has_per_slot_loaded_authority);
-    // Firmware that stores the spool id per lane; elsewhere ToolState persists
-    // the assignment in the Moonraker DB.
-    CHECK(AmsBackendHappyHare::kTraits.has_firmware_spool_persistence);
-    CHECK_FALSE(AmsBackendToolChanger::kTraits.has_firmware_spool_persistence);
-    CHECK_FALSE(AmsBackendAd5xIfs::kTraits.has_firmware_spool_persistence);
+    // Firmware that reports a spool id per lane.
     CHECK(AmsBackendAfc::kTraits.printer_reports_spool_ids);
     CHECK(AmsBackendHappyHare::kTraits.printer_reports_spool_ids);
     CHECK_FALSE(BackendTraits{}.printer_reports_spool_ids);
@@ -167,14 +161,6 @@ TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolma
     AmsBackendSnapmaker u1(nullptr, nullptr);
     CHECK(u1.supports_per_tool_spool_assignment());
     CHECK_FALSE(u1.is_bypass_active());
-}
-
-TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
-          "[ams][mock][traits]") {
-    AmsBackendMock mock(4);
-    mock.set_afc_mode(true);
-    REQUIRE(AmsBackendAfc::kTraits.has_firmware_spool_persistence);
-    CHECK_FALSE(mock.has_firmware_spool_persistence());
 }
 
 TEST_CASE("Each optional interface answers only on the backends that implement it",
@@ -358,6 +344,15 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         REQUIRE(ev->recovery_actions.size() == 1);
         CHECK(ev->recovery_actions[0].gcode.empty());
     }
+}
+
+TEST_CASE("Keep Spool Info on Eject applies where the lane record is the only identity",
+          "[ams][capabilities][keep_spool]") {
+    CHECK(helix::AmsBackendToolChanger(nullptr, nullptr).lane_record_is_only_identity());
+    // Firmware that holds the spool decides an eject itself.
+    CHECK_FALSE(helix::AmsBackendAfc(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendHappyHare(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendAd5xIfs(nullptr, nullptr).lane_record_is_only_identity());
 }
 
 TEST_CASE("every backend's constant traits number tools from 1", "[ams][traits][tool_style]") {

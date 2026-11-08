@@ -145,7 +145,7 @@ void LoadCellManager::refresh_subjects() {
     }
 
     auto& ams_state = AmsState::instance();
-    auto spool_info = ams_state.raw_external_spool_info().value_or(SlotInfo{});
+    const auto spool_info = ams_state.get_external_spool_info().value_or(SlotInfo{});
     bool weight_changed = false;
     if (spool_info.remaining_weight_g == -1) {
         weight_changed = true;
@@ -159,15 +159,12 @@ void LoadCellManager::refresh_subjects() {
     if (!weight_changed) {
         return;
     }
-    spool_info.remaining_weight_g = *spool_weight;
-    ams_state.set_external_spool_info_in_memory(spool_info);
-
-    // Views read the resolved record, where the bypass lane's sources outrank the
-    // raw one; filing the reading as Metered is what lets it show over a stale
-    // user edit.
+    // The reading files as the bypass lane's Metered source, which ranks over
+    // the weight the bypass record was last written with.
     helix::ams::Observation measured(helix::ams::ObservationSource::Metered);
     measured.remaining_weight_g = *spool_weight;
     helix::ams::ingest(helix::ams::kBypassLaneId, measured);
+    ams_state.refresh_external_spool();
 
     spdlog::debug("[LoadCellManager] Publishing updated spool weight to AmsState: {} g",
                   *spool_weight);

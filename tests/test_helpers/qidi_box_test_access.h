@@ -4,9 +4,11 @@
 
 #include "ams_backend_qidi.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "json_fwd.h"
+#include "lane_translation.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -116,6 +118,13 @@ class QidiBoxTestAccess {
             return std::nullopt;
         return it->second;
     }
+    /// What a lane-record read files for @p record on this backend.
+    static helix::ams::Observation record_reading(const AmsBackendQidi& b,
+                                                  const helix::ams::FilamentSlotOverride& record) {
+        helix::ams::Observation read = helix::ams::record_observation(record);
+        b.drop_firmware_held_fields(read);
+        return read;
+    }
     static void inject_override_store(AmsBackendQidi& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
@@ -127,6 +136,8 @@ class QidiBoxTestAccess {
     // immediately after it, skipping the subscription machinery.
     static void start_load(AmsBackendQidi& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
     static std::optional<std::string> last_fingerprint(const AmsBackendQidi& b, int slot_index) {
         return b.rfid_tracker_.baseline(slot_index);
