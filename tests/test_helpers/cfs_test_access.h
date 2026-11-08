@@ -183,6 +183,9 @@ class CfsTestAccess {
     static void finish_unit_settle(helix::printer::AmsBackendCfs& b) {
         b.finish_unit_settle();
     }
+    static bool unit_settle_armed(const helix::printer::AmsBackendCfs& b) {
+        return b.unit_settle_timer_.get() != nullptr;
+    }
 
     /// Run the real completion path (the gcode-script success callback body),
     /// including phase verification.

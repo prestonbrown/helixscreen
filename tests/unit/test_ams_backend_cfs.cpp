@@ -2,6 +2,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "ams_backend_cfs.h"
 #include "ams_remap.h"
 #include "ams_types.h"
@@ -5774,10 +5775,14 @@ TEST_CASE("CFS with no unit on the bus feeds only the external spool", "[ams][cf
     }
 
     SECTION("a box re-query from a device action keeps the verdict") {
-        REQUIRE(cfs.execute_device_action("comm_test", std::any{}).result == AmsResult::SUCCESS);
-        CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
-        CHECK(cfs.get_system_info().external_spool_only);
-        CHECK(cfs.is_bypass_active());
+        for (const char* action : {"comm_test", "refresh_rfid"}) {
+            CAPTURE(action);
+            REQUIRE(cfs.execute_device_action(action, std::any{}).result == AmsResult::SUCCESS);
+            CfsTestAccess::handle_status(cfs,
+                                         make_cfs_notification(make_empty_bus_box("disconnect")));
+            CHECK(cfs.get_system_info().external_spool_only);
+            CHECK(cfs.is_bypass_active());
+        }
     }
 
     SECTION("the bypass toggle refuses: there is no other side to switch to") {
@@ -5854,4 +5859,30 @@ TEST_CASE("CFS unit seen this session keeps the CFS when the bus later reads emp
     CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
     CHECK_FALSE(cfs.get_system_info().external_spool_only);
     CHECK_FALSE(cfs.is_bypass_active());
+}
+
+TEST_CASE("CFS a bare box state delta moves the empty-bus verdict", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    cfs.mark_running();
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("connect")));
+    CfsTestAccess::finish_unit_settle(cfs);
+    REQUIRE_FALSE(cfs.get_system_info().external_spool_only);
+
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(json{{"state", "disconnect"}}));
+    CHECK(cfs.get_system_info().external_spool_only);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "CFS start arms the unit settle; a device re-query does not",
+                 "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    REQUIRE_FALSE(CfsTestAccess::unit_settle_armed(cfs));
+
+    CHECK(cfs.execute_device_action("comm_test", std::any{}).result == AmsResult::SUCCESS);
+    CHECK_FALSE(CfsTestAccess::unit_settle_armed(cfs));
+
+    CfsTestAccess::call_on_started(cfs);
+    CHECK(CfsTestAccess::unit_settle_armed(cfs));
+
+    CfsTestAccess::finish_unit_settle(cfs);
+    CHECK_FALSE(CfsTestAccess::unit_settle_armed(cfs));
 }
