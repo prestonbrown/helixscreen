@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_calibration_state.cpp
- * @brief Calibration and configuration state management extracted from PrinterState
+ * @brief Calibration and configuration state management (a PrinterState sub-state)
  *
  * Manages firmware retraction, manual probe, and motor state subjects.
  * Uses centimillimeters and microns for integer precision with floating-point mm values.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_calibration_state.h"

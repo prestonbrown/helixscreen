@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_fan_state.cpp
- * @brief Fan state management extracted from PrinterState
+ * @brief Fan state management (a PrinterState sub-state)
  *
  * Manages fan subjects including main part-cooling fan speed, multi-fan
  * tracking with per-fan subjects, and fan metadata for UI display.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_fan_state.h"
@@ -689,7 +688,6 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
 }
 
 void PrinterFanState::rename_fan(const std::string& object_name, const std::string& new_name) {
-    // Save to config
     auto* config = Config::get_instance();
     std::string key = config->df() + "fans/names/" + object_name;
     config->set<std::string>(key, new_name);
@@ -701,7 +699,6 @@ void PrinterFanState::rename_fan(const std::string& object_name, const std::stri
                       object_name);
     }
 
-    // Update in-memory display name
     bool matched = false;
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {
