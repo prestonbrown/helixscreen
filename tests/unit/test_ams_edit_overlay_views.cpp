@@ -72,6 +72,21 @@ class AmsEditOverlayViewTestAccess {
     void call_set_view(int v) {
         overlay_.set_view(v);
     }
+    int spool_disagrees() {
+        return lv_subject_get_int(&overlay_.spool_disagrees_subject_);
+    }
+    std::string spool_disagreement_text() {
+        return lv_subject_get_string(&overlay_.spool_disagreement_text_subject_);
+    }
+    void call_handle_reapply() {
+        overlay_.handle_reapply_linked_spool();
+    }
+    void call_handle_unlink_disagreeing() {
+        overlay_.handle_unlink_disagreeing_spool();
+    }
+    bool dirty() {
+        return overlay_.is_dirty();
+    }
     int is_managed() {
         return lv_subject_get_int(&overlay_.is_managed_subject_);
     }
@@ -732,6 +747,173 @@ struct OverlayConsumerCommitFixture : LVGLUITestFixture {
         REQUIRE(err.success());
     }
 };
+
+namespace {
+
+SpoolInfo elegoo_black_asa() {
+    SpoolInfo spool;
+    spool.id = 149;
+    spool.filament_id = 31;
+    spool.vendor = "Elegoo";
+    spool.material = "ASA";
+    spool.color_hex = "000000";
+    return spool;
+}
+
+// A lane that holds PLA while its link names the Elegoo ASA spool.
+struct BoxWinsFixture : OverlayConsumerCommitFixture {
+    AmsEditOverlay& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access{overlay};
+    bool fired = false;
+    AmsEditOverlay::EditResult captured;
+
+    BoxWinsFixture() {
+        client.spoolman_mock().get_mock_spools().push_back(elegoo_black_asa());
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_spoolman"), 1);
+        get_printer_state().capabilities_state().set_spoolman_available(true);
+        UpdateQueue::instance().drain();
+    }
+
+    ~BoxWinsFixture() override {
+        ModalStack::instance().clear();
+        get_printer_state().capabilities_state().set_spoolman_available(false);
+        UpdateQueue::instance().drain();
+    }
+
+    SlotInfo box_lane() {
+        SlotInfo lane = backend->get_slot_info(0);
+        lane.spoolman_id = 149;
+        lane.brand = "Creality";
+        lane.material = "PLA";
+        lane.color_rgb = 0xFF0000;
+        lane.remaining_weight_g = 500.0f;
+        lane.total_weight_g = 1000.0f;
+        return lane;
+    }
+
+    void open(bool box_owns_identity, const SlotInfo& lane) {
+        backend->set_firmware_owns_lane_identity_for_testing(box_owns_identity);
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, lane, &api,
+                                      [this](const AmsEditOverlay::EditResult& r) {
+                                          fired = true;
+                                          captured = r;
+                                      }));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+
+    void settle() {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names the disagreeing spool",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+
+    CHECK(access.working_info().material == "PLA");
+    CHECK(access.working_info().brand == "Creality");
+    CHECK(access.working_info().color_rgb == 0xFF0000U);
+    CHECK_FALSE(access.dirty());
+    CHECK(access.spool_disagrees() == 1);
+    CHECK(access.spool_disagreement_text().find("ASA") != std::string::npos);
+    CHECK(access.spool_disagreement_text().find("Black") != std::string::npos);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "a lane whose firmware does not own it still follows the spool",
+                 "[ams_edit_overlay][box_wins]") {
+    open(false, box_lane());
+
+    CHECK(access.working_info().material == "ASA");
+    CHECK(access.working_info().brand == "Elegoo");
+    CHECK(access.spool_disagrees() == 0);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane agreeing with its spool shows no note",
+                 "[ams_edit_overlay][box_wins]") {
+    SlotInfo lane = box_lane();
+    lane.material = "ASA";
+    lane.color_rgb = 0x000000;
+    lane.brand = "Creality";
+    open(true, lane);
+
+    CHECK(access.spool_disagrees() == 0);
+    // Brand alone is not a disagreement, and the record still names it.
+    CHECK(access.working_info().brand == "Elegoo");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+
+    SlotInfo edited = access.working_info();
+    edited.remaining_weight_g = 400.0f;
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+
+    CHECK(ModalStack::instance().stack_empty());
+    REQUIRE(fired);
+    CHECK(captured.slot_info.material == "PLA");
+    CHECK(captured.slot_info.color_rgb == 0xFF0000U);
+    CHECK(captured.slot_info.spoolman_id == 149);
+    CHECK(client.spoolman_mock().filament_updates.empty());
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool writes it through the save, unprompted",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+    REQUIRE(access.spool_disagrees() == 1);
+
+    access.call_handle_reapply();
+    settle();
+
+    CHECK(ModalStack::instance().stack_empty());
+    REQUIRE(fired);
+    CHECK(captured.saved);
+    CHECK(captured.slot_info.material == "ASA");
+    CHECK(captured.slot_info.color_rgb == 0x000000U);
+    CHECK(captured.slot_info.brand == "Elegoo");
+    CHECK(captured.slot_info.spoolman_id == 149);
+    CHECK(client.spoolman_mock().filament_updates.empty());
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "unlinking from the note keeps the lane's own filament",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+    REQUIRE(access.spool_disagrees() == 1);
+
+    access.call_handle_unlink_disagreeing();
+    settle();
+
+    CHECK(ModalStack::instance().stack_empty());
+    REQUIRE(fired);
+    CHECK(captured.saved);
+    CHECK(captured.slot_info.spoolman_id == 0);
+    CHECK(captured.slot_info.material == "PLA");
+    CHECK(captured.slot_info.color_rgb == 0xFF0000U);
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament still asks",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+
+    SlotInfo edited = access.working_info();
+    edited.material = "PETG";
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+
+    CHECK_FALSE(ModalStack::instance().stack_empty());
+    CHECK_FALSE(fired);
+    close_editor_overlay();
+}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "picker marks no row for a slot with no linked spool",
                  "[ams_edit_overlay][picker][preselect]") {

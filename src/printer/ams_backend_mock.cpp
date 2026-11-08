@@ -898,6 +898,7 @@ BackendTraits AmsBackendMock::traits_locked() const {
     // A test hook: no real backend tracks consumption natively, and the paths
     // that do need a backend that says so.
     t.tracks_consumption_natively = tracks_consumption_natively_;
+    t.firmware_owns_lane_identity = firmware_owns_lane_identity_;
     // No firmware stands behind the mock's slot table, so nothing it is told
     // survives a restart: ToolState has to save the assignments itself.
     // Environment data is faked for every persona (HELIX_MOCK_AMS_ENV) so the

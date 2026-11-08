@@ -3042,6 +3042,7 @@
   <translation tag="Random" zh="随机"/>
   <translation tag="Raspberry Pi" zh="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" zh="Raspberry Pi (32-bit)"/>
+  <translation tag="Re-apply spool"/>
   <translation tag="Re-identify" zh="重新识别"/>
   <translation tag="Re-measure" zh="重新测量"/>
   <translation tag="Re-measure (~{} min)" zh="重新测量(约 {} 分钟)"/>
@@ -3897,6 +3898,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." zh="帮助宏已安装，将在 Klipper 重启后启用。"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." zh="锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。"/>
   <translation tag="The left RFID reader in this CFS unit may need service" zh="此 CFS 单元的左侧 RFID 读取器可能需要维修"/>
+  <translation tag="The linked spool says {}."/>
   <translation tag="The loaded slot is not known yet" zh="已加载的槽位尚未报告"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" zh="打印机宏显示的消息 (M117)"/>
@@ -4260,6 +4262,7 @@
   <translation tag="Unknown Spool" zh="未知料盘"/>
   <translation tag="Unknown Step" zh="未知步骤"/>
   <translation tag="Unknown error" zh="未知错误"/>
+  <translation tag="Unlink"/>
   <translation tag="Unlink, keep on this slot" zh="取消关联，保留在此料位"/>
   <translation tag="Unload" zh="卸载"/>
   <translation tag="Unload Distance" zh="卸载距离"/>

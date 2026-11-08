@@ -1639,6 +1639,14 @@ is loaded (`src/ui/panel_widgets/active_spool_widget.cpp#handle_clicked`), and t
 loaded lane's editor otherwise. Which spool becomes Moonraker's active spool is
 `architecture/07-filament-ams.md` § "Spoolman without AMS".
 
+On a backend whose firmware owns lane identity
+(`BackendTraits::firmware_owns_lane_identity`, CFS only) the box wins: when the linked
+spool's record contradicts the lane's material or colour, the editor keeps the lane's values
+and an inline note names the spool's. The note's **Unlink** drops the link and keeps the lane;
+**Re-apply spool** writes the spool's identity to the box through the normal save. Neither
+asks the identity question, and a save that does not change the identity never asks either.
+`AmsBackend::commit_user_edit` leaves such a lane's identity as the edit states it.
+
 **Saving.** Save in the header is dirty-gated, a More-field edit included. A
 spool picked in a picker-entry session (`open_on_picker`) commits at once
 (`commit_and_close()`); one picked from the editor's header button returns to

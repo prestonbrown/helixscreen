@@ -109,6 +109,7 @@ struct BackendTraits {
     bool print_routing_resets_to_identity = false;
     bool heads_share_heater = false;
     bool carriage_can_be_empty = false;
+    bool firmware_owns_lane_identity = false;
     helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
     helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
     helix::ui::ToolNumberStyle tool_number_style = helix::ui::ToolNumberStyle::Physical;
@@ -3040,6 +3041,13 @@ class AmsBackend : public AmsCapabilityHost {
     /// set_firmware_spool_retention().
     [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
         return false;
+    }
+
+    /// Whether the firmware's own state is the authority for a lane's material
+    /// and colour, so a linked spool never overrides them. The editor shows what
+    /// the lane holds and names the spool when the two disagree.
+    [[nodiscard]] bool firmware_owns_lane_identity() const {
+        return traits().firmware_owns_lane_identity;
     }
 
     /// Whether HelixScreen's lane record is the only identity a lane has: the

@@ -3042,6 +3042,7 @@
   <translation tag="Random" pt="Aleatório"/>
   <translation tag="Raspberry Pi" pt="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" pt="Raspberry Pi (32-bit)"/>
+  <translation tag="Re-apply spool"/>
   <translation tag="Re-identify" pt="Reidentificar"/>
   <translation tag="Re-measure" pt="Medir novamente"/>
   <translation tag="Re-measure (~{} min)" pt="Remedir (~{} min)"/>
@@ -3897,6 +3898,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." pt="As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>
   <translation tag="The left RFID reader in this CFS unit may need service" pt="O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção"/>
+  <translation tag="The linked spool says {}."/>
   <translation tag="The loaded slot is not known yet" pt="O slot carregado ainda não é conhecido"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." pt="O carretel carregado é {}, mas este arquivo foi fatiado para {}. Filamento composto funciona com fluxo menor e precisa de um bico endurecido."/>
   <translation tag="The message your printer&apos;s macros show (M117)" pt="A mensagem que as macros da sua impressora mostram (M117)"/>
@@ -4260,6 +4262,7 @@
   <translation tag="Unknown Spool" pt="Carretel Desconhecido"/>
   <translation tag="Unknown Step" pt="Etapa Desconhecida"/>
   <translation tag="Unknown error" pt="Erro desconhecido"/>
+  <translation tag="Unlink"/>
   <translation tag="Unlink, keep on this slot" pt="Desvincular, manter neste slot"/>
   <translation tag="Unload" pt="Descarregar"/>
   <translation tag="Unload Distance" pt="Distância de descarregamento"/>
