@@ -713,6 +713,21 @@ class AmsState {
     [[nodiscard]] std::optional<ToolLane> lane_feeding_tool(int tool) const;
 
     /**
+     * @brief Import HelixScreen 1.0's spool links, once, at connect.
+     *
+     * Reads the 1.0 per-tool links (Moonraker key helix-screen/
+     * tool_spool_assignments, else tool_spools.json) and the bypass spool the
+     * v34 config migration parked. Once the lanes are read, a tool changer
+     * lane with no link takes its tool's spool through commit_slot_edit(), and
+     * an empty bypass record takes the bypass spool; then the 1.0 copies are
+     * deleted. Main thread.
+     *
+     * @param tool_spools_path The 1.0 file: tool_spools.json in the user
+     *        config dir.
+     */
+    void start_legacy_spool_import(const std::string& tool_spools_path);
+
+    /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
      */
@@ -2322,6 +2337,12 @@ class AmsState {
     void adopt_bypass_records(const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
     /// Start or stop AmsState's bypass reads to follow api_. Main thread.
     void restart_bypass_reads();
+    /// Whether the bypass record's holder has read it, so its absence is
+    /// Moonraker's answer. Main thread.
+    [[nodiscard]] bool bypass_record_known() const;
+    /// Write what start_legacy_spool_import() read, each half once its lanes
+    /// are read. Runs after every sync and bypass read. Main thread.
+    void run_legacy_spool_import();
 
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults(bool write_header = true);
@@ -2725,6 +2746,22 @@ class AmsState {
     /// thread.
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> bypass_store_;
     std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
+    /// AmsState's own bypass store has answered a read since it opened.
+    bool bypass_store_read_ = false;
+
+    /// What start_legacy_spool_import() read, and which halves are written.
+    struct LegacyImport {
+        std::string printer_id;
+        std::string file_path;
+        nlohmann::json file;
+        std::optional<std::map<int, int>> tool_spools;
+        bool db_key_seen = false;
+        bool tools_done = false;
+        std::optional<SlotInfo> bypass;
+        bool bypass_parked = false;
+        bool bypass_done = false;
+    };
+    LegacyImport legacy_import_;
     bool bypass_read_in_flight_ = false;
     /// A read was asked for while one was out.
     bool bypass_read_again_ = false;

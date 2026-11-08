@@ -706,6 +706,8 @@ void AmsState::sync_from_backend() {
 
     sync_lanes_emptied(backend, info);
 
+    run_legacy_spool_import();
+
     sync_unit_environment(backend, info);
 
     if (clear_unused_slot_subjects(info.total_slots)) {

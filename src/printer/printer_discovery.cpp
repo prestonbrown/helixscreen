@@ -7,9 +7,12 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "data_root_resolver.h"
+#include "helix_fs.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
+#include "legacy_spool_import.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
 #include "printer_state.h"
@@ -81,6 +84,11 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // snapshot arrived before tools_ existed, so it was dropped, and Moonraker
     // republishes only what changes afterwards.
     helix::ToolState::instance().query_tool_offsets(client, hardware);
+
+    // HelixScreen 1.0 kept per-tool and bypass spool links locally; they go
+    // into the lane records once those are read.
+    AmsState::instance().start_legacy_spool_import(
+        helix::fs::join_path(helix::get_user_config_dir(), helix::ams::legacy::kToolSpoolsFile));
 
     // Sync printer name from Mainsail/Fluidd DB (seeds local config on first connect)
     helix::PrinterNameSync::resolve(api, hardware.hostname());

@@ -144,6 +144,7 @@ void AmsState::restart_bypass_reads() {
     bypass_poll_.reset();
     bypass_store_.reset();
     bypass_record_read_.reset();
+    bypass_store_read_ = false;
     bypass_read_in_flight_ = false;
     bypass_read_again_ = false;
     if (api_ == nullptr) {
@@ -218,7 +219,9 @@ void AmsState::adopt_bypass_records(
     }
     helix::ams::file_bypass_record(record ? &*record : nullptr);
     bypass_record_read_ = std::move(record);
+    bypass_store_read_ = true;
     refresh_external_spool();
+    run_legacy_spool_import();
 }
 
 void AmsState::refresh_external_spool() {
