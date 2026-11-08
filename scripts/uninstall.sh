@@ -4239,17 +4239,12 @@ deploy_platform_hooks() {
     fi
 }
 
-# chown a tree to KLIPPER_USER:KLIPPER_GROUP without ever failing the install.
-# Tries without sudo first: during self-update under NoNewPrivileges sudo is
-# blocked, but the files are already user-owned so a bare chown succeeds. Falls
-# back to sudo for fresh installs where root owns them. -h changes a symlink
-# itself and never the file it points at.
-_chown_tree_to_service_user() {
-    local user="${KLIPPER_USER:-}"
-    local group="${KLIPPER_GROUP:-$user}"
-
-    chown -Rh "${user}:${group}" "$1" 2>/dev/null || \
-        $SUDO chown -Rh "${user}:${group}" "$1" 2>/dev/null || true
+# Run an ownership command without ever failing the install. Tries without sudo
+# first: during self-update under NoNewPrivileges sudo is blocked, but the files
+# are already user-owned so the bare command succeeds. Falls back to sudo for
+# fresh installs where root owns them.
+_run_ownership_cmd() {
+    "$@" 2>/dev/null || $SUDO "$@" 2>/dev/null || true
 }
 
 # Fix ownership of install directory for non-root service users.
@@ -4273,23 +4268,16 @@ fix_install_ownership() {
     # fresh installs land as root, and this repairs installs made before that.
     log_info "Setting ownership to ${user}:${group}..."
 
-    _chown_tree_to_service_user "$INSTALL_DIR"
+    _run_ownership_cmd chown -Rh "${user}:${group}" "$INSTALL_DIR"
 }
 
-# Give printer_data/config/helixscreen/ to a non-root service user, so the app
-# can save settings.json there. A root service can already write it, and where
-# another account owns printer_data (lava on the U1) that ownership stays.
-# Call after the last step that writes into that directory.
+# Hand printer_data/config/helixscreen/ to the service user; the rule lives in
+# the payload's fix-user-config-owner.sh. Call after the last step that writes
+# into that directory.
 fix_user_config_ownership() {
-    local user="${KLIPPER_USER:-}"
-    local pd_helix
-
-    [ -n "$user" ] && [ "$user" != "root" ] || return 0
-    pd_helix="$(helix_pd_helix_dir)"
-    [ -n "$pd_helix" ] && [ -d "$pd_helix" ] || return 0
-
-    log_info "Setting ownership of $pd_helix to ${user}..."
-    _chown_tree_to_service_user "$pd_helix"
+    local script="${INSTALL_DIR}/config/fix-user-config-owner.sh"
+    [ -f "$script" ] || return 0
+    _run_ownership_cmd sh "$script" "${KLIPPER_USER:-}" "${KLIPPER_GROUP:-${KLIPPER_USER:-}}" "$(helix_pd_helix_dir)"
 }
 
 # Stop service for update
