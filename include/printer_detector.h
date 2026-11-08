@@ -737,13 +737,6 @@ class PrinterDetector {
     /// between saving and declining.
     static constexpr int kDetectMinMargin = 1;
 
-    /**
-     * @brief Why the saved-vs-detected type warning was or was not offered.
-     *
-     * Every non-Warn value is a silent decline in the shipped flow, so the
-     * reason is the only thing a debug bundle can use to tell "detection scored
-     * 68" apart from "detection returned nothing at all".
-     */
     /// The saved-vs-detected pair the user last answered the mismatch warning
     /// for. An answer covers exactly that pair: a later detection of a
     /// different type, such as a database entry added by an update, or a
@@ -753,6 +746,13 @@ class PrinterDetector {
         std::string detected;
     };
 
+    /**
+     * @brief Why the saved-vs-detected type warning was or was not offered.
+     *
+     * Every non-Warn value is a silent decline in the shipped flow, so the
+     * reason is the only thing a debug bundle can use to tell "detection scored
+     * 68" apart from "detection returned nothing at all".
+     */
     enum class MismatchDecision {
         Warn,                 ///< Offer the prompt.
         NoDetection,          ///< Detection produced no type name.
