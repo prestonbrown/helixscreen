@@ -1738,8 +1738,16 @@ void AmsBackendCfs::begin_unit_settle() {
             const UnitRegistration registration = settings && cfs::has_registered_unit(*settings)
                                                       ? UnitRegistration::Registered
                                                       : UnitRegistration::None;
-            token.defer("AmsBackendCfs::unit_registration",
-                        [this, registration]() { apply_unit_registration(registration); });
+            const std::optional<ChuteWiperLine> wiper =
+                settings ? cfs::parse_chute_wiper(*settings) : std::nullopt;
+            token.defer("AmsBackendCfs::unit_registration", [this, registration, wiper]() {
+                chute_wiper_ = wiper;
+                if (wiper) {
+                    spdlog::info("[AMS CFS] box.cfg wiper: X {:.1f}-{:.1f} at Y {:.1f}",
+                                 wiper->x_min, wiper->x_max, wiper->y);
+                }
+                apply_unit_registration(registration);
+            });
         },
         [this, token = lifetime_.token()](const MoonrakerError& err) {
             spdlog::warn("[AMS CFS] configfile query failed, no registered unit assumed: {}",

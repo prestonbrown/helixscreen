@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_types.h"
+#include "chute_jog_guard.h"
 #include "json_fwd.h"
 
 #include <cstdint>
@@ -93,6 +94,13 @@ parse_filament_sensor(const nlohmann::json& params);
 /// it. Accepts the table parsed or as its config string; false when the
 /// section or option is absent or unreadable.
 [[nodiscard]] bool has_registered_unit(const nlohmann::json& configfile_settings);
+
+/// The nozzle wiper box.cfg places behind the purge chute: `[box]`
+/// clean_left_pos_x/y and clean_right_pos_x/y, read from configfile.settings;
+/// the line is the nearer of the two Y values to the bed.
+/// Accepts numbers or numeric strings; nullopt when any is absent or unreadable.
+[[nodiscard]] std::optional<ChuteWiperLine>
+parse_chute_wiper(const nlohmann::json& configfile_settings);
 
 /// True when a per-slot `vender` string carries no occupancy signal. The box
 /// reports one of these for an empty bay; `"none"` (lowercase) is also the

@@ -429,3 +429,35 @@ TEST_CASE("CFS parse: untagged spool with remaining length stays PRESENT",
         CHECK(info.units[0].slots[0].status == SlotStatus::EMPTY);
     }
 }
+
+TEST_CASE("CFS status parse reads the wiper from box.cfg's clean positions",
+          "[cfs][status_parse][2007]") {
+    // configfile.settings from a K1C with a CFS.
+    const json k1c = json::parse(R"({"box": {"clean_left_pos_x": 153.5, "clean_left_pos_y": 225.3,
+        "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3, "extrude_pos_x": 152.5}})");
+    const auto wiper = cfs::parse_chute_wiper(k1c);
+    REQUIRE(wiper);
+    CHECK(wiper->x_min == Catch::Approx(153.5));
+    CHECK(wiper->x_max == Catch::Approx(178.0));
+    CHECK(wiper->y == Catch::Approx(225.3));
+
+    SECTION("as config strings, the ends swapped and the Y values apart") {
+        const auto swapped = cfs::parse_chute_wiper(json::parse(
+            R"({"box": {"clean_left_pos_x": "178.0", "clean_left_pos_y": "225.6",
+                "clean_right_pos_x": "153.5", "clean_right_pos_y": "225.3"}})"));
+        REQUIRE(swapped);
+        CHECK(swapped->x_min == Catch::Approx(153.5));
+        CHECK(swapped->x_max == Catch::Approx(178.0));
+        CHECK(swapped->y == Catch::Approx(225.3));
+    }
+    SECTION("any position missing or unreadable, or no box section") {
+        json missing = k1c;
+        missing["box"].erase("clean_right_pos_y");
+        CHECK_FALSE(cfs::parse_chute_wiper(missing));
+        json garbled = k1c;
+        garbled["box"]["clean_left_pos_x"] = "left";
+        CHECK_FALSE(cfs::parse_chute_wiper(garbled));
+        CHECK_FALSE(cfs::parse_chute_wiper(json::parse(R"({"auto_addr": {}})")));
+        CHECK_FALSE(cfs::parse_chute_wiper(json::array()));
+    }
+}

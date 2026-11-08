@@ -12,10 +12,12 @@
 #pragma once
 
 #include "ams_error.h"
+#include "chute_jog_guard.h"
 
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -49,6 +51,12 @@ class ICfsCalibration {
 
     /// The position pair the last chute save reported; false when none was captured.
     [[nodiscard]] virtual bool last_chute_saved_position(double& x_mm, double& y_mm) const = 0;
+
+    /// The nozzle wiper behind the chute, when the printer's config places one;
+    /// the jog guard stops short of it. Main thread.
+    [[nodiscard]] virtual std::optional<ChuteWiperLine> chute_wiper() const {
+        return std::nullopt;
+    }
 
   protected:
     ~ICfsCalibration() = default;

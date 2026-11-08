@@ -225,7 +225,9 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     auto err = backend->start_chute_calibration(
         [this]() {
             // Armed only here: the prepare ack is what puts the head at park.
-            jog_guard_.arm(lv_tick_get());
+            auto* ready_backend = chute_backend();
+            jog_guard_.arm(lv_tick_get(),
+                           ready_backend ? ready_backend->chute_wiper() : std::nullopt);
             set_state(State::ADJUSTING);
         },
         [this](const std::string& klipper_msg) {

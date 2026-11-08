@@ -487,6 +487,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// plain confirmation.
     [[nodiscard]] bool last_chute_saved_position(double& x_mm, double& y_mm) const override;
 
+    /// The wiper box.cfg's clean positions place, from the configfile query
+    /// each Klipper start makes (cfs::parse_chute_wiper). Main thread.
+    [[nodiscard]] std::optional<ChuteWiperLine> chute_wiper() const override {
+        return chute_wiper_;
+    }
+
     /// Parse one save-response line into @p x_mm / @p y_mm. Accepts both the
     /// cmd_save_extrude_pos form and the SAVE_BOX_CFG ok echo. False when the
     /// line carries no pair.
@@ -846,6 +852,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// Save-response line captured by the last chute save (main thread only:
     /// written when the save completes, read by last_chute_saved_position).
     std::string last_chute_save_line_;
+
+    /// The last configfile answer's wiper; a failed query keeps it. Main thread.
+    std::optional<ChuteWiperLine> chute_wiper_;
 
     /// Y_SAFE, unless a print holds the machine: every chute re-park goes here.
     AmsError repark_chute();
