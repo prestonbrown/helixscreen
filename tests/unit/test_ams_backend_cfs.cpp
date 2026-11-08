@@ -3342,6 +3342,42 @@ TEST_CASE("CFS a generic code leaves the lane record's brand standing",
     CHECK_FALSE(helix::ams::lane_sources(reg.lane(0)).pending.has_value());
 }
 
+TEST_CASE("CFS a user's brand outranks a guess from an unreadable tag",
+          "[ams][cfs][filament_slot_override][firmware_writeback][2048]") {
+    // A third-party spool's tag the box cannot decode: no material code, and a
+    // vender entry that names no vendor. The brand the parse guesses from it is
+    // no reading of the spool, so the user's own brand must stand over it.
+    std::string vender;
+    SECTION("vender reads unknown") {
+        vender = "unknown";
+    }
+    SECTION("vender reads a raw tag UID") {
+        vender = "04A1B2C3";
+    }
+
+    helix::test::RegisteredBackend<CfsRemapHelper> reg;
+    CfsRemapHelper& b = *reg;
+    json box = make_single_unit_box({"-1", "-1", "-1", "-1"}, {"0FFFFFF", "-1", "-1", "-1"});
+    box["T1"]["vender"][0] = vender;
+    CfsTestAccess::handle_status(b, make_cfs_notification(box));
+    REQUIRE(b.get_slot_info(0).status != SlotStatus::EMPTY);
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "";
+    edit.brand = "Anycubic";
+    edit.color_rgb = 0xFF0000;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+
+    const auto record = CfsTestAccess::get_override(b, 0);
+    REQUIRE(record.has_value());
+    helix::test::file_override_as_lane_records(b, 0, *record);
+    // The box restates the colour it was given and still has no code.
+    box["T1"]["color_value"][0] = "0FF0000";
+    CfsTestAccess::handle_status(b, make_cfs_notification(box));
+    CHECK(b.get_slot_info(0).brand == "Anycubic");
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF0000u);
+}
+
 TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
           "[ams][cfs][bypass][filament_slot_override]") {
     CfsOverrideRig rig("cfs_bypass_declared_key");

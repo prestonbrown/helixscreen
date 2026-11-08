@@ -1958,7 +1958,13 @@ void AmsBackendCfs::file_box_readings(const AmsSystemInfo& new_info,
                     cache.material = slot.material;
                 // A generic code names no brand: it is what an edit writes
                 // for a brand the box has no code of, which the record holds.
-                if (!slot.brand.empty() && slot.brand != "Generic" && !record_stands)
+                // With no code at all the brand is the parse's guess from the
+                // bay's vender entry ("unknown", a raw tag id), which reads
+                // nothing off the spool and gives way to a brand the user set.
+                const bool brand_is_vender_guess =
+                    slot.material.empty() && record_states_brand_locked(lane);
+                if (!slot.brand.empty() && slot.brand != "Generic" && !record_stands &&
+                    !brand_is_vender_guess)
                     cache.brand = slot.brand;
                 if (!slot.spool_name.empty())
                     cache.product_name = slot.spool_name;
@@ -1983,6 +1989,11 @@ void AmsBackendCfs::file_box_readings(const AmsSystemInfo& new_info,
             }
         }
     }
+}
+
+bool AmsBackendCfs::record_states_brand_locked(helix::ams::LaneId lane) {
+    const auto record = helix::ams::lane_sources(lane).record;
+    return record && record->brand && !record->brand->empty();
 }
 
 bool AmsBackendCfs::record_material_stands_locked(helix::ams::LaneId lane) const {

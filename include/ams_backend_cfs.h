@@ -815,6 +815,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// record's material is what the lane shows. Caller holds mutex_.
     [[nodiscard]] bool record_material_stands_locked(helix::ams::LaneId lane) const;
 
+    /// Whether @p lane's record names a brand. Caller holds mutex_.
+    [[nodiscard]] static bool record_states_brand_locked(helix::ams::LaneId lane);
+
   private:
     friend class helix::CfsTestAccess;
 
