@@ -106,6 +106,7 @@ src/application/print_health_log.cpp  # called only from application.cpp, which 
 src/application/ui_perf_report.cpp  # read only by ctl and the debug bundle, both excluded
 src/application/android_asset_extractor.cpp  # not in the v1 Core+AMS cut
 src/application/application.cpp  # not in the v1 Core+AMS cut
+src/application/asleep_status_wiring.cpp  # wires DisplayManager, which the firmware does not build
 src/application/application_sdl_shortcuts.cpp  # not in the v1 Core+AMS cut
 src/application/color_transform.cpp  # not in the v1 Core+AMS cut
 src/application/demo_overlays.cpp  # not in the v1 Core+AMS cut

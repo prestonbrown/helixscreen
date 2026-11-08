@@ -316,6 +316,11 @@ class DisplayManager : public helix::ICalibrationSink {
         m_sleep.register_callback(std::move(cb));
     }
 
+    /// What runs before the first frame after a sleep (DisplaySleepHost::settle_for_wake_frame).
+    void set_wake_frame_settle(std::function<void()> settle) {
+        m_settle_for_wake_frame = std::move(settle);
+    }
+
     /**
      * @brief Check if display is currently dimmed
      * @return true if backlight is at reduced brightness
@@ -652,8 +657,10 @@ class DisplayManager : public helix::ICalibrationSink {
     // input devices exist, since new devices start at LVGL's default read period.
     helix::RefreshTiming m_refresh_timing;
 
-    // Dim, screensaver, sleep and wake. Reads m_backend, m_backlight and m_display through
-    // references, so it must be declared after them.
+    std::function<void()> m_settle_for_wake_frame;
+
+    // Dim, screensaver, sleep and wake. Reads m_backend, m_backlight, m_display and
+    // m_settle_for_wake_frame through references, so it must be declared after them.
     helix::DisplaySleepController m_sleep;
 
     bool m_touch_calibration_active = false; // suppresses the debug-touches ripple (#943)

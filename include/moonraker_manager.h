@@ -10,6 +10,7 @@
 #include "mock_http_file_server.h"
 #include "moonraker_events.h"
 #include "runtime_config.h"
+#include "status_coalescer.h"
 
 #include <atomic>
 #include <memory>
@@ -118,6 +119,17 @@ class MoonrakerManager {
      * Processes all queued Moonraker notifications and connection state changes.
      */
     void process_notifications();
+
+    /// While on, telemetry-only status frames are held and applied every
+    /// helix::kAsleepStatusIntervalMs; any other notification applies the held delta
+    /// first. Turning it off applies whatever is held. Main thread only.
+    void set_status_hold(bool on);
+
+    /// Applies the held delta now. Main thread only, never inside an UpdateQueue batch.
+    void apply_held_status();
+
+    /// Drops the held delta unapplied: it belongs to a session or printer that is gone.
+    void discard_held_status();
 
     /**
      * @brief Process client timeouts
@@ -440,6 +452,10 @@ class MoonrakerManager {
     // Thread-safe notification queue
     std::queue<QueuedNotification> m_notification_queue;
     mutable std::mutex m_notification_mutex;
+
+    // Main thread only, like everything process_notifications() dispatches.
+    bool m_status_hold = false;
+    helix::StatusCoalescer m_status_coalescer;
 
     // Print start collector (monitors PRINT_START macro progress)
     std::shared_ptr<PrintStartCollector> m_print_start_collector;

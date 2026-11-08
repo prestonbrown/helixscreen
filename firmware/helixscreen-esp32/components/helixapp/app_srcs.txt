@@ -277,6 +277,7 @@ src/printer/snapmaker_nozzle_properties.cpp
 src/printer/snapmaker_print_preferences.cpp
 src/printer/snapmaker_resume.cpp
 src/printer/snapmaker_status_parse.cpp
+src/printer/status_coalescer.cpp
 src/printer/status_dispatch.cpp
 src/printer/storage_report.cpp
 src/printer/storage_report_service.cpp

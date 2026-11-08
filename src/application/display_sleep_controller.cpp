@@ -7,6 +7,7 @@
 #include "ui_nav_manager.h"
 
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h" // flush_cb access
 #include "display_awake_hold.h"
 #include "display_manager.h"
@@ -105,6 +106,7 @@ DisplaySleepController::DisplaySleepController(DisplaySleepHost host) : m_host(s
 DisplaySleepController::~DisplaySleepController() {
     if (lv_is_initialized()) {
         destroy_sleep_overlay();
+        show_screen_after_dark_panel();
     }
 }
 
@@ -141,6 +143,7 @@ void DisplaySleepController::enter_sleep(int timeout_sec) {
         if (backend) {
             backend->blank_display();
         }
+        hide_screen_for_dark_panel();
         break;
 
     case SleepMechanism::PanelPowerOff:
@@ -175,6 +178,7 @@ void DisplaySleepController::enter_sleep(int timeout_sec) {
         m_resume_seq_at_sleep = android_get_resume_seq();
 #endif
         set_keep_screen_on(false);
+        hide_screen_for_dark_panel();
         break;
 
     case SleepMechanism::SoftwareOverlay:
@@ -246,6 +250,24 @@ void DisplaySleepController::destroy_sleep_overlay() {
     m_sleep_overlay = nullptr;
     helix::active_screen_hide_hold().release();
     spdlog::debug("[DisplaySleep] Software sleep overlay destroyed");
+}
+
+// A panel the controller or the OS has darkened still receives every frame LVGL draws.
+// Hiding the active screen drops those invalidations and skips the drawing.
+void DisplaySleepController::hide_screen_for_dark_panel() {
+    if (m_screen_hidden_for_dark_panel) {
+        return;
+    }
+    helix::active_screen_hide_hold().acquire(lv_screen_active());
+    m_screen_hidden_for_dark_panel = true;
+}
+
+void DisplaySleepController::show_screen_after_dark_panel() {
+    if (!m_screen_hidden_for_dark_panel) {
+        return;
+    }
+    m_screen_hidden_for_dark_panel = false;
+    helix::active_screen_hide_hold().release();
 }
 
 // ============================================================================
@@ -524,15 +546,20 @@ void DisplaySleepController::restore_display_output() {
         // Software path: remove the black overlay (no FBIOBLANK to undo).
         destroy_sleep_overlay();
     }
+    show_screen_after_dark_panel();
 }
 
 void DisplaySleepController::wake() {
-    BacklightBackend* backlight = m_host.backlight.get();
     if (m_host.shutting_down) {
         return; // Shutdown in progress — avoid touching LVGL objects
     }
 
     if (!m_display_sleeping && !m_display_dimmed) {
+        // An owed first frame restores the panel itself; restoring the flush here
+        // would page-flip a stale frame onto a panel that is still powered off.
+        if (m_wake_frame_owed) {
+            return;
+        }
         // Reaching here means the display is meant to be awake, so a flush still
         // suppressed is a frozen panel that no later wake would clear.
         restore_flush_after_sleep();
@@ -575,28 +602,19 @@ void DisplaySleepController::wake() {
     // display would wake and dim or sleep again on the next tick.
     lv_display_trigger_activity(nullptr);
 
-    if (was_sleeping) {
-        // Restore the panel output (unblank / power-on / remove overlay) BEFORE
-        // the synchronous render below so the framebuffer is ready when LVGL
-        // paints — honoring the #303 black-screen-on-wake race.
-        restore_display_output();
-
-        // Force immediate full render after wake. lv_obj_invalidate() alone only
-        // marks dirty regions — the actual render happens on the next timer tick,
-        // which can race with framebuffer state changes and leave a black screen
-        // on some hardware (#303). lv_refr_now() renders synchronously.
-        lv_obj_invalidate(lv_screen_active());
-        lv_refr_now(nullptr);
+    if (was_sleeping && helix::ui::UpdateQueue::instance().is_draining()) {
+        // The rest of this batch and status are not applied in here, so the first frame
+        // waits for the loop; the panel stays dark until then.
+        m_wake_frame_owed = true;
+        spdlog::info("[DisplaySleep] Display woken from sleep inside a batch; first frame owed");
+    } else {
+        if (was_sleeping) {
+            render_first_wake_frame();
+        }
+        const int brightness = restore_user_brightness();
+        spdlog::info("[DisplaySleep] Display woken from {}, brightness restored to {}%",
+                     was_sleeping ? "sleep" : "dim", brightness);
     }
-
-    // Restore configured brightness from settings
-    const int brightness = DisplaySettingsManager::instance().user_brightness();
-
-    if (backlight) {
-        backlight->set_brightness(brightness);
-    }
-    spdlog::info("[DisplaySleep] Display woken from {}, brightness restored to {}%",
-                 was_sleeping ? "sleep" : "dim", brightness);
 
     // Auto-lock: show lock screen when waking from sleep or screensaver/dim.
     // Screensaver previews are user-initiated from settings — they didn't go
@@ -613,6 +631,47 @@ void DisplaySleepController::wake() {
     for (auto& cb : m_callbacks) {
         cb(false);
     }
+}
+
+void DisplaySleepController::render_first_wake_frame() {
+    // Held status and queued observer work land before anything is painted, so the
+    // first frame shows current values.
+    if (m_host.settle_for_wake_frame) {
+        m_host.settle_for_wake_frame();
+    }
+
+    // Restore the panel output (unblank / power-on / remove overlay) BEFORE
+    // the synchronous render below so the framebuffer is ready when LVGL
+    // paints — honoring the #303 black-screen-on-wake race.
+    restore_display_output();
+
+    // Force immediate full render after wake. lv_obj_invalidate() alone only
+    // marks dirty regions — the actual render happens on the next timer tick,
+    // which can race with framebuffer state changes and leave a black screen
+    // on some hardware (#303). lv_refr_now() renders synchronously.
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(nullptr);
+}
+
+int DisplaySleepController::restore_user_brightness() {
+    const int brightness = DisplaySettingsManager::instance().user_brightness();
+    if (BacklightBackend* backlight = m_host.backlight.get()) {
+        backlight->set_brightness(brightness);
+    }
+    return brightness;
+}
+
+void DisplaySleepController::finish_owed_wake_frame() {
+    if (!m_wake_frame_owed) {
+        return;
+    }
+    m_wake_frame_owed = false;
+    if (m_host.shutting_down || m_display_sleeping) {
+        return;
+    }
+    render_first_wake_frame();
+    const int brightness = restore_user_brightness();
+    spdlog::info("[DisplaySleep] Display woken from sleep, brightness restored to {}%", brightness);
 }
 
 bool DisplaySleepController::note_press(int x, int y) {
@@ -677,6 +736,7 @@ void DisplaySleepController::restore_on_shutdown() {
 
     // Clean up software sleep overlay if active
     destroy_sleep_overlay();
+    show_screen_after_dark_panel();
 
     // Re-enable rendering before the framebuffer clear / final brightness below,
     // otherwise the clear is committed through the no-op flush and never reaches
@@ -704,6 +764,7 @@ void DisplaySleepController::restore_on_shutdown() {
         backlight->set_brightness(brightness);
     }
     m_display_sleeping = false;
+    m_wake_frame_owed = false;
     spdlog::debug("[DisplaySleep] Shutdown: restoring display to {}% brightness", brightness);
 }
 
@@ -715,12 +776,17 @@ void DisplaySleepController::abandon_lvgl_state() {
     if (m_sleep_overlay) {
         helix::active_screen_hide_hold().release();
     }
+    if (m_screen_hidden_for_dark_panel) {
+        helix::active_screen_hide_hold().release();
+        m_screen_hidden_for_dark_panel = false;
+    }
     if (m_flush_suppressed_for_sleep) {
         helix::active_screen_hide_hold().release();
         m_flush_suppressed_for_sleep = false;
         m_saved_flush_cb_for_sleep = nullptr;
     }
     m_sleep_overlay = nullptr;
+    m_wake_frame_owed = false;
     m_use_hardware_blank = false;
     m_use_power_off = false;
     // Back to the startup truth: SDL re-asserts FLAG_KEEP_SCREEN_ON the next time it
