@@ -1391,6 +1391,30 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         }
     }
 
+    // toolchanger.tool_numbers[i] is the number of tool_names[i]. Numbers can
+    // skip (T0 and T2 only) and ASSIGN_TOOL moves them, so this pairing, not a
+    // tool's position, says which tool a number selects. Parsed before
+    // tool_number, which the same frame may carry.
+    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array() &&
+        tc_data.contains("tool_names") && tc_data["tool_names"].is_array() &&
+        tc_data["tool_numbers"].size() == tc_data["tool_names"].size()) {
+        static constexpr std::string_view kSectionPrefix = "tool ";
+        const auto& numbers = tc_data["tool_numbers"];
+        const auto& names = tc_data["tool_names"];
+        klipper_tool_numbers_.clear();
+        for (size_t i = 0; i < numbers.size(); ++i) {
+            if (!numbers[i].is_number_integer() || !names[i].is_string()) {
+                continue;
+            }
+            std::string name = names[i].get<std::string>();
+            if (name.rfind(kSectionPrefix, 0) == 0) {
+                name.erase(0, kSectionPrefix.size());
+            }
+            klipper_tool_numbers_.emplace_back(numbers[i].get<int>(), std::move(name));
+        }
+        spdlog::trace("[AMS ToolChanger] Tool numbers: {}", helix::json_util::safe_dump(numbers));
+    }
+
     // Parse current tool: toolchanger.tool_number
     // -1 = no tool selected
     //
@@ -1402,12 +1426,19 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         int tool_num = tc_data["tool_number"].get<int>();
         system_info_.current_tool = tool_num;
         // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
-        // tool, which ASSIGN_TOOL can move onto any physical tool — it is only
-        // the slot index while the mapping is identity. Resolve it through the
-        // forward map so the carriage lane is right under a remap too; an
-        // unmapped number falls back to itself, the pre-remap answer.
+        // tool, which ASSIGN_TOOL can move onto any physical tool and which
+        // can skip, so it is not a slot index. Klipper's own tool_numbers list
+        // resolves it where the printer sent one. Without it, the forward map
+        // does, and an unmapped number falls back to itself.
         int seated_slot = -1;
-        if (tool_num >= 0) {
+        if (tool_num >= 0 && !klipper_tool_numbers_.empty()) {
+            // A number Klipper does not list seats no tool we know.
+            const auto it = std::find_if(klipper_tool_numbers_.begin(), klipper_tool_numbers_.end(),
+                                         [tool_num](const auto& e) { return e.first == tool_num; });
+            if (it != klipper_tool_numbers_.end()) {
+                seated_slot = find_slot_for_tool(it->second);
+            }
+        } else if (tool_num >= 0) {
             seated_slot = tool_num < static_cast<int>(system_info_.tool_to_slot_map.size())
                               ? system_info_.tool_to_slot_map[static_cast<size_t>(tool_num)]
                               : -1;
@@ -1420,13 +1451,6 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         refresh_slot_statuses_locked();
         spdlog::trace("[AMS ToolChanger] Current tool: T{} (physical slot {})", tool_num,
                       seated_slot);
-    }
-
-    // Parse tool list: toolchanger.tool_numbers and toolchanger.tool_names
-    // This can be used to dynamically update the tool list
-    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
-        spdlog::trace("[AMS ToolChanger] Tool numbers: {}",
-                      helix::json_util::safe_dump(tc_data["tool_numbers"]));
     }
 }
 

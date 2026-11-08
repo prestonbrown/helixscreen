@@ -1122,6 +1122,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+    /// klipper-toolchanger's tool numbers, each with the name of the tool it
+    /// selects (toolchanger.tool_numbers / tool_names). Empty until a frame
+    /// carries them; tool_number is then resolved through tool_to_slot_map.
+    std::vector<std::pair<int, std::string>> klipper_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?
