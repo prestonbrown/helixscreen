@@ -252,19 +252,27 @@ restore_config_symlinks() {
             rm -f "$install_file"
         fi
 
-        # A dotfile is runtime state no release zip ships. A real one here with
-        # nothing in printer_data is a ledger written before it was relocated:
-        # move it across so the next rmtree cannot take it. Only dotfiles: this
-        # runs after a zip extraction, so any other real file here is the
+        # A dotfile or pending_remap.json is runtime state no release zip ships.
+        # A real one here with nothing in printer_data was written before it was
+        # linked: move it across so the next rmtree cannot take it. Only these:
+        # this runs after a zip extraction, so any other real file here is the
         # release's default, not the user's (the installer's own migration,
         # which runs on a tree the user has been editing, moves every file).
         case "$file" in
-            .*)
+            .*|pending_remap.json)
                 if [ ! -e "$pd_file" ] && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
                     cp -p "$install_file" "$pd_file" 2>/dev/null || continue
                 fi
                 ;;
         esac
+
+        # The record exists only while a restore is owed, so an install that is
+        # only ever updated by Moonraker needs an empty one to link before then.
+        if [ "$file" = "pending_remap.json" ] && [ ! -e "$pd_file" ] && [ ! -e "$install_file" ]; then
+            if printf '{}\n' > "$pd_file" 2>/dev/null; then
+                chown "$(stat -c %u:%g "$pd_helix" 2>/dev/null)" "$pd_file" 2>/dev/null || true
+            fi
+        fi
 
         # User's config exists in printer_data — replace the real file with a
         # symlink, after keeping whatever it held that printer_data lacks.
