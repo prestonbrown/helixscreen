@@ -281,6 +281,24 @@ void stroke_cheek(lv_layer_t* layer, lv_point_t o, float x, lv_color_t color, lv
     }
 }
 
+/// The lid's top edges across the row: where its flat top starts and ends.
+void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t color,
+                    lv_opa_t opa) {
+    float crest = lid.right[0].y;
+    for (int i = 1; i < kCapPoints; ++i)
+        crest = std::min(crest, lid.right[i].y);
+    int first = -1, last = -1;
+    for (int i = 0; i < kCapPoints; ++i) {
+        if (lid.right[i].y <= crest + 1.0f) {
+            first = first < 0 ? i : first;
+            last = i;
+        }
+    }
+    edge(layer, o, lid.left[first], lid.right[first], color, opa);
+    if (last != first)
+        edge(layer, o, lid.left[last], lid.right[last], color, opa);
+}
+
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
 void draw_shell_front(lv_layer_t* layer, lv_point_t o) {
     const tray::UnitShell& shell = *s_tray.shell;
@@ -432,6 +450,8 @@ void tray_front_draw_cb(lv_event_t* e) {
         }
         if (!s_tray.shell)
             stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
+        else
+            stroke_lid_top(layer, o, lid, c.glass_edge, a.glass_edge);
         stroke(layer, o, lid.right, kCapPoints, false, c.glass_edge,
                (lv_opa_t)(a.glass_edge * 7 / 10));
         // A unit's left end stands behind its spools and is drawn with the back faces.
