@@ -1242,6 +1242,39 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     void enter_bed_mesh_with_buffer(const char* message);
 
     /**
+     * @brief Route a console line through leveling, pre-mesh and mesh probe tracking
+     *
+     * @return true when the line was consumed as probe output and must not
+     *         reach check_phase_patterns().
+     */
+    bool handle_probe_line(const std::string& line);
+
+    /// How a probe line moves the current mesh sweep.
+    enum class MeshProbeStep {
+        kFirst,  ///< The sweep's first probe: anchors the timing
+        kNext,   ///< A further probe: refines the seconds-per-probe average
+        kRepeat, ///< Another sample of a counted point: timing untouched
+    };
+
+    /// Zero the sweep's probe telemetry when a probe arrives more than
+    /// kMeshProbeGapReset after the last one and `counted` probes are on
+    /// record. Returns whether it reset. Caller must hold state_mutex_.
+    bool reset_mesh_probes_after_gap_locked(helix::sim::SimulatedClock::time_point now,
+                                            int counted);
+
+    /// Record probe number `index` of the current sweep. Caller must hold
+    /// state_mutex_.
+    void note_mesh_probe_locked(helix::sim::SimulatedClock::time_point now, int index,
+                                MeshProbeStep step);
+
+    /// The label a mesh probe count is shown after. Caller must hold state_mutex_.
+    std::string mesh_label_locked() const;
+
+    /// Publish "<label> (count/total)", or "<label> (count)" without a total.
+    void publish_mesh_probe_count(const std::string& label, int count, std::optional<int> total,
+                                  int progress);
+
+    /**
      * @brief Save current print's phase timings to prediction history
      *
      * Called on COMPLETE. Computes per-phase durations from timestamps,
