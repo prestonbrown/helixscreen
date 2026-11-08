@@ -26,6 +26,44 @@ inline constexpr float kStrokeDigitPathH = 1.6f;
 /// (0 to 9). Box-relative coordinates: (0, 0) is the path box's top left.
 float stroke_digit_distance(int digit, float px, float py);
 
+/// Every character a stroke glyph exists for: the digits, the percent sign and the capitals
+/// the clocks spell print states with.
+inline constexpr char kStrokeGlyphChars[] = "0123456789%ACDEFILNOPSTU";
+inline constexpr size_t kStrokeGlyphCount = sizeof(kStrokeGlyphChars) - 1;
+
+/// Distance, in glyph units, from (px, py) to `c`'s centre line, in the digits' box; digits as
+/// stroke_digit_distance, and very far for a character with no glyph.
+float stroke_glyph_distance(char c, float px, float py);
+
+/**
+ * @brief Coverage of any of kStrokeGlyphChars at one size and stroke, rasterised per character
+ * on first use
+ *
+ * A face shows a handful of characters, so only those are built. ensure() allocates; call it
+ * when a face changes, never per frame.
+ */
+class StrokeGlyphSet {
+  public:
+    int32_t w = 0; ///< lround((1 + stroke) * unit)
+    int32_t h = 0; ///< lround((kStrokeDigitPathH + stroke) * unit)
+
+    /// Sets the size and frees every glyph built at another one.
+    void init(int32_t unit, float stroke);
+    /// Builds `c` once; a character with no glyph is ignored.
+    void ensure(char c);
+    /// Coverage of `c` at (gx, gy), 0 outside its box or for a glyph not built.
+    uint8_t at(char c, int32_t gx, int32_t gy) const;
+    /// Bytes held, capacity included.
+    size_t heap_bytes() const;
+    /// Frees every glyph; the size stays.
+    void clear();
+
+  private:
+    int32_t unit_ = 1;
+    float stroke_ = 0.0f;
+    std::array<std::vector<uint8_t>, kStrokeGlyphCount> glyphs_{};
+};
+
 /// Coverage of the ten digits at one size and stroke, each `w` x `h`, 0 to 255, back to back.
 struct StrokeDigitSet {
     int32_t w = 0; ///< lround((1 + stroke) * unit)

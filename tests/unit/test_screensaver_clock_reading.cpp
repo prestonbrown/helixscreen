@@ -11,10 +11,13 @@
 #include "screensaver_stroke_digits.h"
 #include "system_settings_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <ctime>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -357,6 +360,71 @@ TEST_CASE("clear frees the coverage", "[screensaver][clock_reading]") {
     set.clear();
     CHECK(set.heap_bytes() == 0);
     CHECK(set.at(3, 0, 0) == 0);
+}
+
+TEST_CASE("every stroke glyph has a centre line and only its own strokes",
+          "[screensaver][clock_reading]") {
+    using helix::ui::kStrokeGlyphChars;
+    using helix::ui::stroke_glyph_distance;
+    for (const char* c = kStrokeGlyphChars; *c; ++c) {
+        CAPTURE(*c);
+        // Some point of the box lies on the centre line, and the box is not all line.
+        float nearest = 1e9f;
+        float farthest = 0.0f;
+        for (int yi = 0; yi <= 32; yi++) {
+            for (int xi = 0; xi <= 20; xi++) {
+                const float d = stroke_glyph_distance(*c, xi / 20.0f,
+                                                      helix::ui::kStrokeDigitPathH * yi / 32.0f);
+                nearest = std::min(nearest, d);
+                farthest = std::max(farthest, d);
+            }
+        }
+        CHECK(nearest < 0.03f);
+        CHECK(farthest > 0.2f);
+    }
+    // Digits are the same glyphs as stroke_digit_distance draws.
+    CHECK(stroke_glyph_distance('6', 0.3f, 0.7f) ==
+          helix::ui::stroke_digit_distance(6, 0.3f, 0.7f));
+    CHECK(stroke_glyph_distance('?', 0.5f, 0.5f) > 100.0f);
+}
+
+TEST_CASE("letters that share strokes still draw differently", "[screensaver][clock_reading]") {
+    helix::ui::StrokeGlyphSet set;
+    set.init(30, 0.2f);
+    const auto bytes = [&set](char c) {
+        set.ensure(c);
+        std::vector<uint8_t> out;
+        for (int32_t y = 0; y < set.h; y++) {
+            for (int32_t x = 0; x < set.w; x++) {
+                out.push_back(set.at(c, x, y));
+            }
+        }
+        return out;
+    };
+    const std::pair<char, char> pairs[] = {{'O', 'D'}, {'E', 'F'}, {'P', 'D'}, {'I', 'L'},
+                                           {'S', '5'}, {'O', '0'}, {'U', 'O'}, {'C', 'O'}};
+    for (const auto& [a, b] : pairs) {
+        CAPTURE(a, b);
+        CHECK(bytes(a) != bytes(b));
+    }
+}
+
+TEST_CASE("a glyph set holds only the glyphs it was asked for", "[screensaver][clock_reading]") {
+    helix::ui::StrokeGlyphSet set;
+    set.init(30, 0.2f);
+    CHECK(set.heap_bytes() == 0);
+    CHECK(set.at('D', set.w / 2, set.h / 2) == 0);
+    set.ensure('D');
+    const size_t one = set.heap_bytes();
+    CHECK(one > 0);
+    set.ensure('D');
+    CHECK(set.heap_bytes() == one);
+    set.ensure('%');
+    CHECK(set.heap_bytes() > one);
+    // The left upright of D is fully covered.
+    CHECK(set.at('D', static_cast<int32_t>(0.1f * 30.0f), set.h / 2) >= 250);
+    set.clear();
+    CHECK(set.heap_bytes() == 0);
 }
 
 // ============================================================================
