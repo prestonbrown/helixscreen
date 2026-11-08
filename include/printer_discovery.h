@@ -226,7 +226,16 @@ class PrinterDiscovery {
 
                 // Fan detection: name starts with "FAN" (e.g., fan0, fan1, fan2)
                 if (upper_pin.rfind("FAN", 0) == 0) {
-                    fans_.push_back(name);
+                    // An enable pin only gates a fan driven by its own PWM pin
+                    // (`fan0_en` beside `fan0`), so it has no speed to show.
+                    const auto ends_with = [&upper_pin](const std::string& suffix) {
+                        return upper_pin.size() >= suffix.size() &&
+                               upper_pin.compare(upper_pin.size() - suffix.size(), suffix.size(),
+                                                 suffix) == 0;
+                    };
+                    if (!ends_with("_EN") && !ends_with("_ENABLE")) {
+                        fans_.push_back(name);
+                    }
                 }
                 // LED detection
                 else if (upper_pin.find("LIGHT") != std::string::npos ||

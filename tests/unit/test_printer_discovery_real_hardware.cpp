@@ -671,3 +671,17 @@ TEST_CASE("PrinterDiscovery: Voron neopixels and led_effects discovered",
         CHECK_FALSE(any_contains(hw.fans(), "output_pin"));
     }
 }
+
+TEST_CASE("PrinterDiscovery: an output_pin that enables a fan is not a fan",
+          "[printer_discovery][enable-pin]") {
+    nlohmann::json objects = nlohmann::json::array(
+        {"output_pin fan0_en", "output_pin FAN1_ENABLE", "output_pin fan0", "output_pin fan2"});
+
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+
+    REQUIRE_FALSE(has(hw.fans(), "output_pin fan0_en"));
+    REQUIRE_FALSE(has(hw.fans(), "output_pin FAN1_ENABLE"));
+    REQUIRE(has(hw.fans(), "output_pin fan0"));
+    REQUIRE(has(hw.fans(), "output_pin fan2"));
+}
