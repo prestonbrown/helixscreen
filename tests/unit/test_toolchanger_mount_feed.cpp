@@ -2177,6 +2177,19 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         }
     }
 
+    SECTION("tools 0, 2, 3: loading lane 2 mounts T3, by its tool object") {
+        // T=<n> is a tool NUMBER, and T=2 here would mount the T2 head.
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 0);
+        REQUIRE(tc->load_filament(2).success());
+        tc->ack(); // the prompt is up
+        ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
+        CHECK(tc->sent_.back() == mf::prompt_end_gcode() + "\nSELECT_TOOL TOOL=\"tool T3\"");
+        for (const auto& g : tc->sent_) {
+            CHECK(g.find("T=") == std::string::npos);
+        }
+    }
+
     SECTION("tools 0, 2 with T2 mounted: the second head") {
         auto tc = numbered_changer({0, 2});
         tc->feed_status("ready", 2);
