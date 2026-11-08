@@ -290,3 +290,12 @@ restore_config_symlinks() {
 }
 
 restore_config_symlinks
+
+# --- Repair printer_data ownership ---
+#
+# An in-app update runs under NoNewPrivileges and cannot fix a config directory
+# an earlier root install left behind; this start-time root pass can. It comes
+# last so anything restored above as root is covered too.
+OWNER_HOME="$(getent passwd "${USER_VAL:-}" 2>/dev/null | cut -d: -f6)"
+[ -f "${SCRIPT_DIR}/fix-user-config-owner.sh" ] && \
+    sh "${SCRIPT_DIR}/fix-user-config-owner.sh" "${USER_VAL:-}" "${GROUP_VAL:-}" "${OWNER_HOME:+${OWNER_HOME}/printer_data/config/helixscreen}" || true

@@ -188,6 +188,15 @@ klipper_config_dir() {
     echo ""
 }
 
+# printer_data/config/helixscreen/ for this install, or empty when no Klipper
+# config dir is known.
+helix_pd_helix_dir() {
+    local cfg
+    cfg="$(klipper_config_dir)"
+    [ -n "$cfg" ] && echo "${cfg}/helixscreen"
+    return 0
+}
+
 # Track what we've done for cleanup
 CLEANUP_TMP=false
 BACKUP_CONFIG=""
@@ -7626,6 +7635,14 @@ deploy_platform_hooks() {
     fi
 }
 
+# Run an ownership command without ever failing the install. Tries without sudo
+# first: during self-update under NoNewPrivileges sudo is blocked, but the files
+# are already user-owned so the bare command succeeds. Falls back to sudo for
+# fresh installs where root owns them.
+_run_ownership_cmd() {
+    "$@" 2>/dev/null || $SUDO "$@" 2>/dev/null || true
+}
+
 # Fix ownership of install directory for non-root service users.
 # The entire INSTALL_DIR must be user-owned so that in-app self-updates
 # (which run under NoNewPrivileges=true, blocking sudo) can replace
@@ -7647,12 +7664,16 @@ fix_install_ownership() {
     # fresh installs land as root, and this repairs installs made before that.
     log_info "Setting ownership to ${user}:${group}..."
 
-    # Try without sudo first: during self-update under NoNewPrivileges,
-    # sudo is blocked but files are already user-owned so chown succeeds
-    # without it (or is a no-op).  Fall back to sudo for fresh installs
-    # where root may own the directory.
-    chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || \
-        $SUDO chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || true
+    _run_ownership_cmd chown -Rh "${user}:${group}" "$INSTALL_DIR"
+}
+
+# Hand printer_data/config/helixscreen/ to the service user; the rule lives in
+# the payload's fix-user-config-owner.sh. Call after the last step that writes
+# into that directory.
+fix_user_config_ownership() {
+    local script="${INSTALL_DIR}/config/fix-user-config-owner.sh"
+    [ -f "$script" ] || return 0
+    _run_ownership_cmd sh "$script" "${KLIPPER_USER:-}" "${KLIPPER_GROUP:-${KLIPPER_USER:-}}" "$(helix_pd_helix_dir)"
 }
 
 # Stop service for update
@@ -11323,6 +11344,10 @@ main() {
     # already logged the fault and the manual fix.
     install_k2_webserver_backend "$platform" ||
         log_warn "Web-server carve-out incomplete; the UI install itself is fine"
+
+    # Every step that writes into printer_data has run, and the service must
+    # find that directory writable on its first start.
+    fix_user_config_ownership
 
     # Start service
     start_service "$platform"

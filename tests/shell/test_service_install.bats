@@ -596,6 +596,244 @@ EOF
 }
 
 # =============================================================================
+# fix_user_config_ownership
+# =============================================================================
+
+# printer_data/config/helixscreen with the contents a root-run install leaves.
+# The payload ships the rule script in config/.
+install_owner_script() {
+    cp "$WORKTREE_ROOT/config/fix-user-config-owner.sh" "$INSTALL_DIR/config/"
+}
+
+# Sets KLIPPER_HOME and USER_CONFIG_DIR.
+stage_user_config_dir() {
+    install_owner_script
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/qidi"
+    USER_CONFIG_DIR="$KLIPPER_HOME/printer_data/config/helixscreen"
+    local dir="$USER_CONFIG_DIR"
+    mkdir -p "$dir/themes" "$dir/custom_images" "$dir/printer_database.d"
+    : > "$dir/settings.json"
+    : > "$dir/crash_history.json"
+}
+
+@test "fix_user_config_ownership: gives the printer_data helixscreen tree to the service user" {
+    KLIPPER_USER="nobody"
+    KLIPPER_GROUP="users"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    fix_user_config_ownership
+
+    [ "$(cat "$chown_log")" = "-Rh nobody:users $USER_CONFIG_DIR" ]
+}
+
+@test "fix_user_config_ownership: repairs a root-owned tree through sudo when bare chown is refused" {
+    KLIPPER_USER="nobody"
+    local sudo_log="$BATS_TEST_TMPDIR/sudo_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'exit 1'
+    SUDO="$BATS_TEST_TMPDIR/bin/fake_sudo"
+    mock_command_script "fake_sudo" 'echo "$@" >> "'"$sudo_log"'"'
+
+    fix_user_config_ownership
+
+    [ "$(cat "$sudo_log")" = "sh $INSTALL_DIR/config/fix-user-config-owner.sh nobody nobody $USER_CONFIG_DIR" ]
+}
+
+@test "fix_user_config_ownership: survives when both chown and sudo fail" {
+    KLIPPER_USER="nobody"
+    stage_user_config_dir
+    mock_command_script "chown" 'exit 1'
+    SUDO="false"
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+}
+
+@test "fix_user_config_ownership: empty KLIPPER_USER is a no-op" {
+    KLIPPER_USER=""
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+# On the U1 printer_data belongs to lava while the service runs as root: a root
+# service must not take the tree back.
+@test "fix_user_config_ownership: a root service user leaves the tree alone" {
+    KLIPPER_USER="root"
+    KLIPPER_GROUP="root"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    stage_user_config_dir
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "fix_user_config_ownership: no config directory on disk is a no-op" {
+    KLIPPER_USER="nobody"
+    install_owner_script
+    KLIPPER_HOME="$BATS_TEST_TMPDIR/home/qidi"
+    mkdir -p "$KLIPPER_HOME/printer_data/config"
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "fix_user_config_ownership: no known Klipper config dir is a no-op" {
+    KLIPPER_USER="nobody"
+    install_owner_script
+    KLIPPER_HOME=""
+    unset KLIPPER_CONFIG_DIR
+    local chown_log="$BATS_TEST_TMPDIR/chown_log"
+    mock_command_script "chown" 'echo "$@" >> "'"$chown_log"'"'
+
+    run fix_user_config_ownership
+    [ "$status" -eq 0 ]
+    [ ! -e "$chown_log" ]
+}
+
+@test "the install path repairs user config ownership after its last config write and before the first start" {
+    local main="$WORKTREE_ROOT/scripts/lib/installer/main.sh"
+    local fix last_write start
+    fix=$(grep -n '^    fix_user_config_ownership$' "$main" | cut -d: -f1)
+    start=$(grep -n '^    start_service "\$platform"$' "$main" | head -1 | cut -d: -f1)
+    last_write=$(head -n "$start" "$main" | grep -nE '^    (setup_config_symlink|seed_update_channel)( |$)' | tail -1 | cut -d: -f1)
+
+    [ -n "$fix" ] && [ -n "$last_write" ] && [ -n "$start" ]
+    [ "$fix" -gt "$last_write" ]
+    [ "$fix" -lt "$start" ]
+}
+
+# =============================================================================
+# fix-user-config-owner.sh and its start-time caller
+# =============================================================================
+
+# Real find against files this test user owns, so "nobody" is the wrong owner
+# and the current user is the right one. chown is always the mock.
+stage_owner_script_tree() {
+    OWNER_SCRIPT="$WORKTREE_ROOT/config/fix-user-config-owner.sh"
+    OWNER_TREE="$BATS_TEST_TMPDIR/owner_tree/helixscreen"
+    CHOWN_LOG="$BATS_TEST_TMPDIR/chown_log"
+    mkdir -p "$OWNER_TREE/themes"
+    : > "$OWNER_TREE/settings.json"
+    mock_command_script "chown" 'echo "$@" >> "'"$CHOWN_LOG"'"'
+}
+
+@test "fix-user-config-owner: a tree the user does not own is chowned without following links" {
+    stage_owner_script_tree
+    run sh "$OWNER_SCRIPT" nobody nogroup "$OWNER_TREE"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$CHOWN_LOG")" = "-Rh nobody:nogroup $OWNER_TREE" ]
+}
+
+@test "fix-user-config-owner: a tree already owned by the user gets no chown" {
+    stage_owner_script_tree
+    run sh "$OWNER_SCRIPT" "$(id -un)" "$(id -gn)" "$OWNER_TREE"
+    [ "$status" -eq 0 ]
+    [ ! -e "$CHOWN_LOG" ]
+}
+
+@test "fix-user-config-owner: root, empty user and a missing directory do nothing" {
+    stage_owner_script_tree
+    run sh "$OWNER_SCRIPT" root root "$OWNER_TREE"
+    [ "$status" -eq 0 ]
+    run sh "$OWNER_SCRIPT" "" "" "$OWNER_TREE"
+    [ "$status" -eq 0 ]
+    run sh "$OWNER_SCRIPT" nobody nogroup "$BATS_TEST_TMPDIR/absent"
+    [ "$status" -eq 0 ]
+    run sh "$OWNER_SCRIPT" nobody nogroup ""
+    [ "$status" -eq 0 ]
+    [ ! -e "$CHOWN_LOG" ]
+}
+
+# With find always reporting a wrong owner, only the guards stand before chown.
+@test "fix-user-config-owner: an empty user or missing directory stops before the owner check" {
+    stage_owner_script_tree
+    mock_command_script "find" 'echo mismatch'
+    run sh "$OWNER_SCRIPT" "" "" "$OWNER_TREE"
+    [ "$status" -eq 0 ]
+    run sh "$OWNER_SCRIPT" nobody nogroup "$BATS_TEST_TMPDIR/absent"
+    [ "$status" -eq 0 ]
+    [ ! -e "$CHOWN_LOG" ]
+}
+
+@test "fix-user-config-owner: a symlinked directory is left alone" {
+    stage_owner_script_tree
+    ln -s "$OWNER_TREE" "$BATS_TEST_TMPDIR/link"
+    run sh "$OWNER_SCRIPT" nobody nogroup "$BATS_TEST_TMPDIR/link"
+    [ "$status" -eq 0 ]
+    [ ! -e "$CHOWN_LOG" ]
+}
+
+@test "fix-user-config-owner: a refused chown is reported so a caller can retry" {
+    stage_owner_script_tree
+    mock_command_script "chown" 'exit 1'
+    run sh "$OWNER_SCRIPT" nobody nogroup "$OWNER_TREE"
+    [ "$status" -ne 0 ]
+}
+
+# Runs the real refresh script against a temp install: its unit directory is
+# rewritten into the test tmpdir and systemctl, sleep and getent are stubbed.
+# Args: service user. Sets IDIR_REFRESH and the owner tree under its fake home.
+run_refresh_as() {
+    stage_owner_script_tree
+    local home="$BATS_TEST_TMPDIR/home"
+    OWNER_TREE="$home/printer_data/config/helixscreen"
+    mkdir -p "$OWNER_TREE"
+    : > "$OWNER_TREE/settings.json"
+    IDIR_REFRESH="$BATS_TEST_TMPDIR/opt/helixscreen"
+    mkdir -p "$IDIR_REFRESH/config" "$IDIR_REFRESH/bin" "$BATS_TEST_TMPDIR/units"
+    printf 'x' > "$IDIR_REFRESH/bin/helix-screen"
+    chmod +x "$IDIR_REFRESH/bin/helix-screen"
+    : > "$IDIR_REFRESH/release_info.json"
+    cp "$WORKTREE_ROOT/config/fix-user-config-owner.sh" "$IDIR_REFRESH/config/"
+    sed "s|/etc/systemd/system|$BATS_TEST_TMPDIR/units|g" \
+        "$WORKTREE_ROOT/config/refresh-service-units.sh" > "$IDIR_REFRESH/config/refresh-service-units.sh"
+    printf 'User=%s\nGroup=%s\n%s' "$1" "$1" "${UNIT_EXTRA:-}" > "$BATS_TEST_TMPDIR/units/helixscreen.service"
+    mock_command "systemctl" ""
+    mock_command "sleep" ""
+    mock_command_script "getent" "echo \"\$2:x:1:1::$home:/bin/sh\""
+    run sh "$IDIR_REFRESH/config/refresh-service-units.sh"
+}
+
+@test "refresh-service-units: repairs a wrongly owned config tree found under the service user's home" {
+    run_refresh_as nobody
+    [ "$status" -eq 0 ]
+    [ "$(cat "$CHOWN_LOG")" = "-Rh nobody:nobody $OWNER_TREE" ]
+}
+
+@test "refresh-service-units: a root service user repairs nothing" {
+    run_refresh_as root
+    [ "$status" -eq 0 ]
+    [ ! -e "$CHOWN_LOG" ]
+}
+
+@test "refresh-service-units: a refused chown never fails the service start" {
+    run_refresh_as nobody
+    mock_command_script "chown" 'exit 1'
+    run sh "$IDIR_REFRESH/config/refresh-service-units.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "refresh-service-units: ownership is repaired after the config restore" {
+    local script="$WORKTREE_ROOT/config/refresh-service-units.sh" restore repair
+    restore=$(grep -nE '^restore_config_symlinks$|restore-user-config\.sh" \|\| true$' "$script" | tail -1 | cut -d: -f1)
+    repair=$(grep -n 'fix-user-config-owner\.sh" "\${USER_VAL' "$script" | cut -d: -f1)
+    [ -n "$restore" ] && [ -n "$repair" ]
+    [ "$repair" -gt "$restore" ]
+}
+
+# =============================================================================
 # _is_self_update / HELIX_SELF_UPDATE skip logic
 # =============================================================================
 

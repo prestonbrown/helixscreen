@@ -557,6 +557,10 @@ main() {
     install_k2_webserver_backend "$platform" ||
         log_warn "Web-server carve-out incomplete; the UI install itself is fine"
 
+    # Every step that writes into printer_data has run, and the service must
+    # find that directory writable on its first start.
+    fix_user_config_ownership
+
     # Start service
     start_service "$platform"
 
