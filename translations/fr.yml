@@ -4343,6 +4343,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Ce .3mf doit être converti en G-Code avant de pouvoir être mis en file d''attente. Imprimez-le d''ici.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La file d''attente imprime la plaque par défaut de ce .3mf. Imprimez cette plaque d''ici.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Les étapes de préparation désactivées ne peuvent pas être appliquées à ce .3mf. Réactivez-les pour l''imprimer.'
+  Filament Mapping at print start: 'Mappage du filament au démarrage de l''impression'
   Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'L''association des filaments ne peut pas réécrire ce .3mf. Imprimez-le sans réassociation.'
   'This .3mf''s plates are still loading. Try again in a moment.': 'Les plaques de ce .3mf sont encore en cours de chargement. Réessayez dans un instant.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Ce .3mf doit être converti en G-Code sur l''imprimante avant de pouvoir être imprimé.'

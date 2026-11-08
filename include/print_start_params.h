@@ -22,6 +22,7 @@ namespace helix {
 
 class PrinterDiscovery;
 struct ToolMapping;
+enum class PluginFeatureState;
 
 /// printer.print.start parameters beyond `filename`, name -> value.
 using PrintStartParams = std::map<std::string, std::string>;
@@ -55,6 +56,18 @@ namespace print_start {
 /// parameters here; nothing else adds a plate or a tool map.
 [[nodiscard]] PrintStartParams start_request_params(const print_3mf::Route& route,
                                                     PrintStartParams tool_params);
+
+/// The HelixPrint plugin feature saying the starts it makes (print_modified,
+/// print_edited) pass the request's `tools` on to Moonraker.
+inline constexpr const char* kPluginStartToolsFeature = "print_start_tools";
+inline constexpr int kPluginStartToolsMinVersion = 1;
+
+/// Whether a start the HelixPrint plugin makes loses @p params' tool map: they
+/// carry one and @p plugin_start_tools, the state of kPluginStartToolsFeature,
+/// is not Ready (a plugin older than the feature, or a Moonraker whose start
+/// takes no map). The printer then routes that print by its own prompt.
+[[nodiscard]] bool plugin_drops_tool_map(const PrintStartParams& params,
+                                         PluginFeatureState plugin_start_tools);
 
 /// The backend a print's map belongs to: the first non-Auto row's (-1 on a
 /// row is the primary, 0), else 0.

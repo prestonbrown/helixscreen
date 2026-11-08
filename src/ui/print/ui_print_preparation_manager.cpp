@@ -28,6 +28,7 @@
 #include "operation_registry.h"
 #include "preprint_skip_wrappers.h"
 #include "print_start_collector.h"
+#include "print_start_params.h"
 #include "print_start_phase_label.h"
 #include "scope_exit.h"
 #include "storage_report_service.h"
@@ -2503,6 +2504,19 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
     // plugin hands the map to a Moonraker whose start takes it.
     const helix::PrintStartParams start_params =
         helix::print_start::start_request_params({}, std::exchange(start_params_, {}));
+
+    if (plugin_edits || job->use_plugin) {
+        const PluginFeatureState start_tools =
+            printer_state_ ? printer_state_->plugin_status_state().plugin_feature(
+                                 helix::print_start::kPluginStartToolsFeature,
+                                 helix::print_start::kPluginStartToolsMinVersion)
+                           : PluginFeatureState::Absent;
+        if (helix::print_start::plugin_drops_tool_map(start_params, start_tools)) {
+            spdlog::warn("[PrintPreparationManager] The HelixPrint plugin cannot pass the tool "
+                         "map ({}) on for {}: the printer routes it by its own prompt",
+                         start_params.at("tools"), job->file_path);
+        }
+    }
 
     if (plugin_edits) {
         // The plugin writes the copy itself, and removes it if the start fails, so no
