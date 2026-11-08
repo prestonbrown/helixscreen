@@ -2732,6 +2732,7 @@ translations:
   Nothing to remap: Nichts neu zuzuordnen
   Nothing to tune here: "Hier gibt es nichts einzustellen"
   'Nothing to unload: no filament at the nozzle': 'Nichts zu entladen: kein Filament an der Düse'
+  Whether the Z arrows follow the bed or the Z value: "Ob die Z-Pfeile dem Bett oder dem Z-Wert folgen"
   Which belt is each path?: "Welcher Riemen ist welcher Pfad?"
   Which belt is which?: "Welcher Riemen ist welcher?"
   'Which lane is in the toolhead?': 'Welche Spur steckt im Druckkopf?'
@@ -4877,6 +4878,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : Ihre {}-Zeile übergibt werkzeugbezogene Einstellungen, die die Filament-Zuordnung nicht ändert ({}). Ein Werkzeug, dem Sie Filament zuordnen, wird möglicherweise nicht beheizt. Siehe „Filament Mapping“ im Benutzerhandbuch.
   Z: Z
+  Z Buttons Move: "Z-Tasten bewegen"
   Z Calibration: Z-Kalibrierung
   Z Movement: Z-Bewegung
   Z Offset: Z Offset

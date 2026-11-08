@@ -111,11 +111,6 @@ void AppearanceSettingsOverlay::register_callbacks() {
 #endif
              DisplaySettingsManager::instance().set_gcode_render_mode(mode);
          }},
-        {"on_z_movement_style_changed",
-         [](lv_event_t* e) {
-             SettingsManager::instance().set_z_movement_style(
-                 static_cast<ZMovementStyle>(event_selected(e)));
-         }},
 
         // Theme explorer
         {"on_theme_preset_changed",

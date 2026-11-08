@@ -2583,6 +2583,7 @@ translations:
   Nothing to remap: 没有可重新映射的内容
   Nothing to tune here: "这里没有需要调整的"
   'Nothing to unload: no filament at the nozzle': '没有可卸载的耗材: 喷嘴处没有耗材'
+  Whether the Z arrows follow the bed or the Z value: "Z 按钮跟随热床还是 Z 值"
   Which belt is each path?: "每条路径是哪条皮带?"
   Which belt is which?: "哪条皮带是哪条?"
   'Which lane is in the toolhead?': '哪个料道在打印头里？'
@@ -4608,6 +4609,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : 您的 {} 行包含耗材映射不会更改的各工具设置 ({})。映射了耗材的工具可能不会被加热。请查看用户指南中的“Filament Mapping”。
   Z: Z
+  Z Buttons Move: "Z 按钮移动对象"
   Z Calibration: Z 轴校准
   Z Movement: Z 轴移动
   Z Offset: Z 偏移

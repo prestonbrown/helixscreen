@@ -2767,6 +2767,7 @@ translations:
   Nothing to remap: Нечего переназначать
   Nothing to tune here: "Здесь нечего настраивать"
   'Nothing to unload: no filament at the nozzle': 'Выгружать нечего: в сопле нет филамента'
+  Whether the Z arrows follow the bed or the Z value: "Следуют ли стрелки Z за столом или за значением Z"
   Which belt is each path?: "Какой ремень у каждого пути?"
   Which belt is which?: "Где какой ремень?"
   'Which lane is in the toolhead?': 'Какая дорожка в печатающей головке?'
@@ -4911,6 +4912,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : Строка {} передаёт настройки для отдельных инструментов, которые сопоставление филамента не меняет ({}). Инструмент, с которым вы сопоставите филамент, может не нагреться. См. раздел «Filament Mapping» в руководстве пользователя.
   Z: Z
+  Z Buttons Move: "Кнопки Z двигают"
   Z Calibration: Калибровка Z
   Z Movement: Движение Z
   Z Offset: Z Offset

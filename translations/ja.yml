@@ -2590,6 +2590,7 @@ translations:
   Nothing to remap: リマップするものがありません
   Nothing to tune here: "ここで調整するものはありません"
   'Nothing to unload: no filament at the nozzle': '取り出すものがありません: ノズルにフィラメントがありません'
+  Whether the Z arrows follow the bed or the Z value: "ZボタンがベッドとZ値のどちらに従うか"
   Which belt is each path?: "各パスはどのベルト?"
   Which belt is which?: "どのベルトがどれ?"
   'Which lane is in the toolhead?': 'ツールヘッドに入っているのはどのレーンですか？'
@@ -4617,6 +4618,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : '{} の行には、フィラメントマッピングで変更されないツールごとの設定が含まれています ({})。フィラメントをマッピングしたツールが加熱されない可能性があります。ユーザーガイドの「Filament Mapping」を参照してください。'
   Z: Z
+  Z Buttons Move: "Zボタンの移動対象"
   Z Calibration: Z キャリブレーション
   Z Movement: Z移動
   Z Offset: Zオフセット

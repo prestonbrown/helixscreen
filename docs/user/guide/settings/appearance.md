@@ -149,18 +149,6 @@ Pick a lighter option if the print status screen is slow on your printer.
 
 In **Auto**, a file whose preview would cost your board too much CPU shows its thumbnail instead. HelixScreen judges that from how fast it read earlier files on this board, and allows less while a print is running, so a large file never slows the printer. Pick **3D View** or **2D Layers** yourself to draw such a file anyway.
 
-### Z Movement
-
-Which way the Z buttons on the Motion screen are labeled.
-
-| Option | Labels |
-|--------|--------|
-| **Auto** (default) | Chosen from your printer type (bed slinger, CoreXY or delta) |
-| **Bed Moves** | The buttons describe the bed moving |
-| **Nozzle Moves** | The buttons describe the nozzle moving |
-
-Only the labels change. The printer receives exactly the same commands. Change it if the arrows point the opposite way to what you see your printer do.
-
 ### Bed Mesh Render
 
 How bed mesh results are drawn: **Auto**, **3D View** or **2D Heatmap**. The heatmap is lighter on slow hardware and easier to read at a glance.

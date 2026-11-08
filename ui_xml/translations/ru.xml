@@ -4414,6 +4414,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." ru="Когда включено, запускается только макрос. Когда выключено, сначала задаются температуры, затем запускается макрос."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
   <translation tag="Which belt is each path?" ru="Какой ремень у каждого пути?"/>
   <translation tag="Which belt is which?" ru="Где какой ремень?"/>
   <translation tag="Which lane is in the toolhead?" ru="Какая дорожка в печатающей головке?"/>
@@ -4498,6 +4499,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ru="Похоже, на вашем {0} есть {1}, но он настроен для {2}."/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." ru="Строка {} передаёт настройки для отдельных инструментов, которые сопоставление филамента не меняет ({}). Инструмент, с которым вы сопоставите филамент, может не нагреться. См. раздел «Filament Mapping» в руководстве пользователя."/>
   <translation tag="Z" ru="Z"/>
+  <translation tag="Z Buttons Move" ru="Кнопки Z двигают"/>
   <translation tag="Z Calibration" ru="Калибровка Z"/>
   <translation tag="Z Movement" ru="Движение Z"/>
   <translation tag="Z Offset" ru="Z Offset"/>

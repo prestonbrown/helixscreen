@@ -202,6 +202,8 @@ TEST_CASE_METHOD(PageRowsFixture,
     build("settings_appearance_overlay");
     CHECK(has("row_toolhead_style"));
     CHECK(has("row_gcode_mode"));
+    CHECK_FALSE(has("row_z_movement_style"));
+    build("motion_settings_overlay");
     CHECK(has("row_z_movement_style"));
     build("settings_printing_overlay");
     CHECK_FALSE(has("row_toolhead_style"));
