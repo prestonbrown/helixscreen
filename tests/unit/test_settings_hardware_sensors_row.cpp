@@ -8,9 +8,8 @@
  * assignments, so no one sensor type decides whether it can be reached.
  */
 
-// TEST_MIRROR_OK: exercises the shipped ui_xml layout, which has no header to include
-
 #include "../lvgl_ui_test_fixture.h"
+#include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include <lvgl.h>
@@ -19,6 +18,7 @@
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Hardware page: Sensors row shows with no filament sensor",
                  "[settings][sensors_row]") {
+    helix::FilamentSensorManager::instance().init_subjects();
     lv_subject_t* filament_sensors = lv_xml_get_subject(nullptr, "filament_sensor_count");
     REQUIRE(filament_sensors != nullptr);
     const int before = lv_subject_get_int(filament_sensors);
