@@ -256,10 +256,14 @@ checks; with no scan it is unchanged.
 | Non-object settings, non-string options, empty object | empty scan, no crash |
 | `drift`: old visible pack, no hidden | MoveToHidden |
 | `drift`: hidden only, PRINT_START calls `HELIX_READY` | AddAliases |
-| `drift`: aliases for `HELIX_READY`, no callers | DropAliases |
-| `drift`: aliases match callers exactly | None |
-| `macro_content_for` with a scan of one caller | alias block has exactly that name |
-| `macro_content_for` with an empty scan on a printer that had `HELIX_READY` | no alias block |
+| `drift`: one forwarder, no callers | AddAliases (the other ten join it) |
+| `drift`: all eleven forwarders, with or without callers | None |
+| `names_to_alias`: a caller of one name, the old visible pack alone, or an extra name alone | all eleven |
+| `names_to_alias`: a printer that never had a visible name and calls none | empty |
+| `macro_content_for`, old visible pack, nothing in the config calls a visible name | all eleven forwarded (a sliced file may call any) |
+| `macro_content_for` with the user's own `HELIX_READY` | the other ten forwarded |
+| `macro_content_for`, hidden pack, nothing calling | no alias block |
+| User's own `HELIX_READY` whose body writes `_HELIX_STATE` | in `foreign`: the pack is told by its description (`kPackDescriptions`), never by its body |
 | `evaluate_status` with AddAliases on an otherwise current pack | OUTDATED; with no scan, INSTALLED |
 | Discovery wiring (`MoonrakerClientMock` with `configfile.settings` calling `HELIX_READY`) | `signal_macro_scan()` holds the caller after discovery |
 
@@ -455,18 +459,24 @@ print with every phase and the ready signal, and a printer still on the visible 
 
 Where the open questions had no answer, the implementation takes the plan's recommendation:
 
-- Q3: only the names a config calls get a forwarder. Before discovery has read `configfile.settings`,
-  a printer that defines `HELIX_READY` still gets all eleven.
-- Q4: DropAliases sets OUTDATED, so the macros row offers an update that hides the unused names.
+- Q3: all eleven get a forwarder on any printer that had a visible name loaded (an earlier pack
+  or our forwarders) or whose config calls one; a printer that never had them gets none. Only the
+  called names would leave a sliced file that calls `HELIX_READY` answering `Unknown command`
+  once the update the OUTDATED status offers lands, and the scan cannot see sliced files. Phase 4's
+  record of names seen in sliced files is what could narrow this. Until then DropAliases is not
+  produced: a printer with forwarders keeps all eleven.
+- Q4: DropAliases sets OUTDATED when produced; while every printer with forwarders keeps all eleven (Q3) it is not.
 - Q5: nothing in the app treats firmware-managed packs differently, and phases 1-2 change neither
   `assets/config/helix_macros.cfg` nor how `load_macro_file` finds it. The question stays open for
   the plugin in phase 3.
 
 One rule the plan left open: `pack_sections` names both spellings, so a section name alone cannot
-tell an earlier pack's `[gcode_macro HELIX_READY]` from the user's own. `scan()` reads a
-visible-named section as ours when its description is the forwarder's, as an earlier pack's when its
-gcode names `_HELIX_STATE` (every pack's signal bodies write it), and as the user's otherwise. Only
-the user's own lands in `foreign` and is read for calls.
+tell an earlier pack's `[gcode_macro HELIX_READY]` from the user's own, and `configfile.settings`
+does not say which file a section came from. `scan()` reads a visible-named section as ours when its
+description is the forwarder's, as an earlier pack's when its description is that name's
+`kPackDescriptions` entry (every pack version gave each signal the same one, pinned against the
+bundled pack by a test), and as the user's otherwise. Only the user's own lands in `foreign` and is
+read for calls.
 
 The scan runs in `src/api/moonraker_discovery_sequence.cpp` beside the other configfile analyzers,
 which costs that file two upward includes (`macro_manager.h` for the pack's section names,

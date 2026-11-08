@@ -63,13 +63,29 @@ json hidden_pack() {
     return s;
 }
 
-/// The pack an earlier HelixScreen staged: every signal under its visible name.
+/// The description line under `[gcode_macro <section>]` in the bundled pack.
+std::string pack_description(const std::string& section) {
+    std::istringstream in(helix::MacroManager::get_macro_content());
+    std::string line;
+    const std::string header = "[gcode_macro " + section + "]";
+    const std::string prefix = "description: ";
+    while (std::getline(in, line)) {
+        if (line == header && std::getline(in, line) && line.rfind(prefix, 0) == 0) {
+            return line.substr(prefix.size());
+        }
+    }
+    return {};
+}
+
+/// The pack an earlier HelixScreen staged: every signal under its visible name,
+/// with the descriptions the bundled pack gives the hidden ones.
 json visible_pack() {
     json s = json::object();
     for (auto visible : sm::kVisibleNames) {
         std::string key = "gcode_macro " + std::string(visible);
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        s[key] = macro("SET_GCODE_VARIABLE MACRO=_HELIX_STATE VARIABLE=phase VALUE='\"X\"'");
+        s[key] = macro("SET_GCODE_VARIABLE MACRO=_HELIX_STATE VARIABLE=phase VALUE='\"X\"'",
+                       pack_description(sm::hidden_name(visible)));
     }
     s["gcode_macro helix_start_print"] = macro("HELIX_PHASE_HOMING\nG28\nHELIX_READY");
     return s;
@@ -77,6 +93,30 @@ json visible_pack() {
 
 sm::SignalMacroScan scan_of(const json& settings) {
     return sm::scan(settings, helix::MacroManager::pack_section_names());
+}
+
+std::vector<std::string> all_names() {
+    return {sm::kVisibleNames.begin(), sm::kVisibleNames.end()};
+}
+
+std::vector<std::string> all_but(std::string_view name) {
+    std::vector<std::string> names;
+    for (auto visible : sm::kVisibleNames) {
+        if (visible != name) {
+            names.emplace_back(visible);
+        }
+    }
+    return names;
+}
+
+/// A forwarder for every signal name, as a printer staged with all eleven reports them.
+json with_all_forwarders(json s) {
+    for (auto visible : sm::kVisibleNames) {
+        std::string key = "gcode_macro " + std::string(visible);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+        s[key] = forwarder(std::string(visible));
+    }
+    return s;
 }
 
 std::vector<std::string> caller_names(const sm::SignalMacroScan& scan) {
@@ -182,6 +222,14 @@ TEST_CASE("scan counts a mention inside a Jinja lookup", "[signal_macros]") {
     CHECK(caller_names(scan_of(s)) == std::vector<std::string>{"HELIX_READY"});
 }
 
+TEST_CASE("kPackDescriptions are the bundled pack's descriptions", "[signal_macros]") {
+    for (size_t i = 0; i < sm::kVisibleNames.size(); ++i) {
+        const std::string hidden = sm::hidden_name(sm::kVisibleNames[i]);
+        INFO(hidden);
+        CHECK(pack_description(hidden) == sm::kPackDescriptions[i]);
+    }
+}
+
 TEST_CASE("scan skips the pack's own sections under either spelling", "[signal_macros]") {
     CHECK(scan_of(hidden_pack()).callers.empty());
     CHECK(scan_of(visible_pack()).callers.empty());
@@ -211,7 +259,29 @@ TEST_CASE("scan keeps a user's own macro of a signal name apart", "[signal_macro
     CHECK(result.aliases.empty());
     CHECK(caller_names(result) == std::vector<std::string>{"HELIX_READY"});
     // Their macro wins, and a forwarder of the same name would merge into it.
-    CHECK(sm::names_to_alias(result, {}).empty());
+    CHECK(sm::names_to_alias(result, {}) == all_but("HELIX_READY"));
+}
+
+TEST_CASE("scan reads a user's HELIX_READY that writes _HELIX_STATE as theirs", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro helix_ready"] =
+        macro("SET_GCODE_VARIABLE MACRO=_HELIX_STATE VARIABLE=print_started VALUE=True\n"
+              "M117 ready",
+              "My own ready signal");
+
+    const auto result = scan_of(s);
+
+    CHECK(result.foreign == std::vector<std::string>{"HELIX_READY"});
+    CHECK_FALSE(result.visible_loaded);
+}
+
+TEST_CASE("scan sees whether the visible names were loaded", "[signal_macros]") {
+    CHECK(scan_of(visible_pack()).visible_loaded);
+    CHECK_FALSE(scan_of(hidden_pack()).visible_loaded);
+
+    json forwarded = hidden_pack();
+    forwarded["gcode_macro helix_phase_qgl"] = forwarder("HELIX_PHASE_QGL");
+    CHECK(scan_of(forwarded).visible_loaded);
 }
 
 TEST_CASE("scan sees the hidden names loaded only when all of them are", "[signal_macros]") {
@@ -251,31 +321,41 @@ TEST_CASE("drift reads each loaded state", "[signal_macros]") {
         s["gcode_macro print_start"] = macro("HELIX_READY");
         CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::AddAliases);
     }
-    SECTION("a forwarder nothing calls") {
+    SECTION("one forwarder nothing calls: the other ten join it") {
         json s = hidden_pack();
         s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
-        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::DropAliases);
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::AddAliases);
     }
-    SECTION("forwarders match the callers") {
-        json s = hidden_pack();
-        s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
+    SECTION("all eleven forwarders, nothing calling them, stay") {
+        CHECK(sm::drift(scan_of(with_all_forwarders(hidden_pack())), {}) == SignalNameDrift::None);
+    }
+    SECTION("all eleven forwarders and a caller") {
+        json s = with_all_forwarders(hidden_pack());
         s["gcode_macro print_start"] = macro("HELIX_READY");
         CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::None);
     }
-    SECTION("a user's own macro of the called name needs nothing") {
-        json s = hidden_pack();
-        s["gcode_macro helix_ready"] = macro("M117 mine", "Mine");
-        s["gcode_macro print_start"] = macro("HELIX_READY");
-        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::None);
+    SECTION("hidden only, nothing calls a visible name") {
+        CHECK(sm::drift(scan_of(hidden_pack()), {}) == SignalNameDrift::None);
     }
 }
 
-TEST_CASE("names_to_alias merges extra names in pack order", "[signal_macros]") {
-    json s = hidden_pack();
-    s["gcode_macro print_start"] = macro("HELIX_PHASE_QGL\nHELIX_READY\nHELIX_READY");
-
-    CHECK(sm::names_to_alias(scan_of(s), {"HELIX_ENDED", "NOT_A_SIGNAL"}) ==
-          std::vector<std::string>{"HELIX_READY", "HELIX_ENDED", "HELIX_PHASE_QGL"});
+TEST_CASE("names_to_alias forwards all eleven once any visible name is in play",
+          "[signal_macros]") {
+    SECTION("a caller of one name") {
+        json s = hidden_pack();
+        s["gcode_macro print_start"] = macro("HELIX_PHASE_QGL");
+        CHECK(sm::names_to_alias(scan_of(s), {}) == all_names());
+    }
+    SECTION("the old visible pack, nothing calling it") {
+        CHECK(sm::names_to_alias(scan_of(visible_pack()), {}) == all_names());
+    }
+    SECTION("an extra name alone") {
+        CHECK(sm::names_to_alias(scan_of(hidden_pack()), {"HELIX_ENDED"}) == all_names());
+    }
+    SECTION("a printer that never had the visible names") {
+        CHECK(sm::names_to_alias(scan_of(hidden_pack()), {}).empty());
+        CHECK(sm::names_to_alias(scan_of(hidden_pack()), {"NOT_A_SIGNAL"}).empty());
+    }
 }
 
 // ============================================================================
@@ -301,22 +381,33 @@ const json kCurrentPackObjects =
 
 } // namespace
 
-TEST_CASE("macro_content_for forwards only the names the config calls", "[signal_macros]") {
-    json s = visible_pack();
-    s["gcode_macro print_start"] = macro("HELIX_READY");
-    const auto hw = printer_with(s, kOldPackObjects);
+TEST_CASE("macro_content_for forwards all eleven to a printer on the old visible pack",
+          "[signal_macros]") {
+    // Nothing in the config calls a visible name, but a sliced file's start
+    // G-code may, and the scan cannot see it.
+    const auto hw = printer_with(visible_pack(), kOldPackObjects);
 
     const std::string base = helix::MacroManager::get_macro_content();
     const std::string content = helix::MacroManager::macro_content_for(hw);
 
     REQUIRE(content.rfind(base, 0) == 0);
-    CHECK(content.find(sm::alias_block({"HELIX_READY"}), base.size()) != std::string::npos);
-    CHECK(content.find("[gcode_macro HELIX_ENDED]") == std::string::npos);
+    CHECK(content.substr(base.size()).find(sm::alias_block(all_names())) != std::string::npos);
 }
 
-TEST_CASE("macro_content_for drops the forwarders nothing calls", "[signal_macros]") {
-    // HELIX_READY is defined, which without a scan forwards all eleven.
-    const auto hw = printer_with(visible_pack(), kOldPackObjects);
+TEST_CASE("macro_content_for leaves out a name the user defined", "[signal_macros]") {
+    json s = visible_pack();
+    s["gcode_macro helix_ready"] = macro("M117 mine", "Mine");
+    const auto hw = printer_with(s, kOldPackObjects);
+
+    const std::string content = helix::MacroManager::macro_content_for(hw);
+
+    CHECK(content.find("[gcode_macro HELIX_READY]") == std::string::npos);
+    CHECK(content.find(sm::alias_block(all_but("HELIX_READY"))) != std::string::npos);
+}
+
+TEST_CASE("macro_content_for forwards nothing to a printer that never had the visible names",
+          "[signal_macros]") {
+    const auto hw = printer_with(hidden_pack(), kCurrentPackObjects);
 
     CHECK(helix::MacroManager::macro_content_for(hw) == helix::MacroManager::get_macro_content());
 }

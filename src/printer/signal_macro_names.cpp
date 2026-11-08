@@ -40,20 +40,21 @@ std::string macro_key(const std::string& name) {
 
 enum class Definer { Alias, Pack, User };
 
-/// Who wrote a [gcode_macro <visible signal name>] section. Every pack that
-/// defined the visible names wrote _HELIX_STATE from each signal body.
-Definer classify(const nlohmann::json& section, const std::string& visible) {
+/// Who wrote a [gcode_macro <visible signal name>] section, read from its
+/// description: configfile.settings does not say which file a section came from.
+Definer classify(const nlohmann::json& section, size_t index) {
     if (!section.is_object()) {
         return Definer::User;
     }
     auto desc = section.find("description");
-    if (desc != section.end() && desc->is_string() &&
-        desc->get<std::string>() == std::string(kAliasDescriptionPrefix) + hidden_name(visible)) {
+    if (desc == section.end() || !desc->is_string()) {
+        return Definer::User;
+    }
+    const std::string& text = desc->get_ref<const std::string&>();
+    if (text == std::string(kAliasDescriptionPrefix) + hidden_name(kVisibleNames[index])) {
         return Definer::Alias;
     }
-    auto gcode = section.find("gcode");
-    if (gcode != section.end() && gcode->is_string() &&
-        has_standalone(text_io::to_upper(gcode->get<std::string>()), "_HELIX_STATE")) {
+    if (text == kPackDescriptions[index]) {
         return Definer::Pack;
     }
     return Definer::User;
@@ -66,9 +67,9 @@ bool is_scanned(const std::string& section, const std::vector<std::string>& pack
     if (std::find(pack_sections.begin(), pack_sections.end(), section) == pack_sections.end()) {
         return true;
     }
-    for (auto visible : kVisibleNames) {
-        if (section == macro_key(std::string(visible))) {
-            return classify(config_settings[section], std::string(visible)) == Definer::User;
+    for (size_t i = 0; i < kVisibleNames.size(); ++i) {
+        if (section == macro_key(std::string(kVisibleNames[i]))) {
+            return classify(config_settings[section], i) == Definer::User;
         }
     }
     return false;
@@ -120,14 +121,16 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
         if (it == config_settings.end()) {
             continue;
         }
-        switch (classify(*it, visible)) {
+        switch (classify(*it, i)) {
         case Definer::Alias:
             alias[i] = true;
+            result.visible_loaded = true;
             break;
         case Definer::User:
             foreign[i] = true;
             break;
         case Definer::Pack:
+            result.visible_loaded = true;
             break;
         }
     }
@@ -163,13 +166,17 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
 
 std::vector<std::string> names_to_alias(const SignalMacroScan& scan,
                                         const std::vector<std::string>& extra_names) {
+    // A sliced file can call any signal name, and nothing in the config shows
+    // which, so a printer with any visible name in play keeps all of them.
+    const bool extra_signal =
+        std::any_of(kVisibleNames.begin(), kVisibleNames.end(),
+                    [&](std::string_view v) { return contains(extra_names, v); });
     std::vector<std::string> names;
+    if (!scan.visible_loaded && scan.callers.empty() && !extra_signal) {
+        return names;
+    }
     for (auto visible : kVisibleNames) {
-        const bool called =
-            contains(extra_names, visible) ||
-            std::any_of(scan.callers.begin(), scan.callers.end(),
-                        [visible](const SignalCaller& c) { return c.name == visible; });
-        if (called && !contains(scan.foreign, visible)) {
+        if (!contains(scan.foreign, visible)) {
             names.emplace_back(visible);
         }
     }
