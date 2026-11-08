@@ -184,6 +184,7 @@ src/printer/ams_state_tool_mapping.cpp
 src/printer/buffer_reading.cpp
 src/printer/ams_subscription_backend.cpp
 src/printer/batch_feed_reconcile.cpp
+src/printer/cfs_daemon_sync.cpp
 src/printer/cfs_status_parse.cpp
 src/printer/lane_echo.cpp
 src/printer/lane_resolver.cpp

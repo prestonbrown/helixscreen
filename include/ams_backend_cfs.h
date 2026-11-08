@@ -24,6 +24,7 @@ namespace helix::printer {
 #include "ams_print_routing.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
+#include "cfs_daemon_sync.h"
 #include "cfs_status_parse.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -777,6 +778,16 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                                 const std::string& brand,
                                                 const std::string& catalog_id, uint32_t color_rgb,
                                                 const helix::ams::Observation* declared = nullptr);
+
+    /// Tell Creality's local daemon (cfs_daemon_sync.h) that a bay changed, so
+    /// Creality Print and the Creality Cloud app show the edit. Called on the
+    /// main thread once Klipper has acknowledged the BOX_MODIFY_TN_DATA write;
+    /// queues the send on an HttpExecutor worker and returns. Virtual so a test
+    /// can capture the record instead of sending it.
+    virtual void notify_slot_daemon(const helix::cfs::DaemonMaterial& material);
+
+    /// Where notify_slot_daemon sends. A test points it at its own port.
+    helix::cfs::DaemonEndpoint daemon_endpoint_;
 
   private:
     friend class helix::CfsTestAccess;

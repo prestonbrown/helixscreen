@@ -2508,6 +2508,50 @@ void AmsBackendCfs::persist_slot_weight(int slot_index, float remaining_weight_g
                                         remaining_weight_g, total_weight_g, tag);
 }
 
+// The daemon's record for a bay just written, from what the write carried and
+// the slot as it now stands. rfid is the 5-char catalog code of the material
+// written ("" for a color-only write, as Creality Print sends for an untagged
+// spool). Temps and the product label prefer the slot's own values and fall
+// back to the catalog product of the code written, or of the user's pick.
+static std::optional<helix::cfs::DaemonMaterial>
+daemon_material_for(int global_index, const SlotInfo* slot, const std::string& material,
+                    const std::string& brand, const std::string& catalog_id,
+                    const std::string& mat_code, uint32_t color_rgb) {
+    const auto address = helix::cfs::daemon_address(global_index, helix::ui::kExternalSpoolSlot);
+    if (!address) {
+        return std::nullopt;
+    }
+    const auto catalog = FilamentCatalog::load_codes_cached("cfs");
+    const std::string rfid = CfsMaterialDb::strip_code(mat_code);
+    const EffectiveFilament* entry = rfid.empty() ? nullptr : catalog->resolve_code("cfs", rfid);
+    if (!entry && !catalog_id.empty()) {
+        entry = catalog->resolve_id(catalog_id);
+    }
+
+    helix::cfs::DaemonMaterial record;
+    record.box_id = address->box_id;
+    record.slot_id = address->slot_id;
+    record.rfid = rfid;
+    record.color_rgb = color_rgb;
+    record.type = !material.empty() ? material : (entry ? entry->type : std::string{});
+    record.vendor = !brand.empty() ? brand : (entry ? entry->brand : std::string{});
+    if (slot && !slot->product_name.empty()) {
+        record.name = slot->product_name;
+    } else if (entry && !entry->name.empty()) {
+        record.name = entry->name;
+    } else {
+        record.name = record.type;
+    }
+    const bool slot_temps = slot && slot->nozzle_temp_min > 0 && slot->nozzle_temp_max > 0;
+    record.min_temp_c = slot_temps ? slot->nozzle_temp_min : (entry ? entry->nozzle_min : 0);
+    record.max_temp_c = slot_temps ? slot->nozzle_temp_max : (entry ? entry->nozzle_max : 0);
+    return record;
+}
+
+void AmsBackendCfs::notify_slot_daemon(const helix::cfs::DaemonMaterial& material) {
+    helix::cfs::post_daemon_frame(daemon_endpoint_, helix::cfs::encode_modify_material(material));
+}
+
 void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::string& material,
                                                    const std::string& brand,
                                                    const std::string& catalog_id,
@@ -2652,6 +2696,7 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
     std::string expected_material_half;
     std::vector<std::string> staged_echoes;
     std::uint64_t echo_sequence = 0;
+    std::optional<helix::cfs::DaemonMaterial> daemon_record;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto base = rfid_tracker_.baseline(global_index);
@@ -2764,6 +2809,10 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
             }
             own_write_echoes_.arm(global_index, std::string{});
         }
+
+        daemon_record =
+            daemon_material_for(global_index, system_info_.get_slot_global(global_index), material,
+                                brand, catalog_id, mat_code, color_rgb);
     }
 
     if (!mat_code.empty()) {
@@ -2782,7 +2831,14 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
     gcode += "BOX_MODIFY_TN_DATA ADDR=" + std::to_string(unit) + " NUM=" + slot_letter +
              " PART=color_value DATA=" + color_data;
 
-    auto err = execute_gcode(gcode);
+    // The daemon hears about the edit only once Klipper has acknowledged the
+    // write that is the source of truth; a rejected or failed write sends
+    // nothing.
+    helix::SharedCallback<void()> on_written;
+    if (daemon_record) {
+        on_written = [this, record = *daemon_record]() { notify_slot_daemon(record); };
+    }
+    auto err = execute_gcode(gcode, std::move(on_written), nullptr, /*silent=*/true);
     if (err.result != AmsResult::SUCCESS) {
         // Non-fatal — the override is already in lane_data so user data isn't
         // lost; only the firmware-side LCD won't reflect this edit.
