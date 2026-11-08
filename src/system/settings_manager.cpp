@@ -207,6 +207,18 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
 };
 
+namespace {
+/// Push a stored numbering base to the labels and re-render them if it changed.
+void apply_lane_numbering(bool from_zero) {
+    if (from_zero == helix::ui::lane_numbering_from_zero()) {
+        return;
+    }
+    helix::ui::set_lane_numbering_from_zero(from_zero);
+    // Everything that formats a number re-renders on this subject.
+    lv_subject_notify(SystemSettingsManager::instance().subject_language());
+}
+} // namespace
+
 SettingsManager& SettingsManager::instance() {
     static HELIX_PSRAM_BSS SettingsManager instance;
     return instance;
@@ -321,9 +333,8 @@ void SettingsManager::load_jog_distances() {
 }
 
 void SettingsManager::set_number_lanes_from_zero(bool enabled) {
-    // The labels are read while the subject notifies, so the base changes first.
-    helix::ui::set_lane_numbering_from_zero(enabled);
     settings_.set(Key::NumberLanesFromZero, enabled);
+    apply_lane_numbering(enabled);
 }
 
 void SettingsManager::reload_from_config() {
@@ -331,7 +342,7 @@ void SettingsManager::reload_from_config() {
         return;
     }
     settings_.reload();
-    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
+    apply_lane_numbering(get_number_lanes_from_zero());
     load_jog_distances();
 }
 

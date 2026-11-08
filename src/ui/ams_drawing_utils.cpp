@@ -802,11 +802,15 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         for (const auto& group : layout.hub_groups) {
             if (!group.hub_id.empty() && group.physical_tool >= 0 &&
                 group.physical_tool < static_cast<int>(out.numbers.size())) {
-                out.numbers[group.physical_tool] = helix::ui::lane_number(group.physical_tool);
+                out.numbers[group.physical_tool] = group.physical_tool;
             }
         }
     }
     return out;
+}
+
+std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane_badge in ams_draw
+    return number < 0 ? std::string() : std::to_string(number);
 }
 
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
@@ -823,9 +827,7 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_t* lbl = lv_label_create(badge);
-    char txt[8];
-    snprintf(txt, sizeof(txt), "%d", lane_number); // 1-based; lane numbers not translated
-    lv_label_set_text(lbl, txt);
+    lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
