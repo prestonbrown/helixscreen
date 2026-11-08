@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <functional>
 
-// Forward declarations
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
 
@@ -162,8 +161,8 @@ class PanelFactory {
   private:
     // Wire one of the six main panels: get_global_*_panel().setup(widget, screen)
     // + register the instance with NavigationManager. Used by the ESP eager-home
-    // path and by build_deferred_panel; the desktop setup_panels() body is
-    // unchanged and does not call this.
+    // path and by build_deferred_panel; the desktop setup_panels() body does
+    // not call this.
     void setup_one_panel(int panel_id);
 
     // Builds Print Files at the first idle moment, so its first visit does not
