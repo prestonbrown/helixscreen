@@ -9,6 +9,7 @@
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -276,4 +277,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         }
     }
     display.set_animations_enabled(animations);
+}
+
+TEST_CASE("the general palette leads with the filament colours people load",
+          "[color_swatch_grid][palette]") {
+    // The spool editor shows only the palette's first row or two, so the core
+    // colours have to be in front: black, white, grey and every main hue.
+    const auto& palette = helix::ui::swatch_palette(helix::ui::ColorPicker::Palette::General);
+    REQUIRE(palette.size() == 30);
+    const std::vector<uint32_t> lead(palette.begin(), palette.begin() + 15);
+    auto has = [&](uint32_t c) { return std::find(lead.begin(), lead.end(), c) != lead.end(); };
+    for (uint32_t core : {0x1A1A1Au, 0xFFFFFFu, 0x7F7F7Fu, 0xE53935u, 0xFF9800u, 0xFFEB3Bu,
+                          0x43A047u, 0x1E88E5u, 0x7B1FA2u, 0xE91E63u}) {
+        CAPTURE(core);
+        CHECK(has(core));
+    }
+    // No two swatches alike.
+    std::vector<uint32_t> sorted(palette.begin(), palette.end());
+    std::sort(sorted.begin(), sorted.end());
+    CHECK(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
 }
