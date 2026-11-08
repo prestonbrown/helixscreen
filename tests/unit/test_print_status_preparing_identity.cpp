@@ -147,8 +147,8 @@ TEST_CASE_METHOD(PreparingIdentityFixture,
     REQUIRE(Access::identity_override(panel()) == "printA.gcode");
 
     // Print B started from Mainsail: no preparing epoch, nothing re-points the
-    // identity. Before the fix the panel resolved B through printA for the
-    // whole job and never reloaded a thing.
+    // identity. Otherwise the panel resolves B through printA for the
+    // whole job and never reloads a thing.
     report_filename("printB.gcode");
     drain();
 

@@ -119,8 +119,8 @@ TEST_CASE("MoonrakerClient::dispatch_status_update absorbs throwing callbacks",
     client.register_notify_update([&good_calls](const json& /*notif*/) { ++good_calls; });
 
     // dispatch_status_update wraps a status payload as notify_status_update
-    // and walks the notify_callbacks_ map. Pre-fix: the throw escaped this
-    // loop and propagated up. Post-fix: caught and logged, second cb fires.
+    // and walks the notify_callbacks_ map. The throw must not escape this
+    // loop: it is caught and logged, and the second cb fires.
     json status = {{"some_object", {{"some_field", nullptr}}}};
     REQUIRE_NOTHROW(client.dispatch_status_update(status));
     REQUIRE(bad_call_attempted);

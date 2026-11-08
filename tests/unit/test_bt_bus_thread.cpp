@@ -166,7 +166,7 @@ TEST_CASE("BusThread concurrent start+submit: on_thread never races thread_id_",
     // worker's first on_thread() check could race with a submit() from another
     // thread calling on_thread() via run_sync(). Here we
     // start the thread and immediately submit work items whose body reads
-    // on_thread() — with the fix (worker publishes its own id before loop()),
+    // on_thread(); the worker publishes its own id before loop(), so
     // every work item sees on_thread() == true.
     for (int iter = 0; iter < 20; ++iter) {
         BusThread bt(nullptr);

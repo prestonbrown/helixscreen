@@ -147,7 +147,7 @@ TEST_CASE_METHOD(PersistedZOffsetFixture,
 //
 // ZMOD applies the stored offset in START_PRINT and zeroes gcode_move's live
 // offset again in END_PRINT, so across a whole print cycle the live reading is
-// only truthful mid-print. Before the fix the row read the live value always.
+// only truthful mid-print, so the row must not read the live value always.
 // ============================================================================
 
 TEST_CASE_METHOD(PersistedZOffsetFixture,

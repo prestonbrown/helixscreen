@@ -1620,8 +1620,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     frame();
 
     // The pending pre-invalidate build must be gone: one frame after
-    // invalidation there is no ghost output. (Before the fix, this frame
-    // copied the stale buffer and reported output.) Whether the replacement
+    // invalidation there is no ghost output (not the stale buffer copied
+    // and reported as output). Whether the replacement
     // build is still running at this instant is timing - a 120-layer ghost
     // finishes in well under a frame - so the invariant is "no stale output",
     // not "mid-build".

@@ -169,8 +169,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(subject_int("ams_env_ind_0_humidity_visible") == 0);
     REQUIRE(subject_int("ams_env_ind_1_humidity_visible") == 1);
 
-    // THE REGRESSION ASSERTION. Pre-fix both widgets were bound to
-    // ams_env_ind_0_humidity_visible, so unit 1's overlay hid a row whose
+    // THE REGRESSION ASSERTION. Binding both widgets to
+    // ams_env_ind_0_humidity_visible would make unit 1's overlay hide a row whose
     // reading ("42%") was right there next to it.
     const HumidityRowState state = humidity_state_for_unit(*this, 1);
     CHECK(state.subject == 1);

@@ -102,8 +102,8 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
     CHECK(std::find(stack.begin(), stack.end(), doomed) == stack.end());
 
     // The whole bug in one line: the sweep writes LV_OBJ_FLAG_HIDDEN through
-    // every non-null slot. Pre-fix the Settings slot still pointed at freed
-    // memory and lv_obj_add_flag() faulted on it.
+    // every non-null slot. A Settings slot still pointing at freed
+    // memory would make lv_obj_add_flag() fault on it.
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Home);
 
@@ -128,8 +128,8 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
     CHECK(NavigationManager::instance().get_panel_widget(PanelId::Settings) == nullptr);
     CHECK(NavigationManager::instance().get_panel_widget(PanelId::Controls) == nullptr);
 
-    // Pre-fix this drain ran the sweep over two freed widgets: SIGSEGV inside
-    // lv_obj_add_flag().
+    // Unguarded, this drain would run the sweep over two freed widgets:
+    // SIGSEGV inside lv_obj_add_flag().
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == true);

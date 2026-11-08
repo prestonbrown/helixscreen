@@ -302,7 +302,6 @@ void* GridSpyWidget::s_user_data_at_attach = nullptr;
 // Invariant captured here: at the moment any widget's attach() runs, the
 // container's layout is NOT yet LV_LAYOUT_GRID; after populate_widgets()
 // returns, the container's layout IS LV_LAYOUT_GRID and the child exists.
-// This FAILS before the fix (grid active during build) and PASSES after.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager activates grid layout after children are built",
                  "[panel_widget][manager][regression]") {
@@ -405,8 +404,8 @@ struct GridRebuildSpyWidget : helix::PanelWidget {
         lv_obj_t* parent = widget_obj ? lv_obj_get_parent(widget_obj) : nullptr;
         s_layout_at_last_attach =
             parent ? static_cast<int>(lv_obj_get_style_layout(parent, LV_PART_MAIN)) : -1;
-        // Force the synchronous layout that triggers the crash pre-fix. With the
-        // fix the parent is LV_LAYOUT_NONE here, so this is a harmless no-op walk.
+        // Force the synchronous layout that would crash on a stale grid. The
+        // parent is LV_LAYOUT_NONE here, so this is a harmless no-op walk.
         if (parent)
             lv_obj_update_layout(parent);
     }
@@ -486,7 +485,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // active_configs_ (so populate_widgets does a full rebuild instead of taking
     // the "widget list unchanged" early-out) AND erases grid_descriptors_, which
     // *frees the descriptor buffer the reused container's grid style still points
-    // at* — exactly the dangling pointer that count_tracks walks off pre-fix.
+    // at* — exactly the dangling pointer count_tracks would walk off.
     GridRebuildSpyWidget::s_layout_at_last_attach = -2;
     widgets1.clear(); // release the first build's widget instances
     mgr.clear_panel_config(panel_id);
@@ -696,7 +695,6 @@ TEST_CASE_METHOD(HelixTestFixture,
 // Invariant: a populate that runs while klippy_state != READY must NOT mutate
 // the persisted panel_widgets layout on disk. Persistence of auto-placed
 // positions must wait until Klipper is READY (no firmware_restart injected).
-// FAILS pre-fix (auto-placed position saved during the injection), PASSES after.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager does not persist layout while Klipper is not READY",
                  "[panel_widget][manager][regression]") {

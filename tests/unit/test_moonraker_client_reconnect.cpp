@@ -89,9 +89,9 @@ TEST_CASE("MoonrakerClient install-once: repeated connect/disconnect never reins
     MoonrakerClient client;
 
     // Repeated connect/disconnect against unreachable hosts, alternating URLs to mimic a
-    // change-host reconnect. Pre-fix, each connect() reassigned the inherited onclose/
-    // onopen/onmessage std::functions; doing that while the libhv thread serviced the prior
-    // close freed the running lambda's storage → UAF. Post-fix,
+    // change-host reconnect. Reassigning the inherited onclose/onopen/onmessage
+    // std::functions on each connect() while the libhv thread services the prior close
+    // would free the running lambda's storage → UAF. So
     // install_ws_callbacks() runs exactly once (guarded by ws_callbacks_installed_) and the
     // std::functions are never reassigned. We assert the guard flips true exactly once and
     // stays true across every cycle.

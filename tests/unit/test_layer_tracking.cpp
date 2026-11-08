@@ -637,7 +637,7 @@ TEST_CASE("Layer tracking: layer-reporting printer never estimates during prepri
     SECTION("progress climbing during preprint does NOT fabricate layer 1") {
         // Pre-print: file progress creeps up (prime line, ~2%) while
         // info.current_layer is omitted by Moonraker (unchanged 0 → delta drops
-        // it). Before the fix this estimated max(1, round(0.02*10)) = 1.
+        // it). A progress estimate would give max(1, round(0.02*10)) = 1.
         json progress2pct = {{"virtual_sdcard", {{"progress", 0.02}}}};
         state.update_from_status(progress2pct);
         REQUIRE(lv_subject_get_int(state.print_state().get_print_layer_current_subject()) == 0);

@@ -251,8 +251,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A timed-out backend op leaves the backend's
 TEST_CASE_METHOD(LVGLUITestFixture, "#1183: AmsAction::ERROR ends the operation and fails the op",
                  "[ui_integration][filament][regression][1183]") {
     // AmsBackendAfc::check_action_timeout()'s entire output is a flip to ERROR.
-    // Before the fix the observer accepted only IDLE, so that backstop changed
-    // nothing on this panel and the spinner ran to the 120s timeout.
+    // An observer accepting only IDLE would make that backstop change nothing
+    // on this panel, and the spinner would run to the 120s timeout.
     TimeoutHarness h(*this);
 
     TA::execute_load(*h.panel);
