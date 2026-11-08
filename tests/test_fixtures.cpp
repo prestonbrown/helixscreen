@@ -7,6 +7,7 @@
 #include "ui_card.h"
 #include "ui_dialog.h"
 #include "ui_fault_path.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_humidity_drop.h"
 #include "ui_icon.h"
 #include "ui_progress_bar.h"
@@ -207,16 +208,17 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_component_from_file("A:ui_xml/styles.xml");
 
     // 4. Register custom widgets (must be done before loading components that use them)
-    helix::ui::icon::register_widget();         // icon component
-    helix::ui::register_humidity_drop_widget(); // humidity_drop
-    helix::ui::register_tile_rung_binding();    // <bind_tile_rung>
-    helix::ui::register_swatch_paint_widget();  // <swatch_paint>, inside color_swatch
-    ui_text_init();                             // text_heading, text_body, text_small, text_xs
-    ui_text_input_init();                       // text_input (textarea with bind_text support)
-    ui_button_init();                           // ui_button with bind_icon support
-    ui_progress_bar_init();                     // progress_bar (print progress, preview card)
-    ui_card_register();                         // ui_card
-    ui_temp_display_init();                     // temp_display
+    helix::ui::icon::register_widget();                 // icon component
+    helix::ui::register_humidity_drop_widget();         // humidity_drop
+    helix::ui::register_filament_motion_glyph_widget(); // filament_motion_glyph
+    helix::ui::register_tile_rung_binding();            // <bind_tile_rung>
+    helix::ui::register_swatch_paint_widget();          // <swatch_paint>, inside color_swatch
+    ui_text_init();         // text_heading, text_body, text_small, text_xs
+    ui_text_input_init();   // text_input (textarea with bind_text support)
+    ui_button_init();       // ui_button with bind_icon support
+    ui_progress_bar_init(); // progress_bar (print progress, preview card)
+    ui_card_register();     // ui_card
+    ui_temp_display_init(); // temp_display
 
     // 5. Register no-op callbacks for event handlers in XML components
     lv_xml_register_event_cb(nullptr, "", xml_test_noop_event_callback);

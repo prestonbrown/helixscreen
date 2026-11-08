@@ -64,6 +64,9 @@ struct FilamentPath {
     void clear();
 };
 
+/// Move every segment of @p p by (@p dx, @p dy).
+void translate_path(FilamentPath& p, float dx, float dy);
+
 /// LINE: euclidean distance. ARC: |sweep| * radius.
 float seg_length(const PathSeg& s);
 
@@ -234,6 +237,64 @@ struct DashPiece {
  * A non-positive @p gap_len draws the path solid.
  */
 std::vector<DashPiece> dash_polyline(const PathPoint* pts, int n, float dash_len, float gap_len);
+
+/// One chevron: two arms meeting at @p tip, which points the way the filament
+/// travels. Each arm runs from its end (@p left / @p right) to the tip.
+struct Chevron {
+    PathPoint left;
+    PathPoint tip;
+    PathPoint right;
+};
+
+/**
+ * @brief Chevron centered on @p at, its tip pointing along the unit vector @p dir.
+ *
+ * The tip leads the center by half of @p depth and the arm ends trail it by
+ * the other half, spread @p half_width to either side across the travel
+ * direction. "Left" is the side counter-clockwise of @p dir on screen.
+ */
+Chevron chevron_at(PathPoint at, PathPoint dir, float half_width, float depth);
+
+/// Axis-aligned box, inclusive, in the path's coordinates.
+struct PathBox {
+    float x1 = 0.0f, y1 = 0.0f, x2 = 0.0f, y2 = 0.0f;
+};
+
+/// Whether any point of @p c, grown by @p pad, falls inside @p box.
+bool chevron_overlaps(const Chevron& c, const PathBox& box, float pad);
+
+/// Chevron dimensions for a tube or column of one width, all in pixels.
+struct ChevronSize {
+    float half_width = 0.0f; ///< arm spread to each side of the centerline
+    float depth = 0.0f;      ///< tip-to-arm-end length along the travel direction
+    float stroke = 1.0f;     ///< arm line width
+    float spacing = 0.0f;    ///< center-to-center distance along the path
+};
+
+/**
+ * @brief Size chevrons from the width of the tube they stream along.
+ *
+ * The arms spread slightly past the tube walls so the shape reads over the
+ * filament at a 4-8px tube gauge, the stroke is about a third of the gauge
+ * (2px from a 4px gauge up, 1px below it), and chevrons sit three spans apart. A non-positive @p
+ * gauge is treated as 1px.
+ */
+ChevronSize chevron_size_for_gauge(float gauge);
+
+/**
+ * @brief Chevrons streaming along @p p, written to @p out (at most @p max).
+ *
+ * Centers sit @p size.spacing apart, the first one @p phase past the start of
+ * travel. Travel runs from the path's start to its end, or from its end back
+ * to its start when @p reverse is set (unload, retract); the tips point the way
+ * of travel and a growing @p phase moves the whole stream that way. A chevron
+ * whose tip or arm ends would pass either end of the path is left out, and so
+ * is one reaching into a segment @p seg_shown marks false (a run hidden inside
+ * an opaque box); a null @p seg_shown shows every segment. Returns the count
+ * written; an empty path, a non-positive spacing or a null @p out gives 0.
+ */
+int chevrons_along(const FilamentPath& p, const ChevronSize& size, float phase, bool reverse,
+                   Chevron* out, int max, const bool* seg_shown = nullptr);
 
 } // namespace pathgeo
 } // namespace ui

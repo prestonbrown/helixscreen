@@ -141,7 +141,7 @@
 
                Uses flex_grow="1" so canvas height scales with screen size.
                All vertical segments scale proportionally via Y ratios. -->
-          <filament_path_canvas name="path_canvas" width="100%" flex_grow="1"/>
+          <filament_path_canvas name="path_canvas" width="100%" flex_grow="1" bind_motion="filament_manual_motion"/>
         </lv_obj>
         <!-- Endless-spool status: the sentence that explains the arrows above
              (or their absence). Last child of the left column so it sits at the
