@@ -26,7 +26,7 @@ inline constexpr float kBoxDepthMargin = 0.10f;    // box depth: a spool diamete
 inline constexpr float kDepthRise = 0.09f;         // back edges rise this share of the depth
 inline constexpr float kSpoolFloorGap = 2.0f;      // flange bottom above the floor's front edge
 inline constexpr float kLidGap = 1.0f;             // lid crest above the spool tops
-inline constexpr float kSpoolWidth = 0.35f;        // flange-to-flange width / spool size
+inline constexpr float kSpoolWidth = 0.294f;       // flange-to-flange width / spool size
 inline constexpr float kPitchClearance = 16.0f;    // free space between neighbouring spools
 
 struct PointF {

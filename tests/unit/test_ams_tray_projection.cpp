@@ -188,8 +188,8 @@ TEST_CASE("tray projection: per-lane lids meet the box corners", "[ams][tray]") 
 }
 
 TEST_CASE("tray projection: slot pitch from the spool size", "[ams][tray]") {
-    // Footprint 21 + 2 * 11, half the 25.4 px cap tuck, 16 px clear.
-    CHECK(spool_pitch(61) == 72);
+    // Footprint 17 + 2 * 11, half the 25.4 px cap tuck, 16 px clear.
+    CHECK(spool_pitch(61) == 68);
 }
 
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
