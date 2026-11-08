@@ -50,10 +50,11 @@ Real prints only with the plate confirmed clear, and each machine-moving step co
 
 ## Phase 4: instrumentation worth keeping
 
-Decide from what phases 1 to 3 needed and lacked. Candidates, none built yet:
+Decide from what phases 1 to 3 needed and lacked. Built (#2042): overlay open duration
+and build count, frame render time, slow frames and peak RSS, read by `ctl perf`, the debug
+bundle's `ui_perf` and the print health line (`docs/devel/PERFORMANCE.md`). Candidates still
+open:
 
-- Overlay open duration and rebuild count, in the debug bundle
-- Peak RSS and a slow-frame count added to the print health line
 - A telemetry field for overlay reopen time, opt-in like the rest, only if devices show a real range
 - A firmware link in the ESP32 gate, or a nightly on it, since syntax checks missed it once already
 - `scripts/perf-farm-check.sh` on a schedule from zeus, with results kept for trend
