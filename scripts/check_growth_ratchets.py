@@ -28,7 +28,9 @@ to conflict on. A count may fall; a branch may not raise it.
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
                    definition is not a second pointer and is not counted, and
-                   a name containing `inactive` is not the pattern at all.
+                   a name containing `inactive` is not the pattern at all. A
+                   declaration that is not a per-callback owner lookup opts out with
+                   `// ACTIVE_INSTANCE_OK: <reason>` on its line.
 
 One ban, on the whole tree at HEAD rather than the branch's change: no call to
 lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or tests/
@@ -92,6 +94,7 @@ def _param_re(type_re: str) -> re.Pattern:
 # "inactive" names the opposite of the pattern, so a name containing it is not one.
 _NOT_INACTIVE = r"(?!\w*inactive)"
 _ACTIVE_NAME = rf"(?:s_|g_)?{_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?"
+ACTIVE_OPT_OUT = "ACTIVE_INSTANCE_OK:"
 _KEYWORDS = {"return", "delete", "throw", "case", "goto", "else", "new"}
 ACTIVE_STATIC_RE = re.compile(
     rf"^[ \t]*(?:inline\s+)?static\s+(?:inline\s+)?(?:const\s+)?([\w:<>]+)\s*\*\s*(?:const\s+)?"
@@ -262,7 +265,8 @@ def accessor_calls(text: str, accessor: str, classes: set[str],
 
 
 def active_instances(text: str) -> list[str]:
-    code = blank_cxx(text)
+    kept = (line for line in text.split("\n") if ACTIVE_OPT_OUT not in line)
+    code = blank_cxx("\n".join(kept))
     names = []
     for rx in (ACTIVE_STATIC_RE, ACTIVE_GLOBAL_RE):
         for m in rx.finditer(code):
@@ -291,7 +295,7 @@ def bare_modal_factory_calls(root: Path) -> list[str]:
     hits = []
     paths = {**tree_with(root, "HEAD", "Modal::show"), **tree_with(root, "HEAD", "modal_show")}
     for path, text in paths.items():
-        code = strip_code(text)
+        code = blank_cxx(text)
         for m in _FACTORY_RE.finditer(code):
             if m.group(1) == "modal_show" or _FACTORY_ARG_RE.match(text, m.end()):
                 hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}")
