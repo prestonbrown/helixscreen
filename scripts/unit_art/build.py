@@ -11,9 +11,18 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, box_turtle  # noqa: E402
-
-UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED]
+from unit_art.units import ace_pro, ams_2_pro, ams_ht, box_turtle, btt_vivid, cfs, kms, qidi_box  # noqa: E402
+UNITS = [
+    ace_pro.UNIT,
+    box_turtle.UNIT,
+    box_turtle.ENCLOSED,
+    ams_2_pro.UNIT,
+    cfs.UNIT,
+    qidi_box.UNIT,
+    btt_vivid.UNIT,
+    kms.UNIT,
+    ams_ht.UNIT,
+]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
@@ -51,6 +60,12 @@ def bake_unit(unit, out_dir, render=rsvg_render):
 def generate_shell_table(units):
     """The C++ table of every unit's tray shape."""
 
+    def fronts(parts):
+        return ", ".join(
+            f"{{FrontAnchor::{a}, {x0:.2f}f, {x1:.2f}f, {y0:.2f}f, {y1:.2f}f, 0x{c:06x}, {r}}}"
+            for a, x0, x1, y0, y1, c, r in parts
+        )
+
     def points(pts):
         return ", ".join(f"{{{d:.4f}f, {h:.2f}f}}" for d, h in pts)
 
@@ -74,16 +89,17 @@ def generate_shell_table(units):
             continue
         kit.check_cheek(t.cheek)
         dome_points = kit.fit_cap_points(t.dome)
+        parts = t.front if t.front is not None else kit.classic_front(t)
+        out.append(f"constexpr FrontPart k_{unit.id}_front[] = {{{fronts(parts)}}};")
         out.append(f"constexpr ProfilePoint k_{unit.id}_cheek[] = {{{points(t.cheek)}}};")
         if dome_points:
             out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(dome_points)}}};")
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
-        latch = "true" if t.has_latch else "false"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
-            f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, {latch}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}, 0x{t.corner:06x}}},"
+            f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
+            f"{lid}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [
@@ -108,10 +124,11 @@ def _png_uri(path):
 def contact_sheet(out_dir, sheet_path):
     """Every unit composed from its real layers, on dark and light cards."""
     # An SVG mask recolours each lane the way the runtime will.
-    cells, x_step, y = [], 360, 0
+    # A row clears the 320 px box a tall unit's art fills.
+    cells, x_step, row_h, y = [], 360, 340, 0
     for bg in ("#1a1b1e", "#e8e8ea"):
         x = 0
-        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(UNITS))}" height="290" fill="{bg}"/>')
+        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(UNITS))}" height="{row_h}" fill="{bg}"/>')
         for unit in UNITS:
             root = Path(out_dir) / unit.id
             m = json.loads((root / "manifest.json").read_text())
@@ -129,7 +146,7 @@ def contact_sheet(out_dir, sheet_path):
                     )
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["front"])}"/>')
             x += x_step
-        y += 290
+        y += row_h
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{x_step * max(1, len(UNITS))}" height="{y}">{"".join(cells)}</svg>'
     sheet_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = sheet_path.with_suffix(".svg")

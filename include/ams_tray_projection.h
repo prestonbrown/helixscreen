@@ -52,6 +52,10 @@ PointF proj(const TrayBox& b, float x, float y, float z);
 float cap_width(const UnitShell& shell, float spool_size, float pitch);
 /// Point @p i of the body's top edge, on the side plane at @p x.
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
+/// The screen box of one front part, for the lane at front-plane @p lane_x (ignored unless
+/// the part repeats per lane): x0, y0, x1, y1.
+void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, float lane_x,
+                    float out[4]);
 /// @p n points of a unit's real lid profile at plane @p x, front to back.
 void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                         PointF* out, int n);

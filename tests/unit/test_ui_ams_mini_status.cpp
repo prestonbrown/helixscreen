@@ -11,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -268,6 +269,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: active lane badge uses
     mock_ptr->stop();
     ams.clear_backends();
     ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a pooled badge follows the numbering",
+                 "[ui][ams_mini][spool][zero-numbering]") {
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    ui_ams_mini_status_set_slot_count(w, 2);
+    ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
+    ui_ams_mini_status_set_width(w, 260);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* badge = UITest::find_by_name(w, "spool_badge_0");
+    REQUIRE(badge != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(badge, 0))) == "1");
+
+    {
+        ScopedZeroLaneNumbering zero;
+        ui_ams_mini_status_refresh(w);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(UITest::find_by_name(w, "spool_badge_0") == badge);
+        CHECK(std::string(lv_label_get_text(lv_obj_get_child(badge, 0))) == "0");
+    }
+    lv_obj_delete(w);
 }
 
 // Cells are pooled: created once per lane and updated in place, so a sync that

@@ -632,6 +632,7 @@ translations:
   Cannot park while a print is active: '打印时无法停放'
   Cannot perform this action now: 当前无法执行此操作
   'Cannot reprint: not connected to printer': '无法重新打印: 未连接打印机'
+  Cannot restart Moonraker while printing: "打印时无法重启 Moonraker"
   Cannot restart — no filename: 无法重启 — 没有文件名
   Cannot run filament operation while printing: 打印期间无法执行耗材操作
   'Cannot schedule a pause: printer not connected': '无法设置暂停：打印机未连接'
@@ -2664,6 +2665,7 @@ translations:
   'Nozzle:': 喷嘴：
   'Nozzles still heating: {}': '仍在加热的喷嘴: {}'
   Number Pad Layout: 数字键盘布局
+  Number slots from 0: 槽位从 0 开始编号
   Nylon: "尼龙"
   OD: OD
   'OFF': 关
@@ -3292,6 +3294,7 @@ translations:
   Restart Klipper?: '重启 Klipper？'
   Restart Moonraker: 重启 Moonraker
   Restart Moonraker to finish the plugin change: 重启 Moonraker 以完成插件更改
+  Restart Moonraker?: "重启 Moonraker?"
   Restart Now: 立即重启
   Restart Required: 需要重启
   'Restart failed: not connected': '重启失败: 未连接'
@@ -3515,7 +3518,7 @@ translations:
   Select Spool: 选择料盘
   Select a filament slot to load: 选择要加载的耗材槽位
   Select a valid number: 请选择有效编号
-  Select a valid number (1-{}): 请选择有效编号（1-{}）
+  Select a valid number ({}-{}): 请选择有效编号（{}-{}）
   Select a valid tool: 请选择有效工具
   Select a valid {}: '请选择有效的 {}'
   Select a {}: '请选择 {}'
@@ -3614,6 +3617,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "以 mm/s 和 mm³/s 而非 % 显示打印速度和流量"
   Show printer icon in navigation bar: 在导航栏中显示打印机图标
   Show sliced colors: 显示切片颜色
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: 槽位、耗材通道、通道和工具从 0 开始计数，与 G-code 中的 T0 一致
   Show temp for: 显示温度
   Show text labels on icon-only home screen widgets: 在仅图标的主屏小组件上显示文字标签
   Show this screen as a webcam in Mainsail and Fluidd: '在 Mainsail 和 Fluidd 中将此屏幕显示为网络摄像头'
@@ -4122,6 +4126,7 @@ translations:
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
+  The screen will lose its connection to the printer for a few seconds.: "屏幕将与打印机断开连接几秒钟。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
   The speed of one fan you choose: 所选风扇的转速
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'

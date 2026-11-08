@@ -19,11 +19,20 @@ struct ShellRow {
     const char* unit_name_part; ///< Lowercase; nullptr when the backend names one kind of unit.
     const char* shell_id;
     const char* enclosed_shell_id; ///< nullptr when the unit is never enclosed.
+    int only_lanes;                ///< Match only this many lanes; 0 for any.
 };
 
 constexpr ShellRow kShellRows[] = {
-    {"ace", nullptr, "ace_pro", nullptr},
-    {"afc", "turtle", "box_turtle", "box_turtle_enclosed"},
+    {"ace", nullptr, "ace_pro", nullptr, 0},
+    // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
+    // be called anything.
+    {"afc", "vivid", "btt_vivid", nullptr, 0},
+    {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
+    {"cfs", nullptr, "cfs", nullptr, 0},
+    {"qidi_box", nullptr, "qidi_box", nullptr, 0},
+    // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.
+    {"openams", nullptr, "ams_ht", nullptr, 1},
+    {"openams", nullptr, "ams_2_pro", nullptr, 0},
 };
 
 /// Climate readings or a dryer mean the unit is closed up.
@@ -54,7 +63,8 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
     const std::string unit_name = helix::text_io::to_lower(unit.name);
     for (const ShellRow& row : kShellRows) {
         if (std::strcmp(row.backend_slug, slug) == 0 &&
-            (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos))
+            (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&
+            (row.only_lanes == 0 || unit.slot_count == row.only_lanes))
             return unit_shell_by_id(row.enclosed_shell_id && has_climate(unit, has_dryer)
                                         ? row.enclosed_shell_id
                                         : row.shell_id);

@@ -1043,8 +1043,7 @@ void DisplayManager::install_sleep_aware_input_wrapper() {
 // ============================================================================
 
 bool DisplayManager::try_drm_to_fbdev_fallback(lv_display_rotation_t rot, bool splash_active) {
-    if (m_backend->type() != DisplayBackendType::DRM ||
-        m_backend->supports_hardware_rotation(rot)) {
+    if (!m_backend->needs_fbdev_for_rotation(rot)) {
         return true; // No fallback needed
     }
 

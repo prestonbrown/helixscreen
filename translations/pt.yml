@@ -674,6 +674,7 @@ translations:
   Cannot perform this action now: Não é possível executar esta ação agora
   'Cannot reprint: not connected to printer': 'Não é possível reimprimir: não conectado
     à impressora'
+  Cannot restart Moonraker while printing: "Não é possível reiniciar o Moonraker durante a impressão"
   Cannot restart — no filename: Não é possível reiniciar — sem nome de ficheiro
   Cannot run filament operation while printing: Não é possível executar operações de filamento durante a impressão
   'Cannot schedule a pause: printer not connected': 'Não é possível agendar uma pausa: impressora não conectada'
@@ -2807,6 +2808,7 @@ translations:
   'Nozzle:': 'Bico:'
   'Nozzles still heating: {}': 'Bicos ainda aquecendo: {}'
   Number Pad Layout: Layout do teclado numérico
+  Number slots from 0: Numerar slots a partir de 0
   Nylon: "Nylon"
   OD: OD
   'OFF': 'OFF'
@@ -3463,6 +3465,7 @@ translations:
   Restart Klipper?: 'Reiniciar o Klipper?'
   Restart Moonraker: Reiniciar Moonraker
   Restart Moonraker to finish the plugin change: Reinicie o Moonraker para concluir a alteração do plugin
+  Restart Moonraker?: "Reiniciar o Moonraker?"
   Restart Now: Reiniciar Agora
   Restart Required: Reinício Necessário
   'Restart failed: not connected': 'Reinício falhou: não conectado'
@@ -3704,7 +3707,7 @@ translations:
   Select Spool: Selecionar bobina
   Select a filament slot to load: Selecione um slot de filamento para carregar
   Select a valid number: Selecione um número válido
-  Select a valid number (1-{}): Selecione um número válido (1-{})
+  Select a valid number ({}-{}): Selecione um número válido ({}-{})
   Select a valid tool: Selecione uma ferramenta válida
   Select a valid {}: 'Selecione um valor válido para {}'
   Select a {}: 'Selecione {}'
@@ -3814,6 +3817,7 @@ translations:
   Show print speed and flow as mm/s and mm³/s instead of percent: "Mostrar velocidade e fluxo em mm/s e mm³/s em vez de porcentagem"
   Show printer icon in navigation bar: Mostrar ícone da impressora na barra de navegação
   Show sliced colors: Mostrar cores fatiadas
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Contar slots, lanes, gates e ferramentas a partir de 0, como T0 no G-code
   Show temp for: Mostrar temp. para
   Show text labels on icon-only home screen widgets: Mostrar rótulos de texto em widgets
     da tela inicial com apenas ícones
@@ -4352,6 +4356,7 @@ translations:
     de fim de filamento indica que não há filamento carregado. Iniciar a impressão
     mesmo assim?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: A posição salva é mantida. Reconecte ou reinicie a tela para que a retomada seja oferecida de novo.
+  The screen will lose its connection to the printer for a few seconds.: "A tela perderá a conexão com a impressora por alguns segundos."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Não é possível ler o sensor desta unidade CFS. Verifique a conexão, ou a unidade pode precisar de manutenção
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou 24.'

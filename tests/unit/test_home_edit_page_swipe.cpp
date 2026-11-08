@@ -3821,6 +3821,8 @@ TEST_CASE_METHOD(EditHomeFixture,
 
 TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page button",
                  "[1638][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home(); // 'fan' alone on page 1, the last page
     lv_obj_t* fan = widget_on(1, "fan");
     enter_edit_mode(0);
@@ -3848,6 +3850,8 @@ TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page butt
 
 TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the grid",
                  "[2023][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home();
     widget_on(1, "fan");
     enter_edit_mode(1);

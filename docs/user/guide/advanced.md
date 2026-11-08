@@ -228,6 +228,12 @@ When the HelixPrint plugin is installed, **Advanced > HelixPrint Plugin** shows 
 
 ---
 
+## Restarting Moonraker
+
+The bar at the bottom of the Advanced panel has a **Restart Moonraker** button next to **Restart Klipper** and **Firmware Restart**. Use it when Moonraker is misbehaving, for example when files, history or Spoolman stop updating. HelixScreen asks you to confirm, then reconnects by itself once Moonraker is back, usually within a few seconds. The button is refused while a print is running or paused, and while a Klipper restart is still under way.
+
+---
+
 ## Print History
 
 ![Print History](../../images/user/advanced-history.png)
