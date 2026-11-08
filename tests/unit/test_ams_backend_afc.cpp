@@ -3740,21 +3740,20 @@ TEST_CASE("AFC all-hub lanes classified as HUB topology", "[ams][afc][topology]"
 }
 
 TEST_CASE("AFC all-direct lanes classified as PARALLEL topology", "[ams][afc][topology]") {
-    // When all lanes are direct and multiple extruders exist, topology should be PARALLEL
+    // When all lanes are direct and multiple extruders exist, topology should be PARALLEL.
+    // Box Turtle lanes may report hub:"direct_load" instead of hub:"direct" (#392).
+    const std::string hub = GENERATE("direct", "direct_load");
+    CAPTURE(hub);
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_zero_based(4);
     helper.initialize_slots_from_discovery();
     helper.setup_toolchanger(4);
 
-    // Feed stepper data: all lanes direct
-    helper.feed_afc_stepper("lane0",
-                            {{"hub", "direct"}, {"extruder", "extruder"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper("lane1",
-                            {{"hub", "direct"}, {"extruder", "extruder1"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper("lane2",
-                            {{"hub", "direct"}, {"extruder", "extruder2"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper("lane3",
-                            {{"hub", "direct"}, {"extruder", "extruder3"}, {"status", "Loaded"}});
+    const char* const extruders[] = {"extruder", "extruder1", "extruder2", "extruder3"};
+    for (int i = 0; i < 4; ++i) {
+        helper.feed_afc_stepper("lane" + std::to_string(i),
+                                {{"hub", hub}, {"extruder", extruders[i]}, {"status", "Loaded"}});
+    }
 
     nlohmann::json afc_state;
     afc_state["units"] = nlohmann::json::array({"Box_Turtle Turtle_1"});
@@ -3774,7 +3773,6 @@ TEST_CASE("AFC all-direct lanes classified as PARALLEL topology", "[ams][afc][to
     const auto& unit_infos = helper.get_unit_infos();
     REQUIRE(unit_infos.size() == 1);
     REQUIRE(unit_infos[0].topology == PathTopology::PARALLEL);
-    // All lanes direct
     for (bool routed : unit_infos[0].lane_is_hub_routed) {
         REQUIRE(routed == false);
     }
@@ -3845,48 +3843,6 @@ TEST_CASE("AFC system topology is MIXED when its units disagree", "[ams][afc][to
     REQUIRE(unit_infos.size() == 2);
     REQUIRE(unit_infos[0].topology != unit_infos[1].topology);
     REQUIRE(helper.get_topology() == PathTopology::MIXED);
-}
-
-TEST_CASE("AFC direct_load hub field classified as direct (not hub-routed)",
-          "[ams][afc][topology]") {
-    // Box Turtle lanes may report hub:"direct_load" instead of hub:"direct".
-    // Both must be treated as direct (not hub-routed). Regression: #392
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes_zero_based(4);
-    helper.initialize_slots_from_discovery();
-    helper.setup_toolchanger(4);
-
-    // Feed stepper data: all lanes with hub:"direct_load"
-    helper.feed_afc_stepper(
-        "lane0", {{"hub", "direct_load"}, {"extruder", "extruder"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper(
-        "lane1", {{"hub", "direct_load"}, {"extruder", "extruder1"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper(
-        "lane2", {{"hub", "direct_load"}, {"extruder", "extruder2"}, {"status", "Loaded"}});
-    helper.feed_afc_stepper(
-        "lane3", {{"hub", "direct_load"}, {"extruder", "extruder3"}, {"status", "Loaded"}});
-
-    nlohmann::json afc_state;
-    afc_state["units"] = nlohmann::json::array({"Box_Turtle Turtle_1"});
-    helper.feed_afc_state(afc_state);
-
-    nlohmann::json unit_data;
-    unit_data["lanes"] = nlohmann::json::array({"lane0", "lane1", "lane2", "lane3"});
-    unit_data["extruders"] =
-        nlohmann::json::array({"extruder", "extruder1", "extruder2", "extruder3"});
-    unit_data["hubs"] = nlohmann::json::array();
-    unit_data["buffers"] = nlohmann::json::array();
-
-    nlohmann::json params;
-    params["AFC_BoxTurtle Turtle_1"] = unit_data;
-    helper.feed_status_update(params);
-
-    const auto& unit_infos = helper.get_unit_infos();
-    REQUIRE(unit_infos.size() == 1);
-    REQUIRE(unit_infos[0].topology == PathTopology::PARALLEL);
-    for (bool routed : unit_infos[0].lane_is_hub_routed) {
-        REQUIRE(routed == false);
-    }
 }
 
 TEST_CASE("AFC unit with hubs AND multiple extruders gets PARALLEL topology",
@@ -4658,75 +4614,42 @@ TEST_CASE("AFC supports_lane_eject returns true", "[ams][afc][capability]") {
 // Slot status mapping: AFC "Loaded" vs tool_loaded
 // ============================================================================
 
-TEST_CASE("AFC hub-loaded lane is AVAILABLE, not LOADED", "[ams][afc][status]") {
+TEST_CASE("AFC lane status: only filament at the toolhead is LOADED", "[ams][afc][status]") {
+    struct Row {
+        const char* what;
+        bool tool_loaded;
+        const char* status;
+        SlotStatus expected;
+    };
+    // Hub-loaded filament is ready to load to the toolhead, so AVAILABLE; OpenAMS
+    // uses the "Tooled" status string as its own toolhead-loaded indicator.
+    const Row row =
+        GENERATE(Row{"hub-loaded", false, "Loaded", SlotStatus::AVAILABLE},
+                 Row{"tool_loaded", true, "Loaded", SlotStatus::LOADED},
+                 Row{"Tooled without tool_loaded", false, "Tooled", SlotStatus::LOADED});
+    CAPTURE(row.what);
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes(4);
     helper.initialize_slots_from_discovery();
-
-    // Exact production state: loaded_to_hub=true, tool_loaded=false, status="Loaded"
     helper.feed_afc_stepper("lane1", {{"prep", true},
                                       {"load", true},
                                       {"loaded_to_hub", true},
-                                      {"tool_loaded", false},
+                                      {"tool_loaded", row.tool_loaded},
                                       {"material", "ASA"},
                                       {"color", "#000000"},
                                       {"map", "T0"},
-                                      {"status", "Loaded"},
+                                      {"status", row.status},
                                       {"weight", 570}});
 
     auto info = helper.get_system_info();
     auto* slot = info.get_slot_global(0);
     REQUIRE(slot != nullptr);
-    // Hub-loaded filament should be AVAILABLE (ready to load to toolhead)
-    REQUIRE(slot->status == SlotStatus::AVAILABLE);
-    // Should NOT be the "current" loaded slot
-    REQUIRE(info.current_slot == -1);
-    REQUIRE_FALSE(info.filament_loaded);
-}
-
-TEST_CASE("AFC tool_loaded=true lane is LOADED", "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    // Filament actually at the toolhead
-    helper.feed_afc_stepper("lane1", {{"prep", true},
-                                      {"load", true},
-                                      {"loaded_to_hub", true},
-                                      {"tool_loaded", true},
-                                      {"material", "ASA"},
-                                      {"color", "#000000"},
-                                      {"map", "T0"},
-                                      {"status", "Loaded"},
-                                      {"weight", 570}});
-
-    auto info = helper.get_system_info();
-    auto* slot = info.get_slot_global(0);
-    REQUIRE(slot != nullptr);
-    REQUIRE(slot->status == SlotStatus::LOADED);
-}
-
-TEST_CASE("AFC 'Tooled' status maps to LOADED even without tool_loaded flag",
-          "[ams][afc][status]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    // OpenAMS uses "Tooled" status string
-    helper.feed_afc_stepper("lane1", {{"prep", true},
-                                      {"load", true},
-                                      {"loaded_to_hub", true},
-                                      {"tool_loaded", false},
-                                      {"material", "PLA"},
-                                      {"color", "#FF0000"},
-                                      {"map", "T0"},
-                                      {"status", "Tooled"}});
-
-    auto info = helper.get_system_info();
-    auto* slot = info.get_slot_global(0);
-    REQUIRE(slot != nullptr);
-    // "Tooled" is an explicit toolhead-loaded indicator
-    REQUIRE(slot->status == SlotStatus::LOADED);
+    REQUIRE(slot->status == row.expected);
+    if (row.expected == SlotStatus::AVAILABLE) {
+        // Not the "current" loaded slot either.
+        REQUIRE(info.current_slot == -1);
+        REQUIRE_FALSE(info.filament_loaded);
+    }
 }
 
 TEST_CASE("AFC context menu shows Eject for hub-loaded slot", "[ams][afc][status]") {
@@ -6959,34 +6882,24 @@ TEST_CASE("AFC a zero weight on a lane with no identity reads as unknown",
     }
 }
 
-TEST_CASE("AFC persist_override records a deliberate pure black", "[ams][afc][override]") {
+TEST_CASE("AFC persist_override records a deliberate pure black, never the no-color sentinel",
+          "[ams][afc][override]") {
+    const bool black = GENERATE(true, false);
+    CAPTURE(black);
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes(4);
     helper.initialize_slots_from_discovery();
 
     SlotInfo info;
     info.material = "PLA";
-    info.color_rgb = 0x000000;
+    info.color_rgb = black ? 0x000000 : kAmsDefaultSlotColor;
     helix::test::apply_edit(helper, 0, info);
 
     const auto& ovr = AfcTestAccess::overrides(helper).at(0);
-    CHECK(ovr.color_set);
-    CHECK(ovr.color_rgb == 0x000000);
-    CHECK(ovr.material == "PLA");
-}
-
-TEST_CASE("AFC persist_override does not record the no-color sentinel", "[ams][afc][override]") {
-    AmsBackendAfcTestHelper helper;
-    helper.initialize_test_lanes(4);
-    helper.initialize_slots_from_discovery();
-
-    SlotInfo info;
-    info.material = "PLA";
-    info.color_rgb = kAmsDefaultSlotColor;
-    helix::test::apply_edit(helper, 0, info);
-
-    const auto& ovr = AfcTestAccess::overrides(helper).at(0);
-    CHECK_FALSE(ovr.color_set);
+    CHECK(ovr.color_set == black);
+    if (black) {
+        CHECK(ovr.color_rgb == 0x000000);
+    }
     CHECK(ovr.material == "PLA");
 }
 
