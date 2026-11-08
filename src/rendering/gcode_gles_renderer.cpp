@@ -87,13 +87,16 @@ GLRenderbufferHandle::~GLRenderbufferHandle() {
 
 /// Check for GL errors after significant GPU operations.
 /// Returns true if no error, false on error (with spdlog output).
-static inline bool check_gl_error(const char* operation) {
-    GLenum err = glGetError();
+static inline GLenum read_gl_error(const char* operation) {
+    const GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
         spdlog::error("[GCode GLES] GL error after {}: 0x{:04X}", operation, err);
-        return false;
     }
-    return true;
+    return err;
+}
+
+static inline bool check_gl_error(const char* operation) {
+    return read_gl_error(operation) == GL_NO_ERROR;
 }
 
 // ============================================================
@@ -985,11 +988,16 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
             glBufferData(GL_ARRAY_BUFFER,
                          static_cast<GLsizeiptr>(prepared.vertex_count * VERTEX_STRIDE),
                          prepared.data.data(), GL_STATIC_DRAW);
-            bool buf_ok = check_gl_error("glBufferData (prepared)");
+            const GLenum buf_err = read_gl_error("glBufferData (prepared)");
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            if (!buf_ok) {
+            if (buf_err != GL_NO_ERROR) {
                 spdlog::error("[GCode GLES] VBO creation failed for layer {} (prepared)", layer);
+                if (gl_draw_error_is_fatal(buf_err)) {
+                    abandon_upload();
+                    next_layer = 0;
+                    return false;
+                }
                 vbos[layer].vbo = GLBufferHandle();
                 vbos[layer].vertex_count = 0;
             } else {
@@ -1012,11 +1020,16 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
             glBindBuffer(GL_ARRAY_BUFFER, vbo_handle.id);
             glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(total_verts * VERTEX_STRIDE),
                          buf.data(), GL_STATIC_DRAW);
-            bool buf_ok = check_gl_error("glBufferData");
+            const GLenum buf_err = read_gl_error("glBufferData");
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            if (!buf_ok) {
+            if (buf_err != GL_NO_ERROR) {
                 spdlog::error("[GCode GLES] VBO creation failed for layer {}", layer);
+                if (gl_draw_error_is_fatal(buf_err)) {
+                    abandon_upload();
+                    next_layer = 0;
+                    return false;
+                }
                 vbos[layer].vbo = GLBufferHandle();
                 vbos[layer].vertex_count = 0;
             } else {
@@ -1040,6 +1053,15 @@ bool GCodeGLESRenderer::upload_geometry_chunk(const RibbonGeometry& geom,
                       total_layers);
     }
     return done;
+}
+
+// A driver that has run out of memory can fault on the next allocation anyone makes, the
+// display's own included, so the buffers already uploaded go back and nothing more is drawn.
+void GCodeGLESRenderer::abandon_upload() {
+    spdlog::error("[GCode GLES] Fatal GL error during VBO upload — disabling GPU rendering, "
+                  "falling back to 2D");
+    free_vbos(layer_vbos_);
+    gl_render_failed_ = true;
 }
 
 void GCodeGLESRenderer::free_vbos(std::vector<LayerVBO>& vbos) {
@@ -1110,6 +1132,10 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
 
         bool done = upload_geometry_chunk(*geometry_, layer_vbos_, upload_next_layer_,
                                           upload_total_layers_);
+        if (gl_render_failed_) {
+            upload_total_layers_ = 0;
+            return;
+        }
         if (done) {
             geometry_uploaded_ = true;
             upload_next_layer_ = 0;

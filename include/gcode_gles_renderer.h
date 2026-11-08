@@ -291,6 +291,9 @@ class GCodeGLESRenderer {
 
     void free_vbos(std::vector<LayerVBO>& vbos);
 
+    /// Free every uploaded VBO and fall back to 2D for the session.
+    void abandon_upload();
+
     // ====== Internal Rendering ======
 
     void render_to_fbo(const ParsedGCodeFile& gcode, const GCodeCamera& camera);
