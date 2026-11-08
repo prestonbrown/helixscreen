@@ -902,16 +902,26 @@ TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
     }
 }
 
-TEST_CASE("A Creator 5 whose Moonraker reads tools but whose AFC is off keeps the job rewrite",
+TEST_CASE("A Creator 5 whose Moonraker reads tools takes the map with its AFC off",
           "[toolchanger][zmod][print_start_params][2033]") {
-    for (auto hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
-        hw.set_server_takes_print_start_tools(true);
-        REQUIRE(helix::print_start::takes_tool_slots(hw));
-        ToolChangerHelper tc(4);
-        tc.set_discovery(hw);
-        CHECK(tc.print_start_params({{0, 1}}).empty());
-        CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
-    }
+    PrinterDiscovery hw = zmod_c5_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE_FALSE(hw.has_zmod_afc());
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}, {1, 0}}) == helix::PrintStartParams{{"tools", "2,1"}});
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+}
+
+TEST_CASE("A Creator 5 with the afclite plugin keeps the job rewrite where Moonraker reads tools",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    PrinterDiscovery hw = zmod_c5_afclite_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE(helix::print_start::takes_tool_slots(hw));
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}}).empty());
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
 }
 
 TEST_CASE("A klipper-toolchanger machine starts the print with its filename alone",
