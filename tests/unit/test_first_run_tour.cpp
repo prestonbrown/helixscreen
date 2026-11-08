@@ -3,11 +3,11 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_panel_print_select.h"
 #include "ui_wizard.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/print_select_panel_test_access.h"
 #include "app_globals.h"
 #include "config.h"
 #include "first_run_tour.h"
@@ -402,11 +402,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: hide_card lasts until the next
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: a running tour holds back the plugin prompt",
                  "[tour]") {
     reset_tour_settings();
-    CHECK_FALSE(PrintSelectPanelTestAccess::plugin_screen_state().modal_up);
+    CHECK_FALSE(PrintSelectPanel::plugin_screen_state().modal_up);
     auto& t = FirstRunTour::instance();
     t.start();
     REQUIRE(t.is_running());
-    CHECK(PrintSelectPanelTestAccess::plugin_screen_state().modal_up);
+    CHECK(PrintSelectPanel::plugin_screen_state().modal_up);
     t.skip();
 }
 
