@@ -91,8 +91,7 @@ static const HelpEntry HELP[] = {
      "until pixels stop changing (see `freeze`)"},
     {nullptr, "status", "Show panel, connection state, printer status", nullptr},
     {nullptr, "perf", "UI cost since start: frames, render time, peak RSS, overlay open times",
-     "overlays list slowest last open first; an open is timed from show()\n"
-     "to the end of the first frame drawn after its push"},
+     nullptr},
     {nullptr, "wake", "Reset idle timer / dismiss the screensaver", nullptr},
     {nullptr, "screensaver <name|off>", "Preview a screensaver by name, as Test Screensaver does",
      "toasters, starfield, pipes, bounce, fireworks, logo, maze,\n"
