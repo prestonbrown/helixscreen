@@ -13,13 +13,14 @@
 #include "ui_language_refresh.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/toolchanger_test_access.h"
+#include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "ams_tool_topology.h"
+#include "config.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -293,19 +294,49 @@ TEST_CASE_METHOD(ToolStyleFixture, "the AMS header names the mounted tool like t
 
 TEST_CASE_METHOD(ToolStyleFixture, "a tool changer's own messages follow the tool number setting",
                  "[toolchanger][tool_style]") {
-    discover_changer(changer_named({"T0", "T1", "T2", "T3"}), 0);
-    const auto* tc = static_cast<const AmsBackendToolChanger*>(AmsState::instance().get_backend(0));
-    REQUIRE(tc != nullptr);
-    using helix::ToolChangerTestAccess;
+    // A T<n> rig whose docks report a failed swap, read through the fault dialog.
+    helix::test::ToolChangerHelper tc(4);
+    tc.set_discovery(changer_named({"T0", "T1", "T2", "T3"}));
+    tc.set_tool_sensor(addon::resolve_tool_sensor(
+        discovery_of(json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3",
+                                  "pin_watch io", "servo my_servo", "extruder"}))));
+    const std::string failure = "MHC_SET: sensors did not confirm T1";
+    tc.feed(json{{"medusahc", {{"operation", "picking"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc",
+                  {{"operation", "idle"},
+                   {"current_tool", -2},
+                   {"target_tool", 1},
+                   {"sensor_error", true},
+                   {"last_error", failure}}}});
+    const auto detail = [&tc] {
+        const auto err = tc.current_error();
+        return err ? err->detail : std::string();
+    };
 
-    // Auto on a T<n> rig: the G-code names the docks carry.
-    CHECK(ToolChangerTestAccess::feed_lane_list(*tc, {0, 2}) == "T0, T2");
-    CHECK(ToolChangerTestAccess::target_tool_label(*tc, 0) == "T0");
+    // Auto: the G-code names the docks carry.
+    CHECK(tc.display_tool_number_style() == ToolNumberStyle::Gcode);
+    CHECK(detail() == "Tool change to T1 failed: " + failure);
 
     // Forced to "1, 2, 3": the backend's text follows the setting, not its hint.
     set_style(ToolNumberStyleSetting::Physical);
-    CHECK(ToolChangerTestAccess::feed_lane_list(*tc, {0, 2}) == "Tool 1, Tool 3");
-    CHECK(ToolChangerTestAccess::target_tool_label(*tc, 0) == "Tool 1 (T0)");
+    CHECK(tc.display_tool_number_style() == ToolNumberStyle::Physical);
+    CHECK(detail() == "Tool change to Tool 2 (T1) failed: " + failure);
+}
+
+TEST_CASE_METHOD(ToolStyleFixture, "the setting's any-thread copy follows every set and reload",
+                 "[settings][tool_style]") {
+    auto& settings = SettingsManager::instance();
+    CHECK(settings.get_tool_number_style_setting_any_thread() == ToolNumberStyleSetting::Auto);
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Gcode);
+    CHECK(settings.get_tool_number_style_setting_any_thread() == ToolNumberStyleSetting::Gcode);
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Physical);
+    CHECK(settings.get_tool_number_style_setting_any_thread() == ToolNumberStyleSetting::Physical);
+    // A reload (printer switch) loads another value into the copy.
+    Config* config = Config::get_instance();
+    config->set<int>(config->df() + "appearance/tool_number_style", 2);
+    settings.reload_from_config();
+    REQUIRE(settings.get_tool_number_style_setting() == ToolNumberStyleSetting::Gcode);
+    CHECK(settings.get_tool_number_style_setting_any_thread() == ToolNumberStyleSetting::Gcode);
 }
 
 TEST_CASE_METHOD(ToolStyleFixture, "a 1-based backend's own text follows a forced G-code style",

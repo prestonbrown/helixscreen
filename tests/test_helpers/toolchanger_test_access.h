@@ -16,7 +16,6 @@
 #include <mutex>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace helix {
 
@@ -206,18 +205,6 @@ class ToolChangerTestAccess {
     /// when no store was built (null API).
     static std::string store_namespace(const AmsBackendToolChanger& b) {
         return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
-    }
-
-    /// The "Tool 3 (T2)" label failure and resume texts name a target with.
-    static std::string target_tool_label(const AmsBackendToolChanger& b, int target) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.target_tool_label_locked(target);
-    }
-
-    /// The "Tool 2, Tool 4" list a feed run's toasts name its heads with.
-    static std::string feed_lane_list(const AmsBackendToolChanger& b,
-                                      const std::vector<int>& heads) {
-        return b.feed_lane_list(heads);
     }
 };
 } // namespace helix

@@ -267,8 +267,8 @@ ToolNumberStyle resolve_tool_number_style(ToolNumberStyleSetting setting,
 }
 
 ToolNumberStyle tool_number_style_with_setting(ToolNumberStyle backend_hint) {
-    return resolve_tool_number_style(SettingsManager::instance().get_tool_number_style_setting(),
-                                     backend_hint);
+    return resolve_tool_number_style(
+        SettingsManager::instance().get_tool_number_style_setting_any_thread(), backend_hint);
 }
 
 ToolNumberStyle active_tool_number_style() {

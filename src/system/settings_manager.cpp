@@ -239,6 +239,7 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
+    sync_tool_number_style_mirror();
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -323,6 +324,7 @@ void SettingsManager::reload_from_config() {
         return;
     }
     settings_.reload();
+    sync_tool_number_style_mirror();
     load_jog_distances();
 }
 

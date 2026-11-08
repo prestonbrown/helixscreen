@@ -310,8 +310,8 @@ ToolNumberStyle active_tool_number_style();
  * @brief The per-printer setting resolved against @p backend_hint.
  *
  * What a backend's own messages spell a tool in (AmsBackend::display_tool_number_style()),
- * so a forced setting reaches them as it reaches the screens. Reads one int, so
- * any thread may call it.
+ * so a forced setting reaches them as it reaches the screens. Reads the setting's
+ * atomic copy, so any thread may call it.
  */
 ToolNumberStyle tool_number_style_with_setting(ToolNumberStyle backend_hint);
 

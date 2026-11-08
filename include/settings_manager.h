@@ -14,6 +14,7 @@
 #include "toolhead_style.h"
 
 #include <algorithm>
+#include <atomic>
 #include <optional>
 #include <string>
 #include <vector>
@@ -259,9 +260,21 @@ class SettingsManager {
             std::clamp(settings_.get(Key::ToolNumberStyle), 0, 2));
     }
 
+    /**
+     * @brief get_tool_number_style_setting() for any thread
+     *
+     * A copy of the setting kept beside its subject, so a backend's message
+     * builders never read the LVGL subject off the main thread.
+     */
+    helix::ui::ToolNumberStyleSetting get_tool_number_style_setting_any_thread() const {
+        return static_cast<helix::ui::ToolNumberStyleSetting>(
+            tool_number_style_mirror_.load(std::memory_order_relaxed));
+    }
+
     /** @brief Set the per-printer tool number override and persist */
     void set_tool_number_style_setting(helix::ui::ToolNumberStyleSetting setting) {
         settings_.set(Key::ToolNumberStyle, static_cast<int>(setting));
+        sync_tool_number_style_mirror();
     }
 
     /** @brief Tool number style subject (integer: 0=Auto, 1=Physical, 2=Gcode) */
@@ -991,6 +1004,14 @@ class SettingsManager {
     // config values rather than subjects: read on every jog, not widget-bound.
     // Sized for the three JogMode values; static_assert in load_jog_distances().
     float jog_distances_[3][2]{};
+
+    /// get_tool_number_style_setting() as of its last set or load; read off the main thread.
+    std::atomic<int> tool_number_style_mirror_{0};
+    /// Copy the setting into tool_number_style_mirror_. Main thread, after every set or load.
+    void sync_tool_number_style_mirror() {
+        tool_number_style_mirror_.store(static_cast<int>(get_tool_number_style_setting()),
+                                        std::memory_order_relaxed);
+    }
     void load_jog_distances();
 
     // External references
