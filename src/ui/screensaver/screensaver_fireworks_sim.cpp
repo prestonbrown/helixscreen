@@ -6,6 +6,7 @@
 #include "screensaver_fast_math.h"
 #include "screensaver_motion.h"
 #include "screensaver_pixel_writer.h"
+#include "screensaver_print_colors.h"
 
 #include <algorithm>
 #include <cmath>
@@ -100,6 +101,10 @@ constexpr int kPalmMaxComets = 12;
 constexpr int kCrossetteMinStars = 6;
 constexpr int kCrossetteMaxStars = 18;
 
+// A failed print's one shell: a willow, a quarter of the level's sparks and never fewer than
+// this, drooping out in red.
+constexpr uint16_t kFizzleMinSparks = 10;
+
 int16_t to_pixel(float v) {
     return static_cast<int16_t>(std::clamp(round_px(v), -16000, 16000));
 }
@@ -165,6 +170,10 @@ void FireworksSim::init(FrameTarget& frame, std::minstd_rand& rng, size_t level,
     finale_in_ms_ = static_cast<int32_t>(std::max<uint32_t>(pacing_.finale_every_ms, 1));
     finale_left_ = 0;
     finale_gap_ms_ = 0;
+    show_ = Show::NO_PRINT;
+    progress_ = 0.0f;
+    fizzle_pending_ = false;
+    launches_ = 0;
 
     PixelWriter writer(frame);
     for (int32_t y = 0; y < h_; y++) {
@@ -237,16 +246,73 @@ size_t FireworksSim::in_flight() const {
 
 int32_t FireworksSim::next_gap_ms(std::minstd_rand& rng) const {
     const uint32_t min_gap = pacing_.min_gap_ms;
-    const uint32_t max_gap = std::max(pacing_.max_gap_ms, min_gap);
+    uint32_t max_gap = std::max(pacing_.max_gap_ms, min_gap);
+    if (show_ == Show::RUNNING) {
+        const uint32_t end = std::max(min_gap, std::min(max_gap, kFireworksPrintEndMaxGapMs));
+        max_gap -=
+            static_cast<uint32_t>(std::lround(static_cast<float>(max_gap - end) * progress_));
+    }
     return random_int(rng, static_cast<int>(min_gap), static_cast<int>(max_gap));
 }
 
+uint16_t FireworksSim::shell_sparks(const FireworksLevel& params) const {
+    if (show_ != Show::RUNNING && show_ != Show::PAUSED) {
+        return params.sparks_per_burst;
+    }
+    const float share = 0.5f + 0.5f * progress_;
+    return static_cast<uint16_t>(
+        std::max(1L, std::lround(static_cast<float>(params.sparks_per_burst) * share)));
+}
+
+void FireworksSim::follow_print(const ClockReading& print, std::minstd_rand& rng) {
+    Show next = Show::NO_PRINT;
+    switch (print.mode) {
+    case ClockMode::CLOCK:
+        break;
+    case ClockMode::PROGRESS:
+    case ClockMode::COUNTDOWN:
+        next = Show::RUNNING;
+        break;
+    case ClockMode::PAUSED:
+        next = Show::PAUSED;
+        break;
+    case ClockMode::DONE:
+        next = Show::DONE;
+        break;
+    case ClockMode::FAILED:
+    case ClockMode::CANCELLED:
+        next = Show::FAILED;
+        break;
+    }
+    progress_ = std::clamp(static_cast<float>(print.progress_pct) / 100.0f, 0.0f, 1.0f);
+    if (next == show_) {
+        return;
+    }
+    // A finale belongs to the reading that started it.
+    finale_left_ = 0;
+    fizzle_pending_ = next == Show::FAILED;
+    show_ = next;
+    if (show_ == Show::DONE) {
+        arm_finale(rng);
+    }
+}
+
+void FireworksSim::arm_finale(std::minstd_rand& rng) {
+    const int extra =
+        std::max(0, static_cast<int>(pacing_.finale_max_shells) - pacing_.finale_min_shells);
+    finale_left_ = static_cast<uint8_t>(
+        std::max(1, random_int(rng, pacing_.finale_min_shells, pacing_.finale_min_shells + extra)));
+    finale_gap_ms_ = static_cast<int32_t>(pacing_.finale_span_ms / finale_left_);
+    launch_in_ms_ = 0;
+}
+
 void FireworksSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
-                        std::vector<DirtyRect>& dirty) {
+                        const ClockReading& print, std::vector<DirtyRect>& dirty) {
     dirty.clear();
     if (w_ <= 0 || h_ <= 0) {
         return;
     }
+    follow_print(print, rng);
     PixelWriter writer(frame);
     DirtyRect rocket_boxes[kMaxBursts];
     DirtyRect burst_boxes[kMaxBursts];
@@ -303,21 +369,33 @@ void FireworksSim::advance(uint32_t step_ms, std::minstd_rand& rng) {
     const float dt = static_cast<float>(step_ms) / 1000.0f;
     const auto elapsed = static_cast<int32_t>(step_ms);
 
-    finale_in_ms_ -= elapsed;
-    if (finale_in_ms_ <= 0) {
-        finale_in_ms_ += static_cast<int32_t>(std::max<uint32_t>(pacing_.finale_every_ms, 1));
-        if (finale_left_ == 0) {
-            const int extra = std::max(0, static_cast<int>(pacing_.finale_max_shells) -
-                                              pacing_.finale_min_shells);
-            finale_left_ = static_cast<uint8_t>(std::max(
-                1, random_int(rng, pacing_.finale_min_shells, pacing_.finale_min_shells + extra)));
-            finale_gap_ms_ = static_cast<int32_t>(pacing_.finale_span_ms / finale_left_);
-            launch_in_ms_ = 0;
+    // Only the show without a print keeps the periodic finale; a finished print's finale goes
+    // up again once the last one has burnt out.
+    if (show_ == Show::NO_PRINT) {
+        finale_in_ms_ -= elapsed;
+        if (finale_in_ms_ <= 0) {
+            finale_in_ms_ += static_cast<int32_t>(std::max<uint32_t>(pacing_.finale_every_ms, 1));
+            if (finale_left_ == 0) {
+                arm_finale(rng);
+            }
         }
+    } else if (show_ == Show::DONE && finale_left_ == 0 && in_flight() == 0) {
+        arm_finale(rng);
     }
 
-    launch_in_ms_ -= elapsed;
-    if (launch_in_ms_ <= 0) {
+    const bool launches = show_ == Show::NO_PRINT || show_ == Show::RUNNING ||
+                          (show_ == Show::DONE && finale_left_ > 0);
+    if (show_ == Show::FAILED && fizzle_pending_ && in_flight() < kMaxBursts) {
+        const FireworksLevel& params = kFireworksLevels[pending_level_];
+        const FixedShell fizzle{
+            BurstKind::WILLOW, kPrintFailed,
+            std::max(kFizzleMinSparks, static_cast<uint16_t>(params.sparks_per_burst / 4))};
+        fizzle_pending_ = !launch(rng, &fizzle);
+    }
+    if (launches) {
+        launch_in_ms_ -= elapsed;
+    }
+    if (launches && launch_in_ms_ <= 0) {
         if (in_flight() < kFireworksLevels[pending_level_].bursts_at_once) {
             launch(rng);
             if (finale_left_ > 0) {
@@ -371,7 +449,7 @@ void FireworksSim::advance(uint32_t step_ms, std::minstd_rand& rng) {
     }
 }
 
-void FireworksSim::launch(std::minstd_rand& rng) {
+bool FireworksSim::launch(std::minstd_rand& rng, const FixedShell* fixed) {
     level_ = pending_level_;
     Rocket* slot = nullptr;
     for (Rocket& r : rockets_) {
@@ -381,7 +459,7 @@ void FireworksSim::launch(std::minstd_rand& rng) {
         }
     }
     if (slot == nullptr) {
-        return;
+        return false;
     }
     const FireworksLevel& params = kFireworksLevels[level_];
     // Launched from anywhere along the hills, to burst in the upper 60% of the frame.
@@ -393,7 +471,7 @@ void FireworksSim::launch(std::minstd_rand& rng) {
     Rocket& rocket = *slot;
     rocket = Rocket{};
     rocket.active = true;
-    rocket.kind = pick_kind(rng);
+    rocket.kind = fixed != nullptr ? fixed->kind : pick_kind(rng);
     // A palm bursts low enough that its comets' climb stays inside the frame.
     float highest = static_cast<float>(h_) * 0.08f;
     if (rocket.kind == BurstKind::PALM) {
@@ -402,23 +480,29 @@ void FireworksSim::launch(std::minstd_rand& rng) {
     const float lowest = std::max(highest, static_cast<float>(h_) * 0.60f);
     const float apex = highest + (lowest - highest) * apex_pick;
     const float rise = std::max(ground - apex, 20.0f * scale_);
-    switch (rocket.kind) {
-    case BurstKind::WILLOW:
-        rocket.color = kWillowGold;
-        break;
-    case BurstKind::PALM:
-        rocket.color = kPalmGold;
-        break;
-    default:
-        rocket.color = kShellColors[random_below(rng, kShellColorCount)];
-        break;
+    if (fixed != nullptr) {
+        rocket.color = fixed->color;
+    } else {
+        switch (rocket.kind) {
+        case BurstKind::WILLOW:
+            rocket.color = kWillowGold;
+            break;
+        case BurstKind::PALM:
+            rocket.color = kPalmGold;
+            break;
+        default:
+            rocket.color = kShellColors[random_below(rng, kShellColorCount)];
+            break;
+        }
     }
-    rocket.sparks = params.sparks_per_burst;
+    rocket.sparks = fixed != nullptr ? fixed->sparks : shell_sparks(params);
     rocket.trail = params.trail;
     rocket.x = static_cast<float>(x);
     rocket.y = ground;
     rocket.vx = (unit_random(rng) - 0.5f) * 30.0f * scale_;
     rocket.vy = -std::sqrt(2.0f * kRocketGravity * scale_ * rise);
+    launches_++;
+    return true;
 }
 
 FireworksSim::BurstKind FireworksSim::pick_kind(std::minstd_rand& rng) const {

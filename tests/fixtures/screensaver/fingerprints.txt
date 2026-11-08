@@ -3,6 +3,7 @@ aqua 559477eaba1e0738 ab0554cfa98d6cdb
 aqua_print 551716b57ebdc826
 fireflies 93decfb0c5ac455f
 fireworks c971f5362a748339
+fireworks_print f54be4b69de499c5
 flip_clock 3ec5bfa0db00639d b4c2bddfcebb2e81
 flip_clock_print 8284593f6a9f248d
 highfly f38e70907bbc6182 c75e08e6fa7d81c2
@@ -10,4 +11,5 @@ highfly_print 632dc180a3233ef6
 hyperspace 43366bb6400403a4
 maze 99611da53bce4d3d
 pipes be6279be7f6f5ac2
+pipes_print 9725f52520dd1f9b
 starfield a9f7f27791f8af84

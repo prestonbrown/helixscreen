@@ -213,7 +213,7 @@ template <typename Sim> void check_heap_contract(ClockMode mode) {
         AquaSim, HighFlySim
 
 /// The sims whose init() and step() take a ClockReading, run again on a print counting down.
-#define HELIX_EVERY_PRINT_SIM AquaSim, HighFlySim
+#define HELIX_EVERY_PRINT_SIM PipesSim, FireworksSim, AquaSim, HighFlySim
 
 TEMPLATE_TEST_CASE("a sim's dirty boxes cover what it changes, inside its rows and opaque, at "
                    "every level in both formats",

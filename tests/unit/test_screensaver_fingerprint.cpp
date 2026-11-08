@@ -122,9 +122,11 @@ uint64_t saver_run(Saver& ss, uint32_t seed, int frames, int sample_every,
     return run;
 }
 
-uint64_t pipes_run(uint32_t seed) {
+uint64_t pipes_run(uint32_t seed, bool printing) {
     PipesScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kSteadyMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 120, 20, kSteadyMs, &elapsed_ms);
 }
 
 uint64_t starfield_run(uint32_t seed) {
@@ -132,9 +134,11 @@ uint64_t starfield_run(uint32_t seed) {
     return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
 }
 
-uint64_t fireworks_run(uint32_t seed) {
+uint64_t fireworks_run(uint32_t seed, bool printing) {
     FireworksScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t hyperspace_run(uint32_t seed) {
@@ -273,10 +277,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "draws different pixels",
                  "[screensaver][screensaver_fingerprint]") {
     SECTION("pipes") {
-        const uint64_t other = pipes_run(43);
-        const uint64_t run = pipes_run(42);
-        check_replay("pipes", run, [] { return pipes_run(42); });
+        const uint64_t other = pipes_run(43, false);
+        const uint64_t run = pipes_run(42, false);
+        const uint64_t print = pipes_run(42, true);
+        check_replay("pipes", run, [] { return pipes_run(42, false); });
+        check_replay("pipes_print", print, [] { return pipes_run(42, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("starfield") {
         const uint64_t other = starfield_run(6);
@@ -285,10 +292,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(run != other);
     }
     SECTION("fireworks") {
-        const uint64_t other = fireworks_run(8);
-        const uint64_t run = fireworks_run(7);
-        check_replay("fireworks", run, [] { return fireworks_run(7); });
+        const uint64_t other = fireworks_run(8, false);
+        const uint64_t run = fireworks_run(7, false);
+        const uint64_t print = fireworks_run(7, true);
+        check_replay("fireworks", run, [] { return fireworks_run(7, false); });
+        check_replay("fireworks_print", print, [] { return fireworks_run(7, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("hyperspace") {
         const uint64_t other = hyperspace_run(12);
