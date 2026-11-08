@@ -11,6 +11,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_multiace.h"
 #include "ams_backend_snapmaker.h"
@@ -1011,6 +1012,21 @@ TEST_CASE_METHOD(MultiAceFixture, "a stock U1 keeps a PREP sensor on every head"
     }
     CHECK_FALSE(stock.slot_has_prep_sensor(4));
     CHECK_FALSE(stock.slot_has_prep_sensor(-1));
+}
+
+TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load counts bays and heads as the screen does",
+                 "[multiace][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    CapturingMultiAce b;
+    b.record_errors();
+    b.frame(ace_frame("head_mode_4ace.json"));
+    REQUIRE(b.load_filament(multiace::bay_global(0, 1)).success());
+    b.close_pending_window();
+    b.answer_ok();
+    b.frame(feed_frame(0, "preload_finish"));
+    REQUIRE(b.errors.size() == 1);
+    CHECK(b.errors[0] ==
+          "ACE 1 bay 1 was not loaded: toolhead 0 did not empty in time after its unload");
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load says so", "[multiace]") {
