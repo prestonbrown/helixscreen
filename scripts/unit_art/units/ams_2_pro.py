@@ -101,3 +101,10 @@ def _tray_shell():
 
 
 UNIT = UnitDef("ams_2_pro", 4, draw_art, _tray_shell())
+
+UNIT.tray.front = [
+    kit.span(2, 2, 2, UNIT.tray.front_wall_px - 2, 0x17181b, 2),
+    kit.lane(-5.5, 5.5, 6, 15, 0xe0862a, 1),
+    kit.lane(-7, 7, 15, UNIT.tray.front_wall_px - 5, 0x8a8d92, 2),
+    kit.center(-8, 8, -2, 2, 0xb9bcc2, 2),
+]

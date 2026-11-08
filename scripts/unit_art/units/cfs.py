@@ -108,3 +108,11 @@ def _tray_shell():
 
 
 UNIT = UnitDef("cfs", 4, draw_art, _tray_shell())
+
+UNIT.tray.front = [
+    kit.span(2, 2, 1, 3, 0xc4c7cc),
+    kit.span(3, 3, 5, UNIT.tray.front_wall_px - 3, 0x0a0b0d, 4),
+    kit.lane(-1.5, 1.5, 1.2, 2.8, 0x8fd0ff),
+    kit.center(-11, 11, 14, 28, 0x1b2a30, 2),
+    kit.center(-8, 2, 17, 25, 0x7fe0a0),
+]

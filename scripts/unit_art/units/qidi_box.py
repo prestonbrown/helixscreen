@@ -74,3 +74,9 @@ def _tray_shell():
 
 
 UNIT = UnitDef("qidi_box", 4, draw_art, _tray_shell())
+
+UNIT.tray.front = [
+    kit.span(2, 2, 7, 8.5, 0xa9acb2),
+    kit.center(-13, 13, 1, 7, 0xeef0f3, 2),
+    kit.center(-2, 2, 2.5, 5.5, 0x8d9096),
+]

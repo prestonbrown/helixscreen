@@ -82,3 +82,9 @@ def _tray_shell():
 
 
 UNIT = UnitDef("kms", 4, draw_art, _tray_shell())
+
+_WALL = UNIT.tray.front_wall_px
+UNIT.tray.front = [
+    kit.span(8, 8, 8, _WALL - 6, 0xc4c7cb, 2),
+    kit.center(-2.5, 2.5, 8, _WALL - 6, UNIT.tray.body),
+]

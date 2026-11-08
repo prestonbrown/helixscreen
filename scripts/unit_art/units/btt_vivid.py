@@ -103,3 +103,12 @@ def _tray_shell():
 
 
 UNIT = UnitDef("btt_vivid", 4, draw_art, _tray_shell())
+
+_WALL = UNIT.tray.front_wall_px
+UNIT.tray.front = [
+    kit.span(2, 2, 2, _WALL - 2, 0x101114, 2),
+    kit.left(10, 28, 5, 8, 0x2a78e0),
+    kit.left(32, 50, 5, 8, 0x2fb45a),
+    kit.right(32, 50, 5, 8, 0xe0602a),
+    kit.right(10, 28, 5, 8, 0xe8c72e),
+]

@@ -60,6 +60,12 @@ def bake_unit(unit, out_dir, render=rsvg_render):
 def generate_shell_table(units):
     """The C++ table of every unit's tray shape."""
 
+    def fronts(parts):
+        return ", ".join(
+            f"{{FrontAnchor::{a}, {x0:.2f}f, {x1:.2f}f, {y0:.2f}f, {y1:.2f}f, 0x{c:06x}, {r}}}"
+            for a, x0, x1, y0, y1, c, r in parts
+        )
+
     def points(pts):
         return ", ".join(f"{{{d:.4f}f, {h:.2f}f}}" for d, h in pts)
 
@@ -83,16 +89,17 @@ def generate_shell_table(units):
             continue
         kit.check_cheek(t.cheek)
         dome_points = kit.fit_cap_points(t.dome)
+        parts = t.front if t.front is not None else kit.classic_front(t)
+        out.append(f"constexpr FrontPart k_{unit.id}_front[] = {{{fronts(parts)}}};")
         out.append(f"constexpr ProfilePoint k_{unit.id}_cheek[] = {{{points(t.cheek)}}};")
         if dome_points:
             out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(dome_points)}}};")
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
-        latch = "true" if t.has_latch else "false"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
-            f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.rail_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, {latch}, 0x{t.body:06x}, 0x{t.panel:06x}, 0x{t.rail:06x}, 0x{t.accent:06x}, 0x{t.corner:06x}}},"
+            f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
+            f"{lid}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [

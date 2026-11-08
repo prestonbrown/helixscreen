@@ -94,3 +94,9 @@ def _tray_shell():
 
 
 UNIT = UnitDef("ams_ht", 1, draw_art, _tray_shell())
+
+_WALL = UNIT.tray.front_wall_px
+UNIT.tray.front = [
+    kit.span(3, 3, 3, _WALL - 6, 0x0c0d10, 2),
+    kit.span(8, 8, 8, 11, 0xd8dbdf),
+]

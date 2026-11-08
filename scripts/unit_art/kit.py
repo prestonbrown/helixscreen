@@ -81,6 +81,49 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
+# A front part: (anchor, x0, x1, y0, y1, colour, radius). x is in pixels from its anchor at
+# the 110 px reference spool, y in pixels below the front wall's top (negative rises above it).
+def span(inset_left, inset_right, y0, y1, color, radius=0):
+    """Across the row, inset from each end."""
+    return ("Span", inset_left, inset_right, y0, y1, color, radius)
+
+
+def lane(x0, x1, y0, y1, color, radius=0):
+    """Repeated at every lane, offset from its centre."""
+    return ("Lane", x0, x1, y0, y1, color, radius)
+
+
+def center(x0, x1, y0, y1, color, radius=0):
+    """Once, offset from the middle of the row."""
+    return ("Center", x0, x1, y0, y1, color, radius)
+
+
+def left(x0, x1, y0, y1, color, radius=0):
+    """Once, measured in from the left end."""
+    return ("Left", x0, x1, y0, y1, color, radius)
+
+
+def right(x0, x1, y0, y1, color, radius=0):
+    """Once, measured in from the right end."""
+    return ("Right", x0, x1, y0, y1, color, radius)
+
+
+def classic_front(t):
+    """A panel under a rail, with a tab and tick per lane: the default until a unit sets its own."""
+    wall, rail = t.front_wall_px, t.rail_px
+    parts = [
+        span(3, 3, rail + 2, wall - 3, t.panel, 3),
+        span(4, 4, 0, rail, t.rail, 2),
+        lane(-7, 7, -3, 0, t.accent),
+        lane(-1, 1, rail * 0.35, rail * 0.85, 0xf7f7f2),
+    ]
+    if t.has_latch:
+        parts.append(center(-15, 15, rail - 3, rail + 5, 0xd8dade, 4))
+    if t.corner:
+        parts += [left(0, 8, -1, wall, t.corner), right(0, 8, -1, wall, t.corner)]
+    return parts
+
+
 CAP_POINTS = 17  # kCapPoints in ui_ams_detail.cpp
 
 
@@ -162,6 +205,7 @@ class TrayShellDef:
     rail: int
     accent: int
     corner: int = 0
+    front: Optional[list] = None
 
 
 @dataclass
