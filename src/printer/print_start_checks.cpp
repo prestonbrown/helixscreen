@@ -818,8 +818,7 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
     // slicer assigned a material to but that never actually extrude (common
     // when a multi-tool profile prints a single-tool file: T0..T2 inherit the
     // profile's defaults but only T3 is used). Empty vector means the slicer
-    // didn't emit per-tool data — in that case we keep the old behavior and
-    // check every tool. Graceful fallback, no false-negatives possible.
+    // didn't emit per-tool data — in that case every tool is checked.
     std::vector<double> filament_weights;
     if (ctx.metadata.has_value()) {
         filament_weights = ctx.metadata->filament_weights;
