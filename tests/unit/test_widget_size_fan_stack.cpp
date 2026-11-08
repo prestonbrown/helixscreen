@@ -206,9 +206,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     // --- Micro-tier 1x2 (70x131): the legitimate tall case. Narrower than
     // any of the Large/XLarge false positives above, and genuinely
     // rowspan==2 — but this widget's "bigger" is width-only now, so a
-    // colspan==1 widget stays compact here regardless of row count. That is
-    // a real behavior change from the pre-fix OR (which showed resolved
-    // names in this same 70px row), traded deliberately: full names never
+    // colspan==1 widget stays compact here regardless of row count. An OR of
+    // width and height would show resolved names in this same 70px row; the
+    // trade is deliberate: full names never
     // fit a 70px row named/iconed/valued in three parts, tall or not.
     h.resize(1, 2, 70, 131);
     process_lvgl(30);

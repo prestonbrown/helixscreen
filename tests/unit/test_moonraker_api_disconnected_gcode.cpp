@@ -90,8 +90,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     REQUIRE(error_fired->load());
 
-    // The whole point: transport failure, not a firmware halt. Before the fix
-    // this was NOT_READY / "Klipper is halted — restart firmware to continue".
+    // The whole point: transport failure, not a firmware halt, so never
+    // NOT_READY / "Klipper is halted — restart firmware to continue".
     CHECK(*error_type == MoonrakerErrorType::CONNECTION_LOST);
     CHECK(error_message->find("halted") == std::string::npos);
     CHECK(error_message->find("restart firmware") == std::string::npos);

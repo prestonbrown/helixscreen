@@ -209,7 +209,7 @@ TEST_CASE_METHOD(NegativeMinTempFixture,
     // read 0 simply because nothing was parsed.
     REQUIRE(limits.max_temperature_celsius == Catch::Approx(kProbeExtruderMaxTemp));
 
-    // The regression. Before the fix these were -100.
+    // A negative Klipper minimum must not come through as -100.
     CHECK(limits.min_temperature_celsius == Catch::Approx(0.0));
     CHECK(limits.min_extrude_temp_celsius == Catch::Approx(0.0));
 }
@@ -305,7 +305,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const std::string text = h.safety_text();
     REQUIRE_FALSE(text.empty());
 
-    // Before the fix this read "Heat to at least -100°C for filament operations".
+    // It must never read "Heat to at least -100°C for filament operations".
     // Assert on the sign rather than the whole sentence so a reworded or
     // translated string does not fail this test for the wrong reason.
     CHECK(text.find("-100") == std::string::npos);

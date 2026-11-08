@@ -183,8 +183,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     REQUIRE(temp != nullptr);
     lv_subject_set_int(temp, 2450);
 
-    // Tree dies while the handler is still sitting in the queue. Pre-fix the
-    // row token never expired, so update_row_display() ran
+    // Tree dies while the handler is still sitting in the queue. If the row
+    // token never expired, update_row_display() would run
     // lv_label_set_text_fmt() on the freed row labels.
     lv_obj_delete(page);
     UpdateQueue::instance().drain();

@@ -6,10 +6,10 @@
  * @brief Regression test for the wizard-retry affine asymmetry (issue #943)
  *
  * The first-run wizard auto-accepts calibration, so Retry runs cancel()+start().
- * Before the fix it never reverted the just-applied affine, so the re-capture ran
- * with the new (possibly bad) transform still ACTIVE — a feedback loop that made
- * recalibration produce garbage. The Settings overlay retry does the right thing
- * (session_.revert_for_retry()); the wizard now mirrors it.
+ * Retry must revert the just-applied affine; otherwise the re-capture runs with
+ * the new (possibly bad) transform still ACTIVE, a feedback loop that makes
+ * recalibration produce garbage. The wizard does what the Settings overlay retry
+ * does (session_.revert_for_retry()).
  *
  * This drives the wizard's REAL handle_retry_clicked() against an injected
  * calibration sink (no live DisplayManager needed) and asserts the affine is

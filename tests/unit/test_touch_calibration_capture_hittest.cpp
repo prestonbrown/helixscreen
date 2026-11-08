@@ -12,9 +12,8 @@
 // 100%x100% so it covers the ENTIRE screen — header included. This test asserts
 // that during POINT_1 capture no screen location (header strip or target) routes
 // to back_button, and that the corner Cancel chip is hittable and clear of every
-// target. Before the fix the header strip resolved to back_button (the leak).
-//
-// Regression: Q2 recalibrate back-leak (fix/q2-touch-recalibrate-back-leak)
+// target. The header strip must not resolve to back_button (the Q2
+// recalibrate back-leak).
 
 #include "ui_component_header_bar.h"
 #include "ui_touch_calibration_overlay.h"
@@ -140,8 +139,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // --- LEAK: header-strip points above the top targets -----------------------
     // These land where an uncalibrated top-target tap drifts to (y inside the 40px
-    // header). Before the fix they resolve to back_button; after, to the capture
-    // surface. This is the load-bearing regression assertion.
+    // header). They must resolve to the capture surface, not back_button. This is
+    // the load-bearing regression assertion.
     {
         lv_obj_t* got = hit_at(screen, t0.x, 10);
         INFO("header strip above target-0 (" << t0.x << ",10) -> " << name_of(got));

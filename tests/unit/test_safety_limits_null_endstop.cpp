@@ -96,7 +96,7 @@ class SafetyLimitsFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(SafetyLimitsFixture, "numeric position_endstop parses the temperature limits",
                  "[safety_limits]") {
     // Baseline: with a numeric endstop the parse always reached the temperature
-    // loop, so this passed before the fix too. It exists to prove the assertion
+    // loop, so this passes even with a null-endstop bug. It exists to prove the assertion
     // below is measuring the null case specifically and not a broken harness.
     mock_client_.set_stepper_z_endstop_null(false);
     REQUIRE(run_update());
@@ -108,10 +108,10 @@ TEST_CASE_METHOD(SafetyLimitsFixture, "numeric position_endstop parses the tempe
 TEST_CASE_METHOD(SafetyLimitsFixture,
                  "null position_endstop does not abort the temperature-limit parse",
                  "[safety_limits]") {
-    // The regression. Before the fix a bare .get<double>() threw type_error.302
-    // on the null endstop, skipping the temperature loop entirely —
-    // max_temperature_celsius stayed at the compiled 400.0 default. Revert the
-    // fix and this reads 400.0 instead of kProbeExtruderMaxTemp.
+    // A bare .get<double>() throws type_error.302 on the null endstop and
+    // skips the temperature loop entirely, so max_temperature_celsius stays at
+    // the compiled 400.0 default and this reads 400.0 instead of
+    // kProbeExtruderMaxTemp.
     mock_client_.set_stepper_z_endstop_null(true);
     REQUIRE(run_update());
 
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(SafetyLimitsFixture, "null position_endstop still reports succe
     // Documents the trap that made the original bug invisible: the catch calls
     // on_success() too, so a firing success callback never proved the parse
     // completed. Kept so nobody mistakes success for correctness again — this
-    // one passed both before and after the fix, by design.
+    // one passes with or without the null-endstop handling, by design.
     mock_client_.set_stepper_z_endstop_null(true);
     CHECK(run_update());
 }

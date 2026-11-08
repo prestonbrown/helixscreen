@@ -605,7 +605,7 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
         REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 1);
 
         // Simulate what happens on first Moonraker status — sensor reports true
-        // (matching default). Before the fix, this was a no-op because any_changed=false.
+        // (matching default). This must not be a no-op just because any_changed=false.
         update_sensor_state("filament_switch_sensor runout", true);
 
         // Subject should still be 1 (not -1)

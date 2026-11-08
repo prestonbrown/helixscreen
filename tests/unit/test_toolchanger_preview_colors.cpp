@@ -195,9 +195,9 @@ TEST_CASE("Layer index: the running tool is recorded per layer, not just the fil
 
 TEST_CASE("Layer index: layers before the file's first tool change have no tool",
           "[gcode][toolchanger][layer_index]") {
-    // -1 is what makes the streaming controller fall back to initial_tool_index,
-    // reproducing the pre-fix seeding for the layers that genuinely predate any
-    // tool change. A single-extruder file must not suddenly claim T0 here.
+    // -1 is what makes the streaming controller fall back to initial_tool_index
+    // for the layers that genuinely predate any tool change. A single-extruder file must not
+    // suddenly claim T0 here.
     TempGCodeFile file(R"(M82
 G28
 G1 Z0.3 F1000
