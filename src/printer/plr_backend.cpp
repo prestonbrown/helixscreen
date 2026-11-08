@@ -99,10 +99,12 @@ const std::array<PlrProvider, 5>& providers() {
              return plugin_ready_with(caps, PlrPluginBackend::QidiPrintState);
          },
          plugin_offers, plugin_recovery_file},
-        // Qidi stock firmware: the macro says Qidi, save_variables'
-        // was_interrupted says an interrupted print is on record; the stock
-        // firmware clears it on every normal end or cancel. The macros record
-        // no filename, so virtual_sdcard.file_path is display-only.
+        // Qidi stock firmware and macro sets derived from it: the resume macro
+        // marks the firmware, save_variables' was_interrupted says an interrupted
+        // print is on record. Where plr_saved_file_gates_offer() holds, discard
+        // clears only last_file, so an empty last_file withdraws the offer and a
+        // set one names the recovery file. Elsewhere virtual_sdcard.file_path
+        // names it. The filename is display-only: resume takes no parameters.
         {PlrBackendType::QIDI, "qidi",
          [](const PrinterDiscovery& hw) {
              return plr_resume_macro_present(hw)
