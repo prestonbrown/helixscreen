@@ -18,6 +18,12 @@
 class PrintPreparationManagerTestAccess {
   public:
     /// Whether a start's option override is set (set_start_option_override()).
+    /// What a start left behind for the next one to send, if nothing cleared it.
+    static void set_start_params(helix::ui::PrintPreparationManager& m,
+                                 const helix::PrintStartParams& params) {
+        m.start_params_ = params;
+    }
+
     static bool has_start_option_override(const helix::ui::PrintPreparationManager& m) {
         return static_cast<bool>(m.start_option_override_);
     }
