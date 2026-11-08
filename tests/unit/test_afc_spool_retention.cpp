@@ -5,6 +5,7 @@
 // meter's flush writes AFC's weight and nothing else.
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "lane_source_store.h"
@@ -207,6 +208,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "a link from outside the editor is written to 
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}});
     helix::SlotInfo linked = afc.get_slot_info(0);
     linked.spoolman_id = 77;
-    REQUIRE(afc.sync_external_identity(0, linked).success());
+    REQUIRE(helix::test::apply_edit(afc, 0, linked).success());
     CHECK(afc.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=77"));
 }

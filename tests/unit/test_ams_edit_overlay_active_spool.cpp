@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
 #include "ams_state.h"
@@ -181,7 +182,7 @@ struct OverlayCommitFixture : LVGLTestFixture {
 
         SlotInfo slot = backend->get_slot_info(0);
         slot.spoolman_id = slot0_spoolman_id;
-        backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*backend, 0, slot);
     }
 };
 

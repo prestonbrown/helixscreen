@@ -879,24 +879,6 @@ AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendAce::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        SlotInfo* slot = mutable_slot_locked(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, 0);
-        }
-        // overrides_ is left alone: a synced value lives in memory only, and
-        // the next firmware parse overwrites it.
-        write_filament_fields(*slot, info);
-    }
-
-    spdlog::info("[ACE] Synced slot {} info: {} {}", slot_index, info.material, info.color_name);
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 AmsError AmsBackendAce::can_set_tool_mapping(int /*tool_number*/, int /*slot_index*/) const {
     return AmsErrorHelper::not_supported("Tool mapping");
 }

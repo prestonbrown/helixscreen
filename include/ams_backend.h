@@ -2302,25 +2302,6 @@ class AmsBackend {
     virtual AmsError apply_user_edit(int slot_index, const SlotInfo& info) = 0;
 
     /**
-     * @brief Put filament information that arrived from outside on a slot.
-     *
-     * For values nobody chose here, such as a tool changer's per-tool spool
-     * assignment or a metered weight. Only in-memory state changes, along with
-     * whatever slot-changed event the backend emits for it: no firmware
-     * command, no store write.
-     *
-     * Routing these through apply_user_edit() instead starts a feedback loop:
-     * G-code → firmware status update → sync_from_backend → the same values
-     * written again → ∞. On AFC with 4 lanes this loop fires 16+ G-code
-     * commands per cycle and saturates the CPU.
-     *
-     * @param slot_index Slot to update (0-based)
-     * @param info New slot information (only filament fields used)
-     * @return AmsError indicating if update succeeded
-     */
-    virtual AmsError sync_external_identity(int slot_index, const SlotInfo& info) = 0;
-
-    /**
      * @brief Repaint a slot from the lane model once its lane was written from outside.
      *
      * commit_user_edit() calls this after it files the user's declaration,
@@ -2401,23 +2382,17 @@ class AmsBackend {
     /**
      * @brief The backend half of update_slot_weight().
      *
-     * Reached only through that wrapper, which files the meter reading before
-     * returning. The default puts the weight on the live slot through
-     * sync_external_identity(), which writes memory alone, and hands a persist
-     * to persist_slot_weight(). A persist never goes through apply_user_edit():
-     * that is the edit path, which restates identity to firmware, and a meter
-     * states none. A backend whose
-     * sync_external_identity() does more than write the live slot overrides
-     * this (see AmsBackendAd5xIfs).
+     * Reached only through that wrapper, which files the meter reading on the
+     * lane before calling it. The default repaints the slot from the lane, so
+     * the reading shows wherever no stronger source states a weight, and hands
+     * a persist to persist_slot_weight(). A persist never goes through
+     * apply_user_edit(): that is the edit path, which restates identity to
+     * firmware, and a meter states none.
      */
     virtual void update_slot_weight_impl(int slot_index, float remaining_weight_g,
                                          float total_weight_g, bool persist) {
-        SlotInfo info = get_slot_info(slot_index);
-        info.remaining_weight_g = remaining_weight_g;
-        if (total_weight_g >= 0.0f)
-            info.total_weight_g = total_weight_g;
-        const AmsError stored = sync_external_identity(slot_index, info);
-        if (persist && stored.success()) {
+        repaint_slot_from_lane(slot_index);
+        if (persist) {
             persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
         }
     }

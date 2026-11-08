@@ -191,7 +191,7 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
 10 s poll like every lane record (`AmsSubscriptionBackend::refresh_lane_records`):
 
 - **Writer, without `[openams_spoolman]`.** HelixScreen writes the record: `apply_user_edit()`
-  and a link from `sync_external_identity()` go through `persist_user_record_locked()`, metered
+  goes through `persist_user_record_locked()`, metered
   weights and Spoolman's details through the shared persist helpers. A record whose `writer`
   names another producer is never overwritten (the store's writer rule).
 - **With `[openams_spoolman]`** (the openams Moonraker component, `moonraker/openams_spoolman/`

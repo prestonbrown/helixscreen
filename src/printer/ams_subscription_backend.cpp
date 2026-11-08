@@ -524,6 +524,28 @@ void AmsSubscriptionBackend::restate_pending_as_stored(int slot_index,
     }
 }
 
+void AmsSubscriptionBackend::update_slot_weight_impl(int slot_index, float remaining_weight_g,
+                                                     float total_weight_g, bool persist) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        SlotInfo* live = cached_slot_locked(slot_index);
+        if (live == nullptr) {
+            live = system_info_.get_slot_global(slot_index);
+        }
+        if (live == nullptr) {
+            return;
+        }
+        live->remaining_weight_g = remaining_weight_g;
+        if (total_weight_g >= 0.0f) {
+            live->total_weight_g = total_weight_g;
+        }
+    }
+    if (persist) {
+        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
+}
+
 void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,
                                                  float total_weight_g) {
     std::lock_guard<std::mutex> lock(mutex_);

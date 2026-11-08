@@ -33,6 +33,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
 #if HELIX_HAS_PLUGINS
@@ -716,14 +717,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const std::vector<std::string> colors{"#FF0000"};
     const std::vector<std::string> materials{"PLA"};
 
-    // sync_external_identity deliberately drops SlotStatus (no real backend accepts a
+    // A slot write deliberately drops SlotStatus (no real backend accepts a
     // user-written status), so the empty case has to go through
     // force_slot_status - see ams_backend_mock.cpp:999.
     auto load_lane = [&ams](uint32_t rgb, const char* material, helix::SlotStatus status) {
         auto slot = ams.backend->get_slot_info(0);
         slot.color_rgb = rgb;
         slot.material = material;
-        ams.backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*ams.backend, 0, slot);
         ams.backend->force_slot_status(0, status);
     };
 

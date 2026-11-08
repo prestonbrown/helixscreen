@@ -1908,17 +1908,6 @@ AmsError AmsBackendQidi::apply_user_edit(int slot_index, const SlotInfo& info) {
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendQidi::sync_external_identity(int slot_index, const SlotInfo& /*info*/) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (auto err = validate_slot_index_locked(slot_index); !err.success()) {
-        return err;
-    }
-    // Only a person's edit reaches the box's save_variables, and this backend
-    // keeps no other store for a slot's identity, so a synced value has nowhere
-    // to go.
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendQidi::update_slot_weight_impl(int /*slot_index*/, float /*remaining_weight_g*/,
                                              float /*total_weight_g*/, bool /*persist*/) {
     // The box has nowhere to put a weight: its save_variables hold filament,

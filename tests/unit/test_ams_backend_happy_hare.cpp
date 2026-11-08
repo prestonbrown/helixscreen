@@ -493,21 +493,6 @@ TEST_CASE("Happy Hare persistence: MMU_GATE_MAP basic format", "[ams][happy_hare
     REQUIRE(helper.has_gcode_starting_with("MMU_GATE_MAP GATE=0"));
 }
 
-TEST_CASE("Happy Hare sync_external_identity carries the whole Spoolman link",
-          "[ams][happy_hare]") {
-    AmsBackendHappyHareTestHelper helper;
-    helper.initialize_test_gates(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-    info.spoolman_filament_id = 77;
-    info.spoolman_vendor_id = 3;
-    helper.sync_external_identity(0, info);
-
-    const SlotInfo stored = helper.get_slot_info(0);
-    CHECK(stored.spoolman_filament_id == 77);
-    CHECK(stored.spoolman_vendor_id == 3);
-}
 TEST_CASE("Happy Hare persistence: MMU_GATE_MAP with color", "[ams][happy_hare][persistence]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
     AmsBackendHappyHareTestHelper& helper = *helper_reg;
@@ -755,16 +740,6 @@ TEST_CASE("Happy Hare writes the name and temperature to the gate map", "[ams][h
     REQUIRE(helix::test::apply_edit(helper, 0, cleared).success());
     CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL=PLA NAME="));
     CHECK_FALSE(helper.has_gcode_containing("TEMP="));
-}
-
-TEST_CASE("a link from outside the editor is written to the gate map", "[ams][happy_hare]") {
-    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
-    AmsBackendHappyHareTestHelper& helper = *helper_reg;
-    helper.initialize_test_gates(2);
-    SlotInfo linked = *helper.get_mutable_slot(1);
-    linked.spoolman_id = 77;
-    REQUIRE(helper.sync_external_identity(1, linked).success());
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=1 SPOOLID=77 QUIET=1"));
 }
 
 TEST_CASE("Happy Hare clear: slot stays blank across the status echo", "[ams][happy_hare][clear]") {

@@ -2010,7 +2010,7 @@ check_weight_poll_is_weight_only() {
         echo "could not locate $file"
         return 1
     fi
-    if grep -qE '(\.|->)(apply_user_edit|sync_external_identity)\(' "$file"; then
+    if grep -qE '(\.|->)apply_user_edit\(' "$file"; then
         echo "$file writes a whole SlotInfo; an automated weight poll must file the lane's Spoolman source through helix::ams::ingest() instead"
         return 1
     fi
@@ -2028,7 +2028,7 @@ check_weight_poll_is_weight_only() {
     local filing='helix::ams::ingest(lane, stated);'
     # A mutation whose target has moved changes nothing and passes vacuously.
     grep -qF "$filing" src/printer/spoolman_manager.cpp
-    sed -e 's@helix::ams::ingest(lane, stated);@owner.sync_external_identity(slot_index, slot);@' \
+    sed -e 's@helix::ams::ingest(lane, stated);@owner.apply_user_edit(slot_index, slot);@' \
         src/printer/spoolman_manager.cpp > "$mutated"
 
     run check_weight_poll_is_weight_only "$mutated"

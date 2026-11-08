@@ -3532,7 +3532,10 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 - `get_topology()`, `get_filament_segment()`, `get_slot_filament_segment()`, `infer_error_segment()` -- Path visualization
 - `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()` -- Operations
 - `recover()`, `reset()`, `cancel()` -- Recovery
-- `apply_user_edit()`, `sync_external_identity()`, `set_tool_mapping()` -- Configuration
+- `apply_user_edit()`, `set_tool_mapping()` -- Configuration. Every link and identity write is a
+  person's edit through `AmsState::commit_slot_edit()`; a metered weight reaches the live slot
+  through `update_slot_weight_impl()` (the `AmsSubscriptionBackend` default writes the slot and
+  hands a persist to `persist_slot_weight()`)
 - `enable_bypass()`, `disable_bypass()`, `is_bypass_active()` -- Bypass mode
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend

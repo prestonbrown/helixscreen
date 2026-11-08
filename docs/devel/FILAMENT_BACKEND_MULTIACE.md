@@ -187,8 +187,7 @@ A bay entry stating no identity — an empty bay, or an entry the frame omits �
 is no signal: the record waits for evidence, so a bay that empties and refills
 with the same material and colour keeps the edit.
 
-`AmsBackendMultiAce::apply_user_edit` / `sync_external_identity` /
-`clear_slot_override` route by unit: a bay index resolves through
+`AmsBackendMultiAce::apply_user_edit` / `clear_slot_override` route by unit: a bay index resolves through
 `multiace::bay_of()` into its own unit's `SlotInfo` and the shared lane record
 (`persist_user_record_locked`); nothing is written to the engine. Its stable
 command vocabulary (ENGINE_API.md § 3) has no command that sets a bay's label,

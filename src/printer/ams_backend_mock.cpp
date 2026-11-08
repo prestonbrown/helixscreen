@@ -1302,8 +1302,24 @@ void AmsBackendMock::clear_slot_override(int slot_index) {
     emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
-AmsError AmsBackendMock::sync_external_identity(int slot_index, const SlotInfo& info) {
-    return write_slot(slot_index, info);
+void AmsBackendMock::update_slot_weight_impl(int slot_index, float remaining_weight_g,
+                                             float total_weight_g, bool persist) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto* entry = slots_.get_mut(slot_index);
+        if (!entry) {
+            return;
+        }
+        entry->info.remaining_weight_g = remaining_weight_g;
+        if (total_weight_g >= 0.0f) {
+            entry->info.total_weight_g = total_weight_g;
+        }
+    }
+    publish_lane_observations();
+    if (persist) {
+        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 AmsError AmsBackendMock::write_slot(int slot_index, const SlotInfo& info) {

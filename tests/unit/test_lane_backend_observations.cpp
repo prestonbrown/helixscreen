@@ -3098,17 +3098,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "the mock's colour sentinel is not a grey anyb
                  "[lane][ingest][mock]") {
     MockHarness harness(4);
 
-    // sync_external_identity writes the slot even though it files no reading, which is
-    // how a lane gets staged before the population is published.
+    // The edit writes the slot, which is how a lane gets staged before the
+    // population is published.
     auto black = harness->get_slot_info(0);
     black.color_rgb = 0x000000u;
     black.material = "Black-PLA";
-    REQUIRE(harness->sync_external_identity(0, black).success());
+    REQUIRE(helix::test::apply_edit(*harness, 0, black).success());
 
     auto colourless = harness->get_slot_info(1);
     colourless.color_rgb = helix::kAmsDefaultSlotColor;
     colourless.material = "Grey-PLA";
-    REQUIRE(harness->sync_external_identity(1, colourless).success());
+    REQUIRE(helix::test::apply_edit(*harness, 1, colourless).success());
 
     REQUIRE(harness->start().success());
 

@@ -4,6 +4,7 @@
 #include "ui_preflight_check_modal.h"
 #include "ui_update_queue.h"
 
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_remap.h"
 #include "ams_state.h"
@@ -305,7 +306,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // slot takes its material from Spoolman and refuses the edit.
         helix::SlotInfo unlinked = ams.backend->get_slot_info(1);
         unlinked.spoolman_id = 0;
-        REQUIRE(ams.backend->sync_external_identity(1, unlinked).success());
+        REQUIRE(helix::test::apply_edit(*ams.backend, 1, unlinked).success());
         helix::PreflightResult pf;
         pf.checks = {
             make_check(0, 0xF5A623, "PETG", 1, true, helix::ToolCheck::Severity::UnknownMaterial)};

@@ -263,7 +263,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     // Slot management (user overrides persisted via shared FilamentSlotOverrideStore)
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The box's record of the bay's tag, kept while our own write-back holds
     /// the box record (helix::ams::fold_tag_frame).

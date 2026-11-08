@@ -6024,34 +6024,6 @@ std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index)
     return reading;
 }
 
-AmsError AmsBackendAfc::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // AFC holds the link, so a link from elsewhere is written to it; the
-        // rest of the spool's identity follows from AFC's own Spoolman fetch.
-        const std::string lane_name = slots_.name_of(slot_index);
-        if (info.spoolman_id > 0 && info.spoolman_id != entry->info.spoolman_id &&
-            !lane_name.empty()) {
-            execute_gcode(
-                fmt::format("SET_SPOOL_ID LANE={} SPOOL_ID={}", lane_name, info.spoolman_id));
-        }
-        if (slots_.write_edit(slot_index, info)) {
-            spdlog::info("[AMS AFC] Updated slot {} info: {} {}", slot_index, info.material,
-                         info.color_name);
-        }
-    }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendAfc::persist_slot_weight(int slot_index, float remaining_weight_g,
                                         float total_weight_g) {
     std::string lane_name;

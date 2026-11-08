@@ -2793,57 +2793,6 @@ TEST_CASE("CFS apply_user_edit writes to store", "[ams][cfs][filament_slot_overr
     CHECK(mock_printer.client.mock_db_get("helix-screen", "cfs_slot_overrides").is_null());
 }
 
-TEST_CASE("CFS sync_external_identity does NOT write to store",
-          "[ams][cfs][filament_slot_override]") {
-    CfsTmpCacheDir tmp("task14_persist_false");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendCfs> backend_reg(&api, nullptr);
-    AmsBackendCfs& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "cfs");
-    CfsTestAccess::inject_override_store(backend, std::move(store));
-
-    json box = make_single_unit_box({"101001", "101001", "101001", "101001"},
-                                    {"0000000", "0FFFFFF", "00A2989", "0C12E1F"});
-    CfsTestAccess::handle_status(backend, make_cfs_notification(box));
-
-    SlotInfo edit;
-    edit.brand = "Draft";
-    edit.material = "PLA";
-    edit.color_rgb = 0x123456;
-
-    auto err = backend.sync_external_identity(0, edit);
-    REQUIRE(err.success());
-
-    // The user's edit (brand="Draft", color=0x123456) was NOT persisted —
-    // any override entry that exists came from the auto-mirror path firing
-    // on the firmware-detected color/material in the prior status update,
-    // which is independent of this preview edit. Verify by field:
-    //   - brand: must NOT be "Draft" (auto-mirror only fills color/material)
-    //   - color_rgb: must NOT be 0x123456 (the preview color)
-    //   - color_set may be true if firmware reported a color (slot 0 is
-    //     black, 0x000000); the auto-mirror records that as the firmware
-    //     baseline, NOT as the user's preview.
-    auto stored = CfsTestAccess::get_override(backend, 0);
-    if (stored.has_value()) {
-        CHECK(stored->brand != "Draft");
-        CHECK(stored->color_rgb != 0x123456u);
-    }
-    auto db_record = mock_printer.client.mock_db_get("lane_data", "lane1");
-    if (!db_record.is_null()) {
-        // Auto-mirror's record does not contain the preview's brand/color.
-        CHECK(db_record.value("vendor", "") != "Draft");
-        CHECK(db_record.value("color", "") != "#123456");
-    }
-
-    // Preview edit still visible via get_slot_info (in-memory only).
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Draft");
-    CHECK(info.material == "PLA");
-    CHECK(info.color_rgb == 0x123456u);
-}
-
 TEST_CASE("CFS clear_slot_override drops the whole Spoolman link",
           "[ams][cfs][filament_slot_override][1625]") {
     CfsTmpCacheDir tmp("clear_spoolman_link");

@@ -3123,28 +3123,6 @@ AmsError AmsBackendAd5xIfs::apply_user_edit(int slot_index, const SlotInfo& info
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendAd5xIfs::sync_external_identity(int slot_index, const SlotInfo& info) {
-    if (auto err = validate_slot_index(slot_index); !err.success()) {
-        return err;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumPorts - 1);
-        }
-        // Nothing reaches Adventurer5M.json, _IFS_VARS or the override store: a
-        // synced value lives in memory only.
-        write_port_locked(slot_index, entry->info, info);
-        settle_port_locked(slot_index);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 SlotInfo* AmsBackendAd5xIfs::cached_slot_locked(int slot_index) {
     // Only the lane's resolution goes stale between frames: the readings and
     // baselines update_slot_from_state() took are still this port's own, so a
@@ -3164,34 +3142,6 @@ void AmsBackendAd5xIfs::prepare_lane_repaint_locked(int slot_index, SlotInfo& sl
     } else {
         slot.color_name.clear();
     }
-}
-
-void AmsBackendAd5xIfs::update_slot_weight_impl(int slot_index, float remaining_weight_g,
-                                                float total_weight_g, bool persist) {
-    if (slot_index < 0 || slot_index >= kNumPorts) {
-        spdlog::warn("{} update_slot_weight: invalid slot {}", backend_log_tag(), slot_index);
-        return;
-    }
-
-    // Weight is automated consumption-tracker data, not filament identity. We
-    // touch ONLY the weight fields — never material/color, never the user-lock
-    // flags, and never write_adventurer_json()/_IFS_VARS. apply_user_edit()'s
-    // firmware-facing writers re-emitted ffmType from a stale override material
-    // on every 60 s persist, reverting the user's material to disk (#981). Weight
-    // lives in the lane_data record, which is the only store we persist here.
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (auto* entry = slots_.get_mut(slot_index)) {
-            entry->info.remaining_weight_g = remaining_weight_g;
-            if (total_weight_g >= 0.0f)
-                entry->info.total_weight_g = total_weight_g;
-        }
-    }
-    if (persist) {
-        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 bool AmsBackendAd5xIfs::remap_ready() const {

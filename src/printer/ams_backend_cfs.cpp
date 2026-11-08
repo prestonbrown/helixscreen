@@ -2862,7 +2862,7 @@ AmsError AmsBackendCfs::cancel() {
     return execute_gcode("CANCEL_PRINT");
 }
 
-// --- apply_user_edit / sync_external_identity ---
+// --- apply_user_edit ---
 
 namespace {
 
@@ -2924,26 +2924,6 @@ AmsError AmsBackendCfs::apply_user_edit(int slot_index, const SlotInfo& info) {
         persist_user_record_locked(slot_index, written);
     }
     spdlog::info("[AMS CFS] Updated slot {} info: {} {}", slot_index, info.material,
-                 info.color_name);
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
-AmsError AmsBackendCfs::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        SlotInfo* target = bay_locked(slot_index);
-        if (!target) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // overrides_ is left alone: a synced value lives in memory only, and
-        // the next firmware parse overwrites it.
-        write_filament_fields(*target, info);
-    }
-
-    spdlog::info("[AMS CFS] Synced slot {} info: {} {}", slot_index, info.material,
                  info.color_name);
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();

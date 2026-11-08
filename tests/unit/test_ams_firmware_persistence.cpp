@@ -54,18 +54,6 @@ TEST_CASE("AmsBackendMock: apply_user_edit propagates mapped_tool change",
     REQUIRE(mock->get_slot_info(0).mapped_tool == 2);
 }
 
-TEST_CASE("AmsBackendMock: sync_external_identity ignores default mapped_tool (-1)",
-          "[ams][backend][slot-edit-remap]") {
-    auto mock = helix::AmsBackendMock::create_mock();
-
-    // Spoolman polling builds a default-constructed SlotInfo; live mapping must survive.
-    helix::SlotInfo info; // mapped_tool defaults to -1
-    info.material = "PLA";
-
-    REQUIRE(mock->sync_external_identity(2, info).result == helix::AmsResult::SUCCESS);
-    REQUIRE(mock->get_slot_info(2).mapped_tool == 2);
-}
-
 namespace {
 // Minimal helper: capture G-code strings without dispatching to a real Moonraker.
 class ToolChangerGcodeCapture : public helix::AmsBackendToolChanger {

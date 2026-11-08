@@ -94,7 +94,6 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     AmsError clear_fault(int slot_index) override;
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     void clear_slot_override(int slot_index) override;
     /// With [openams_spoolman] loaded the bay's link is the component's.
     [[nodiscard]] std::string clear_spool_refusal(int slot_index) const override;

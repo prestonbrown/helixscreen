@@ -9,6 +9,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/unique_temp_dir.h"
@@ -237,7 +238,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE_FALSE(mock->supports_per_tool_spool_assignment());
     SlotInfo empty = mock->get_slot_info(0);
     empty.spoolman_id = 0;
-    REQUIRE(mock->sync_external_identity(0, empty).success());
+    REQUIRE(helix::test::apply_edit(*mock, 0, empty).success());
     ams.set_backend(std::move(mock));
 
     ams.start_legacy_spool_import("/nonexistent/tool_spools.json");

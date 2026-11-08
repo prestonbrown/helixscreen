@@ -447,7 +447,7 @@ void seed_linked_spool(MoonrakerAPIMock& api, MoonrakerClientMock& client,
     it->color_hex = "8A949E";
     it->initial_weight_g = 1000.0;
     it->remaining_weight_g = 850.0;
-    backend.sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1051,7 +1051,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     client.spoolman_mock().get_mock_spools().push_back(linked_a);
     // The backend mirrors the overlay's initial info, the way a live backend
     // holds the tracked slot the editor was opened on.
-    backend->sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(*backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1118,7 +1118,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     linked_a.material = "ASA";
     linked_a.color_hex = "8A949E";
     client.spoolman_mock().get_mock_spools().push_back(linked_a);
-    backend->sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(*backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1187,7 +1187,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     SlotInfo seeded = backend->get_slot_info(0);
     seeded.spoolman_id = 169;
     seeded.material = "PLA";
-    backend->sync_external_identity(0, seeded);
+    helix::test::apply_edit(*backend, 0, seeded);
 
     // Spoolman "unavailable" so the editor's Save takes the synchronous
     // local-close branch (no async PATCH seam).
@@ -2853,7 +2853,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
                  "[ams_edit_overlay][dropdown][callback][commit]") {
     SlotInfo start = untracked_slot();
     start.material = "TPU-85A";
-    REQUIRE(backend->sync_external_identity(0, start).success());
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
 
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -4068,7 +4068,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     const auto link = [this](int slot, int spool_id) {
         SlotInfo info = backend->get_slot_info(slot);
         info.spoolman_id = spool_id;
-        backend->sync_external_identity(slot, info);
+        helix::test::apply_edit(*backend, slot, info);
     };
     link(2, 9001);
     link(0, 9002);
@@ -4138,7 +4138,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     const auto link = [this](int slot, int spool_id) {
         SlotInfo info = backend->get_slot_info(slot);
         info.spoolman_id = spool_id;
-        backend->sync_external_identity(slot, info);
+        helix::test::apply_edit(*backend, slot, info);
     };
     link(0, 9001);
     link(2, 9003);

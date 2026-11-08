@@ -201,7 +201,6 @@ writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC
 - **Fields AFC cannot hold** (brand, name, colour name, catalog pick, total weight) go to
   HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
   every lane record; a spool id, material or colour found there is ignored.
-- **A link from outside the editor** (`sync_external_identity`) is written with `SET_SPOOL_ID`.
 - **An unlink** is `SET_SPOOL_ID LANE=x SPOOL_ID=` (empty). A lane with `remember_spool` keeps
   its id through it (prestonbrown/helixscreen#1717); the lane then shows the id AFC still holds
   once the pending unlink times out.

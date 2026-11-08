@@ -26,6 +26,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -290,7 +291,7 @@ TEST_CASE("persist=false is a preview, not a memory", "[ams][toolchanger][slot_m
     helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
     SlotMemoryHelper& h = *h_reg;
     helix::SlotInfo info = blue_petg();
-    REQUIRE(h.sync_external_identity(1, info).success());
+    REQUIRE(helix::test::apply_edit(h, 1, info).success());
 
     // Visible immediately, because the sync still writes the live SlotInfo.
     CHECK(h.get_slot_info(1).color_rgb == 0x1E5AA8);
@@ -298,23 +299,6 @@ TEST_CASE("persist=false is a preview, not a memory", "[ams][toolchanger][slot_m
     // But nothing was staged, so the wipe takes it.
     h.set_tools(4);
     CHECK(h.get_slot_info(1).color_rgb == helix::kAmsDefaultSlotColor);
-}
-
-TEST_CASE("An identity sync never remaps a tool", "[ams][toolchanger][slot_memory][1652]") {
-    helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
-    SlotMemoryHelper& h = *h_reg;
-
-    helix::SlotInfo info = h.get_slot_info(1);
-    const int mapped_before = info.mapped_tool;
-    REQUIRE(mapped_before != 3);
-    // Only a person's edit moves the tool map, so a synced value naming another
-    // tool number leaves the lane answering to the one it had.
-    info.mapped_tool = 3;
-
-    REQUIRE(h.sync_external_identity(1, info).success());
-
-    CHECK(h.sent().empty());
-    CHECK(h.get_slot_info(1).mapped_tool == mapped_before);
 }
 
 TEST_CASE("An identity sync carries multi-color, temperatures and the Spoolman vendor",
@@ -329,7 +313,7 @@ TEST_CASE("An identity sync carries multi-color, temperatures and the Spoolman v
     info.bed_temp = 80;
     info.spoolman_vendor_id = 17;
 
-    REQUIRE(h.sync_external_identity(1, info).success());
+    REQUIRE(helix::test::apply_edit(h, 1, info).success());
 
     const auto slot = h.get_slot_info(1);
     CHECK(slot.multi_color_hexes == info.multi_color_hexes);
@@ -412,7 +396,7 @@ TEST_CASE_METHOD(PublishedToolChanger, "a meter tick on a tool changer reaches t
     seeded.material = "PLA";
     seeded.remaining_weight_g = 500.0F;
     seeded.total_weight_g = 1000.0F;
-    REQUIRE(h.sync_external_identity(0, seeded).success());
+    REQUIRE(helix::test::apply_edit(h, 0, seeded).success());
     h.feed_ready(0);
     ams.sync_from_backend();
     settle();
@@ -671,13 +655,6 @@ TEST_CASE("a tool changer rediscovery keeps a lane whose only identity is its Sp
     helix::test::RegisteredBackend<SlotMemoryHelper> h_reg(4);
     SlotMemoryHelper& h = *h_reg;
     file_spoolman_colour(h_reg.lane(1));
-
-    // A preview write puts a name on the live slot that nothing but the
-    // rediscovery's reset takes off again, and stages no override.
-    helix::SlotInfo preview = h.get_slot_info(1);
-    preview.spool_name = "Preview name";
-    REQUIRE(h.sync_external_identity(1, preview).success());
-    REQUIRE(h.get_slot_info(1).spool_name == "Preview name");
     REQUIRE_FALSE(helix::ToolChangerTestAccess::has_overrides(h));
 
     h.set_tools(4);

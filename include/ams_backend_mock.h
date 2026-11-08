@@ -194,10 +194,6 @@ class AmsBackendMock : public AmsBackend {
      */
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
-    /// The same write as apply_user_edit(). The mock has no firmware or store
-    /// behind a slot, so an edit and a sync differ only in what the caller
-    /// says the values are.
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -860,7 +856,11 @@ class AmsBackendMock : public AmsBackend {
      */
     void init_mock_data();
 
-    /// The slot write apply_user_edit() and sync_external_identity() share.
+    /// The simulated firmware takes a metered weight onto the slot, as AFC's does.
+    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
+                                 bool persist) override;
+
+    /// The slot write behind apply_user_edit().
     AmsError write_slot(int slot_index, const SlotInfo& info);
 
     /**

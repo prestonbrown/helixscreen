@@ -377,7 +377,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The channel's last tag reading. An entry whose CARD_UID names no card
     /// was written over the API, not read off a spool, and is none.

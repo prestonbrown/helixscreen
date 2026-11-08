@@ -379,30 +379,6 @@ AmsError AmsBackendMultiAce::apply_user_edit(int slot_index, const SlotInfo& inf
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMultiAce::sync_external_identity(int slot_index, const SlotInfo& info) {
-    if (!multiace::bay_of(slot_index)) {
-        return AmsBackendSnapmaker::sync_external_identity(slot_index, info);
-    }
-    if (auto err = validate_slot_index(slot_index); err.result != AmsResult::SUCCESS) {
-        return err;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = system_info_.get_slot_global(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // overrides_ is left alone and nothing reaches the engine: the next
-        // frame restates its own table, which outranks a synced value.
-        slot->assign_filament_fields(info);
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendMultiAce::clear_slot_override(int slot_index) {
     if (!multiace::bay_of(slot_index)) {
         AmsBackendSnapmaker::clear_slot_override(slot_index);

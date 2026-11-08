@@ -115,8 +115,8 @@ TEMPLATE_TEST_CASE("Every subscription backend bounds slot indices through the b
     SECTION("an edit to an index outside the range is refused as a bad slot") {
         CHECK(test::apply_edit(backend, -2, SlotInfo{}).result == AmsResult::INVALID_SLOT);
         CHECK(test::apply_edit(backend, 3, SlotInfo{}).result == AmsResult::INVALID_SLOT);
-        CHECK(backend.sync_external_identity(-2, SlotInfo{}).result == AmsResult::INVALID_SLOT);
-        CHECK(backend.sync_external_identity(3, SlotInfo{}).result == AmsResult::INVALID_SLOT);
+        CHECK(helix::test::apply_edit(backend, -2, SlotInfo{}).result == AmsResult::INVALID_SLOT);
+        CHECK(helix::test::apply_edit(backend, 3, SlotInfo{}).result == AmsResult::INVALID_SLOT);
     }
 }
 

@@ -4,6 +4,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
@@ -174,7 +175,7 @@ struct CommitFixture : LVGLTestFixture {
 
         SlotInfo slot = backend->get_slot_info(0);
         slot.spoolman_id = spoolman_id;
-        backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*backend, 0, slot);
         return &api;
     }
 };
@@ -321,7 +322,7 @@ TEST_CASE("commit_slot_edit leaves the active spool alone when the unlinked lane
 
     SlotInfo original = f.backend->get_slot_info(1);
     original.spoolman_id = 147;
-    f.backend->sync_external_identity(1, original);
+    helix::test::apply_edit(*f.backend, 1, original);
     REQUIRE_FALSE(f.backend->slot_is_actively_loaded(1));
 
     SlotInfo cleared = original;
@@ -343,7 +344,7 @@ TEST_CASE("commit_slot_edit leaves the active spool alone when linking a lane th
 
     SlotInfo original = f.backend->get_slot_info(1);
     original.spoolman_id = 0;
-    f.backend->sync_external_identity(1, original);
+    helix::test::apply_edit(*f.backend, 1, original);
     REQUIRE_FALSE(f.backend->slot_is_actively_loaded(1));
 
     SlotInfo linked = original;
@@ -418,7 +419,7 @@ TEST_CASE("commit_slot_edit leaves server active spool alone on a no-link clear"
     SlotInfo seeded = f.backend->get_slot_info(1);
     seeded.material = "PLA";
     seeded.spoolman_id = 0;
-    f.backend->sync_external_identity(1, seeded);
+    helix::test::apply_edit(*f.backend, 1, seeded);
 
     SlotInfo original = f.backend->get_slot_info(1);
     REQUIRE(original.spoolman_id == 0);
@@ -473,7 +474,7 @@ TEST_CASE("commit_slot_edit propagates apply_user_edit failure", "[ams][commit]"
     // subject — that is exactly what must NOT happen.
     SlotInfo drifted = f.backend->get_slot_info(0);
     drifted.color_rgb = 0xCC2244;
-    f.backend->sync_external_identity(0, drifted);
+    helix::test::apply_edit(*f.backend, 0, drifted);
 
     SlotInfo original = f.backend->get_slot_info(0);
     SlotInfo edited = original;
@@ -500,7 +501,7 @@ TEST_CASE("context-menu clear wipes slot and clears server active spool",
     // unlink. The dispatch constructs its own cleared copy from get_slot_info.
     SlotInfo seeded = f.backend->get_slot_info(0);
     seeded.material = "PLA";
-    f.backend->sync_external_identity(0, seeded);
+    helix::test::apply_edit(*f.backend, 0, seeded);
 
     // Server thinks 169 is active — the state bundle F2LNLQCC left dangling
     // when the quick-clear only wiped the backend slot.
@@ -560,7 +561,7 @@ TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
 
     SlotInfo lane = f.backend->get_slot_info(0);
     lane.material = "PLA";
-    f.backend->sync_external_identity(0, lane);
+    helix::test::apply_edit(*f.backend, 0, lane);
     REQUIRE(f.backend->get_slot_info(0).material == "PLA");
 
     std::vector<std::string> notes;
@@ -858,7 +859,7 @@ TEST_CASE("a relink drops the previous spool's catalog pick and Spoolman details
     SlotInfo linked = f.backend->get_slot_info(0);
     linked.catalog_id = "sunlu-pla-plus-2-0";
     linked.product_name = "PLA+ 2.0";
-    f.backend->sync_external_identity(0, linked);
+    helix::test::apply_edit(*f.backend, 0, linked);
     helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
     spoolman.spoolman_id = 42;
     spoolman.brand = "Polymaker";

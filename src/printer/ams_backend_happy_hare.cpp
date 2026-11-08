@@ -2884,41 +2884,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotInfo& info) {
-    std::string link;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        // The gate map holds the link, so a link from elsewhere is written to
-        // it, except where Spoolman fills the gate map itself.
-        if (info.spoolman_id > 0 && info.spoolman_id != entry->info.spoolman_id &&
-            system_info_.spoolman_mode != SpoolmanMode::PULL) {
-            link = fmt::format("MMU_GATE_MAP GATE={} SPOOLID={} QUIET=1", slot_index,
-                               info.spoolman_id);
-        }
-        if (slots_.write_edit(slot_index, info)) {
-            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
-                         info.color_name);
-        }
-    }
-    if (!link.empty()) {
-        execute_gcode(link);
-    }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 uint64_t AmsBackendHappyHare::firmware_tool_mapping_generation() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return slots_.firmware_mapping_generation();

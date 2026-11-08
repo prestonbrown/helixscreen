@@ -97,7 +97,6 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker {
     /// whose own spool table never sees the edit (phase 4). A head keeps the
     /// base's path, which also writes the head's firmware record.
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     /// The store, lane and SlotInfo halves of the same clear; a bay has no
     /// head firmware record to drop and no tag product line to restate.
     void clear_slot_override(int slot_index) override;

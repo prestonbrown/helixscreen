@@ -933,36 +933,6 @@ TEST_CASE("AD5X IFS build_tool_map_value format", "[ams][ad5x_ifs]") {
 }
 
 // ==========================================================================
-// 13. sync_external_identity
-// ==========================================================================
-
-TEST_CASE("AD5X IFS sync_external_identity", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    // First parse standard state so slots exist
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
-
-    // Use a material in the firmware whitelist so normalize_material()
-    // doesn't coerce it. See get_supported_materials() for the accepted set.
-    SlotInfo new_info;
-    new_info.color_rgb = 0x123456;
-    new_info.material = "SILK";
-    new_info.spoolman_id = 42;
-    new_info.remaining_weight_g = 500;
-    new_info.total_weight_g = 1000;
-
-    auto err = backend.sync_external_identity(1, new_info);
-    REQUIRE(err.success());
-
-    auto info = backend.get_slot_info(1);
-    REQUIRE(info.color_rgb == 0x123456);
-    REQUIRE(info.material == "SILK");
-    REQUIRE(info.spoolman_id == 42);
-    REQUIRE(info.remaining_weight_g == 500);
-    REQUIRE(info.total_weight_g == 1000);
-}
-
-// ==========================================================================
 // 14. Slot status mapping
 // ==========================================================================
 
@@ -2116,21 +2086,6 @@ TEST_CASE("AD5X IFS has_ifs_vars reset when macro missing", "[ams][ad5x_ifs]") {
         Ad5xIfsTestAccess::handle_status(backend, make_save_variables(bambufy_vars));
         REQUIRE_FALSE(Ad5xIfsTestAccess::has_ifs_vars(backend));
     }
-
-    SECTION("sync_external_identity uses native ZMOD path when has_ifs_vars is false") {
-        // Clear latch to pre-populate slot data, then re-set to simulate macro missing
-        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
-        Ad5xIfsTestAccess::handle_status(backend, make_save_variables(standard_variables()));
-        Ad5xIfsTestAccess::set_has_ifs_vars(backend, false);
-        Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, true);
-
-        // sync_external_identity should succeed regardless
-        SlotInfo info;
-        info.color_rgb = 0x00FF00;
-        info.material = "PETG";
-        auto err = backend.sync_external_identity(0, info);
-        REQUIRE(err.success());
-    }
 }
 
 // Regression: lessWaste/bambufy save_variables rows persist in
@@ -2365,7 +2320,7 @@ TEST_CASE("AD5X IFS parse_adventurer_json overwrites a slot synced in memory", "
     SlotInfo edit;
     edit.color_rgb = 0x00FF00;
     edit.material = "PETG";
-    backend.sync_external_identity(0, edit);
+    helix::test::apply_edit(backend, 0, edit);
 
     // The file is the firmware's colour and type: a re-read wins
     std::string content = R"({
@@ -2435,7 +2390,7 @@ TEST_CASE("AD5X IFS a slot write does not own presence once IFS_STATUS Ports has
         slot.remaining_weight_g = 218.0f;
         slot.total_weight_g = 1000.0f;
 
-        backend.sync_external_identity(0, slot);
+        helix::test::apply_edit(backend, 0, slot);
 
         REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
         REQUIRE(backend.get_slot_info(0).status == SlotStatus::EMPTY);
@@ -2459,7 +2414,7 @@ TEST_CASE("AD5X IFS a slot write does not own presence once IFS_STATUS Ports has
             SlotInfo slot = backend.get_slot_info(i);
             slot.material = "PETG";
             slot.color_rgb = 0x010462;
-            backend.sync_external_identity(i, slot);
+            helix::test::apply_edit(backend, i, slot);
         }
         for (int i = 0; i < 4; ++i) {
             REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, i));
@@ -2885,77 +2840,7 @@ TEST_CASE("AD5X IFS: eject still baselines material to empty so insert re-detect
 // from color emptiness. Those code
 // paths were removed when CHANGE_ZCOLOR / GET_ZCOLOR became the sole
 // color/type source (lessWaste/bambufy save_variables don't reflect zmod's
-// authoritative state). The remaining sync_external_identity port_presence tests
-// below cover the local-edit branch that still drives presence inference.
-
-TEST_CASE("AD5X IFS sync_external_identity updates port_presence", "[ams][ad5x_ifs]") {
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-
-    // Start with empty save_variables so no color data
-    json vars = standard_variables();
-    vars["less_waste_colors"] = json::array({"", "", "", ""});
-    vars["less_waste_types"] = json::array({"", "", "", ""});
-    Ad5xIfsTestAccess::handle_status(backend, make_save_variables(vars));
-
-    REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
-
-    SECTION("setting color on empty slot latches port_presence") {
-        SlotInfo info;
-        info.color_rgb = 0xFF0000;
-        info.material = "PLA";
-        backend.sync_external_identity(0, info);
-
-        REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-        auto slot = backend.get_slot_info(0);
-        REQUIRE(slot.status == SlotStatus::AVAILABLE);
-    }
-
-    SECTION("clearing slot resets port_presence") {
-        // First assign filament
-        SlotInfo info;
-        info.color_rgb = 0xFF0000;
-        info.material = "PLA";
-        backend.sync_external_identity(0, info);
-        REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-
-        // Now clear it
-        SlotInfo cleared;
-        cleared.color_rgb = kAmsDefaultSlotColor;
-        cleared.material = "";
-        backend.sync_external_identity(0, cleared);
-
-        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
-        auto slot = backend.get_slot_info(0);
-        REQUIRE(slot.status == SlotStatus::EMPTY);
-    }
-
-    SECTION("setting only material (default color) latches port_presence") {
-        SlotInfo info;
-        info.color_rgb = kAmsDefaultSlotColor;
-        info.material = "PETG";
-        backend.sync_external_identity(0, info);
-
-        REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
-    }
-
-    SECTION("sync_external_identity skips presence for per-port sensor printers") {
-        // Enable per-port sensors
-        json notification;
-        notification["filament_switch_sensor _ifs_port_sensor_1"] =
-            json{{"filament_detected", false}};
-        Ad5xIfsTestAccess::handle_status(backend, notification);
-        REQUIRE(Ad5xIfsTestAccess::has_per_port_sensors(backend));
-
-        // sync_external_identity should not alter port_presence (sensors are authoritative)
-        SlotInfo info;
-        info.color_rgb = 0xFF0000;
-        info.material = "PLA";
-        backend.sync_external_identity(0, info);
-
-        REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
-    }
-}
+// authoritative state).
 
 // ==========================================================================
 // can_unload_from_toolhead — #995: active slot stays unloadable after runout
@@ -4758,7 +4643,7 @@ TEST_CASE("AD5X IFS apply_user_edit takes effect when no override present",
     edit.brand = "UserBrand";
     edit.spool_name = "UserSpool";
     edit.spoolman_id = 99;
-    backend.sync_external_identity(0, edit);
+    helix::test::apply_edit(backend, 0, edit);
 
     auto info = backend.get_slot_info(0);
     REQUIRE(info.color_rgb == 0xAABBCCu);
@@ -4830,41 +4715,6 @@ TEST_CASE("AD5X IFS apply_user_edit stores override in memory and store",
     CHECK(stored["spool_id"] == 42);
     CHECK(stored["material"].is_null());
     CHECK(stored["color"].is_null());
-}
-
-TEST_CASE("AD5X IFS sync_external_identity does NOT write to store",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    // Same fixture as above, but through a sync the override store
-    // must stay untouched: sync_external_identity writes memory only.
-    Ad5xIfsTmpCacheDir tmp("task10_no_persist");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    SlotInfo edit;
-    edit.brand = "Draft";
-    edit.material = "PLA";
-    edit.color_rgb = 0x123456;
-
-    auto err = backend.sync_external_identity(0, edit);
-    REQUIRE(err.success());
-
-    // No override staged — the in-memory entry carries the edit directly
-    // (since no prior override clobbers it via apply_overrides).
-    CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-    // Moonraker DB not touched.
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-
-    // The edit is still visible via get_slot_info — this is the preview path.
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Draft");
-    CHECK(info.material == "PLA");
-    CHECK(info.color_rgb == 0x123456u);
 }
 
 // ==========================================================================
@@ -5729,59 +5579,6 @@ TEST_CASE("AD5X IFS apply_user_edit does not wipe override on color edit",
     CHECK(staged2->brand == "Polymaker");
 }
 
-TEST_CASE("AD5X IFS sync_external_identity does not wipe existing override",
-          "[ams][ad5x_ifs][filament_slot_override]") {
-    // Seed a pre-existing override, establish baseline via firmware parse,
-    // then preview a DIFFERENT color with persist=false. The preview must
-    // not be misread as a physical swap — the saved override must remain
-    // in overrides_.
-    Ad5xIfsTmpCacheDir tmp("task11_sync_external_identity_no_wipe");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
-    AmsBackendAd5xIfs& backend = *backend_reg;
-    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
-    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
-
-    // Seed a pre-existing override that matches the upcoming firmware parse.
-    helix::ams::FilamentSlotOverride saved;
-    saved.brand = "Polymaker";
-    saved.spool_name = "PolyLite Orange";
-    saved.spoolman_id = 42;
-    saved.material = "PLA";
-    saved.color_rgb = 0xFF5500;
-    Ad5xIfsTestAccess::seed_override(backend, 0, saved);
-
-    // Firmware parse establishes baseline at the override's color.
-    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
-        "FFMInfo": {"ffmColor1": "#FF5500", "ffmType1": "PLA"}
-    })");
-    REQUIRE(Ad5xIfsTestAccess::last_firmware_color(backend, 0) == 0xFF5500u);
-    REQUIRE(Ad5xIfsTestAccess::get_override(backend, 0).has_value());
-
-    // Preview: persist=false with a DIFFERENT color. Before the fix, the
-    // upcoming update_slot_from_state call flagged this as a physical swap
-    // and wiped the pre-existing override.
-    SlotInfo preview;
-    preview.color_rgb = 0x00FF00;
-    preview.material = "PLA";
-    backend.sync_external_identity(0, preview);
-
-    // The previously saved override must still exist in overrides_.
-    auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->brand == "Polymaker");
-    CHECK(staged->spoolman_id == 42);
-    CHECK(staged->color_rgb == 0xFF5500u);
-
-    // The baseline holds the printer's last reading: a preview is not a
-    // firmware observation, so the baseline stays where the parse left it.
-    // (Saved override still wins until persist=true is called.)
-    CHECK(Ad5xIfsTestAccess::last_firmware_color(backend, 0) == 0xFF5500u);
-}
-
 TEST_CASE("AD5X IFS firmware color unchanged across parses does NOT clear",
           "[ams][ad5x_ifs][filament_slot_override]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
@@ -6640,8 +6437,11 @@ TEST_CASE("AD5X IFS #904 user.cfg [zmod_ifs] filament_* parser", "[ams][ad5x_ifs
 // chosen type.
 TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_types load",
           "[ams][ad5x_ifs][issue_904]") {
+    Ad5xIfsTmpCacheDir tmp("issue_904_pla_plus");
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_local_adventurer_json_path(backend,
+                                                      (tmp.path / "Adventurer5M.json").string());
 
     // Step 1: ingest TMTYD's bambufy_custom_types from save_variables.
     json vars = json{
@@ -6656,7 +6456,7 @@ TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_t
     SlotInfo edit;
     edit.color_rgb = 0x000DFF;
     edit.material = "PLA+";
-    auto err = backend.sync_external_identity(0, edit);
+    auto err = helix::test::apply_edit(backend, 0, edit);
     REQUIRE(err.success());
 
     // Step 3: read it back and confirm PLA+ survived.
@@ -6670,7 +6470,7 @@ TEST_CASE("AD5X IFS #904 PLA+ round-trips through apply_user_edit after custom_t
     SlotInfo edit_lc;
     edit_lc.color_rgb = 0xABCDEF;
     edit_lc.material = "rpla";
-    err = backend.sync_external_identity(1, edit_lc);
+    err = helix::test::apply_edit(backend, 1, edit_lc);
     REQUIRE(err.success());
     auto info1 = backend.get_slot_info(1);
     CHECK(info1.material == "rPLA");

@@ -15,6 +15,7 @@
 
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/seeded_override.h"
@@ -572,7 +573,7 @@ struct SpoolmanLaneFixture : SpoolmanFixture {
     static void link(AmsBackend& backend, int slot, int spool_id) {
         SlotInfo info = backend.get_slot_info(slot);
         info.spoolman_id = spool_id;
-        REQUIRE(backend.sync_external_identity(slot, info).success());
+        REQUIRE(helix::test::apply_edit(backend, slot, info).success());
         // The link a lane resolves comes from what Moonraker holds: file it
         // as the lane's record, the way a stored link reads back.
         helix::ams::Observation record(helix::ams::ObservationSource::Record);
@@ -1089,7 +1090,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     // subjects show it.
     SlotInfo moved = backend->get_slot_info(0);
     moved.remaining_weight_g = 1000.0F;
-    REQUIRE(backend->sync_external_identity(0, moved).success());
+    REQUIRE(helix::test::apply_edit(*backend, 0, moved).success());
     ams.sync_from_backend();
     drain();
     REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 100);

@@ -2990,28 +2990,6 @@ void AmsBackendToolChanger::clear_override_fields(SlotInfo& slot) const {
     slot.multi_color_hexes.clear();
 }
 
-AmsError AmsBackendToolChanger::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        AmsError slot_valid = validate_slot_index_locked(slot_index);
-        if (!slot_valid) {
-            return slot_valid;
-        }
-
-        // The slot keeps the tool number it answers to: only a person's edit moves
-        // the tool map, and moving it sends ASSIGN_TOOL.
-        if (!system_info_.units.empty() &&
-            slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
-            system_info_.units[0].slots[slot_index].assign_filament_fields(info);
-        }
-    }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_name,
                                             int tool_number) {
     // ASSIGN_TOOL is klipper-toolchanger's. tool_commands_.present means this

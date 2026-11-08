@@ -1038,12 +1038,6 @@ TEST_CASE("AFC persistence: persist=false is the only thing that skips G-code",
     info.remaining_weight_g = 850;
     info.spoolman_id = 42;
 
-    // A sync writes only the link AFC holds.
-    helper.sync_external_identity(0, info);
-    REQUIRE(helper.captured_gcodes.size() == 1);
-    REQUIRE(helper.captured_gcodes[0].rfind("SET_SPOOL_ID", 0) == 0);
-    helper.captured_gcodes.clear();
-
     helix::test::apply_edit(helper, 0, info);
     REQUIRE_FALSE(helper.captured_gcodes.empty());
     REQUIRE(helper.has_gcode("SET_COLOR LANE=lane1 COLOR=FF0000"));
@@ -1622,65 +1616,6 @@ TEST_CASE("AFC persistence: sends multiple commands for full slot info",
     REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=99"));
 }
 
-// ============================================================================
-// sync_external_identity() Tests
-// ============================================================================
-//
-// sync_external_identity() should update in-memory slot state but
-// NOT send any G-code commands to firmware. This is critical for preventing an
-// infinite feedback loop when Spoolman weight polling updates slot data:
-//
-//   apply_user_edit() → G-code to firmware → firmware status_update
-//   via WebSocket → sync_from_backend → refresh_spoolman_weights →
-//   apply_user_edit again → ∞
-//
-// Through sync_external_identity() the cycle breaks because no G-code is sent, so firmware
-// doesn't emit a status_update, and the loop terminates.
-// ============================================================================
-
-TEST_CASE("AFC persist=false: updates local state without G-code",
-          "[ams][afc][persistence][persist_flag]") {
-    AmsBackendAfcTestHelper helper;
-
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
-    info.remaining_weight_g = 850;
-    info.spoolman_id = 42;
-
-    // A sync writes only the link AFC holds: no colour, material or weight.
-    helper.sync_external_identity(0, info);
-
-    REQUIRE(helper.captured_gcodes.size() == 1);
-    CHECK(helper.captured_gcodes[0].rfind("SET_SPOOL_ID", 0) == 0);
-
-    // But local state SHOULD be updated
-    SlotInfo stored = helper.get_slot_info(0);
-    REQUIRE(stored.color_rgb == 0xFF0000);
-    REQUIRE(stored.material == "PLA");
-    REQUIRE(stored.remaining_weight_g == Catch::Approx(850.0f));
-    REQUIRE(stored.spoolman_id == 42);
-}
-
-TEST_CASE("AFC sync_external_identity carries the whole Spoolman link", "[ams][afc][persistence]") {
-    AmsBackendAfcTestHelper helper;
-    helper.set_afc_version("1.0.20");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.spoolman_id = 42;
-    info.spoolman_filament_id = 77;
-    info.spoolman_vendor_id = 3;
-    helper.sync_external_identity(0, info);
-
-    const SlotInfo stored = helper.get_slot_info(0);
-    CHECK(stored.spoolman_filament_id == 77);
-    CHECK(stored.spoolman_vendor_id == 3);
-}
-
 TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
           "[ams][afc][persistence][persist_flag]") {
     AmsBackendAfcTestHelper helper;
@@ -1701,24 +1636,6 @@ TEST_CASE("AFC persist=true: sends G-code (default behavior unchanged)",
     REQUIRE(helper.has_gcode("SET_MATERIAL LANE=lane1 MATERIAL=ABS"));
     REQUIRE(helper.has_gcode("SET_WEIGHT LANE=lane1 WEIGHT=500"));
     REQUIRE(helper.has_gcode("SET_SPOOL_ID LANE=lane1 SPOOL_ID=7"));
-}
-
-TEST_CASE("AFC persist=false: version warning not emitted",
-          "[ams][afc][persistence][persist_flag]") {
-    AmsBackendAfcTestHelper helper;
-
-    // Old version + persist=false should NOT log the upgrade warning
-    helper.set_afc_version("1.0.19");
-    helper.initialize_test_lanes_with_slots(4);
-
-    SlotInfo info;
-    info.color_rgb = 0xFF0000;
-    info.material = "PLA";
-
-    // Should succeed without errors and without persistence
-    auto result = helper.sync_external_identity(0, info);
-    REQUIRE(result.success());
-    REQUIRE(helper.captured_gcodes.empty());
 }
 
 // ============================================================================

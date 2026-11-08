@@ -148,7 +148,6 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // ========================================================================
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// Without the ACEPRO driver no edit reaches the hub, so the lane record
     /// is a lane's only identity.

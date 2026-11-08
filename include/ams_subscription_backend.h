@@ -553,6 +553,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// and withdraws the lane's pending edit. Takes mutex_; call without it.
     void persist_override(int slot_index, const char* noun = "Override");
 
+    /// The meter's reading on the live slot (the lane already holds it as
+    /// Metered), then persist_slot_weight() when @p persist. Takes mutex_.
+    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
+                                 bool persist) override;
+
     /// The store half of persist_slot_weight() and persist_external_identity():
     /// the slot's record takes the weight or the linked spool's details, and is
     /// saved. A backend that also writes a weight to firmware overrides them.

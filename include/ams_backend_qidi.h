@@ -197,7 +197,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] std::string eject_unavailable_reason(int slot_index) const override;
 
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The Box's saved RFID ids, resolved, kept while our own write-back holds
     /// the saved ids (helix::ams::fold_tag_frame).

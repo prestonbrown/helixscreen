@@ -1478,27 +1478,6 @@ void AmsBackendOpenAms::persist_external_identity_impl(int slot_index,
     }
 }
 
-AmsError AmsBackendOpenAms::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        SlotInfo* slot = system_info_.get_slot_global(slot_index);
-        if (!slot) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                                system_info_.total_slots - 1);
-        }
-        // The record holds the link, so a link from elsewhere is written to it.
-        // With [openams_spoolman] the record is its own, so only the slot moves.
-        const bool relinked =
-            info.spoolman_id > 0 && info.spoolman_id != slot->spoolman_id && !spoolman_component_;
-        slot->assign_filament_fields(info);
-        if (relinked) {
-            persist_user_record_locked(slot_index, info);
-        }
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
 void AmsBackendOpenAms::clear_slot_override(int slot_index) {
     if (spoolman_component_) {
         // Its lane_data is protected and the link is its own (the menu greys

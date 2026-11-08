@@ -647,7 +647,7 @@ TEST_CASE("ACE reads a slot where it writes it when slot_count is stale", "[ams]
 
     SlotInfo info = helper.get_slot_info(3);
     info.material = "ASA";
-    REQUIRE(helper.sync_external_identity(3, info).success());
+    REQUIRE(helix::test::apply_edit(helper, 3, info).success());
 
     CHECK(helper.get_slot_info(3).material == "ASA");
 }
@@ -1373,44 +1373,6 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
 
     // Legacy namespace NOT touched — ACE no longer writes there.
     CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
-}
-
-TEST_CASE("ACE sync_external_identity does NOT write to store",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task13_persist_false");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},
-                                           {"slots", json::array({
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                     })}});
-
-    SlotInfo edit;
-    edit.brand = "Draft";
-    edit.material = "PLA";
-    edit.color_rgb = 0x123456;
-
-    auto err = backend.sync_external_identity(0, edit);
-    REQUIRE(err.success());
-
-    // No override staged, no DB write.
-    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-
-    // Preview edit still visible via get_slot_info (in-memory only).
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Draft");
-    CHECK(info.material == "PLA");
-    CHECK(info.color_rgb == 0x123456u);
 }
 
 TEST_CASE("ACE inserting a different tagged spool clears the override",

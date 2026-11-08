@@ -600,13 +600,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// goes in the lane_data record, which takes colour and type only from the
     /// firmware's echo.
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    // Weight-only persist: updates remaining/total weight in the lane_data record
-    // and NEVER rewrites Adventurer5M.json / _IFS_VARS —
-    // the firmware-facing writers in apply_user_edit() are what reverted the
-    // user's material on every 60 s consumption persist (#981).
-    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
-                                 bool persist) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 

@@ -1691,24 +1691,6 @@ TEST_CASE("QIDI Box weight update writes none of the box's identity variables",
     CHECK(backend.sent.empty());
 }
 
-TEST_CASE("QIDI Box identity sync writes none of the box's identity variables",
-          "[ams][qidi_box][write_path][1652]") {
-    RecordingQidiBackend backend;
-    QidiBoxTestAccess::apply_filas_list(backend, kStockFilasExcerpt);
-    // Values that resolve to all three ids, so a sync that reached the write
-    // path would show up in what was sent.
-    REQUIRE(QidiBoxTestAccess::vendor_count(backend) > 0);
-
-    SlotInfo info;
-    info.material = "ABS";
-    info.brand = "eSUN";
-    info.color_rgb = 0xFF362D;
-
-    REQUIRE(backend.sync_external_identity(0, info).success());
-
-    CHECK(backend.sent.empty());
-}
-
 TEST_CASE("QIDI Box refuses a material with no filament list row and writes nothing",
           "[ams][qidi_box][write_path]") {
     helix::test::RegisteredBackend<RecordingQidiBackend> harness;

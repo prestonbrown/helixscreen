@@ -2424,37 +2424,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(info.color_rgb == 0xFF5500u);              // override color wins
 }
 
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker sync_external_identity does NOT write store",
-                 "[ams][snapmaker][filament_slot_override]") {
-    SnapmakerTmpCacheDir tmp("task12_no_persist");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(&api, nullptr);
-    AmsBackendSnapmaker& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
-
-    SlotInfo edit;
-    edit.brand = "Draft";
-    edit.material = "PLA";
-    edit.color_rgb = 0x123456;
-
-    auto err = backend.sync_external_identity(0, edit);
-    REQUIRE(err.success());
-
-    // No override staged, no DB write.
-    CHECK_FALSE(SnapmakerTestAccess::get_override(backend, 0).has_value());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "T0").is_null());
-
-    // Preview edit is still visible via get_slot_info (in-memory only).
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Draft");
-    CHECK(info.material == "PLA");
-    CHECK(info.color_rgb == 0x123456u);
-}
-
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker RFID UID change clears override (hardware swap detected)",
                  "[ams][snapmaker][filament_slot_override]") {
@@ -5938,21 +5907,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     h.frame(make_written_entry(2, "ABS"));
     CHECK_FALSE(helix::ams::lane_sources(h.backend.lane_id(2)).firmware.has_value());
     CHECK(h.backend.get_slot_info(2).material != "ABS");
-}
-
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker sync_external_identity writes nothing to firmware",
-                 "[ams][snapmaker][filament_record]") {
-    // A preview edit is in-memory only.
-    lv_init_safe();
-    FilamentRecordHarness h("record_sync_external");
-    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
-    h.printer.client.clear_gcode_script_history();
-
-    REQUIRE(h.backend.sync_external_identity(0, inland_pla()).success());
-    FilamentRecordHarness::drain();
-
-    CHECK(h.config_writes().empty());
-    CHECK(h.printer.api.rest_mock().mock_get_post_history().empty());
 }
 
 // ============================================================================

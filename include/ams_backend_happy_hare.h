@@ -219,7 +219,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;

@@ -152,8 +152,6 @@ lane shows the gate map, filed as the lane's `Firmware` source.
 - **Fields the gate map cannot hold** (brand before v4, total weight, colour name, catalog
   pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the same
   10 s poll as every lane record.
-- **A link from outside the editor** (`sync_external_identity`) is
-  `MMU_GATE_MAP GATE={n} SPOOLID={id} QUIET=1`.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
   vendor and spool id, and only logs the refusal. An edit that moves any of those is refused

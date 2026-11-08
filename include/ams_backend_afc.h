@@ -443,7 +443,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
 
     /// The lane's inline colour scan (a TD-1), which SlotInfo keeps apart from
     /// color_rgb: the scanner's colour is the reading.
