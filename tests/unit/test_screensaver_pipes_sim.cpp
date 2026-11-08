@@ -387,6 +387,28 @@ TEST_CASE("a grid that runs out of nodes ends the screen", "[screensaver][pipes_
     }
 }
 
+TEST_CASE("a screen that fills the grid never grows a teapot", "[screensaver][pipes_sim]") {
+    PipesScreen screen;
+    std::vector<PipePiece> out;
+    size_t pieces = 0;
+    for (uint32_t seed = 1; seed <= 2000; seed++) {
+        std::minstd_rand rng(seed);
+        out.clear();
+        screen.begin({3, 3, 3}, rng, out);
+        screen.fill_grid();
+        while (screen.step(rng, out)) {
+        }
+        pieces += out.size();
+        for (const PipePiece& p : out) {
+            REQUIRE(p.kind != PipePieceKind::TEAPOT);
+        }
+    }
+    CHECK(pieces > 20000);
+    REQUIRE(screen.fills_grid());
+    screen.release();
+    CHECK_FALSE(screen.fills_grid());
+}
+
 TEST_CASE("over many turns a third of the joints are balls", "[screensaver][pipes_sim]") {
     std::minstd_rand rng(99);
     PipesScreen screen;
@@ -1502,6 +1524,13 @@ TEST_CASE("a finished print sets a teapot on the full screen", "[screensaver][pi
         CHECK(run.sim.print_end() == PipesEnd::DONE);
         CHECK(run.sim.nodes_taken() == run.sim.node_count());
         CHECK(run.sim.screens_started() == 1);
+
+        run.sim.clear();
+        PipeNode unused;
+        CHECK_FALSE(run.sim.teapot_node(unused));
+        CHECK_FALSE(run.sim.end_drawn());
+        CHECK_FALSE(run.sim.print_screen());
+        CHECK(run.sim.print_end() == PipesEnd::NONE);
     }
     SECTION("the print finishing fills the rest, then sets the teapot") {
         run.init(0, print_at(ClockMode::PROGRESS, 97));
