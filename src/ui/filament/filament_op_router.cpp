@@ -3,6 +3,8 @@
 
 #include "filament_op_router.h"
 
+#include "ams_backend.h"
+#include "ams_print_routing.h"
 #include "filament_op_slot_resolver.h"
 #include "macro_executor.h"
 #include "macro_param_defaults.h"
@@ -139,9 +141,16 @@ std::string filament_unload_fallback_gcode() {
                        kTipPullSpeed, kUnloadMm, kUnloadSpeed);
 }
 
-std::string filament_purge_fallback_gcode() {
+std::string filament_purge_fallback_gcode(const AmsBackend* backend) {
     constexpr int kPurgeFallbackMm = 50;
     constexpr int kPurgeFallbackSpeedMmMin = 10 * 60; // 10 mm/s → 600 mm/min
+    if (const IPrintRouting* routing = backend ? backend->as<IPrintRouting>() : nullptr) {
+        std::string wrapped =
+            routing->manual_purge_gcode(kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
+        if (!wrapped.empty()) {
+            return wrapped;
+        }
+    }
     return extrude_gcode(kPurgeFallbackMm, kPurgeFallbackSpeedMmMin);
 }
 

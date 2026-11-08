@@ -1788,7 +1788,7 @@ void FilamentPanel::execute_purge() {
                 return;
             }
             begin_operation_guard();
-            api_->execute_gcode(filament_purge_fallback_gcode(),
+            api_->execute_gcode(filament_purge_fallback_gcode(AmsState::instance().get_backend()),
                                 object_lifetime_.bg_cb("FilamentPanel::purge_ok",
                                                        [this]() {
                                                            operation_guard_.end();

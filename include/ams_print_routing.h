@@ -159,6 +159,25 @@ class IPrintRouting {
         return {};
     }
 
+    /**
+     * @brief The built-in purge, wrapped in this system's own purge-position
+     *        envelope, or "" when it has none to offer right now.
+     *
+     * The raw purge fallback extrudes wherever the nozzle stands. A filament
+     * system whose firmware can park the toolhead over a waste chute answers a
+     * complete script here (go to the chute, extrude @p length_mm at
+     * @p feedrate_mm_min, park, restore) and the caller sends it instead of the
+     * raw extrude. It replaces only that fallback: a configured purge macro is
+     * the printer's own answer and still wins. Unlike purge_preamble_gcode(),
+     * which can only lead, this owns the tail too, so the toolhead leaves the
+     * chute and the caller's gcode state is restored.
+     */
+    [[nodiscard]] virtual std::string manual_purge_gcode(int length_mm, int feedrate_mm_min) const {
+        (void)length_mm;
+        (void)feedrate_mm_min;
+        return {};
+    }
+
   protected:
     ~IPrintRouting() = default;
 };
