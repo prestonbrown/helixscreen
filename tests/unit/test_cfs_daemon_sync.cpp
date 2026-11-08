@@ -8,6 +8,7 @@
 #include "test_helpers/backend_harness.h"
 
 #include <chrono>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -128,6 +129,61 @@ TEST_CASE("CFS daemon send delivers one masked text frame after the upgrade",
     CHECK(helix::cfs::send_daemon_frame(loopback(server.port()), payload) ==
           DaemonSendResult::Delivered);
     CHECK(server.wait_for_text_frame(std::chrono::seconds(2)) == payload);
+}
+
+namespace {
+
+/// Holds every queued notice job until the test runs it, and records what
+/// reaches the transport.
+struct HeldDaemonJobs {
+    std::vector<std::function<void()>> jobs;
+    std::vector<std::string> sent;
+
+    void post(const helix::cfs::DaemonAddress& bay, const std::string& payload) {
+        helix::cfs::post_daemon_frame(
+            DaemonEndpoint{}, bay, payload,
+            [this](std::function<void()> job) { jobs.push_back(std::move(job)); },
+            [this](const DaemonEndpoint&, const std::string& frame) {
+                sent.push_back(frame);
+                return DaemonSendResult::Delivered;
+            });
+    }
+};
+
+} // namespace
+
+TEST_CASE("CFS daemon notices for one bay end on the newest edit", "[cfs][daemon_sync]") {
+    HeldDaemonJobs held;
+    held.post({2, 1}, "older");
+    held.post({2, 1}, "newer");
+    REQUIRE(held.jobs.size() == 2);
+
+    SECTION("the newer job runs first: the held older one drops itself") {
+        held.jobs[1]();
+        held.jobs[0]();
+        REQUIRE(held.sent.size() == 1);
+        CHECK(held.sent[0] == "newer");
+    }
+
+    SECTION("in order: the older job, already overtaken when it runs, sends nothing") {
+        held.jobs[0]();
+        held.jobs[1]();
+        REQUIRE(held.sent.size() == 1);
+        CHECK(held.sent[0] == "newer");
+    }
+}
+
+TEST_CASE("CFS daemon notices for different bays never supersede each other",
+          "[cfs][daemon_sync]") {
+    HeldDaemonJobs held;
+    held.post({2, 1}, "T2B");
+    held.post({2, 2}, "T2C");
+    held.post({0, 0}, "external");
+    REQUIRE(held.jobs.size() == 3);
+    for (auto it = held.jobs.rbegin(); it != held.jobs.rend(); ++it) {
+        (*it)();
+    }
+    CHECK(held.sent == std::vector<std::string>{"external", "T2C", "T2B"});
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -105,6 +106,25 @@ enum class DaemonSendResult {
 
 /// Queue send_daemon_frame on HttpExecutor::fast() and log its result at
 /// debug. Returns immediately; a pool that is not running drops the notice.
-void post_daemon_frame(const DaemonEndpoint& endpoint, std::string payload);
+///
+/// Notices for one bay reach the daemon in the order they were posted, and a
+/// notice that a newer one for the same @p bay has overtaken before it starts
+/// sending drops itself: the daemon keeps the last frame it reads, so the
+/// newest edit must be the last one sent. An address outside boxId 0..4 / id
+/// 0..3 is sent unordered.
+void post_daemon_frame(const DaemonEndpoint& endpoint, const DaemonAddress& bay,
+                       std::string payload);
+
+/// Hands one work item to a worker thread.
+using DaemonJobSubmitter = std::function<void(std::function<void()>)>;
+/// Delivers one frame; send_daemon_frame in production.
+using DaemonFrameSender =
+    std::function<DaemonSendResult(const DaemonEndpoint&, const std::string&)>;
+
+/// post_daemon_frame with the worker pool and the transport supplied, so a
+/// test can hold and reorder the queued jobs.
+void post_daemon_frame(const DaemonEndpoint& endpoint, const DaemonAddress& bay,
+                       std::string payload, const DaemonJobSubmitter& submit,
+                       DaemonFrameSender send);
 
 } // namespace helix::cfs

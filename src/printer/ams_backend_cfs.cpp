@@ -2509,7 +2509,8 @@ void AmsBackendCfs::persist_slot_weight(int slot_index, float remaining_weight_g
 }
 
 void AmsBackendCfs::notify_slot_daemon(const helix::cfs::DaemonMaterial& material) {
-    helix::cfs::post_daemon_frame(daemon_endpoint_, helix::cfs::encode_modify_material(material));
+    helix::cfs::post_daemon_frame(daemon_endpoint_, {material.box_id, material.slot_id},
+                                  helix::cfs::encode_modify_material(material));
 }
 
 void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::string& material,

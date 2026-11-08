@@ -10,8 +10,11 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <mutex>
 #include <utility>
 
 #include "hv/json.hpp"
@@ -282,18 +285,79 @@ DaemonSendResult send_daemon_frame(const DaemonEndpoint& endpoint, const std::st
 
 #endif // HELIX_PLATFORM_ESP32
 
-void post_daemon_frame(const DaemonEndpoint& endpoint, std::string payload) {
+namespace {
+
+constexpr int kDaemonBoxCount = kUnitCount + 1; // the external holder is box 0
+constexpr int kOrderedBays = kDaemonBoxCount * kBaysPerUnit;
+
+/// Slot in the per-bay ordering tables, or -1 for an address outside them.
+int bay_index(const DaemonAddress& bay) {
+    if (bay.box_id < 0 || bay.box_id >= kDaemonBoxCount || bay.slot_id < 0 ||
+        bay.slot_id >= kBaysPerUnit) {
+        return -1;
+    }
+    return bay.box_id * kBaysPerUnit + bay.slot_id;
+}
+
+/// The sequence number of the newest notice posted for each bay.
+std::atomic<std::uint64_t>& bay_latest(int index) {
+    static std::array<std::atomic<std::uint64_t>, kOrderedBays> latest{};
+    return latest[static_cast<size_t>(index)];
+}
+
+/// Held across a bay's check-and-send, so an older notice that passed its
+/// check finishes sending before a newer one for the same bay starts.
+std::mutex& bay_send_mutex(int index) {
+    static std::array<std::mutex, kOrderedBays> mutexes;
+    return mutexes[static_cast<size_t>(index)];
+}
+
+void send_and_log(const DaemonEndpoint& endpoint, const std::string& payload,
+                  const DaemonFrameSender& send) {
+    const auto started = std::chrono::steady_clock::now();
+    const auto result = send(endpoint, payload);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - started)
+                        .count();
+    spdlog::debug("[AMS CFS] daemon slot notice to {}:{}: {} ({} ms)", endpoint.host, endpoint.port,
+                  to_string(result), ms);
+}
+
+} // namespace
+
+void post_daemon_frame(const DaemonEndpoint& endpoint, const DaemonAddress& bay,
+                       std::string payload, const DaemonJobSubmitter& submit,
+                       DaemonFrameSender send) {
+    const int index = bay_index(bay);
+    const std::uint64_t sequence =
+        index < 0 ? 0 : bay_latest(index).fetch_add(1, std::memory_order_acq_rel) + 1;
     // The work item owns copies of everything it reads, so it outlives any
     // backend that queued it.
-    (void)helix::http::HttpExecutor::fast().submit([endpoint, payload = std::move(payload)]() {
-        const auto started = std::chrono::steady_clock::now();
-        const auto result = send_daemon_frame(endpoint, payload);
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::steady_clock::now() - started)
-                            .count();
-        spdlog::debug("[AMS CFS] daemon slot notice to {}:{}: {} ({} ms)", endpoint.host,
-                      endpoint.port, to_string(result), ms);
-    });
+    submit(
+        [endpoint, bay, index, sequence, payload = std::move(payload), send = std::move(send)]() {
+            if (index < 0) {
+                send_and_log(endpoint, payload, send);
+                return;
+            }
+            std::lock_guard<std::mutex> lock(bay_send_mutex(index));
+            if (bay_latest(index).load(std::memory_order_acquire) != sequence) {
+                spdlog::debug("[AMS CFS] daemon slot notice for box {} id {} superseded by a newer "
+                              "edit, dropped",
+                              bay.box_id, bay.slot_id);
+                return;
+            }
+            send_and_log(endpoint, payload, send);
+        });
+}
+
+void post_daemon_frame(const DaemonEndpoint& endpoint, const DaemonAddress& bay,
+                       std::string payload) {
+    post_daemon_frame(
+        endpoint, bay, std::move(payload),
+        [](std::function<void()> job) {
+            (void)helix::http::HttpExecutor::fast().submit(std::move(job));
+        },
+        send_daemon_frame);
 }
 
 } // namespace helix::cfs
