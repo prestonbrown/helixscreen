@@ -1862,6 +1862,20 @@ bool preset_in_family(const std::string& candidate, const std::string& family) {
     return candidate.size() > family.size() && candidate.compare(0, family.size(), family) == 0 &&
            candidate[family.size()] == '_';
 }
+
+/// The preset a saved type's boot migration reads. A firmware variant names
+/// different hardware from its base (Z-Mod's `fan_generic fanM106` for stock's
+/// `fan`), so the installed preset wins when it is @p base_preset or one of its
+/// variants and still ships; anything else migrates from the base
+/// (prestonbrown/helixscreen#2064).
+std::string boot_migration_preset(const std::string& base_preset,
+                                  const std::string& installed_preset) {
+    if (preset_in_family(installed_preset, base_preset) &&
+        Config::preset_file_exists(installed_preset)) {
+        return installed_preset;
+    }
+    return base_preset;
+}
 } // namespace
 
 bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discovery,
@@ -1884,7 +1898,8 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         // older preset didn't seed the block (Snapmaker U1 shipped pre-2026-05
         // with role=none on e1/e2/e3; tonight's preset fix only helped fresh
         // installs without this hook).
-        std::string saved_preset = get_preset_for_name(saved_type);
+        std::string saved_preset =
+            boot_migration_preset(get_preset_for_name(saved_type), config->get_preset());
         if (!saved_preset.empty()) {
             if (config->apply_preset_file(saved_preset)) {
                 helix::reload_settings_after_preset();

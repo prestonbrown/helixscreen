@@ -4105,6 +4105,78 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
     TearDown();
 }
 
+// A Z-Mod AD5M Pro is typed as the stock 5M Pro, but was set up from
+// ad5m_pro_zmod. The boot migration has to read the preset that was installed,
+// or it unions the stock machine's fans and runout switch into the expected
+// hardware of a printer that has none of them (prestonbrown/helixscreen#2064).
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save migrates a saved type from its installed variant preset",
+                 "[printer_detector][preset]") {
+    SetUp();
+    namespace fs = std::filesystem;
+    for (const char* name : {"ad5m_pro", "ad5m_pro_zmod"}) {
+        fs::copy_file(fs::current_path() / "assets/config/presets" / (std::string(name) + ".json"),
+                      temp_dir + "/assets/config/presets/" + name + ".json");
+    }
+
+    const std::string df = config.df();
+    config.set<std::string>(df + helix::wizard::PRINTER_TYPE, "FlashForge Adventurer 5M Pro");
+    config.set<bool>(df + "wizard_completed", true);
+    config.set<nlohmann::json>(
+        df + "hardware/expected",
+        nlohmann::json::array({"heater_bed", "extruder", "fan_generic fanM106"}));
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"extruder", "heater_bed", "fan_generic fanM106"});
+
+    const std::vector<std::string> stock_only = {
+        "fan", "heater_fan hotend_fan", "fan_generic internal_fan", "fan_generic external_fan",
+        "filament_switch_sensor runout_sensor"};
+    auto expected_has = [&](const std::string& name) {
+        const auto expected = config.get<nlohmann::json>(df + "hardware/expected");
+        return std::find(expected.begin(), expected.end(), name) != expected.end();
+    };
+
+    SECTION("The installed Z-Mod preset is the one migrated") {
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK_FALSE(expected_has(name));
+        }
+        CHECK(expected_has("filament_switch_sensor e0_sensor"));
+        CHECK_FALSE(config.exists(df + "fans/exhaust"));
+    }
+
+    SECTION("With no recorded preset the base preset is migrated") {
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK(expected_has(name));
+        }
+    }
+
+    SECTION("An installed preset from another family falls back to the base") {
+        config.set_preset("ad5x");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
+
+    SECTION("An installed variant whose file is gone falls back to the base") {
+        fs::remove(temp_dir + "/assets/config/presets/ad5m_pro_zmod.json");
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
 // ============================================================================
 // Preset installs: nobody is asked, so detection has to decide
 // ============================================================================
