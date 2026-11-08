@@ -154,6 +154,10 @@ class CfsTestAccess {
     static void set_macro_variant_fork(helix::printer::AmsBackendCfs& b) {
         b.macro_variant_ = helix::printer::CfsMacroVariant::Fork;
     }
+    static void set_chute_extrude_pos(helix::printer::AmsBackendCfs& b, bool configured) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.has_chute_extrude_pos_ = configured;
+    }
     // Seed the flat-schema state a real payload would have latched: schema,
     // Fork dialect, and the external spool entry's slots[] index (-1 = no
     // external entry in the payload). Lets enable_bypass's Fork branch be

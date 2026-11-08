@@ -24,6 +24,10 @@
 #include <optional>
 #include <string>
 
+namespace helix {
+class AmsBackend;
+}
+
 namespace helix::ui {
 
 /**
@@ -151,7 +155,11 @@ nozzle_temp_prefill(FilamentMacroOp op, int extruder_target_c, std::optional<int
  *        extrusion. Purge has no plan_purge()/AmsBackend tier, so this is the
  *        whole tier-2 ladder alongside the configured macro, not "tier 3" of
  *        three.
+ *
+ * When @p backend can make that purge over its waste chute
+ * (AmsBackend::manual_purge_gcode()), its wrapped script is returned instead
+ * of the in-place extrude.
  */
-[[nodiscard]] std::string filament_purge_fallback_gcode();
+[[nodiscard]] std::string filament_purge_fallback_gcode(const AmsBackend* backend = nullptr);
 
 } // namespace helix::ui

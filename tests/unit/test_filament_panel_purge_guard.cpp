@@ -161,3 +161,66 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(history_contains(h, "G1 E"));
     CHECK_FALSE(TA::operation_active(*h.panel));
 }
+
+namespace {
+
+constexpr const char* kChutePurge = "TEST_CHUTE_PURGE";
+
+struct ChuteBackend : helix::AmsBackendMock {
+    ChuteBackend() : helix::AmsBackendMock(2) {}
+    std::string manual_purge_gcode(int length_mm, int feedrate_mm_min) const override {
+        return std::string(kChutePurge) + " E" + std::to_string(length_mm) + " F" +
+               std::to_string(feedrate_mm_min);
+    }
+};
+
+void init_without_purge_macro() {
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().reset();
+    StandardMacros::instance().init(hardware);
+    REQUIRE(StandardMacros::instance().get(StandardMacroSlot::Purge).is_empty());
+}
+
+} // namespace
+
+TEST_CASE("A backend with no purge chute wraps no manual purge", "[filament][purge_chute]") {
+    helix::AmsBackendMock mock(2);
+    const helix::AmsBackend& base = mock;
+    CHECK(base.manual_purge_gcode(50, 600).empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback sends the backend's chute purge",
+                 "[filament][purge_chute]") {
+    FilamentPanelMacroHarness h(std::make_unique<ChuteBackend>());
+    init_without_purge_macro();
+    h.set_extruder_target(255.0);
+
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(h.client.last_send_script() == "TEST_CHUTE_PURGE E50 F600");
+    CHECK_FALSE(history_contains(h, "M83"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The purge fallback extrudes in place with no chute",
+                 "[filament][purge_chute]") {
+    FilamentPanelMacroHarness h(std::make_unique<helix::AmsBackendMock>(2));
+    init_without_purge_macro();
+    h.set_extruder_target(255.0);
+
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(h.client.last_send_script() == "M83\nG1 E50 F600");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A purge macro wins over the backend's chute purge",
+                 "[filament][purge_chute]") {
+    FilamentPanelMacroHarness h(std::make_unique<ChuteBackend>());
+    h.cache_macros({{"PURGE", "{% set t = params.PURGE_TEMP|default(240)|int %}\nM109 S{t}"}});
+    h.set_extruder_target(255.0);
+
+    TA::execute_purge(*h.panel);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(h.client.last_send_script().find("PURGE PURGE_TEMP=255") == 0);
+    CHECK_FALSE(history_contains(h, kChutePurge));
+}

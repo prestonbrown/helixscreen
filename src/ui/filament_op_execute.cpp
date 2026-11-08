@@ -971,7 +971,7 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
         api, log_tag,
         [api, log_tag, ticket, purge_failed]() {
             api->execute_gcode(
-                helix::ui::filament_purge_fallback_gcode(),
+                helix::ui::filament_purge_fallback_gcode(AmsState::instance().get_backend()),
                 [log_tag, ticket]() {
                     spdlog::info("{} Purge fallback gcode sent", log_tag);
                     finished(FilamentOpSurface{}, nullptr, ticket);

@@ -86,3 +86,15 @@ TEST_CASE("CFS status parse reads the registered units from printer.cfg's addres
         CHECK_FALSE(cfs::has_registered_unit(json::array()));
     }
 }
+
+TEST_CASE("CFS status parse reads whether box.cfg declares a purge chute position",
+          "[cfs][status_parse][purge_chute]") {
+    // configfile.settings lowercases sections and options; box.cfg on the K1 Max
+    // capture carries has_extrude_pos 1.
+    CHECK(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": 1}})")));
+    CHECK(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": "1"}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": 0}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"extrude_pos_x": 184.5}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"printer": {}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::array()));
+}

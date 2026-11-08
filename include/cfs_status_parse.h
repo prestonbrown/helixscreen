@@ -56,4 +56,9 @@ parse_filament_sensor(const nlohmann::json& params);
 /// section or option is absent or unreadable.
 [[nodiscard]] bool has_registered_unit(const nlohmann::json& configfile_settings);
 
+/// Whether configfile's `[box]` section declares a purge chute position
+/// (`has_extrude_pos`, 1 on a box.cfg with a calibrated chute). False when the
+/// section or option is absent or reads 0.
+[[nodiscard]] bool has_chute_extrude_pos(const nlohmann::json& configfile_settings);
+
 } // namespace helix::cfs

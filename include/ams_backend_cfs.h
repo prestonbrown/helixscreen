@@ -609,6 +609,19 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
                                   bool fork_select_slot = false);
     static std::string unload_gcode(CfsMacroVariant variant = CfsMacroVariant::K2);
 
+    /// A manual purge of @p length_mm at @p feedrate_mm_min, made over the purge
+    /// chute: the same go-to-extrude-position / fan save / park / state restore
+    /// the stock dialect's own operations use, around a relative extrude. No
+    /// bay command (BOX_CHECK_MATERIAL, BOX_MODE_WAIT): a purge pushes whatever
+    /// is in the nozzle, which may be a bypass spool the box has no answer for.
+    /// No BOX_NOZZLE_CLEAN either, matching the load, which ends at its extrude.
+    static std::string chute_purge_gcode(int length_mm, int feedrate_mm_min);
+
+    /// chute_purge_gcode() when the stock dialect reports a configured chute
+    /// (`[box] has_extrude_pos`) and X and Y are homed; "" otherwise, so the
+    /// caller keeps its in-place extrude.
+    [[nodiscard]] std::string manual_purge_gcode(int length_mm, int feedrate_mm_min) const override;
+
     /// Unload the external / bypass spool on the stock (K1/K2) dialect.
     ///
     /// Not a variant of unload_gcode(). That script ends in the box's own
@@ -1165,6 +1178,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// None with no query to make (no client), so the empty-bus verdict
     /// follows the frames alone. Guarded by mutex_.
     UnitRegistration unit_registration_ = UnitRegistration::None;
+    /// configfile's `[box] has_extrude_pos` (cfs::has_chute_extrude_pos), read
+    /// with the unit registration. False until that answer lands. Guarded by
+    /// mutex_.
+    bool has_chute_extrude_pos_ = false;
     /// True once kRegisteredUnitSettle has passed this session without the
     /// frames showing a unit. Guarded by mutex_.
     bool unit_settle_expired_ = false;
