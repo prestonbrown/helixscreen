@@ -8,7 +8,7 @@ from ..kit import TrayShellDef, UnitDef
 W, D, H = 1.0, 0.76, 0.70
 ZR = 0.29
 CHEEK_TOP = ZR + 0.19
-CHEEK_KNEE_Y = 0.40
+CHEEK_KNEE_Y = 0.07
 BODY, PANEL, TRIM, CLEAR, ROOF = "#55585e", "#0a0b0d", "#c4c7cc", "#b4bac2", "#33363b"
 LED = "#7fb6ff"
 LEDS = [0.28, 0.42, 0.56, 0.70]
