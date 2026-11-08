@@ -37,6 +37,9 @@
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/cfs_test_access.h"
 
+#include <spdlog/sinks/ringbuffer_sink.h>
+#include <spdlog/spdlog.h>
+
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -838,4 +841,30 @@ TEST_CASE("IFS external spool lane: no bypass fitted, so nothing publishes",
     // The publish path is gated on the capability, so no lane record appears.
     CHECK(client.mock_db_get("lane_data", "lane5").is_null());
     CHECK(client.mock_db_get("lane_data", "T4").is_null());
+}
+
+TEST_CASE_METHOD(BypassArmingFixture, "A sensor's first reading of empty is not logged as a runout",
+                 "[filament_sensor][runout-log]") {
+    const std::string key = "filament_switch_sensor filament_sensor";
+    discover_filament_sensors(mgr, {key});
+    mgr.set_role(key, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+
+    auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
+    sink->set_level(spdlog::level::warn);
+    auto& sinks = spdlog::default_logger()->sinks();
+    sinks.push_back(sink);
+
+    mgr.update_from_status(json{{key, {{"filament_detected", false}, {"enabled", true}}}});
+    const bool first_reading_silent = sink->last_formatted().empty();
+
+    mgr.update_from_status(json{{key, {{"filament_detected", true}, {"enabled", true}}}});
+    mgr.update_from_status(json{{key, {{"filament_detected", false}, {"enabled", true}}}});
+    const auto logged = sink->last_formatted();
+
+    sinks.pop_back();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(first_reading_silent);
+    REQUIRE(logged.size() == 1);
+    CHECK(logged[0].find("RUNOUT") != std::string::npos);
 }
