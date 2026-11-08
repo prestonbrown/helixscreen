@@ -1220,7 +1220,9 @@ void AquaSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
     const AquaLevel& lv = kAquaLevels[level_];
     const ClockMode prev_mode = last_mode_;
     last_mode_ = reading.mode;
-    follow_print(reading, static_cast<float>(dt_ms) / 1000.0f);
+    // The still rung moves the water in one step: easing it would repaint the whole scene at
+    // every level step on the way, on the boards least able to afford it.
+    follow_print(reading, lv.still ? -1.0f : static_cast<float>(dt_ms) / 1000.0f);
     const auto level_step = static_cast<int32_t>(std::lround(water_level_ / kAquaStillLevelStep));
     if (lv.still && painted_ && level_step != painted_level_step_) {
         // The water has risen or fallen a step: paint it once more where it stands.

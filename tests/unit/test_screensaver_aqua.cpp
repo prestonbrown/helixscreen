@@ -465,6 +465,20 @@ TEST_CASE("the still rung repaints the water only per level step", "[screensaver
     CHECK(full >= 5);
     CHECK(full <=
           static_cast<size_t>(helix::ui::kAquaBrimRise / helix::ui::kAquaStillLevelStep) + 2);
+
+    // The print ends and the printer goes idle: the water drops back in one repaint, not one
+    // per step on the way down.
+    r.mode = ClockMode::DONE;
+    for (int i = 0; i < 40; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+    }
+    r.mode = ClockMode::CLOCK;
+    size_t after = 0;
+    for (int i = 0; i < 400; i++) {
+        sim.step(250, frame.target, rng, r, dirty);
+        after += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+    }
+    CHECK(after <= 1);
 }
 
 TEST_CASE("the clock fits in the water at every drift and screen size",
