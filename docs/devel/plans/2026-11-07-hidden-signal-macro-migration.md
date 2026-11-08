@@ -429,3 +429,7 @@ is a layout call with `ctl geom` at 800x480 and the smallest breakpoint before i
    for another reason.
 5. **Firmware-managed packs.** On printers whose firmware ships or pins our files (Snapmaker U1
    under paxx), should the plugin rename at all, or report only?
+
+## Decisions (Preston, 2026-11-07)
+
+- The plugin renames the legacy marker blocks at load, on by default, with the `[helix_print] migrate_signal_macros: False` opt-out.
