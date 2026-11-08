@@ -97,7 +97,7 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         _corner(sc, cx, cy)
 
 
-ENCLOSURE_TOP = 0.84
+ENCLOSURE_TOP = 0.61
 GLASS = "#8d8579"
 
 

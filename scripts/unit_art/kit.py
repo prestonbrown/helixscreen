@@ -81,6 +81,49 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
+# A front part: (anchor, x0, x1, y0, y1, colour, radius). x is in pixels from its anchor at
+# the 110 px reference spool, y in pixels below the front wall's top (negative rises above it).
+def span(inset_left, inset_right, y0, y1, color, radius=0):
+    """Across the row, inset from each end."""
+    return ("Span", inset_left, inset_right, y0, y1, color, radius)
+
+
+def lane(x0, x1, y0, y1, color, radius=0):
+    """Repeated at every lane, offset from its centre."""
+    return ("Lane", x0, x1, y0, y1, color, radius)
+
+
+def center(x0, x1, y0, y1, color, radius=0):
+    """Once, offset from the middle of the row."""
+    return ("Center", x0, x1, y0, y1, color, radius)
+
+
+def left(x0, x1, y0, y1, color, radius=0):
+    """Once, measured in from the left end."""
+    return ("Left", x0, x1, y0, y1, color, radius)
+
+
+def right(x0, x1, y0, y1, color, radius=0):
+    """Once, measured in from the right end."""
+    return ("Right", x0, x1, y0, y1, color, radius)
+
+
+def classic_front(t):
+    """A panel under a rail, with a tab and tick per lane: the default until a unit sets its own."""
+    wall, rail = t.front_wall_px, t.rail_px
+    parts = [
+        span(3, 3, rail + 2, wall - 3, t.panel, 3),
+        span(4, 4, 0, rail, t.rail, 2),
+        lane(-7, 7, -3, 0, t.accent),
+        lane(-1, 1, rail * 0.35, rail * 0.85, 0xf7f7f2),
+    ]
+    if t.has_latch:
+        parts.append(center(-15, 15, rail - 3, rail + 5, 0xd8dade, 4))
+    if t.corner:
+        parts += [left(0, 8, -1, wall, t.corner), right(0, 8, -1, wall, t.corner)]
+    return parts
+
+
 CAP_POINTS = 17  # kCapPoints in ui_ams_detail.cpp
 
 
@@ -88,10 +131,11 @@ def fit_cap_points(dome):
     """Pad a lid profile to the runtime's point count, repeating points so corners survive."""
     if not dome:
         return []
-    if len(dome) > CAP_POINTS:
-        raise ValueError(f"lid profile has {len(dome)} points; the tray draws {CAP_POINTS}")
     if len(dome) < 2:
         raise ValueError("lid profile needs a front and a back point")
+    if len(dome) > CAP_POINTS:
+        last = len(dome) - 1
+        return [dome[round(i * last / (CAP_POINTS - 1))] for i in range(CAP_POINTS)]
     points = list(dome)
     i = 0
     while len(points) < CAP_POINTS:
@@ -105,6 +149,39 @@ def check_cheek(cheek):
     if len(cheek) < 2 or any(b[0] <= a[0] for a, b in zip(cheek, cheek[1:])):
         raise ValueError(f"cheek depths must strictly increase: {cheek}")
     return cheek
+
+
+def rrect_front(x0, x1, z0, z1, r, y):
+    """A rounded rectangle on the front plane at depth y."""
+    pts = fillet([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], [r] * 4, closed=True, steps=6)
+    return [(a, y, b) for a, b in pts]
+
+
+def lid_back(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's far end cap and far-side strips, drawn before the spools."""
+    scene.poly([(x0, y, z) for y, z in profile], color, cap_op)
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=False)
+
+
+def lid_front(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's camera-facing strips and near end cap, drawn over the spools."""
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=True)
+    scene.poly([(x1, y, z) for y, z in profile], color, cap_op)
+
+
+def arch_profile(y0, y1, z0, z1, flat=0.0, riser=0.0, steps=20):
+    """An arched lid's (y, z) side profile, front foot to rear foot.
+
+    flat is the crown's share of the width; riser is the straight wall below each shoulder.
+    """
+    mid, half_flat = (y0 + y1) / 2, (y1 - y0) * flat / 2
+    a, b = (y1 - y0) / 2 - half_flat, z1 - z0 - riser
+    base = z0 + riser
+    angles = [math.pi / 2 * i / steps for i in range(steps + 1)]
+    front = [(mid - half_flat - a * math.cos(t), base + b * math.sin(t)) for t in angles]
+    rear = [(mid + half_flat + a * math.sin(t), base + b * math.cos(t)) for t in angles]
+    pts = front + rear
+    return [(y0, z0)] + pts + [(y1, z0)] if riser else pts
 
 
 def tray_profile(profile, base_z, px_per_unit):
@@ -128,6 +205,7 @@ class TrayShellDef:
     rail: int
     accent: int
     corner: int = 0
+    front: Optional[list] = None
 
 
 @dataclass
@@ -232,7 +310,7 @@ class Scene:
             self.poly(
                 [(x0, a[0], a[1]), (x1, a[0], a[1]), (x1, b[0], b[1]), (x0, b[0], b[1])],
                 hexc(tuple(c + 90 * k for c in rgb(color))),
-                min(0.9, opacity + 0.16 * k),
+                min(max(0.9, opacity), opacity + 0.16 * k),
                 stroke=None,
             )
 

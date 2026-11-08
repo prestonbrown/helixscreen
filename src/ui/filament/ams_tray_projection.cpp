@@ -59,6 +59,39 @@ PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, f
     return proj(b, x, b.ft - height * spool_size / kShellReferenceSpool, z);
 }
 
+void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, float lane_x,
+                    float out[4]) {
+    const float scale = spool_size / kShellReferenceSpool;
+    float x0 = 0, x1 = 0;
+    switch (part.anchor) {
+    case FrontAnchor::Span:
+        x0 = b.fl + part.x0 * scale;
+        x1 = b.fr - part.x1 * scale;
+        break;
+    case FrontAnchor::Lane:
+        x0 = lane_x + part.x0 * scale;
+        x1 = lane_x + part.x1 * scale;
+        break;
+    case FrontAnchor::Center:
+        x0 = (b.fl + b.fr) / 2.0f + part.x0 * scale;
+        x1 = (b.fl + b.fr) / 2.0f + part.x1 * scale;
+        break;
+    case FrontAnchor::Left:
+        x0 = b.fl + part.x0 * scale;
+        x1 = b.fl + part.x1 * scale;
+        break;
+    case FrontAnchor::Right:
+        x0 = b.fr - part.x1 * scale;
+        x1 = b.fr - part.x0 * scale;
+        break;
+    }
+    // A narrow row must not push a part past the unit's ends.
+    out[0] = std::clamp(x0, b.fl, b.fr);
+    out[1] = b.ft + part.y0 * scale;
+    out[2] = std::clamp(x1, b.fl, b.fr);
+    out[3] = b.ft + part.y1 * scale;
+}
+
 void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                         PointF* out, int n) {
     const float scale = spool_size / kShellReferenceSpool;
