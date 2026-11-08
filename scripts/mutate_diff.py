@@ -879,14 +879,31 @@ def code_only_lines(text, syntax='c'):
     output here, which is what lets a comment-only hunk be recognised without
     guessing from the shape of a line (`*` starts a doxygen continuation AND a
     pointer store; `//` appears inside string literals).
+    """
+    return split_code_and_comments(text, syntax)[0]
+
+
+def comment_only_lines(text, syntax='c'):
+    """Split source into lines holding only each line's comment text.
+
+    The complement of code_only_lines(): a line inside a block comment keeps
+    its text, a string literal that looks like a comment keeps none.
+    scripts/check_comment_archaeology.py reads comments through this.
+    """
+    return split_code_and_comments(text, syntax)[1]
+
+
+def split_code_and_comments(text, syntax='c'):
+    """(code lines, comment lines) of a source, one entry per line each.
 
     The scanner tracks block comments, string/char literals and C++11 raw
-    strings.
+    strings. Comment openers and closers belong to neither side.
     """
     rules = COMMENT_SYNTAX[syntax]
     line_tokens, block, quotes = rules['line'], rules['block'], rules['quotes']
     hash_style = '#' in line_tokens
     out, line = [], []
+    comments, comment = [], []
     state, raw_delim = 'code', ''
     i, n = 0, len(text)
     while i < n:
@@ -894,6 +911,8 @@ def code_only_lines(text, syntax='c'):
         if c == '\n':
             out.append(''.join(line))
             line = []
+            comments.append(''.join(comment))
+            comment = []
             i += 1
             if state == 'line':
                 state = 'code'
@@ -930,6 +949,7 @@ def code_only_lines(text, syntax='c'):
             i += 1
             continue
         if state == 'line':
+            comment.append(c)
             i += 1
             continue
         if state == 'block':
@@ -937,6 +957,7 @@ def code_only_lines(text, syntax='c'):
                 state = 'code'
                 i += len(block[1])
                 continue
+            comment.append(c)
             i += 1
             continue
         if state == 'raw':
@@ -958,7 +979,8 @@ def code_only_lines(text, syntax='c'):
         if (state == 'str' and c == '"') or (state == 'chr' and c == "'"):
             state = 'code'
     out.append(''.join(line))
-    return out
+    comments.append(''.join(comment))
+    return out, comments
 
 
 HEADER_SUFFIXES = ('.h', '.hpp', '.hh', '.hxx', '.inc')
