@@ -1669,6 +1669,20 @@ bool preset_targets_this_device(const std::string& moonraker_host) {
 
 } // namespace
 
+namespace {
+
+/// Where presets/<name>.json resolves: the writable user dir first, then the
+/// shipped read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/.
+std::string preset_file_path(const std::string& preset_name) {
+    return helix::find_readable(std::string("presets/") + preset_name + ".json");
+}
+
+} // namespace
+
+bool Config::preset_file_exists(const std::string& preset_name) {
+    return !preset_name.empty() && hfs::exists(preset_file_path(preset_name));
+}
+
 bool Config::apply_preset_file(const std::string& preset_name) {
     // Guard: only full-apply if wizard hasn't been completed for this printer.
     // Post-wizard, still allow narrow migrations for an already-provisioned printer:
@@ -1685,8 +1699,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
         }
-        std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-        std::string preset_path = helix::find_readable(preset_relpath);
+        std::string preset_path = preset_file_path(preset_name);
         if (!hfs::exists(preset_path)) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
@@ -1887,8 +1900,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     // to the shipped read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/.
     // The seed location is where install tarballs land presets — looking only in
     // the writable config dir would miss every preset on a fresh install.
-    std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-    std::string preset_path = helix::find_readable(preset_relpath);
+    std::string preset_path = preset_file_path(preset_name);
     if (!hfs::exists(preset_path)) {
         spdlog::warn("[Config] Preset file not found: {} (looked in writable + seed bundle)",
                      preset_path);
