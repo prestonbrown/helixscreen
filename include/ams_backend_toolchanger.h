@@ -148,18 +148,17 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /**
      * @brief Mount a physical toolhead. The argument is a SLOT INDEX.
      *
-     * Named `tool_number` only because the base signature is, and validated as a
-     * slot: the implementation emits `SELECT_TOOL T={n}`, which resolves through
-     * the toolchanger's own list and therefore BYPASSES ASSIGN_TOOL remapping.
-     * That is deliberate — a tap on lane 2 must mount the toolhead the user
-     * tapped, not whichever physical tool the slicer's T2 was reassigned to.
+     * Validated as a slot, then translated to the number klipper-toolchanger
+     * lists for that slot's tool (tool_number_for_slot_locked) for
+     * `SELECT_TOOL T={n}`. A tap on lane 2 mounts the toolhead the user tapped,
+     * whatever number it answers to: gapped (T0, T2, T3) or remapped.
      *
      * So on this backend a tool number and a slot index are NOT
      * interchangeable, and anything that has to cross between them goes through
      * the tool map (AmsSystemInfo::tool_to_slot_map / SlotInfo::mapped_tool),
      * never by assuming they are equal.
      */
-    AmsError do_change_tool(int tool_number) override;
+    AmsError do_change_tool(int slot_index) override;
 
   public:
     /**
@@ -502,6 +501,32 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] int find_slot_for_tool(const std::string& tool_name) const;
 
     /**
+     * @brief The slot holding the tool klipper-toolchanger numbers `tool_number`
+     *
+     * Tool numbers can be gapped (T0, T2, T3), so a number is not a slot index.
+     * Once toolchanger.tool_numbers/tool_names have arrived they are the answer,
+     * remaps included, and a number they do not list seats no slot. Before
+     * that, the forward tool map, then the number itself.
+     *
+     * @note Must be called while holding mutex_.
+     */
+    [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
+
+    /**
+     * @brief The tool number SELECT_TOOL/UNSELECT_TOOL take for a slot
+     *
+     * -1 when the listing has arrived and does not number this slot's tool; the
+     * slot index itself while no listing has arrived.
+     *
+     * @note Must be called while holding mutex_.
+     */
+    [[nodiscard]] int tool_number_for_slot_locked(int slot_index) const;
+
+    /// Seat current_tool/current_slot/filament_loaded from a tool number.
+    /// @note Must be called while holding mutex_.
+    void seat_tool_number_locked(int tool_number);
+
+    /**
      * @brief Validate slot index is within range
      *
      * @param slot_index Slot index to validate
@@ -550,6 +575,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+
+    /// klipper-toolchanger's listing, parallel arrays: listed_tool_names_[i]
+    /// ("tool T2") answers to listed_tool_numbers_[i]. Cached separately because
+    /// Moonraker sends only the one that changed.
+    std::vector<int> listed_tool_numbers_;
+    std::vector<std::string> listed_tool_names_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?

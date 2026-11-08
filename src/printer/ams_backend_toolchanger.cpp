@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -547,18 +548,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         spdlog::info("{} Dock sensors report tool {} (toolchanger said {})", backend_log_tag(),
                      tool, system_info_.current_tool);
     }
-    system_info_.current_tool = tool;
-    int seated_slot = -1;
-    if (tool >= 0) {
-        seated_slot = tool < static_cast<int>(system_info_.tool_to_slot_map.size())
-                          ? system_info_.tool_to_slot_map[static_cast<size_t>(tool)]
-                          : -1;
-        if (seated_slot < 0) {
-            seated_slot = tool;
-        }
-    }
-    system_info_.current_slot = seated_slot;
-    system_info_.filament_loaded = (tool >= 0);
+    seat_tool_number_locked(tool);
 
     // Dock occupancy, when the frame carried any. Merged rather than replaced:
     // Moonraker republishes only changed fields, so a frame naming two docks
@@ -695,37 +685,97 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         }
     }
 
+    // Parse the tool listing before tool_number: a frame carrying both must
+    // seat the carriage tool against the listing it brought. ASSIGN_TOOL
+    // rewrites the listing, so it already carries every remap.
+    bool listing_changed = false;
+    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
+        std::vector<int> numbers;
+        for (const auto& n : tc_data["tool_numbers"]) {
+            numbers.push_back(n.is_number_integer() ? n.get<int>() : -1);
+        }
+        listing_changed = listing_changed || numbers != listed_tool_numbers_;
+        listed_tool_numbers_ = std::move(numbers);
+        spdlog::trace("[AMS ToolChanger] Tool numbers: {}", tc_data["tool_numbers"].dump());
+    }
+    if (tc_data.contains("tool_names") && tc_data["tool_names"].is_array()) {
+        std::vector<std::string> names;
+        for (const auto& n : tc_data["tool_names"]) {
+            names.push_back(n.is_string() ? n.get<std::string>() : std::string());
+        }
+        listing_changed = listing_changed || names != listed_tool_names_;
+        listed_tool_names_ = std::move(names);
+        spdlog::trace("[AMS ToolChanger] Tool names: {}", tc_data["tool_names"].dump());
+    }
+
     // Parse current tool: toolchanger.tool_number
     // -1 = no tool selected
     if (tc_data.contains("tool_number") && tc_data["tool_number"].is_number_integer()) {
-        int tool_num = tc_data["tool_number"].get<int>();
-        system_info_.current_tool = tool_num;
-        // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
-        // tool, which ASSIGN_TOOL can move onto any physical tool — it is only
-        // the slot index while the mapping is identity. Resolve it through the
-        // forward map so the carriage lane is right under a remap too; an
-        // unmapped number falls back to itself, the pre-remap answer.
-        int seated_slot = -1;
-        if (tool_num >= 0) {
-            seated_slot = tool_num < static_cast<int>(system_info_.tool_to_slot_map.size())
-                              ? system_info_.tool_to_slot_map[static_cast<size_t>(tool_num)]
-                              : -1;
-            if (seated_slot < 0) {
-                seated_slot = tool_num;
+        seat_tool_number_locked(tc_data["tool_number"].get<int>());
+    } else if (listing_changed && system_info_.current_tool >= 0) {
+        // A remap of the carriage tool can arrive as a listing alone.
+        seat_tool_number_locked(system_info_.current_tool);
+    }
+}
+
+void AmsBackendToolChanger::seat_tool_number_locked(int tool_number) {
+    // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
+    // tool. It is a slot index only on a contiguous, unremapped machine.
+    const int seated_slot = slot_for_tool_number_locked(tool_number);
+    system_info_.current_tool = tool_number;
+    system_info_.current_slot = seated_slot;
+    system_info_.filament_loaded = (tool_number >= 0);
+    refresh_slot_statuses_locked();
+    spdlog::trace("[AMS ToolChanger] Current tool: T{} (physical slot {})", tool_number,
+                  seated_slot);
+}
+
+namespace {
+
+/// klipper-toolchanger lists tools by object name ("tool T2"); discovery keeps "T2".
+std::string strip_tool_prefix(const std::string& listed) {
+    constexpr std::string_view kPrefix = "tool ";
+    return listed.rfind(kPrefix, 0) == 0 ? listed.substr(kPrefix.size()) : listed;
+}
+
+} // namespace
+
+int AmsBackendToolChanger::slot_for_tool_number_locked(int tool_number) const {
+    if (tool_number < 0) {
+        return -1;
+    }
+    const bool listed =
+        !listed_tool_numbers_.empty() && listed_tool_numbers_.size() == listed_tool_names_.size();
+    if (listed) {
+        for (size_t i = 0; i < listed_tool_numbers_.size(); ++i) {
+            if (listed_tool_numbers_[i] == tool_number) {
+                return find_slot_for_tool(strip_tool_prefix(listed_tool_names_[i]));
             }
         }
-        system_info_.current_slot = seated_slot;
-        system_info_.filament_loaded = (tool_num >= 0);
-        refresh_slot_statuses_locked();
-        spdlog::trace("[AMS ToolChanger] Current tool: T{} (physical slot {})", tool_num,
-                      seated_slot);
+        return -1;
     }
+    const auto& map = system_info_.tool_to_slot_map;
+    int slot =
+        tool_number < static_cast<int>(map.size()) ? map[static_cast<size_t>(tool_number)] : -1;
+    return slot >= 0 ? slot : tool_number;
+}
 
-    // Parse tool list: toolchanger.tool_numbers and toolchanger.tool_names
-    // This can be used to dynamically update the tool list
-    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
-        spdlog::trace("[AMS ToolChanger] Tool numbers: {}", tc_data["tool_numbers"].dump());
+int AmsBackendToolChanger::tool_number_for_slot_locked(int slot_index) const {
+    const bool listed =
+        !listed_tool_numbers_.empty() && listed_tool_numbers_.size() == listed_tool_names_.size();
+    if (!listed) {
+        return slot_index;
     }
+    if (slot_index < 0 || slot_index >= static_cast<int>(tool_names_.size())) {
+        return -1;
+    }
+    for (size_t i = 0; i < listed_tool_names_.size(); ++i) {
+        if (strip_tool_prefix(listed_tool_names_[i]) ==
+            tool_names_[static_cast<size_t>(slot_index)]) {
+            return listed_tool_numbers_[i];
+        }
+    }
+    return -1;
 }
 
 void AmsBackendToolChanger::parse_tool_state(const std::string& tool_name,
@@ -1071,6 +1121,7 @@ AmsError AmsBackendToolChanger::do_load_filament(int slot_index) {
 
 AmsError AmsBackendToolChanger::do_unload_filament(int slot_index) {
     // For tool changers, "unload" means unmount a specific tool (or current if -1)
+    int tool_number = -1;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -1079,6 +1130,7 @@ AmsError AmsBackendToolChanger::do_unload_filament(int slot_index) {
             if (!slot_valid) {
                 return slot_valid;
             }
+            tool_number = tool_number_for_slot_locked(slot_index);
         } else if (system_info_.current_tool < 0) {
             return AmsErrorHelper::not_loaded();
         }
@@ -1100,7 +1152,12 @@ AmsError AmsBackendToolChanger::do_unload_filament(int slot_index) {
     // nothing is on the carriage returns without touching toolchanger.status —
     // so it needs the same optimistic-set + ack-resolution treatment (#1183).
     if (slot_index >= 0) {
-        std::string cmd = "UNSELECT_TOOL T=" + std::to_string(slot_index);
+        if (tool_number < 0) {
+            return AmsError(AmsResult::INVALID_TOOL,
+                            "Slot " + std::to_string(slot_index) + " has no tool number",
+                            "Tool has no number", "");
+        }
+        std::string cmd = "UNSELECT_TOOL T=" + std::to_string(tool_number);
         spdlog::info("[AMS ToolChanger] Unmounting tool {}: {}", slot_index, cmd);
         return dispatch_operation(std::move(cmd), AmsAction::UNLOADING);
     }
@@ -1114,14 +1171,16 @@ AmsError AmsBackendToolChanger::do_select_slot(int slot_index) {
     return do_change_tool(slot_index);
 }
 
-AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
+AmsError AmsBackendToolChanger::do_change_tool(int slot_index) {
+    int tool_number = -1;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        AmsError slot_valid = validate_slot_index(tool_number);
+        AmsError slot_valid = validate_slot_index(slot_index);
         if (!slot_valid) {
             return slot_valid;
         }
+        tool_number = tool_number_for_slot_locked(slot_index);
     }
 
     // Use SELECT_TOOL T={n} to select by tool number via the toolchanger's
@@ -1136,10 +1195,18 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
     // Without klipper-toolchanger there is no SELECT_TOOL: the extra registers
     // its own T<n> commands and those ARE the swap. ASSIGN_TOOL does not exist
     // on such a machine either, so the remap concern above cannot arise.
+    //
+    // SELECT_TOOL T= takes klipper-toolchanger's tool number, which on a gapped
+    // machine (T0, T2, T3) is not the slot index.
+    if (!tool_commands_.present && tool_number < 0) {
+        return AmsError(AmsResult::INVALID_TOOL,
+                        "Slot " + std::to_string(slot_index) + " has no tool number",
+                        "Tool has no number", "");
+    }
     std::string cmd = tool_commands_.present
-                          ? tool_commands_.select_prefix + std::to_string(tool_number)
+                          ? tool_commands_.select_prefix + std::to_string(slot_index)
                           : "SELECT_TOOL T=" + std::to_string(tool_number);
-    spdlog::info("[AMS ToolChanger] Mounting tool {}: {}", tool_number, cmd);
+    spdlog::info("[AMS ToolChanger] Mounting slot {}: {}", slot_index, cmd);
     return dispatch_operation(std::move(cmd), AmsAction::SELECTING);
 }
 

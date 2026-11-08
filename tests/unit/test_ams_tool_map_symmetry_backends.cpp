@@ -169,6 +169,12 @@ class ToolChangerMapProbe : public AmsBackendToolChanger {
         // check_preconditions() refuses everything while the backend is stopped.
         running_ = true;
     }
+    /// Tools discovered under the given names, e.g. a gapped T0/T2/T3 machine.
+    explicit ToolChangerMapProbe(std::vector<std::string> names)
+        : AmsBackendToolChanger(nullptr, nullptr) {
+        set_discovered_tools(std::move(names));
+        running_ = true;
+    }
     ~ToolChangerMapProbe() override {
         // change_tool()'s dispatch is resolved by a gcode ack that never comes
         // here; draining keeps scripts/check_update_queue_leaks.py quiet.
@@ -560,6 +566,141 @@ TEST_CASE("ToolChanger identity mapping still reads tool_number as the lane",
     CHECK(backend.is_filament_loaded());
     CHECK(backend.slot_is_actively_loaded(2));
     CHECK_FALSE(backend.slot_is_actively_loaded(0));
+}
+
+// =====================================================================
+// ToolChanger — gapped tool numbers: the number names a slot, not a position
+// =====================================================================
+
+namespace {
+
+const std::vector<std::string> kGappedToolNames{"T0", "T2", "T3"};
+
+/// klipper-toolchanger with tools T0, T2 and T3: slot 1 holds T2, slot 2 holds T3.
+void report_gapped_tool_numbers(ToolChangerMapProbe& backend) {
+    backend.feed(json{{"toolchanger",
+                       {{"status", "ready"},
+                        {"tool_number", -1},
+                        {"tool_numbers", json::array({0, 2, 3})},
+                        {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})}}}});
+}
+
+} // namespace
+
+TEST_CASE("ToolChanger with gapped tool numbers seats T2 on its own slot",
+          "[ams][toolchanger][tool_map]") {
+    ToolChangerMapProbe backend(kGappedToolNames);
+    report_gapped_tool_numbers(backend);
+    backend.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+
+    auto info = backend.get_system_info();
+    CHECK(info.current_tool == 2);
+    CHECK(info.current_slot == 1);
+
+    const auto* t2_slot = info.get_slot_global(1);
+    REQUIRE(t2_slot != nullptr);
+    CHECK(t2_slot->status == SlotStatus::LOADED);
+    const auto* t3_slot = info.get_slot_global(2);
+    REQUIRE(t3_slot != nullptr);
+    CHECK(t3_slot->status == SlotStatus::AVAILABLE);
+
+    CHECK(backend.can_unload_from_toolhead(1));
+    CHECK_FALSE(backend.can_unload_from_toolhead(2));
+}
+
+TEST_CASE("ToolChanger with gapped tool numbers unloads and mounts by tool number",
+          "[ams][toolchanger][tool_map]") {
+    ToolChangerMapProbe backend(kGappedToolNames);
+    report_gapped_tool_numbers(backend);
+    backend.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+    backend.captured.clear();
+
+    // No slot named: the unload resolves the head from current_slot.
+    REQUIRE(backend.unload_active_filament().success());
+    REQUIRE_FALSE(backend.captured.empty());
+    CHECK(backend.captured.back() == "UNSELECT_TOOL T=2");
+
+    backend.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", -1}}}});
+    backend.captured.clear();
+    REQUIRE(backend.change_tool(2).success()); // slot 2 is T3's head
+    REQUIRE_FALSE(backend.captured.empty());
+    CHECK(backend.captured.back() == "SELECT_TOOL T=3");
+}
+
+TEST_CASE("ToolChanger with gapped tool numbers seats no slot for an unknown number",
+          "[ams][toolchanger][tool_map]") {
+    ToolChangerMapProbe backend(kGappedToolNames);
+    report_gapped_tool_numbers(backend);
+    backend.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 1}}}});
+
+    CHECK(backend.get_current_slot() == -1);
+    for (int i = 0; i < 3; ++i) {
+        INFO("slot " << i);
+        CHECK_FALSE(backend.can_unload_from_toolhead(i));
+    }
+}
+
+TEST_CASE("ToolChanger with contiguous tool numbers still seats by number",
+          "[ams][toolchanger][tool_map]") {
+    ToolChangerMapProbe backend(4);
+    backend.feed(
+        json{{"toolchanger",
+              {{"status", "ready"},
+               {"tool_number", 2},
+               {"tool_numbers", json::array({0, 1, 2, 3})},
+               {"tool_names", json::array({"tool T0", "tool T1", "tool T2", "tool T3"})}}}});
+
+    CHECK(backend.get_current_slot() == 2);
+    backend.captured.clear();
+    REQUIRE(backend.unload_active_filament().success());
+    REQUIRE_FALSE(backend.captured.empty());
+    CHECK(backend.captured.back() == "UNSELECT_TOOL T=2");
+}
+
+TEST_CASE("ToolChanger seats a remapped tool number from Klipper's rewritten listing",
+          "[ams][toolchanger][tool_map]") {
+    // After ASSIGN_TOOL TOOL="tool T2" N=0, klipper-toolchanger republishes its
+    // listing with T0 handed to the T2 head and the T0 head left unnumbered.
+    ToolChangerMapProbe backend(4);
+    backend.feed(
+        json{{"toolchanger",
+              {{"status", "ready"},
+               {"tool_number", -1},
+               {"tool_numbers", json::array({0, 1, 2, 3})},
+               {"tool_names", json::array({"tool T0", "tool T1", "tool T2", "tool T3"})}}}});
+    REQUIRE(backend.set_tool_mapping(/*tool_number=*/0, /*slot_index=*/2).success());
+    backend.feed(json{{"toolchanger",
+                       {{"tool_numbers", json::array({0, 1, 3})},
+                        {"tool_names", json::array({"tool T2", "tool T1", "tool T3"})}}}});
+    backend.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}}});
+
+    CHECK(backend.get_current_slot() == 2);
+    CHECK(backend.can_unload_from_toolhead(2));
+    CHECK_FALSE(backend.can_unload_from_toolhead(0));
+
+    backend.captured.clear();
+    REQUIRE(backend.unload_active_filament().success());
+    REQUIRE_FALSE(backend.captured.empty());
+    CHECK(backend.captured.back() == "UNSELECT_TOOL T=0");
+}
+
+TEST_CASE("ToolChanger re-seats the carriage tool when only the listing changes",
+          "[ams][toolchanger][tool_map]") {
+    // Moonraker sends only the fields that changed, so a remap of the mounted
+    // tool can arrive as a listing with no tool_number beside it.
+    ToolChangerMapProbe backend(4);
+    backend.feed(
+        json{{"toolchanger",
+              {{"status", "ready"},
+               {"tool_number", 0},
+               {"tool_numbers", json::array({0, 1, 2, 3})},
+               {"tool_names", json::array({"tool T0", "tool T1", "tool T2", "tool T3"})}}}});
+    REQUIRE(backend.get_current_slot() == 0);
+
+    backend.feed(
+        json{{"toolchanger",
+              {{"tool_names", json::array({"tool T3", "tool T1", "tool T2", "tool T0"})}}}});
+    CHECK(backend.get_current_slot() == 3);
 }
 
 // =====================================================================
