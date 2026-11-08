@@ -181,6 +181,8 @@
 #if HELIX_ENABLE_SCREENSAVER
 #include "screensaver.h"
 #endif
+#include "ui_perf_report.h"
+
 #include "display_metrics.h"
 #include "k2_stock_detection_source.h"
 #include "led/ui_led_control_overlay.h"
@@ -2047,6 +2049,7 @@ int Application::main_loop() {
     // One line a minute during a print, so a report of a stalled print carries what the
     // UI was costing the board at the time.
     helix::attach_print_health_counters(m_display->display());
+    helix::install_ui_perf_bundle_provider();
     helix::PrintHealthLog print_health(
         [this] { return helix::read_print_health_sample(m_display->display()); });
 

@@ -619,6 +619,7 @@ src/ui/ui_nav_navbar.cpp
 src/ui/ui_nav_panel_registry.cpp
 src/ui/ui_nav_switch_trace.cpp
 src/ui/ui_nav_transitions.cpp
+src/ui/ui_overlay_open_trace.cpp
 src/ui/printers/ui_nav_printer_badge.cpp
 src/ui/components/ui_navbar_button.cpp
 src/ui/notify/ui_notification.cpp
