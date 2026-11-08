@@ -6,6 +6,7 @@
 #include "ui_button.h"
 #include "ui_card.h"
 #include "ui_dialog.h"
+#include "ui_dryer_airflow.h"
 #include "ui_fault_path.h"
 #include "ui_humidity_drop.h"
 #include "ui_icon.h"
@@ -208,6 +209,7 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
 
     // 4. Register custom widgets (must be done before loading components that use them)
     helix::ui::icon::register_widget();         // icon component
+    helix::ui::register_dryer_airflow_widget(); // dryer_airflow
     helix::ui::register_humidity_drop_widget(); // humidity_drop
     helix::ui::register_tile_rung_binding();    // <bind_tile_rung>
     helix::ui::register_swatch_paint_widget();  // <swatch_paint>, inside color_swatch

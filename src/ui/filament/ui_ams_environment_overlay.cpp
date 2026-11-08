@@ -94,6 +94,13 @@ void AmsEnvironmentOverlay::init_subjects() {
                                   "ams_env_overlay_drying_text", subjects_);
         UI_MANAGED_SUBJECT_INT(drying_progress_subject_, 0, "ams_env_overlay_drying_progress",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(drying_phase_subject_, 0, "ams_env_overlay_drying_phase", subjects_);
+        UI_MANAGED_SUBJECT_STRING(unit_logo_subject_, unit_logo_buf_, "",
+                                  "ams_env_overlay_unit_logo", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_logo_color_subject_, 0, "ams_env_overlay_unit_logo_color",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_logo_visible_subject_, 0, "ams_env_overlay_unit_logo_visible",
+                               subjects_);
         // Per-material comfort row subjects (4 rows max)
         for (int i = 0; i < kMaxComfortRows; ++i) {
             char name[48];
@@ -673,6 +680,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
+        lv_subject_set_int(&drying_phase_subject_, 0);
+        lv_subject_set_int(&unit_logo_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
         lv_subject_set_int(&humidity_subject_, -1);
         lv_subject_set_int(&all_zones_visible_subject_, 0);
@@ -719,6 +728,17 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         snprintf(title_text_buf_, sizeof(title_text_buf_), "%s", label.c_str());
     }
     lv_subject_copy_string(&title_text_subject_, title_text_buf_);
+
+    // The unit's picture is the art its card on the AMS page shows.
+    const LogoArt logo =
+        info && zone.unit_index >= 0 && zone.unit_index < static_cast<int>(info->units.size())
+            ? AmsState::get_unit_logo(info->units[static_cast<size_t>(zone.unit_index)], *info)
+            : AmsState::get_logo(type_name);
+    const bool has_logo = logo.path && logo.path[0];
+    snprintf(unit_logo_buf_, sizeof(unit_logo_buf_), "%s", has_logo ? logo.path : "");
+    lv_subject_copy_string(&unit_logo_subject_, unit_logo_buf_);
+    lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
+    lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());
@@ -810,6 +830,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
 
     // Drying active state
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
+    lv_subject_set_int(&drying_phase_subject_,
+                       static_cast<int>(dryer.active ? dryer.phase : DryingPhase::Unknown));
 
     if (dryer.active) {
         snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",

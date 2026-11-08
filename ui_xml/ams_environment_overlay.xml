@@ -29,6 +29,9 @@
     <!-- Stop while a cycle runs: a quiet button with danger text, so the running cycle,
          not the way to end it, is what the page leads with. Start stays primary. -->
     <style name="dryer_stop_quiet" bg_color="#elevated_bg" bg_opa="255" text_color="#danger"/>
+    <!-- The picture steps back while drying, so the airflow drawn over it reads against
+         art of any colour. -->
+    <style name="dryer_picture_drying" opa="90"/>
   </styles>
   <view name="ams_environment_overlay"
         extends="overlay_panel" title="Filament Humidity" title_subject="ams_env_overlay_title_text"
@@ -186,25 +189,50 @@
               </lv_obj>
             </lv_obj>
 
-            <!-- Drying countdown + progress, only while drying -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-                    style_pad_gap="#space_xs" scrollable="false" hidden="true">
-              <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
-              <lv_obj width="content"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" scrollable="false">
-                <icon src="heat_wave" size="sm" variant="warning"/>
-                <text_body name="drying_countdown_label" bind_text="ams_env_overlay_drying_text"/>
+            <!-- The unit's picture beside the drying countdown + progress. The picture shows
+                 whenever the unit has art, with warm air rising over it while drying; the
+                 countdown only while drying. Micro and Tiny have no height for the picture. -->
+            <lv_obj name="dryer_status_row"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                    style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+              <bind_flag_if cond="(ui_breakpoint le 1 or ams_env_overlay_unit_logo_visible eq 0) and ams_env_overlay_drying_active eq 0"
+                            flag="hidden"/>
+              <lv_obj name="unit_picture"
+                      width="#dryer_unit_picture_size" height="#dryer_unit_picture_size" style_pad_all="0"
+                      scrollable="false">
+                <bind_flag_if cond="ui_breakpoint le 1 or (ams_env_overlay_unit_logo_visible eq 0 and ams_env_overlay_drying_active eq 0)"
+                              flag="hidden"/>
+                <lv_image name="unit_picture_image"
+                          width="100%" height="100%" align="center" inner_align="contain"
+                          bind_src="ams_env_overlay_unit_logo">
+                  <bind_flag_if_eq subject="ams_env_overlay_unit_logo_visible" flag="hidden" ref_value="0"/>
+                  <bind_style_if_eq name="styles.ams_logo_mono" subject="ams_env_overlay_unit_logo_color" ref_value="0"/>
+                  <bind_style_if_eq name="dryer_picture_drying" subject="ams_env_overlay_drying_active" ref_value="1"/>
+                </lv_image>
+                <dryer_airflow name="dryer_airflow"
+                               width="100%" height="100%" align="center" bind_phase="ams_env_overlay_drying_phase">
+                  <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
+                </dryer_airflow>
               </lv_obj>
-              <!-- SIZE_OK: a fixed hairline track; no bar-height ladder exists, and
-                   the tile_badge_* token that shares the value is unrelated. -->
-              <lv_bar name="drying_progress_bar"
-                      width="100%" height="6" bind_value="ams_env_overlay_drying_progress" min_value="0" max_value="100"
-                      style_radius="#border_radius" style_radius-indicator="#border_radius" style_bg_color="#screen_bg"
-                      style_bg_opa="255">
-                <bind_flag_if_eq subject="env_zone_state" flag="hidden" ref_value="1"/>
-              </lv_bar>
+              <lv_obj width="1"
+                      height="content" flex_grow="1" style_pad_all="0" flex_flow="column"
+                      style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true">
+                <bind_flag_if_eq subject="ams_env_overlay_drying_active" flag="hidden" ref_value="0"/>
+                <lv_obj width="content"
+                        height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                        style_pad_gap="#space_xs" scrollable="false">
+                  <icon src="heat_wave" size="sm" variant="warning"/>
+                  <text_body name="drying_countdown_label" bind_text="ams_env_overlay_drying_text"/>
+                </lv_obj>
+                <!-- SIZE_OK: a fixed hairline track; no bar-height ladder exists, and
+                     the tile_badge_* token that shares the value is unrelated. -->
+                <lv_bar name="drying_progress_bar"
+                        width="100%" height="6" bind_value="ams_env_overlay_drying_progress" min_value="0"
+                        max_value="100" style_radius="#border_radius" style_radius-indicator="#border_radius"
+                        style_bg_color="#screen_bg" style_bg_opa="255">
+                  <bind_flag_if_eq subject="env_zone_state" flag="hidden" ref_value="1"/>
+                </lv_bar>
+              </lv_obj>
             </lv_obj>
           </lv_obj>
 

@@ -2024,6 +2024,14 @@
       },
       "inherits": "lv_obj"
     },
+    "dryer_airflow": {
+      "attributes": {
+        "bind_phase": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "humidity_drop": {
       "attributes": {
         "bind_value": {
@@ -3024,6 +3032,7 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "dryer_airflow",
     "humidity_drop",
     "lv_obj-bind_tile_rung",
     "setting_group"
@@ -3545,6 +3554,10 @@
     "dialog_content_recovery_max_xlarge",
     "dialog_content_recovery_max_xxlarge",
     "dot_size",
+    "dryer_unit_picture_size",
+    "dryer_unit_picture_size_large",
+    "dryer_unit_picture_size_medium",
+    "dryer_unit_picture_size_small",
     "elevated_bg",
     "fan_arc_size",
     "fan_arc_size_large",

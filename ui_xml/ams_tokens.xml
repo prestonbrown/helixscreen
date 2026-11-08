@@ -204,6 +204,12 @@
     <px name="ams_logo_size_xlarge" value="32"/>
     <px name="ams_logo_size_xxlarge" value="40"/>
 
+    <!-- The dryer page's unit picture, with the airflow drawn over it. Micro and Tiny
+         hide it (ams_environment_overlay.xml), so it needs no size there. -->
+    <px name="dryer_unit_picture_size_small" value="40"/>
+    <px name="dryer_unit_picture_size_medium" value="56"/>
+    <px name="dryer_unit_picture_size_large" value="64"/>
+
     <!-- Mini status bars container height -->
     <px name="ams_bars_height_small" value="36"/>
     <px name="ams_bars_height_medium" value="48"/>

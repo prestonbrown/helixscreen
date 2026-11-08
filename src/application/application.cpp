@@ -90,6 +90,7 @@
 #include "ui_component_header_bar.h"
 #include "ui_crash_report_modal.h"
 #include "ui_dialog.h"
+#include "ui_dryer_airflow.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -1596,6 +1597,7 @@ bool Application::register_widgets() {
     helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
+    helix::ui::register_dryer_airflow_widget();
     helix::ui::register_humidity_drop_widget();
 
     // Initialize component systems

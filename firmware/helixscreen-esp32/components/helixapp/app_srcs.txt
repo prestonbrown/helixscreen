@@ -553,6 +553,7 @@ src/ui/filament/ui_bed_drying_modal.cpp
 src/ui/printers/ui_change_host_modal.cpp
 src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
+src/ui/filament/ui_dryer_airflow.cpp
 src/ui/filament/ui_dryer_presentation.cpp
 src/ui/components/ui_color_picker.cpp
 src/ui/components/ui_component_header_bar.cpp
