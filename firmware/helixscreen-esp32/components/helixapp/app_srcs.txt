@@ -564,7 +564,6 @@ src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
 src/generated/ams_unit_shells_gen.cpp
 src/ui/filament/ams_unit_shell.cpp
-src/ui/filament/ui_dryer_airflow.cpp
 src/ui/filament/ui_unit_art.cpp
 src/ui/filament/ui_dryer_presentation.cpp
 src/ui/components/ui_color_picker.cpp

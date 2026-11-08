@@ -2031,14 +2031,6 @@
       },
       "inherits": "lv_obj"
     },
-    "dryer_airflow": {
-      "attributes": {
-        "bind_phase": {
-          "type": "string"
-        }
-      },
-      "inherits": "lv_obj"
-    },
     "filament_motion_glyph": {
       "attributes": {
         "bind_motion": {
@@ -3056,7 +3048,6 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
-    "dryer_airflow",
     "filament_motion_glyph",
     "humidity_drop",
     "unit_art",

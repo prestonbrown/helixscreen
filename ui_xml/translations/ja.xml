@@ -168,6 +168,7 @@
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ja="ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ja="モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ja="モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください"/>
+  <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>
   <translation tag="A newer version of the helper macros is available" ja="ヘルパーマクロの新しいバージョンが利用可能です"/>
   <translation tag="A picture of your printer" ja="プリンターの画像"/>
   <translation tag="A print holds the printer." ja="印刷中のためプリンターを使用できません。"/>
@@ -1140,6 +1141,7 @@
   <translation tag="Duplicate" ja="複製"/>
   <translation tag="Duplicated" ja="複製しました"/>
   <translation tag="Duration" ja="時間"/>
+  <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." ja="印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"/>
   <translation tag="E-Stop (M112)" ja="緊急停止 (M112)"/>
   <translation tag="E-Stop Confirmation" ja="緊急停止の確認"/>
   <translation tag="EDDY CURRENT" ja="EDDY CURRENT"/>
@@ -1745,6 +1747,7 @@
   <translation tag="Helper Macros" ja="ヘルパーマクロ"/>
   <translation tag="Helper macros already installed" ja="ヘルパーマクロはすでにインストールされています"/>
   <translation tag="Helper macros are up to date" ja="ヘルパーマクロは最新です"/>
+  <translation tag="Here&apos;s a quick look at what changed since your last version." ja="前回のバージョンからの変更点を簡単に説明します。"/>
   <translation tag="Hide Firmware Noise" ja="ファームウェアノイズを非表示"/>
   <translation tag="Hide Temperature Reports" ja="温度レポートを非表示"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ja="USBキーボード接続中は画面キーボードを非表示にする"/>
@@ -2076,6 +2079,7 @@
   <translation tag="Load a filament first before trying to unload" ja="排出する前にまずフィラメントを装填してください"/>
   <translation tag="Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one" ja="このスロットに新しいスプールをセットするか、自動補充を有効にして一致するスプールに切り替えてください"/>
   <translation tag="Load all stopped" ja="すべてのロードを停止しました"/>
+  <translation tag="Load and unload" ja="装填と排出"/>
   <translation tag="Load and unload filament at the tool by hand" ja="フィラメントはツールで手動でロード・アンロードしてください"/>
   <translation tag="Load canceled: nozzle target dropped" ja="装填をキャンセル: ノズルの目標温度が下がりました"/>
   <translation tag="Load complete" ja="ロード完了"/>
@@ -2088,7 +2092,8 @@
   <translation tag="Load or unload filament." ja="フィラメントを装填または排出します。"/>
   <translation tag="Load stopped" ja="ロードを停止しました"/>
   <translation tag="Load the required filaments or start anyway?" ja="必要なフィラメントを装填しますか？それともこのまま開始しますか？"/>
-  <translation tag="Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors." ja="スプールのロード、アンロード、交換を行います。マルチフィラメントシステムを一目で確認し、フィラメントをツールにマッピングし、ランアウトセンサーを監視できます。"/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ja="ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"/>
+  <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ja="スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"/>
   <translation tag="Load..." ja="装填..."/>
   <translation tag="Loaded" ja="装填済み"/>
   <translation tag="Loading" ja="ロード中"/>
@@ -2118,7 +2123,7 @@
   <translation tag="Login Required" ja="ログインが必要です"/>
   <translation tag="Logs" ja="ログ"/>
   <translation tag="Long Press Time" ja="長押しの時間"/>
-  <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." ja="タイルを長押しして編集モードに入ります — ウィジェットの並べ替え、サイズ変更、削除、追加や、好みのレイアウトに合わせたページの追加ができます。"/>
+  <translation tag="Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages." ja="タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"/>
   <translation tag="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)" ja="ホーム画面のグリッドを長押しするとウィジェットを並べ替えできます（誤動作する場合はオフにしてください）"/>
   <translation tag="Longest Disconnect" ja="最長切断時間"/>
   <translation tag="Looking for the active spool..." ja="使用中のスプールを検索中..."/>
@@ -2268,7 +2273,6 @@
   <translation tag="Modifying G-code needs the HelixPrint plugin. Printing original file." ja="G-codeの変更にはHelixPrintプラグインが必要です。元のファイルを印刷します。"/>
   <translation tag="Monitor for print abnormalities (K2 Plus camera-based)" ja="印刷異常を監視 (K2 Plus カメラベース)"/>
   <translation tag="Monitor for print abnormalities (camera-based)" ja="印刷異常を監視 (カメラベース)"/>
-  <translation tag="Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job." ja="印刷の進行状況を監視します — 残り時間、現在のレイヤー、進捗。タップすれば進行中のジョブを一時停止、再開、キャンセルできます。"/>
   <translation tag="Monitoring" ja="モニタリング"/>
   <translation tag="Month" ja="月"/>
   <translation tag="Moonraker" ja="Moonraker"/>
@@ -2361,6 +2365,7 @@
   <translation tag="New Spool: Step {} of {}" ja="新規スプール: ステップ {} / {}"/>
   <translation tag="New Version Available" ja="新バージョンあり"/>
   <translation tag="New fan name" ja="新しいファン名"/>
+  <translation tag="New in 1.1" ja="1.1 の新機能"/>
   <translation tag="New plugin available: {}. Enable it in Settings &gt; Plugins." ja="新しいプラグインが利用可能です: {}。設定 &gt; プラグインで有効化してください。"/>
   <translation tag="New printer successfully added" ja="新しいプリンターを追加しました"/>
   <translation tag="New profile name" ja="新しいプロファイル名"/>
@@ -3740,6 +3745,7 @@
   <translation tag="Tap + to add" ja="+ をタップして追加"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ja="「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます"/>
   <translation tag="Tap Resume to try the load again from {}." ja="再開をタップすると、{}からもう一度ロードします。"/>
+  <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." ja="スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"/>
   <translation tag="Tap again to confirm this orientation" ja="もう一度タップしてこの向きを確定"/>
   <translation tag="Tap an empty spot inside the enclosure" ja="筐体内の空いている場所をタップ"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." ja="タイルをタップすると、全機能のコントロールを開いたり、状態を切り替えたりできます。"/>
@@ -4477,6 +4483,7 @@
   <translation tag="You can skip this and calibrate later in Settings." ja="スキップして後で設定でキャリブレーションできます。"/>
   <translation tag="You have unsaved changes. Discard them?" ja="保存されていない変更があります。破棄しますか？"/>
   <translation tag="Your completed prints will appear here" ja="完了した印刷がここに表示されます"/>
+  <translation tag="Your filament system" ja="フィラメントシステム"/>
   <translation tag="Your files" ja="あなたのファイル"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." ja="印刷開始または終了マクロもLEDを設定しています。マクロと自動LED制御が互いに上書きする可能性があります。"/>
   <translation tag="Your printer at a glance" ja="プリンターを一目で確認"/>

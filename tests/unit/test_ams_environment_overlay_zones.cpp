@@ -536,6 +536,15 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone shows no progress bar", "[ams][z
     overlay.select_zone(0);
     CHECK_FALSE(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
 
+    // A dry of unknown length has a countdown and no bar.
+    auto unknown = capped_rig_zones();
+    unknown[0].dryer.duration_min = 0;
+    overlay.show_zone(lv_screen_active(), unknown, 0, true);
+    helix::ui::UpdateQueue::instance().drain();
+    bar = lv_obj_find_by_name(lv_screen_active(), "drying_progress_bar");
+    REQUIRE(bar != nullptr);
+    CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+
     reset_overlay_singleton();
 }
 
