@@ -180,6 +180,7 @@ class PrinterProfileStateTestAccess {
         s.db_enclosed_ = false;
         s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;
+        s.heat_soak_macro_.clear();
         s.firmware_option_defaults_.clear();
     }
 

@@ -928,6 +928,10 @@ class PrintPreparationManager {
     /// off skips its phase (false), one left on runs it (true).
     [[nodiscard]] helix::PreprintPhaseOverrides preprint_phase_overrides() const;
 
+    /// The analyzed PRINT_START soaks on its own, so the heat soak option
+    /// would only repeat or contradict it.
+    [[nodiscard]] bool start_macro_soaks() const;
+
     /**
      * @brief Download, modify, and print a G-code file
      *

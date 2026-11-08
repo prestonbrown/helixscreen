@@ -168,6 +168,9 @@ PrePrintOptionState PrintPreparationManager::get_option_state(const std::string&
             return PrePrintOptionState::NOT_APPLICABLE;
         }
     }
+    if (id == helix::kHeatSoakOptionId && start_macro_soaks()) {
+        return PrePrintOptionState::NOT_APPLICABLE;
+    }
 
     // 1. Providers take priority: a start's override, then the attached one.
     //    The detail panel registers a provider that reads from per-option
@@ -532,8 +535,22 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
         });
 }
 
+bool PrintPreparationManager::start_macro_soaks() const {
+    return macro_analysis_ && macro_analysis_->found &&
+           macro_analysis_->has_operation(helix::PrintStartOpCategory::CHAMBER_SOAK);
+}
+
 PrePrintOptionSet PrintPreparationManager::displayed_options() const {
     PrePrintOptionSet displayed = get_cached_options();
+    // A start macro that soaks on its own makes the soak row either a no-op
+    // (off) or a second soak (on).
+    if (start_macro_soaks()) {
+        displayed.options.erase(std::remove_if(displayed.options.begin(), displayed.options.end(),
+                                               [](const PrePrintOption& opt) {
+                                                   return opt.id == helix::kHeatSoakOptionId;
+                                               }),
+                                displayed.options.end());
+    }
     const bool database_declares_options =
         printer_state_ &&
         !PrinterDetector::get_pre_print_option_set(printer_state_->profile_state().printer_type())
@@ -603,14 +620,14 @@ void PrintPreparationManager::publish_macro_option_count() {
     }
     const PrePrintOptionSet displayed = displayed_options();
     const PrePrintOptionSet& declared = get_cached_options();
-    size_t macro_rows = displayed.options.size() - declared.options.size();
     // A row the detail view hides for want of a rewrite never renders, so it
     // cannot be what makes the options card worth showing.
-    if (helix::gcode_rewrite_available(gcode_rewrite_block()) == 0) {
-        for (const auto& opt : displayed.options) {
-            if (!declared.find(opt.id) && disabling_option_requires_plugin(opt)) {
-                --macro_rows;
-            }
+    const bool rewrite_unavailable = helix::gcode_rewrite_available(gcode_rewrite_block()) == 0;
+    size_t macro_rows = 0;
+    for (const auto& opt : displayed.options) {
+        if (!declared.find(opt.id) &&
+            !(rewrite_unavailable && disabling_option_requires_plugin(opt))) {
+            ++macro_rows;
         }
     }
     printer_state_->set_macro_option_count(macro_rows);
@@ -1340,7 +1357,12 @@ std::optional<gcode::OperationType> file_embeddable_op_for_id(const std::string&
 // not at all.
 bool file_runs_command(const gcode::ScanResult& scan, const std::string& option_id,
                        const std::string& line) {
-    const std::optional<gcode::OperationType> op = file_embeddable_op_for_id(option_id);
+    // A soak is never stripped from the file, but a file that soaks has done
+    // the step the pre-start line would repeat.
+    const std::optional<gcode::OperationType> op =
+        option_id == helix::kHeatSoakOptionId
+            ? std::optional<gcode::OperationType>(gcode::OperationType::CHAMBER_SOAK)
+            : file_embeddable_op_for_id(option_id);
     if (!op) {
         return false;
     }

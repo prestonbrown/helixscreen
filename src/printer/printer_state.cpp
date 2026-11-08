@@ -949,6 +949,8 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
 }
 
 void PrinterState::apply_dynamic_options() {
+    profile_state_.set_heat_soak_macro(
+        capability_overrides_.has_heat_soak() ? discovery_.heat_soak_macro() : std::string());
     profile_state_.apply_dynamic_options(
         discovery_.has_exclude_object(), timelapse_available(),
         helix::skip_wrappers::offerable(discovery_.skip_active(), skip_gates_));
