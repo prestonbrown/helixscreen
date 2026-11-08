@@ -788,9 +788,9 @@ TEST_CASE("Print Select: Folder type determination", "[ui][folder_type]") {
 TEST_CASE("Print Select: Metadata path construction", "[ui][metadata]") {
     // Calls the production join directly. fetch_metadata_range() and the
     // print-start path beside it build the Moonraker file path with
-    // helix::gcode::join_gcode_path(current_path_, filename); these cases used to
-    // restate that ternary inline, asserting their own expression instead, which
-    // could not go red however the panel changed.
+    // helix::gcode::join_gcode_path(current_path_, filename). Restating that
+    // ternary inline would assert the test's own expression, which could not go
+    // red however the panel changed.
     using helix::gcode::join_gcode_path;
 
     SECTION("Root directory - no path prefix") {
@@ -856,9 +856,9 @@ TEST_CASE("thumbnail_subject_value never publishes an empty buffer",
 // ============================================================================
 // Card column selection (#1208 follow-up)
 //
-// The rule used to walk column counts downward and take the first that fit,
-// which always maximized columns and so always produced the narrowest legal
-// card. choose_card_columns() keeps the count landing nearest kCardWidthTarget.
+// Walking column counts downward and taking the first that fits always
+// maximizes columns and so always produces the narrowest legal card.
+// choose_card_columns() keeps the count landing nearest kCardWidthTarget.
 // ============================================================================
 
 TEST_CASE("choose_card_columns prefers the designed card width", "[print_select][layout]") {

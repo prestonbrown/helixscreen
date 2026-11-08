@@ -126,9 +126,9 @@ TEST_CASE_METHOD(ThumbnailRaceFixture,
 // ---------------------------------------------------------------------------
 // process_file_async: the read belongs to the worker, not the caller.
 //
-// ThumbnailCache::process_and_callback() used to slurp the whole PNG on the
-// MAIN thread and hand the bytes to process_async() — once per file while a
-// file listing populated, so scrolling a gcode folder put a synchronous
+// ThumbnailCache::process_and_callback() must not slurp the whole PNG on the
+// MAIN thread and hand the bytes to process_async(): once per file while a file
+// listing populates, scrolling a gcode folder would put a synchronous
 // whole-file read on the LVGL loop per card. process_file_async() takes the
 // path instead and opens it inside the pool task.
 // ---------------------------------------------------------------------------

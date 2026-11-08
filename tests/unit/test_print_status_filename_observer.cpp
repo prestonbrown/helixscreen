@@ -15,7 +15,7 @@
  * rewritten path into its own override and a re-entrant set_filename() could
  * retire it again before it was used. That churn is gone - PrinterPrintState
  * decides the identity once, before print_filename_ is published - but the cases
- * are kept because they pin the behaviour that churn used to threaten.
+ * are kept because they pin behaviour that churn in that ordering threatens.
  *
  * The panel is exercised WITHOUT ActivePrintMediaManager, and the thumbnail is
  * published by hand. That is the point: the invariant is "the panel agrees with
