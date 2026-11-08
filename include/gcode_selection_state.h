@@ -5,15 +5,12 @@
  * @file gcode_selection_state.h
  * @brief Which objects are excluded or selected, and what a change to that costs.
  *
- * Two jobs, both of which the renderers previously did by hand and inconsistently.
+ * Two jobs, done here once so every renderer does them the same way.
  *
  * 1. Per-segment classification, on the INTERNED INDEX rather than the name.
- *    The old shape was `resolve_object_name(idx)` followed by
- *    `!name.empty() && set.count(name) > 0`, repeated in eight places across
- *    three files. On the isometric view's hot Bresenham cache path,
+ *    On the isometric view's hot Bresenham cache path,
  *    GCodeLayerRenderer::resolve_object_name() returns std::string BY VALUE, so
- *    every segment of every layer allocated a string purely to ask whether its
- *    object was selected.
+ *    classifying by name allocates a string for every segment of every layer.
  *
  *    That signature cannot simply be changed to return a reference:
  *    GCodeStreamingController::get_object_name() copies under name_table_mutex_
