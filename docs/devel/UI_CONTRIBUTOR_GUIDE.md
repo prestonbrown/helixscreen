@@ -514,22 +514,6 @@ rasterizer live in `include/humidity_drop_geometry.h` (no LVGL; tested in
 `tests/unit/test_humidity_drop.cpp`, tag `[humidity_drop]`), the widget in
 `src/ui/filament/ui_humidity_drop.cpp`.
 
-### dryer_airflow
-
-Warm air rising through a dryer, drawn as a stream of chevrons over whatever sits beneath it.
-
-```xml
-<dryer_airflow width="100%" height="100%" align="center" bind_phase="ams_env_overlay_drying_phase"/>
-```
-
-`bind_phase` is an int subject holding a `DryingPhase`: Holding draws in `#info`, Heating and
-Unknown in `#warning`, read from the theme at each draw. With animations on, every widget shares
-one 100ms tick that redraws only those visible; with them off the stream holds still. Art beneath
-it should step back while it shows (`dryer_picture_drying` in `ui_xml/ams_environment_overlay.xml`),
-since a chevron in the art's own colour otherwise disappears. Geometry:
-`include/dryer_airflow_geometry.h` (no LVGL; tested in `tests/unit/test_dryer_airflow.cpp`, tag
-`[dryer_airflow]`).
-
 ### spinner
 
 Responsive loading spinner. Sizes adapt per breakpoint.

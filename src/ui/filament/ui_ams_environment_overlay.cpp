@@ -97,7 +97,6 @@ void AmsEnvironmentOverlay::init_subjects() {
                                   "ams_env_overlay_drying_text", subjects_);
         UI_MANAGED_SUBJECT_INT(drying_progress_subject_, 0, "ams_env_overlay_drying_progress",
                                subjects_);
-        UI_MANAGED_SUBJECT_INT(drying_phase_subject_, 0, "ams_env_overlay_drying_phase", subjects_);
         UI_MANAGED_SUBJECT_STRING(unit_logo_subject_, unit_logo_buf_, "",
                                   "ams_env_overlay_unit_logo", subjects_);
         UI_MANAGED_SUBJECT_INT(unit_logo_color_subject_, 0, "ams_env_overlay_unit_logo_color",
@@ -679,7 +678,6 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
-        lv_subject_set_int(&drying_phase_subject_, 0);
         lv_subject_set_int(&unit_logo_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
         lv_subject_set_int(&humidity_subject_, -1);
@@ -829,8 +827,6 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
 
     // Drying active state
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
-    lv_subject_set_int(&drying_phase_subject_,
-                       static_cast<int>(dryer.active ? dryer.phase : DryingPhase::Unknown));
 
     if (dryer.active) {
         snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",

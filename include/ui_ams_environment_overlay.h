@@ -254,7 +254,6 @@ class AmsEnvironmentOverlay : public OverlayBase {
 
     lv_subject_t drying_progress_subject_{};
     /// The running cycle's DryingPhase as an int; Unknown while idle.
-    lv_subject_t drying_phase_subject_{};
 
     /// The shown unit's picture: its logo art, whether it is full colour (drawn as
     /// is) or a mono mark (tinted), and whether there is one at all.
