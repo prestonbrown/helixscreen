@@ -98,6 +98,10 @@ class PrintStatusTiles {
 
     /// Schedule one chip pass and layout for the next tick.
     void request_update();
+    /// Schedule a pass over the heater chips alone, for a reading such as heater duty
+    /// that changes their text and status every few hundred milliseconds. It lays the
+    /// chips out again only when the new text would change what the layout reads.
+    void request_heater_update();
     /// Run the pending update now.
     void update_now();
     /// Re-read the collector's checklist and publish the rows.
@@ -160,6 +164,9 @@ class PrintStatusTiles {
     };
 
     void cancel_update_timer();
+    /// `full`: a layout pass; otherwise the heater chips alone. A full request wins.
+    void schedule_update(bool full);
+    void update_heater_chips();
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
@@ -176,6 +183,8 @@ class PrintStatusTiles {
     /// Watches every extruder's reading and target, so a parked head's pre-heat redraws.
     void watch_extruders();
     ChipContent fan(PrintStatusChip chip, bool labeled);
+    /// The merged toolhead chip's text for the nozzle chip's text and the part fan.
+    std::string toolhead_text(const std::string& nozzle_text);
     Image current_image() const;
 
     PrinterState& printer_state_;
@@ -225,7 +234,23 @@ class PrintStatusTiles {
     mutable int natural_h_ = 0;
 
     lv_timer_t* update_timer_ = nullptr;
+    bool pending_full_ = false;
     int layout_count_ = 0;
+    /// What the last layout pass read from, and published for, each heater chip: a
+    /// heater pass whose chips match it can publish without laying out again.
+    struct HeaterLaidOut {
+        bool valid = false;
+        bool active = false;
+        bool expendable = false;
+        bool glowing = false;
+        int w_full = 0;
+        int w_compact = 0;
+        bool shown = false;
+        bool glow = false;
+        bool line = false;
+    };
+    std::array<HeaterLaidOut, 3> heaters_laid_out_{};
+    int last_column_w_ = 0;
     CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 

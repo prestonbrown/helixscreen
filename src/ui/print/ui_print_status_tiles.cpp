@@ -218,12 +218,13 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         [](PrintStatusTiles* self, const char*) { self->request_update(); },
         tools.get_subjects_lifetime());
     const SubjectLifetime ps = printer_state_.get_subjects_lifetime();
-    nozzle_power_observer_ =
-        observe<int>(printer_state_.get_heater_power_subject(HeaterType::Nozzle), this, update, ps);
+    const auto heaters = [](PrintStatusTiles* self, int) { self->request_heater_update(); };
+    nozzle_power_observer_ = observe<int>(
+        printer_state_.get_heater_power_subject(HeaterType::Nozzle), this, heaters, ps);
     bed_power_observer_ =
-        observe<int>(printer_state_.get_heater_power_subject(HeaterType::Bed), this, update, ps);
+        observe<int>(printer_state_.get_heater_power_subject(HeaterType::Bed), this, heaters, ps);
     chamber_power_observer_ = observe<int>(
-        printer_state_.get_heater_power_subject(HeaterType::Chamber), this, update, ps);
+        printer_state_.get_heater_power_subject(HeaterType::Chamber), this, heaters, ps);
     // The other-tools chip follows every head, and which heads there are.
     const auto heads_changed = [](PrintStatusTiles* self, int) {
         self->watch_extruders();
@@ -286,10 +287,23 @@ void PrintStatusTiles::set_fans(const std::string& part, const std::string& hote
 void PrintStatusTiles::cancel_update_timer() {
     lv_timer_cancel_safe(update_timer_);
     update_timer_ = nullptr;
+    pending_full_ = false;
 }
 
 void PrintStatusTiles::request_update() {
-    if (!subjects_ready_ || update_timer_) {
+    schedule_update(true);
+}
+
+void PrintStatusTiles::request_heater_update() {
+    schedule_update(false);
+}
+
+void PrintStatusTiles::schedule_update(bool full) {
+    if (!subjects_ready_) {
+        return;
+    }
+    pending_full_ = pending_full_ || full;
+    if (update_timer_) {
         return;
     }
     // Deferred: a burst of readings lays out once, and sizes are read only
@@ -299,8 +313,14 @@ void PrintStatusTiles::request_update() {
             LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusTiles] update_timer");
             auto* self = static_cast<PrintStatusTiles*>(lv_timer_get_user_data(timer));
             if (self) {
+                const bool full = self->pending_full_;
                 self->update_timer_ = nullptr;
-                self->update_now();
+                self->pending_full_ = false;
+                if (full) {
+                    self->update_now();
+                } else {
+                    self->update_heater_chips();
+                }
             }
             lv_timer_delete(timer);
             LVGL_SAFE_EVENT_CB_END();
@@ -314,12 +334,41 @@ void PrintStatusTiles::on_tree_destroyed() {
     exact_image_.cancel();
     exact_image_.forget_displayed();
     last_mode_ = CalloutMode::ImageOnly;
+    heaters_laid_out_ = {};
     for (auto& c : chips_) {
         c.painted.valid = false;
     }
 }
 
 namespace {
+/// A heater chip ends in its heater_status glyph; room for the widest one keeps its
+/// width the same whatever state it shows.
+int heater_status_px(const CalloutChipMetrics& m) {
+    int status_glyph = 0;
+    for (const char* g : {"fire", "check", "cooldown", "alpha_a_circle"}) {
+        status_glyph = std::max(status_glyph, m.icon_px(g));
+    }
+    return m.col_gap + status_glyph;
+}
+
+/// The icons beside a chip's label.
+int chip_icons_px(const CalloutChipMetrics& m, size_t i) {
+    return m.icon_px(kChips[i].icon) +
+           (is_heater(static_cast<PrintStatusChip>(i)) ? heater_status_px(m) : 0);
+}
+
+/// Heater duty rides along only where the last layout put chips in a column and the
+/// wider text still fits it.
+const ChipContent& heater_shown(const ChipContent& plain, const ChipContent& with_power,
+                                const CalloutChipMetrics& m, int icons, int column_w,
+                                CalloutMode mode) {
+    if (with_power.text != plain.text &&
+        heater_power_fits(mode, m.chip_w(icons, with_power.text), column_w)) {
+        return with_power;
+    }
+    return plain;
+}
+
 /// The reading when the target last changed: where the heat-up bar starts.
 template <typename HeatStart> int track_heat_start(HeatStart& h, int current, int target) {
     if (target != h.target) {
@@ -590,6 +639,7 @@ void PrintStatusTiles::update_now() {
         }
     }
 
+    heaters_laid_out_ = {};
     if (!area || !probe) {
         // No printer tile in this tree: the chips publish their content alone.
         for (size_t i = 0; i < kPrintStatusChipCount; ++i) {
@@ -663,12 +713,6 @@ void PrintStatusTiles::update_now() {
         return false;
     };
 
-    // A heater chip ends in its heater_status glyph; room for the widest one
-    // keeps its width the same whatever state it shows.
-    int status_glyph = 0;
-    for (const char* g : {"fire", "check", "cooldown", "alpha_a_circle"}) {
-        status_glyph = std::max(status_glyph, m.icon_px(g));
-    }
     std::array<int, kPrintStatusChipCount> icons{}, budget_w{}, budget_bare_w{};
     // The worst case of a chip budgeted from its ChipContent; its lines set the chip's height.
     std::array<std::string, kPrintStatusChipCount> budget_text;
@@ -678,7 +722,7 @@ void PrintStatusTiles::update_now() {
     };
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {
         const auto chip = static_cast<PrintStatusChip>(i);
-        icons[i] = m.icon_px(kChips[i].icon) + (is_heater(chip) ? m.col_gap + status_glyph : 0);
+        icons[i] = chip_icons_px(m, i);
         if (!in_budget(chip)) {
             budget_w[i] = 0;
         } else if (chip == PrintStatusChip::SpeedFlow) {
@@ -702,16 +746,12 @@ void PrintStatusTiles::update_now() {
         bare[i] = contents[i];
     }
 
-    // Heater duty rides along only where the last layout put chips in a column
-    // and the wider text still fits it.
     const auto with_power = decide_chips(true, true);
     for (auto c : {PrintStatusChip::Nozzle, PrintStatusChip::Bed, PrintStatusChip::Chamber}) {
         const size_t i = index_of(c);
-        if (with_power[i].text != contents[i].text &&
-            heater_power_fits(last_mode_, m.chip_w(icons[i], with_power[i].text), column_w)) {
-            contents[i] = with_power[i];
-        }
+        contents[i] = heater_shown(contents[i], with_power[i], m, icons[i], column_w, last_mode_);
     }
+    last_column_w_ = column_w;
 
     const bool printing = host_.printing && host_.printing();
     CalloutPresenter::Parts parts;
@@ -747,18 +787,12 @@ void PrintStatusTiles::update_now() {
         }
         parts.chips.push_back(part);
     }
-    const std::string fan_pct =
-        std::to_string(subject_int_or_zero(
-            part_fan_.empty() ? nullptr
-                              : printer_state_.fan_state().get_fan_speed_subject(part_fan_))) +
-        "%";
-    const std::string toolhead_text =
-        toolhead_chip_text(contents[index_of(PrintStatusChip::Nozzle)].text, fan_pct);
+    const std::string th_text = toolhead_text(contents[index_of(PrintStatusChip::Nozzle)].text);
     if (lv_obj_t* th_obj = lv_obj_find_by_name(area, "ps_chip_toolhead")) {
         CalloutPresenter::Chip th;
         th.kind = CalloutKind::Toolhead;
         th.chip = th_obj;
-        th.w_compact = compact_callout_chip_w(probe, toolhead_text, m.col_gap + status_glyph);
+        th.w_compact = compact_callout_chip_w(probe, th_text, heater_status_px(m));
         parts.toolhead = th;
     }
 
@@ -791,8 +825,20 @@ void PrintStatusTiles::update_now() {
         }
         const ChipContent& shown = out.unlabeled && is_fan(chip) ? bare[i] : contents[i];
         publish(chip, shown, shown.shown && !dropped, glows && shown.glow, line);
+        if (is_heater(chip)) {
+            const auto& p = parts.chips[i];
+            heaters_laid_out_[i] = {true,
+                                    p.active,
+                                    p.expendable,
+                                    p.glowing,
+                                    p.w_full,
+                                    p.w_compact,
+                                    shown.shown && !dropped,
+                                    glows && shown.glow,
+                                    line};
+        }
     }
-    set_string(&toolhead_text_, toolhead_text_buf_, sizeof(toolhead_text_buf_), toolhead_text);
+    set_string(&toolhead_text_, toolhead_text_buf_, sizeof(toolhead_text_buf_), th_text);
     set_int(&toolhead_merged_, out.toolhead_merged ? 1 : 0);
     set_int(&callout_mode_, static_cast<int>(out.mode));
 
@@ -800,6 +846,52 @@ void PrintStatusTiles::update_now() {
         // Heater duty was sized for the previous mode.
         last_mode_ = out.mode;
         request_update();
+    }
+}
+
+std::string PrintStatusTiles::toolhead_text(const std::string& nozzle_text) {
+    const std::string fan_pct =
+        std::to_string(subject_int_or_zero(
+            part_fan_.empty() ? nullptr
+                              : printer_state_.fan_state().get_fan_speed_subject(part_fan_))) +
+        "%";
+    return toolhead_chip_text(nozzle_text, fan_pct);
+}
+
+void PrintStatusTiles::update_heater_chips() {
+    lv_obj_t* root = host_.root ? host_.root() : nullptr;
+    lv_obj_t* probe = root ? lv_obj_find_by_name(root, "ps_chip_nozzle") : nullptr;
+    if (!probe || !heaters_laid_out_[0].valid) {
+        update_now();
+        return;
+    }
+    const CalloutChipMetrics m = measure_callout_chip(probe);
+    std::array<ChipContent, 3> shown;
+    for (auto c : {PrintStatusChip::Nozzle, PrintStatusChip::Bed, PrintStatusChip::Chamber}) {
+        const size_t i = index_of(c);
+        const int icons = chip_icons_px(m, i);
+        const ChipContent plain = heater(c, false);
+        shown[i] = heater_shown(plain, heater(c, true), m, icons, last_column_w_, last_mode_);
+        // Everything the layout read from this chip must be what it read last time.
+        const HeaterLaidOut& was = heaters_laid_out_[i];
+        const bool active = shown[i].shown;
+        const int w_full = active ? m.chip_w(icons, shown[i].text) : 0;
+        const int w_compact = active ? compact_callout_chip_w(probe, plain.text, icons) : 0;
+        if (!was.valid || active != was.active || shown[i].expendable != was.expendable ||
+            shown[i].glow != was.glowing || w_full != was.w_full || w_compact != was.w_compact) {
+            update_now();
+            return;
+        }
+    }
+    // A pinned layout sizes the merged toolhead chip from the nozzle's text.
+    const std::string th_text = toolhead_text(shown[index_of(PrintStatusChip::Nozzle)].text);
+    if (th_text != toolhead_text_buf_) {
+        update_now();
+        return;
+    }
+    for (size_t i = 0; i < shown.size(); ++i) {
+        const HeaterLaidOut& was = heaters_laid_out_[i];
+        publish(static_cast<PrintStatusChip>(i), shown[i], was.shown, was.glow, was.line);
     }
 }
 

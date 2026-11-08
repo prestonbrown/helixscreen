@@ -355,6 +355,29 @@ TEST_CASE_METHOD(Landscape800, "chips lay out again when the printer tile resize
     CHECK(tiles().layout_count() > before);
 }
 
+TEST_CASE_METHOD(Landscape800, "a heater duty change that keeps the chip's width skips layout",
+                 "[print_status]") {
+    auto& temps = state().temperature_state();
+    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Nozzle);
+    set_int(temps.get_active_extruder_target_subject(), 2200);
+    set_int(temps.get_active_extruder_temp_subject(), 2200);
+    set_int(duty, 41);
+    settle();
+    REQUIRE(subject_int("ps_chip_nozzle_shown") == 1);
+    const int layouts = tiles().layout_count();
+
+    // The same digits in another order: where the duty shows, new text of the same width.
+    set_int(duty, 14);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(tiles().layout_count() == layouts);
+    const std::string text = subject_str("ps_chip_nozzle_text");
+    const int status = subject_int("ps_chip_nozzle_state");
+    tiles().update_now();
+    CHECK(subject_str("ps_chip_nozzle_text") == text);
+    CHECK(subject_int("ps_chip_nozzle_state") == status);
+}
+
 TEST_CASE_METHOD(Landscape800, "speed 104 sets speed_flow tone Warn", "[print_status]") {
     set_int(state().motion_state().get_speed_factor_subject(), 100);
     settle();
