@@ -527,8 +527,8 @@ install_service_systemd() {
 
     # Template placeholders (match SysV pattern in install_service_sysv).
     # KLIPPER_GROUP is the user's actual primary group (resolved via id -gn);
-    # falling back to KLIPPER_USER would re-introduce the QIDI Q2 bug where
-    # `mks` user has no `mks` group and systemd refuses to spawn the unit.
+    # falling back to KLIPPER_USER breaks the QIDI Q2, where the `mks` user
+    # has no `mks` group and systemd refuses to spawn the unit.
     local helix_user="${KLIPPER_USER:-root}"
     local helix_group="${KLIPPER_GROUP:-${KLIPPER_USER:-root}}"
 
