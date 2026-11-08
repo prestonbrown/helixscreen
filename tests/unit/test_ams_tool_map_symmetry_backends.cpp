@@ -640,6 +640,37 @@ TEST_CASE("ToolChanger with gapped tool numbers seats no slot for an unknown num
     }
 }
 
+TEST_CASE("ToolChanger refuses to mount a slot whose tool has no listed number",
+          "[ams][toolchanger][tool_map]") {
+    // The listing names T0 and T2 only, so slot 2 (T3) has no tool number.
+    // SELECT_TOOL T=-1 would ask klipper-toolchanger for a tool that does not exist.
+    ToolChangerMapProbe backend(kGappedToolNames);
+    backend.feed(json{{"toolchanger",
+                       {{"status", "ready"},
+                        {"tool_number", -1},
+                        {"tool_numbers", json::array({0, 2})},
+                        {"tool_names", json::array({"tool T0", "tool T2"})}}}});
+    backend.captured.clear();
+
+    AmsError err = backend.change_tool(2);
+    CHECK_FALSE(err.success());
+    CHECK(err.result == AmsResult::INVALID_TOOL);
+    CHECK(backend.captured.empty());
+
+    SECTION("a changer with its own T<n> commands still mounts the slot") {
+        helix::toolchanger_addon::ToolCommands own_commands;
+        own_commands.present = true;
+        own_commands.provider_name = "MedusaHC";
+        own_commands.select_prefix = "T";
+        backend.set_tool_commands(own_commands);
+        backend.captured.clear();
+
+        REQUIRE(backend.change_tool(2).success());
+        REQUIRE_FALSE(backend.captured.empty());
+        CHECK(backend.captured.back() == "T2");
+    }
+}
+
 namespace {
 
 /// A MedusaHC whose dock sensors watch the given tools.
