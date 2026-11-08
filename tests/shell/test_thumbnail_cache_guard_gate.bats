@@ -268,9 +268,9 @@ void Panel::load() {
     sed 's@^SINGLETON = "get_thumbnail_cache"@SINGLETON = "never_matches_anything"@' \
         "$GATE" > "$broken"
     refute_grep 'SINGLETON = "get_thumbnail_cache"' "$broken"
-    # The gate imports staged_content as a sibling module; a copy run outside
-    # scripts/ needs its own copy beside it.
-    cp "$(dirname "$GATE")/staged_content.py" "${FIXTURE_DIR}/"
+    # The gate imports staged_content and source_strip as sibling modules; a
+    # copy run outside scripts/ needs its own copies beside it.
+    cp "$(dirname "$GATE")/staged_content.py" "$(dirname "$GATE")/source_strip.py" "${FIXTURE_DIR}/"
 
     printf '%s\n' '
 void Panel::load() {

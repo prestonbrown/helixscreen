@@ -44,7 +44,9 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_required_names import call_args, strip_comments  # noqa: E402
+from check_required_names import call_args  # noqa: E402
+
+from source_strip import blank_cxx  # noqa: E402
 
 XML_REF_RE = re.compile(r'\b(?:[a-z0-9_]*callback|event_cb)="([^"]*)"')
 # C++ naming a callback through a component's `$..._callback` prop:
@@ -67,7 +69,7 @@ def collect_registrations(root: Path, files=None, read=None) -> dict[str, set[st
     regs: dict[str, set[str]] = defaultdict(set)
     read = read or (lambda f: f.read_text(errors="replace"))
     for f in source_files(root) if files is None else files:
-        code = strip_comments(read(f))
+        code = blank_cxx(read(f), strings="keep")
         rel = str(f.relative_to(root))
         loop_registers = False
         for m in re.finditer(r"\blv_xml_register_event_cb\s*\(", code):
@@ -105,7 +107,7 @@ def collect_xml_refs(root: Path, xml_files=None) -> dict[str, set[str]]:
     src = root / "src"
     if src.is_dir():
         for f in sorted(src.rglob("*.cpp")):
-            for name in CPP_ATTR_REF_RE.findall(strip_comments(f.read_text(errors="replace"))):
+            for name in CPP_ATTR_REF_RE.findall(blank_cxx(f.read_text(errors="replace"), strings="keep")):
                 refs[name].add(str(f.relative_to(root)))
     return refs
 

@@ -53,6 +53,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from source_strip import blank_cxx
+
 # p97 of the tree's C++ files (median 180, p95 ~1080). Lower, and the frozen set
 # takes in hundreds of ordinary ~1000-line test files every routine fix touches.
 FILE_CAP = 1500
@@ -120,48 +122,6 @@ def read_blobs(root: Path, rev: str, paths) -> dict[str, str]:
         blobs[p] = out[pos:pos + size].decode("utf-8", "replace")
         pos += size + 1
     return blobs
-
-
-def strip_code(text: str) -> str:
-    """Comments, string and char literals blanked to spaces; newlines kept."""
-    out, i, n = [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if text.startswith("//", i):
-            j = text.find("\n", i)
-            j = n if j < 0 else j
-            out.append(" " * (j - i))
-            i = j
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append(re.sub(r"[^\n]", " ", text[i:j]))
-            i = j
-        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not text[i - 1].isalnum()):
-            m = re.match(r'R"([^(\s]*)\(', text[i:])
-            if not m:
-                out.append(c)
-                i += 1
-                continue
-            end = text.find(")" + m.group(1) + '"', i)
-            j = n if end < 0 else end + len(m.group(1)) + 2
-            out.append(re.sub(r"[^\n]", " ", text[i:j]))
-            i = j
-        elif c in "\"'":
-            if c == "'" and i > 0 and text[i - 1].isalnum():  # digit separator 1'000
-                out.append(" ")
-                i += 1
-                continue
-            j = i + 1
-            while j < n and text[j] != c and text[j] != "\n":
-                j += 2 if text[j] == "\\" else 1
-            j = min(j + 1, n)
-            out.append(" " * (j - i))
-            i = j
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
 
 
 STATIC_DECL_RE = re.compile(r"(?:^|[;{}:])\s*(?:inline\s+|constexpr\s+)*static\b[^;{}()=]*?\b(~?\w+)\s*\(")
@@ -253,7 +213,7 @@ def receivers(blobs: dict[str, str], param: re.Pattern):
     parsed = []
     statics: dict[str, set[str]] = {}
     for text in blobs.values():
-        code = strip_code(text)
+        code = blank_cxx(text)
         spans = scopes(code)
         parsed.append((code, spans))
         for owner, names in static_methods(spans, code).items():
@@ -275,7 +235,7 @@ def receivers(blobs: dict[str, str], param: re.Pattern):
 
 def accessor_calls(text: str, accessor: str, classes: set[str],
                    statics: dict[str, set[str]]) -> int:
-    code = strip_code(text)
+    code = blank_cxx(text)
     calls = [m.start() for m in re.finditer(rf"\b{accessor}\s*\(", code)]
     if not calls:
         return 0
@@ -291,7 +251,7 @@ def accessor_calls(text: str, accessor: str, classes: set[str],
 
 
 def active_instances(text: str) -> list[str]:
-    code = strip_code(text)
+    code = blank_cxx(text)
     names = []
     for rx in (ACTIVE_STATIC_RE, ACTIVE_GLOBAL_RE):
         for m in rx.finditer(code):
@@ -305,7 +265,7 @@ def banned_validity_calls(root: Path) -> list[str]:
     hits = []
     for name in VALIDITY_NAMES:
         for path, text in tree_with(root, "HEAD", name, CXX_SOURCES).items():
-            code = strip_code(text)
+            code = blank_cxx(text)
             for m in re.finditer(rf"\b{name}\s*\(", code):
                 hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}: {name}()")
     return sorted(hits)
@@ -335,7 +295,7 @@ def _class_table(blobs: dict[str, str]) -> dict[str, tuple[set[str], list[str]]]
     """class name -> (its own WidgetRef members, its bases)."""
     table: dict[str, tuple[set[str], list[str]]] = {}
     for text in blobs.values():
-        code = strip_code(text)
+        code = blank_cxx(text)
         for m in _CLASS_RE.finditer(code):
             members, bases = table.setdefault(m.group(1), (set(), []))
             members.update(_REF_MEMBER_RE.findall(_braced(code, m.end() - 1)))
@@ -375,7 +335,7 @@ def delete_callback_ref_compares(root: Path) -> list[str]:
     for path, text in blobs.items():
         if "LV_EVENT_DELETE" not in text:
             continue
-        code = strip_code(text)
+        code = blank_cxx(text)
         file_refs = set(_REF_MEMBER_RE.findall(code))
         bodies = []
         names = set(_DELETE_CB_RE.findall(code))
