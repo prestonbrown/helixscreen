@@ -1665,7 +1665,7 @@ vim ui_xml/home_panel.xml
 
 ### `HELIX_FLOW_SEGMENT`
 
-Pin the filament-path animation to one segment so a single leg of the path can be inspected in isolation. Sets the active slot to 0 if none is set, forces `filament_segment` to the named value, and keeps a 30 ms repaint timer alive so the flow dots keep moving.
+Pin the filament-path animation to one segment so a single leg of the path can be inspected in isolation. Sets the active slot to 0 if none is set, forces `filament_segment` to the named value, and keeps a 30 ms repaint timer alive so the flow chevrons keep moving.
 
 | Property | Value |
 |----------|-------|

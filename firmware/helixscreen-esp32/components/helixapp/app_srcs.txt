@@ -410,6 +410,7 @@ src/ui/filament/filament_action_set.cpp
 src/ui/filament/filament_op_execute.cpp
 src/ui/filament/filament_op_heater.cpp
 src/ui/filament/filament_op_router.cpp
+src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
@@ -581,6 +582,7 @@ src/ui/filament/ui_filament_mapping_card.cpp
 src/ui/filament/ui_filament_mapping_modal.cpp
 src/ui/filament/filament_product_form.cpp
 src/ui/filament/ui_filament_product_edit_modal.cpp
+src/ui/filament/ui_filament_motion_glyph.cpp
 src/ui/filament/ui_filament_path_anim.cpp
 src/ui/filament/ui_filament_path_canvas.cpp
 src/ui/filament/ui_filament_path_glyphs.cpp

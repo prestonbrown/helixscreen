@@ -1861,6 +1861,9 @@
     },
     "filament_path_canvas": {
       "attributes": {
+        "bind_motion": {
+          "type": "string"
+        },
         "topology": {
           "type": "string"
         },
@@ -2024,6 +2027,14 @@
         },
         "slot_index": {
           "type": "int"
+        }
+      },
+      "inherits": "lv_obj"
+    },
+    "filament_motion_glyph": {
+      "attributes": {
+        "bind_motion": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"
@@ -3029,6 +3040,7 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "filament_motion_glyph",
     "humidity_drop",
     "lv_obj-bind_tile_rung",
     "setting_group"
@@ -3629,6 +3641,14 @@
     "filament_idle_dark",
     "filament_idle_light",
     "filament_metal",
+    "filament_motion_glyph_w",
+    "filament_motion_glyph_w_large",
+    "filament_motion_glyph_w_medium",
+    "filament_motion_glyph_w_micro",
+    "filament_motion_glyph_w_small",
+    "filament_motion_glyph_w_tiny",
+    "filament_motion_glyph_w_xlarge",
+    "filament_motion_glyph_w_xxlarge",
     "filament_portrait_row_h",
     "filament_portrait_row_h_large",
     "filament_portrait_row_h_medium",

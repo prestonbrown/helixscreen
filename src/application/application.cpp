@@ -94,6 +94,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_gcode_viewer.h"
 #include "ui_gradient_canvas.h"
 #include "ui_guided_device_flow.h"
@@ -1598,6 +1599,7 @@ bool Application::register_widgets() {
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
     helix::ui::register_humidity_drop_widget();
+    helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();
 
     // Initialize component systems

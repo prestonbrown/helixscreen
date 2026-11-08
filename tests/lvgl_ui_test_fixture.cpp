@@ -14,6 +14,7 @@
 #include "ui_card.h"
 #include "ui_component_header_bar.h"
 #include "ui_dialog.h"
+#include "ui_filament_motion_glyph.h"
 #include "ui_gcode_viewer.h"
 #include "ui_gradient_canvas.h"
 #include "ui_humidity_drop.h"
@@ -133,6 +134,7 @@ void LVGLUITestFixture::register_widgets() {
     // These are needed before XML components that embed them
     helix::ui::icon::register_widget();
     helix::ui::register_humidity_drop_widget();
+    helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();
     helix::ui::register_tile_rung_binding();
     ui_switch_register();
