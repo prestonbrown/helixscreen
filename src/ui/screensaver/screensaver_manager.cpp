@@ -49,7 +49,7 @@ ScreensaverManager& ScreensaverManager::instance() {
 }
 
 ScreensaverManager::ScreensaverManager()
-    : cpu_clock_(helix::ui::read_process_cpu_clock),
+    : cpu_clock_(helix::ui::read_process_cpu_clock), wall_clock_(helix::ui::read_steady_clock_ns),
       random_(static_cast<std::minstd_rand::result_type>(
           std::chrono::steady_clock::now().time_since_epoch().count())) {
     screensavers_.push_back(std::make_unique<FlyingToasterScreensaver>());
@@ -374,10 +374,10 @@ void ScreensaverManager::begin_gate(const StartPlan& plan) {
 }
 
 void ScreensaverManager::on_idle_check_tick() {
-    const CpuSample now = cpu_clock_();
-    if (sampled_ && now.wall_ns - last_sample_ns_ < kSampleIntervalNs) {
+    if (sampled_ && wall_clock_() - last_sample_ns_ < kSampleIntervalNs) {
         return;
     }
+    const CpuSample now = cpu_clock_();
     last_sample_ns_ = now.wall_ns;
     sampled_ = true;
 

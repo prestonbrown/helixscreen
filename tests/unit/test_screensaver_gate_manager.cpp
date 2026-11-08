@@ -55,8 +55,13 @@ class GateHarness {
         clear_levels();
         unsetenv("HELIX_SCREENSAVER_BUDGET_PCT");
         unsetenv("HELIX_SCREENSAVER_LEVEL");
-        ScreensaverManagerTestAccess::set_cpu_clock(mgr,
-                                                    [this] { return CpuSample{cpu_ns, wall_ns}; });
+        ScreensaverManagerTestAccess::set_cpu_clock(
+            mgr,
+            [this] {
+                ++cpu_reads;
+                return CpuSample{cpu_ns, wall_ns};
+            },
+            [this] { return wall_ns; });
         ScreensaverManagerTestAccess::reset_baseline(mgr);
         mgr.set_host(SaverHost{[this] { return printing; }, "sdl"});
     }
@@ -104,6 +109,7 @@ class GateHarness {
     helix::ScopedEnv level_env{"HELIX_SCREENSAVER_LEVEL"};
     uint64_t cpu_ns = 0;
     uint64_t wall_ns = 1000ULL * 1000000000ULL;
+    int cpu_reads = 0;
     bool printing = false;
 
   private:
@@ -118,6 +124,20 @@ class GateHarness {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "the idle check reads the CPU clock only when a sample is due",
+                 "[screensaver][screensaver_gate]") {
+    GateHarness gate;
+    gate.mgr.on_idle_check_tick();
+    REQUIRE(gate.cpu_reads == 1);
+    for (int i = 0; i < 50; i++) {
+        gate.mgr.on_idle_check_tick();
+    }
+    CHECK(gate.cpu_reads == 1);
+    gate.wall_ns += ScreensaverManager::kSampleIntervalNs;
+    gate.mgr.on_idle_check_tick();
+    CHECK(gate.cpu_reads == 2);
+}
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the gate subtracts the idle baseline from a running saver's windows",

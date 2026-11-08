@@ -309,6 +309,9 @@ class ScreensaverManager {
     /// How long an ended print stays on the savers; stepped on every sampled idle-check tick.
     helix::ui::PrintEndLatch print_latch_;
     helix::ui::CpuClockFn cpu_clock_;
+    /// Checked before cpu_clock_ on every idle-check tick: reading the process CPU
+    /// clock is a system call, and the tick runs on every main-loop pass.
+    helix::ui::WallClockFn wall_clock_;
     helix::ui::IdleBaseline baseline_;
     helix::ui::SaverGateSession session_;
     helix::ui::SaverComfortStreak comfort_;
