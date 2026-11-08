@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -225,6 +226,9 @@ class MemoryMonitor {
     std::atomic<bool> running_{false};
     std::atomic<int> interval_ms_{5000};
     std::thread monitor_thread_;
+    // The loop sleeps a whole interval on wake_cv_; stop() wakes it early.
+    std::mutex wake_mutex_;
+    std::condition_variable wake_cv_;
 
     // Threshold evaluation
     MemoryThresholds thresholds_{};

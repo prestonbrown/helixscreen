@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/thread_wakes.h"
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
 #include "settings_manager.h"
@@ -1015,6 +1016,27 @@ TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: parks the device before any 
     CHECK(backend->resume_calls.load() == 0);
 }
 
+#ifdef __linux__
+TEST_CASE("SoundSequencer: an idle sequencer sleeps until it is asked for something",
+          "[sound][sequencer][device_park]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    const auto fresh = helix::test::threads_started_by([&] { seq.start(); });
+    REQUIRE(fresh.size() == 1);
+    REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
+
+    const long start = helix::test::thread_voluntary_switches(fresh[0]);
+    REQUIRE(start >= 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    // Each switch is a wake: a polling wait shows tens here, a blocking one none.
+    CHECK(helix::test::thread_voluntary_switches(fresh[0]) - start <= 2);
+
+    seq.play(make_tone(1000.0f, 20.0f));
+    CHECK(wait_until_done(seq));
+    seq.shutdown();
+}
+#endif
+
 TEST_CASE_METHOD(StartedSequencer,
                  "SoundSequencer: wakes the device to play and parks it again after",
                  "[sound][sequencer][device_park][slow]") {
@@ -1050,13 +1072,14 @@ TEST_CASE_METHOD(StartedSequencer,
     std::atomic<bool> tick_done{false};
     seq.set_external_tick([&](float) {
         if (tick_done.load()) {
-            return;
+            return true;
         }
         in_tick.store(true);
         while (!release.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         tick_done.store(true);
+        return true;
     });
     REQUIRE(UITest::wait_until([&] { return in_tick.load(); }));
 
@@ -1086,6 +1109,7 @@ TEST_CASE_METHOD(StartedSequencer,
             seq.set_external_tick(nullptr);
             inner_call_returned.store(true);
         }
+        return true;
     });
 
     REQUIRE(UITest::wait_until([&] { return inner_call_returned.load(); }, 2000));
@@ -1094,4 +1118,22 @@ TEST_CASE_METHOD(StartedSequencer,
     CHECK(UITest::wait_until([&] { return ticks.load() > after_inner; }, 2000));
 
     seq.set_external_tick(nullptr);
+}
+
+TEST_CASE("SoundSequencer: an external tick that finishes is dropped and the device parks",
+          "[sound][sequencer][device_park]") {
+    auto backend = std::make_shared<MockBackend>();
+    SoundSequencer seq(backend);
+    seq.start();
+    REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
+    const int parked = backend->suspend_calls.load();
+
+    // A song that ends on its own after three ticks.
+    std::atomic<int> ticks{0};
+    seq.set_external_tick([&](float) { return ticks.fetch_add(1) + 1 < 3; });
+    REQUIRE(UITest::wait_until([&] { return ticks.load() >= 3; }));
+    CHECK(UITest::wait_until([&] { return backend->suspend_calls.load() > parked; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(ticks.load() == 3);
+    seq.shutdown();
 }

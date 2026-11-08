@@ -928,6 +928,43 @@ TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the 
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
+TEST_CASE_METHOD(Landscape800, "a heater duty change places the chips without a full chip pass",
+                 "[print_status]") {
+    // Beside the picture with labeled fans, the column has room for the bed's duty.
+    auto& temps = state().temperature_state();
+    lv_subject_t* duty = state().get_heater_power_subject(HeaterType::Bed);
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_bed_temp_subject(), 600);
+    set_int(duty, 7);
+    size_printer_area(root_, 400, 260);
+    three_fans_stopped(*this);
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::OneSide));
+    REQUIRE(subject_str("ps_chip_bed_text") == "60° · 7%");
+    const int layouts = tiles().layout_count();
+
+    set_int(duty, 12);
+    UpdateQueue::instance().drain();
+    process_lvgl(50);
+    CHECK(tiles().layout_count() == layouts);
+    const std::string text = subject_str("ps_chip_bed_text");
+    CHECK(text.find("12%") != std::string::npos);
+
+    // What a full pass would publish and place.
+    const auto bed_rect = [&] {
+        for (const auto& c : tiles().last_layout().chips) {
+            if (c.kind == CalloutKind::Bed) {
+                return c.rect;
+            }
+        }
+        return CalloutRect{};
+    };
+    const CalloutRect placed = bed_rect();
+    tiles().update_now();
+    CHECK(subject_str("ps_chip_bed_text") == text);
+    CHECK(same_rect(bed_rect(), placed));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
 TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print_status]") {
     size_printer_area(root_, 200, 280);
     three_fans_stopped(*this);
