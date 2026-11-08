@@ -151,6 +151,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // override follows the same printer.
     {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 7,
      "toolhead_style"},
+    // helix::ui::ToolNumberStyleSetting: 0=Auto, 1=Physical ("1"), 2=Gcode ("T0")
+    {"settings_tool_number_style", "appearance/tool_number_style", Scope::PerPrinter, false, 0, 0,
+     2, "tool_number_style"},
     {"show_printer_switcher", "/printers/show_printer_switcher", Scope::Global, true, 0, 0, 1,
      "show_printer_switcher"},
     {"show_widget_labels", "/appearance/show_widget_labels", Scope::Global, true, 0, 0, 1,
@@ -236,6 +239,7 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
+    sync_tool_number_style_mirror();
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -320,6 +324,7 @@ void SettingsManager::reload_from_config() {
         return;
     }
     settings_.reload();
+    sync_tool_number_style_mirror();
     load_jog_distances();
 }
 

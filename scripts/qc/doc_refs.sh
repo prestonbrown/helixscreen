@@ -32,4 +32,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$|^Makefile$|^mk/.*\.mk$|^include/ams_types\.h$|^assets/config/printer_database\.json$|^assets/config/themes/defaults/'
+QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$|^Makefile$|^mk/.*\.mk$|^include/ams_types\.h$|^assets/config/printer_database\.json$|^assets/config/themes/defaults/|^android/fastlane/metadata/'

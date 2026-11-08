@@ -13,7 +13,9 @@ qc_python_tests() {
   local EXIT_CODE=0
 # CI's Code Quality job runs tests/python/ as its own step, outside this
 # script, so without this gate nothing local ran it and a push could turn that
-# job red. ~20s. Skipped on GitHub Actions, where that step already ran.
+# job red. ~20s. Skipped on GitHub Actions, where that step already ran, and
+# under HELIX_QC_SKIP_PYTHON_TESTS=1, which the land gate sets because its own
+# python step runs the same directory.
 SECTION_START=$(date +%s)
 echo -n "🐍 Running Python script tests..."
 
@@ -21,6 +23,10 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
   section_time $SECTION_START
   echo ""
   echo "⏭️  CI runs tests/python/ as its own step"
+elif [ "${HELIX_QC_SKIP_PYTHON_TESTS:-0}" = 1 ]; then
+  section_time $SECTION_START
+  echo ""
+  echo "⏭️  the land gate's python step runs tests/python/"
 elif [ -x "$VENV_PYTHON" ]; then
   # Git exports GIT_INDEX_FILE and friends to hooks; a test that builds a
   # throwaway repo would otherwise read this commit's index.

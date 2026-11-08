@@ -417,6 +417,9 @@ src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
+src/ui/filament/cold_pull_flow.cpp
+src/ui/filament/cold_pull_runner.cpp
+src/ui/filament/ui_cold_pull_overlay.cpp
 src/ui/home/grid_layout.cpp
 src/ui/components/helix_sparkline.cpp
 src/ui/print/job_queue_state.cpp
@@ -559,7 +562,6 @@ src/ui/filament/ui_bed_drying_modal.cpp
 src/ui/printers/ui_change_host_modal.cpp
 src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
-src/ui/filament/ui_dryer_airflow.cpp
 src/ui/filament/ui_dryer_presentation.cpp
 src/ui/components/ui_color_picker.cpp
 src/ui/components/ui_component_header_bar.cpp
@@ -796,6 +798,7 @@ src/ui/home/grid_edit_mode.cpp
 src/ui/home/grid_edit_cross_page.cpp
 src/ui/home/grid_edit_drop.cpp
 src/ui/home/grid_edit_page_set.cpp
+src/ui/home/ui_tile_edit_callout.cpp
 src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp

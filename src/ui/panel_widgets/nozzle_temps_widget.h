@@ -88,6 +88,7 @@ class NozzleTempsWidget : public PanelWidget {
 
     ObserverGuard version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard tool_number_style_observer_;
     /// Rebuilds the row names when the mounted tool changes on nozzles that
     /// share one heater: the one row is named after the mounted nozzle.
     ObserverGuard mounted_tool_observer_;

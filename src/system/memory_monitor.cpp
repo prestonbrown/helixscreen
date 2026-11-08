@@ -137,7 +137,11 @@ void MemoryMonitor::stop() {
         return;
     }
 
-    running_.store(false);
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        running_.store(false);
+    }
+    wake_cv_.notify_all();
 
     if (monitor_thread_.joinable()) {
         monitor_thread_.join();
@@ -622,12 +626,10 @@ void MemoryMonitor::monitor_loop() {
     MemoryStats prev_stats = get_current_stats();
 
     while (running_.load()) {
-        // Sleep in small chunks so we can respond to stop() quickly
-        int remaining_ms = interval_ms_.load();
-        while (remaining_ms > 0 && running_.load()) {
-            int sleep_ms = std::min(remaining_ms, 100);
-            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
-            remaining_ms -= sleep_ms;
+        {
+            std::unique_lock<std::mutex> lock(wake_mutex_);
+            wake_cv_.wait_for(lock, std::chrono::milliseconds(interval_ms_.load()),
+                              [this] { return !running_.load(); });
         }
 
         if (!running_.load()) {

@@ -111,6 +111,7 @@ struct BackendTraits {
     bool carriage_can_be_empty = false;
     helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
     helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
+    helix::ui::ToolNumberStyle tool_number_style = helix::ui::ToolNumberStyle::Physical;
     ToolheadStyle toolhead_style_hint = ToolheadStyle::AUTO;
 
     // One-byte members with no padding, so the bytes are the value.
@@ -2923,6 +2924,18 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] helix::ui::LaneNoun tool_noun() const {
         return traits().tool_noun;
+    }
+
+    /// How this printer numbers its tools where a number stands alone ("1" or "T0").
+    /// Physical unless the backend knows the machine is labeled with G-code names.
+    [[nodiscard]] helix::ui::ToolNumberStyle tool_number_style() const {
+        return traits().tool_number_style;
+    }
+
+    /// tool_number_style() with the per-printer Tool Numbers setting applied: the
+    /// style this backend's own messages spell a tool in.
+    [[nodiscard]] helix::ui::ToolNumberStyle display_tool_number_style() const {
+        return helix::ui::tool_number_style_with_setting(tool_number_style());
     }
 
     /**

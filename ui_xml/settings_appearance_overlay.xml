@@ -56,6 +56,14 @@
         <setting_dropdown_row name="row_toolhead_style"
                               label="Toolhead Style" icon="palette" description="How the toolhead icon appears"
                               options="Auto" callback="on_toolhead_style_changed"/>
+        <!-- Tool numbers: shown only where a tool number appears (more than one nozzle) -->
+        <setting_dropdown_row name="row_tool_number_style"
+                              label="Tool Numbers" icon="nozzle"
+                              description="How tools are numbered on badges and labels"
+                              options="Auto&#10;1, 2, 3&#10;T0, T1, T2" options_tag="Auto&#10;1, 2, 3&#10;T0, T1, T2"
+                              bind_selected="settings_tool_number_style" callback="on_tool_number_style_changed">
+          <bind_flag_if_eq subject="names_mounted_nozzle" flag="hidden" ref_value="0"/>
+        </setting_dropdown_row>
         <setting_dropdown_row name="row_gcode_mode"
                               label="G-code Preview" icon="printer_3d"
                               description="Choose rendering mode for G-code visualization"

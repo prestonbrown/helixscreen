@@ -36,6 +36,20 @@ TEST_CASE("chevron_at points its tip along the travel direction", "[filament-che
     CHECK((c.left.x + c.right.x) * 0.5f == Approx(10.0f));
 }
 
+TEST_CASE("a vertical tube and its chevrons share one center pixel", "[filament-chevrons]") {
+    CHECK(centered_gauge(8) == 9);
+    CHECK(centered_gauge(9) == 9);
+
+    ChevronSize s;
+    s.half_width = 6.75f;
+    s.stroke = 2.0f;
+    const ChevronSize snapped = pixel_centered(s);
+    CHECK(snapped.half_width == Approx(7.0f));
+    CHECK(snapped.stroke == Approx(3.0f));
+    s.stroke = 3.0f;
+    CHECK(pixel_centered(s).stroke == Approx(3.0f));
+}
+
 TEST_CASE("chevron_size_for_gauge scales with the tube and floors the stroke",
           "[filament-chevrons]") {
     ChevronSize thin = chevron_size_for_gauge(4.0f);
