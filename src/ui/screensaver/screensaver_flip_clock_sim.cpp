@@ -59,6 +59,22 @@ void add_sub_time(FlipFace& face, const ClockTime& t, bool use_24h) {
     add_text_group(face.sub_shape, face.sub, (t.minute < 10 ? "0" : "") + std::to_string(t.minute));
 }
 
+/// The main row's text for a paused or ended print: an English word, or one symbol card.
+std::string state_text(ClockMode mode, bool spell) {
+    switch (mode) {
+    case ClockMode::PAUSED:
+        return spell ? "PAUSE" : std::string(1, kGlyphPause);
+    case ClockMode::DONE:
+        return spell ? "DONE" : std::string(1, kGlyphCheck);
+    case ClockMode::FAILED:
+        return spell ? "FAIL" : std::string(1, kGlyphCross);
+    case ClockMode::CANCELLED:
+        return spell ? "STOP" : std::string(1, kGlyphSquare);
+    default:
+        return {};
+    }
+}
+
 // ---------- Layout ----------
 //
 // Sizes in glyph units: a card holds one digit box.
@@ -267,7 +283,7 @@ FlipFace flip_face(const ClockReading& reading) {
         break;
     }
     case ClockMode::PAUSED:
-        add_text_group(face.shape, face.cards, "PAUSE");
+        add_text_group(face.shape, face.cards, state_text(reading.mode, reading.spell_states));
         if (reading.has_countdown) {
             const int32_t s = std::max(0, reading.countdown_s);
             const int32_t hours = std::min(99, s / 3600);
@@ -281,10 +297,7 @@ FlipFace flip_face(const ClockReading& reading) {
     case ClockMode::DONE:
     case ClockMode::FAILED:
     case ClockMode::CANCELLED:
-        add_text_group(face.shape, face.cards,
-                       reading.mode == ClockMode::DONE     ? "DONE"
-                       : reading.mode == ClockMode::FAILED ? "FAIL"
-                                                           : "STOP");
+        add_text_group(face.shape, face.cards, state_text(reading.mode, reading.spell_states));
         add_text_group(face.sub_shape, face.sub, percent_text(reading.progress_pct));
         break;
     }

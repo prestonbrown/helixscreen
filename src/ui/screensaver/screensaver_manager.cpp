@@ -116,6 +116,7 @@ helix::ui::ClockInput ScreensaverManager::clock_input() {
     // Stepped every frame a saver reads, so an end reaches it in the same frame.
     in.print = step_print_latch();
     in.show_print_progress = host_.show_print_progress ? host_.show_print_progress() : true;
+    in.spell_states = host_.spell_states ? host_.spell_states() : true;
     return in;
 }
 

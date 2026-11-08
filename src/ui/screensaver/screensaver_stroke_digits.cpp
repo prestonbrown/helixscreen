@@ -32,7 +32,7 @@ constexpr Stroke arc(float cx, float cy, float r, float start, float sweep) {
     return {true, cx, cy, r, start, sweep};
 }
 
-constexpr size_t kMaxStrokes = 6;
+constexpr size_t kMaxStrokes = 8;
 
 struct GlyphDef {
     size_t count;
@@ -115,6 +115,30 @@ constexpr LetterDef kLetters[] = {
      {3,
       {line(0.0f, 0.0f, 0.0f, 1.1f), arc(0.5f, 1.1f, 0.5f, 0.0f, 180.0f),
        line(1.0f, 0.0f, 1.0f, 1.1f)}}},
+    // The symbols are centred on (0.5, 0.8) and bolder than the letters: each check and cross
+    // stroke is its centre line and one 0.06 to either side, each bar is two lines
+    // with flat ends, and the square's inside is filled with lines closer than a stroke's width.
+    {kGlyphCheck,
+     {6,
+      {line(0.0357f, 0.8905f, 0.3557f, 1.2405f), line(0.1243f, 0.8095f, 0.4443f, 1.1595f),
+       line(0.4503f, 1.2327f, 0.9703f, 0.4327f), line(0.3497f, 1.1673f, 0.8697f, 0.3673f),
+       line(0.08f, 0.85f, 0.4f, 1.2f), line(0.4f, 1.2f, 0.92f, 0.4f)}}},
+    {kGlyphCross,
+     {6,
+      {line(0.0765f, 0.4413f, 0.8365f, 1.2413f), line(0.1635f, 0.3587f, 0.9235f, 1.1587f),
+       line(0.8365f, 0.3587f, 0.0765f, 1.1587f), line(0.9235f, 0.4413f, 0.1635f, 1.2413f),
+       line(0.12f, 0.4f, 0.88f, 1.2f), line(0.88f, 0.4f, 0.12f, 1.2f)}}},
+    {kGlyphSquare,
+     {7,
+      {line(0.15f, 0.45f, 0.85f, 0.45f), line(0.85f, 0.45f, 0.85f, 1.15f),
+       line(0.85f, 1.15f, 0.15f, 1.15f), line(0.15f, 1.15f, 0.15f, 0.45f),
+       line(0.15f, 0.625f, 0.85f, 0.625f), line(0.15f, 0.8f, 0.85f, 0.8f),
+       line(0.15f, 0.975f, 0.85f, 0.975f)}}},
+    {kGlyphPause,
+     {8,
+      {line(0.18f, 0.4f, 0.18f, 1.2f), line(0.3f, 0.4f, 0.3f, 1.2f), line(0.18f, 0.4f, 0.3f, 0.4f),
+       line(0.18f, 1.2f, 0.3f, 1.2f), line(0.7f, 0.4f, 0.7f, 1.2f), line(0.82f, 0.4f, 0.82f, 1.2f),
+       line(0.7f, 0.4f, 0.82f, 0.4f), line(0.7f, 1.2f, 0.82f, 1.2f)}}},
 };
 
 float dist_to_line(const Stroke& s, float px, float py) {
