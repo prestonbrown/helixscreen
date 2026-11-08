@@ -896,7 +896,8 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
         lv_obj_t* hint = lv_label_create(container);
         lv_label_set_text(hint, "Same crash 3+ times in a row. Try Safe Mode\n"
                                 "(boots without connecting to the printer) so\n"
-                                "you can adjust settings.");
+                                "you can adjust settings. Safe Mode starts\n"
+                                "by itself in 2 minutes.");
         lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(hint, LV_PCT(100));
         lv_obj_set_style_text_font(hint, &noto_sans_14, 0);
@@ -992,8 +993,16 @@ static DialogChoice run_crash_dialog(int width, int height, int rotation, const 
 
     // Apply rotation to crash dialog display
     if (rotation != 0) {
-        lv_display_set_rotation(display, degrees_to_lv_rotation(rotation));
-        spdlog::info("[Watchdog] Crash dialog rotated {}°", rotation);
+        const bool rotated =
+            helix::settle_standalone_rotation(backend, display, rotation, width, height, [] {
+                return DisplayBackend::create(DisplayBackendType::FBDEV);
+            });
+        if (!display) {
+            spdlog::error("[Watchdog] No display left after the rotation fallback");
+            return DialogChoice::RESTART_APP;
+        }
+        spdlog::info("[Watchdog] Crash dialog {} {}° on {}",
+                     rotated ? "rotated" : "left unrotated, wanted", rotation, backend->name());
     }
 
     // Turn on backlight
@@ -1013,10 +1022,18 @@ static DialogChoice run_crash_dialog(int width, int height, int rotation, const 
     // Event loop with countdown
     g_dialog_choice = DialogChoice::NONE;
     uint32_t last_second = get_ticks_ms() / 1000;
+    const uint32_t shown_at_ms = get_ticks_ms();
 
     while (g_dialog_choice == DialogChoice::NONE && !g_quit) {
         lv_timer_handler();
         usleep(kFrameDelayUs);
+
+        if (helix::watchdog::crash_loop_deadline_passed(crash_loop_detected, shown_at_ms,
+                                                        get_ticks_ms())) {
+            spdlog::warn("[Watchdog] Nobody answered the crash-loop dialog, starting Safe Mode");
+            g_dialog_choice = DialogChoice::RESTART_SAFE_MODE;
+            break;
+        }
 
         // Update countdown every second
         uint32_t current_second = get_ticks_ms() / 1000;
