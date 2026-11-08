@@ -81,6 +81,24 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
+def rrect_front(x0, x1, z0, z1, r, y):
+    """A rounded rectangle on the front plane at depth y."""
+    pts = fillet([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], [r] * 4, closed=True, steps=6)
+    return [(a, y, b) for a, b in pts]
+
+
+def lid_back(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's far end cap and far-side strips, drawn before the spools."""
+    scene.poly([(x0, y, z) for y, z in profile], color, cap_op)
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=False)
+
+
+def lid_front(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's camera-facing strips and near end cap, drawn over the spools."""
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=True)
+    scene.poly([(x1, y, z) for y, z in profile], color, cap_op)
+
+
 def tray_profile(profile, base_z, px_per_unit):
     """A (y, z) side profile as tray points: (depth fraction, pixels above the front wall)."""
     y0, y1 = profile[0][0], profile[-1][0]
