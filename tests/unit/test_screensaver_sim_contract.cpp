@@ -240,43 +240,28 @@ TEMPLATE_TEST_CASE("a sim never holds more than init sized across frames and ste
     check_heap_contract<TestType>(ClockMode::CLOCK);
 }
 
-TEMPLATE_TEST_CASE("during a print, a sim's dirty boxes still cover what it changes, inside its "
-                   "rows and opaque",
+TEMPLATE_TEST_CASE("during a print and after it ends, a sim's dirty boxes still cover what it "
+                   "changes, inside its rows and opaque",
                    "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    check_dirty_contract<TestType>(ClockMode::COUNTDOWN);
-}
-
-TEMPLATE_TEST_CASE("during a print, a sim run still replays from a seed and differs by seed",
-                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    check_replays_by_seed<TestType>(ClockMode::COUNTDOWN);
-}
-
-TEMPLATE_TEST_CASE("during a print, a sim still holds no more than init sized and clear frees it",
-                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    check_heap_contract<TestType>(ClockMode::COUNTDOWN);
-}
-
-TEMPLATE_TEST_CASE("on an ended print, a sim's dirty boxes still cover what it changes, inside its "
-                   "rows and opaque",
-                   "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    const ClockMode mode = GENERATE(ClockMode::COUNTDOWN, ClockMode::DONE, ClockMode::FAILED);
     CAPTURE(static_cast<int>(mode));
     check_dirty_contract<TestType>(mode);
 }
 
-TEMPLATE_TEST_CASE("on an ended print, a sim run still replays from a seed and differs by seed",
+TEMPLATE_TEST_CASE("during a print and after it ends, a sim run still replays from a seed and "
+                   "differs by seed",
                    "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    const ClockMode mode = GENERATE(ClockMode::COUNTDOWN, ClockMode::DONE, ClockMode::FAILED);
     CAPTURE(static_cast<int>(mode));
     // A finished print's planet fills the starfield's view, covering every star.
     check_replays_by_seed<TestType>(
         mode, !(std::is_same_v<TestType, StarfieldSim> && mode == ClockMode::DONE));
 }
 
-TEMPLATE_TEST_CASE("on an ended print, a sim still holds no more than init sized and clear frees "
-                   "it",
+TEMPLATE_TEST_CASE("during a print and after it ends, a sim still holds no more than init sized "
+                   "and clear frees it",
                    "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
-    const ClockMode mode = GENERATE(ClockMode::DONE, ClockMode::FAILED);
+    const ClockMode mode = GENERATE(ClockMode::COUNTDOWN, ClockMode::DONE, ClockMode::FAILED);
     CAPTURE(static_cast<int>(mode));
     check_heap_contract<TestType>(mode);
 }
