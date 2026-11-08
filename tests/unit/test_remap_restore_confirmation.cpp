@@ -40,6 +40,7 @@
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "discovery_steps.h"
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -1770,4 +1771,53 @@ TEST_CASE("remap send: a pick on a second backend is never sent to the first",
     CHECK_FALSE(t1_sent_to_backend_0);
     CHECK(second->calls.empty());
     h.controller.set_detail_view(nullptr);
+}
+
+// The installer links pending_remap.json out to printer_data so a release update
+// keeps a restore the printer is still owed. Content checks cannot see the link
+// being replaced by a file in the install dir: the data round-trips either way.
+TEST_CASE("remap restore: the record is written and cleared through the installer's symlink",
+          "[remap-restore][2032]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_symlink"};
+    namespace fs = std::filesystem;
+
+    const fs::path printer_data = config_dir.dir / "printer_data";
+    fs::create_directories(printer_data);
+    const fs::path target = printer_data / "pending_remap.json";
+    const fs::path link = fs::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::ofstream(target) << "{}\n";
+    std::error_code ec;
+    fs::create_symlink(target, link, ec);
+    REQUIRE_FALSE(ec);
+
+    const auto read_target = [&] {
+        std::ifstream ifs(target);
+        const std::string text((std::istreambuf_iterator<char>(ifs)),
+                               std::istreambuf_iterator<char>());
+        return nlohmann::json::parse(text, nullptr, false);
+    };
+    const std::string printer = Config::get_instance()->get_active_printer_id();
+
+    AmsState::instance().set_pending_tool_map_restore(0, AmsType::AFC, {2, 1});
+    PrintStartControllerTestAccess::persist_record();
+
+    CHECK(fs::is_symlink(link));
+    const auto written = read_target();
+    REQUIRE(written.is_object());
+    CHECK(written["printers"][printer]["tool_mapping"] == nlohmann::json::array({2, 1}));
+
+    PrintStartControllerTestAccess::clear_record();
+
+    // The link and its target both survive, and the target holds nothing to replay.
+    CHECK(fs::is_symlink(link));
+    REQUIRE(fs::exists(target));
+    const auto cleared = read_target();
+    REQUIRE(cleared.is_object());
+    const auto* printers = helix::json_util::find_member(cleared, "printers");
+    CHECK((printers == nullptr || printers->empty()));
+    CHECK_FALSE(fs::exists(link.string() + ".tmp"));
+    CHECK_FALSE(fs::exists(target.string() + ".tmp"));
+
+    AmsState::instance().clear_pending_tool_map_restore();
 }
