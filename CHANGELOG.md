@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An oversized Moonraker reply no longer leaves the screen offline** until a restart.
 - **Faster connect** (#2053) - the event journal asks Moonraker for the latest 200 console lines instead of 1000.
 - **Network settings follows the Ethernet cable** (#1976).
+- **WiFi recovers from a slow or busy wpa_supplicant** (#2066) - one reply that came back late no longer makes every later WiFi command read the wrong answer, which emptied the network list and showed "scan failed" or "Internal WiFi error" on a working radio. Turning WiFi on also starts the WiFi system when it did not start at boot, instead of answering "WiFi system not ready" until a restart.
 
 **Home screen and UI**
 
