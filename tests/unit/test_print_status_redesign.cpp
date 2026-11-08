@@ -543,6 +543,14 @@ TEST_CASE_METHOD(Landscape800,
     CHECK(subject_int("print_has_thumbnail") == 0);
     CHECK(hidden(root_, "ps_checklist_thumbnail"));
     CHECK_FALSE(hidden(root_, "ps_checklist_list"));
+    // The preview card under it, and in Thumbnail Only mode, shows none either.
+    CHECK(hidden(root_, "print_thumbnail"));
+
+    // Firmware keeps its thumbnail in PSRAM and publishes only the stand-in path.
+    CHECK(
+        PrinterPrintState::has_own_thumbnail(PrinterPrintState::no_thumbnail_placeholder(), true));
+    CHECK_FALSE(PrinterPrintState::has_own_thumbnail("", false));
+    CHECK(PrinterPrintState::has_own_thumbnail("A:assets/images/part.png", false));
 
     set_int(ps.get_print_start_phase_subject(), static_cast<int>(PrintStartPhase::IDLE));
     UpdateQueue::instance().drain();

@@ -303,13 +303,18 @@ class PrinterPrintState {
         return &print_thumbnail_path_;
     }
 
-    /// 1 when print_thumbnail_path holds the print's own thumbnail, 0 while it
-    /// holds no_thumbnail_placeholder(): a file with none, or a start whose file
-    /// is not known yet. Surfaces that must not pass the stand-in off as the
-    /// print's model bind to this.
+    /// 1 when the print has a thumbnail of its own, as has_own_thumbnail()
+    /// decides; 0 for a file with none, or a start whose file is not known yet.
+    /// Surfaces that must not pass the stand-in off as the print's model bind
+    /// to this.
     lv_subject_t* get_print_has_thumbnail_subject() {
         return &print_has_thumbnail_;
     }
+
+    /// Whether the print has a thumbnail of its own: @p path is a real image,
+    /// not no_thumbnail_placeholder(), or one is held in PSRAM. Firmware keeps
+    /// its image there and publishes only the placeholder as the path.
+    static bool has_own_thumbnail(const char* path, bool psram_thumbnail);
 
 #if defined(HELIX_PLATFORM_ESP32)
     /// Bumped every time the PSRAM thumbnail below is replaced. ESP32 has no
@@ -1164,6 +1169,9 @@ class PrinterPrintState {
     void reconcile_preparing();
 
   private:
+    /// Republishes print_has_thumbnail from the path and the PSRAM image.
+    void update_has_thumbnail();
+
     /// What a HelixScreen start named, for note_start_plate(). Main thread only.
     struct StartRecord {
         std::string printer_id;

@@ -1289,10 +1289,25 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     if (strcmp(lv_subject_get_string(&print_thumbnail_path_), path.c_str()) != 0) {
         lv_subject_copy_string(&print_thumbnail_path_, path.c_str());
     }
-    const int has_thumbnail =
-        !path.empty() && strcmp(path.c_str(), no_thumbnail_placeholder()) != 0 ? 1 : 0;
-    if (lv_subject_get_int(&print_has_thumbnail_) != has_thumbnail) {
-        lv_subject_set_int(&print_has_thumbnail_, has_thumbnail);
+    update_has_thumbnail();
+}
+
+bool PrinterPrintState::has_own_thumbnail(const char* path, bool psram_thumbnail) {
+    if (psram_thumbnail) {
+        return true;
+    }
+    return path != nullptr && path[0] != '\0' && strcmp(path, no_thumbnail_placeholder()) != 0;
+}
+
+void PrinterPrintState::update_has_thumbnail() {
+#if defined(HELIX_PLATFORM_ESP32)
+    const bool psram = print_psram_thumbnail_ != nullptr;
+#else
+    const bool psram = false;
+#endif
+    const int has = has_own_thumbnail(lv_subject_get_string(&print_thumbnail_path_), psram) ? 1 : 0;
+    if (lv_subject_get_int(&print_has_thumbnail_) != has) {
+        lv_subject_set_int(&print_has_thumbnail_, has);
     }
 }
 
@@ -1305,6 +1320,7 @@ void PrinterPrintState::set_print_psram_thumbnail(
     spdlog::debug("[PrinterPrintState] PSRAM thumbnail {}",
                   print_psram_thumbnail_ ? "installed" : "cleared");
     lv_subject_set_int(&print_psram_thumb_gen_, lv_subject_get_int(&print_psram_thumb_gen_) + 1);
+    update_has_thumbnail();
 }
 #endif
 

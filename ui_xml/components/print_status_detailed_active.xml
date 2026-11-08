@@ -21,7 +21,10 @@
             style_flex_cross_place="center" scrollable="false" clickable="false" event_bubble="true">
       <lv_image name="detailed_thumb"
                 height="100%" flex_grow="2" src="A:assets/images/benchy_thumbnail_white.png"
-                bind_src="print_thumbnail_path" inner_align="contain" clickable="false" event_bubble="true"/>
+                bind_src="print_thumbnail_path" inner_align="contain" clickable="false" event_bubble="true">
+        <!-- No picture for a print without a thumbnail of its own. -->
+        <bind_flag_if_eq subject="print_has_thumbnail" flag="hidden" ref_value="0"/>
+      </lv_image>
       <!-- Pre-print: the phase block takes the place of the arc and data columns. -->
       <print_start_preparing_info name="detailed_preparing_info" width="content" height="100%" flex_grow="5"/>
       <lv_obj name="detailed_center_col"
