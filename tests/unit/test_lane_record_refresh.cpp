@@ -97,6 +97,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "another client's change to a record shows on 
     CHECK_FALSE(helix::ams::lane_sources(reg.lane(1)).record.has_value());
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "a Klipper restart reads the lane records again",
+                 "[lane][refresh][toolchanger]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "T1", record("PETG", "#1E5AA8"));
+    helix::test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    helix::ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+    REQUIRE(reg->get_slot_info(1).material == "PETG");
+
+    printer.client.mock_db_set("lane_data", "T1", record("ABS", "#FF0000"));
+    static_cast<helix::AmsBackend&>(*reg).on_klipper_restarted();
+    settle();
+    CHECK(reg->get_slot_info(1).material == "ABS");
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "an edit shows at once and its record's echo retires it",
                  "[lane][refresh][pending][toolchanger]") {
     MockPrinter printer;
