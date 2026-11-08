@@ -233,8 +233,7 @@ int UnixSocketTransport::sweep_stale_instances(const std::string& dir) {
         // starting instance can be mid-bind on it either. Deciding by pid rather
         // than by a connect() probe matters: a probe cannot tell a crashed
         // instance from one that has bound but not yet called listen(), and
-        // unlinking that second one would strand it exactly the way the
-        // unconditional unlink this branch removed used to.
+        // unlinking that second one would strand it unreachable.
         const std::string full = dir + "/" + ent->d_name;
         if (unlink(full.c_str()) == 0) {
             spdlog::debug("[RemoteControl] Removed stale socket from dead pid {}: {}", *token,
@@ -248,8 +247,8 @@ int UnixSocketTransport::sweep_stale_instances(const std::string& dir) {
 
 int UnixSocketTransport::create_listener() {
     // Never take a path a running instance is serving. Unlinking unconditionally
-    // used to hand the path to whichever process started last, leaving the earlier
-    // one running but unreachable — and every subsequent client talking to the
+    // would hand the path to whichever process started last, leaving the earlier
+    // one running but unreachable, and every subsequent client talking to the
     // wrong app. Callers pick a different path (see resolve_socket_path) rather
     // than racing for this one.
     if (path_is_live(socket_path_)) {
