@@ -449,7 +449,7 @@ jobs:
     name: Shell Tests (BATS)
     needs: gate
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 45
 
     steps:
     - name: Checkout repository
@@ -471,8 +471,29 @@ jobs:
       run: |
         sudo npm install -g bats
 
+    # The gates that skip without .venv/bin/python (translation catalogs, XML
+    # formatting) and test_release_health.bats's node_modules: the same setup
+    # build.yml's test-shell job has, so every file runs here as it does there.
+    - name: Setup Python venv for translation and XML gates
+      run: make venv-setup
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: server/telemetry-worker/package-lock.json
+
+    - name: Install telemetry worker dependencies
+      working-directory: server/telemetry-worker
+      run: npm ci --no-audit --no-fund
+
+    # Every file, build tooling included. A push or PR runs a build-tooling file
+    # only when its trigger paths change (tests/shell/tooling-triggers.tsv), so
+    # this run is what catches a trigger the table is missing, within a day.
     - name: Run shell tests
-      run: bats tests/shell/
+      run: |
+        command -v parallel >/dev/null || { echo "::error::GNU parallel is missing: make test-shell would run bats serially"; exit 1; }
+        make test-shell BATS_REQUIRED=1 BATS_ALL=1
 
   # ===========================================================================
   # AddressSanitizer — detect memory bugs, leaks, buffer overflows
