@@ -136,6 +136,7 @@ void ToolState::deinit_subjects() {
     // causes sync_from_backend() on a non-multiplexing backend to wipe tools_.
     ams_topology_active_ = false;
     backend_owns_active_tool_ = false;
+    toolchanger_reports_mount_ = false;
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_extruder_.clear();
@@ -166,6 +167,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         }
     }
     std::sort(discovered_extruders_.begin(), discovered_extruders_.end());
+    toolchanger_reports_mount_ = false;
 
     // init_tools enumerates tools from extruders/toolchanger — semantically
     // incompatible with an AMS-backend topology override. Drop any prior
@@ -222,6 +224,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         // a changer, and a changer without klipper-toolchanger has no
         // [toolchanger] object to gate on.
         const auto& tool_names = hardware.tool_names();
+        toolchanger_reports_mount_ = hardware.has_tool_changer();
 
         const std::vector<std::string>& extruder_names = discovered_extruders_;
 
@@ -268,13 +271,15 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         }
     }
 
-    // T0 holds the head until a status frame says otherwise. active_tool_index_
+    // T0 holds the head until a status frame says otherwise, except on a
+    // klipper-toolchanger carriage, which may hold nothing at all: there no tool
+    // is mounted until toolchanger.tool_number names one. active_tool_index_
     // and the per-tool flag are the same claim, so every branch above leaves
     // both to this one place. Set in only one of them they disagree, and
     // whichever a caller happens to read decides what it sees.
-    active_tool_index_ = 0;
+    active_tool_index_ = toolchanger_reports_mount_ ? -1 : 0;
     if (!tools_.empty()) {
-        tools_[0].active = true;
+        tools_[0].active = active_tool_index_ == 0;
         // Klipper's [fan] is the first extruder's part cooling fan. A branch
         // that knows the machine's own per-tool names (Snapmaker) has already
         // filled this in; everything else gets the one name always true of T0.
@@ -460,9 +465,10 @@ void ToolState::clear_backend_active_tool() {
         return;
     }
     backend_owns_active_tool_ = false;
-    // Without a backend an empty carriage is not a state this printer reports,
-    // so T0 holds the head until a status frame says otherwise.
-    if (active_tool_index_ < 0 && subjects_initialized_) {
+    // Without a backend an empty carriage is not a state this printer reports
+    // unless klipper-toolchanger reports it, so T0 holds the head until a status
+    // frame says otherwise.
+    if (active_tool_index_ < 0 && !toolchanger_reports_mount_ && subjects_initialized_) {
         active_tool_index_ = 0;
         lv_subject_set_int(&active_tool_, active_tool_index_);
     }
@@ -500,7 +506,9 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // extruder changes but there's no "toolchanger" object in status.
     // When AMS owns the active tool, ignore this too — the backend's tool index
     // is the source of truth, not Klipper's view of the physical extruder.
-    if (frame_owns_active_tool) {
+    // klipper-toolchanger's tool_number is the authority on what is mounted:
+    // toolhead.extruder still names "extruder" on an empty carriage (#2058).
+    if (frame_owns_active_tool && !toolchanger_reports_mount_) {
         if (status.contains("toolhead") && status["toolhead"].is_object()) {
             const auto& toolhead = status["toolhead"];
             if (toolhead.contains("extruder") && toolhead["extruder"].is_string()) {

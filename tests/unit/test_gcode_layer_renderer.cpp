@@ -1902,3 +1902,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "solid-cache batches are time-boxed against sl
 
     CHECK(last == 1);
 }
+
+TEST_CASE("adaptive layers per frame climbs from 1 under budget, shrinks over it, stays in bounds",
+          "[layer_renderer][adaptive_lpf]") {
+    for (const float cap : {1.3f, 2.0f}) {
+        int lpf = 1;
+        for (int frame = 0; frame < 10 && lpf < 15; ++frame) {
+            const int next = next_adaptive_layers_per_frame(lpf, 8, 16, cap, 15);
+            REQUIRE(next > lpf);
+            lpf = next;
+        }
+    }
+    CHECK(next_adaptive_layers_per_frame(20, 160, 16, 2.0f, 100) == 2); // 10x over: scaled
+    CHECK(next_adaptive_layers_per_frame(20, 20, 16, 2.0f, 100) == 15); // slightly over: 75%
+    CHECK(next_adaptive_layers_per_frame(1, 500, 16, 2.0f, 100) == 1);
+    CHECK(next_adaptive_layers_per_frame(15, 1, 16, 1.3f, 15) == 15);
+    CHECK(next_adaptive_layers_per_frame(7, 16, 16, 2.0f, 100) == 7); // on budget
+    CHECK(next_adaptive_layers_per_frame(7, 0, 16, 2.0f, 100) == 7);  // no sample yet
+}

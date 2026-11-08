@@ -445,6 +445,11 @@ class ToolState {
     // Set by set_backend_active_tool(): the backend, not the status frame,
     // says which head is mounted.
     bool backend_owns_active_tool_ = false;
+
+    // klipper-toolchanger reports the mounted tool as toolchanger.tool_number,
+    // -1 for an empty carriage, while toolhead.extruder keeps naming the last
+    // extruder used. Set by init_tools() for a printer with a [toolchanger].
+    bool toolchanger_reports_mount_ = false;
 };
 
 } // namespace helix

@@ -187,6 +187,10 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter layer text marks estimates
     // layer, so layer_is_accurate() is false and the count is an estimate.
     REQUIRE(ps.print_state().layer_is_accurate() == false);
 
+    // The line shows the commanded Z only while the job prints; outside
+    // printing it shows the reached layer's height from the slice geometry.
+    lv_subject_set_int(ps.print_state().get_print_lifecycle_subject(),
+                       static_cast<int>(PrintState::Printing));
     lv_subject_set_int(ps.motion_state().get_gcode_position_z_subject(), 2400); // 24.00mm
     lv_subject_set_int(ps.print_state().get_print_layer_current_subject(), 42);
     lv_subject_set_int(ps.print_state().get_print_layer_total_subject(), 213);

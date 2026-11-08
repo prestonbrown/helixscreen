@@ -1401,7 +1401,7 @@ resolve_platform_hook_key() {
 # These are the files users may want to edit from Fluidd/Mainsail, and that
 # the app writes to at runtime. All other files in INSTALL_DIR/config/ are
 # static assets reinstalled on each update.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
 
 # User-writable config DIRECTORIES that live in printer_data/config/helixscreen/.
 #
@@ -1433,6 +1433,7 @@ _helix_config_file_seed() {
     case "$1" in
         crash_history.json) printf '[]\n' ;;   # CrashHistory::load() expects a JSON array
         user_filaments.json) printf '[]\n' ;;  # FilamentCatalog reads a bare array as no products
+        pending_remap.json) printf '{}\n' ;;   # PrintStartController reads an empty object as no records
         *) return 1 ;;
     esac
 }

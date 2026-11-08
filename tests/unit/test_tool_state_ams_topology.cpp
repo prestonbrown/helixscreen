@@ -486,8 +486,9 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label still names the tool on a real 
     UpdateQueue::instance().drain();
     REQUIRE(ts.extruder_count() == 4);
 
-    // Klipper reports the active extruder moved to the third toolhead.
-    nlohmann::json status = {{"toolhead", {{"extruder", "extruder2"}}}};
+    // Klipper reports the third toolhead mounted.
+    nlohmann::json status = {{"toolchanger", {{"tool_number", 2}}},
+                             {"toolhead", {{"extruder", "extruder2"}}}};
     ts.update_from_status(status);
     UpdateQueue::instance().drain();
     REQUIRE(ts.active_tool_index() == 2);
@@ -518,7 +519,8 @@ TEST_CASE_METHOD(ToolStateFixture, "nozzle_label keeps a tool name its owner con
     REQUIRE(ts.extruder_count() == 2);
     REQUIRE(ts.tools()[1].name == "Right");
 
-    nlohmann::json status = {{"toolhead", {{"extruder", "extruder1"}}}};
+    nlohmann::json status = {{"toolchanger", {{"tool_number", 1}}},
+                             {"toolhead", {{"extruder", "extruder1"}}}};
     ts.update_from_status(status);
     UpdateQueue::instance().drain();
     REQUIRE(ts.active_tool_index() == 1);
