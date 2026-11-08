@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Restart Moonraker from Advanced** - the action bar at the bottom of Advanced has a Restart Moonraker button beside Restart Klipper, Firmware Restart and E-Stop. It asks before restarting, and is unavailable while offline, during a print or while Klipper is restarting.
+- **Number slots from 0** - a per-printer setting in Settings > Printing shows slots, lanes, gates, tools and nozzles counting from 0, matching T0 in G-code. It is off by default, and the G-code HelixScreen sends does not change.
 - **Pick a .3mf plate on printers that print .3mf files themselves** - on Z-Mod 1.7.5 and later, Print Files offers the plates the printer lists, and the chosen plate starts straight from the .3mf with its filament mapping. Reprint starts the same plate, and print status shows that plate's picture, time and materials (#2063).
 - **BTT Eddy probes** (#1994) - Z-offset calibration runs the Eddy calibration and saves it.
 - **Join a hidden WiFi network** (#1975) - the setup wizard and Network settings both have Add Hidden Network.
