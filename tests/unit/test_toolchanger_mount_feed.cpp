@@ -17,6 +17,7 @@
 #include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
@@ -1382,6 +1383,16 @@ TEST_CASE("mount-to-feed: an abort that cannot trust the carriage leaves it alon
     restoring.abort();
     REQUIRE(restoring.current_stage() != nullptr);
     CHECK(restoring.current_stage()->swaps); // its cleanup puts tool 0 back
+}
+
+TEST_CASE("A load prompt numbers tools as the screen does when slots count from 0",
+          "[toolchanger][mount_feed][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament_batch({0, 2}).success());
+    CHECK(tc.sent_.back().find("Insert filament into Tool 0 as far as it goes, and into the hot "
+                               "end of Tool 2 while it is docked") != std::string::npos);
 }
 
 TEST_CASE("MedusaHC words a mixed load's prompt for the mounted tool and the docked ones",
