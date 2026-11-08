@@ -109,7 +109,6 @@ void PinEntryModal::create() {
         return;
     }
 
-    // Set heading text
     lv_obj_t* heading_lbl = helix::ui::find_required(dialog_, "pin_heading", "PinEntryModal");
     if (heading_lbl) {
         lv_label_set_text(heading_lbl, heading_.c_str());
