@@ -8,6 +8,8 @@ flip_clock_print 8284593f6a9f248d
 highfly f38e70907bbc6182 c75e08e6fa7d81c2
 highfly_print 632dc180a3233ef6
 hyperspace 43366bb6400403a4
+hyperspace_print 851aacefc0faf21f
 maze 99611da53bce4d3d
 pipes be6279be7f6f5ac2
 starfield a9f7f27791f8af84
+starfield_print 9b85a35009ed8d57
