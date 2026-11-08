@@ -9551,6 +9551,8 @@ TEST_CASE("AD5X IFS execute_gcode dispatches silent with the AMS timeout ceiling
         REQUIRE(client.last_send_timeout_ms() == 300000u);
         REQUIRE(client.current_send_intent().silent == true);
         REQUIRE(client.current_send_intent().surfaces_errors == false);
+        // The completion is queued; run it while `completed` is still in scope.
+        helix::ui::UpdateQueue::instance().drain();
     }
 }
 

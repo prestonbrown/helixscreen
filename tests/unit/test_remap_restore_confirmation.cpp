@@ -171,6 +171,10 @@ struct Harness {
     Harness() {
         ps.init_subjects(false);
     }
+    // A start's answer reaches ps through the queue; run it before ps goes.
+    ~Harness() {
+        helix::ui::UpdateQueue::instance().drain();
+    }
 
     /// Tick AmsState's data-revision subject the way a synced backend event
     /// does, then drain so the observer body actually runs.
