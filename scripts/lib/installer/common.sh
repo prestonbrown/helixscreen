@@ -151,6 +151,15 @@ klipper_config_dir() {
     echo ""
 }
 
+# printer_data/config/helixscreen/ for this install, or empty when no Klipper
+# config dir is known.
+helix_pd_helix_dir() {
+    local cfg
+    cfg="$(klipper_config_dir)"
+    [ -n "$cfg" ] && echo "${cfg}/helixscreen"
+    return 0
+}
+
 # Track what we've done for cleanup
 CLEANUP_TMP=false
 BACKUP_CONFIG=""
