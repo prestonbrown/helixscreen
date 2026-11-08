@@ -16,6 +16,7 @@
 #include "discovery_steps.h"
 #include "display_settings_manager.h"
 #include "filament_consumption_tracker.h"
+#include "first_run_tour.h"
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "glass_painter.h"
 #endif
@@ -148,6 +149,7 @@ void wire_discovery(IMoonrakerAPI& api, IMoonrakerClient& client, DiscoveryHooks
             if (auto* history = get_print_history_manager()) {
                 history->on_discovery_complete();
             }
+            tour::FirstRunTour::instance().on_printer_ready();
             spdlog::info("[Discovery] applied: {} heaters, {} fans, {} sensors, {} initial-status "
                          "keys",
                          a->hardware().heaters().size(), a->hardware().fans().size(),

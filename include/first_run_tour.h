@@ -33,6 +33,15 @@ class FirstRunTour {
     /// Auto-trigger entry point — checks gate, schedules start on next LVGL tick.
     void maybe_start();
 
+    /// Discovery finished, so which filament system the printer has is known and
+    /// the tour can be built. Offers the tour.
+    void on_printer_ready();
+
+    /// Whether a printer has been discovered this session.
+    void set_printer_ready(bool ready) {
+        printer_ready_ = ready;
+    }
+
     /// Replay entry point — bypasses gate, starts immediately.
     void start();
 
@@ -53,9 +62,12 @@ class FirstRunTour {
     void end_tour();
     void render_current_step();
     void show_panel(TourPanel panel);
+    void arm_panel_timer(lv_timer_cb_t callback);
     static void on_panel_settled(lv_timer_t* timer);
+    static void on_ams_closed(lv_timer_t* timer);
 
     bool running_ = false;
+    bool printer_ready_ = false;
     // maybe_start() defers start_impl() by a tick, and start_impl() is what sets
     // running_. Both entry points (HomePanel::on_activate and wizard completion)
     // can fire in the same tick, so running_ alone would let both queue a start.

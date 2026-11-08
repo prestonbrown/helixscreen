@@ -36,6 +36,7 @@ void reset_tour_settings() {
     // Edit mode gates the tour, and the subject is global, so a case that leaves
     // it set would decide every case that runs after it.
     lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    FirstRunTour::instance().set_printer_ready(true);
     // In-memory singleton state is left clean by the public API used in these
     // tests: start()/skip() always pair, and advance() past the last step calls
     // finish() which resets running_. No explicit reset needed.
@@ -223,6 +224,14 @@ TEST_CASE("auto_start_seen_version: only a finished tour counts as seen", "[tour
     CHECK(helix::tour::auto_start_seen_version(false, 1) == 0);
     CHECK(helix::tour::auto_start_seen_version(true, 0) == 0);
     CHECK(helix::tour::auto_start_seen_version(true, 1) == 1);
+}
+
+TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
+    reset_tour_settings();
+    FirstRunTour::instance().set_printer_ready(false);
+    CHECK_FALSE(FirstRunTour::should_auto_start());
+    FirstRunTour::instance().set_printer_ready(true);
+    CHECK(FirstRunTour::should_auto_start());
 }
 
 TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {

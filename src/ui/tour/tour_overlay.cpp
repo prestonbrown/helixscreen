@@ -165,7 +165,12 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
 
     int width = tooltip_width_;
     if (has_target && hint == TooltipAnchor::LeftNarrowed) {
-        width = std::clamp(target_rect.x1 - tooltip_margin() - 8, kTooltipMinWidth, tooltip_width_);
+        const int room = target_rect.x1 - tooltip_margin() - 8;
+        if (room >= kTooltipMinWidth) {
+            width = std::min(room, tooltip_width_);
+        } else {
+            hint = TooltipAnchor::PreferAbove; // a portrait layout leaves nothing to the left
+        }
     }
     lv_obj_set_width(tooltip_, width);
 
