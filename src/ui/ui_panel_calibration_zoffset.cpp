@@ -730,7 +730,7 @@ void ZOffsetCalibrationPanel::send_accept() {
                           [this]() { on_calibration_result(false, "Failed to set Z-offset"); });
             });
     } else {
-        // Probe/endstop: ACCEPT then apply+save
+        // Probe/endstop: ACCEPT stages the result, SAVE_CONFIG commits it
         spdlog::info("[ZOffsetCal] Sending ACCEPT");
         set_state(State::SAVING);
 
@@ -741,8 +741,8 @@ void ZOffsetCalibrationPanel::send_accept() {
         api_->execute_gcode(
             "ACCEPT",
             [this, strategy, api = api_, accept_token]() {
-                spdlog::info("[ZOffsetCal] ACCEPT success, applying and saving");
-                helix::zoffset::apply_and_save(
+                spdlog::info("[ZOffsetCal] ACCEPT success, saving");
+                helix::zoffset::save_accepted_calibration(
                     api, save_config_watch_, strategy,
                     [this, accept_token]() {
                         accept_token.defer(
