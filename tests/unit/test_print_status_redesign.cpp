@@ -5,6 +5,7 @@
 // state: what each chip and checklist subject publishes, and how the callout
 // layout drops, glows and relayouts across a phase switch.
 
+#include "ui_gcode_viewer.h"
 #include "ui_print_status_tiles.h"
 
 #include "../test_helpers/print_status_panel_fixture.h"
@@ -191,6 +192,40 @@ TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[p
     CHECK(subject_int("preparing_visible") == 0);
     CHECK(subject_int("ps_step_count") == 0);
     CHECK(subject_str("ps_step_position_text").empty());
+}
+
+TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    settle();
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source([]() -> std::optional<PreprintChecklistInput> {
+        PreprintChecklistInput in;
+        in.current = PrintStartPhase::HOMING;
+        return in;
+    });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HOMING));
+    UpdateQueue::instance().drain();
+    process_lvgl(900); // the preparing view shows after its debounce
+    REQUIRE(subject_int("preparing_visible") == 1);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    // The deferred G-code load re-shows the viewer while the checklist still covers it.
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+
+    tiles().set_checklist_source(
+        []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+    REQUIRE(subject_int("preparing_visible") == 0);
+    CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
 }
 
 TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glows",
