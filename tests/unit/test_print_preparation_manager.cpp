@@ -3228,6 +3228,8 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE_FALSE(original.empty());
     REQUIRE(count_exact_lines(original, "T1") == 11);
     REQUIRE(count_exact_lines(original, "T2") == 5);
+    // An earlier start's parameters, left for the next start to send.
+    PrintPreparationManagerTestAccess::set_start_params(manager, {{"plateindex", "3"}});
 
     manager.modify_and_print_with_remap(kRemapFixture, {{1, 2}}, nullptr);
     drain_until_quiet();
@@ -3251,6 +3253,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(starts[0].original_filename == kRemapFixture);
     CHECK(starts[0].temp_file_path == uploads[0].dest_path);
     CHECK(starts[0].modifications == std::vector<std::string>{"remap_T1_to_T2"});
+    CHECK(starts[0].extra_params.count("plateindex") == 0);
 
     // Neither local copy outlives the flow.
     const auto& downloads = api.transfers_mock().download_destinations();
