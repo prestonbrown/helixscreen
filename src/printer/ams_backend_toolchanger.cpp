@@ -3121,7 +3121,12 @@ AmsError AmsBackendToolChanger::can_set_tool_mapping(int tool_number, int slot_i
 
 AmsError AmsBackendToolChanger::can_set_tool_mapping_locked(int tool_number, int slot_index) const {
     const int tool_count = static_cast<int>(tool_names_.size());
-    if (tool_number < 0 || tool_number >= tool_count) {
+    // Numbers can have gaps (tools 0, 2, 3), so a number the printer lists is
+    // in range however large it is.
+    const bool listed = listed_tool_numbers_ &&
+                        std::find(listed_tool_numbers_->begin(), listed_tool_numbers_->end(),
+                                  tool_number) != listed_tool_numbers_->end();
+    if (tool_number < 0 || (tool_number >= tool_count && !listed)) {
         return AmsErrorHelper::tool_out_of_range(tool_number);
     }
     if (slot_index < 0 || slot_index >= tool_count) {

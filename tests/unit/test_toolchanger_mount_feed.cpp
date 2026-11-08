@@ -2280,6 +2280,15 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         CHECK(tc->get_slot_info(1).mapped_tool == 3);
     }
 
+    SECTION("a listed number past the tool count can be remapped") {
+        auto tc = numbered_changer({0, 2, 3});
+        CHECK(tc->can_set_tool_mapping(3, 0).success());
+        REQUIRE(tc->set_tool_mapping(3, 0).success());
+        CHECK(tc->sent_.back() == "ASSIGN_TOOL TOOL=\"tool T0\" N=3");
+        // A number nobody lists, past the tool count, is still out of range.
+        CHECK_FALSE(tc->can_set_tool_mapping(7, 0).success());
+    }
+
     SECTION("a reassigned number follows its tool when only the names change") {
         // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
         // Moonraker's delta carries tool_names alone.
