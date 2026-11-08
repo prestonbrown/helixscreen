@@ -7,6 +7,7 @@
 #include "screensaver.h"
 #include "screensaver_canvas.h"
 #include "screensaver_clock.h"
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 #include "screensaver_frame_timer.h"
 #include "screensaver_overlay.h"
@@ -56,7 +57,9 @@ class ClockInputSink {
  *
  * start() creates the overlay, the canvas when the saver has one, seeds the random sequence,
  * sets the start level, calls on_start() and starts the frame timer at the level's period.
- * Each frame calls on_frame() and invalidates the dirty areas it returns. stop() cancels the
+ * Each frame steps the print reading from the input source, calls on_frame() and invalidates the
+ * dirty areas it returns; start() steps the reading once before on_start(), so a scene and the
+ * progress card read the same print on the same frame. stop() cancels the
  * timer, hides and frees the canvas, queues the overlay for deletion and calls on_stop().
  * A saver implements the on_* hooks and its ladder, most expensive level first (a table of
  * rows with a period_ms reads through ladder_period()). A level change also moves the display
@@ -131,6 +134,12 @@ class SaverBase : public Screensaver, public ClockInputSink {
     /// the display refresh is held, the refresh period.
     void apply_level(size_t level);
 
+    /// The print as every saver reads it this frame, stepped before on_start() and each
+    /// on_frame(): CLOCK with no print.
+    const ClockReading& print_reading() const {
+        return print_.reading();
+    }
+
     SaverOverlay& overlay() {
         return overlay_;
     }
@@ -151,10 +160,13 @@ class SaverBase : public Screensaver, public ClockInputSink {
     friend class SaverTestAccess;
 
     void run_frame(uint32_t dt_ms);
+    /// Reads the input source and steps print_ by `dt_ms` with it.
+    void step_print_reading(uint32_t dt_ms);
     /// Creates the progress card above the scene for a saver the registry marks CARD.
     void start_print_card();
-    /// Steps the card's reading and drift, then shows, moves or repaints it as they changed.
-    void step_print_card(uint32_t dt_ms);
+    /// Steps the card's drift, then shows, moves or repaints it as it and print_reading()
+    /// changed; `in` is the input the reading was stepped with.
+    void step_print_card(uint32_t dt_ms, const ClockInput& in);
     void stop_print_card();
 
     /// The progress card, for savers with no print display of their own.
@@ -164,7 +176,6 @@ class SaverBase : public Screensaver, public ClockInputSink {
         bool painted = false;
         PrintCardLayout layout;
         DirtyRect home;
-        ClockState clock;
         ClockDrift drift;
         PrintCardFace face;
         PrintCardPainter painter;
@@ -183,6 +194,10 @@ class SaverBase : public Screensaver, public ClockInputSink {
     // Owned random sequence, seeded in start(); a fixed seed makes a run replay exactly.
     std::minstd_rand rng_;
     std::optional<uint32_t> fixed_seed_;
+    // What the print reads, stepped from read_input() before the scene draws.
+    ClockState print_;
+    // The input print_ was last stepped with.
+    ClockInput print_input_;
     PrintCard card_;
 };
 
