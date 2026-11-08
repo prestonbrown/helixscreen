@@ -1842,6 +1842,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Riscaldamento di piano e ugello: la stampa torna ad aderire e l'ugello si stacca"
   Heating the nozzle: 'Riscaldamento dell''ugello'
   Heating to %d°C... %.0f°C: Riscaldamento a %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Riscaldamento a %s: %d:%02d rimanente'
   Heating to {}°C before {}...: Riscaldamento a {}°C prima di {}...
   Heating to {}°C for {}...: Riscaldamento a {}°C per {}...
   Heating to {}°C...: Riscaldamento a {}°C...
@@ -1927,6 +1928,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Ventola hotend
   Hotend Heater: Riscaldatore hotend
+  Hours: Ore
   How Z-axis movement is displayed: Come viene visualizzato il movimento dell'asse
     Z
   How far and how fast a lane ejects: "Quanto e quanto velocemente espelle una corsia"

@@ -1689,6 +1689,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" ja="ベッドとノズルを加熱し、印刷物を再び密着させてノズルを印刷物から離しています"/>
   <translation tag="Heating the nozzle" ja="ノズルを加熱中"/>
   <translation tag="Heating to %d°C... %.0f°C" ja="%d°Cに加熱中... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" ja="%sに加熱中: 残り %d:%02d"/>
   <translation tag="Heating to {}°C before {}..." ja="{}°Cに加熱中（{}の前）..."/>
   <translation tag="Heating to {}°C for {}..." ja="{}°Cに加熱中（{}）..."/>
   <translation tag="Heating to {}°C..." ja="{}°Cに加熱中..."/>
@@ -1767,6 +1768,7 @@
   <translation tag="Hotend" ja="ホットエンド"/>
   <translation tag="Hotend Fan" ja="ホットエンドファン"/>
   <translation tag="Hotend Heater" ja="ホットエンドヒーター"/>
+  <translation tag="Hours" ja="時間"/>
   <translation tag="How Z-axis movement is displayed" ja="Z軸の移動表示方法"/>
   <translation tag="How far and how fast a lane ejects" ja="レーンの取り出し距離と速度"/>
   <translation tag="How far filament is pushed back into the box on eject" ja="取り出し時にフィラメントをボックスへ押し戻す距離"/>

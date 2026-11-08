@@ -1689,6 +1689,7 @@
   <translation tag="Heating the bed and nozzle so the print re-grips and the nozzle lets go of it" fr="Chauffe du plateau et de la buse pour que l&apos;impression adhère de nouveau et que la buse s&apos;en détache"/>
   <translation tag="Heating the nozzle" fr="Chauffage de la buse"/>
   <translation tag="Heating to %d°C... %.0f°C" fr="Chauffe à %d°C... %.0f°C"/>
+  <translation tag="Heating to %s: %d:%02d left" fr="Chauffage à %s : %d:%02d restant"/>
   <translation tag="Heating to {}°C before {}..." fr="Chauffe à {}°C avant {}..."/>
   <translation tag="Heating to {}°C for {}..." fr="Chauffe à {}°C pendant {}..."/>
   <translation tag="Heating to {}°C..." fr="Chauffe à {}°C..."/>
@@ -1767,6 +1768,7 @@
   <translation tag="Hotend" fr="Hotend"/>
   <translation tag="Hotend Fan" fr="Ventilateur du hotend"/>
   <translation tag="Hotend Heater" fr="Chauffage du hotend"/>
+  <translation tag="Hours" fr="Heures"/>
   <translation tag="How Z-axis movement is displayed" fr="Mode d&apos;affichage du mouvement de l&apos;axe Z"/>
   <translation tag="How far and how fast a lane ejects" fr="Distance et vitesse d&apos;éjection d&apos;une voie"/>
   <translation tag="How far filament is pushed back into the box on eject" fr="Distance de recul du filament dans la boîte à l&apos;éjection"/>

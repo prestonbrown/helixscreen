@@ -1857,6 +1857,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Chauffe du plateau et de la buse pour que l'impression adhère de nouveau et que la buse s'en détache"
   Heating the nozzle: Chauffage de la buse
   Heating to %d°C... %.0f°C: Chauffe à %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Chauffage à %s : %d:%02d restant'
   Heating to {}°C before {}...: Chauffe à {}°C avant {}...
   Heating to {}°C for {}...: Chauffe à {}°C pendant {}...
   Heating to {}°C...: Chauffe à {}°C...
@@ -1943,6 +1944,7 @@ translations:
   Hotend: Hotend
   Hotend Fan: Ventilateur du hotend
   Hotend Heater: Chauffage du hotend
+  Hours: Heures
   How Z-axis movement is displayed: Mode d'affichage du mouvement de l'axe Z
   How far and how fast a lane ejects: "Distance et vitesse d'éjection d'une voie"
   How far filament is pushed back into the box on eject: "Distance de recul du filament dans la boîte à l'éjection"

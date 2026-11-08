@@ -1890,6 +1890,7 @@ translations:
   "Heating the bed and nozzle so the print re-grips and the nozzle lets go of it": "Нагрев стола и сопла, чтобы печать снова прилипла, а сопло отделилось от неё"
   Heating the nozzle: Нагрев сопла
   Heating to %d°C... %.0f°C: Нагрев до %d°C... %.0f°C
+  'Heating to %s: %d:%02d left': 'Нагрев до %s: осталось %d:%02d'
   Heating to {}°C before {}...: Нагрев до {}°C перед «{}»...
   Heating to {}°C for {}...: Нагрев до {}°C в течение {}...
   Heating to {}°C...: Нагрев до {}°C...
@@ -1974,6 +1975,7 @@ translations:
   Hotend: Хотенд
   Hotend Fan: Вентилятор хотенда
   Hotend Heater: Нагреватель хотенда
+  Hours: Часы
   How Z-axis movement is displayed: Как отображается движение по оси Z
   How far and how fast a lane ejects: "Насколько далеко и быстро извлекает канал"
   How far filament is pushed back into the box on eject: "Насколько далеко филамент задвигается обратно в бокс при извлечении"

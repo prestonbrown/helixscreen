@@ -855,6 +855,35 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
     lv_obj_remove_style(btn, &white_fill, LV_PART_MAIN);
 }
 
+// A text colour the author binds onto the button wins over the contrast pick; the
+// variant's own styles do not count, and removing the bound style restores contrast.
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: an authored text colour beats contrast",
+                 "[ui_button][contrast]") {
+    const char* attrs[] = {"text", "Stop", "variant", "outline", nullptr};
+    lv_obj_t* btn = create_button(attrs);
+    REQUIRE(btn != nullptr);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    lv_obj_t* label = lv_obj_get_child_by_type(btn, 0, &lv_label_class);
+    REQUIRE(label != nullptr);
+    const auto label_color = [label] {
+        return lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN)) & 0xFFFFFF;
+    };
+    const uint32_t contrast = label_color();
+    const uint32_t danger = lv_color_to_u32(theme_manager_get_color("danger")) & 0xFFFFFF;
+    REQUIRE(contrast != danger);
+
+    static lv_style_t quiet_stop;
+    lv_style_init(&quiet_stop);
+    lv_style_set_text_color(&quiet_stop, theme_manager_get_color("danger"));
+    lv_obj_add_style(btn, &quiet_stop, LV_PART_MAIN);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(label_color() == danger);
+
+    lv_obj_remove_style(btn, &quiet_stop, LV_PART_MAIN);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(label_color() == contrast);
+}
+
 // A shell button that lays its content out through a wrapper still gives that
 // content contrast; an icon with an accent variant of its own keeps it.
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: contrast reaches content inside a layout wrapper",
