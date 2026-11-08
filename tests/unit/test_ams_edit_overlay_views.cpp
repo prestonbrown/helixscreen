@@ -4676,6 +4676,45 @@ TEST_CASE_METHOD(SaveAckFixture, "an edit that only clears still reports a faile
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(SaveAckFixture, "a meter flush between Save and its echo still closes the editor",
+                 "[ams_edit_overlay][save_ack][review]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    auto& overlay = get_ams_edit_overlay();
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 1, backend->get_slot_info(1), &api, [](const AmsEditOverlay::EditResult& r) {
+            if (!r.saved || r.slot_index < 0) {
+                return;
+            }
+            const SlotInfo original =
+                AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+            (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+        }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo edited = backend->get_slot_info(1);
+    edited.material = "PETG";
+    edited.remaining_weight_g = 500.0f;
+    edited.total_weight_g = 1000.0f;
+    access.set_working_info(edited);
+    client.defer_next("server.database.post_item");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    REQUIRE(access.save_state() == 1);
+
+    // The edit lands; the read that would echo it is out when the print's
+    // meter writes the weight it counted down from the edit's.
+    client.defer_next("server.database.get_item");
+    client.fire_deferred("server.database.post_item");
+    UpdateQueue::instance().drain();
+    backend->update_slot_weight(1, 499.6f, 1000.0f, /*persist=*/true);
+    client.fire_deferred("server.database.get_item");
+    settle();
+
+    CHECK(access.closed());
+    CHECK(access.save_state() == 0);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
 TEST_CASE_METHOD(SaveAckFixture, "a commit result nobody took is not reported by a later save",
                  "[ams_edit_overlay][save_ack][review]") {
     AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());

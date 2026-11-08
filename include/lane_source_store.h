@@ -212,6 +212,11 @@ void reset_lane_to_machine_readings(LaneId lane);
 /// Pending record that keeps a field keeps its window and its waiters.
 void retract_lane_declarations(LaneId lane, const std::function<void(Observation&)>& trim);
 
+/// A newer metered weight was written over the lane's record: the edit's
+/// pending remaining weight is superseded, not failed. The rest of the edit
+/// keeps waiting for its echo; an edit that stated only the weight ends Echoed.
+void supersede_pending_weight(LaneId lane);
+
 /// This lane's records, by value. An unwritten lane reads as nothing observed.
 [[nodiscard]] LaneSources lane_sources(LaneId lane);
 
@@ -249,7 +254,8 @@ class LaneSourceStore {
                      PendingOutcome outcome = PendingOutcome::Failed);
     std::vector<LaneId> expire(std::chrono::steady_clock::time_point now,
                                const std::vector<LaneId>& lanes);
-    void trim_pending(LaneId lane, const std::function<void(Observation&)>& trim);
+    void trim_pending(LaneId lane, const std::function<void(Observation&)>& trim,
+                      PendingOutcome emptied);
     void await(LaneId lane, std::optional<std::uint64_t> since, PendingSettled settled);
     [[nodiscard]] std::uint64_t filings(LaneId lane) const;
 

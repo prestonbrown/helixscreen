@@ -363,6 +363,11 @@ void AmsBackend::update_slot_weight(int slot_index, float remaining_weight_g, fl
     if (metered.remaining_weight_g.has_value() || metered.total_weight_g.has_value()) {
         helix::ams::ingest(lane_id(slot_index), metered);
     }
+    // The meter's write is newer than an edit's weight still waiting to echo,
+    // so that weight would never echo: it is superseded, not failed.
+    if (persist && metered.remaining_weight_g.has_value()) {
+        helix::ams::supersede_pending_weight(lane_id(slot_index));
+    }
 
     update_slot_weight_impl(slot_index, remaining_weight_g, total_weight_g, persist);
 }

@@ -224,7 +224,8 @@ std::vector<LaneId> LaneSourceStore::expire(std::chrono::steady_clock::time_poin
     return expired;
 }
 
-void LaneSourceStore::trim_pending(LaneId lane, const std::function<void(Observation&)>& trim) {
+void LaneSourceStore::trim_pending(LaneId lane, const std::function<void(Observation&)>& trim,
+                                   PendingOutcome emptied) {
     Settlements settled;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -240,7 +241,7 @@ void LaneSourceStore::trim_pending(LaneId lane, const std::function<void(Observa
         if (stated && !any_observed(pending)) {
             it->second.pending.reset();
             pending_deadline_.erase(lane);
-            settle_locked(lane, PendingOutcome::Failed, {}, settled);
+            settle_locked(lane, emptied, {}, settled);
         }
     }
     run(settled);
@@ -419,13 +420,22 @@ void retract_lane_declarations(LaneId lane, const std::function<void(Observation
     if (!is_lane_id(lane)) {
         return;
     }
-    LaneSourceStore::instance().trim_pending(lane, trim);
+    LaneSourceStore::instance().trim_pending(lane, trim, PendingOutcome::Failed);
     const LaneSources sources = lane_sources(lane);
     if (sources.spoolman.has_value()) {
         Observation kept = *sources.spoolman;
         trim(kept);
         ingest(lane, kept);
     }
+}
+
+void supersede_pending_weight(LaneId lane) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().trim_pending(
+        lane, [](Observation& pending) { pending.remaining_weight_g.reset(); },
+        PendingOutcome::Echoed);
 }
 
 LaneSources lane_sources(LaneId lane) {
