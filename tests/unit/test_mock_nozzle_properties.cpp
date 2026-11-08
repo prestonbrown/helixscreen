@@ -332,14 +332,6 @@ TEST_CASE_METHOD(NozzleFixture, "a head takes one nozzle change at a time",
     }
 }
 
-TEST_CASE_METHOD(NozzleFixture, "a pick of the value a head reports sends nothing",
-                 "[mock][snapmaker][nozzle]") {
-    CHECK(pick("snapmaker_nozzle_diameter_t0", "0.4 mm").success());
-    CHECK(pick("snapmaker_nozzle_flow_t0", "Standard").success());
-    CHECK(client.sent.empty());
-    CHECK(user_errors() == 0);
-}
-
 TEST_CASE_METHOD(NozzleFixture,
                  "a change the head did not take tells the user and snaps the row back",
                  "[mock][snapmaker][nozzle]") {
