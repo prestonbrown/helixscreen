@@ -547,32 +547,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     DisplayManagerTestAccess::set_display(mgr, nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "hardware-blank path keeps the flush live (AD5M/Allwinner)",
-                 "[application][display][sleep][poweroff][1049]") {
-    // Hardware-blank devices blank the panel at the controller; LVGL keeps
-    // rendering normally. The flush must not be suppressed there.
-    DisplayManager mgr;
-    auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/true);
-    FakePowerOffBackend* raw = backend.get();
-    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
-    DisplayManagerTestAccess::set_use_hardware_blank(mgr, true);
-
-    lv_display_t* disp = lv_display_get_default();
-    DisplayManagerTestAccess::set_display(mgr, disp);
-    lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
-    lv_display_flush_cb_t real_cb = disp->flush_cb;
-
-    DisplayManagerTestAccess::enter_sleep(mgr, 60);
-
-    REQUIRE(raw->blank_calls == 1);
-    REQUIRE(raw->power_off_calls == 0);
-    REQUIRE_FALSE(DisplayManagerTestAccess::is_flush_suppressed(mgr));
-    REQUIRE(disp->flush_cb == real_cb);
-
-    DisplayManagerTestAccess::restore_display_output(mgr);
-    DisplayManagerTestAccess::set_display(mgr, nullptr);
-}
-
 // ============================================================================
 // The software sleep overlay hides the screen beneath it
 // ============================================================================
@@ -638,15 +612,16 @@ TEST_CASE_METHOD(LVGLTestFixture,
         helix::SleepMechanism expected;
     };
     const Case cases[] = {
-        {"hardware blank", true, false, helix::SleepMechanism::HardwareBlank},
+        {"hardware blank", true, true, helix::SleepMechanism::HardwareBlank},
         {"panel power-off", false, true, helix::SleepMechanism::PanelPowerOff},
         {"software overlay", false, false, helix::SleepMechanism::SoftwareOverlay},
     };
     for (const Case& c : cases) {
         INFO(c.name);
         DisplayManager mgr;
-        DisplayManagerTestAccess::set_backend(
-            mgr, std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/c.power_off));
+        auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/c.power_off);
+        FakePowerOffBackend* raw = backend.get();
+        DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
         DisplayManagerTestAccess::set_use_hardware_blank(mgr, c.hardware_blank);
         DisplayManagerTestAccess::set_use_power_off(mgr, c.power_off);
         lv_display_t* disp = lv_display_get_default();
@@ -658,6 +633,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
         REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) == c.expected);
         CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
         CHECK(helix::active_screen_hide_hold().is_held());
+        if (c.hardware_blank) {
+            // The controller blanks the panel and outranks power-off; the flush stays live.
+            CHECK(raw->blank_calls == 1);
+            CHECK(raw->power_off_calls == 0);
+            CHECK(disp->flush_cb == test_sentinel_flush_cb);
+        }
 
         RefreshProbe probe;
         lv_display_add_event_cb(disp, RefreshProbe::on_refr_start, LV_EVENT_REFR_START, &probe);
