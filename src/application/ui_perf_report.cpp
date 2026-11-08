@@ -2,6 +2,8 @@
 
 #include "ui_perf_report.h"
 
+#include "system/debug_bundle_collector.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -64,6 +66,11 @@ nlohmann::json ui_perf_to_json(const UiPerfSnapshot& snapshot) {
         {"peak_rss_kb", s.peak_rss_kb},
         {"overlays", overlays},
     };
+}
+
+void install_ui_perf_bundle_provider() {
+    DebugBundleCollector::set_ui_perf_provider(
+        [] { return ui_perf_to_json(capture_ui_perf(lv_display_get_default())).dump(); });
 }
 
 } // namespace helix

@@ -26,4 +26,7 @@ UiPerfSnapshot capture_ui_perf(lv_display_t* display);
 /// Pure. Overlays come out slowest last open first.
 nlohmann::json ui_perf_to_json(const UiPerfSnapshot& snapshot);
 
+/// Gives the debug bundle its `ui_perf` section, read from the default display.
+void install_ui_perf_bundle_provider();
+
 } // namespace helix
