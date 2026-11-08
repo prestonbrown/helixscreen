@@ -22,13 +22,6 @@
  * - Auto-detection via hardware fingerprinting
  * - Configuration persistence
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
  * ## Subject Bindings (6 total):
  *
  * - printer_name (string) - User-entered printer name
