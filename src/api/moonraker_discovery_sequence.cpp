@@ -1064,6 +1064,11 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     }
                                 }
 
+                                {
+                                    std::lock_guard<std::mutex> lock(hardware_mutex_);
+                                    hardware_.parse_configured_tool_numbers(settings);
+                                }
+
                                 // Record each fan's configured max_power. Klipper reports
                                 // `speed` as last_fan_value = value * max_power, so the UI
                                 // divides it back out to show the logical fraction (a full-on

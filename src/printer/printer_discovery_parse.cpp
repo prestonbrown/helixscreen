@@ -1100,6 +1100,7 @@ void PrinterDiscovery::clear() {
     probe_xy_offset_.reset();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
+    configured_tool_numbers_.clear();
     has_led_ = false;
     led_effects_.clear();
     has_led_effects_ = false;
@@ -1266,6 +1267,24 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
         }
         spdlog::info("[PrinterDiscovery] Tools ordered by Klipper tool number: {}", joined);
         tool_names_ = std::move(ordered);
+    }
+}
+
+void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& settings) {
+    if (!settings.is_object()) {
+        return;
+    }
+    static constexpr std::string_view kSectionPrefix = "tool ";
+    for (const auto& [section, values] : settings.items()) {
+        if (section.rfind(kSectionPrefix, 0) != 0 || !values.is_object()) {
+            continue;
+        }
+        const auto number = values.find("tool_number");
+        if (number == values.end() || !number->is_number_integer()) {
+            continue;
+        }
+        configured_tool_numbers_[helix::text_io::to_lower(section.substr(kSectionPrefix.size()))] =
+            number->get<int>();
     }
 }
 

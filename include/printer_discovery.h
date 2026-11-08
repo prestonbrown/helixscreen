@@ -559,6 +559,15 @@ class PrinterDiscovery {
      */
     void order_tools_by_number(const nlohmann::json& toolchanger_status);
 
+    /// Record each `[tool <name>]` section's configured `tool_number` from a
+    /// configfile.settings object. That is the tool's own number, which an
+    /// ASSIGN_TOOL at runtime does not change. Keyed by the lowercased tool
+    /// name, as Klipper lowercases settings section names.
+    void parse_configured_tool_numbers(const nlohmann::json& settings);
+    [[nodiscard]] const std::unordered_map<std::string, int>& configured_tool_numbers() const {
+        return configured_tool_numbers_;
+    }
+
     /// @brief klipper-toolchanger's tool number for each entry of tool_names(),
     /// -1 for a tool it does not number. Empty until order_tools_by_number() has
     /// seen tool_numbers, or once tool_names() changes after it.
@@ -1179,6 +1188,7 @@ class PrinterDiscovery {
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to
