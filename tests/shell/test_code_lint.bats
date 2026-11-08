@@ -3085,15 +3085,19 @@ override_store_offenders() {
     #     override_store_ = std::move(s);
     # as clean. A seventh backend naming its member something else evades a
     # name-keyed grep too. Every construction of the type is therefore an
-    # offender unless it is one of the three the allowlist names.
+    # offender unless it is one of the two sanctioned ones: the backends' single
+    # opener (AmsSubscriptionBackend::open_lane_record_store) and AmsState's
+    # bypass-lane store. Each is allowed as that exact assignment in that file
+    # only, so a second construction in either file still fires.
     grep -rnE 'make_unique<[^>]*FilamentSlotOverrideStore|new[[:space:]]+[A-Za-z:]*FilamentSlotOverrideStore' \
         --include='*.cpp' --include='*.h' "$root" 2>/dev/null \
         | grep -v 'printer/filament_slot_override_store\.cpp' \
-        | grep -v 'lane_publish_store_' \
+        | grep -vE 'printer/ams_subscription_backend\.cpp:[0-9]+:[[:space:]]*override_store_ = std::make_unique<' \
+        | grep -vE 'printer/ams_state_external_spool\.cpp:[0-9]+:[[:space:]]*bypass_store_ = std::make_unique<' \
         || true
 }
 
-@test "override_store_ is only ever assigned from make_loaded_override_store()" {
+@test "a lane record store is only ever built by its two sanctioned openers" {
     run override_store_offenders src
     [ "$status" -eq 0 ]
     [ -z "$output" ]
@@ -3129,20 +3133,21 @@ EOF
     contains "FilamentSlotOverrideStore" "$output"
 }
 
-@test "the override-store gate stays quiet on the helper and on the publish store" {
-    # The silent half: the sanctioned spelling moves a store the helper built,
-    # and the publish store is a different member with no map behind it.
-    local d="${BATS_TEST_TMPDIR}/quiet"
+@test "the override-store gate stays quiet on the two sanctioned openers" {
+    # The silent half: the backends' one opener and AmsState's bypass store,
+    # each in its own file, each as the one assignment the gate allows.
+    local d="${BATS_TEST_TMPDIR}/quiet/printer"
     mkdir -p "$d"
-    cat > "$d/ams_backend_ok.cpp" <<'EOF'
-void AmsBackendOk::on_started() {
-    auto loaded = helix::ams::make_loaded_override_store(api_, "ok", get_type(),
-                                                         backend_log_tag());
+    cat > "$d/ams_subscription_backend.cpp" <<'EOF'
+void AmsSubscriptionBackend::open_lane_record_store(std::string id, std::string ns) {
     std::lock_guard<std::mutex> lock(mutex_);
-    override_store_ = std::move(loaded.store);
-    overrides_ = std::move(loaded.overrides);
-    lane_publish_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        api_, "ok", style, "lane_data");
+        override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            api_, std::move(id), helix::ams::lane_key_style_for(get_type()), std::move(ns));
+}
+EOF
+    cat > "$d/ams_state_external_spool.cpp" <<'EOF'
+void AmsState::open_bypass_store() {
+    bypass_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api, "bypass", style);
 }
 EOF
     run override_store_offenders "$d"
