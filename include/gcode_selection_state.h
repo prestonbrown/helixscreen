@@ -42,8 +42,8 @@ enum class InvalidationScope {
     /// Not `None`: X11 defines that as a macro (`#define None 0L`), so any build
     /// that reaches an X11 header - the Debian and Raspberry Pi desktop targets -
     /// preprocesses `InvalidationScope::None` into a numeric constant and fails to
-    /// compile. The printer targets never include X11, which is why this only ever
-    /// broke on those three platforms.
+    /// compile. The printer targets never include X11, so only the desktop
+    /// targets hit it.
     Nothing,       ///< contents unchanged; do not touch either cache
     SolidAndGhost, ///< both: the ghost pass dims exclusions and draws the selection
 };

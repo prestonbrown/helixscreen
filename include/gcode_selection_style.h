@@ -101,9 +101,8 @@ inline constexpr int kOutlinePx = 2;
 inline constexpr int kOutlineSmallPanelPx = 1;
 
 /// How near a tap has to land, in screen pixels, to pick a toolpath. Shared
-/// because both renderers hit-test the same way and had their own identical copy
-/// of the number; a printer where one view selects and the other does not is the
-/// bug that duplication produces.
+/// because both renderers hit-test the same way; two copies of the number would
+/// let one view select where the other does not.
 inline constexpr float kPickThresholdPx = 15.0f;
 
 /// Panels at or below this width get the narrower rim: 2px per side swallows a

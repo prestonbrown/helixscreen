@@ -45,8 +45,8 @@ static const lv_point_t pts_top_circle[] = {
     {586, 302}, {578, 338}, {556, 373}, {540, 390}, {507, 398},
 };
 
-// Bottom fan is now drawn as a simple circle (see draw_circle in draw_nozzle_stealthburner)
-// The original complex polygon with fan blade details caused triangulation artifacts
+// The bottom fan is a simple circle (see draw_circle in draw_nozzle_stealthburner):
+// a polygon with fan blade details triangulates with artifacts
 
 static const lv_point_t pts_logo_1[] = {
     {457, 498}, {472, 472}, {474, 470}, {485, 470}, {469, 499},
