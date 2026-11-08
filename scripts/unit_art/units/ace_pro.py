@@ -51,7 +51,7 @@ def draw_art(sc, colors, tier):
     sc.poly([(W - 0.004, y, z) for y, z in wedge], kit.shade(cam, BODY, (1, 0, 0), amb=0.62, dif=0.5, spec=0))
     y = -0.002
     if detail:
-        sc.poly(kit.rrect_x(0.03, 0.97, 0.055, 0.275, 0.03, -0.001), kit.shade(cam, PANEL, (0, -1, 0), amb=0.6, dif=0.5, spec=0), 1.0, stroke="#17181b", sw=0.004)
+        sc.poly(kit.rrect_front(0.03, 0.97, 0.055, 0.275, 0.03, -0.001), kit.shade(cam, PANEL, (0, -1, 0), amb=0.6, dif=0.5, spec=0), 1.0, stroke="#17181b", sw=0.004)
     sc.poly([(0.04, y, RAIL0), (0.96, y, RAIL0), (0.96, y, ZR), (0.04, y, ZR)], kit.shade(cam, RAIL, (0, -1, 0), amb=0.72, dif=0.42, spec=0))
     sc.line([(0.04, y, ZR), (0.96, y, ZR)], "#e7e9ec", 0.003 * thick)
     if detail:
@@ -63,8 +63,8 @@ def draw_art(sc, colors, tier):
         for i in range(5):
             x = 0.03 + i * 0.235
             sc.line([(x, 0.2, H - 0.012), (x, 0.2, H - 0.13), (x, 0.42, H - 0.17), (x, 0.56, H - 0.012)], "#ffffff", 0.0016, 0.16)
-        sc.poly(kit.rrect_x(0.43, 0.57, 0.297, 0.351, 0.025, -0.004), "#d3d5d9", 1.0, stroke="#6d7076", sw=0.002)
-        sc.poly(kit.rrect_x(0.495, 0.505, 0.308, 0.340, 0.004, -0.005), "#70737a")
+        sc.poly(kit.rrect_front(0.43, 0.57, 0.297, 0.351, 0.025, -0.004), "#d3d5d9", 1.0, stroke="#6d7076", sw=0.002)
+        sc.poly(kit.rrect_front(0.495, 0.505, 0.308, 0.340, 0.004, -0.005), "#70737a")
 
     sc.extrude_x(prof, lidx0, lidx1, SMOKE, 0.34 if detail else 0.2, front=True)
     sc.poly([(lidx1, y1, z) for y1, z in cap], SMOKE, 0.42 if detail else 0.3)

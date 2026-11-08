@@ -81,7 +81,7 @@ def fillet(pts, radii, closed=False, steps=10):
     return out
 
 
-def rrect_x(x0, x1, z0, z1, r, y):
+def rrect_front(x0, x1, z0, z1, r, y):
     """A rounded rectangle on a plane of constant y."""
     pts = fillet([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], [r] * 4, closed=True, steps=6)
     return [(a, y, b) for a, b in pts]

@@ -51,10 +51,10 @@ def draw_art(sc, colors, tier):
     sc.prism(plinth, 0.0, PLINTH_Z, PLINTH, amb=0.7, dif=0.45, spec=0)
     sc.prism(foot, PLINTH_Z, BODY_Z, BODY, amb=0.66, dif=0.5, spec=0.12, power=20)
     y = -0.002
-    sc.poly(kit.rrect_x(0.012, W - 0.012, PLINTH_Z + 0.008, BODY_Z - 0.008, 0.012, y), kit.shade(cam, FACE, (0, -1, 0), amb=0.7, dif=0.45, spec=0), 1.0, stroke="#3b3d43", sw=0.002 * thick)
-    sc.poly(kit.rrect_x(0.03, W - 0.03, 0.05, BODY_Z - 0.022, 0.008, y - 0.001), SCREEN)
+    sc.poly(kit.rrect_front(0.012, W - 0.012, PLINTH_Z + 0.008, BODY_Z - 0.008, 0.012, y), kit.shade(cam, FACE, (0, -1, 0), amb=0.7, dif=0.45, spec=0), 1.0, stroke="#3b3d43", sw=0.002 * thick)
+    sc.poly(kit.rrect_front(0.03, W - 0.03, 0.05, BODY_Z - 0.022, 0.008, y - 0.001), SCREEN)
     for x0, x1 in ((0.052, 0.098), (0.14, 0.186), (0.228, 0.345)):
-        sc.poly(kit.rrect_x(x0, x1, 0.232, 0.25, 0.002, y - 0.002), READOUT, 0.85)
+        sc.poly(kit.rrect_front(x0, x1, 0.232, 0.25, 0.002, y - 0.002), READOUT, 0.85)
     if detail:
         for ry in RIB_YS:
             sc.line([(W + 0.001, ry, PLINTH_Z + 0.02), (W + 0.001, ry, BODY_Z - 0.02)], RIB, 0.002)

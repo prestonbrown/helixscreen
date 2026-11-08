@@ -47,7 +47,7 @@ def draw_art(sc, colors, tier):
         sc.poly([(x0, y0, BASE_Z), (x1, y0, BASE_Z), (x1, y1, BASE_Z), (x0, y1, BASE_Z)], kit.shift(BODY, 14))
     sc.line([(0.0, 0.0, BASE_Z), (W, 0.0, BASE_Z)], "#7c7f85", 0.003 * thick)
     for x0, x1 in ((0.075, 0.485), (0.515, 0.925)):
-        sc.poly(kit.rrect_x(x0, x1, 0.07, 0.29, 0.02, y), WINDOW, 0.6)
+        sc.poly(kit.rrect_front(x0, x1, 0.07, 0.29, 0.02, y), WINDOW, 0.6)
     sc.poly(
         [(0.5 + 0.045 * math.cos(2 * math.pi * i / 24), 0.04 + 0.022 * math.sin(2 * math.pi * i / 24), BASE_Z + 0.001) for i in range(24)],
         "#08090a",

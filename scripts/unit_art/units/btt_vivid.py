@@ -63,7 +63,7 @@ def draw_art(sc, colors, tier):
     sc.poly([(0.015, y, 0.022), (0.985, y, 0.022), (0.985, y, 0.05), (0.015, y, 0.05)], kit.shade(cam, LIP, (0, -1, 0), amb=0.72, dif=0.42, spec=0))
     sc.line([(0.015, y, BASE_Z - 0.003), (0.985, y, BASE_Z - 0.003)], "#6a6e77", 0.003 * thick)
     for x0, x1, col in LEDS:
-        sc.poly(kit.rrect_x(x0, x1, BASE_Z - 0.04, BASE_Z - 0.024, 0.005, y - 0.001), col)
+        sc.poly(kit.rrect_front(x0, x1, BASE_Z - 0.04, BASE_Z - 0.024, 0.005, y - 0.001), col)
     if detail:
         for x in (0.3, 0.7):
             sc.line([(x, y - 0.001, 0.022), (x, y - 0.001, 0.05)], "#17181b", 0.003)
