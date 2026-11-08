@@ -813,6 +813,12 @@ std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane
     return number < 0 ? std::string() : std::to_string(number);
 }
 
+void set_lane_badge_number(lv_obj_t* badge, int lane_number) { // NAMESPACE_OK: ams_draw
+    if (lv_obj_t* lbl = badge ? lv_obj_get_child(badge, 0) : nullptr) {
+        lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
+    }
+}
+
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
     if (!parent)
         return nullptr;
