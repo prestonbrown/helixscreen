@@ -58,6 +58,7 @@
 #include <string>
 #include <type_traits>
 #include <unistd.h>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -282,6 +283,39 @@ class CfsCalibHelper : public CfsLifecycleHelper {
 void drain_calib_queue() {
     helix::ui::UpdateQueue::instance().drain_until_empty();
 }
+
+/// Fills the process-wide MacroParamCache with exactly @p names for one scope,
+/// and empties it again on the way out.
+struct MacroCacheScope {
+    explicit MacroCacheScope(const std::unordered_set<std::string>& names) {
+        helix::MacroParamCache::instance().populate_from_configfile(json::object(), names);
+    }
+    ~MacroCacheScope() {
+        helix::MacroParamCache::instance().clear();
+    }
+    MacroCacheScope(const MacroCacheScope&) = delete;
+    MacroCacheScope& operator=(const MacroCacheScope&) = delete;
+};
+
+/// A K2, or with @p fork the Kalico port, whose printer defines exactly @p macros
+/// and, with @p belt_motors, publishes the K2's motorized belt tensioner objects.
+class CfsK2CalibHelper : public CfsCalibHelper {
+  public:
+    explicit CfsK2CalibHelper(const std::unordered_set<std::string>& macros, bool fork = false,
+                              bool belt_motors = true)
+        : macros_(macros) {
+        fork ? CfsTestAccess::set_macro_variant_fork(*this)
+             : CfsTestAccess::set_macro_variant_k2(*this);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(belt_motors ? json::array({"box", "belt_mdl mdlx", "belt_mdl mdly"})
+                                     : json::array({"box"}));
+        set_discovery(hw);
+    }
+
+  private:
+    // After the base, whose mock client fills the cache with its own macros.
+    MacroCacheScope macros_;
+};
 } // namespace
 
 // =============================================================================
@@ -558,7 +592,7 @@ TEST_CASE("CFS actions name their guided flows", "[ams][cfs][calib]") {
     CHECK(rfid->guided_flow.empty());
 }
 
-TEST_CASE("CFS calibration section and actions are K1-stock only (#1282)", "[ams][cfs][calib]") {
+TEST_CASE("CFS K1 calibration section carries the cutter and chute (#1282)", "[ams][cfs][calib]") {
     SECTION("K1 dialect exposes both calibration actions in one section") {
         CfsK1RemapHelper backend;
         const auto sections = backend.get_device_sections();
@@ -578,25 +612,84 @@ TEST_CASE("CFS calibration section and actions are K1-stock only (#1282)", "[ams
         CHECK(chute->enabled);
     }
 
-    SECTION("K2 dialect has no calibration surface (MOTOR_CHECK_CUT_POS world)") {
-        CfsRemapHelper backend;
-        CfsTestAccess::set_macro_variant_k2(backend);
-        for (const auto& s : backend.get_device_sections()) {
-            CHECK(s.id != "calibration");
+    SECTION("K2 and Fork without the K2 macros have no calibration surface") {
+        for (bool fork : {false, true}) {
+            CfsK2CalibHelper backend({}, fork);
+            CHECK(backend.get_device_sections().size() == 1);
+            CHECK(backend.get_device_actions().size() == 3);
+            CHECK(backend.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
+            CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::NOT_SUPPORTED);
+            CHECK(backend.captured.empty());
         }
-        CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
-        CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
+    }
+}
+
+TEST_CASE("CFS K2 calibration buttons follow the printer's macros", "[ams][cfs][calib][k2cal]") {
+    for (bool fork : {false, true}) {
+        CfsK2CalibHelper belts_only({"BELT_TENSION"}, fork);
+        const auto belts = find_action(belts_only, "tension_belts");
+        REQUIRE(belts.has_value());
+        CHECK(belts->section == "calibration");
+        CHECK(belts->moves_machine);
+        CHECK(belts->guided_flow == "cfs_belt_tension");
+        CHECK(belts_only.get_device_sections().back().id == "calibration");
+        CHECK_FALSE(find_action(belts_only, "calibrate_cutter").has_value());
+        CHECK_FALSE(find_action(belts_only, "calibrate_purge_chute").has_value());
+    }
+    CfsK2CalibHelper cutter_only({"CALIBRATE_CUT_POS"});
+    const auto cutter = find_action(cutter_only, "calibrate_cutter");
+    REQUIRE(cutter.has_value());
+    CHECK(cutter->guided_flow == "cfs_cutter");
+    CHECK_FALSE(find_action(cutter_only, "tension_belts").has_value());
+    // Only the K1 sweep has a measured duration for the confirm to quote.
+    CHECK_FALSE(cutter_only.cutter_calibration_takes_a_minute());
+
+    // A BELT_TENSION macro without the K2's tensioner motors is someone's own macro.
+    for (bool fork : {false, true}) {
+        CfsK2CalibHelper no_motors({"BELT_TENSION"}, fork, /*belt_motors=*/false);
+        CHECK_FALSE(find_action(no_motors, "tension_belts").has_value());
+        CHECK(no_motors.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
+        CHECK(no_motors.captured.empty());
     }
 
-    SECTION("Kalico Fork has no calibration surface") {
-        CfsRemapHelper backend;
-        CfsTestAccess::set_macro_variant_fork(backend);
-        for (const auto& s : backend.get_device_sections()) {
-            CHECK(s.id != "calibration");
-        }
-        CHECK_FALSE(find_action(backend, "calibrate_cutter").has_value());
-        CHECK_FALSE(find_action(backend, "calibrate_purge_chute").has_value());
+    // A K1 macro that happens to share the name is not a motorized tensioner.
+    CfsK1RemapHelper k1;
+    MacroCacheScope macros({"BELT_TENSION"});
+    CHECK_FALSE(find_action(k1, "tension_belts").has_value());
+    CHECK(k1.cutter_calibration_takes_a_minute());
+}
+
+TEST_CASE("CFS K2 calibration sends the printer's macros, one at a time",
+          "[ams][cfs][calib][k2cal]") {
+    CfsK2CalibHelper backend({"BELT_TENSION", "CALIBRATE_CUT_POS"});
+    // Bare BELT_TENSION tensions both axes on the stock and the Kalico macro.
+    backend.hold = {"BELT_TENSION"};
+    bool belts_ok = false;
+    REQUIRE(backend.execute_device_action("tension_belts", {}).success());
+    REQUIRE(backend.tension_belts([&](bool ok, const std::string&) { belts_ok = ok; }).result ==
+            AmsResult::BUSY);
+    CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::BUSY);
+    CHECK_FALSE(find_action(backend, "calibrate_cutter")->enabled);
+    CHECK(find_action(backend, "tension_belts")->disable_reason == "Calibration in progress");
+    backend.release_held();
+    drain_calib_queue();
+
+    REQUIRE(backend.calibrate_cutter(nullptr).success());
+    CHECK(backend.captured == std::vector<std::string>{"BELT_TENSION", "CALIBRATE_CUT_POS"});
+
+    backend.fail = {"BELT_TENSION"};
+    REQUIRE(backend.tension_belts([&](bool ok, const std::string&) { belts_ok = !ok; }).success());
+    drain_calib_queue();
+    CHECK(belts_ok); // the failure reached the caller
+    CHECK(find_action(backend, "tension_belts")->enabled);
+
+    for (auto state : {helix::PrintJobState::PRINTING, helix::PrintJobState::PAUSED}) {
+        helix::test::set_wire_state(backend.state, state);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(backend.tension_belts(nullptr).user_msg == "Printer is busy with a print");
+        CHECK(backend.calibrate_cutter(nullptr).user_msg == "Printer is busy with a print");
     }
+    CHECK(backend.captured.size() == 3);
 }
 
 TEST_CASE("CFS cutter calibration sends BOX_FIND_CUT_POS through the long-send path (#1282)",

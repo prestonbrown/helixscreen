@@ -972,9 +972,10 @@ HELIX_MOCK_AMS=ifs-module HELIX_MOCK_IFS_UNACCOUNTED=1 HELIX_MOCK_IFS_AT_HUB=2 \
 Same rule as the modes above: no `AmsBackendMock` is built. The mock publishes the
 stock K1 `box` status object (bay states, `map`, vendor/color/material arrays), so real
 discovery sets `AmsType::CFS` and the production `AmsBackendCfs` runs its full path.
-Pair with `HELIX_MOCK_PRINTER=k1` to latch the K1 stock dialect the calibration
-surface gates on; on any other persona the backend runs but hides the calibration
-section (the K2 dialect has no such commands).
+Pair with `HELIX_MOCK_PRINTER=k1` to latch the K1 stock dialect the cutter and chute
+calibration gate on. The `k2` persona instead defines the stock K2 macros
+`BELT_TENSION` and `CALIBRATE_CUT_POS`, so its calibration section shows Tension Belts
+and Calibrate Cutter; any other persona hides the section.
 
 `gcode_script()` answers `BOX_FIND_CUT_POS` (streams the verified terminal response
 lines on a short timer: `Found cut position y: …`, `MODIFY_BOX_CFG: success, …`,
@@ -1405,7 +1406,8 @@ since those make discovery stand up the production AD5X IFS backend; use
 `k2`: the Creality **K2 Plus**. Hostname `K2Plus-50C1`, the capture's 352.5x400x360
 CoreXY volume, and the hardware in `tests/fixtures/printers/creality_k2_plus.json` and
 `assets/config/presets/k2.json` `hardware/expected`: `motor_control`, `fan_feedback`,
-`load_ai`, `filament_rack`, the chamber heater `heater_generic chamber_heater` with
+`load_ai`, `filament_rack`, the belt tensioners `belt_mdl mdlx` / `belt_mdl mdly` with
+the stock `BELT_TENSION` and `CALIBRATE_CUT_POS` macros, the chamber heater `heater_generic chamber_heater` with
 `temperature_sensor chamber_temp`, and fans `fan` / `heater_fan chamber_fan`. It reports the
 declared 350x350 bed through `gcode_macro product_param`, which is what separates the K2 Plus
 from the K2 Pro. Its default `HELIX_MOCK_AMS` is `cfs`, so the `box` object is published

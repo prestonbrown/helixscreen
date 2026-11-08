@@ -4279,6 +4279,9 @@ std::vector<helix::printer::DeviceSection> AmsBackendCfs::get_device_sections() 
     if (macro_variant_ == CfsMacroVariant::K1) {
         sections.push_back(
             device_section("calibration", 1, TR_NOOP("Cutter and purge chute calibration")));
+    } else if (can_tension_belts() || !cutter_calibration_gcode().empty()) {
+        sections.push_back(
+            device_section("calibration", 1, TR_NOOP("Belt tension and cutter calibration")));
     }
     return sections;
 }
@@ -4294,24 +4297,36 @@ std::vector<helix::printer::DeviceAction> AmsBackendCfs::get_device_actions() co
         DA::button("comm_test", "Communication Test", "maintenance", "",
                    "Test RS-485 link to CFS units"),
     };
-    if (macro_variant_ == CfsMacroVariant::K1) {
-        // Both actions home the toolhead (G28 inside BOX_FIND_CUT_POS, XYZ_ZERO for
-        // the chute), and only one calibration may run at a time.
+    // Every calibration action moves the toolhead (the cutter and chute home it,
+    // the K2 belt macro may), and only one calibration may run at a time.
+    std::vector<DA> calibration;
+    if (can_tension_belts()) {
+        DA belts = DA::button("tension_belts", "Tension Belts", "calibration", "",
+                              "Set the X and Y belts with the motorized tensioners")
+                       .with_machine_motion();
+        belts.guided_flow = "cfs_belt_tension";
+        calibration.push_back(std::move(belts));
+    }
+    if (!cutter_calibration_gcode().empty()) {
         DA cutter = DA::button("calibrate_cutter", "Calibrate Cutter", "calibration", "",
                                "Home and sweep the cutter to re-find its position")
                         .with_machine_motion();
         cutter.guided_flow = "cfs_cutter";
+        calibration.push_back(std::move(cutter));
+    }
+    if (macro_variant_ == CfsMacroVariant::K1) {
         DA chute = DA::button("calibrate_purge_chute", "Calibrate Purge Chute", "calibration", "",
                               "Guide the toolhead to the chute's extrude position")
                        .with_machine_motion();
         chute.guided_flow = "cfs_purge_chute";
-        for (DA a : {std::move(cutter), std::move(chute)}) {
-            if (calibration_in_flight_) {
-                a.enabled = false;
-                a.disable_reason = TR_NOOP("Calibration in progress");
-            }
-            actions.push_back(std::move(a));
+        calibration.push_back(std::move(chute));
+    }
+    for (DA& a : calibration) {
+        if (calibration_in_flight_) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Calibration in progress");
         }
+        actions.push_back(std::move(a));
     }
     return actions;
 }
@@ -4359,6 +4374,10 @@ AmsError AmsBackendCfs::do_execute_device_action(const std::string& action_id,
         return calibrate_cutter();
     }
 
+    if (action_id == "tension_belts") {
+        return tension_belts();
+    }
+
     if (action_id == "calibrate_purge_chute") {
         // The section-detail overlay routes this action to the guided chute
         // overlay instead of executing it; landing here means the routing
@@ -4371,25 +4390,19 @@ AmsError AmsBackendCfs::do_execute_device_action(const std::string& action_id,
 }
 
 // ============================================================================
-// Cutter / purge-chute calibration (K1 stock dialect only)
+// Cutter / purge-chute calibration and K2 belt tensioning
 // ============================================================================
 //
-// Both flows below are the stock screen's verified choreography for a K1 Max
-// + CFS on fw 2.3.5.33 (prestonbrown/helixscreen#1282). Every entry gates on
-// macro_variant_ == K1: the K2 box firmware ships none of these commands
-// (its cutter check is MOTOR_CHECK_CUT_POS) and the Kalico fork was never
-// observed to expose them either.
+// The K1 flows are the stock screen's verified choreography for a K1 Max
+// + CFS on fw 2.3.5.33 (prestonbrown/helixscreen#1282); the chute flow gates on
+// macro_variant_ == K1. The K2 command choice, the shared one-at-a-time send
+// and belt tensioning live in ams_backend_cfs_calibration.cpp (#2059).
 
 AmsError
 AmsBackendCfs::calibrate_cutter(std::function<void(bool ok, const std::string& line)> on_result) {
-    if (macro_variant_ != CfsMacroVariant::K1) {
-        return AmsErrorHelper::not_supported("Cutter calibration is K1-stock only");
-    }
-    if (auto e = refuse_motion_if_printing(); !e.success()) {
-        return e;
-    }
-    if (calibration_in_flight_) {
-        return AmsErrorHelper::busy("calibration");
+    const std::string gcode = cutter_calibration_gcode();
+    if (gcode.empty()) {
+        return AmsErrorHelper::not_supported("Cutter calibration");
     }
 
     // Klipper reports the result on the gcode response stream, not in the
@@ -4425,33 +4438,19 @@ AmsBackendCfs::calibrate_cutter(std::function<void(bool ok, const std::string& l
         }
     };
 
-    auto token = lifetime_.token();
-    auto on_complete = [this, on_result, watch, unregister]() {
-        calibration_in_flight_ = false;
-        unregister();
-        const std::string& line =
-            !watch->found_line.empty() ? watch->found_line : watch->saved_line;
-        if (on_result) {
-            on_result(true, line);
-        }
-    };
-    auto on_error = [this, token, on_result, unregister](const MoonrakerError& err) {
-        token.defer("AmsBackendCfs::cutcal_err", [this, token, on_result, unregister, err]() {
-            calibration_in_flight_ = false;
+    const AmsError err = run_calibration_command(
+        gcode, [on_result, watch, unregister](bool ok, const std::string& detail) {
             unregister();
+            const std::string& line =
+                !ok ? detail : (!watch->found_line.empty() ? watch->found_line : watch->saved_line);
             if (on_result) {
-                on_result(false, err.message);
+                on_result(ok, line);
             }
         });
-    };
-    const AmsError err =
-        execute_gcode("BOX_FIND_CUT_POS", std::move(on_complete), std::move(on_error));
     if (!err.success()) {
-        // The send was refused outright; neither callback will fire to drop
-        // the watch, so remove it here rather than leaking the handler.
+        // The send was refused outright; on_done will not fire to drop the
+        // watch, so remove it here rather than leaking the handler.
         unregister();
-    } else {
-        calibration_in_flight_ = true;
     }
     return err;
 }
