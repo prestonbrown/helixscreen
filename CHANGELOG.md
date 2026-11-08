@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AFC keeps or forgets spool info the way AFC does** - when AFC reports `remember_spool`, an emptied lane forgets its spool in HelixScreen as it does in AFC and Mainsail, and Keep Spool Info sets AFC's own setting. The slot card's top line shows the spool's brand when it fits.
 - **Spoolman filaments get the recommended nozzle temperature** (#2029).
 - **CFS lanes are named the way Creality names them** - the tool dropdown and the slot menu call CFS lanes "1A" to "4D".
+- **Third-party spools in a CFS keep the details you give them** (#2048) - a brand you set on a third-party spool is no longer replaced by "Creality" or a raw tag id the box could not read, and a lane is linked to a Spoolman spool only from a tag written in Creality's own layout, so a third-party tag no longer links it to an unrelated spool.
 - **Printer Manager counts make sense** - a filament system's count says what it is ("CFS · 4 slots"), and a single-toolhead printer names each tool by the slot it feeds.
 - **Snapmaker U1 tool changer fields** (#2012).
 
