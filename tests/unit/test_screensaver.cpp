@@ -1245,17 +1245,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "Bouncing logo keeps its own colors; the print
     BouncingPrinterScreensaver printer;
     printer.start();
     REQUIRE(printer.is_active());
-    REQUIRE(BounceTestAccess::sprite(printer) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(printer), LV_PART_MAIN) >
-          LV_OPA_TRANSP);
+    REQUIRE(printer.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(printer.sprite(), LV_PART_MAIN) > LV_OPA_TRANSP);
     printer.stop();
 
     BouncingLogoScreensaver logo;
     logo.start();
     REQUIRE(logo.is_active());
-    REQUIRE(BounceTestAccess::sprite(logo) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(logo), LV_PART_MAIN) ==
-          LV_OPA_TRANSP);
+    REQUIRE(logo.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(logo.sprite(), LV_PART_MAIN) == LV_OPA_TRANSP);
     logo.stop();
 }
 
