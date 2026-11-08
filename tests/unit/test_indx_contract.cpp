@@ -318,7 +318,7 @@ TEST_CASE("INDX: load names a preset, else a temperature", "[ams][indx][commands
     CHECK(indx::load_gcode(0, "PLA+", 215, presets) == "LOAD_FILAMENT TOOL=0 TYPE=PLA");
 }
 
-TEST_CASE("INDX: motion refused on an unrecognized contract, seat fault, uncalibrated docks",
+TEST_CASE("INDX: motion refused on contract, seat, latch and dock faults",
           "[ams][indx][commands]") {
     indx::Contract ok;
     ok.recognized = true;
@@ -332,6 +332,25 @@ TEST_CASE("INDX: motion refused on an unrecognized contract, seat fault, uncalib
     state.seat_suspect = 2;
     CHECK_FALSE(indx::motion_blocked_reason(ok, state).empty());
     state.seat_suspect = -1;
+    CHECK(indx::motion_blocked_reason(ok, state).empty());
+
+    state.active_tool = -1;
+    state.toolhead_state = 0;
+    CHECK_THAT(indx::motion_blocked_reason(ok, state),
+               Catch::Matchers::ContainsSubstring("recorded empty"));
+
+    state.active_tool = 0;
+    state.toolhead_state = 2;
+    CHECK_THAT(indx::motion_blocked_reason(ok, state),
+               Catch::Matchers::ContainsSubstring("latch is open"));
+
+    state.active_tool = 0;
+    state.toolhead_state = 7;
+    CHECK_THAT(indx::motion_blocked_reason(ok, state),
+               Catch::Matchers::ContainsSubstring("state is invalid"));
+
+    state.active_tool = 0;
+    state.toolhead_state = 0;
     CHECK(indx::motion_blocked_reason(ok, state).empty());
 
     state.docks_calibrated = false;
