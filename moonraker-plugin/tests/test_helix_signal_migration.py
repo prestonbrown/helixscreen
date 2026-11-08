@@ -89,6 +89,10 @@ def config_dir(tmp_path):
     return path
 
 
+# The real check; the fixture below stands in for it everywhere else.
+FIRMWARE_MANAGED = migration.firmware_managed
+
+
 @pytest.fixture(autouse=True)
 def not_firmware_managed(monkeypatch):
     monkeypatch.setattr(migration, "firmware_managed", lambda root="": False)
@@ -133,6 +137,42 @@ class TestMissingHiddenNames:
 # ============================================================================
 # run_once
 # ============================================================================
+
+
+class TestFirmwareManaged:
+    """Each firmware that owns the HelixScreen install, by the markers the
+    installer detects it with; a printer with none of them is not managed."""
+
+    @pytest.mark.parametrize("marker, is_dir", [
+        # Snapmaker U1 extended firmware (paxx)
+        ("oem/apps/helixscreen", True),
+        ("etc/hooks/lmd.d/30-helixscreen.sh", False),
+        # Z-Mod: its marker file, and its chroot seen from the host
+        ("ZMOD", False),
+        ("usr/data/.mod/.zmod/usr/bin", True),
+        # Forge-X: either spelling of its mod tree's descriptor, its AD5M
+        # overlay, and its chroot seen from the host
+        ("usr/data/config/mod/.shell/common.sh", False),
+        ("usr/data/config/mod/.shell/platform.sh", False),
+        ("opt/config/mod/.shell/common.sh", False),
+        ("opt/config/mod/.shell/platform.sh", False),
+        ("opt/config/mod/.root", True),
+        ("usr/data/.mod/.forge-x/usr/bin", True),
+        ("data/.mod/.forge-x/usr/bin", True),
+    ])
+    def test_marker_makes_the_install_firmware_managed(self, tmp_path, marker, is_dir):
+        path = tmp_path / marker
+        if is_dir:
+            path.mkdir(parents=True)
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("")
+        assert FIRMWARE_MANAGED(str(tmp_path))
+
+    def test_no_marker_is_not_firmware_managed(self, tmp_path):
+        (tmp_path / "usr/data/config").mkdir(parents=True)
+        (tmp_path / "opt/config/mod").mkdir(parents=True)
+        assert not FIRMWARE_MANAGED(str(tmp_path))
 
 
 class TestRunOnce:

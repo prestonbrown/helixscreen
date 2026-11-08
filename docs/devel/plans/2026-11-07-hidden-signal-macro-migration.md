@@ -511,3 +511,30 @@ per name per watcher. `macro_content_for` and `evaluate_status` read the recorde
 eleven, like a caller does (Q3 above), so recording only adds forwarders to a hidden-only
 printer. DropAliases is therefore not produced: a printer with forwarders keeps all eleven.
 Narrowing again is open question 6 (option B).
+
+Review fixes (2026-11-08):
+
+- `SlicedSignalWatcher` reads each console frame on the WebSocket thread and defers only the
+  signal names of `Unknown command` lines. It keeps them only while `print_active` is set (D6), and
+  records and announces them when the print ends: one settings save and one toast per print listing
+  the names, and no toast for a print whose names this connection already announced. The toast
+  points at Update Helper Macros only when `evaluate_status` returns OUTDATED; otherwise it names
+  the calls and stops. A name that answers before the status update marking the print active
+  arrives is missed for that print; the start G-code's `HELIX_READY` comes after heating, well past
+  that point.
+- `signal_names_line` shows the plugin lines only with a plugin installed. `UpdatePluginToRename`
+  needs an installed plugin that does not report `signal_macro_migration`;
+  `PluginWillRename` needs the feature ready and its last report
+  (`server.helix.signal_migration`, read by `PluginStatusRefresh` at each probe and each
+  `notify_helix_features_changed`) in `done` or `waiting_for_pack`. A `nothing` report, any
+  other state, or no report reads as `AliasesKept`: a hand-written visible call in `PRINT_START`
+  is no marker block, and the plugin will not rename it.
+- Q5 is settled for now as report-only on every firmware-managed install: the Snapmaker U1 under
+  paxx, Z-Mod and Forge-X, by the markers the installer detects each with
+  (`helix_signal_migration.py#FIRMWARE_MANAGED_MARKERS`). Preston can widen the rename to any of
+  them later.
+- Known limit, no code: a pre-1.2 HelixScreen run against a printer the plugin has renamed sees
+  `_HELIX_*` calls in `PRINT_START`. The forwarders define `HELIX_READY`, so a helper macro update
+  run from that app writes the visible pack, which has no hidden names, and the renamed calls
+  answer `Unknown command` until the app is updated again or the user restores the
+  `.bak.<stamp>` backup.

@@ -17,8 +17,8 @@ renamed lines load at the next restart, and until then the loaded macros keep
 calling the visible names, which the macro pack still defines.
 
 Switched by `migrate_signal_macros` under [helix_print] in moonraker.conf,
-on by default. On a printer whose firmware owns the HelixScreen install it
-only reports what it would do.
+on by default. On a printer whose firmware owns the HelixScreen install
+(Snapmaker U1 under paxx, Z-Mod, Forge-X) it only reports what it would do.
 """
 
 import asyncio
@@ -39,19 +39,41 @@ DB_NAMESPACE = "helix_print"
 DB_KEY = "signal_migration_last"
 ENDPOINT = "/server/helix/signal_migration"
 
-# The markers the installer's firmware-managed guard reads
-# (scripts/lib/installer/main.sh#_refuse_if_firmware_managed): the Snapmaker
-# U1's extended firmware installs and pins HelixScreen through these.
+# Firmwares that own the HelixScreen install, and with it the config this
+# migration would edit, by the markers the installer detects them with:
+# the Snapmaker U1's extended firmware (paxx) by its firmware-managed guard
+# (scripts/lib/installer/main.sh#_refuse_if_firmware_managed), Z-Mod and
+# Forge-X by detect_mod_flavor and host_profile_probe
+# (scripts/lib/installer/platform.sh, scripts/lib/installer/host_profile.sh).
+# A chroot path matches only where Moonraker runs outside it; a Moonraker
+# inside one sees the mod tree Forge-X binds at /opt/config.
 FIRMWARE_MANAGED_MARKERS = (
-    ("oem/apps/helixscreen", os.path.isdir),
-    ("etc/hooks/lmd.d/30-helixscreen.sh", os.path.isfile),
+    ("paxx", "oem/apps/helixscreen", os.path.isdir),
+    ("paxx", "etc/hooks/lmd.d/30-helixscreen.sh", os.path.isfile),
+    ("zmod", "ZMOD", os.path.isfile),
+    ("zmod", "usr/data/.mod/.zmod/usr/bin", os.path.isdir),
+    ("forge_x", "usr/data/config/mod/.shell/common.sh", os.path.isfile),
+    ("forge_x", "usr/data/config/mod/.shell/platform.sh", os.path.isfile),
+    ("forge_x", "opt/config/mod/.shell/common.sh", os.path.isfile),
+    ("forge_x", "opt/config/mod/.shell/platform.sh", os.path.isfile),
+    ("forge_x", "opt/config/mod/.root", os.path.isdir),
+    ("forge_x", "usr/data/.mod/.forge-x/usr/bin", os.path.isdir),
+    ("forge_x", "data/.mod/.forge-x/usr/bin", os.path.isdir),
 )
+
+
+def firmware_owner(root: str = "") -> Optional[str]:
+    """The firmware that owns the HelixScreen install, or None."""
+    for owner, rel, check in FIRMWARE_MANAGED_MARKERS:
+        if check(os.path.join(root or "/", rel)):
+            return owner
+    return None
 
 
 def firmware_managed(root: str = "") -> bool:
     """Whether the printer's firmware owns the HelixScreen install, and with
     it the files this migration would edit."""
-    return any(check(os.path.join(root or "/", rel)) for rel, check in FIRMWARE_MANAGED_MARKERS)
+    return firmware_owner(root) is not None
 
 
 def missing_hidden_names(settings: Any, needed: Iterable[str]) -> List[str]:
