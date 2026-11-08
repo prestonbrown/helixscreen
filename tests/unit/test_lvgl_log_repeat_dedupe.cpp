@@ -13,7 +13,7 @@
  * It stopped being right when the debug bundle grew its in-memory ring, which is
  * captured at debug (logging_init.cpp, and see core/log_redact.h). From then on the
  * dedupe quieted the console while still spending the ring on every repeat. In
- * bundle TPVTQKBM one untranslated tag — re-resolved on a temperature tick, so
+ * one debug bundle, one untranslated tag — re-resolved on a temperature tick, so
  * ~5.5 times a second for the whole session — took 10,103 of the 13,310 lines
  * the bundle shipped, and pushed the print-start evidence we had asked that
  * reporter for out of the capture window entirely.

@@ -13,7 +13,7 @@
  * stay live, the pointers dangle, and the next UpdateQueue drain runs
  * queued observer applies against freed widgets.
  *
- * Field shape: bundle 7F94FHC8 (v0.99.117, Snapmaker U1, four toolheads +
+ * Field shape: a debug bundle (v0.99.117, Snapmaker U1, four toolheads +
  * AFC) aborted with "malloc(): invalid size (unsorted)" — a write into
  * freed heap bracketed by two audits to the home-panel widget fan-out.
  *

@@ -99,7 +99,7 @@ TEST_CASE_METHOD(NozzleCleanCapabilityFixture,
 TEST_CASE_METHOD(NozzleCleanCapabilityFixture,
                  "nozzle_clean - a user-assigned macro the printer defines grants it",
                  "[1354][printer][overrides][standard_macros]") {
-    // Bundle 6QWNVZY5: the macro is called CLEAN, which matches no pattern.
+    // A field printer's macro is called CLEAN, which matches no pattern.
     auto hardware = discover({"extruder", "heater_bed", "gcode_macro CLEAN"});
 
     // Pre-condition: detection alone says no. Without this the test would pass

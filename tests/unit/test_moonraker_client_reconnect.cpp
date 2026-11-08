@@ -3,7 +3,7 @@
 
 /**
  * @file test_moonraker_client_reconnect.cpp
- * @brief Regression tests for install-once WebSocket callbacks (bundle UK9QCFY3).
+ * @brief Regression tests for install-once WebSocket callbacks.
  *
  * Root cause being guarded against: connect() used to reassign the inherited libhv
  * std::function callbacks (onopen/onmessage/onclose) on EVERY call. During a
@@ -91,7 +91,7 @@ TEST_CASE("MoonrakerClient install-once: repeated connect/disconnect never reins
     // Repeated connect/disconnect against unreachable hosts, alternating URLs to mimic a
     // change-host reconnect. Pre-fix, each connect() reassigned the inherited onclose/
     // onopen/onmessage std::functions; doing that while the libhv thread serviced the prior
-    // close freed the running lambda's storage → UAF (bundle UK9QCFY3). Post-fix,
+    // close freed the running lambda's storage → UAF. Post-fix,
     // install_ws_callbacks() runs exactly once (guarded by ws_callbacks_installed_) and the
     // std::functions are never reassigned. We assert the guard flips true exactly once and
     // stays true across every cycle.

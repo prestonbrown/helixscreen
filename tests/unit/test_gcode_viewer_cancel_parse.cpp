@@ -9,7 +9,7 @@
 // runs on the MAIN thread when the user opens a different file. So switching
 // files blocked the LVGL loop until the previous file had finished parsing:
 // seconds for a multi-megabyte print on a 2-core board, on top of the
-// layer-cache stall from the same report (bundle C2CP6ZAW).
+// layer-cache stall from the same report.
 //
 // The contract pinned here: starting a new load while a large parse is in
 // flight must return promptly, NOT after the in-flight parse completes.

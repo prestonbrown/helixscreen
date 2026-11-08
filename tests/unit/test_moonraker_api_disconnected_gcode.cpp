@@ -5,7 +5,7 @@
  * @file test_moonraker_api_disconnected_gcode.cpp
  * @brief The klippy-halted gate must not speak for a printer we never reached.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the WebSocket to
+ * Context (K2 Plus, v0.99.98): the WebSocket to
  * Moonraker never opened once for the whole session. klippy_state therefore
  * still held its startup default of SHUTDOWN (printer_network_state.cpp,
  * "default to SHUTDOWN until confirmed ready") — there is no UNKNOWN value to
