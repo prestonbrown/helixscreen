@@ -454,3 +454,8 @@ tell an earlier pack's `[gcode_macro HELIX_READY]` from the user's own. `scan()`
 visible-named section as ours when its description is the forwarder's, as an earlier pack's when its
 gcode names `_HELIX_STATE` (every pack's signal bodies write it), and as the user's otherwise. Only
 the user's own lands in `foreign` and is read for calls.
+
+The scan runs in `src/api/moonraker_discovery_sequence.cpp` beside the other configfile analyzers,
+which costs that file two upward includes (`macro_manager.h` for the pack's section names,
+`signal_macro_names.h`) and four lines over its size cap; the branch grants both. Moving the call
+into `PrinterDiscovery` would put `MacroManager` into the ESP32 link, which leaves it out.
