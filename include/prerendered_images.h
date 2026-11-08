@@ -148,6 +148,9 @@ namespace helix {
 bool generate_cached_printer_image(const std::string& source_image_path, int width, int height,
                                    const std::string& output_path);
 
+/// True when the file behind an LVGL image path (A: prefix or none) is on disk.
+bool printer_image_source_exists(const std::string& source_image_path);
+
 /**
  * @brief Prune old cached printer images
  *

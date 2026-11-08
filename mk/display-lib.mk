@@ -79,4 +79,4 @@ clean-display-lib:
 	$(Q)rm -rf $(BUILD_DIR)/display $(DISPLAY_LIB)
 
 # Include dependency files for header tracking
--include $(wildcard $(BUILD_DIR)/display/*.d)
+-include $(call depfiles,$(BUILD_DIR)/display/*.d)

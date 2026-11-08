@@ -467,6 +467,9 @@ class EditHomeFixture : public LVGLTestFixture {
         REQUIRE(lv_xml_register_component_from_data(
                     kStandInComponent, "<component><view extends=\"lv_obj\" scrollable=\"false\" "
                                        "style_pad_all=\"0\"/></component>") == LV_RESULT_OK);
+        // The edit session publishes the navbar's edit-mode and delete-page
+        // subjects, which live there; idempotent.
+        app_globals_init_subjects();
         // The panel's XML event callbacks, as the app registers them before any
         // of its XML is created; once per process.
         if (!panel().are_subjects_initialized()) {

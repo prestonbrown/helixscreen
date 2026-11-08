@@ -249,7 +249,7 @@ clean-splash:
 	$(Q)rm -rf $(BUILD_DIR)/splash $(SPLASH_BIN)
 
 # Include dependency files for header tracking
--include $(wildcard $(BUILD_DIR)/splash/*.d)
+-include $(call depfiles,$(BUILD_DIR)/splash/*.d)
 
 else
 # No splash for SDL/desktop builds

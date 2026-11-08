@@ -45,6 +45,7 @@ tests/shell/test_comment_archaeology_gate.bats	scripts/check_comment_archaeology
 tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh scripts/lib/installer/competing_uis.sh scripts/lib/installer/uninstall.sh
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
 tests/shell/test_cov_diff_gate.bats	scripts/cov_diff.py scripts/diff_base.py scripts/untestable_paths.txt
+tests/shell/test_depfile_free_goals.bats	Makefile mk/ scripts/gen_theme_tokens.py scripts/land-gate.sh
 tests/shell/test_deploy_pi_ownership_sudo.bats	mk/cross.mk
 tests/shell/test_deploy_platform_hooks.bats	mk/cross.mk scripts/lib/installer/service.sh assets/config/platform/
 tests/shell/test_deploy_retired_binaries.bats	Makefile mk/cross.mk scripts/lib/installer/requirements.sh

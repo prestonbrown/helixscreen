@@ -102,7 +102,9 @@ class TileFixture : public PrintStatusPanelFixture {
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
         REQUIRE(tile_ != nullptr);
-        tiles().set_image_source([]() { return tagged_image("A:test-printer.png"); });
+        // No picture file: the chips lay out against the tagged regions alone,
+        // and no case pays for a cache generation it does not ask for.
+        tiles().set_image_source([]() { return tagged_image(""); });
         settle();
     }
 
@@ -1101,33 +1103,45 @@ TEST_CASE_METHOD(Landscape800,
 
 TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves the tile alone",
                  "[print_status]") {
-    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
-        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    auto& images = helix::PrinterImageManager::instance();
+    const int32_t screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const std::string source = images.get_displayed_image_path(screen_w);
+    images.set_active_image("shipped:qidi-q2");
+    const std::string other = images.get_displayed_image_path(screen_w);
+    images.set_active_image("");
     REQUIRE_FALSE(source.empty());
+    REQUIRE(other != source);
     std::string shown;
     tiles().set_image_source([&shown]() { return tagged_image(shown); });
     settle();
     lv_obj_update_layout(root_);
     lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
     REQUIRE(img != nullptr);
-    const std::string cache_path =
-        helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
+    const int32_t w = lv_obj_get_width(img), h = lv_obj_get_height(img);
+    const std::string cache_path = helix::get_cached_printer_image_path(source, w, h);
+    const std::string other_cache = helix::get_cached_printer_image_path(other, w, h);
     std::error_code ec;
     std::filesystem::remove(cache_path, ec);
+    std::filesystem::remove(other_cache, ec);
 
     // Another picture's generation holds the slot until a drain, so this miss is refused.
-    shown = "A:not-a-printer.png";
+    shown = other;
     tiles().update_now();
     shown = source;
     tiles().update_now();
     REQUIRE(subject_str("ps_printer_image_src") == source);
     tiles().deinit();
     // The refused miss is still written; no result may reach the subject.
-    REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }, kGenerationBudgetMs));
+    REQUIRE(wait_until(
+        [&]() {
+            return std::filesystem::exists(cache_path) && std::filesystem::exists(other_cache);
+        },
+        kGenerationBudgetMs));
     process_lvgl(50);
     UpdateQueue::instance().drain();
     CHECK(subject_str("ps_printer_image_src") == source);
     std::filesystem::remove(cache_path, ec);
+    std::filesystem::remove(other_cache, ec);
 }
 
 TEST_CASE_METHOD(Landscape800, "the other-tools chip lists every head but the printing one",
