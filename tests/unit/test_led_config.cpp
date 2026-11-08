@@ -867,6 +867,7 @@ TEST_CASE_METHOD(LedConfigFixture, "apply_startup_preference with no targets def
     ctrl.set_startup_brightness(40);
     ctrl.set_last_brightness(100);
     ctrl.apply_startup_preference({});
+    // TEST_TAUTOLOGY_OK: the call between set and check must leave the value alone
     CHECK(ctrl.last_brightness() == 100);
     // Still armed: the next call with a target applies (last_brightness follows the preference).
     ctrl.apply_startup_preference({"neopixel a"});

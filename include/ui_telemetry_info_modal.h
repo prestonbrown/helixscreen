@@ -5,6 +5,8 @@
 
 #include "ui_modal.h"
 
+namespace helix {
+
 /**
  * @brief What anonymous telemetry collects, opened from the wizard's info button
  *
@@ -26,3 +28,5 @@ class TelemetryInfoModal : public Modal {
         wire_ok_button("btn_primary");
     }
 };
+
+} // namespace helix

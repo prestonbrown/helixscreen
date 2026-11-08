@@ -746,7 +746,7 @@ void MoonrakerManager::create_api(const RuntimeConfig& runtime_config) {
     // after both MoonrakerManager and SubjectInitializer are ready
 }
 
-struct MoonrakerManager::PrintStartWiring {
+struct MoonrakerManager::PrintStartWiring { // NAMESPACE_OK: member of MoonrakerManager
     std::weak_ptr<PrintStartCollector> collector;
     helix::PrintCollectorArming arming;
     lv_subject_t* progress_subject = nullptr;
