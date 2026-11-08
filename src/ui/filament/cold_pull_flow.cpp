@@ -200,11 +200,13 @@ ColdPullActions ColdPullFlow::filament_detected(TimePoint now) {
 }
 
 ColdPullActions ColdPullFlow::fed(TimePoint now) {
-    if (stage_ != ColdPullStage::Feed || !feed_ ||
-        feed_->stage() != GuidedLoadStage::ConfirmOutput) {
+    // Never waits on an extrusion: a clogged nozzle may not flow at all, and the
+    // answer to one still in flight no longer matters.
+    if (stage_ != ColdPullStage::Feed || !feed_) {
         return {};
     }
-    (void)feed_->done();
+    feed_.reset();
+    in_flight_ = InFlight::None;
     filament_out_ = false;
     return enter_cooling(now);
 }
@@ -224,10 +226,12 @@ ColdPullActions ColdPullFlow::command_finished(bool ok, TimePoint now) {
     }
     in_flight_ = InFlight::None;
     last_tap_ = now;
-    (void)feed_->command_finished(ok);
+    // A refused extrusion is what a clog looks like; the pull does not need it.
     if (!ok) {
-        return end(ColdPullStage::Abandoned, ColdPullEndReason::CommandFailed, true);
+        feed_.emplace(feed_steps(), /*waits_for_push=*/false);
+        return {};
     }
+    (void)feed_->command_finished(true);
     return {};
 }
 

@@ -180,7 +180,6 @@ translations:
   A print started: '印刷が開始されました'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: 再起動はすでに進行中です
   A right, B left: "A右・B左"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -773,6 +772,7 @@ translations:
   Clog Manual: '詰まり: 手動'
   Clog and flow health while printing: 印刷中の詰まりとフローの状態
   Clog detection: 詰まり検出
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "ノズルが詰まっていますか？押し出しは任意です。「完了」をタップして進んでください。"
   Close: 閉じる
   Close feeder: フィーダーを閉じる
   Close feeder macro: フィーダーを閉じるマクロ
@@ -2114,6 +2114,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'セーフモードではレイアウトを変更できません。編集するには再起動してください。'
   Learn More: 詳細を見る
   Leave it: 'そのままにする'
+  Leave this off for a clogged nozzle.: "ノズルが詰まっている場合はオフのままにしてください。"
   LedSelect: LEDを選択
   Left: '左'
   Left belt: "左ベルト"

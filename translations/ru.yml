@@ -231,7 +231,6 @@ translations:
   A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -874,6 +873,7 @@ translations:
   Clog Manual: 'Засор: вручную'
   Clog and flow health while printing: Засоры и поток во время печати
   Clog detection: Обнаружение засора
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."
   Close: Закрыть
   Close feeder: Закрыть фидер
   Close feeder macro: Макрос для закрытия фидера
@@ -2276,6 +2276,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Изменение раскладки отключено в безопасном режиме. Перезапустите, чтобы редактировать.'
   Learn More: Подробнее
   Leave it: 'Оставить'
+  Leave this off for a clogged nozzle.: "Если сопло забито, оставьте это выключенным."
   LedSelect: Выбрать LED
   Left: 'Слева'
   Left belt: "Левый ремень"

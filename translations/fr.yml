@@ -186,7 +186,6 @@ translations:
   A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -832,6 +831,7 @@ translations:
   Clog Manual: Bouchon manuel
   Clog and flow health while printing: Bouchons et débit pendant l'impression
   Clog detection: Détection de bouchon
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Buse bouchée ? L'extrusion est facultative : appuyez sur Terminé pour continuer."
   Close: Fermer
   Close feeder: Fermer l'alimentateur
   Close feeder macro: Macro de fermeture de l'alimentateur
@@ -2245,6 +2245,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Les modifications de disposition sont désactivées en mode sans échec. Redémarrez pour modifier.'
   Learn More: En savoir plus
   Leave it: 'La laisser'
+  Leave this off for a clogged nozzle.: "Laissez désactivé si la buse est bouchée."
   LedSelect: Sélection de la LED
   Left: 'Gauche'
   Left belt: "Courroie gauche"

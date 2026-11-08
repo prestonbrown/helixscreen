@@ -481,16 +481,64 @@ TEST_CASE("cold pull: no seated lane feeds by hand and owes nothing", "[cold_pul
     CHECK_FALSE(f.lane_needs_reseat());
 }
 
-TEST_CASE("cold pull: the feed runs once per push and a failed feed cleans up", "[cold_pull]") {
+TEST_CASE("cold pull: the feed runs once per push and a refused one costs nothing", "[cold_pull]") {
     ColdPullFlow f(params());
     drive_to(f, ColdPullStage::Feed);
     CHECK(f.filament_detected(t0 + 2s).gcode == "M83\nG1 E60 F300");
     CHECK(f.filament_detected(t0 + 2s).empty());
     CHECK(f.extrude(t0 + 2s).empty());
-    CHECK(f.fed(t0 + 2s).empty()); // nothing confirmed yet
-    const auto a = f.command_finished(false, t0 + 3s);
-    CHECK(f.end_reason() == ColdPullEndReason::CommandFailed);
-    CHECK(a.heater_target_c == 0);
+    CHECK(f.command_finished(false, t0 + 3s).empty());
+    CHECK(f.stage() == ColdPullStage::Feed);
+    CHECK_FALSE(f.busy());
+    CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
+    CHECK(f.extrude(t0 + 4s).gcode == "M83\nG1 E20 F300");
+    (void)f.command_finished(false, t0 + 5s);
+    CHECK(f.fed(t0 + 6s).heater_target_c == 90);
+}
+
+TEST_CASE("cold pull: a clogged head reaches the pull with nothing extruded", "[cold_pull]") {
+    SECTION("seated lane, Done without an extrude") {
+        auto f = seated_at_feed();
+        CHECK(f.fed(t0 + 2s).heater_target_c == 90);
+        CHECK(f.stage() == ColdPullStage::Cooling);
+    }
+    SECTION("hand feed, Done before any extrude") {
+        ColdPullFlow f(params());
+        drive_to(f, ColdPullStage::Feed);
+        REQUIRE(f.feed_stage() == GuidedLoadStage::AwaitPush);
+        CHECK(f.fed(t0 + 2s).heater_target_c == 90);
+        CHECK(f.stage() == ColdPullStage::Cooling);
+    }
+    SECTION("Done while an extrude never answers; its late reply changes nothing") {
+        auto p = params();
+        p.hold_pressure = true;
+        ColdPullFlow f(p);
+        drive_to(f, ColdPullStage::Feed);
+        (void)f.extrude(t0 + 2s);
+        REQUIRE(f.busy());
+        (void)f.fed(t0 + 3s);
+        CHECK(f.stage() == ColdPullStage::Cooling);
+        CHECK_FALSE(f.busy());
+        (void)f.temperature(225, 90, t0 + 4s);
+        CHECK(f.tick(t0 + 7s).gcode == "M83\nG1 E1 F60"); // the feed's slot is free again
+        (void)f.command_finished(false, t0 + 8s);
+        CHECK(f.stage() == ColdPullStage::Cooling);
+        (void)f.temperature(92, 90, t0 + 9s);
+        CHECK(f.stage() == ColdPullStage::Pull);
+    }
+    SECTION("refused hold extrusions and one that hangs do not hold up the pull") {
+        auto p = params();
+        p.hold_pressure = true;
+        ColdPullFlow f(p);
+        drive_to(f, ColdPullStage::Cooling);
+        (void)f.temperature(225, 90, t0 + 5s);
+        REQUIRE_FALSE(f.tick(t0 + 9s).gcode.empty());
+        (void)f.temperature(92, 90, t0 + 10s);
+        CHECK(f.stage() == ColdPullStage::Pull);
+        CHECK(f.busy());
+        (void)f.pulled(t0 + 11s);
+        CHECK(f.stage() == ColdPullStage::Inspect);
+    }
 }
 
 TEST_CASE("cold pull: edits persist per material; unset and corrupt read as defaults",

@@ -176,7 +176,6 @@
   <translation tag="A print started" fr="Une impression a démarré"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." fr="Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l&apos;imprimante maintenant avec l&apos;arrêt d&apos;urgence."/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" fr="Un redémarrage est déjà en cours"/>
   <translation tag="A right, B left" fr="A droite, B gauche"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." fr="Un capteur qui mesure la distance au plateau. HelixScreen l&apos;utilise pour la calibration du Z Offset et les tests de sonde sur l&apos;écran Sonde."/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" fr="Bouchon manuel"/>
   <translation tag="Clog and flow health while printing" fr="Bouchons et débit pendant l&apos;impression"/>
   <translation tag="Clog detection" fr="Détection de bouchon"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." fr="Buse bouchée ? L&apos;extrusion est facultative : appuyez sur Terminé pour continuer."/>
   <translation tag="Close" fr="Fermer"/>
   <translation tag="Close feeder" fr="Fermer l&apos;alimentateur"/>
   <translation tag="Close feeder macro" fr="Macro de fermeture de l&apos;alimentateur"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" fr="En savoir plus"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." fr="Les bases : l&apos;assistant de configuration, la navigation entre les écrans et les gestes tactiles."/>
   <translation tag="Leave it" fr="La laisser"/>
+  <translation tag="Leave this off for a clogged nozzle." fr="Laissez désactivé si la buse est bouchée."/>
   <translation tag="LedSelect" fr="Sélection de la LED"/>
   <translation tag="Left" fr="Gauche"/>
   <translation tag="Left belt" fr="Courroie gauche"/>

@@ -75,7 +75,6 @@ enum class ColdPullEndReason : int {
     ForeignTarget,
     JobStarted,
     Disconnected,
-    CommandFailed,
     TargetNeverLanded,
 };
 
@@ -156,7 +155,7 @@ class ColdPullFlow {
     [[nodiscard]] ColdPullActions home_and_park(TimePoint now);
     [[nodiscard]] ColdPullActions toolhead_ready(TimePoint now); ///< Preparing -> Heating
     [[nodiscard]] ColdPullActions extrude(TimePoint now);
-    [[nodiscard]] ColdPullActions fed(TimePoint now);    ///< Feed done -> Cooling
+    [[nodiscard]] ColdPullActions fed(TimePoint now);    ///< Feed -> Cooling, extruded or not
     [[nodiscard]] ColdPullActions pulled(TimePoint now); ///< -> Inspect
     [[nodiscard]] ColdPullActions repeat(TimePoint now); ///< Inspect -> Heating
     [[nodiscard]] ColdPullActions done(TimePoint now);   ///< Inspect -> Finished

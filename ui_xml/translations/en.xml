@@ -176,7 +176,6 @@
   <translation tag="A print started" en="A print started"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
   <translation tag="A print took the printer." en="A print took the printer."/>
-  <translation tag="A printer command failed." en="A printer command failed."/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." en="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen."/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" en="Clog Manual"/>
   <translation tag="Clog and flow health while printing" en="Clog and flow health while printing"/>
   <translation tag="Clog detection" en="Clog detection"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." en="Clogged nozzle? Extruding is optional: tap Done to go on."/>
   <translation tag="Close" en="Close"/>
   <translation tag="Close feeder" en="Close feeder"/>
   <translation tag="Close feeder macro" en="Close feeder macro"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" en="Learn More"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." en="Learn the basics: the setup wizard, moving around the screens, and touch gestures."/>
   <translation tag="Leave it" en="Leave it"/>
+  <translation tag="Leave this off for a clogged nozzle." en="Leave this off for a clogged nozzle."/>
   <translation tag="LedSelect" en="LedSelect"/>
   <translation tag="Left" en="Left"/>
   <translation tag="Left belt" en="Left belt"/>

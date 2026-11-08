@@ -176,7 +176,6 @@
   <translation tag="A print started" it="È iniziata una stampa"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." it="È partita una stampa mentre le bobine risultano sul piano. Se sono ancora lì, ferma subito la stampante con l&apos;arresto emergenza."/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" it="Un riavvio è già in corso"/>
   <translation tag="A right, B left" it="A destra, B sinistra"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." it="Un sensore che misura la distanza dal piano. HelixScreen lo usa per la calibrazione dello Z Offset e per i test della sonda nella schermata Sonda."/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" it="Intasamento Manuale"/>
   <translation tag="Clog and flow health while printing" it="Intasamento e flusso durante la stampa"/>
   <translation tag="Clog detection" it="Rilevamento intasamento"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." it="Ugello ostruito? L&apos;estrusione è facoltativa: tocca Fatto per continuare."/>
   <translation tag="Close" it="Chiudi"/>
   <translation tag="Close feeder" it="Chiudi alimentatore"/>
   <translation tag="Close feeder macro" it="Macro di chiusura alimentatore"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" it="Scopri di più"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." it="Le basi: la procedura guidata di configurazione, come spostarsi tra le schermate e i gesti touch."/>
   <translation tag="Leave it" it="Lascia stare"/>
+  <translation tag="Leave this off for a clogged nozzle." it="Lascia disattivato se l&apos;ugello è ostruito."/>
   <translation tag="LedSelect" it="Seleziona LED"/>
   <translation tag="Left" it="Sinistra"/>
   <translation tag="Left belt" it="Cinghia sinistra"/>

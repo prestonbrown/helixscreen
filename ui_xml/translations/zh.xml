@@ -176,7 +176,6 @@
   <translation tag="A print started" zh="打印已开始"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." zh="在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" zh="重启正在进行中"/>
   <translation tag="A right, B left" zh="A 右,B 左"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." zh="测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。"/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" zh="手动堵料"/>
   <translation tag="Clog and flow health while printing" zh="打印时的堵料与流量状况"/>
   <translation tag="Clog detection" zh="堵料检测"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." zh="喷嘴堵塞？挤出是可选的：点击“完成”继续。"/>
   <translation tag="Close" zh="关闭"/>
   <translation tag="Close feeder" zh="关闭送料器"/>
   <translation tag="Close feeder macro" zh="关闭送料器宏"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" zh="了解更多"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." zh="了解基本操作：设置向导、在界面间切换以及触摸手势。"/>
   <translation tag="Leave it" zh="保持不变"/>
+  <translation tag="Leave this off for a clogged nozzle." zh="喷嘴堵塞时请保持关闭。"/>
   <translation tag="LedSelect" zh="选择 LED"/>
   <translation tag="Left" zh="左"/>
   <translation tag="Left belt" zh="左皮带"/>

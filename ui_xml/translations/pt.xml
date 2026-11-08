@@ -176,7 +176,6 @@
   <translation tag="A print started" pt="Uma impressão foi iniciada"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." pt="Uma impressão começou com carretéis marcados como na mesa. Se ainda estiverem lá, pare a impressora agora com a Parada de Emergência."/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" pt="Já há uma reinicialização em andamento"/>
   <translation tag="A right, B left" pt="A direita, B esquerda"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." pt="Um sensor que mede a distância até a mesa. O HelixScreen o usa para calibrar o Z Offset e para testes de sonda na tela Sonda."/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" pt="Obstrução Manual"/>
   <translation tag="Clog and flow health while printing" pt="Obstrução e fluxo durante a impressão"/>
   <translation tag="Clog detection" pt="Detecção de obstrução"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." pt="Bico entupido? Extrudar é opcional: toque em Concluído para continuar."/>
   <translation tag="Close" pt="Fechar"/>
   <translation tag="Close feeder" pt="Fechar alimentador"/>
   <translation tag="Close feeder macro" pt="Macro de fechar alimentador"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" pt="Saiba Mais"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." pt="O básico: o assistente de configuração, a navegação entre telas e os gestos de toque."/>
   <translation tag="Leave it" pt="Deixar"/>
+  <translation tag="Leave this off for a clogged nozzle." pt="Deixe desativado se o bico estiver entupido."/>
   <translation tag="LedSelect" pt="Selecionar LED"/>
   <translation tag="Left" pt="Esquerda"/>
   <translation tag="Left belt" pt="Correia esquerda"/>

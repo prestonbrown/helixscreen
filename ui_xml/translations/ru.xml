@@ -212,7 +212,6 @@
   <translation tag="A print started" ru="Началась печать"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ru="Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" ru="Перезапуск уже выполняется"/>
   <translation tag="A right, B left" ru="A справа, B слева"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ru="Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд»."/>
@@ -798,6 +797,7 @@
   <translation tag="Clog Manual" ru="Засор: вручную"/>
   <translation tag="Clog and flow health while printing" ru="Засоры и поток во время печати"/>
   <translation tag="Clog detection" ru="Обнаружение засора"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." ru="Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."/>
   <translation tag="Close" ru="Закрыть"/>
   <translation tag="Close feeder" ru="Закрыть фидер"/>
   <translation tag="Close feeder macro" ru="Макрос для закрытия фидера"/>
@@ -2079,6 +2079,7 @@
   <translation tag="Learn More" ru="Подробнее"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ru="Основы: мастер настройки, переход между экранами и жесты касания."/>
   <translation tag="Leave it" ru="Оставить"/>
+  <translation tag="Leave this off for a clogged nozzle." ru="Если сопло забито, оставьте это выключенным."/>
   <translation tag="LedSelect" ru="Выбрать LED"/>
   <translation tag="Left" ru="Слева"/>
   <translation tag="Left belt" ru="Левый ремень"/>

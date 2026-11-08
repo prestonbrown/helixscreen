@@ -178,7 +178,6 @@ translations:
   A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
   A print took the printer.: A print took the printer.
-  A printer command failed.: A printer command failed.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -805,6 +804,7 @@ translations:
   Clog Manual: Clog Manual
   Clog and flow health while printing: Clog and flow health while printing
   Clog detection: Clog detection
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': 'Clogged nozzle? Extruding is optional: tap Done to go on.'
   Close: Close
   Close feeder: Close feeder
   Close feeder macro: Close feeder macro
@@ -2175,6 +2175,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: Layout changes are off in safe mode. Restart to edit.
   Learn More: Learn More
   Leave it: Leave it
+  Leave this off for a clogged nozzle.: Leave this off for a clogged nozzle.
   LedSelect: LedSelect
   Left: Left
   Left belt: Left belt

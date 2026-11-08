@@ -186,7 +186,6 @@ translations:
   A print started: 'Ein Druck wurde gestartet'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -833,6 +832,7 @@ translations:
   Clog Manual: Verstopfung Manuell
   Clog and flow health while printing: Verstopfung und Fluss beim Drucken
   Clog detection: Verstopfungserkennung
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Düse verstopft? Extrudieren ist optional: Tippe auf Fertig, um fortzufahren."
   Close: Schließen
   Close feeder: Zuführung schließen
   Close feeder macro: Makro zum Schließen der Zuführung
@@ -2240,6 +2240,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Layout-Änderungen sind im abgesicherten Modus deaktiviert. Starten Sie neu, um zu bearbeiten.'
   Learn More: Mehr erfahren
   Leave it: 'So lassen'
+  Leave this off for a clogged nozzle.: "Bei verstopfter Düse ausgeschaltet lassen."
   LedSelect: LED auswählen
   Left: 'Links'
   Left belt: "Riemen links"

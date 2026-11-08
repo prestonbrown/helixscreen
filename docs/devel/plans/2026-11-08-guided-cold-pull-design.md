@@ -206,6 +206,10 @@ heating, falling to pull while cooling. The caption under it reads `current / go
 - Seated lane (`ColdPullFeedMode`): first pass is `Loaded`, the embedded flow opens on
   ConfirmOutput (nothing to push, purge only: `kPurgeMoreMm`). After a pull it is `Refeed`: the
   hand-fed path, with "Cut off the pulled tip and push the filament back".
+- People run this because of a clog, so nothing here depends on filament moving. Done is always
+  available (even mid-extrude), a refused extrude leaves the step usable, and a line says
+  extruding is optional. The hold-pressure option is off by default and Setup says to leave it
+  off for a clog; its moves never gate the Pull.
 - The ring holds at soak. Action row: Cancel, Extrude / Extrude more, Done.
 - Idle timeout `kFeedIdleTimeout` (8 min, under Klipper's default 10 min `idle_timeout`), reset
   by every tap.
@@ -337,7 +341,7 @@ enum class ColdPullStage : int {
 
 enum class ColdPullEndReason : int {
     None = 0, UserCancel, Timeout, ForeignTarget, JobStarted, Disconnected,
-    CommandFailed, TargetNeverLanded,
+    TargetNeverLanded,
 };
 
 /// Everything the flow fixes at start.
@@ -508,7 +512,7 @@ All in `tests/unit/`, tags `[cold_pull]` plus the area tag. The flow tests drive
 | 14 | No part fan: no `fan_percent` in any action; cool timeout is 20 min | Fanless path | A fan command goes to an empty name |
 | 15 | Multi-head (runner, mock ToolState with two heads, own fans): only head 2's heater and fan named in every send | Isolation | Head 1 is touched |
 | 16 | Toolhead loaded on a filament-system printer: Preparing → Heating with nothing unloaded; Feed opens on ConfirmOutput (`Loaded`, 20 mm purge); after Pulled, `lane_needs_reseat()` holds through Done and a cancelled Repeat and clears when Repeat feeds it back (`Refeed`, 60 mm) | Using the loaded filament | The flow asks for a hand push of filament already seated, or forgets to warn that the lane reads loaded after the pull |
-| 17 | Feed: sensor edge feeds without a tap; extrude while Feeding is ignored; command_finished(false) during Feed ends CommandFailed with cleanup | Embedded `GuidedLoadFlow` | Double feed, or a failed feed leaves the heater on |
+| 17 | Feed: sensor edge feeds without a tap; extrude while Feeding is ignored; command_finished(false) stays in Feed; Done works before, during and after any extrude | Embedded `GuidedLoadFlow` | Double feed, or a clogged head cannot reach the pull |
 | 18 | Meter: Done sets `reset_meter`; Cancel, Abandoned never do | #1901 tie-in | Cancel resets the meter |
 | 19 | `cold_pull_refusal()`: each refusal for Printing, Paused, Preparing, preheat pending, not ready, no heater, already running | Start gate | The flow starts during a job |
 | 20 | `clamp_cold_pull_temps()`: soak above ceiling, soak below floor + 20, pull above soak - 60, pull below 40 | Edit bounds | A pull above the soak is accepted |

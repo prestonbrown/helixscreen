@@ -176,7 +176,6 @@
   <translation tag="A print started" de="Ein Druck wurde gestartet"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." de="Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."/>
   <translation tag="A print took the printer."/>
-  <translation tag="A printer command failed."/>
   <translation tag="A restart is already in progress" de="Ein Neustart läuft bereits"/>
   <translation tag="A right, B left" de="A rechts, B links"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." de="Ein Sensor, der den Abstand zum Heizbett misst. HelixScreen nutzt ihn für die Z-Offset-Kalibrierung und Sondentests im Sonden-Bildschirm."/>
@@ -756,6 +755,7 @@
   <translation tag="Clog Manual" de="Verstopfung Manuell"/>
   <translation tag="Clog and flow health while printing" de="Verstopfung und Fluss beim Drucken"/>
   <translation tag="Clog detection" de="Verstopfungserkennung"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." de="Düse verstopft? Extrudieren ist optional: Tippe auf Fertig, um fortzufahren."/>
   <translation tag="Close" de="Schließen"/>
   <translation tag="Close feeder" de="Zuführung schließen"/>
   <translation tag="Close feeder macro" de="Makro zum Schließen der Zuführung"/>
@@ -2031,6 +2031,7 @@
   <translation tag="Learn More" de="Mehr erfahren"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." de="Die Grundlagen: der Einrichtungsassistent, die Navigation zwischen den Bildschirmen und Touch-Gesten."/>
   <translation tag="Leave it" de="So lassen"/>
+  <translation tag="Leave this off for a clogged nozzle." de="Bei verstopfter Düse ausgeschaltet lassen."/>
   <translation tag="LedSelect" de="LED auswählen"/>
   <translation tag="Left" de="Links"/>
   <translation tag="Left belt" de="Riemen links"/>

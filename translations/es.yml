@@ -184,7 +184,6 @@ translations:
   A print started: 'Se inició una impresión'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Se inició una impresión con bobinas marcadas como en la cama. Si siguen ahí, detén la impresora ahora con la Parada de Emergencia."
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: Ya hay un reinicio en curso
   A right, B left: "A derecha, B izquierda"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -827,6 +826,7 @@ translations:
   Clog Manual: Obstrucción manual
   Clog and flow health while printing: Obstrucción y flujo durante la impresión
   Clog detection: Detección de obstrucción
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "¿Boquilla obstruida? Extruir es opcional: pulsa Listo para continuar."
   Close: Cerrar
   Close feeder: Cerrar alimentador
   Close feeder macro: Macro de cierre del alimentador
@@ -2230,6 +2230,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Los cambios de diseño están desactivados en modo seguro. Reinicie para editar.'
   Learn More: Más información
   Leave it: 'Dejarla'
+  Leave this off for a clogged nozzle.: "Déjalo desactivado si la boquilla está obstruida."
   LedSelect: Seleccionar LED
   Left: 'Izquierda'
   Left belt: "Correa izquierda"

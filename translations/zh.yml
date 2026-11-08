@@ -179,7 +179,6 @@ translations:
   A print started: '打印已开始'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
   A print took the printer.: ''
-  A printer command failed.: ''
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -771,6 +770,7 @@ translations:
   Clog Manual: 手动堵料
   Clog and flow health while printing: 打印时的堵料与流量状况
   Clog detection: 堵料检测
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "喷嘴堵塞？挤出是可选的：点击“完成”继续。"
   Close: 关闭
   Close feeder: 关闭送料器
   Close feeder macro: 关闭送料器宏
@@ -2108,6 +2108,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: '安全模式下无法更改布局。请重启后再编辑。'
   Learn More: 了解更多
   Leave it: '保持不变'
+  Leave this off for a clogged nozzle.: "喷嘴堵塞时请保持关闭。"
   LedSelect: 选择 LED
   Left: '左'
   Left belt: "左皮带"

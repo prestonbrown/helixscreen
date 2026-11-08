@@ -65,6 +65,8 @@
           <lv_checkbox name="cold_pull_hold_pressure"
                        width="100%" text="Keep pushing filament while it cools" bind_checked="cold_pull_hold_pressure"/>
           <text_small width="100%"
+                      long_mode="wrap" style_text_color="#text_muted" text="Leave this off for a clogged nozzle."/>
+          <text_small width="100%"
                       long_mode="wrap" style_text_color="#warning"
                       text="Do not cold pull a coated nozzle. The cold pull runs on the active tool."/>
           <text_small name="cold_pull_refused_job"
@@ -198,6 +200,11 @@
               <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage ne 2 or cold_pull_feed_mode eq 1"
                             flag="hidden"/>
             </text_body>
+            <text_small name="cold_pull_feed_optional"
+                        width="100%" long_mode="wrap" style_text_color="#text_muted"
+                        text="Clogged nozzle? Extruding is optional: tap Done to go on.">
+              <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="3"/>
+            </text_small>
             <!-- Cooling -->
             <text_heading width="100%" long_mode="wrap" text="Cooling the nozzle">
               <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="4"/>
@@ -252,7 +259,7 @@
             <event_cb trigger="clicked" callback="on_cold_pull_extrude"/>
           </ui_button>
           <ui_button name="btn_cold_pull_fed" flex_grow="1" text="Done">
-            <bind_flag_if cond="cold_pull_stage ne 3 or cold_pull_feed_stage ne 2" flag="hidden"/>
+            <bind_flag_if_not_eq subject="cold_pull_stage" flag="hidden" ref_value="3"/>
             <event_cb trigger="clicked" callback="on_cold_pull_fed"/>
           </ui_button>
           <ui_button name="btn_cold_pull_pulled" flex_grow="2" text="Pulled">
@@ -325,11 +332,8 @@
         <text_body width="90%" style_text_align="center" long_mode="wrap" text="Lost the printer.">
           <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 5" flag="hidden"/>
         </text_body>
-        <text_body width="90%" style_text_align="center" long_mode="wrap" text="A printer command failed.">
-          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 6" flag="hidden"/>
-        </text_body>
         <text_body width="90%" style_text_align="center" long_mode="wrap" text="The nozzle target never arrived.">
-          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 7" flag="hidden"/>
+          <bind_flag_if cond="cold_pull_stage ne 9 or cold_pull_end_reason ne 6" flag="hidden"/>
         </text_body>
         <text_body name="cold_pull_reseat_end"
                    width="90%" style_text_align="center" long_mode="wrap" style_text_color="#warning"
