@@ -3,6 +3,7 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_panel_print_select.h"
 #include "ui_wizard.h"
 
 #include "../helix_test_fixture.h"
@@ -10,10 +11,13 @@
 #include "app_globals.h"
 #include "config.h"
 #include "first_run_tour.h"
+#include "tour_overlay.h"
 #include "tour_steps.h"
 
 #include <algorithm>
 #include <array>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -296,4 +300,124 @@ TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: advance past last step finishe
         t.advance();
     REQUIRE(!t.is_running());
     REQUIRE(Config::get_instance()->get<bool>("/tour/completed", false) == true);
+}
+
+namespace {
+helix::tour::TourStep plain_step(const char* target) {
+    helix::tour::TourStep step;
+    step.target_name = target;
+    step.title_key = "Title";
+    step.body_key = "Body";
+    return step;
+}
+
+lv_obj_t* named_box(const char* name, int x, int width) {
+    lv_obj_t* box = lv_obj_create(lv_screen_active());
+    lv_obj_set_name(box, name);
+    lv_obj_set_pos(box, x, 100);
+    lv_obj_set_size(box, width, 80);
+    lv_obj_update_layout(box);
+    return box;
+}
+
+// TourOverlay builds its root as dim, highlight, tooltip, in that order.
+lv_obj_t* highlight_of(helix::tour::TourOverlay& overlay) {
+    return lv_obj_get_child(overlay.root(), 1);
+}
+lv_obj_t* tooltip_of(helix::tour::TourOverlay& overlay) {
+    return lv_obj_get_child(overlay.root(), 2);
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: a missing target falls back to the second name",
+                 "[tour]") {
+    named_box("fallback_target", 40, 200);
+    auto with_fallback = plain_step("absent_target");
+    with_fallback.fallback_target_name = "fallback_target";
+    helix::tour::TourOverlay overlay({with_fallback, plain_step("absent_target")}, {}, {});
+
+    overlay.show_step(0);
+    CHECK_FALSE(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    overlay.show_step(1);
+    CHECK(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: LeftNarrowed fits the card beside its target",
+                 "[tour]") {
+    REQUIRE(lv_display_get_horizontal_resolution(nullptr) >= 800);
+    named_box("wide_target", 340, 400);
+    named_box("left_edge_target", 40, 400);
+    auto narrowed = plain_step("wide_target");
+    narrowed.anchor_hint = helix::tour::TooltipAnchor::LeftNarrowed;
+    auto no_room = plain_step("left_edge_target");
+    no_room.anchor_hint = helix::tour::TooltipAnchor::LeftNarrowed;
+    auto centered = plain_step("");
+    centered.anchor_hint = helix::tour::TooltipAnchor::Center;
+    helix::tour::TourOverlay overlay({centered, narrowed, no_room}, {}, {});
+    lv_obj_t* card = tooltip_of(overlay);
+
+    overlay.show_step(0);
+    lv_obj_update_layout(card);
+    const int full_width = lv_obj_get_width(card);
+    REQUIRE(full_width > 340);
+
+    overlay.show_step(1);
+    lv_obj_update_layout(card);
+    CHECK(lv_obj_get_width(card) < 340);
+    CHECK(lv_obj_get_x(card) + lv_obj_get_width(card) <= 340);
+
+    overlay.show_step(2);
+    lv_obj_update_layout(card);
+    CHECK(lv_obj_get_width(card) == full_width);
+
+    overlay.show_step(0);
+    lv_obj_update_layout(card);
+    CHECK(lv_obj_get_width(card) == full_width);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: the preview belongs only to its own step",
+                 "[tour]") {
+    REQUIRE(lv_display_get_vertical_resolution(nullptr) >= 400);
+    auto with_picture = plain_step("");
+    with_picture.preview_image = "A:assets/images/tour/print_status_preview.png";
+    helix::tour::TourOverlay overlay({with_picture, plain_step("")}, {}, {});
+    lv_obj_t* preview = lv_obj_find_by_name(tooltip_of(overlay), "tour_preview");
+    REQUIRE(preview != nullptr);
+
+    overlay.show_step(0);
+    CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    overlay.show_step(1);
+    CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: hide_card lasts until the next step", "[tour]") {
+    helix::tour::TourOverlay overlay({plain_step("")}, {}, {});
+    overlay.show_step(0);
+    overlay.hide_card();
+    CHECK(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    overlay.show_step(0);
+    CHECK_FALSE(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: a running tour holds back the plugin prompt",
+                 "[tour]") {
+    reset_tour_settings();
+    CHECK_FALSE(PrintSelectPanel::plugin_screen_state().modal_up);
+    auto& t = FirstRunTour::instance();
+    t.start();
+    REQUIRE(t.is_running());
+    CHECK(PrintSelectPanel::plugin_screen_state().modal_up);
+    t.skip();
+}
+
+TEST_CASE("FirstRunTour: the Filament step target exists in both layouts", "[tour]") {
+    std::ifstream file("ui_xml/filament_panel.xml");
+    REQUIRE(file.good());
+    std::stringstream text;
+    text << file.rdbuf();
+    const std::string xml = text.str();
+    const std::string tag = "<filament_operations_group name=\"filament_operations_group\"";
+    const auto first = xml.find(tag);
+    REQUIRE(first != std::string::npos);
+    CHECK(xml.find(tag, first + 1) != std::string::npos);
 }
