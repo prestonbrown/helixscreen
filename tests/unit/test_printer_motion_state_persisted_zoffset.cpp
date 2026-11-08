@@ -182,7 +182,7 @@ TEST_CASE_METHOD(PersistedZOffsetFixture,
                  "Regression: a non-ZMOD printer is unaffected in every print state",
                  "[motion][zoffset][regression]") {
     // No save_variables ever arrives, so the live offset must remain the only
-    // source. This is the guard against the fix leaking onto normal printers.
+    // source. This guards against the persisted-offset path leaking onto normal printers.
     state.update_from_status(homing_origin(-0.2));
 
     REQUIRE_FALSE(valid());

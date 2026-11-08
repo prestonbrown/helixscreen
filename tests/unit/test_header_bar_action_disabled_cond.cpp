@@ -14,7 +14,7 @@
  *
  * header_bar's action button supports exactly one disabled binding, and two
  * bind_state_* on one LVGL state clobber each other (each observer asserts BOTH
- * polarities on every fire), so the fix is a single expression-driven binding.
+ * polarities on every fire), so it is a single expression-driven binding.
  *
  * The second test reads the real panel XML and drives header_bar with the exact
  * expression each panel ships. That is deliberate: a cond naming a subject that

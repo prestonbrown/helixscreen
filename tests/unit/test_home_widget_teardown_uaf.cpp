@@ -512,7 +512,7 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 }
 
 // The camera's divergence from the other three home widgets, pinned so nobody
-// "completes" the fix by copying their lifetime_.invalidate() in here. A token
+// "tidies" it by copying their lifetime_.invalidate() in here. A token
 // the running CameraStream captured at start_stream() compares its snapshot
 // against the guard's generation counter, so an invalidate() drops every
 // subsequent frame for the life of that stream - and the fullscreen overlay is

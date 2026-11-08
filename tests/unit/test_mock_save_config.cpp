@@ -139,9 +139,8 @@ TEST_CASE_METHOD(SaveConfigFixture, "mock: printer.restart reverts an unsaved of
     // unfalsifiable persist path, just through the other door. Both restart
     // entry points now share trigger_restart().
     //
-    // This fixture never pumps LVGL, which is the second half of the fix: the
-    // old handler scheduled its return to READY on an lv_timer that would never
-    // fire here.
+    // This fixture never pumps LVGL, so the restart must return to READY
+    // without an lv_timer, which would never fire here.
     gcode("SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=-0.075");
     REQUIRE(client.tool_offset(1, helix::Axis::Z) == Catch::Approx(-0.075));
 

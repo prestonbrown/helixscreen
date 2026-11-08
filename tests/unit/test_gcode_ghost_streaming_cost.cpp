@@ -16,7 +16,7 @@
  * 133MB file. None of that is reproducible here, and wall-clock on a desktop
  * says nothing about it. What IS reproducible, and is the quantity that made
  * the device unusable, is the number of seek-and-parses the pass performs —
- * hardware-independent, and the thing the fix changes. These measure that
+ * hardware-independent, and the thing the sampling bounds. These measure that
  * directly by counting read_range() calls through an injected data source.
  */
 

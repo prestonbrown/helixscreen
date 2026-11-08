@@ -52,7 +52,7 @@ class NavPanelWidgetUafFixture : public LVGLTestFixture {
         NavigationManager::instance().set_panels(panels_);
 
         // Every slot must actually hold a widget, or a "no crash" result would
-        // be the null check passing rather than the fix working.
+        // be the null check passing rather than the guard working.
         for (int i = 0; i < kUiPanelCount; i++) {
             REQUIRE(NavigationManager::instance().get_panel_widget(static_cast<PanelId>(i)) ==
                     panels_[i]);

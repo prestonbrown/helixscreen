@@ -12,7 +12,7 @@
  * the reported Android failure: mid-print WiFi drop, app never reconnected
  * until the tablet itself was restarted (a fresh process re-resolves).
  *
- * The fix is TcpClient::refresh_remote_addr(): re-run the resolution before
+ * TcpClient::refresh_remote_addr() handles it: re-run the resolution before
  * each dial attempt, keep the last known address when DNS cannot answer yet,
  * and never break the retry chain.
  */

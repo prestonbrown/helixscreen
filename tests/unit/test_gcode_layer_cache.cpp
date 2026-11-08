@@ -413,7 +413,7 @@ auto slow_loader(std::chrono::milliseconds delay, size_t segments_per_layer,
 constexpr auto kSlowLoad = std::chrono::milliseconds(400);
 
 // Generous enough to absorb CI scheduling noise while still being far below
-// kSlowLoad — the bug produces ~kSlowLoad, the fix produces ~0.
+// kSlowLoad — a blocking clear produces ~kSlowLoad, a non-blocking one ~0.
 constexpr auto kMustNotBlock = std::chrono::milliseconds(150);
 
 } // namespace

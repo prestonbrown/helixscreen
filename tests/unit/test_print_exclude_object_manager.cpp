@@ -8,8 +8,8 @@
  *
  * Background: printer.gcode.script blocks until Klipper executes the queued gcode,
  * so during pre-print an EXCLUDE_OBJECT RPC can sit queued for minutes and hit the
- * 60s transport timeout before it returns. The fix:
- *   1. MoonrakerAPI::exclude_object() now uses silent=true + 15min timeout.
+ * 60s transport timeout before it returns. So:
+ *   1. MoonrakerAPI::exclude_object() uses silent=true + 15min timeout.
  *   2. The request tracker suppresses REQUEST_TIMEOUT events for silent requests.
  *   3. PrintExcludeObjectManager treats TIMEOUT errors as advisory (waits for the
  *      exclude_object status subscription to confirm) and only reverts / toasts for

@@ -181,7 +181,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "gcode viewer cancels an in-flight parse promp
     INFO("cancel took " << cancel_ms << "ms vs full parse " << full_ms << "ms");
 
     // Generous margin: the point is orders-of-magnitude, not a tight bound. The
-    // bug produces ~the remainder of full_ms; the fix produces near-zero.
+    // ignoring cancellation costs ~the remainder of full_ms; honouring it, near-zero.
     CHECK(cancel_ms < full_ms / 3);
 
     // And the viewer is left usable, holding the file we actually asked for.
