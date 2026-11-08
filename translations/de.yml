@@ -3240,6 +3240,7 @@ translations:
   Random: Zufällig
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
+  Re-apply spool: ''
   Re-identify: Erneut identifizieren
   Re-measure: 'Neu messen'
   Re-measure (~{} min): "Messen (~{} Min)"
@@ -4154,6 +4155,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv.'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock.
   The left RFID reader in this CFS unit may need service: Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden
+  The linked spool says {}.: ''
   The loaded slot is not known yet: "Der geladene Slot ist noch nicht bekannt"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Die geladene Spule ist {}, aber diese Datei wurde für {} gesliced. Gefülltes Filament läuft mit einer niedrigeren Flussrate und erfordert eine gehärtete Düse.
@@ -5097,6 +5099,7 @@ translations:
   'Reset to tag': 'Auf Tag zurücksetzen'
   'Save the changes to this spool?': 'Änderungen an dieser Spule speichern?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Das passt nicht zur verknüpften Spoolman-Spule. In Spoolman aktualisieren oder Verknüpfung lösen und auf diesem Platz behalten?'
+  Unlink: ''
   'Unlink, keep on this slot': 'Lösen, auf diesem Platz behalten'
   'Unsaved changes': 'Ungespeicherte Änderungen'
   Update heater model?: Heizungsmodell aktualisieren?

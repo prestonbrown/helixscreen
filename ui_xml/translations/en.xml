@@ -2968,6 +2968,7 @@
   <translation tag="Random" en="Random"/>
   <translation tag="Raspberry Pi" en="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" en="Raspberry Pi (32-bit)"/>
+  <translation tag="Re-apply spool" en="Re-apply spool"/>
   <translation tag="Re-identify" en="Re-identify"/>
   <translation tag="Re-measure" en="Re-measure"/>
   <translation tag="Re-measure (~{} min)" en="Re-measure (~{} min)"/>
@@ -3792,6 +3793,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." en="The latch opens and {} can drop. Hold it before you continue, then put it in its dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" en="The left RFID reader in this CFS unit may need service"/>
+  <translation tag="The linked spool says {}." en="The linked spool says {}."/>
   <translation tag="The loaded slot is not known yet" en="The loaded slot is not known yet"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." en="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle."/>
   <translation tag="The message your printer&apos;s macros show (M117)" en="The message your printer&apos;s macros show (M117)"/>
@@ -4137,6 +4139,7 @@
   <translation tag="Unknown Spool" en="Unknown Spool"/>
   <translation tag="Unknown Step" en="Unknown Step"/>
   <translation tag="Unknown error" en="Unknown error"/>
+  <translation tag="Unlink" en="Unlink"/>
   <translation tag="Unlink, keep on this slot" en="Unlink, keep on this slot"/>
   <translation tag="Unload" en="Unload"/>
   <translation tag="Unload Distance" en="Unload Distance"/>

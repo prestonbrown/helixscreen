@@ -393,8 +393,10 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // An edit that keeps a spool cannot move what the spool states about
     // itself. A catalog pick names the product of the spool that was bound, so
     // binding a different spool takes it off the slot; an unlink keeps it.
-    SlotInfo applied = helix::ams::keep_spool_owned_identity(
-        original, info, helix::ams::lane_sources(lane).spoolman);
+    SlotInfo applied = firmware_owns_lane_identity()
+                           ? info
+                           : helix::ams::keep_spool_owned_identity(
+                                 original, info, helix::ams::lane_sources(lane).spoolman);
     if (binding_changed && info.spoolman_id > 0) {
         applied.catalog_id.clear();
         applied.product_name.clear();

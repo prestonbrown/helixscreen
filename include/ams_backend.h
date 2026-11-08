@@ -107,6 +107,7 @@ struct BackendTraits {
     bool raises_runout_fault = false;
     bool raises_runout_fault_during_job = false;
     bool parks_filament_off_toolhead_when_idle = false;
+    bool firmware_owns_lane_identity = false;
 
     // All-bool with no padding, so the bytes are the value.
     bool operator==(const BackendTraits& o) const {
@@ -3729,6 +3730,13 @@ class AmsBackend {
     /// set_firmware_spool_retention().
     [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
         return false;
+    }
+
+    /// Whether the firmware's own state is the authority for a lane's material
+    /// and colour, so a linked spool never overrides them. The editor shows what
+    /// the lane holds and names the spool when the two disagree.
+    [[nodiscard]] bool firmware_owns_lane_identity() const {
+        return traits().firmware_owns_lane_identity;
     }
 
     /// Whether HelixScreen's lane record is the only identity a lane has: the
