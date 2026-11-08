@@ -433,3 +433,24 @@ is a layout call with `ctl geom` at 800x480 and the smallest breakpoint before i
 ## Decisions (Preston, 2026-11-07)
 
 - The plugin renames the legacy marker blocks at load, on by default, with the `[helix_print] migrate_signal_macros: False` opt-out.
+
+## Status (2026-11-07)
+
+Phases 1 and 2 are implemented on `docs/plan-hidden-macros`: phase 1 in `002bc3f248`, phase 2 in
+`9846e065c2`. Phases 3 (the plugin rename) and 4 (telling the user, sliced files) are next; both
+change the moonraker plugin or its reporting and need a check on real printers.
+
+Where the open questions had no answer, the implementation takes the plan's recommendation:
+
+- Q3: only the names a config calls get a forwarder. Before discovery has read `configfile.settings`,
+  a printer that defines `HELIX_READY` still gets all eleven.
+- Q4: DropAliases sets OUTDATED, so the macros row offers an update that hides the unused names.
+- Q5: nothing in the app treats firmware-managed packs differently, and phases 1-2 change neither
+  `assets/config/helix_macros.cfg` nor how `load_macro_file` finds it. The question stays open for
+  the plugin in phase 3.
+
+One rule the plan left open: `pack_sections` names both spellings, so a section name alone cannot
+tell an earlier pack's `[gcode_macro HELIX_READY]` from the user's own. `scan()` reads a
+visible-named section as ours when its description is the forwarder's, as an earlier pack's when its
+gcode names `_HELIX_STATE` (every pack's signal bodies write it), and as the user's otherwise. Only
+the user's own lands in `foreign` and is read for calls.
