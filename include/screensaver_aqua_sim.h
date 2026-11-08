@@ -107,6 +107,11 @@ class AquaWater {
     /// previous grid for the rate of rise.
     void evaluate(double t, std::minstd_rand& rng);
 
+    /// Scales the slosh and the waves (not the passing impulses): 1 is full, kAquaCalm still.
+    void set_amplitude(float scale) {
+        amp_ = scale;
+    }
+
     /// Height at world (x, z), bilinear over the grid, clamped to it.
     float height_at(float x, float z) const;
     /// Height of the analytic surface at (x, z, t), no grid: the reference the grid samples.
@@ -152,6 +157,7 @@ class AquaWater {
     float dt_ = 0.0f;
     double next_impulse_ = 0.0;
     bool fresh_ = true; ///< no grid evaluated yet, so no rate of rise
+    float amp_ = 1.0f;
     std::array<AquaMode, 3> modes_{};
     std::array<AquaWave, 4> waves_{};
     std::vector<AquaImpulse> impulses_;
@@ -229,6 +235,24 @@ struct AquaRings {
  * print's progress while counting down, paused or done.
  */
 AquaRings aqua_rings(const ClockReading& reading);
+
+/// How far the water stands above its rest level at the brim, in water units; well under the
+/// camera's height, where the eye would be at the surface.
+inline constexpr float kAquaBrimRise = 0.5f;
+/// How fast the water level moves, water units per second, up or down.
+inline constexpr float kAquaLevelRate = 0.05f;
+/// The still rung paints the water again each time the level moves this far.
+inline constexpr float kAquaStillLevelStep = 0.05f;
+/// Wave and slosh amplitude while a print is paused, against 1 otherwise.
+inline constexpr float kAquaCalm = 0.35f;
+/// How fast the amplitude eases between calm and full, per second.
+inline constexpr float kAquaCalmRate = 0.5f;
+/// Bubbles a finished print sends up at once.
+inline constexpr size_t kAquaDoneBurst = 120;
+
+/// The water's rise above rest for `reading`: none with no print, rising with progress to
+/// kAquaBrimRise at 100% and at DONE; back to rest for a failed or cancelled print.
+float aqua_level_target(const ClockReading& reading);
 
 /// Where the clock sits on a w x h canvas, moved by the drift (dx, dy).
 struct AquaClockLayout {
@@ -332,6 +356,19 @@ class AquaSim {
     AquaClockLayout clock_;
     StrokeDigitSet digits_;
     ClockReading shown_;
+    /// The water's rise above rest (aqua_level_target, eased), and the rise the view was last
+    /// set up for.
+    float water_level_ = 0.0f;
+    float viewed_level_ = 0.0f;
+    /// The still rung's level step the water was last painted at.
+    int32_t painted_level_step_ = 0;
+    /// Wave amplitude, easing toward kAquaCalm while paused.
+    float calm_ = 1.0f;
+    ClockMode last_mode_ = ClockMode::CLOCK;
+    /// The camera's height over the water's surface.
+    float cam_h() const;
+    /// Eases the level and calm toward `reading` over `dt_s`, at once when `dt_s` is negative.
+    void follow_print(const ClockReading& reading, float dt_s);
     std::vector<float> env_;     ///< AQUA_ENV_LEVELS pre-blurred environment rows
     std::vector<float> wrinkle_; ///< 64 x 64 x 2 slope table
     std::vector<Rgb> tint_;      ///< 256 grey levels through the cool tint

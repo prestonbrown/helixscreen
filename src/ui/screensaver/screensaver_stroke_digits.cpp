@@ -32,7 +32,7 @@ constexpr Stroke arc(float cx, float cy, float r, float start, float sweep) {
     return {true, cx, cy, r, start, sweep};
 }
 
-constexpr size_t kMaxStrokes = 4;
+constexpr size_t kMaxStrokes = 8;
 
 struct GlyphDef {
     size_t count;
@@ -62,6 +62,83 @@ constexpr GlyphDef kGlyphs[10] = {
     {2, {line(0.0f, 0.0f, 1.0f, 0.0f), line(1.0f, 0.0f, 0.32f, 1.6f)}},
     {2, {arc(0.5f, 0.38f, 0.38f, 0.0f, 360.0f), arc(0.5f, 1.18f, 0.42f, 0.0f, 360.0f)}},
     {0, {}}, // a six turned upside down
+};
+
+/// The capitals and percent sign, in the digits' box and stroke model.
+struct LetterDef {
+    char c;
+    GlyphDef def;
+};
+
+constexpr LetterDef kLetters[] = {
+    {'%',
+     {3,
+      {arc(0.22f, 0.3f, 0.2f, 0.0f, 360.0f), arc(0.78f, 1.3f, 0.2f, 0.0f, 360.0f),
+       line(0.92f, 0.04f, 0.08f, 1.56f)}}},
+    {'A',
+     {3,
+      {line(0.0f, 1.6f, 0.5f, 0.0f), line(0.5f, 0.0f, 1.0f, 1.6f), line(0.2f, 1.0f, 0.8f, 1.0f)}}},
+    {'C',
+     {3,
+      {arc(0.5f, 0.5f, 0.5f, 180.0f, 145.0f), line(0.0f, 0.5f, 0.0f, 1.1f),
+       arc(0.5f, 1.1f, 0.5f, 35.0f, 145.0f)}}},
+    {'D',
+     {6,
+      {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 0.4f, 0.0f), line(0.0f, 1.6f, 0.4f, 1.6f),
+       arc(0.4f, 0.6f, 0.6f, 270.0f, 90.0f), line(1.0f, 0.6f, 1.0f, 1.0f),
+       arc(0.4f, 1.0f, 0.6f, 0.0f, 90.0f)}}},
+    {'E',
+     {4,
+      {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 1.0f, 0.0f), line(0.0f, 0.8f, 0.8f, 0.8f),
+       line(0.0f, 1.6f, 1.0f, 1.6f)}}},
+    {'F',
+     {3,
+      {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 1.0f, 0.0f), line(0.0f, 0.8f, 0.8f, 0.8f)}}},
+    {'I',
+     {3,
+      {line(0.5f, 0.0f, 0.5f, 1.6f), line(0.2f, 0.0f, 0.8f, 0.0f), line(0.2f, 1.6f, 0.8f, 1.6f)}}},
+    {'L', {2, {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 1.6f, 1.0f, 1.6f)}}},
+    {'N',
+     {3,
+      {line(0.0f, 1.6f, 0.0f, 0.0f), line(0.0f, 0.0f, 1.0f, 1.6f), line(1.0f, 1.6f, 1.0f, 0.0f)}}},
+    {'O',
+     {4,
+      {arc(0.5f, 0.6f, 0.5f, 180.0f, 180.0f), arc(0.5f, 1.0f, 0.5f, 0.0f, 180.0f),
+       line(0.0f, 0.6f, 0.0f, 1.0f), line(1.0f, 0.6f, 1.0f, 1.0f)}}},
+    {'P',
+     {4,
+      {line(0.0f, 0.0f, 0.0f, 1.6f), line(0.0f, 0.0f, 0.55f, 0.0f),
+       arc(0.55f, 0.42f, 0.42f, 270.0f, 180.0f), line(0.0f, 0.84f, 0.55f, 0.84f)}}},
+    {'S', {2, {arc(0.5f, 0.4f, 0.4f, 90.0f, 240.0f), arc(0.5f, 1.2f, 0.4f, 270.0f, 240.0f)}}},
+    {'T', {2, {line(0.0f, 0.0f, 1.0f, 0.0f), line(0.5f, 0.0f, 0.5f, 1.6f)}}},
+    {'U',
+     {3,
+      {line(0.0f, 0.0f, 0.0f, 1.1f), arc(0.5f, 1.1f, 0.5f, 0.0f, 180.0f),
+       line(1.0f, 0.0f, 1.0f, 1.1f)}}},
+    // The symbols are centred on (0.5, 0.8) and bolder than the letters: each check and cross
+    // stroke is its centre line and one 0.06 to either side, each bar is two lines
+    // with flat ends, and the square's inside is filled with lines closer than a stroke's width.
+    {kGlyphCheck,
+     {6,
+      {line(0.0357f, 0.8905f, 0.3557f, 1.2405f), line(0.1243f, 0.8095f, 0.4443f, 1.1595f),
+       line(0.4503f, 1.2327f, 0.9703f, 0.4327f), line(0.3497f, 1.1673f, 0.8697f, 0.3673f),
+       line(0.08f, 0.85f, 0.4f, 1.2f), line(0.4f, 1.2f, 0.92f, 0.4f)}}},
+    {kGlyphCross,
+     {6,
+      {line(0.0765f, 0.4413f, 0.8365f, 1.2413f), line(0.1635f, 0.3587f, 0.9235f, 1.1587f),
+       line(0.8365f, 0.3587f, 0.0765f, 1.1587f), line(0.9235f, 0.4413f, 0.1635f, 1.2413f),
+       line(0.12f, 0.4f, 0.88f, 1.2f), line(0.88f, 0.4f, 0.12f, 1.2f)}}},
+    {kGlyphSquare,
+     {7,
+      {line(0.15f, 0.45f, 0.85f, 0.45f), line(0.85f, 0.45f, 0.85f, 1.15f),
+       line(0.85f, 1.15f, 0.15f, 1.15f), line(0.15f, 1.15f, 0.15f, 0.45f),
+       line(0.15f, 0.625f, 0.85f, 0.625f), line(0.15f, 0.8f, 0.85f, 0.8f),
+       line(0.15f, 0.975f, 0.85f, 0.975f)}}},
+    {kGlyphPause,
+     {8,
+      {line(0.18f, 0.4f, 0.18f, 1.2f), line(0.3f, 0.4f, 0.3f, 1.2f), line(0.18f, 0.4f, 0.3f, 0.4f),
+       line(0.18f, 1.2f, 0.3f, 1.2f), line(0.7f, 0.4f, 0.7f, 1.2f), line(0.82f, 0.4f, 0.82f, 1.2f),
+       line(0.7f, 0.4f, 0.82f, 0.4f), line(0.7f, 1.2f, 0.82f, 1.2f)}}},
 };
 
 float dist_to_line(const Stroke& s, float px, float py) {
@@ -108,6 +185,89 @@ float stroke_digit_distance(int digit, float px, float py) {
         best = std::min(best, s.arc ? dist_to_arc(s, px, py) : dist_to_line(s, px, py));
     }
     return best;
+}
+
+float stroke_glyph_distance(char c, float px, float py) {
+    if (c >= '0' && c <= '9') {
+        return stroke_digit_distance(c - '0', px, py);
+    }
+    for (const LetterDef& l : kLetters) {
+        if (l.c != c) {
+            continue;
+        }
+        float best = 1e9f;
+        for (size_t i = 0; i < l.def.count; i++) {
+            const Stroke& s = l.def.strokes[i];
+            best = std::min(best, s.arc ? dist_to_arc(s, px, py) : dist_to_line(s, px, py));
+        }
+        return best;
+    }
+    return 1e9f;
+}
+
+namespace {
+
+/// Index of `c` in kStrokeGlyphChars, or -1.
+int glyph_index(char c) {
+    for (int i = 0; kStrokeGlyphChars[i] != '\0'; i++) {
+        if (kStrokeGlyphChars[i] == c) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+} // namespace
+
+void StrokeGlyphSet::init(int32_t unit, float stroke) {
+    clear();
+    unit_ = std::max<int32_t>(1, unit);
+    stroke_ = stroke;
+    const auto u = static_cast<float>(unit_);
+    w = static_cast<int32_t>(std::lround((1.0f + stroke) * u));
+    h = static_cast<int32_t>(std::lround((kStrokeDigitPathH + stroke) * u));
+}
+
+void StrokeGlyphSet::ensure(char c) {
+    const int i = glyph_index(c);
+    if (i < 0 || w <= 0 || !glyphs_[static_cast<size_t>(i)].empty()) {
+        return;
+    }
+    std::vector<uint8_t>& cov = glyphs_[static_cast<size_t>(i)];
+    cov.assign(static_cast<size_t>(w) * h, 0);
+    const auto u = static_cast<float>(unit_);
+    const float half = stroke_ / 2.0f;
+    for (int32_t y = 0; y < h; y++) {
+        const float py = (static_cast<float>(y) + 0.5f) / u - half;
+        for (int32_t x = 0; x < w; x++) {
+            const float px = (static_cast<float>(x) + 0.5f) / u - half;
+            const float edge = edge_coverage((half - stroke_glyph_distance(c, px, py)) * u);
+            cov[static_cast<size_t>(y) * w + x] = static_cast<uint8_t>(std::lround(edge * 255.0f));
+        }
+    }
+}
+
+uint8_t StrokeGlyphSet::at(char c, int32_t gx, int32_t gy) const {
+    const int i = glyph_index(c);
+    if (i < 0 || gx < 0 || gy < 0 || gx >= w || gy >= h) {
+        return 0;
+    }
+    const std::vector<uint8_t>& cov = glyphs_[static_cast<size_t>(i)];
+    return cov.empty() ? 0 : cov[static_cast<size_t>(gy) * w + gx];
+}
+
+size_t StrokeGlyphSet::heap_bytes() const {
+    size_t total = 0;
+    for (const std::vector<uint8_t>& g : glyphs_) {
+        total += buffer_bytes(g);
+    }
+    return total;
+}
+
+void StrokeGlyphSet::clear() {
+    for (std::vector<uint8_t>& g : glyphs_) {
+        release_buffer(g);
+    }
 }
 
 uint8_t StrokeDigitSet::at(int digit, int32_t gx, int32_t gy) const {

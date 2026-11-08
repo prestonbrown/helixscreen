@@ -31,6 +31,7 @@
 #include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_client.h"
+#include "locale_formats.h"
 #include "lvgl.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"        // not in the lvgl.h umbrella
 #include "lvgl/src/misc/cache/instance/lv_image_header_cache.h" // not in the lvgl.h umbrella
@@ -853,6 +854,8 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
     host.show_print_progress = [] {
         return helix::DisplaySettingsManager::instance().get_screensaver_print_progress();
     };
+    // The state words are English stroke glyphs; any other language shows symbols.
+    host.spell_states = [] { return helix::ui::locale_current_language() == "en"; };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())
                 : "unknown";

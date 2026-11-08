@@ -497,6 +497,19 @@ TEST_CASE("the overview hides a vendor push row only while its vendor is absent"
     CHECK(lines[2].reason == "load_failed: SyntaxError");
 }
 
+TEST_CASE("the overview shows the start tool map only where Moonraker takes one",
+          "[plugin_feature][2038]") {
+    PluginFeatureMap features;
+    features["print_start_tools"] = entry(1, false, false, "start_print_takes_no_tools");
+    CHECK(plugin_feature_lines(features).empty());
+
+    features["print_start_tools"] = entry(1, true, true);
+    const auto lines = plugin_feature_lines(features);
+    REQUIRE(lines.size() == 1);
+    CHECK(lines[0].label == "Filament Mapping at print start");
+    CHECK(lines[0].status == PluginFeatureStatus::Active);
+}
+
 TEST_CASE("the overview names every batch feature and gives the switchless ones no home",
           "[plugin_feature]") {
     PluginFeatureMap features;

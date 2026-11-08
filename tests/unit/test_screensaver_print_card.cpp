@@ -5,6 +5,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "screensaver_base.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_print_card.h"
@@ -94,7 +95,8 @@ TEST_CASE("each print state has its own colour, distinct at 16-bit",
     }
 }
 
-TEST_CASE("the card fits every screen shape at every drift offset",
+TEST_CASE("the card sits centred at the bottom of every screen shape, inside it and clear of the "
+          "centre band at every drift offset",
           "[screensaver][screensaver_print_card]") {
     struct Screen {
         int32_t w;
@@ -119,6 +121,10 @@ TEST_CASE("the card fits every screen shape at every drift offset",
         CHECK(home.y1 - max_dy >= 0);
         CHECK(home.x2 + max_dx < s.w);
         CHECK(home.y2 + max_dy < s.h);
+        CHECK(home.x1 == (s.w - layout.w) / 2);
+        // The planet, the tunnel's light and the fireflies' text sit in the middle of the
+        // screen: the card stays in its bottom third.
+        CHECK(home.y1 - max_dy >= s.h * 2 / 3);
     }
 }
 
@@ -266,6 +272,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "a saver without its own display shows the car
     reported.print.phase = helix::ui::ClockPrintPhase::NONE;
     advance_saver(ss, 33);
     CHECK_FALSE(ss.print_card_shown());
+
+    // Stopping the saver takes the card with it; the next start makes a fresh one.
+    reported.print.phase = helix::ui::ClockPrintPhase::PAUSED;
+    advance_saver(ss, 33);
+    REQUIRE(ss.print_card_shown());
+    ss.stop();
+    CHECK_FALSE(ss.print_card_shown());
+    CHECK(ss.print_card_obj() == nullptr);
+    ss.start();
+    REQUIRE(ss.is_active());
+    advance_saver(ss, 33);
+    CHECK(ss.print_card_shown());
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

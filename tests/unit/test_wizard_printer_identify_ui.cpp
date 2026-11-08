@@ -478,20 +478,29 @@ namespace {
 // the detector cannot tell the K2 Plus from the K2 Pro.
 class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
   public:
-    WizardPrinterIdentifyTiedFixture() : WizardPrinterIdentifyUIFixture(DeferOpen{}) {
+    WizardPrinterIdentifyTiedFixture() : WizardPrinterIdentifyTiedFixture({}, "") {}
+
+  protected:
+    /// @p extra_objects join the K2 discovery; @p saved_type is the type the
+    /// config holds when the step opens.
+    WizardPrinterIdentifyTiedFixture(const std::vector<std::string>& extra_objects,
+                                     const std::string& saved_type)
+        : WizardPrinterIdentifyUIFixture(DeferOpen{}) {
         Config* config = Config::get_instance();
         saved_type_ = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
         saved_name_ = config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "");
+        config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, saved_type);
 
-        const std::vector<std::string> objects = {"extruder",
-                                                  "heater_bed",
-                                                  "box",
-                                                  "motor_control",
-                                                  "fan_feedback",
-                                                  "load_ai",
-                                                  "filament_rack",
-                                                  "heater_generic chamber_heater",
-                                                  "temperature_sensor chamber_temp"};
+        std::vector<std::string> objects = {"extruder",
+                                            "heater_bed",
+                                            "box",
+                                            "motor_control",
+                                            "fan_feedback",
+                                            "load_ai",
+                                            "filament_rack",
+                                            "heater_generic chamber_heater",
+                                            "temperature_sensor chamber_temp"};
+        objects.insert(objects.end(), extra_objects.begin(), extra_objects.end());
         helix::PrinterDiscovery& hardware = api()->hardware();
         hardware.parse_objects(nlohmann::json(objects));
         hardware.set_printer_objects(objects);
@@ -499,11 +508,14 @@ class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
         hardware.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", "corexy"}}}});
         set_moonraker_api(api());
 
-        // The step detects once per printer; make it detect this one.
-        WizardPrinterIdentifyStepTestAccess::forget_printer(*get_wizard_printer_identify_step());
+        // The step detects once per printer; make it detect this one. A saved
+        // type survives only a first detection, which a printer change is not.
+        WizardPrinterIdentifyStepTestAccess::forget_printer(*get_wizard_printer_identify_step(),
+                                                            !saved_type.empty());
         open();
     }
 
+  public:
     ~WizardPrinterIdentifyTiedFixture() {
         close_step();
         set_moonraker_api(nullptr);
@@ -536,6 +548,15 @@ class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
 
     std::string saved_type_;
     std::string saved_name_;
+};
+
+// The same K2 on k2-improvements, opened from the type mismatch review with the
+// stock K2 Plus saved: the mod entries tie, and the saved model names one.
+class WizardPrinterIdentifySavedTieFixture : public WizardPrinterIdentifyTiedFixture {
+  public:
+    WizardPrinterIdentifySavedTieFixture()
+        : WizardPrinterIdentifyTiedFixture(
+              {"gcode_macro _START_PRINT_VARS", "gcode_macro START_PRINT"}, "Creality K2 Plus") {}
 };
 
 } // namespace
@@ -599,4 +620,19 @@ TEST_CASE_METHOD(WizardPrinterIdentifyTiedFixture,
         // the K2 preset is the detector tests' business.
         set_moonraker_api(nullptr);
     }
+}
+
+TEST_CASE_METHOD(WizardPrinterIdentifySavedTieFixture,
+                 "Wizard preselects the tied printer the saved model names",
+                 "[wizard][selector][mismatch]") {
+    require_ready();
+    const PrinterDetectionResult detection = PrinterDetector::auto_detect(api()->hardware());
+    CAPTURE(detection.type_name, detection.runner_up_type_name, detection.margin());
+    REQUIRE(detection.ambiguous());
+
+    const std::string offered = "Creality K2 Plus (k2-improvements)";
+    REQUIRE(PrinterDetector::mismatch_subject("Creality K2 Plus", detection) == offered);
+    CHECK(PrinterDetector::get_list_name_at(selected_index(), "corexy") == offered);
+    CHECK(next_enabled());
+    CHECK(std::string(get_wizard_printer_identify_step()->get_detection_status()) == offered);
 }

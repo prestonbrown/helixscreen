@@ -4327,6 +4327,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Este .3mf precisa ser convertido em G-code antes de entrar na fila. Imprima-o daqui.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'A fila imprime a placa padrão deste .3mf. Imprima esta placa daqui.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'As etapas de preparação desativadas não podem ser aplicadas a este .3mf. Ative-as de novo para imprimir.'
+  Filament Mapping at print start: 'Mapeamento de Filamento no início da impressão'
   Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'O mapeamento de filamento não pode reescrever este .3mf. Imprima sem remapear.'
   'This .3mf''s plates are still loading. Try again in a moment.': 'As placas deste .3mf ainda estão carregando. Tente de novo em um momento.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Este .3mf precisa ser convertido em G-code na impressora antes de poder imprimir.'

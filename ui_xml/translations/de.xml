@@ -1455,6 +1455,7 @@
   <translation tag="Filament In The Toolhead" de="Filament im Werkzeugkopf"/>
   <translation tag="Filament Jam" de="Filamentstau"/>
   <translation tag="Filament Mapping" de="Filament-Zuordnung"/>
+  <translation tag="Filament Mapping at print start" de="Filament-Zuordnung beim Druckstart"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." de="Die Filamentzuordnung kann diese .3mf-Datei nicht umschreiben. Drucke sie ohne Neuzuordnung."/>
   <translation tag="Filament Mapping is not available on this device." de="Die Filament-Zuordnung ist auf diesem Gerät nicht verfügbar."/>
   <translation tag="Filament Mapping is unavailable" de="Filament-Zuordnung ist nicht verfügbar"/>

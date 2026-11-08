@@ -1455,6 +1455,7 @@
   <translation tag="Filament In The Toolhead" es="Filamento en el cabezal"/>
   <translation tag="Filament Jam" es="Atasco de filamento"/>
   <translation tag="Filament Mapping" es="Mapeo de Filamento"/>
+  <translation tag="Filament Mapping at print start" es="Mapeo de Filamento al iniciar la impresión"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." es="La asignación de filamento no puede reescribir este .3mf. Imprímelo sin reasignar."/>
   <translation tag="Filament Mapping is not available on this device." es="El mapeo de filamento no está disponible en este dispositivo."/>
   <translation tag="Filament Mapping is unavailable" es="El mapeo de filamento no está disponible"/>

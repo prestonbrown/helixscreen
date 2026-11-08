@@ -1455,6 +1455,7 @@
   <translation tag="Filament In The Toolhead" zh="工具头处有耗材"/>
   <translation tag="Filament Jam" zh="耗材堵塞"/>
   <translation tag="Filament Mapping" zh="耗材映射"/>
+  <translation tag="Filament Mapping at print start" zh="打印开始时的耗材映射"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." zh="耗材映射无法改写此 .3mf。请不重新映射直接打印。"/>
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>

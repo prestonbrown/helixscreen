@@ -11,6 +11,7 @@
 #include "platform_capabilities.h"
 #include "screensaver_fast_math.h"
 #include "screensaver_image.h"
+#include "screensaver_print_colors.h"
 
 #include <spdlog/spdlog.h>
 
@@ -18,8 +19,10 @@
 #include <string>
 
 using helix::screensaver_bounce::fit_sprite;
+using helix::screensaver_bounce::grey_rows_for;
 using helix::screensaver_bounce::kMinRangePx;
 using helix::screensaver_bounce::sprite_size_for;
+using helix::ui::ClockMode;
 using helix::ui::screensaver::fold;
 using helix::ui::screensaver::fold_index;
 using helix::ui::screensaver::is_corner_hit;
@@ -69,6 +72,22 @@ const lv_color_t kBounceTints[] = {
 };
 constexpr int kNumTints = sizeof(kBounceTints) / sizeof(kBounceTints[0]);
 
+lv_color_t to_lv(helix::ui::Rgb c) {
+    return lv_color_make(c.r, c.g, c.b);
+}
+
+lv_color32_t to_grey(lv_color32_t p) {
+    const auto luma = static_cast<uint8_t>((p.red * 77 + p.green * 150 + p.blue * 29) >> 8);
+    p.red = luma;
+    p.green = luma;
+    p.blue = luma;
+    return p;
+}
+
+lv_color32_t as_is(lv_color32_t p) {
+    return p;
+}
+
 /// Logo art cropped to its opaque bounds, so the walls meet the artwork itself, and
 /// sized to the largest box sprite_size_for() hands out.
 constexpr const char* kLogoSpritePath = "A:assets/images/helixscreen-logo-bounce.png";
@@ -107,9 +126,12 @@ bool BouncingPrinterScreensaver::on_start() {
                   screen_w_, screen_h_, sprite_w_, sprite_h_);
 
     elapsed_ms_ = 0;
+    animates_ = helix::PlatformCapabilities::detect().supports_animations;
+    shown_mode_ = print_reading().mode;
 
+    // DECLARATIVE_OK: a C++-built sprite on the saver overlay, sourced from a decoded buffer
     img_ = lv_image_create(overlay().obj());
-    lv_image_set_src(img_, decoded_);
+    apply_fill();
     // CONTAIN makes the object's box and the sprite's footprint the same
     // rectangle, which is what the bounce arithmetic addresses. Set once here:
     // it forces a layout pass, and this overlay is built fresh on lv_layer_top()
@@ -124,8 +146,13 @@ bool BouncingPrinterScreensaver::on_start() {
 }
 
 void BouncingPrinterScreensaver::on_stop() {
-    // The sprite is a child of the overlay the base has already queued for deletion.
+    // The sprite is a child of the overlay the base has already queued for deletion; it lets
+    // go of the buffers before they are freed.
+    if (img_) {
+        lv_image_set_src(img_, nullptr);
+    }
     img_ = nullptr;
+    confetti_ = nullptr;
     free_sprite();
     prev_x_ = INT32_MIN;
     prev_y_ = INT32_MIN;
@@ -145,12 +172,23 @@ bool BouncingPrinterScreensaver::decode_sprite() {
     }
     src_w_ = static_cast<int32_t>(decoded_->header.w);
     src_h_ = static_cast<int32_t>(decoded_->header.h);
+
+    // The copy a print greys and fills; it starts in full colour.
+    grey_rows_ = 0;
+    if (helix::ui::saver_rows_mappable(decoded_->header.cf)) {
+        fill_ = lv_draw_buf_dup(decoded_);
+    }
+    if (!fill_) {
+        spdlog::debug("[Screensaver] Bouncing {} art (format {}) shows a print in full colour",
+                      subject_name(), static_cast<int>(decoded_->header.cf));
+    }
     return true;
 }
 
 void BouncingPrinterScreensaver::free_sprite() {
     // The sprite is the bounce image's source until the overlay teardown stops
     // the saver; a blend of its last frame may still be in flight.
+    helix::safe_draw_buf_destroy(fill_, "bounce_fill");
     helix::safe_draw_buf_destroy(decoded_, "bounce");
 }
 
@@ -224,12 +262,75 @@ void BouncingPrinterScreensaver::rebase(int screen_w, int screen_h) {
                   screen_w_, screen_h_, sprite_w_, sprite_h_);
 }
 
+// DECLARATIVE_OK: per-frame print state and wall hits on a C++-built sprite
 void BouncingPrinterScreensaver::apply_tint() {
-    if (!img_ || !decorated()) {
+    if (!img_) {
+        return;
+    }
+    const ClockMode mode = print_reading().mode;
+    if (mode == ClockMode::FAILED || mode == ClockMode::CANCELLED) {
+        lv_obj_set_style_image_recolor(img_, to_lv(helix::ui::kPrintFailed), 0);
+        lv_obj_set_style_image_recolor_opa(img_, RECOLOR_OPA, 0);
+        return;
+    }
+    // A print shows the art's own colours, so its grey rows read as grey.
+    if (mode != ClockMode::CLOCK || !decorated()) {
+        lv_obj_set_style_image_recolor_opa(img_, LV_OPA_TRANSP, 0);
         return;
     }
     lv_obj_set_style_image_recolor(img_, kBounceTints[color_index_], 0);
     lv_obj_set_style_image_recolor_opa(img_, RECOLOR_OPA, 0);
+}
+
+void BouncingPrinterScreensaver::apply_fill() {
+    if (!img_) {
+        return;
+    }
+    const helix::ui::ClockReading& reading = print_reading();
+    // No print and a finished one show the art in its own colours.
+    lv_draw_buf_t* shown = decoded_;
+    if (reading.mode != ClockMode::CLOCK && reading.mode != ClockMode::DONE && fill_) {
+        const int32_t rows = grey_rows_for(src_h_, reading.progress_pct);
+        if (rows != grey_rows_) {
+            // The image draws straight from fill_, so a draw unit still blending the last
+            // frame must be done with it first.
+            lv_draw_wait_for_finish();
+            if (rows > grey_rows_) {
+                helix::ui::saver_map_rows(*decoded_, *fill_, grey_rows_, rows, to_grey);
+            } else {
+                helix::ui::saver_map_rows(*decoded_, *fill_, rows, grey_rows_, as_is);
+            }
+            grey_rows_ = rows;
+            lv_obj_invalidate(img_);
+        }
+        shown = fill_;
+    }
+    if (lv_image_get_src(img_) != shown) {
+        lv_image_set_src(img_, shown);
+    }
+}
+
+void BouncingPrinterScreensaver::celebrate(lv_color_t flash) {
+    corner_flash_ticks_ = kCornerFlashTicks;
+    lv_obj_set_style_bg_color(overlay().obj(),
+                              lv_color_mix(flash, lv_color_black(), kCornerFlashMix), 0);
+
+    // The particle system is dozens of objects repositioned and resized every frame. That is
+    // the cost profile BASIC and EMBEDDED tiers had the screensaver taken away over, so boards
+    // that cannot animate and the ladder's lowest rung get the flash alone. A print shows one
+    // burst at a time, which keeps a finished print bouncing for hours at one burst's cost;
+    // confetti_ reads nullptr once ui_confetti deletes a spent burst's container. A corner
+    // with no print throws its own burst whatever is still flying.
+    const int particles = confetti_count(level());
+    const bool one_at_a_time = print_reading().mode != ClockMode::CLOCK;
+    if (particles <= 0 || !animates_ || (one_at_a_time && confetti_)) {
+        return;
+    }
+    if (lv_obj_t* confetti = ui_confetti_create(overlay().obj())) {
+        confetti_ = confetti;
+        ui_confetti_burst(confetti, particles);
+        keep_print_card_on_top();
+    }
 }
 
 int BouncingPrinterScreensaver::confetti_count(size_t level) const {
@@ -265,37 +366,29 @@ void BouncingPrinterScreensaver::on_frame(uint32_t dt_ms,
     prev_fold_x_ = fx;
     prev_fold_y_ = fy;
 
-    if (bounced_x || bounced_y) {
+    const ClockMode mode = print_reading().mode;
+    const bool bounced = bounced_x || bounced_y;
+    // Wall tints change only with no print.
+    if (bounced && mode == ClockMode::CLOCK) {
         color_index_ = (color_index_ + 1) % kNumTints;
+    }
+    if (mode != shown_mode_ || (bounced && mode == ClockMode::CLOCK)) {
+        shown_mode_ = mode;
         apply_tint();
     }
+    apply_fill();
 
     // Half a frame of travel — wide enough that a corner is not missed between
     // frames at whatever period the running level allows, tight enough that a
     // plain wall hit is not mistaken for one.
     const float tol = std::max(4.0f, speed_ * static_cast<float>(dt_ms) / 2000.0f);
-    const bool corner =
-        decorated() && is_corner_hit(bounced_x, bounced_y, x, y, range_x_, range_y_, tol);
-    if (corner) {
+    const bool corner = mode == ClockMode::CLOCK && decorated() &&
+                        is_corner_hit(bounced_x, bounced_y, x, y, range_x_, range_y_, tol);
+    if (mode == ClockMode::DONE && bounced) {
+        celebrate(to_lv(helix::ui::kPrintDone));
+    } else if (corner) {
         spdlog::info("[Screensaver] Bouncing {} hit the corner", subject_name());
-        corner_flash_ticks_ = kCornerFlashTicks;
-        lv_obj_set_style_bg_color(
-            overlay().obj(),
-            lv_color_mix(kBounceTints[color_index_], lv_color_black(), kCornerFlashMix), 0);
-
-        // The particle system is dozens of objects repositioned and resized
-        // every frame. That is the cost profile BASIC and EMBEDDED tiers had the
-        // screensaver taken away over, so boards that cannot animate and the
-        // ladder's lowest rung get the flash alone.
-        const int particles = confetti_count(level());
-        if (particles > 0 && helix::PlatformCapabilities::detect().supports_animations) {
-            // ui_confetti deletes its own container once the last particle dies, so a
-            // handle kept across bursts is dangling by the next corner. Each burst gets
-            // its own, and the overlay's deferred delete reaps whatever is still alive.
-            if (lv_obj_t* confetti = ui_confetti_create(overlay().obj())) {
-                ui_confetti_burst(confetti, particles);
-            }
-        }
+        celebrate(kBounceTints[color_index_]);
     } else if (corner_flash_ticks_ > 0 && --corner_flash_ticks_ == 0) {
         lv_obj_set_style_bg_color(overlay().obj(), lv_color_black(), 0);
     }

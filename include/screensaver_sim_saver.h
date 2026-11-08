@@ -5,6 +5,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "screensaver_base.h"
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 #include "screensaver_registry.h"
 #include "screensaver_sim_contract.h"
@@ -27,10 +28,11 @@ class SimSaverTestAccess;
  * Implements every SaverBase hook from the sim (screensaver_sim_contract.h): the ladder is
  * Sim::kLevels, start() clears the sim and initializes it on the canvas at the start level,
  * each frame steps it, a level request applies at once and reaches the sim at the level
- * applied, and stop() clears it. A saver that needs more overrides the one hook it must and
- * calls start_sim() / step_sim() from it; a sim whose init() or step() takes more than the
- * frame, rng and level (a clock reading, say) has a saver that overrides on_start() and
- * on_frame(), and without them refuses to start.
+ * applied, and stop() clears it. A sim whose init() and step() take a `const ClockReading&`
+ * after the level or the rng is handed print_reading(), so its scene follows the print on the
+ * frame the progress card does. A saver that needs more overrides the one hook it must and
+ * calls start_sim() / step_sim() from it; a sim whose init() or step() takes anything else
+ * has a saver that overrides on_start() and on_frame(), and without them refuses to start.
  */
 template <typename Sim> class SimSaver : public SaverBase {
   public:
@@ -50,6 +52,9 @@ template <typename Sim> class SimSaver : public SaverBase {
         if constexpr (sim_inits_with_v<Sim>) {
             start_sim();
             return true;
+        } else if constexpr (sim_inits_with_v<Sim, const ClockReading&>) {
+            start_sim(this->print_reading());
+            return true;
         } else {
             spdlog::error("[Screensaver] {} has no start for its sim", screensaver_name(type()));
             return false;
@@ -59,6 +64,8 @@ template <typename Sim> class SimSaver : public SaverBase {
     void on_frame(uint32_t dt_ms, std::vector<DirtyRect>& dirty) override {
         if constexpr (sim_steps_with_v<Sim>) {
             step_sim(dt_ms, dirty);
+        } else if constexpr (sim_steps_with_v<Sim, const ClockReading&>) {
+            step_sim(dt_ms, dirty, this->print_reading());
         }
     }
 

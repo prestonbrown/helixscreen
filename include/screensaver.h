@@ -92,6 +92,9 @@ struct SaverHost {
     std::function<uint32_t()> inactive_ms;
     /// The "Show Print Progress" setting; unset reads as on.
     std::function<bool()> show_print_progress;
+    /// True when the clock may spell a print's state in English letters (the UI is in
+    /// English); unset reads as true.
+    std::function<bool()> spell_states;
 };
 
 } // namespace helix::ui

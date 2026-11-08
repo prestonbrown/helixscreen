@@ -1455,6 +1455,7 @@
   <translation tag="Filament In The Toolhead" en="Filament In The Toolhead"/>
   <translation tag="Filament Jam" en="Filament Jam"/>
   <translation tag="Filament Mapping" en="Filament Mapping"/>
+  <translation tag="Filament Mapping at print start" en="Filament Mapping at print start"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." en="Filament Mapping cannot rewrite this .3mf. Print it without remapping."/>
   <translation tag="Filament Mapping is not available on this device." en="Filament Mapping is not available on this device."/>
   <translation tag="Filament Mapping is unavailable" en="Filament Mapping is unavailable"/>

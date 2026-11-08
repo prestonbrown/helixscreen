@@ -4,6 +4,8 @@
 
 #include "screensaver_aqua.h"
 
+#include "screensaver_print_colors.h"
+
 #include <string>
 
 namespace helix::ui {
@@ -30,7 +32,8 @@ void AquaScreensaver::draw_clock_text(const std::vector<DirtyRect>& under,
         FrameTarget frame = canvas().frame();
         sim_.restore(frame, line_.box(), dirty);
     }
-    line_.draw(canvas(), text_, box, LINE_COLOR, LV_OPA_90, LV_TEXT_ALIGN_CENTER, under, dirty);
+    line_.draw(canvas(), text_, box, print_state_color(clock_reading().mode, LINE_COLOR), LV_OPA_90,
+               LV_TEXT_ALIGN_CENTER, under, dirty);
 }
 
 void AquaScreensaver::reset_clock_text() {

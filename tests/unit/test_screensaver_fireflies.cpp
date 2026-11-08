@@ -12,6 +12,7 @@
 #include "screensaver_fireflies_sim.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_registry.h"
+#include "screensaver_stroke_digits.h"
 
 #include <algorithm>
 #include <cmath>
@@ -25,9 +26,14 @@
 
 using helix::test::diff_against;
 using helix::test::FrameDiff;
+using helix::test::hms;
 using helix::test::lit_pixels;
 using helix::test::non_opaque_pixels;
+using helix::test::print_reading_for;
+using helix::test::reading_at;
 using helix::test::TestFrame;
+using helix::ui::ClockMode;
+using helix::ui::ClockReading;
 using helix::ui::DirtyRect;
 using helix::ui::FirefliesScreensaver;
 using helix::ui::FirefliesSim;
@@ -53,16 +59,20 @@ constexpr uint32_t kMotionH = 20;
 constexpr size_t kMotionLevel = kFirefliesLevelCount - 1;
 
 /// A sim and its frame.
+/// A sim and its frame, reading `reading` (no print unless a case sets one).
 struct Swarm : helix::test::SimRun<FirefliesSim> {
     Swarm(uint32_t seed, size_t level = 0, PixelFormat format = PixelFormat::XRGB8888,
-          uint32_t w = kMotionW, uint32_t h = kMotionH)
-        : SimRun(seed, w, h, format) {
-        init(level);
+          uint32_t w = kMotionW, uint32_t h = kMotionH,
+          const ClockReading& print = reading_at(hms(10, 8, 30)))
+        : SimRun(seed, w, h, format), reading(print) {
+        init(level, reading);
     }
 
     void step(uint32_t dt_ms = kFrameMs) {
-        SimRun::step(dt_ms);
+        SimRun::step(dt_ms, reading);
     }
+
+    ClockReading reading;
 
     /// Steps `frame_ms` frames until `ms` have passed.
     void run_for(uint32_t ms, uint32_t frame_ms = kFrameMs) {
@@ -688,9 +698,10 @@ TEST_CASE("fireflies draw only light on black, and never past a row",
         std::minstd_rand rng(43);
         FirefliesSim sim;
         std::vector<DirtyRect> dirty;
-        sim.init(frame.target, rng, 0);
+        const ClockReading clock = reading_at(hms(10, 8, 30));
+        sim.init(frame.target, rng, 0, clock);
         for (int i = 0; i < 150; i++) {
-            sim.step(kFrameMs, frame.target, rng, dirty);
+            sim.step(kFrameMs, frame.target, rng, clock, dirty);
         }
         CHECK(frame.padding_intact());
         if (format == PixelFormat::XRGB8888) {
@@ -843,6 +854,216 @@ TEST_CASE("a new wind heading during a gust never compounds the gust",
             REQUIRE(s.sim.mode() == FirefliesMode::NORMAL);
             CHECK(length(s.sim.wind()) <= kWindMax + 1e-3f);
         }
+    }
+}
+
+// ============================================================================
+// FirefliesSim: the print
+// ============================================================================
+
+namespace {
+
+constexpr uint32_t kTextW = 800;
+constexpr uint32_t kTextH = 480;
+/// Flies the cheapest rung draws.
+constexpr size_t kFewestDrawn = kFirefliesLevels[kFirefliesLevelCount - 1].max_flies;
+
+/// Which character of `text`, laid out on a kTextW x kTextH frame where the sim lays it out, has
+/// a covered pixel within 3 px of (px, py); text.size() for none. Stroke glyphs are measured from
+/// their own centre lines.
+size_t char_under(const std::string& text, float px, float py) {
+    using helix::ui::kFirefliesTextStroke;
+    const helix::ui::FirefliesTextLayout lay =
+        helix::ui::fireflies_text_layout(kTextW, kTextH, text.size());
+    const float half = kFirefliesTextStroke / 2.0f;
+    for (size_t i = 0; i < text.size(); i++) {
+        const float gx =
+            (px - lay.x0 - static_cast<float>(i) * lay.advance_px) / lay.unit_px - half;
+        const float gy = (py - lay.y0) / lay.unit_px - half;
+        const float d = helix::ui::stroke_glyph_distance(text[i], gx, gy);
+        if (std::max(0.0f, d - half) * lay.unit_px <= 3.0f) {
+            return i;
+        }
+    }
+    return text.size();
+}
+
+/// Per character of `text`, how many of the first `count` flies sit on screen within 3 px of it.
+std::vector<size_t> flies_per_char(const FirefliesSim& sim, const std::string& text, size_t count) {
+    const float focal = static_cast<float>(kTextH) / 2.0f * 100.0f / 40.0f;
+    std::vector<size_t> per_char(text.size() + 1, 0);
+    for (size_t i = 0; i < std::min(count, sim.flies().size()); i++) {
+        const SaverVec3 p = sim.flies()[i].pos;
+        const float k = focal / (p.z + 100.0f);
+        per_char[char_under(text, static_cast<float>(kTextW) / 2.0f + p.x * k,
+                            static_cast<float>(kTextH) / 2.0f + p.y * k)]++;
+    }
+    per_char.pop_back();
+    return per_char;
+}
+
+/// Share of the first `count` flies whose bodies sit on screen within 3 px of `text`.
+double share_on_text(const FirefliesSim& sim, const std::string& text, size_t count) {
+    count = std::min(count, sim.flies().size());
+    size_t on = 0;
+    for (const size_t n : flies_per_char(sim, text, count)) {
+        on += n;
+    }
+    return static_cast<double>(on) / static_cast<double>(count);
+}
+
+Swarm printing_swarm(uint32_t seed, const ClockReading& print) {
+    return Swarm(seed, kMotionLevel, PixelFormat::XRGB8888, kTextW, kTextH, print);
+}
+
+} // namespace
+
+TEST_CASE("the swarm gathers into the percent every minute of a print",
+          "[screensaver][fireflies_sim]") {
+    const helix::ui::FirefliesTextLayout lay = helix::ui::fireflies_text_layout(kTextW, kTextH, 3);
+    const float span = static_cast<float>(kTextW) - 2.0f * lay.x0;
+    CHECK(span >= 0.65f * static_cast<float>(kTextW));
+    CHECK(span <= 0.72f * static_cast<float>(kTextW));
+
+    Swarm s = printing_swarm(61, print_reading_for(ClockMode::COUNTDOWN, 63));
+    s.run_for(5000);
+    REQUIRE(s.sim.gathering());
+    CHECK(std::string(s.sim.gather_text()) == "63%");
+    CHECK(share_on_text(s.sim, "63%", kFewestDrawn) >= 0.7);
+    CHECK(share_on_text(s.sim, "63%", s.sim.flies().size()) >= 0.7);
+    // The few flies the cheapest rung draws spread over every character, so the text reads.
+    for (const size_t n : flies_per_char(s.sim, "63%", kFewestDrawn)) {
+        CHECK(n >= kFewestDrawn / 6);
+    }
+
+    // Released after six seconds, back with the baits.
+    s.run_for(10000);
+    CHECK_FALSE(s.sim.gathering());
+    CHECK(share_on_text(s.sim, "63%", s.sim.flies().size()) < 0.4);
+
+    // The next minute's gather spells the percent the print has reached by then.
+    s.reading = print_reading_for(ClockMode::COUNTDOWN, 64);
+    s.run_for(50000);
+    REQUIRE(s.sim.elapsed_ms() >= 64000);
+    REQUIRE(s.sim.gathering());
+    CHECK(std::string(s.sim.gather_text()) == "64%");
+    CHECK(share_on_text(s.sim, "64%", kFewestDrawn) >= 0.7);
+}
+
+TEST_CASE("a finished print holds DONE", "[screensaver][fireflies_sim]") {
+    Swarm s = printing_swarm(62, print_reading_for(ClockMode::COUNTDOWN, 97));
+    s.run_for(20000);
+    REQUIRE_FALSE(s.sim.gathering());
+    s.reading = print_reading_for(ClockMode::DONE, 100);
+    s.run_for(5000);
+    REQUIRE(s.sim.gathering());
+    CHECK(std::string(s.sim.gather_text()) == "DONE");
+    CHECK(share_on_text(s.sim, "DONE", kFewestDrawn) >= 0.7);
+    // Held well past a gather's six seconds and past the next minute.
+    s.run_for(120000);
+    REQUIRE(s.sim.gathering());
+    CHECK(share_on_text(s.sim, "DONE", kFewestDrawn) >= 0.7);
+
+    // Glowing: the same positions without the finished print draw much dimmer.
+    s.step(0);
+    const uint64_t done_light = light_sum(s.frame);
+    s.reading = reading_at(hms(10, 8, 30));
+    s.step(0);
+    const uint64_t clock_light = light_sum(s.frame);
+    REQUIRE(clock_light > 0);
+    CHECK(static_cast<double>(done_light) >= 1.3 * static_cast<double>(clock_light));
+
+    // A saver started after the print ended opens on DONE, not on a swarm flying in.
+    Swarm late = printing_swarm(63, print_reading_for(ClockMode::DONE, 100));
+    CHECK(late.sim.gathering());
+    CHECK(share_on_text(late.sim, "DONE", late.sim.flies().size()) >= 0.9);
+}
+
+TEST_CASE("a finished print outside English holds a check mark", "[screensaver][fireflies_sim]") {
+    const std::string check(1, helix::ui::kGlyphCheck);
+    ClockReading counting = print_reading_for(ClockMode::COUNTDOWN, 50);
+    counting.spell_states = false;
+    Swarm s = printing_swarm(64, counting);
+    s.run_for(5000);
+    // The percent reads the same in every language.
+    CHECK(std::string(s.sim.gather_text()) == "50%");
+    s.reading = print_reading_for(ClockMode::DONE, 100);
+    s.reading.spell_states = false;
+    s.run_for(5000);
+    REQUIRE(s.sim.gathering());
+    CHECK(std::string(s.sim.gather_text()) == check);
+    CHECK(share_on_text(s.sim, check, kFewestDrawn) >= 0.7);
+    // One glyph, not four: the swarm keeps to the middle glyph box, where "DONE" spans 70%.
+    const helix::ui::FirefliesTextLayout lay = helix::ui::fireflies_text_layout(kTextW, kTextH, 1);
+    const float focal = static_cast<float>(kTextH) / 2.0f * 100.0f / 40.0f;
+    size_t inside = 0;
+    for (size_t i = 0; i < kFewestDrawn; i++) {
+        const SaverVec3 p = s.sim.flies()[i].pos;
+        const float px = static_cast<float>(kTextW) / 2.0f + p.x * focal / (p.z + 100.0f);
+        inside += std::fabs(px - static_cast<float>(kTextW) / 2.0f) <=
+                          static_cast<float>(kTextW) / 2.0f - lay.x0 + 3.0f
+                      ? 1
+                      : 0;
+    }
+    CHECK(static_cast<double>(inside) >= 0.9 * static_cast<double>(kFewestDrawn));
+}
+
+TEST_CASE("a failed print turns the swarm red and scatters it", "[screensaver][fireflies_sim]") {
+    for (const ClockMode end : {ClockMode::FAILED, ClockMode::CANCELLED}) {
+        CAPTURE(static_cast<int>(end));
+        Swarm s = printing_swarm(65, print_reading_for(ClockMode::COUNTDOWN, 40));
+        s.run_for(4000);
+        REQUIRE(s.sim.gathering());
+        std::vector<SaverVec3> waypoints;
+        for (const FirefliesSim::Bait& b : s.sim.baits()) {
+            waypoints.push_back(b.target);
+        }
+        s.reading = print_reading_for(end, 40);
+        s.step(0);
+        CHECK_FALSE(s.sim.gathering());
+        for (size_t i = 0; i < waypoints.size(); i++) {
+            if (s.sim.baits()[i].alive) {
+                CHECK_FALSE(same_vec(s.sim.baits()[i].target, waypoints[i]));
+            }
+        }
+        s.run_for(3000);
+        CHECK(share_on_text(s.sim, "40%", s.sim.flies().size()) < 0.4);
+        const helix::ui::PixelWriter writer(s.frame.target);
+        size_t lit = 0;
+        size_t red = 0;
+        for (int32_t y = 0; y < static_cast<int32_t>(kTextH); y++) {
+            for (int32_t x = 0; x < static_cast<int32_t>(kTextW); x++) {
+                const Rgb c = writer.get(x, y);
+                if ((c.r | c.g | c.b) == 0) {
+                    continue;
+                }
+                lit++;
+                red += c.r >= c.g && c.r >= c.b ? 1 : 0;
+            }
+        }
+        REQUIRE(lit > 0);
+        CHECK(red == lit);
+    }
+}
+
+TEST_CASE("no gather happens without a print", "[screensaver][fireflies_sim]") {
+    Swarm clock = printing_swarm(66, reading_at(hms(10, 8, 30)));
+    // A print draws the same random numbers as no print until it ends.
+    Swarm print = printing_swarm(66, print_reading_for(ClockMode::COUNTDOWN, 63));
+    for (uint32_t t = 0; t < 70000; t += 1000) {
+        clock.run_for(1000);
+        print.run_for(1000);
+        REQUIRE_FALSE(clock.sim.gathering());
+        if (t == 4000) {
+            REQUIRE(print.sim.gathering());
+            CHECK(share_on_text(clock.sim, "63%", clock.sim.flies().size()) < 0.4);
+        }
+    }
+    CHECK(clock.rng() == print.rng());
+    CHECK(clock.sim.modes_begun(FirefliesMode::SPLIT) ==
+          print.sim.modes_begun(FirefliesMode::SPLIT));
+    for (size_t i = 0; i < clock.sim.baits().size(); i++) {
+        CHECK(same_vec(clock.sim.baits()[i].pos, print.sim.baits()[i].pos));
     }
 }
 

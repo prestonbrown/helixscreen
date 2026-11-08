@@ -48,6 +48,25 @@ The only PAXX-specific endpoint HelixScreen ever calls is `/printer/filament_det
 
 PAXX source: [paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware).
 
+### Filament feeder presets and the preload_length cap
+
+PAXX's Filament Feeders setting (Firmware Config, Snapmaker Components) can select a BIQU
+PopStation mini preset, which links
+`tweaks/klipper/filament_feeders_popstation_mini.cfg` into `extended/klipper/` and raises
+`preload_length` for `[filament_feed left]` and `[filament_feed right]` (stock 950 mm). Stock
+filament_feed.py caps the option at 1500 mm. The
+`39-feature-filament-feeders` overlay patches that cap to 2500 mm
+([01-filament-feed-preload-length-max.patch](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/blob/main/overlays/firmware-extended/39-feature-filament-feeders/patches/home/lava/klipper/01-filament-feed-preload-length-max.patch)), and the preset's own header says it requires that
+patch ([docs/filament_feeders.md](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/blob/main/docs/filament_feeders.md)).
+A preset value above 1500 on a build without the patch makes Klipper refuse to start with
+`Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0`. The
+preset in the firmware repository sets 2000 mm, following BIQU's setup guide.
+
+HelixScreen shows a Klipper error that is already present when it starts, so this config
+error appears in the recovery dialog at startup rather than as a silent disconnect
+(`tests/unit/test_klippy_fault_at_startup.cpp` uses this exact message). Re-select the Default
+feeder option, or update to firmware that carries the patch.
+
 ### How HelixScreen takes over the display
 
 The U1 root filesystem is a read-only SquashFS with a writable OverlayFS upper on `/oem`. `/etc/init.d/S01aoverlayfs` wipes that upper on every boot **unless `/oem/.debug` exists**, so the installer touches `/oem/.debug` to make its changes persist. (This overlay/`.debug` mechanism is byte-identical across firmware 1.2/1.3/1.4.)

@@ -1500,6 +1500,7 @@
   <translation tag="Filament In The Toolhead" ru="Филамент в печатающей головке"/>
   <translation tag="Filament Jam" ru="Затор филамента"/>
   <translation tag="Filament Mapping" ru="Сопоставление филамента"/>
+  <translation tag="Filament Mapping at print start" ru="Сопоставление филамента при запуске печати"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." ru="Сопоставление филамента не может переписать этот .3mf. Напечатайте его без переназначения."/>
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
