@@ -854,6 +854,45 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     }
 }
 
+TEST_CASE("CFS manual purge runs over the purge chute", "[ams][cfs][purge_chute]") {
+    const std::string chute = "SAVE_GCODE_STATE NAME=helix_cfs_purge\n"
+                              "BOX_SAVE_FAN\n"
+                              "BOX_GO_TO_EXTRUDE_POS\n"
+                              "M83\n"
+                              "G1 E50 F600\n"
+                              "M400\n"
+                              "BOX_RESTORE_FAN\n"
+                              "BOX_MOVE_TO_SAFE_POS\n"
+                              "RESTORE_GCODE_STATE NAME=helix_cfs_purge";
+    CHECK(AmsBackendCfs::chute_purge_gcode(50, 600) == chute);
+
+    CfsCalibHelper backend;
+    const AmsBackend& base = backend;
+    SECTION("no chute position configured: nothing, the caller extrudes in place") {
+        CHECK(base.manual_purge_gcode(50, 600).empty());
+    }
+    SECTION("chute configured and homed, on both stock dialects") {
+        CfsTestAccess::set_chute_extrude_pos(backend, true);
+        CHECK(base.manual_purge_gcode(50, 600) == chute);
+        CfsTestAccess::set_macro_variant_k2(backend);
+        CHECK(base.manual_purge_gcode(50, 600) == chute);
+    }
+    SECTION("an unhomed X or Y keeps the in-place extrude") {
+        CfsTestAccess::set_chute_extrude_pos(backend, true);
+        for (const char* axes : {"", "z", "xz", "yz"}) {
+            lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
+            CHECK(base.manual_purge_gcode(50, 600).empty());
+        }
+        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
+        CHECK(base.manual_purge_gcode(50, 600) == chute);
+    }
+    SECTION("the Fork has no stock chute envelope") {
+        CfsTestAccess::set_chute_extrude_pos(backend, true);
+        CfsTestAccess::set_macro_variant_fork(backend);
+        CHECK(base.manual_purge_gcode(50, 600).empty());
+    }
+}
+
 TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     for (const char* axes : {"", "z", "xz", "yz"}) {
