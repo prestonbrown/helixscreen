@@ -8,7 +8,7 @@
 // drifts UP into the header strip, where the full-width, clickable header Back
 // button lives (its hit area is further widened by ext_click_area = header/2).
 //
-// The fix lifts the invisible touch_capture_overlay onto the active screen at
+// The panel lifts the invisible touch_capture_overlay onto the active screen at
 // 100%x100% so it covers the ENTIRE screen — header included. This test asserts
 // that during POINT_1 capture no screen location (header strip or target) routes
 // to back_button, and that the corner Cancel chip is hittable and clear of every
@@ -121,7 +121,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_update_layout(screen);
 
-    // The fix: lifts crosshair + capture surface full-screen and raises the chip.
+    // Lifts crosshair + capture surface full-screen and raises the chip.
     overlay.on_activate();
     lv_obj_update_layout(screen);
 

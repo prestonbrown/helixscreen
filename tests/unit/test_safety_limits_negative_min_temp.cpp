@@ -15,7 +15,7 @@
  *   - a -100°C lower bound in is_safe_temperature(), so negative heater targets
  *     passed validation and were sent to the printer.
  *
- * The fix clamps both floors at 0 where the value is adopted, on the type
+ * Both floors clamp at 0 where the value is adopted, on the type
  * itself (SafetyLimits::clamp_temperature_floors), so every reader inherits it.
  *
  * NOT in scope, deliberately: cold extrusion being permitted at all. A low

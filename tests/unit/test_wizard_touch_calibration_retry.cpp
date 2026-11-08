@@ -103,7 +103,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Wizard retry reverts the affine before re-c
     // Drive the real Retry handler.
     WizardTouchCalibrationTestAccess::invoke_retry(step);
 
-    // The fix: retry must revert to the pre-session calibration and disable the
+    // Retry must revert to the pre-session calibration and disable the
     // affine so the re-capture reads raw coords (no feedback loop). Without the
     // revert this fails — the bad affine would still be active for the re-run.
     REQUIRE(sink.affine_enabled == false);

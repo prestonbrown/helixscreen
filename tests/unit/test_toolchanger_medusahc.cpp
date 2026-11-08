@@ -897,7 +897,7 @@ TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
     CHECK_FALSE(tc.get_system_info().is_busy());
 
     // A later swap must still get the ordinary hold on ITS OWN opening frame -
-    // the fix must not have removed the hold outright, and the bound must have
+    // the hold must not be removed outright, and the bound must have
     // reset rather than staying latched true from the aborted swap above.
     REQUIRE(tc.change_tool(1).success());
     tc.feed(

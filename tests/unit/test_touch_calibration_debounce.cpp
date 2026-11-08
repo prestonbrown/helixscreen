@@ -10,7 +10,7 @@
  * several samples, auto-completing a point and cascading the state machine —
  * "one tap jumps to the next screen" with a garbage matrix.
  *
- * The fix: capture the press point on on_press(), commit it on on_release() (or
+ * The panel captures the press point on on_press(), commits it on on_release() (or
  * a stall-timeout fallback), gated by a release-IMMUNE time refractory. A second
  * commit within kRefractoryMs of the last committed sample is bounce and is
  * dropped. The behavior is ON by default; HELIX_TOUCH_CAL_DEBOUNCE=0 opts out to

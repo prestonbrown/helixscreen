@@ -163,8 +163,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
 
     // --- Height alone, at a real Large-tier 1x1 extent (107x141, from the
     // measured tier table): a plain 1x1 widget must stay compact here.
-    // Before this fix, height_px(141) >= h_tall() alone flipped this to
-    // "bigger" and squeezed "Hotend"/"Aux" into a 107px-wide row.
+    // height_px(141) >= h_tall() alone must not flip this to
+    // "bigger", which would squeeze "Hotend"/"Aux" into a 107px-wide row.
     // Contradicting span: 1x1 (old rowspan/colspan predicate -> compact, so
     // this also proves pixels don't silently regress to spans).
     h.resize(1, 1, 107, 141);

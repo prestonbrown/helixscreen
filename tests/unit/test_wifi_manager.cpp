@@ -1219,7 +1219,7 @@ TEST_CASE("READY leaves an admin's radio block alone when WiFi was never configu
 
 // The Task-15 refusal path (stored off, no wired fallback) corrects the
 // stored setting back to on — but a device that had already accumulated a
-// stale soft block before this fix would end up with wifi_enabled=true while
+// stale soft block would end up with wifi_enabled=true while
 // the radio itself stayed off, the same class of state lie the correction
 // exists to eliminate. The refusal path must also clear the block so the
 // radio is actually on, not merely recorded as on.
