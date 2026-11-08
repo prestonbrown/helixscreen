@@ -412,6 +412,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a failed print burns the toast", "[screensave
     ss.set_input_source([&in] { return in; });
     ss.start();
     REQUIRE(ss.is_active());
+    CHECK(tally_toasts(ss, ss.toast_shade()).other_shades == 0);
     in.print.phase = end;
     advance_saver(ss, 33);
 

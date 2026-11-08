@@ -296,9 +296,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                              {"color", COLORS[i]},
                              {"color_name", NAMES[i]},
                              {"material", "ASA"},
-                             {"helix_material", "ASA"},
-                             {"helix_locked_color", true},
-                             {"helix_locked_material", true}});
+                             {"helix_material", "ASA"}});
         }
     } else if (is_mock_openams() && openams_fleet_lane_units()) {
         // One bay loaded, on the third unit (slot 5); its spool is known to the store.
@@ -316,18 +314,14 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                          {"color", "#3CE05A"},
                          {"color_name", "Green"},
                          {"material", "PETG"},
-                         {"helix_material", "PETG"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"helix_material", "PETG"}});
     } else if (is_mock_openams()) {
         mock_db_set("lane_data", "lane3",
                     json{{"lane", "2"},
                          {"color", "#3CE05A"},
                          {"color_name", "Green"},
                          {"material", "ASA"},
-                         {"helix_material", "ASA"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"helix_material", "ASA"}});
         mock_db_set("lane_data", "lane4",
                     json{{"lane", "3"},
                          {"color", "#303030"},
@@ -335,9 +329,7 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
                          {"material", "ASA"},
                          {"helix_material", "ASA"},
                          {"vendor", "Polymaker"},
-                         {"vendor_name", "Polymaker"},
-                         {"helix_locked_color", true},
-                         {"helix_locked_material", true}});
+                         {"vendor_name", "Polymaker"}});
     }
 
     // Populate hardware immediately (available for wizard without calling discover_printer())

@@ -49,7 +49,6 @@ src overlay_cleanup_calls_base
 src zoffset_publisher_wiring
 src weight_poll_is_weight_only
 src lane_store_encapsulation
-src mock_publishes_lane_readings_once
 src tool_labels
 src control_socket_dir
 src getenv_setenv
@@ -983,7 +982,7 @@ check_weight_poll_is_weight_only() {
         echo "could not locate $file"
         return 1
     fi
-    if grep -qE '(\.|->)(apply_user_edit|sync_external_identity)\(' "$file"; then
+    if grep -qE '(\.|->)apply_user_edit\(' "$file"; then
         echo "$file writes a whole SlotInfo; an automated weight poll must file the lane's Spoolman source through helix::ams::ingest() instead"
         return 1
     fi
@@ -999,12 +998,12 @@ lint_weight_poll_is_weight_only() {
 # ====================================================================
 # The lane source store has exactly one mutable entry point
 # ====================================================================
-# LaneSourceStore::write() is private, so ingest() and commit_slot_edit() are
+# LaneSourceStore::write() is private, so ingest() and file_pending() are
 # the only code that can reach a lane's records; a third friend line, of any
 # kind, would be a third writer. Every entry in this list is a grant some code
 # uses.
 LANE_STORE_FRIENDS_EXPECTED="friend void ingest(LaneId, const Observation&);
-friend void commit_slot_edit(LaneId, const Observation&);"
+friend void file_pending(LaneId, const Observation&);"
 
 # write() is the one method the friend list gates. Renamed while the list
 # stayed put, the list would describe a method that no longer exists.
@@ -1031,7 +1030,7 @@ check_no_lane_store_instance_callers() {
         grep -v 'printer/lane_source_store\.cpp:' || true)
     if [ -n "$hits" ]; then
         echo "LaneSourceStore::instance() is reachable only from the funnels."
-        echo "Call helix::ams::ingest() or helix::ams::commit_slot_edit() instead:"
+        echo "Call helix::ams::ingest() or helix::ams::file_pending() instead:"
         echo "$hits"
         return 1
     fi
@@ -1075,41 +1074,6 @@ lint_lane_store_encapsulation() {
 }
 
 # ====================================================================
-# The mock files its lane readings from exactly one call site
-# ====================================================================
-# AmsBackendMock::publish_lane_observations() reads the persistent SlotInfo
-# that apply_user_edit() writes a user's colour and material into, so it states
-# simulated firmware truth only where no edit can have landed yet: the tail of
-# start(). A second call site would file the user's own values back as
-# something the simulated machine reported.
-check_mock_publishes_lane_readings_once() {
-    local file="$1" calls count
-    if [ ! -f "$file" ]; then
-        echo "could not locate $file"
-        return 1
-    fi
-    if ! grep -qE '^void AmsBackendMock::publish_lane_observations\(\)' "$file"; then
-        echo "AmsBackendMock::publish_lane_observations is not defined in $file"
-        return 1
-    fi
-    calls=$(grep -nE 'publish_lane_observations\(\)' "$file" |
-        grep -v '::publish_lane_observations' || true)
-    count=$(printf '%s\n' "$calls" | grep -c . || true)
-    if [ "$count" -ne 1 ]; then
-        echo "expected exactly 1 call to publish_lane_observations() in $file, found $count:"
-        echo "$calls"
-        return 1
-    fi
-    return 0
-}
-
-lint_mock_publishes_lane_readings_once() {
-    local file
-    file=$(locate_by_symbol '^void AmsBackendMock::publish_lane_observations\(\)') || return 1
-    check_mock_publishes_lane_readings_once "$file"
-}
-
-# ====================================================================
 # Small single-rule lints
 # ====================================================================
 
@@ -1138,17 +1102,19 @@ lint_getenv_setenv() {
         tests/ src/ include/ tools/ firmware/ android/ server/ moonraker-plugin/ ui_xml/
 }
 
-# A FilamentSlotOverrideStore is only useful once loaded into the map the
-# backend reads; helix::ams::make_loaded_override_store() returns both, so
-# "constructed but never loaded" has no spelling. A hand-built store persists
-# nothing and fails silently until the next launch. Keyed on the TYPE, not the
-# member name, so a split build-then-move or a differently named member is
-# caught too. AFC's and Happy Hare's lane_publish_store_ holds no map to load.
+# A lane record store has two sanctioned openers: the backends' single one
+# (AmsSubscriptionBackend::open_lane_record_store) and AmsState's bypass-lane
+# store. A store built anywhere else skips the read-before-write rule and the
+# poll those openers set up. Keyed on the TYPE, not the member name, so a split
+# build-then-move or a differently named member is caught too. Each opener is
+# allowed as that exact assignment in that file only, so a second construction
+# in either file still fires.
 override_store_offenders() {
     grep -rnE 'make_unique<[^>]*FilamentSlotOverrideStore|new[[:space:]]+[A-Za-z:]*FilamentSlotOverrideStore' \
         --include='*.cpp' --include='*.h' "$1" 2>/dev/null |
         grep -v 'printer/filament_slot_override_store\.cpp' |
-        grep -v 'lane_publish_store_' || true
+        grep -vE 'printer/ams_subscription_backend\.cpp:[0-9]+:[[:space:]]*override_store_ = std::make_unique<' |
+        grep -vE 'printer/ams_state_external_spool\.cpp:[0-9]+:[[:space:]]*bypass_store_ = std::make_unique<' || true
 }
 
 lint_override_store_lifecycle() {

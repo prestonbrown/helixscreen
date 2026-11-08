@@ -669,6 +669,30 @@ TEST_CASE("different digits draw different cards", "[screensaver][screensaver_fl
     }
 }
 
+TEST_CASE("a card on the small row flips like any other", "[screensaver][screensaver_flip_clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    FlipClockSim sim;
+    helix::ui::ClockReading reading =
+        helix::test::print_reading_for(helix::ui::ClockMode::COUNTDOWN, 40);
+    sim.init(frame.target, 0, helix::ui::flip_face(reading));
+    REQUIRE_FALSE(sim.flipping());
+    reading.progress_pct = 41;
+    const helix::ui::FlipFace next = helix::ui::flip_face(reading);
+    std::vector<DirtyRect> dirty;
+    sim.step(0, frame.target, next, dirty);
+    CHECK(sim.flipping());
+    const size_t first_sub = sim.layout().card_count;
+    size_t moving = 0;
+    for (size_t i = 0; i < sim.layout().card_count + size_t{sim.layout().sub_count}; i++) {
+        moving += sim.flip_progress(i) < 1.0f ? 1 : 0;
+        CHECK((i >= first_sub || sim.flip_progress(i) == 1.0f));
+    }
+    CHECK(moving == 1);
+    CHECK(sim.flip_progress(helix::ui::kFlipMaxCards + helix::ui::kFlipMaxSubCards) == 1.0f);
+    sim.step(kFlipDurationMs, frame.target, next, dirty);
+    CHECK_FALSE(sim.flipping());
+}
+
 TEST_CASE("a changed card folds over the flip duration while the others stay still",
           "[screensaver][screensaver_flip_clock]") {
     TestFrame frame(400, 240, PixelFormat::XRGB8888);

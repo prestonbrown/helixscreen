@@ -71,7 +71,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC delegates_homing_to_printer reads [AFC] a
 namespace helix {
 
 // Drives the REAL ensure_homed_then() path with a captured-gcode API, the
-// same shape AfcReassertHelper uses in test_afc_spool_reassert.cpp.
+// same shape the other AFC helpers use.
 // toolhead_homed() is overridden false rather than driving the homed_axes
 // subject: with api_ null the production toolhead_homed() answers "homed"
 // without ever reading the subject, so the override is the only route to

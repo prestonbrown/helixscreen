@@ -204,6 +204,7 @@
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ru="Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ru="Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ru="Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку"/>
+  <translation tag="A new Print Status screen" ru="Новый экран статуса печати"/>
   <translation tag="A newer version of the helper macros is available" ru="Доступна более новая версия вспомогательных макросов"/>
   <translation tag="A picture of your printer" ru="Изображение вашего принтера"/>
   <translation tag="A print holds the printer." ru="Принтер занят печатью."/>
@@ -237,6 +238,7 @@
   <translation tag="AFC buffer" ru="Буфер AFC"/>
   <translation tag="AFC failure reset complete" ru="Сброс ошибки AFC завершён"/>
   <translation tag="AFC failure reset failed" ru="Ошибка сброса ошибки AFC"/>
+  <translation tag="AFC has no Spoolman configured" ru="В AFC не настроен Spoolman"/>
   <translation tag="AFC recovery complete" ru="Восстановление AFC завершено"/>
   <translation tag="AFC recovery failed" ru="Восстановление AFC не удалось"/>
   <translation tag="AFC reset complete" ru="Сброс AFC завершён"/>
@@ -712,6 +714,7 @@
   <translation tag="Change Tool While Paused" ru="Смена инструмента при паузе"/>
   <translation tag="Change heater control?" ru="Изменить управление нагревателем?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." ru="Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера."/>
+  <translation tag="Change the name or the linked spool in Spoolman." ru="Меняйте название или привязанную катушку в Spoolman."/>
   <translation tag="Change tool" ru="Сменить инструмент"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
@@ -1185,6 +1188,7 @@
   <translation tag="Duplicate" ru="Дублировать"/>
   <translation tag="Duplicated" ru="Дублировано"/>
   <translation tag="Duration" ru="Длительность"/>
+  <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." ru="Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."/>
   <translation tag="E-Stop (M112)" ru="Авар. стоп (M112)"/>
   <translation tag="E-Stop Confirmation" ru="Подтверждение аварийной остановки"/>
   <translation tag="EDDY CURRENT" ru="EDDY CURRENT"/>
@@ -1793,6 +1797,7 @@
   <translation tag="Helper Macros" ru="Вспомогательные макросы"/>
   <translation tag="Helper macros already installed" ru="Вспомогательные макросы уже установлены"/>
   <translation tag="Helper macros are up to date" ru="Вспомогательные макросы актуальны"/>
+  <translation tag="Here&apos;s a quick look at what changed since your last version." ru="Краткий обзор изменений с вашей последней версии."/>
   <translation tag="Hide Firmware Noise" ru="Скрыть служебные сообщения прошивки"/>
   <translation tag="Hide Temperature Reports" ru="Скрыть отчёты о температуре"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ru="Скрывать экранную клавиатуру, пока подключена USB-клавиатура"/>
@@ -2124,6 +2129,7 @@
   <translation tag="Load a filament first before trying to unload" ru="Сначала загрузите филамент, прежде чем пытаться его выгрузить"/>
   <translation tag="Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one" ru="Установите новую катушку в этот слот или включите автопополнение для переключения на подходящую"/>
   <translation tag="Load all stopped" ru="Загрузка всех остановлена"/>
+  <translation tag="Load and unload" ru="Загрузка и выгрузка"/>
   <translation tag="Load and unload filament at the tool by hand" ru="Загружайте и выгружайте филамент вручную на инструменте"/>
   <translation tag="Load canceled: nozzle target dropped" ru="Загрузка отменена: цель сопла снижена"/>
   <translation tag="Load complete" ru="Загрузка завершена"/>
@@ -2136,7 +2142,8 @@
   <translation tag="Load or unload filament." ru="Загружайте или выгружайте филамент."/>
   <translation tag="Load stopped" ru="Загрузка остановлена"/>
   <translation tag="Load the required filaments or start anyway?" ru="Загрузить нужные филаменты или начать без них?"/>
-  <translation tag="Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки. Просматривайте вашу мультифиламентную систему одним взглядом, сопоставляйте филамент с инструментами и отслеживайте датчики окончания филамента."/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."/>
+  <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."/>
   <translation tag="Load..." ru="Загрузить..."/>
   <translation tag="Loaded" ru="Загружен"/>
   <translation tag="Loading" ru="Загрузка"/>
@@ -2149,6 +2156,8 @@
   <translation tag="Loading filament..." ru="Загрузка филамента..."/>
   <translation tag="Loading filaments..." ru="Загрузка филаментов..."/>
   <translation tag="Loading history..." ru="Загрузка истории..."/>
+  <translation tag="Loading lane details. Try again in a moment." ru="Загрузка сведений о канале. Повторите попытку через минуту."/>
+  <translation tag="Loading lane details…" ru="Загрузка сведений о канале…"/>
   <translation tag="Loading photo" ru="Загрузка фото"/>
   <translation tag="Loading spools..." ru="Загрузка катушек..."/>
   <translation tag="Loading vendors..." ru="Загрузка производителей..."/>
@@ -2166,7 +2175,7 @@
   <translation tag="Login Required" ru="Требуется вход"/>
   <translation tag="Logs" ru="Журналы"/>
   <translation tag="Long Press Time" ru="Время долгого нажатия"/>
-  <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." ru="Долгое нажатие на любую плитку переводит в режим редактирования — переставляйте, изменяйте размер, удаляйте или добавляйте виджеты, а также добавляйте дополнительные страницы под свой макет."/>
+  <translation tag="Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages." ru="Удерживайте плитку, чтобы войти в режим редактирования. Новая сетка позволяет переставлять, менять размер, удалять и добавлять виджеты, а также перетаскивать их между страницами."/>
   <translation tag="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)" ru="Долгое нажатие на сетку главного экрана переставляет виджеты (отключите, если срабатывает случайно)"/>
   <translation tag="Longest Disconnect" ru="Самое долгое отключение"/>
   <translation tag="Looking for the active spool..." ru="Поиск активной катушки..."/>
@@ -2233,6 +2242,7 @@
   <translation tag="Main LED Strip" ru="Основная LED-лента"/>
   <translation tag="Maintaining" ru="Поддержание"/>
   <translation tag="Maintenance" ru="Обслуживание"/>
+  <translation tag="Make color, material and spool changes in Spoolman." ru="Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="Make sure every nozzle is clean." ru="Убедитесь, что все сопла чистые."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ru="Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол."/>
   <translation tag="MakeID (Bluetooth)" ru="MakeID (Bluetooth)"/>
@@ -2316,7 +2326,6 @@
   <translation tag="Modifying G-code needs the HelixPrint plugin. Printing original file." ru="Для изменения G-code нужен плагин HelixPrint. Печатается исходный файл."/>
   <translation tag="Monitor for print abnormalities (K2 Plus camera-based)" ru="Отслеживание дефектов печати (на основе камеры K2 Plus)"/>
   <translation tag="Monitor for print abnormalities (camera-based)" ru="Отслеживание дефектов печати (на основе камеры)"/>
-  <translation tag="Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job." ru="Отслеживайте выполняющиеся печати — оставшееся время, текущий слой и прогресс. Нажмите, чтобы приостановить, возобновить или отменить активное задание."/>
   <translation tag="Monitoring" ru="Мониторинг"/>
   <translation tag="Month" ru="Месяц"/>
   <translation tag="Moonraker" ru="Moonraker"/>
@@ -2409,6 +2418,7 @@
   <translation tag="New Spool: Step {} of {}" ru="Новая катушка: шаг {} из {}"/>
   <translation tag="New Version Available" ru="Доступна новая версия"/>
   <translation tag="New fan name" ru="Новое имя вентилятора"/>
+  <translation tag="New in 1.1" ru="Новое в 1.1"/>
   <translation tag="New plugin available: {}. Enable it in Settings &gt; Plugins." ru="Доступен новый плагин: {}. Включите его в разделе Настройки &gt; Плагины."/>
   <translation tag="New printer successfully added" ru="Новый принтер успешно добавлен"/>
   <translation tag="New profile name" ru="Новое имя профиля"/>
@@ -2560,6 +2570,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
   <translation tag="Not now" ru="Не сейчас"/>
+  <translation tag="Not saved: {}. Try again." ru="Не сохранено: {}. Попробуйте ещё раз."/>
   <translation tag="Not set" ru="Не задана"/>
   <translation tag="Not turned" ru="Не повёрнут"/>
   <translation tag="Not yet available on this display" ru="Пока недоступно на этом дисплее"/>
@@ -2657,6 +2668,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." ru="Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" ru="Откройте блок CFS и извлеките сломанный филамент из слота"/>
   <translation tag="Open the slot editor when you load a new spool" ru="Открывать редактор слота при установке новой катушки"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" ru="OpenAMS хранит эту катушку в Spoolman, который здесь принимает только материал, цвет, бренд и вес"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" ru="Привязкой этой катушки управляет OpenAMS"/>
   <translation tag="Opened" ru="Открыта"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operation timed out" ru="Время ожидания операции истекло"/>
@@ -3803,6 +3816,7 @@
   <translation tag="Tap + to add" ru="Нажмите +, чтобы добавить"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ru="Нажмите «Перезапуск прошивки» для восстановления. На K2 это также перезапускает мост MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." ru="Нажмите «Продолжить», чтобы повторить загрузку из {}."/>
+  <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." ru="Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."/>
   <translation tag="Tap again to confirm this orientation" ru="Нажмите ещё раз для подтверждения ориентации"/>
   <translation tag="Tap an empty spot inside the enclosure" ru="Нажмите на пустое место внутри корпуса"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." ru="Нажмите на любую плитку, чтобы открыть её полные элементы управления или переключить состояние."/>
@@ -4540,6 +4554,7 @@
   <translation tag="You can skip this and calibrate later in Settings." ru="Вы можете пропустить это и откалибровать позже в настройках."/>
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>
   <translation tag="Your completed prints will appear here" ru="Ваши завершённые печати появятся здесь"/>
+  <translation tag="Your filament system" ru="Ваша система филамента"/>
   <translation tag="Your files" ru="Ваши файлы"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." ru="Ваш макрос начала или окончания печати тоже управляет светодиодами. Он и автоматическое управление светодиодами могут перезаписывать друг друга."/>
   <translation tag="Your printer at a glance" ru="Ваш принтер одним взглядом"/>
@@ -4680,11 +4695,18 @@
   <translation tag="tall" ru="высотой"/>
   <translation tag="target {}%" ru="цель {}%"/>
   <translation tag="target {}°" ru="цель {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" ru="ACE нужен материал и его температура сопла"/>
+  <translation tag="the CFS can&apos;t change a slot while a print is running" ru="CFS не может изменить слот во время печати"/>
+  <translation tag="the QIDI Box filament list has not loaded" ru="список филаментов QIDI Box не загружен"/>
+  <translation tag="the QIDI Box has no {} in its filament list" ru="в списке филаментов QIDI Box нет {}"/>
   <translation tag="the extruder" ru="экструдер"/>
   <translation tag="the left belt" ru="левый ремень"/>
   <translation tag="the lower belt" ru="нижний ремень"/>
+  <translation tag="the printer did not confirm it" ru="принтер не подтвердил"/>
+  <translation tag="the printer refused it" ru="принтер отклонил"/>
   <translation tag="the right belt" ru="правый ремень"/>
   <translation tag="the upper belt" ru="верхний ремень"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" ru="этот принтер берёт гейты из Spoolman, меняйте катушку там"/>
   <translation tag="this week" ru="за неделю"/>
   <translation tag="too slow" ru="слишком медленно"/>
   <translation tag="tool(s)" ru="инструмент(ы)"/>

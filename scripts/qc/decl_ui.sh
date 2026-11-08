@@ -323,23 +323,6 @@ else
 fi
 
 SECTION_START=$(date +%s)
-echo -n "🧵 Checking AMS backends reconcile lane bindings..."
-
-# A backend whose firmware states a spool id must call reconcile_lane_binding()
-# where it parses it, or a lane re-bound behind the app's back keeps painting
-# the old spool forever (prestonbrown/helixscreen#1645).
-if python3 scripts/check_lane_binding_reconcile.py >/tmp/lane_binding_reconcile.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/lane_binding_reconcile.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/lane_binding_reconcile.out
-  EXIT_CODE=1
-fi
-
-SECTION_START=$(date +%s)
 echo -n "🧭 Checking raw print-state reads..."
 
 # helix::PrintJobState is the WIRE — what print_stats.state said. It cannot

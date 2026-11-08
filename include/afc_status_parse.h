@@ -69,8 +69,8 @@ struct LaneIdentity {
     std::optional<std::string> spool_name; ///< Empty is a deliberate clear
     /// `spool_id`: an integer link, or null (AFC unlinks on eject).
     Clearable<int> spool_id;
-    /// The spool vendor under any of its spellings. Never empty: an empty
-    /// value is not read as a clear.
+    /// The spool vendor (`vendor_name` or `spool_vendor`). Empty is AFC
+    /// stating the lane has no vendor.
     std::optional<std::string> brand;
 };
 
@@ -203,6 +203,8 @@ struct StateDelta {
     Clearable<std::string> next_lane;
     std::optional<bool> position_saved;
     std::optional<std::string> spoolman;
+    /// `spoolman` present: true for a URL, false for anything else.
+    std::optional<bool> spoolman_configured;
     std::optional<std::vector<std::string>> maps;
     bool multiple_tool_mapping = false; ///< Present, whatever its value
     std::optional<bool> quiet_mode;

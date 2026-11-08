@@ -172,6 +172,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: '用于擦拭喷嘴的宏。HelixScreen 可在打印前通过打印前选项运行它。'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: 无法恢复电机 IO 引脚。请重新为打印机上电以恢复
   A motor's parameters couldn't be written. Power-cycle the printer to retry: 无法写入电机参数。请重新为打印机上电后重试
+  "A new Print Status screen": "全新的打印状态屏幕"
   A newer version of the helper macros is available: '有更新版本的帮助宏可用'
   A picture of your printer: 打印机的图片
   A print holds the printer.: "打印任务正在占用打印机。"
@@ -682,6 +683,7 @@ translations:
   Change heater control?: 更改加热器控制？
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : '通过Moonraker更改打印机设置，包括上传、改写和删除打印机配置文件夹中的文件。'
+  Change the name or the linked spool in Spoolman.: "请在 Spoolman 中更改名称或关联的料盘。"
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
@@ -938,21 +940,30 @@ translations:
     PRINT_START 宏。部分打印选项可能不可用。
   Could not answer the connection request: '无法响应连接请求'
   'Could not check {} - it stays in the queue': '无法检查 {} – 保留在队列中'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "打印时，您可以看到每个加热器、风扇和灯的状态标签、启动流程清单，以及集中在一条栏中的进度和控制按钮。"
   "Every screen and setting explained": "每个界面和设置的说明"
   "Getting Started": "入门"
+  "Here's a quick look at what changed since your last version.": "快速了解自您上个版本以来的变化。"
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "了解基本操作：设置向导、在界面间切换以及触摸手势。"
   Load all stopped: '全部装载已停止'
+  "Load and unload": "加载和卸载"
   Load stopped: '装载已停止'
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "在此加载、卸载和排料。先选择材料以设置其温度。"
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "加载、卸载和更换料盘，设置温度，并监控耗材传感器。"
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "长按任意磁贴进入编辑模式。全新的网格可让您重新排列、调整大小、移除或添加小部件，并在页面之间拖动。"
   'Moonraker answered at {}.': "Moonraker 在 {} 响应。"
+  "New in 1.1": "1.1 新功能"
   No filament was inserted in time: '未及时插入耗材'
   Print hours between filter changes. Off hides this meter.: '两次更换过滤器之间的打印小时数。关闭则隐藏此计数器。'
   Print hours between nozzle changes. Off hides this meter.: '两次更换喷嘴之间的打印小时数。关闭则隐藏此计数器。'
   Print hours between rail cleaning and lubrication. Off hides this meter.: '两次清洁和润滑导轨之间的打印小时数。关闭则隐藏此计数器。'
   Print hours this week and lifetime totals: '本周打印时长和累计总数'
   "Setup, navigation and gestures": "设置、导航和手势"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "点击槽位可加载或卸载、选择料盘或编辑详情。您的编辑会与打印机和 Spoolman 保持同步。"
   Unload stopped: '卸载已停止'
   "User Guide": "用户指南"
+  "Your filament system": "您的耗材系统"
   '{} could not be checked from Home - review it and tap Print': '无法从主页检查 {} – 请查看后点按打印'
   Could not apply the new IPv4 settings.: '无法应用新的 IPv4 设置。'
   Could not change printer.cfg: 无法更改 printer.cfg
@@ -2164,8 +2175,6 @@ translations:
   Load or unload filament.: 装载或卸载耗材。
   Load Profile: '加载配置'
   Load the required filaments or start anyway?: 加载所需耗材还是直接开始？
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : 加载、卸载和更换料盘。一目了然地查看您的多耗材系统、将耗材映射到工具，并监控耗材用尽传感器。
   Load...: 加载...
   Loaded: 已加载
   Loading: 加载中
@@ -2178,6 +2187,8 @@ translations:
   Loading filament...: 正在加载耗材...
   Loading filaments...: 正在加载耗材...
   Loading history...: 正在加载历史...
+  Loading lane details. Try again in a moment.: 正在加载耗材通道详情，请稍后重试。
+  Loading lane details…: 正在加载耗材通道详情…
   Loading photo: '正在加载照片'
   Loading spools...: 正在加载料盘...
   Loading vendors...: 正在加载供应商…
@@ -2195,7 +2206,6 @@ translations:
   Login Required: '需要登录'
   Logs: 日志
   Long Press Time: '长按时间'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 长按任意磁贴进入编辑模式 — 重新排列、调整大小、移除或添加小组件，并为您喜欢的布局添加额外页面。
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): '长按主屏幕网格可重新排列小组件（若误触请关闭）'
   Longest Disconnect: 最长断开时长
   Loosen {0} noticeably: "明显放松 {0}"
@@ -2262,6 +2272,7 @@ translations:
   Main LED Strip: 主 LED 灯带
   Maintaining: 保持中
   Maintenance: '维护'
+  Make color, material and spool changes in Spoolman.: "请在 Spoolman 中更改颜色、材料和料盘。"
   Make sure every nozzle is clean.: 请确保所有喷嘴都干净。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。
 
@@ -2346,7 +2357,6 @@ translations:
   Mixed-Temperature Materials: '温度不同的材料'
   Mode: 模式
   Modified: 已修改
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 监控正在进行的打印 — 剩余时间、当前层和进度。点击可暂停、恢复或取消当前任务。
   Monitoring: 监控中
   Month: 月
   Moonraker: Moonraker
@@ -2599,6 +2609,7 @@ translations:
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
   Not now: 暂不
   Not turned: '未转动'
+  'Not saved: {}. Try again.': "未保存：{}。请重试。"
   Not set: 未设置
   Not yet available on this display: '此屏幕暂不支持'
   Not yet calibrated: 尚未校准
@@ -2703,6 +2714,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: '请在打印文件中打开该 .3mf 以再次打印此板。'
   Open the CFS unit and remove the broken filament from the slot: 请打开 CFS 单元并从槽位中取出断裂的耗材
   Open the slot editor when you load a new spool: '装入新料盘时打开槽位编辑器'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS 在 Spoolman 中管理此料盘，此处只能更改材料、颜色、品牌和重量"
+  OpenAMS manages this spool's link: "此料盘的关联由 OpenAMS 管理"
+  AFC has no Spoolman configured: "AFC 未设置 Spoolman"
   Opened: 已打开
   Operation already in progress: 操作正在进行中
   Operation timed out: 操作超时
@@ -4793,11 +4807,18 @@ translations:
   tall: 高
   target {}%: '目标 {}%'
   target {}°: '目标 {}°'
+  the ACE needs a material and its nozzle temperature: "ACE 需要材料及其喷嘴温度"
+  "the CFS can't change a slot while a print is running": "打印期间 CFS 无法更改槽位"
+  the QIDI Box filament list has not loaded: "QIDI Box 的耗材列表尚未加载"
+  the QIDI Box has no {} in its filament list: "QIDI Box 的耗材列表中没有 {}"
   the extruder: 挤出机
   the left belt: "左皮带"
   the lower belt: "下皮带"
+  the printer did not confirm it: "打印机未确认"
+  the printer refused it: "打印机拒绝了"
   the right belt: "右皮带"
   the upper belt: "上皮带"
+  this printer fills its gates from Spoolman, so change the spool there: "此打印机的通道信息来自 Spoolman，请在 Spoolman 中更改料盘"
   this week: 本周
   too slow: 太慢
   tool(s): 工具

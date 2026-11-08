@@ -1439,6 +1439,15 @@ def test_files_sharing_a_filter_run_as_one_group():
         ("[x]", ["a.cpp", "c.cpp"]), ("[y]", ["b.cpp"])]
 
 
+@pytest.mark.parametrize("path", ["translations/de.yml", "assets/images/tour/preview.png"])
+def test_content_with_no_logic_does_not_make_a_run_incomplete(path):
+    assert md.classify(path, False)[0] == "inert"
+
+
+def test_an_unclaimed_asset_stays_visible():
+    assert md.classify("assets/sounds/beep.wav", False)[0] == "uncovered"
+
+
 @pytest.mark.parametrize("codes, worst", [
     ([0, 0], 0), ([0, 3], 3), ([3, 1, 0], 1), ([0, 4, 3], 4), ([143, 3], 143), ([], 0)])
 def test_the_worst_child_exit_is_the_run_exit(codes, worst):
@@ -1457,7 +1466,7 @@ def test_generated_output_is_not_mutated_as_code():
     assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
 
 
-@pytest.mark.parametrize("minutes", ["31", "0", "240"])
+@pytest.mark.parametrize("minutes", ["46", "0", "240"])
 def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
     p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
                         "--max-minutes", minutes], cwd=REPO_ROOT, capture_output=True, text=True)

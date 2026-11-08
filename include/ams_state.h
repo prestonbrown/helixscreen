@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "ams_backend_registry.h"
@@ -14,6 +15,7 @@
 #include "buffer_reading.h"
 #include "filament_consumption_tracker.h"
 #include "filament_mapper.h"
+#include "filament_slot_override_store.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_error.h"
 #include "subject_managed_panel.h"
@@ -27,6 +29,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Forward declarations
@@ -693,6 +696,37 @@ class AmsState {
      */
     [[nodiscard]] std::vector<uint32_t> routed_tool_colors() const;
 
+    /// The lane that feeds a tool, and so holds its spool: a tool has no spool
+    /// of its own.
+    struct ToolLane {
+        int backend_index = -1;
+        int slot = -1;
+        SlotInfo info;
+    };
+
+    /**
+     * @brief The lane feeding tool @p tool: the backend lane the tool is wired
+     *        to (ToolInfo::backend_slot), else the primary backend's first lane
+     *        whose mapped_tool names the tool. Nullopt when no lane feeds it.
+     *        Main thread.
+     */
+    [[nodiscard]] std::optional<ToolLane> lane_feeding_tool(int tool) const;
+
+    /**
+     * @brief Import HelixScreen 1.0's spool links, once, at connect.
+     *
+     * Reads the 1.0 per-tool links (Moonraker key helix-screen/
+     * tool_spool_assignments, else tool_spools.json) and the bypass spool the
+     * v34 config migration parked. Once the lanes are read, a tool changer
+     * lane with no link takes its tool's spool through commit_slot_edit(), and
+     * an empty bypass record takes the bypass spool; then the 1.0 copies are
+     * deleted. Main thread.
+     *
+     * @param tool_spools_path The 1.0 file: tool_spools.json in the user
+     *        config dir.
+     */
+    void start_legacy_spool_import(const std::string& tool_spools_path);
+
     /**
      * @brief Check if AMS is available
      * @return true if backend is set and AMS type is not NONE
@@ -851,6 +885,17 @@ class AmsState {
      */
     lv_subject_t* get_ams_can_cancel_subject() {
         return &ams_can_cancel_;
+    }
+
+    /**
+     * @brief 1 once every backend has read its lane records over the live
+     *        connection, else 0 ("ams_lane_records_ready")
+     *
+     * Lane editing is disabled while it is 0: an edit made before the read
+     * would overwrite records nobody has seen, and none is held to send later.
+     */
+    lv_subject_t* get_ams_lane_records_ready_subject() {
+        return &ams_lane_records_ready_;
     }
 
     /**
@@ -2001,37 +2046,47 @@ class AmsState {
     /**
      * @brief Get external spool info, resolved through the bypass lane
      *
-     * The stored record is the binding; what the sources say about the bound
-     * spool (the Spoolman poll's record, the consumption meter, the user's
-     * edits) is layered on via resolve(kBypassLaneId) before returning.
-     * @return SlotInfo or nullopt if not set
+     * The bypass spool is a lane record (lane_name "bypass") in Moonraker's
+     * database: among the primary backend's lane records when it holds them
+     * (AmsBackend::holds_bypass_record()), otherwise in lane_data, read by
+     * AmsState itself. The record is the binding; what the sources say about
+     * the bound spool (the Spoolman poll's record, the consumption meter, an
+     * edit in flight) is layered on via resolve(kBypassLaneId).
+     * @return SlotInfo or nullopt if no spool is recorded
      */
     std::optional<SlotInfo> get_external_spool_info() const;
 
-    /// The stored record with no lane resolution: in-memory override, else
-    /// SettingsManager. The poll's stale guard and the edit diff compare
-    /// against this raw binding, not the resolved view.
+    /// The bypass record as last read, with an edit still in flight laid over
+    /// it; no Spoolman details and no meter. The poll's stale guard, the edit
+    /// diff and the consumption meter's baseline compare against this.
     std::optional<SlotInfo> raw_external_spool_info() const;
 
     /**
-     * @brief Set external spool info and update color subject
-     * @param info SlotInfo with filament data
+     * @brief Write @p info as the bypass spool's record
+     *
+     * The bypass lane shows it as Pending until the read that follows the
+     * write echoes it; a failed write withdraws it.
      */
     void set_external_spool_info(const SlotInfo& info);
 
     /**
-     * Update the external-spool info without writing settings.json.
-     *
-     * Used by FilamentConsumptionTracker to push live weight updates
-     * to observers while throttling disk writes to a slower cadence.
-     * Callers that need persistence should call set_external_spool_info().
-     */
-    void set_external_spool_info_in_memory(const SlotInfo& info);
-
-    /**
-     * @brief Clear external spool info
+     * @brief Delete the bypass spool's record
      */
     void clear_external_spool_info();
+
+    /// Re-read the external spool and notify its subjects' observers, for a
+    /// source filed on the bypass lane outside an edit (the meter, a load
+    /// cell, a Spoolman answer).
+    void refresh_external_spool();
+
+    /// Amend the bypass record with what the bypass lane's Spoolman record
+    /// states for the spool it links, and write it when that moved a field:
+    /// persist_external_identity() for the bypass lane.
+    void persist_external_spool_identity();
+
+    /// Read the bypass record now, where AmsState keeps it (no backend holds
+    /// it). The read runs at connect, after each write and on the poll.
+    void refresh_bypass_record();
 
     /**
      * @brief Commit a backend-slot spool edit through every backing store.
@@ -2046,28 +2101,25 @@ class AmsState {
      *    its apply_user_edit()).
      * 4. S4+S7: sync_from_backend().
      *
-     * This is the method layer: it performs the edit against every backing
-     * store. It also calls the declaration layer,
-     * helix::ams::commit_slot_edit() (lane_source_store.h), once the backend
-     * has applied the edit, recording the user's authorship as a lane source
-     * record. The user's declaration is computed once, from @p original and
-     * @p info, and the backend records its stored authorship from that same
-     * answer. Every backend paints its slots from the lane model through
-     * AmsBackend::apply_resolved_lane(), so that record is what the lane shows
-     * for each field the user declared. Once it is filed, the backend repaints
-     * the slot (AmsBackend::repaint_slot_from_lane()), so a backend that paints
-     * while applying the edit shows the new declaration at once.
+     * The backend files the edit as the lane's Pending value and starts its
+     * writes; the lane shows the edit until the write echoes, fails or times
+     * out (helix::ams::await_pending() tells a caller which).
      *
-     * @param slot_index a global slot index on the primary backend. A slot
-     *        outside that backend's lane block derives no lane id, and the
-     *        declaration layer drops it rather than filing the edit on a
-     *        neighbouring backend's lane. The edit itself still runs.
+     * Refused while the connection is lost or the lane records are unread.
      *
-     * @return the AmsError from apply_user_edit so callers keep their error toasts.
-     *         An error the backend marks AmsError::partially_applied still
-     *         files what it applied.
+     * @param slot_index a global slot index on the primary backend.
+     *
+     * @return the AmsError from apply_user_edit. An error the backend marks
+     *         AmsError::partially_applied still files what it applied. The
+     *         result is also kept for take_slot_edit_result().
      */
     AmsError commit_slot_edit(int slot_index, const SlotInfo& original, const SlotInfo& info);
+
+    /// The result of the last commit_slot_edit() on @p slot_index, taken (a
+    /// second call answers nullopt). Lets the spool editor, which hands its
+    /// edit to a caller's completion, learn whether the commit was refused.
+    /// Main thread.
+    [[nodiscard]] std::optional<AmsError> take_slot_edit_result(int slot_index);
 
     /**
      * @brief Link a backend slot to a Spoolman spool, the way a person's pick does.
@@ -2274,6 +2326,33 @@ class AmsState {
     /// has lane sources to file before observers may re-read the record.
     void store_external_spool_info(const SlotInfo& info);
 
+    /// The backend holding the bypass record (the primary, when it answers
+    /// holds_bypass_record()), or nullptr when AmsState keeps it.
+    [[nodiscard]] AmsBackend* bypass_record_holder() const;
+    /// The bypass record as its holder's last read found it.
+    [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const;
+    /// Write @p record as the bypass record, or delete it (null).
+    void write_bypass_record(const helix::ams::FilamentSlotOverride* record);
+    /// A read of AmsState's bypass store landed. Main thread.
+    void adopt_bypass_records(const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
+    /// Start or stop AmsState's bypass reads to follow api_. Main thread.
+    void restart_bypass_reads();
+    /// Whether the bypass record's holder has read it, so its absence is
+    /// Moonraker's answer. Main thread.
+    [[nodiscard]] bool bypass_record_known() const;
+    /// Write what start_legacy_spool_import() read, each half once its lanes
+    /// are read. Runs after every sync and bypass read. Main thread.
+    void run_legacy_spool_import();
+    /// One tool's import write ended (@p written: Moonraker echoed it) in the
+    /// import @p generation started. Main thread.
+    void legacy_tool_settled(uint64_t generation, int tool, bool written);
+    /// Every tool's import write has ended: take the imported links out of
+    /// the 1.0 copies, keeping the owed ones for the next connect. Main thread.
+    void finish_legacy_tool_import();
+    /// The bypass import write ended in the import @p generation started; a
+    /// written one (or nothing to write) lets the parked block go. Main thread.
+    void legacy_bypass_settled(uint64_t generation, bool written);
+
     /** @brief Set "Currently Loaded" subjects to default/empty state with guards */
     void set_current_loaded_defaults(bool write_header = true);
 
@@ -2327,6 +2406,9 @@ class AmsState {
     /// Heat-blocked and can-cancel subjects, and the swap preheat latch on a
     /// shared-heater swap.
     void sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info);
+    /// Every backend's lane_records_ready() over a live connection. Main thread.
+    [[nodiscard]] bool lane_records_ready() const;
+    void sync_lane_records_ready();
     /// filament_loaded, the runout indicator's edge state, and the unload grace.
     void sync_filament_runout(const AmsSystemInfo& info);
     /// The bypass subjects, the bypass edge, and the external spool subjects.
@@ -2335,9 +2417,10 @@ class AmsState {
     void sync_feeder(AmsBackend* backend);
     /// Bump tool_map_version when the physical or applied routing moved.
     void sync_tool_routing(AmsBackend* backend, const AmsSystemInfo& info);
-    /// The slot <-> ToolState spool bridge, both directions, and its save.
-    /// @return true when a slot subject changed
-    bool sync_tool_spools(AmsBackend* backend, const AmsSystemInfo& info);
+    /// On a backend whose lane record is a lane's only identity, tell it when
+    /// a lane goes from holding filament to empty, with the Keep Spool Info on
+    /// Eject setting (AmsBackend::lane_emptied()).
+    void sync_lanes_emptied(AmsBackend* backend, const AmsSystemInfo& info);
     /// Per-unit temperature, humidity and environment-indicator subjects.
     void sync_unit_environment(AmsBackend* backend, const AmsSystemInfo& info);
     /// Link a primary-backend lane to the Spoolman spool its tag names, when
@@ -2482,6 +2565,11 @@ class AmsState {
     lv_subject_t ams_is_tool_changer_{};
     lv_subject_t ams_nozzle_heat_blocked_{};
     lv_subject_t ams_can_cancel_{};
+    lv_subject_t ams_lane_records_ready_{};
+    /// commit_slot_edit()'s last result, for take_slot_edit_result().
+    std::optional<std::pair<int, AmsError>> last_slot_edit_;
+    AmsError commit_slot_edit_unrecorded(int slot_index, const SlotInfo& original,
+                                         const SlotInfo& info);
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
     lv_subject_t ams_is_filament_system_{};
@@ -2568,6 +2656,9 @@ class AmsState {
     /// which moves independently of the physical map on a backend that publishes
     /// both. Change-detection only; never read as routing itself.
     std::vector<int> last_applied_routing_; ///< Cached for change detection in sync_from_backend
+    /// Per primary-backend lane, whether it last read as holding filament
+    /// (unset until a status states it): the edge sync_lanes_emptied() acts on.
+    std::vector<std::optional<bool>> lane_presence_seen_;
 
     /// Most recent backend-supplied operation detail (cached so the print-state
     /// observer can rerun the action-detail derivation without re-querying the
@@ -2621,6 +2712,9 @@ class AmsState {
     ObserverGuard connection_state_observer_;
     /// The connection state the observer last saw; -1 before its first fire.
     int last_connection_state_ = -1;
+    /// The connection dropped after being up and has not come back. A lane
+    /// edit then has no printer to write to, so commit_slot_edit() refuses it.
+    bool connection_lost_ = false;
     /// Wire (or rewire) connection_state_observer_. Idempotent.
     void install_connection_state_observer();
 
@@ -2656,10 +2750,44 @@ class AmsState {
     /// registered there must be registered here too.
     void register_xml_subject_names();
 
-    /// In-memory override for external spool info. Set by set_external_spool_info_in_memory()
-    /// to allow live tracker updates without touching settings.json. When set, takes priority
-    /// over SettingsManager in get_external_spool_info(). Cleared by clear_external_spool_info().
-    std::optional<SlotInfo> in_memory_external_spool_;
+    /// The bypass record where AmsState keeps it (no backend holds it): the
+    /// lane_data store, the record its last read found, and the poll. Main
+    /// thread.
+    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> bypass_store_;
+    std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
+    /// AmsState's own bypass store has answered a read since it opened.
+    bool bypass_store_read_ = false;
+
+    /// What start_legacy_spool_import() read, and which halves are written.
+    struct LegacyImport {
+        std::string printer_id;
+        std::string file_path;
+        nlohmann::json file;
+        std::optional<std::map<int, int>> tool_spools;
+        bool db_key_seen = false;
+        /// The Moonraker key's value as read.
+        nlohmann::json db_value;
+        bool tools_done = false;
+        /// Links not yet written: a refused or failed write, or a tool with no
+        /// lane to take it. The 1.0 copies keep these for the next connect.
+        std::map<int, int> owed;
+        /// Tool writes dispatched whose outcome has not landed.
+        int awaiting = 0;
+        /// Told to each write's waiter, so one from an earlier connect is ignored.
+        uint64_t generation = 0;
+        std::optional<SlotInfo> bypass;
+        bool bypass_parked = false;
+        bool bypass_done = false;
+    };
+    LegacyImport legacy_import_;
+    uint64_t legacy_import_generations_ = 0;
+    bool bypass_read_in_flight_ = false;
+    /// A read was asked for while one was out.
+    bool bypass_read_again_ = false;
+    /// Advanced by every write of the bypass record: a read started before
+    /// the latest write is discarded rather than filed over it.
+    uint64_t bypass_write_generation_ = 0;
+    helix::ui::LvglTimerGuard bypass_poll_;
 
     // String subjects (need buffers)
     lv_subject_t ams_action_detail_{};

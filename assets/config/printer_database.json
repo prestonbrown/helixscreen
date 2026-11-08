@@ -3422,6 +3422,49 @@
       ]
     },
     {
+      "id": "elegoo_centauri_carbon_2",
+      "enclosed": true,
+      "name": "Elegoo Centauri Carbon 2",
+      "manufacturer": "Elegoo",
+      "image": "elegoo-centauri-carbon-2.png",
+      "_heuristics_comment": "No Klipper capture of a CC2 exists yet, so only a hostname that spells the model out identifies one. The COSMOS macros are what a Klipper Centauri Carbon reports, so a machine carrying them stays on the elegoo_centauri_carbon entry whatever its hostname says.",
+      "heuristics": [
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "gcode_macro _COSMOS_SETTINGS",
+          "reason": "COSMOS macro: an original Centauri Carbon"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "gcode_macro ELEGOO_PURGE",
+          "reason": "COSMOS kamp.cfg macro: an original Centauri Carbon"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauri-carbon-2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauri_carbon_2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauricarbon2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
+        }
+      ]
+    },
+    {
       "id": "elegoo_neptune_4",
       "name": "Elegoo Neptune 4",
       "manufacturer": "Elegoo",

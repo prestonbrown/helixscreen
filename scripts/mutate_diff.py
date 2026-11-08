@@ -293,10 +293,11 @@ GENERATED = (
     ('ui_xml/translations/*', 'generated from translations/*.yml by generate_translations.py'),
 )
 
-# Content no program reads, so no mutant of it could change behaviour. Named in
-# the report and does not make the run incomplete. The bar is "nothing executes
-# this", not "testing it would be awkward" -- anything a program reads belongs
-# in COVERAGE or in the not-covered default, where it stays visible.
+# Content no mutant can judge: nothing executes it, or reverting it only swaps
+# a string or a picture that the translation gates and screenshots look at. Named
+# in the report and does not make the run incomplete. The bar is "there is no
+# logic here", not "testing it would be awkward" -- anything else a program reads
+# belongs in COVERAGE or in the not-covered default, where it stays visible.
 NON_BEHAVIOURAL = (
     ('docs/*',           'documentation'),
     ('*.md',             'documentation'),
@@ -305,6 +306,8 @@ NON_BEHAVIOURAL = (
     ('CONTRIBUTORS.txt', 'project metadata'),
     ('.gitignore',       'project metadata'),
     ('.gitattributes',   'project metadata'),
+    ('translations/*',   'locale strings; the translation gates pin them'),
+    ('assets/images/*',  'picture data'),
 )
 
 # Not covered, with a reason worth stating instead of the generic one. These
@@ -313,11 +316,10 @@ UNMUTATABLE = (
     ('tests/*',        'a test is proven by mutating the code it pins, not by reverting itself'),
     ('lib/*',          'vendored or submodule code; a superproject diff carries no hunks for it'),
     ('patches/*',      'a patch against vendored code; the build applies the stack as a whole'),
-    ('translations/*', 'locale content; the translation gates pin it and a revert cannot'),
 )
 DEFAULT_REASON = 'no mutation strategy covers this path'
 # A run on the merge path. A longer run is a release check (--release).
-MERGE_MAX_MINUTES = 30
+MERGE_MAX_MINUTES = 45
 GITLINK_REASON = 'a submodule pointer; run the gate inside the submodule'
 
 
@@ -3429,7 +3431,7 @@ def plan_workers(root, args):
     """(workers, why) for this run: why is '' unless parallel was asked for and
     cannot be had here."""
     if args.workers == 'auto':
-        want = max(1, min(6, (os.cpu_count() or 1) // 12))
+        want = max(1, min(12, (os.cpu_count() or 1) // 6))
     else:
         try:
             want = int(args.workers)

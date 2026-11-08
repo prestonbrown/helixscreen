@@ -152,6 +152,7 @@
 #include "ui_tile_rung.h"
 #include "ui_toast_manager.h"
 #include "ui_touch_calibration_overlay.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
@@ -1108,17 +1109,6 @@ bool Application::init_config() {
     spdlog::info("[Application] Using config: {}", config_path);
     m_config->init(config_path);
 
-    // Route per-tool writable state (tool_spools.json) through the same
-    // HELIX_CONFIG_DIR override that Config::init honors. Without this,
-    // ToolState::config_dir_ stays at the default "config" (relative to CWD)
-    // and spool-per-tool saves silently fail on read-only baseline installs
-    // where the install tree is on a squashfs rootfs.
-    if (const char* env_dir = std::getenv("HELIX_CONFIG_DIR");
-        env_dir != nullptr && env_dir[0] != '\0') {
-        helix::ToolState::instance().set_config_dir(env_dir);
-        spdlog::info("[Application] ToolState config dir: {}", env_dir);
-    }
-
     // Load persisted thermal heating rates so estimates are available immediately
     ThermalRateManager::instance().load_from_config(*m_config);
 
@@ -1603,6 +1593,7 @@ bool Application::register_widgets() {
     helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
+    helix::ui::register_unit_art_widget();
     helix::ui::register_humidity_drop_widget();
     helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();

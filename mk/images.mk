@@ -237,3 +237,8 @@ help-images:
 	@echo "Performance impact:"
 	@echo "  PNG decoding:    ~2 FPS during splash (AD5M)"
 	@echo "  Pre-rendered:    ~116 FPS (instant display)"
+
+# Bake the per-unit art layers from scripts/unit_art; output is committed.
+.PHONY: unit-art
+unit-art:
+	$(Q)python3 scripts/unit_art/build.py

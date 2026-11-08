@@ -177,6 +177,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Uma macro que limpa o bico. O HelixScreen pode executá-la antes de uma impressão pelas opções de pré-impressão.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Não foi possível restaurar um pino de E/S do motor. Desligue e ligue a impressora para recuperar
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Não foi possível gravar os parâmetros de um motor. Desligue e ligue a impressora para tentar novamente
+  "A new Print Status screen": "Uma nova tela de Status da Impressão"
   A newer version of the helper macros is available: 'Uma versão mais recente das macros de ajuda está disponível'
   A picture of your printer: Uma imagem da sua impressora
   A print holds the printer.: "Uma impressão está usando a impressora."
@@ -727,6 +728,7 @@ translations:
   Change heater control?: Alterar o controle do aquecedor?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Altera configurações da impressora através do Moonraker, incluindo enviar, reescrever e excluir arquivos na pasta de configuração da impressora.'
+  Change the name or the linked spool in Spoolman.: "Altere o nome ou o carretel vinculado no Spoolman."
   Change tool: Trocar ferramenta
   Changes apply immediately. Adjust during print for tuning.: Alterações aplicadas
     imediatamente. Ajuste durante a impressão para calibrar.
@@ -1007,21 +1009,30 @@ translations:
     indisponíveis.
   Could not answer the connection request: 'Não foi possível responder à solicitação de conexão'
   'Could not check {} - it stays in the queue': 'Não foi possível verificar {} – permanece na fila'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Durante a impressão, veja um indicador para cada aquecedor, ventoinha e luz, uma lista da sequência de início, e o progresso e os controles em uma única faixa."
   "Every screen and setting explained": "Cada tela e configuração explicada"
   "Getting Started": "Primeiros passos"
+  "Here's a quick look at what changed since your last version.": "Uma visão rápida do que mudou desde a sua última versão."
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "O básico: o assistente de configuração, a navegação entre telas e os gestos de toque."
   Load all stopped: Carregamento de todos interrompido
+  "Load and unload": "Carregar e descarregar"
   Load stopped: Carregamento interrompido
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carregue, descarregue e purgue aqui. Escolha primeiro um material para definir suas temperaturas."
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Carregue, descarregue e troque carretéis, ajuste temperaturas e monitore os sensores de filamento."
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Mantenha pressionado um bloco para entrar no modo de edição. A nova grade permite reorganizar, redimensionar, remover ou adicionar widgets e arrastá-los entre páginas."
   'Moonraker answered at {}.': "O Moonraker respondeu em {}."
+  "New in 1.1": "Novidades da 1.1"
   No filament was inserted in time: 'Nenhum filamento foi inserido a tempo'
   Print hours between filter changes. Off hides this meter.: 'Horas de impressão entre trocas de filtro. Desligado oculta este contador.'
   Print hours between nozzle changes. Off hides this meter.: 'Horas de impressão entre trocas de bico. Desligado oculta este contador.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Horas de impressão entre limpeza e lubrificação dos trilhos. Desligado oculta este contador.'
   Print hours this week and lifetime totals: 'Horas de impressão desta semana e totais acumulados'
   "Setup, navigation and gestures": "Configuração, navegação e gestos"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Toque em um slot para carregar ou descarregar, escolher um carretel ou editar seus dados. Suas edições ficam em sincronia com a impressora e o Spoolman."
   Unload stopped: Descarregamento interrompido
   "User Guide": "Guia do usuário"
+  "Your filament system": "Seu sistema de filamento"
   '{} could not be checked from Home - review it and tap Print': 'Não foi possível verificar {} pela tela inicial – revise e toque em Imprimir'
   Could not apply the new IPv4 settings.: 'Não foi possível aplicar as novas configurações IPv4.'
   Could not change printer.cfg: Não foi possível alterar printer.cfg
@@ -2291,8 +2302,6 @@ translations:
   Load Profile: 'Carregar perfil'
   Load the required filaments or start anyway?: Carregar os filamentos necessários
     ou iniciar mesmo assim?
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : Carregue, descarregue e troque carretéis. Visualize seu sistema de múltiplos filamentos rapidamente, mapeie filamento para ferramentas e monitore sensores de fim de filamento.
   Load...: Carregar...
   Loaded: Carregado
   Loading: Carregando
@@ -2305,6 +2314,8 @@ translations:
   Loading filament...: Carregando filamento...
   Loading filaments...: Carregando filamentos...
   Loading history...: Carregando histórico...
+  Loading lane details. Try again in a moment.: Carregando detalhes da lane. Tente novamente em instantes.
+  Loading lane details…: Carregando detalhes da lane…
   Loading photo: 'Carregando foto'
   Loading spools...: Carregando carretéis...
   Loading vendors...: Carregando fornecedores...
@@ -2322,7 +2333,6 @@ translations:
   Login Required: 'Login necessário'
   Logs: Registros
   Long Press Time: 'Tempo de pressão longa'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Pressione e segure qualquer bloco para entrar no modo de edição — reorganize, redimensione, remova ou adicione widgets, e adicione páginas extras para o seu layout preferido.'
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): 'Pressione longamente a grade inicial para reorganizar os widgets (desative se disparar por acidente)'
   Longest Disconnect: Maior Desconexão
   Loosen {0} noticeably: "Afrouxar {0} visivelmente"
@@ -2393,6 +2403,7 @@ translations:
   Main LED Strip: Fita de LED Principal
   Maintaining: Mantendo
   Maintenance: 'Manutenção'
+  Make color, material and spool changes in Spoolman.: "Altere cor, material e carretel no Spoolman."
   Make sure every nozzle is clean.: Certifique-se de que todos os bicos estejam limpos.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Verifique se não há filamento carregado no cabeçote: ele pode amolecer na extrusora enquanto a mesa aquece.'
 
@@ -2478,7 +2489,6 @@ translations:
   Mixed-Temperature Materials: 'Materiais de temperaturas mistas'
   Mode: Modo
   Modified: Modificado
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitore impressões em andamento — tempo restante, camada atual e progresso. Toque para pausar, retomar ou cancelar o trabalho ativo.'
   Monitoring: Monitorando
   Month: Mês
   Moonraker: Moonraker
@@ -2742,6 +2752,7 @@ translations:
   Not in your spools? Set it up: Não está nos seus carretéis? Configure aqui
   Not now: Agora não
   Not turned: 'Não girado'
+  'Not saved: {}. Try again.': "Não salvo: {}. Tente novamente."
   Not set: Não definido
   Not yet available on this display: 'Ainda não disponível neste display'
   Not yet calibrated: Ainda não calibrado
@@ -2846,6 +2857,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Abra o .3mf em Arquivos de Impressão para imprimir esta placa novamente.'
   Open the CFS unit and remove the broken filament from the slot: Abra a unidade CFS e remova o filamento partido do slot
   Open the slot editor when you load a new spool: 'Abrir o editor de slot ao carregar um novo carretel'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "O OpenAMS guarda este carretel no Spoolman, que aqui aceita apenas material, cor, marca e peso"
+  OpenAMS manages this spool's link: "O OpenAMS gerencia o vínculo deste carretel"
+  AFC has no Spoolman configured: "O AFC não tem o Spoolman configurado"
   Opened: Aberta
   Operation already in progress: Operação já em andamento
   Operation timed out: Tempo limite da operação esgotado
@@ -5062,11 +5076,18 @@ translations:
   tall: de altura
   target {}%: 'alvo {}%'
   target {}°: 'alvo {}°'
+  the ACE needs a material and its nozzle temperature: "o ACE precisa de um material e da sua temperatura do bico"
+  "the CFS can't change a slot while a print is running": "o CFS não pode alterar um slot durante uma impressão"
+  the QIDI Box filament list has not loaded: "a lista de filamentos da QIDI Box não foi carregada"
+  the QIDI Box has no {} in its filament list: "a QIDI Box não tem {} na sua lista de filamentos"
   the extruder: o extrusor
   the left belt: "correia esquerda"
   the lower belt: "correia inferior"
+  the printer did not confirm it: "a impressora não confirmou"
+  the printer refused it: "a impressora recusou"
   the right belt: "correia direita"
   the upper belt: "correia superior"
+  this printer fills its gates from Spoolman, so change the spool there: "esta impressora preenche os gates pelo Spoolman, altere o carretel lá"
   this week: esta semana
   too slow: lento demais
   tool(s): ferramenta(s)

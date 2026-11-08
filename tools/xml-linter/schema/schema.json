@@ -2060,6 +2060,14 @@
       },
       "inherits": "lv_obj"
     },
+    "unit_art": {
+      "attributes": {
+        "tier": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "lv_obj-bind_tile_rung": {
       "attributes": {
         "subject": {
@@ -3045,6 +3053,7 @@
     "ams_lane_spool",
     "filament_motion_glyph",
     "humidity_drop",
+    "unit_art",
     "lv_obj-bind_tile_rung",
     "setting_group"
   ],
@@ -3565,6 +3574,10 @@
     "dialog_content_recovery_max_xlarge",
     "dialog_content_recovery_max_xxlarge",
     "dot_size",
+    "dryer_unit_art_size",
+    "dryer_unit_art_size_large",
+    "dryer_unit_art_size_medium",
+    "dryer_unit_art_size_small",
     "dryer_unit_picture_size",
     "dryer_unit_picture_size_large",
     "dryer_unit_picture_size_medium",
