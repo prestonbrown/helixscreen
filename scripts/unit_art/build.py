@@ -11,9 +11,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, box_turtle  # noqa: E402
+from unit_art.units import ace_pro, ams_2_pro, box_turtle, cfs, qidi_box  # noqa: E402
 
-UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED]
+UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED, ams_2_pro.UNIT, cfs.UNIT, qidi_box.UNIT]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 

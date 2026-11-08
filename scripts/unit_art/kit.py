@@ -88,10 +88,11 @@ def fit_cap_points(dome):
     """Pad a lid profile to the runtime's point count, repeating points so corners survive."""
     if not dome:
         return []
-    if len(dome) > CAP_POINTS:
-        raise ValueError(f"lid profile has {len(dome)} points; the tray draws {CAP_POINTS}")
     if len(dome) < 2:
         raise ValueError("lid profile needs a front and a back point")
+    if len(dome) > CAP_POINTS:
+        last = len(dome) - 1
+        return [dome[round(i * last / (CAP_POINTS - 1))] for i in range(CAP_POINTS)]
     points = list(dome)
     i = 0
     while len(points) < CAP_POINTS:
@@ -105,6 +106,24 @@ def check_cheek(cheek):
     if len(cheek) < 2 or any(b[0] <= a[0] for a, b in zip(cheek, cheek[1:])):
         raise ValueError(f"cheek depths must strictly increase: {cheek}")
     return cheek
+
+
+def rrect_front(x0, x1, z0, z1, r, y):
+    """A rounded rectangle on the front plane at depth y."""
+    pts = fillet([(x0, z0), (x1, z0), (x1, z1), (x0, z1)], [r] * 4, closed=True, steps=6)
+    return [(a, y, b) for a, b in pts]
+
+
+def lid_back(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's far end cap and far-side strips, drawn before the spools."""
+    scene.poly([(x0, y, z) for y, z in profile], color, cap_op)
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=False)
+
+
+def lid_front(scene, profile, x0, x1, color, cap_op, strip_op):
+    """A lid's camera-facing strips and near end cap, drawn over the spools."""
+    scene.extrude_x(profile, x0, x1, color, strip_op, front=True)
+    scene.poly([(x1, y, z) for y, z in profile], color, cap_op)
 
 
 def tray_profile(profile, base_z, px_per_unit):

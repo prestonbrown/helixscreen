@@ -106,11 +106,16 @@ def test_a_lid_keeps_its_corners_at_the_trays_point_count():
     assert all(corner in fitted for corner in square)
 
 
+def test_a_long_lid_is_thinned_to_the_trays_point_count():
+    long = [(i / 19, float(i)) for i in range(20)]
+    fitted = kit.fit_cap_points(long)
+    assert len(fitted) == kit.CAP_POINTS
+    assert fitted[0] == long[0] and fitted[-1] == long[-1]
+
+
 def test_the_generator_refuses_a_lid_or_cheek_the_tray_cannot_draw():
     with pytest.raises(ValueError):
         kit.fit_cap_points([(0.0, 0.0)])
-    with pytest.raises(ValueError):
-        kit.fit_cap_points([(i / 20, 0.0) for i in range(20)])
     with pytest.raises(ValueError):
         kit.check_cheek([(0.0, 0.0), (0.5, 1.0), (0.5, 2.0)])
 
