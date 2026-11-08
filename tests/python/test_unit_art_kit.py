@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, box_turtle, cfs  # noqa: E402
+from unit_art.units import ace_pro, ams_ht, box_turtle, cfs  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -118,6 +118,14 @@ def test_the_generator_refuses_a_lid_or_cheek_the_tray_cannot_draw():
         kit.fit_cap_points([(0.0, 0.0)])
     with pytest.raises(ValueError):
         kit.check_cheek([(0.0, 0.0), (0.5, 1.0), (0.5, 2.0)])
+
+
+def test_the_ams_ht_lid_clears_its_spool():
+    profile = ams_ht._lid_profile()
+    for y, z in profile:
+        dy = y - ams_ht.SPOOL_Y
+        if abs(dy) < ams_ht.SPOOL_R and z > ams_ht.BODY_Z + 0.01:
+            assert z >= ams_ht.SPOOL_Z + (ams_ht.SPOOL_R**2 - dy**2) ** 0.5 - 0.002
 
 
 def test_units_differ_by_their_fronts():

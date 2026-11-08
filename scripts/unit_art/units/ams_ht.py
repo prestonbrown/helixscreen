@@ -18,7 +18,7 @@ _REPO = Path(__file__).resolve().parents[3]
 
 
 def _lid_profile():
-    return kit.arch_profile(LID_Y0, LID_Y1, BODY_Z, H, flat=0.26, riser=0.01)
+    return kit.arch_profile(LID_Y0, LID_Y1, BODY_Z, H, flat=0.40, riser=0.05)
 
 
 def _disc(xc, yc, zc, r, axis):

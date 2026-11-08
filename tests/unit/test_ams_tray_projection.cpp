@@ -283,6 +283,9 @@ TEST_CASE("tray projection: front parts anchor to the row, a lane or an end", "[
     CHECK(box[0] == Approx(199.0f));
     front_part_box(b, {FrontAnchor::Left, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
     CHECK(box[0] == Approx(101.0f));
+    // A part wider than the row stops at the unit's end.
+    front_part_box(b, {FrontAnchor::Left, 2, 900, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[2] == Approx(300.0f));
     front_part_box(b, {FrontAnchor::Right, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
     CHECK(box[0] == Approx(297.0f));
     CHECK(box[2] == Approx(299.0f));

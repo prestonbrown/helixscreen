@@ -85,9 +85,10 @@ void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, f
         x1 = b.fr - part.x0 * scale;
         break;
     }
-    out[0] = x0;
+    // A narrow row must not push a part past the unit's ends.
+    out[0] = std::clamp(x0, b.fl, b.fr);
     out[1] = b.ft + part.y0 * scale;
-    out[2] = x1;
+    out[2] = std::clamp(x1, b.fl, b.fr);
     out[3] = b.ft + part.y1 * scale;
 }
 

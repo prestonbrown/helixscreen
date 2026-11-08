@@ -23,11 +23,12 @@ struct ShellRow {
 };
 
 constexpr ShellRow kShellRows[] = {
-    {"ace", nullptr, "ace_pro", nullptr},
+    {"ace", nullptr, "ace_pro", nullptr, 0},
+    // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
+    // be called anything.
+    {"afc", "vivid", "btt_vivid", nullptr, 0},
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
-    {"afc", "vivid", "btt_vivid", nullptr},
-    {"afc", "kms", "kms", nullptr, 0},
-    {"cfs", nullptr, "cfs", nullptr},
+    {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
     // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.
     {"openams", nullptr, "ams_ht", nullptr, 1},

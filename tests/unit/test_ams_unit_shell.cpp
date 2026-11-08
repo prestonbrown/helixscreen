@@ -56,7 +56,7 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::CFS, "CFS 1") == "cfs");
     CHECK(id(AmsType::QIDI_BOX, "Box 1") == "qidi_box");
     CHECK(id(AmsType::AFC, "ViViD_1") == "btt_vivid");
-    CHECK(id(AmsType::AFC, "KMS_1") == "kms");
+    CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
