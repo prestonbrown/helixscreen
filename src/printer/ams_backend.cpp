@@ -883,6 +883,12 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         spdlog::info("[AMS Backend] Mock environment mode: {}", env_mode);
     }
 
+    // Applied after every other mock option, each of which can rebuild the unit.
+    if (ams_type == "ace") {
+        mock->set_ace_identity();
+        spdlog::info("[AMS Backend] Mock ACE identity enabled");
+    }
+
     // Simulate mid-print tool change progress (3rd of 5 swaps) for visual testing
     mock->set_toolchange_progress(2, 5);
 

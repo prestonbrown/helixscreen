@@ -3146,6 +3146,12 @@ void AmsBackendMock::set_ifs_mode(bool enabled) {
     }
 }
 
+void AmsBackendMock::set_ace_identity() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    system_info_.type = AmsType::ACE;
+    system_info_.type_name = "ACE";
+}
+
 void AmsBackendMock::set_snapmaker_mode(bool enabled) {
     std::lock_guard<std::mutex> lock(mutex_);
 #if !HELIX_HAS_SNAPMAKER
