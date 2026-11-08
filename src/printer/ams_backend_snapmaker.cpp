@@ -3145,23 +3145,28 @@ namespace {
 
 /// The VENDOR and FILAMENT_SUBTYPE a record write sends for @p slot. The stock
 /// screen offers only these two vendors; anything else the firmware would
-/// store verbatim, and other Snapmaker tooling compares it.
-std::pair<std::string, std::string> record_vendor_subtype(const SlotInfo& slot) {
+/// store verbatim, and other Snapmaker tooling compares it. A slot naming no
+/// product line sends @p kept_subtype when the caller has one.
+std::pair<std::string, std::string> record_vendor_subtype(const SlotInfo& slot,
+                                                          const std::string& kept_subtype = {}) {
     std::string vendor =
         is_product_line_vendor(slot.brand) ? std::string(kProductLineVendor) : "Generic";
-    std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name : "Basic";
+    std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name
+                          : kept_subtype.empty()            ? "Basic"
+                                                            : kept_subtype;
     return {std::move(vendor), std::move(subtype)};
 }
 
 } // namespace
 
 std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const SlotInfo& slot,
-                                                             bool force, RecordLines lines) {
+                                                             bool force, RecordLines lines,
+                                                             const std::string& kept_subtype) {
     if (is_unset_task_field(slot.material) ||
         !IMoonrakerAPI::is_safe_material_param(slot.material)) {
         return {};
     }
-    const auto [vendor, subtype] = record_vendor_subtype(slot);
+    const auto [vendor, subtype] = record_vendor_subtype(slot, kept_subtype);
     const char* force_arg = force ? " FORCE=1" : "";
     // Colour rides its own line, as the stock screen sends it: the firmware's
     // colour forms are parsed apart from the identity fields.
@@ -3256,6 +3261,16 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
                      backend_log_tag(), head, info.material);
         return std::nullopt;
     }
+    // The editor has no field for most product lines, so a save naming none says
+    // nothing about the sub-type: an unchanged filament keeps the one it holds.
+    std::string kept_subtype;
+    if (!is_known_subtype(info.spool_name) && task_type_[idx] && task_subtype_[idx] &&
+        !is_unset_task_field(*task_subtype_[idx]) &&
+        helix::text_io::equals_ignore_case(*task_type_[idx], info.material) &&
+        (!task_vendor_[idx] || helix::text_io::equals_ignore_case(
+                                   *task_vendor_[idx], record_vendor_subtype(info).first))) {
+        kept_subtype = *task_subtype_[idx];
+    }
     RecordLines lines = RecordLines::Both;
     // Every line runs FLOW_RESET_K on the head, so a save that leaves the
     // firmware's record standing sends nothing, forced head or not.
@@ -3264,7 +3279,7 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
             return std::nullopt;
         }
     } else {
-        const auto [vendor, subtype] = record_vendor_subtype(info);
+        const auto [vendor, subtype] = record_vendor_subtype(info, kept_subtype);
         const bool identity_differs =
             is_unset_task_field(*task_type_[idx]) ||
             !helix::text_io::equals_ignore_case(*task_type_[idx], info.material) ||
@@ -3291,12 +3306,13 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
     if (*needs_force) {
         lines = RecordLines::Both;
     }
-    return RecordWrite{*needs_force, lines};
+    return RecordWrite{*needs_force, lines, std::move(kept_subtype)};
 }
 
 void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& info,
                                                      const RecordWrite& plan) {
-    const std::string gcode = build_filament_config_gcode(head, info, plan.force, plan.lines);
+    const std::string gcode =
+        build_filament_config_gcode(head, info, plan.force, plan.lines, plan.kept_subtype);
     if (gcode.empty() || !api_) {
         return;
     }
