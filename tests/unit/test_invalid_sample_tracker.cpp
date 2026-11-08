@@ -136,7 +136,7 @@ TEST_CASE("InvalidSampleTracker reports the opening transition with the offendin
     CHECK(first.duration_ms == 0);
     CHECK(first.first_temp_deci == -640);
 
-    // The very next sample is silent - that is the fix.
+    // The very next sample is silent.
     const InvalidSampleReport second = tracker.record("heater_bed", false, -641, 6000);
     CHECK(second.what == InvalidSampleLog::Nothing);
     CHECK_FALSE(second.loggable());

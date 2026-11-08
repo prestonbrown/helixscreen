@@ -13,7 +13,7 @@
  * second box has a sensor and whose first does not showed "42%" with the row
  * hidden, and the reverse pairing showed an empty row for a box with no sensor.
  *
- * The fix gives the overlay its own ams_env_overlay_humidity_visible subject,
+ * The overlay has its own ams_env_overlay_humidity_visible subject,
  * set from the shown unit's environment, matching how every other value in that
  * overlay is produced.
  */

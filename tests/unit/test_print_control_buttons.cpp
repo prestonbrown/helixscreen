@@ -200,7 +200,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
 // lv_observer_t*; the next teardown that walks it calls lv_observer_remove() on
 // freed memory.
 //
-// The fix: reset_all() (run at every test boundary, while subjects are still
+// reset_all() (run at every test boundary, while subjects are still
 // alive) detaches the controller's observer. This test asserts that invariant.
 // Deliberately does NOT use ControlButtonsFixture — it drives the lifecycle by
 // hand so the assertion targets reset_all() directly. If has_observer()

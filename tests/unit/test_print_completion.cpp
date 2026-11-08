@@ -10,10 +10,8 @@
  * - Detects PRINTING/PAUSED -> COMPLETE/CANCELLED/ERROR transitions
  * - Does NOT trigger on startup when printer is mid-print
  *
- * The key fix being tested: has_received_first_update flag that prevents
+ * Under test: the has_received_first_update flag that prevents
  * false notifications on observer registration.
- *
- * TEST-FIRST: Documents expected behavior for the fix.
  */
 
 #include "ui_format_utils.h"

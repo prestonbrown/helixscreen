@@ -14,7 +14,7 @@
  * changed, which in steady state is false. Nothing reached disk, the next launch
  * reloaded the widget as enabled, and the same toast fired again — forever.
  *
- * The fix does NOT persist enabled=false. The layout is stored once per printer
+ * The manager does NOT persist enabled=false. The layout is stored once per printer
  * (/printers/<id>/panel_widgets/<panel>) with no breakpoint key, so a disable
  * forced by ONE screen's occupancy would take the widget away at every size —
  * the same mistake #1216 already rejected for grid-forced span reductions. The

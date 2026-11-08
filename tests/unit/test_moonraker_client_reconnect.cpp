@@ -24,7 +24,7 @@
  * The URLs point at loopback ports nothing listens on, so open() fails fast with no
  * external dependency. A short, deterministic settle() between cycles avoids a
  * pre-existing libhv-internal race under rapid open()/close() churn (see the cadence note
- * below) — that race is inside libhv, not this fix.
+ * below) — that race is inside libhv, not HelixScreen.
  */
 
 #include "../../include/moonraker_client.h"
@@ -53,7 +53,7 @@ constexpr const char* kBadUrl2 = "ws://127.0.0.1:19997/websocket"; // simulate c
 // SIGSEGVs *inside libhv* (crash backtrace is entirely hio_get / eventfd_read_cb /
 // onCustomEvent on the libhv loop thread — no HelixScreen frame, and the install-once
 // trampolines are not even on the stack). That is a pre-existing libhv limitation, not a
-// defect in this fix, and it is why the existing connection tests insert settle delays
+// HelixScreen defect, and it is why the existing connection tests insert settle delays
 // between connect attempts. We follow the same convention with a short (non-blocking,
 // deterministic) settle between cycles. The install-once invariant (ws_callbacks_installed_
 // flips true exactly once and is never cleared) is what these tests assert.

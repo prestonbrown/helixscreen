@@ -296,7 +296,7 @@ void* GridSpyWidget::s_user_data_at_attach = nullptr;
 // children (card backgrounds + widgets) were created; a widget whose attach()
 // synchronously triggered lv_obj_update_layout (e.g. PrintStatusWidget ->
 // lv_image_set_src -> update_align, see print_status_widget.cpp:331) cascaded a
-// grid_update on a half-built grid. The fix defers grid-layout activation until
+// grid_update on a half-built grid. The manager defers grid-layout activation until
 // all children exist, then runs one clean layout pass.
 //
 // Invariant captured here: at the moment any widget's attach() runs, the
@@ -392,7 +392,7 @@ namespace {
 // dsc.col_dsc buffer; populate_widgets() move-reassigns that vector (freeing the
 // buffer) before reinstalling a fresh descriptor at the end. If the grid is still
 // active when this forced layout runs, grid_update -> count_tracks walks the freed
-// descriptor off the heap end -> SIGSEGV. The fix deactivates the grid
+// descriptor off the heap end -> SIGSEGV. The manager deactivates the grid
 // (LV_LAYOUT_NONE) at the start of every (re)build so the container is not a live
 // grid while children attach.
 struct GridRebuildSpyWidget : helix::PanelWidget {
