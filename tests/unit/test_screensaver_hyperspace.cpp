@@ -449,6 +449,22 @@ Flight print_flight(uint32_t seed, size_t level, const ClockReading& reading) {
     return Flight(seed, level, PixelFormat::XRGB8888, W, H, reading);
 }
 
+} // namespace
+
+TEST_CASE("the tunnel fades out when a print ends, inside a tunnel phase",
+          "[screensaver][hyperspace_sim]") {
+    Flight flight = print_flight(29, 0, print_at(ClockMode::COUNTDOWN, 40));
+    REQUIRE(flight.run_to_tunnel());
+    REQUIRE(share_at_least(flight.frame, 64) > 0.35);
+    flight.reading = print_at(ClockMode::FAILED, 40);
+    // Part faded: its colours scale with what is shown, not with the sweep behind it.
+    REQUIRE(flight.run_until([&flight] { return flight.sim.tunnel_amount() <= 64; }, 2000));
+    REQUIRE(flight.sim.tunnel_amount() > 0);
+    CHECK(share_at_least(flight.frame, 64) < 0.1);
+}
+
+namespace {
+
 /// Pixels within `radius` of the vanishing point whose dimmest channel reaches `threshold`:
 /// warm white light, where the saturated star and goo colours keep one channel low.
 size_t white_near_vanishing_point(const Flight& flight, float radius, int threshold) {

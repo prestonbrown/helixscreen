@@ -821,11 +821,13 @@ Located in the `printer` section:
     "moonraker_api_key": false,
     "heaters": {
       "bed": "heater_bed",
-      "hotend": "extruder"
+      "hotend": "extruder",
+      "chamber": "auto"
     },
     "temp_sensors": {
       "bed": "temperature_sensor bed",
-      "hotend": "temperature_sensor extruder"
+      "hotend": "temperature_sensor extruder",
+      "chamber": "auto"
     },
     "fans": {
       "hotend": "heater_fan hotend_fan",
@@ -833,8 +835,6 @@ Located in the `printer` section:
       "chamber": "",
       "exhaust": ""
     },
-    "chamber_heater": "auto",
-    "chamber_sensor": "auto",
     "leds": {
       "strip": "",
       "selected_strips": [],
@@ -906,13 +906,13 @@ Located in the `printer` section:
 **Default:** `""` (none)
 **Description:** Klipper fan name for exhaust fan (e.g., `"fan_generic exhaust_fan"`). Leave empty if not available.
 
-### `chamber_heater`
+### `heaters.chamber`
 **Type:** string
 **Default:** `"auto"`
 **Values:** `"auto"`, `"none"`, or a Klipper object name
 **Description:** Which heater warms the enclosure/chamber. `"auto"` lets HelixScreen pick it by name heuristics, `"none"` disables chamber-heater controls, or you can name the Klipper object explicitly (e.g., `"heater_generic chamber"`). Most printers work fine on `"auto"`.
 
-### `chamber_sensor`
+### `temp_sensors.chamber`
 **Type:** string
 **Default:** `"auto"`
 **Values:** `"auto"`, `"none"`, or a Klipper object name
