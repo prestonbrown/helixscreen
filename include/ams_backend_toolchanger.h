@@ -708,6 +708,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void toast_unload_complete();
     /// @p heads as lane labels joined with ", " ("Tool 2, Tool 4").
     [[nodiscard]] std::string feed_lane_list(const std::vector<int>& heads) const;
+    /// "Tool 2", or "T1" in G-code style: how this backend's messages name a head.
+    [[nodiscard]] std::string head_label(int head) const;
     /// One toast about a run, with the no-LVGL test guard in one place.
     void show_feed_toast(const std::string& message, NoticeSeverity severity);
     /// Mirror the run onto the published action and step. Caller holds mutex_.

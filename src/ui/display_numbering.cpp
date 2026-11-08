@@ -169,6 +169,12 @@ std::string lane_label(LaneNoun noun, int index) {
     return noun_text(noun) + " " + std::to_string(n);
 }
 
+std::string tool_lane_label(LaneNoun noun, ToolNumberStyle style, int index) {
+    if ((noun == LaneNoun::Tool || noun == LaneNoun::Toolhead) && style == ToolNumberStyle::Gcode)
+        return tool_label(index);
+    return lane_label(noun, index);
+}
+
 std::string clear_spool_blocked_hint(LaneNoun noun, int index) {
     // lv_tr() returns the format string in the active locale; fmt::format
     // substitutes the label, the same composition NOTIFY_INFO uses for the
@@ -260,12 +266,20 @@ ToolNumberStyle resolve_tool_number_style(ToolNumberStyleSetting setting,
     return backend_hint;
 }
 
+ToolNumberStyle tool_number_style_with_setting(ToolNumberStyle backend_hint) {
+    return resolve_tool_number_style(SettingsManager::instance().get_tool_number_style_setting(),
+                                     backend_hint);
+}
+
 ToolNumberStyle active_tool_number_style() {
     auto& ams = AmsState::instance();
     const auto* backend = ams.get_backend(ams.active_backend_index());
-    return resolve_tool_number_style(SettingsManager::instance().get_tool_number_style_setting(),
-                                     backend ? backend->tool_number_style()
-                                             : ToolNumberStyle::Physical);
+    return tool_number_style_with_setting(backend ? backend->tool_number_style()
+                                                  : ToolNumberStyle::Physical);
+}
+
+std::string active_tool_lane_label(LaneNoun noun, int index) {
+    return tool_lane_label(noun, active_tool_number_style(), index);
 }
 
 std::string active_tool_badge_label(std::string_view name, int index) {

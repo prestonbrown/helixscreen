@@ -363,9 +363,11 @@ std::string motion_blocked_reason(const Contract& contract, const Reading& state
 }
 
 std::string tool_text(int tool) {
-    // INDX heads are labeled from 1 (AmsBackendIndx::kIndxTraits).
+    // INDX heads are labeled from 1 (AmsBackendIndx::kIndxTraits) unless the
+    // per-printer setting says otherwise.
     return helix::ui::tool_label_in_form(
-        helix::ui::LaneNoun::Tool, helix::ui::ToolNumberStyle::Physical,
+        helix::ui::LaneNoun::Tool,
+        helix::ui::tool_number_style_with_setting(helix::ui::ToolNumberStyle::Physical),
         helix::ui::tool_label(tool), tool, helix::ui::ToolLabelForm::Full);
 }
 

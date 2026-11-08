@@ -99,7 +99,12 @@ on a plain klipper-toolchanger rig whose `[tool]` sections are all `T<n>`
 (`helix::toolchanger_addon::tool_number_style()`); every other backend, and a printer with
 none, is `Physical`. A change of the setting re-runs `helix::ui::refresh_display_texts()`,
 the same refresh a language switch runs, which bumps `tools_version`. Lane labels
-(`fed_lane_tool_label()`) have no style: a lane is not a tool number.
+(`fed_lane_tool_label()`) have no style: a lane is not a tool number. The exception is a
+position that is itself a tool (`LaneNoun::Tool` on a tool changer, `Toolhead`):
+`tool_lane_label()` spells it "T0" in `Gcode` style, and screens call
+`active_tool_lane_label()` where they would call `lane_label()`. A backend's own messages use
+`AmsBackend::display_tool_number_style()`, its trait with the per-printer setting applied
+(`tool_number_style_with_setting()`), so a forced setting reaches them too.
 
 **`effective_heater()` helper:** Returns the heater responsible for this tool. Prefers explicit `heater_name`, falls back to `extruder_name`, then `"extruder"`.
 

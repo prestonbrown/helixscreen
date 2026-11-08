@@ -470,7 +470,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // here a translated noun can overrun.
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
-        lv_label_set_text(slot_header, helix::ui::lane_label(menu_lane_noun(), slot_index).c_str());
+        lv_label_set_text(slot_header,
+                          helix::ui::active_tool_lane_label(menu_lane_noun(), slot_index).c_str());
     }
 
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
@@ -915,7 +916,8 @@ void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_inde
                 notify_ams_error(err);
                 return;
             }
-            NOTIFY_INFO(lv_tr("{} updated"), lane_label(backend->lane_noun(), result.slot_index));
+            NOTIFY_INFO(lv_tr("{} updated"),
+                        active_tool_lane_label(backend->lane_noun(), result.slot_index));
         },
         open_on_picker);
 }

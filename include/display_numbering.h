@@ -200,6 +200,17 @@ std::string backup_lane_text(LaneNoun noun);
 std::string lane_label(LaneNoun noun, int index);
 
 /**
+ * @brief lane_label() for a lane that may be a tool.
+ *
+ * A position named Tool or Toolhead is the tool itself, so in Gcode style it is
+ * the tool's G-code name ("T0"), as the nozzle badge spells it. Every other
+ * lane, and every lane in Physical style, is lane_label().
+ *
+ * @return empty when @p index is negative
+ */
+std::string tool_lane_label(LaneNoun noun, ToolNumberStyle style, int index);
+
+/**
  * @brief The refusal a Clear Spool shows when the lane feeds the active print.
  *
  * One sentence for both surfaces that can raise it (the context menu's
@@ -294,6 +305,18 @@ ToolNumberStyle resolve_tool_number_style(ToolNumberStyleSetting setting,
  * tool_number_style(); Physical with no backend.
  */
 ToolNumberStyle active_tool_number_style();
+
+/**
+ * @brief The per-printer setting resolved against @p backend_hint.
+ *
+ * What a backend's own messages spell a tool in (AmsBackend::display_tool_number_style()),
+ * so a forced setting reaches them as it reaches the screens. Reads one int, so
+ * any thread may call it.
+ */
+ToolNumberStyle tool_number_style_with_setting(ToolNumberStyle backend_hint);
+
+/// @brief tool_lane_label() under active_tool_number_style(): a lane label on a screen.
+std::string active_tool_lane_label(LaneNoun noun, int index);
 
 /// @brief tool_badge_label() under active_tool_number_style(): the nozzle badge text.
 std::string active_tool_badge_label(std::string_view name, int index);

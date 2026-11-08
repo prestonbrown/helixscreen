@@ -2917,6 +2917,12 @@ class AmsBackend : public AmsCapabilityHost {
         return traits().tool_number_style;
     }
 
+    /// tool_number_style() with the per-printer Tool Numbers setting applied: the
+    /// style this backend's own messages spell a tool in.
+    [[nodiscard]] helix::ui::ToolNumberStyle display_tool_number_style() const {
+        return helix::ui::tool_number_style_with_setting(tool_number_style());
+    }
+
     /**
      * @brief Whether the machine has no automatic filament unload.
      *

@@ -13,6 +13,7 @@
 #include "ui_language_refresh.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
@@ -22,6 +23,7 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
+#include "indx_contract.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "tool_state.h"
@@ -259,4 +261,61 @@ TEST_CASE_METHOD(ToolStyleFixture, "a hub printer is untouched by a forced G-cod
     CHECK(badge_shown() == 0);
     CHECK(badge_text().empty());
     CHECK(ts.nozzle_label() == "Nozzle");
+}
+
+TEST_CASE("a tool changer's lane is the tool, spelled in the tool number style", "[tool_style]") {
+    using helix::ui::LaneNoun;
+    using helix::ui::tool_lane_label;
+    CHECK(tool_lane_label(LaneNoun::Tool, ToolNumberStyle::Gcode, 0) == "T0");
+    CHECK(tool_lane_label(LaneNoun::Toolhead, ToolNumberStyle::Gcode, 2) == "T2");
+    CHECK(tool_lane_label(LaneNoun::Tool, ToolNumberStyle::Physical, 0) == "Tool 1");
+    // A lane that is not a tool keeps its number in either style.
+    CHECK(tool_lane_label(LaneNoun::Slot, ToolNumberStyle::Gcode, 2) == "Slot 3");
+    CHECK(tool_lane_label(LaneNoun::Feeder, ToolNumberStyle::Gcode, 0) == "Feeder 1");
+    CHECK(tool_lane_label(LaneNoun::Tool, ToolNumberStyle::Gcode, -1).empty());
+}
+
+TEST_CASE_METHOD(ToolStyleFixture, "the AMS header names the mounted tool like the badge",
+                 "[ams][tool_style]") {
+    discover_changer(changer_named({"T0", "T1", "T2", "T3"}), 1);
+    AmsState::instance().sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    const auto header = [] {
+        return std::string(
+            lv_subject_get_string(AmsState::instance().get_current_slot_text_subject()));
+    };
+    REQUIRE(badge_text() == "T1");
+    CHECK(header() == "T1");
+    set_style(ToolNumberStyleSetting::Physical);
+    CHECK(badge_text() == "2");
+    CHECK(header() == "Tool 2");
+}
+
+TEST_CASE_METHOD(ToolStyleFixture, "a tool changer's own messages follow the tool number setting",
+                 "[toolchanger][tool_style]") {
+    discover_changer(changer_named({"T0", "T1", "T2", "T3"}), 0);
+    const auto* tc = static_cast<const AmsBackendToolChanger*>(AmsState::instance().get_backend(0));
+    REQUIRE(tc != nullptr);
+    using helix::ToolChangerTestAccess;
+
+    // Auto on a T<n> rig: the G-code names the docks carry.
+    CHECK(ToolChangerTestAccess::feed_lane_list(*tc, {0, 2}) == "T0, T2");
+    CHECK(ToolChangerTestAccess::target_tool_label(*tc, 0) == "T0");
+
+    // Forced to "1, 2, 3": the backend's text follows the setting, not its hint.
+    set_style(ToolNumberStyleSetting::Physical);
+    CHECK(ToolChangerTestAccess::feed_lane_list(*tc, {0, 2}) == "Tool 1, Tool 3");
+    CHECK(ToolChangerTestAccess::target_tool_label(*tc, 0) == "Tool 1 (T0)");
+}
+
+TEST_CASE_METHOD(ToolStyleFixture, "a 1-based backend's own text follows a forced G-code style",
+                 "[tool_style]") {
+    helix::AmsBackendMock u1(4);
+    u1.set_snapmaker_mode(true);
+    CHECK(u1.display_tool_number_style() == ToolNumberStyle::Physical);
+    CHECK(helix::indx::tool_text(0) == "Tool 1 (T0)");
+
+    set_style(ToolNumberStyleSetting::Gcode);
+    CHECK(u1.display_tool_number_style() == ToolNumberStyle::Gcode);
+    CHECK(helix::indx::tool_text(0) == "T0");
 }
