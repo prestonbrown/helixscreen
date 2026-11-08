@@ -7,6 +7,7 @@
 #include "core/text_io.h"
 #include "helix_regex.h"
 #include "preprint_skip_wrappers.h"
+#include "signal_macro_names.h"
 
 #include <spdlog/spdlog.h>
 
@@ -94,6 +95,25 @@ std::vector<std::string> parse_macro_names(const std::string& content) {
     }
 
     return names;
+}
+
+/**
+ * @brief Append the forwarder block after the pack
+ *
+ * The forwarders come last so the pack's own sections stay byte-identical to
+ * the bundled file; a separating comment marks where they start.
+ */
+std::string with_alias_block(std::string content, const std::string& block) {
+    if (block.empty()) {
+        return content;
+    }
+    if (content.back() != '\n') {
+        content += '\n';
+    }
+    content += "\n# Forwarders that keep the signal names without the leading underscore\n"
+               "# callable. HelixScreen writes them; a macro update rewrites the list.\n\n";
+    content += block;
+    return content;
 }
 
 /**
@@ -421,22 +441,14 @@ std::string MacroManager::get_macro_content() {
     return load_macro_file();
 }
 
-std::string MacroManager::with_visible_signal_names(std::string content) {
-    for (const char* hidden : {"_HELIX_READY", "_HELIX_ENDED", "_HELIX_RESET", "_HELIX_PHASE_"}) {
-        for (size_t pos = content.find(hidden); pos != std::string::npos;
-             pos = content.find(hidden, pos)) {
-            content.erase(pos, 1);
-        }
-    }
-    return content;
-}
-
 std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
     std::string content = get_macro_content();
-    if (hardware.has_helix_macro("HELIX_READY")) {
-        return with_visible_signal_names(std::move(content));
+    if (content.empty() || !hardware.has_helix_macro("HELIX_READY")) {
+        return content;
     }
-    return content;
+    std::vector<std::string> all(signal_macros::kVisibleNames.begin(),
+                                 signal_macros::kVisibleNames.end());
+    return with_alias_block(std::move(content), signal_macros::alias_block(all));
 }
 
 std::string MacroManager::get_version() {

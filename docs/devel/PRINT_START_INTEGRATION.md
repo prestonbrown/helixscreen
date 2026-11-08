@@ -144,7 +144,7 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
-The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. A printer that already has the pack under the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) keeps those names when it updates, because its own macros and sliced files may call them, so an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` makes that choice when the app installs or updates the pack. Copying the file over by hand always gives the underscore names, so a printer that calls the old names needs those calls changed as well.
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names. A printer that already has the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) may call them from its own macros and sliced files, so when the app installs or updates the pack it appends one forwarding macro per visible name after the pack (`[gcode_macro HELIX_READY]` whose body calls `_HELIX_READY`, described `HelixScreen alias for _HELIX_READY`), and an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` builds that file, and `signal_macros::alias_block` (`include/signal_macro_names.h`) writes the forwarders. Copying the file over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
 
 ### Core Signals
 

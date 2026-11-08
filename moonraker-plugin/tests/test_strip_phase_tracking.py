@@ -846,8 +846,8 @@ class TestNextStepHint:
 def _write_helix_macros_cfg(config_dir):
     # The old enable refuses to instrument PRINT_START unless it can already
     # see the HELIX_PHASE_* macros defined somewhere in config_dir. A printer it
-    # instrumented has the pack under its visible names, as
-    # MacroManager::with_visible_signal_names produces it.
+    # instrumented had the pack under its visible names, which this fixture
+    # rebuilds from the bundled pack by dropping the leading underscore.
     repo_root = Path(__file__).resolve().parents[2]
     macros_cfg = repo_root / "assets" / "config" / "helix_macros.cfg"
     visible = re.sub(rb"_(HELIX_(?:READY|ENDED|RESET|PHASE_))", rb"\1", macros_cfg.read_bytes())

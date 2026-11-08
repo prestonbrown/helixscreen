@@ -266,23 +266,12 @@ class MacroManager {
     [[nodiscard]] static std::string get_macro_content();
 
     /**
-     * @brief Remove the leading underscore from the signal and phase macro names
-     *
-     * Rewrites _HELIX_READY, _HELIX_ENDED, _HELIX_RESET and _HELIX_PHASE_*
-     * wherever they appear. Other _HELIX_ names, such as _HELIX_STATE, stay as
-     * they are.
-     *
-     * @param content helix_macros.cfg content
-     * @return The content with the signal macros under their visible names
-     */
-    [[nodiscard]] static std::string with_visible_signal_names(std::string content);
-
-    /**
      * @brief The helix_macros.cfg content to stage on this printer
      *
-     * A printer that already defines HELIX_READY may call the visible signal
-     * names from its own macros and sliced files, so it keeps them. Every other
-     * printer gets the hidden names.
+     * Every printer gets the pack with the hidden signal names. A printer that
+     * already defines HELIX_READY may call the visible names from its own
+     * macros and sliced files, so a forwarder for each visible name
+     * (signal_macros::alias_block) follows the pack.
      *
      * @param hardware Discovery snapshot with the printer's macro names
      * @return Complete cfg file content, or empty if the file is not found
