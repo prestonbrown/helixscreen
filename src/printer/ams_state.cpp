@@ -35,7 +35,6 @@
 #include "filament_accounting_controller.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
-#include "filament_motion.h"
 #include "filament_sensor_manager.h"
 #include "helix_lvgl_anomaly.h"
 #include "helix_psram_attr.h"

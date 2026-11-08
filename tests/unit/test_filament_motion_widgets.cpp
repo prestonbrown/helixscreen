@@ -9,6 +9,7 @@
 #include "ui_filament_path_canvas.h"
 
 #include "../test_fixtures.h"
+#include "ams_types.h"
 #include "display_settings_manager.h"
 #include "filament_motion.h"
 #include "helix-xml/src/xml/lv_xml.h"

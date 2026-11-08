@@ -15,7 +15,6 @@
 #include "connection_state.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
-#include "filament_motion.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "settings_manager.h"

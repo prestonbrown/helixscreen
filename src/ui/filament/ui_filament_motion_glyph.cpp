@@ -5,6 +5,7 @@
 
 #include "ui_toolhead_badge.h"
 
+#include "ams_types.h"
 #include "display_settings_manager.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
