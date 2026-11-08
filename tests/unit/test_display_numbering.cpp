@@ -201,46 +201,126 @@ TEST_CASE("a generated tool name shows its display number beside the G-code name
           "[numbering][1769]") {
     // Klipper and the slicer say T1 for the second tool; the machine says Tool 2.
     // Where there is room the label carries both, so neither reads as a typo.
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T0", 0, ToolLabelForm::Full) == "Tool 1 (T0)");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T1", 1, ToolLabelForm::Full) == "Tool 2 (T1)");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T1", 1, ToolLabelForm::Code) == "T1");
-    CHECK(tool_label_in_form(LaneNoun::Tool, tool_label(11), 11, ToolLabelForm::Code) == "T11");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", 0,
+                             ToolLabelForm::Full) == "Tool 1 (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T1", 1,
+                             ToolLabelForm::Full) == "Tool 2 (T1)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T1", 1,
+                             ToolLabelForm::Code) == "T1");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, tool_label(11), 11,
+                             ToolLabelForm::Code) == "T11");
 }
 
 TEST_CASE("the full tool label speaks the printer's own noun", "[numbering][1769]") {
-    CHECK(tool_label_in_form(LaneNoun::Toolhead, "T2", 2, ToolLabelForm::Full) ==
-          "Toolhead 3 (T2)");
-    CHECK(tool_label_in_form(LaneNoun::Toolhead, "T2", 2, ToolLabelForm::Code) == "T2");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
+                             ToolLabelForm::Full) == "Toolhead 3 (T2)");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
+                             ToolLabelForm::Code) == "T2");
 }
 
 TEST_CASE("a configured tool name is its label, beside its G-code name", "[numbering][1769]") {
     // "Left" is what the machine is labeled with; the narrow form is the
     // G-code name it answers to, as for a generated name.
-    CHECK(tool_label_in_form(LaneNoun::Tool, "Left", 0, ToolLabelForm::Full) == "Left (T0)");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "Right", 1, ToolLabelForm::Full) == "Right (T1)");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "Left", 0, ToolLabelForm::Code) == "T0");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "Right", 1, ToolLabelForm::Code) == "T1");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", 0,
+                             ToolLabelForm::Full) == "Left (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Right", 1,
+                             ToolLabelForm::Full) == "Right (T1)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", 0,
+                             ToolLabelForm::Code) == "T0");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Right", 1,
+                             ToolLabelForm::Code) == "T1");
     // The noun names a position, which a configured name replaces.
-    CHECK(tool_label_in_form(LaneNoun::Toolhead, "Left", 0, ToolLabelForm::Full) == "Left (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "Left", 0,
+                             ToolLabelForm::Full) == "Left (T0)");
     // Not the generated spelling: lowercase, or a T with no digits after it.
-    CHECK(tool_label_in_form(LaneNoun::Tool, "t0", 0, ToolLabelForm::Full) == "t0 (T0)");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "t0", 0, ToolLabelForm::Code) == "T0");
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T", 0, ToolLabelForm::Full) == "T (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "t0", 0,
+                             ToolLabelForm::Full) == "t0 (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "t0", 0,
+                             ToolLabelForm::Code) == "T0");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T", 0,
+                             ToolLabelForm::Full) == "T (T0)");
 }
 
 TEST_CASE("tool_name_label is the configured name, else the physical position",
           "[numbering][1769]") {
-    CHECK(tool_name_label(LaneNoun::Tool, "Left", 0) == "Left");
-    CHECK(tool_name_label(LaneNoun::Tool, "T0", 0) == "Tool 1");
-    CHECK(tool_name_label(LaneNoun::Toolhead, "T2", 2) == "Toolhead 3");
-    CHECK(tool_name_label(LaneNoun::Tool, "Left", -1).empty());
-    CHECK(tool_name_label(LaneNoun::Tool, "T0", -1).empty());
+    CHECK(tool_name_label(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", 0) == "Left");
+    CHECK(tool_name_label(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", 0) == "Tool 1");
+    CHECK(tool_name_label(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2) == "Toolhead 3");
+    CHECK(tool_name_label(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", -1).empty());
+    CHECK(tool_name_label(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", -1).empty());
 }
 
 TEST_CASE("a tool with no position has no label in any form", "[numbering][1769]") {
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T0", -1, ToolLabelForm::Full).empty());
-    CHECK(tool_label_in_form(LaneNoun::Tool, "T0", -1, ToolLabelForm::Code).empty());
-    CHECK(tool_label_in_form(LaneNoun::Tool, "Left", -1, ToolLabelForm::Full).empty());
+    CHECK(
+        tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", -1, ToolLabelForm::Full)
+            .empty());
+    CHECK(
+        tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", -1, ToolLabelForm::Code)
+            .empty());
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", -1,
+                             ToolLabelForm::Full)
+              .empty());
+}
+
+TEST_CASE("a tool number is the 1-based position in Physical style", "[numbering][tool_style]") {
+    CHECK(tool_number_text(ToolNumberStyle::Physical, "T0", 0) == "1");
+    CHECK(tool_number_text(ToolNumberStyle::Physical, "T5", 2) == "3");
+    CHECK(tool_number_text(ToolNumberStyle::Physical, "Left", 1) == "2");
+}
+
+TEST_CASE("a tool number is the G-code identity in Gcode style", "[numbering][tool_style]") {
+    CHECK(tool_number_text(ToolNumberStyle::Gcode, "T0", 0) == "T0");
+    // The section name the owner wrote, even with a gap in the numbering.
+    CHECK(tool_number_text(ToolNumberStyle::Gcode, "T5", 2) == "T5");
+    // A configured name has no number of its own: the position's G-code name.
+    CHECK(tool_number_text(ToolNumberStyle::Gcode, "Left", 1) == "T1");
+}
+
+TEST_CASE("a tool with no position has no number in either style", "[numbering][tool_style]") {
+    CHECK(tool_number_text(ToolNumberStyle::Physical, "T0", -1).empty());
+    CHECK(tool_number_text(ToolNumberStyle::Gcode, "T0", -1).empty());
+    CHECK(tool_badge_label(ToolNumberStyle::Physical, "Left", -1).empty());
+    CHECK(tool_badge_label(ToolNumberStyle::Gcode, "T0", -1).empty());
+}
+
+TEST_CASE("a tool badge keeps a configured name and numbers a generated one",
+          "[numbering][tool_style]") {
+    CHECK(tool_badge_label(ToolNumberStyle::Gcode, "Left", 0) == "Left");
+    CHECK(tool_badge_label(ToolNumberStyle::Physical, "Left", 0) == "Left");
+    CHECK(tool_badge_label(ToolNumberStyle::Physical, "T2", 2) == "3");
+    CHECK(tool_badge_label(ToolNumberStyle::Gcode, "T2", 2) == "T2");
+}
+
+TEST_CASE("the full tool label in Gcode style never doubles the G-code name",
+          "[numbering][tool_style]") {
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", 0,
+                             ToolLabelForm::Full) == "Tool 1 (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Gcode, "T0", 0,
+                             ToolLabelForm::Full) == "T0");
+    CHECK(tool_name_label(LaneNoun::Tool, ToolNumberStyle::Gcode, "T3", 3) == "T3");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Gcode, "Left", 0,
+                             ToolLabelForm::Full) == "Left (T0)");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
+                             ToolLabelForm::Full) == "Toolhead 3 (T2)");
+}
+
+TEST_CASE("the Code form is the same in both styles", "[numbering][tool_style]") {
+    for (ToolNumberStyle style : {ToolNumberStyle::Physical, ToolNumberStyle::Gcode}) {
+        CHECK(tool_label_in_form(LaneNoun::Tool, style, "T0", 0, ToolLabelForm::Code) == "T0");
+        CHECK(tool_label_in_form(LaneNoun::Tool, style, "Left", 0, ToolLabelForm::Code) == "T0");
+    }
+}
+
+TEST_CASE("the tool number setting overrides the backend only when not Auto",
+          "[numbering][tool_style]") {
+    CHECK(resolve_tool_number_style(ToolNumberStyleSetting::Auto, ToolNumberStyle::Gcode) ==
+          ToolNumberStyle::Gcode);
+    CHECK(resolve_tool_number_style(ToolNumberStyleSetting::Auto, ToolNumberStyle::Physical) ==
+          ToolNumberStyle::Physical);
+    CHECK(resolve_tool_number_style(ToolNumberStyleSetting::Physical, ToolNumberStyle::Gcode) ==
+          ToolNumberStyle::Physical);
+    CHECK(resolve_tool_number_style(ToolNumberStyleSetting::Gcode, ToolNumberStyle::Physical) ==
+          ToolNumberStyle::Gcode);
 }
 
 TEST_CASE("pick_tool_label_form takes the most informative form that fits", "[numbering][1769]") {

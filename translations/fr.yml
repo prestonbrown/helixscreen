@@ -99,6 +99,7 @@ translations:
   1 print: '1 impression'
   1 profile: '1 profil'
   '1 unit': '1 unité'
+  1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Chaque buse est chauffée, essuyée puis garée à l'avant pour que vous la brossiez
   1. Printer homes all axes (~1 minute): 1. L'imprimante prend l'origine de tous les axes (~1 minute)
   1. Printer homes and probes the bed: 1. L'imprimante fait l'origine et palpe le
@@ -1965,6 +1966,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : 'Comment les axes de l''imprimante sont entraînés, selon la config Klipper. HelixScreen s''en sert pour décider du fonctionnement du homing et des outils de courroie et de mouvement applicables.'
   How the toolhead icon appears: Apparence de l'icône de tête d'outil
+  How tools are numbered on badges and labels: 'Comment les outils sont numérotés sur les badges et les libellés'
   Hub: Hub
   Hub & Cutter: 'Hub et coupeur'
   Hub Bowden Length: 'Longueur du bowden du hub'
@@ -4045,6 +4047,7 @@ translations:
   System default: Par défaut du système
   System detected: Système détecté
   System is {}: 'Le système est : {}'
+  T0, T1, T2: 'T0, T1, T2'
   TANGLE: NŒUD
   TD-1 filament color detection: Détection de couleur de filament TD-1
   TEMPERATURE SENSORS: CAPTEURS DE TEMPÉRATURE
@@ -4534,6 +4537,7 @@ translations:
   Tool: Outil
   Tool Change Failed: 'Échec du changement d''outil'
   Tool Changer: Changeur d'outils
+  Tool Numbers: "Numéros d'outil"
   Tool Offsets: Offsets d'outil
   Tool Switcher: 'Sélecteur d''outil'
   'Tool change failed: {}': 'Échec du changement d''outil : {}'

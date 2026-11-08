@@ -97,6 +97,7 @@
   <translation tag="1 print" ja="1 件"/>
   <translation tag="1 profile" ja="1 個のプロファイル"/>
   <translation tag="1 unit" ja="1ユニット"/>
+  <translation tag="1, 2, 3" ja="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ja="1. 各ノズルを加熱・拭き取りし、ブラシで清掃できるよう前方に移動します"/>
   <translation tag="1. Printer homes all axes (~1 minute)" ja="1. プリンターが全軸の原点復帰を行います（約1分）"/>
   <translation tag="1. Printer homes and probes the bed" ja="1. プリンターがホーミングしてベッドをプローブします"/>
@@ -1786,6 +1787,7 @@
   <translation tag="How the Jog tab arranges its buttons" ja="ジョグタブのボタン配置"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." ja="Klipper設定で宣言されている、プリンターの軸の駆動方式。HelixScreenはこれを使って、ホーミングの動作と、適用するベルトや動作のツールを決めます。"/>
   <translation tag="How the toolhead icon appears" ja="ツールヘッドアイコンの表示スタイル"/>
+  <translation tag="How tools are numbered on badges and labels" ja="バッジとラベルでのツールの番号の付け方"/>
   <translation tag="Hub" ja="ハブ"/>
   <translation tag="Hub &amp; Cutter" ja="ハブとカッター"/>
   <translation tag="Hub Bowden Length" ja="ハブのボーデン長"/>
@@ -3685,6 +3687,7 @@
   <translation tag="System default" ja="システムデフォルト"/>
   <translation tag="System detected" ja="システムを検出しました"/>
   <translation tag="System is {}" ja="システムの状態: {}"/>
+  <translation tag="T0, T1, T2" ja="T0, T1, T2"/>
   <translation tag="TANGLE" ja="絡み"/>
   <translation tag="TD-1 filament color detection" ja="TD-1 フィラメント色検出"/>
   <translation tag="TEMPERATURE SENSORS" ja="温度センサー"/>
@@ -4080,6 +4083,7 @@
   <translation tag="Tool" ja="ツール"/>
   <translation tag="Tool Change Failed" ja="ツール変更に失敗しました"/>
   <translation tag="Tool Changer" ja="ツールチェンジャー"/>
+  <translation tag="Tool Numbers" ja="ツール番号"/>
   <translation tag="Tool Offsets" ja="ツールオフセット"/>
   <translation tag="Tool Switcher" ja="ツール切り替え"/>
   <translation tag="Tool change failed: {}" ja="ツール変更に失敗しました: {}"/>

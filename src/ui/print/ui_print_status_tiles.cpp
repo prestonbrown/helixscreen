@@ -393,15 +393,13 @@ std::vector<OtherToolReading> PrintStatusTiles::other_tool_readings() {
     auto& tools = ToolState::instance();
     auto& temps = printer_state_.temperature_state();
     std::vector<OtherToolReading> out;
+    const ui::ToolNumberStyle style = ui::active_tool_number_style();
     for (const OtherHead& head : other_heads(tools.physical_heads(), tools.active_tool_index(),
                                              tools.heads_share_heater())) {
-        OtherToolReading r;
         const auto& all = tools.tools();
         const auto t = static_cast<size_t>(head.tool);
-        r.badge = other_tool_badge(t < all.size() ? all[t].name : tool_label(head.tool), head.tool);
-        if (const std::string number = lane_number_text(head.tool); r.badge != number) {
-            r.number = number;
-        }
+        OtherToolReading r = other_tool_label(
+            style, t < all.size() ? all[t].name : tool_label(head.tool), head.tool);
         r.current_deci = subject_int_or_zero(temps.get_extruder_temp_subject(head.extruder));
         r.target_deci = subject_int_or_zero(temps.get_extruder_target_subject(head.extruder));
         r.start_deci =

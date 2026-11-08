@@ -97,6 +97,7 @@
   <translation tag="1 print" fr="1 impression"/>
   <translation tag="1 profile" fr="1 profil"/>
   <translation tag="1 unit" fr="1 unité"/>
+  <translation tag="1, 2, 3" fr="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" fr="1. Chaque buse est chauffée, essuyée puis garée à l&apos;avant pour que vous la brossiez"/>
   <translation tag="1. Printer homes all axes (~1 minute)" fr="1. L&apos;imprimante prend l&apos;origine de tous les axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" fr="1. L&apos;imprimante fait l&apos;origine et palpe le plateau"/>
@@ -1786,6 +1787,7 @@
   <translation tag="How the Jog tab arranges its buttons" fr="Comment l&apos;onglet Jog dispose ses boutons"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." fr="Comment les axes de l&apos;imprimante sont entraînés, selon la config Klipper. HelixScreen s&apos;en sert pour décider du fonctionnement du homing et des outils de courroie et de mouvement applicables."/>
   <translation tag="How the toolhead icon appears" fr="Apparence de l&apos;icône de tête d&apos;outil"/>
+  <translation tag="How tools are numbered on badges and labels" fr="Comment les outils sont numérotés sur les badges et les libellés"/>
   <translation tag="Hub" fr="Hub"/>
   <translation tag="Hub &amp; Cutter" fr="Hub et coupeur"/>
   <translation tag="Hub Bowden Length" fr="Longueur du bowden du hub"/>
@@ -3685,6 +3687,7 @@
   <translation tag="System default" fr="Par défaut du système"/>
   <translation tag="System detected" fr="Système détecté"/>
   <translation tag="System is {}" fr="Le système est : {}"/>
+  <translation tag="T0, T1, T2" fr="T0, T1, T2"/>
   <translation tag="TANGLE" fr="NŒUD"/>
   <translation tag="TD-1 filament color detection" fr="Détection de couleur de filament TD-1"/>
   <translation tag="TEMPERATURE SENSORS" fr="CAPTEURS DE TEMPÉRATURE"/>
@@ -4080,6 +4083,7 @@
   <translation tag="Tool" fr="Outil"/>
   <translation tag="Tool Change Failed" fr="Échec du changement d&apos;outil"/>
   <translation tag="Tool Changer" fr="Changeur d&apos;outils"/>
+  <translation tag="Tool Numbers" fr="Numéros d&apos;outil"/>
   <translation tag="Tool Offsets" fr="Offsets d&apos;outil"/>
   <translation tag="Tool Switcher" fr="Sélecteur d&apos;outil"/>
   <translation tag="Tool change failed: {}" fr="Échec du changement d&apos;outil : {}"/>

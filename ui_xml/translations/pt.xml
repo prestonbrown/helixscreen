@@ -97,6 +97,7 @@
   <translation tag="1 print" pt="1 impressão"/>
   <translation tag="1 profile" pt="1 perfil"/>
   <translation tag="1 unit" pt="1 unidade"/>
+  <translation tag="1, 2, 3" pt="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" pt="1. Cada bico é aquecido, limpo e estacionado na frente para você escová-lo"/>
   <translation tag="1. Printer homes all axes (~1 minute)" pt="1. A impressora referencia todos os eixos (~1 minuto)"/>
   <translation tag="1. Printer homes and probes the bed" pt="1. A impressora faz home e sonda a mesa"/>
@@ -1786,6 +1787,7 @@
   <translation tag="How the Jog tab arranges its buttons" pt="Como a aba Jog organiza os seus botões"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." pt="Como os eixos da impressora são acionados, conforme a configuração do Klipper. O HelixScreen usa isso para decidir como funciona o homing e quais ferramentas de correia e movimento se aplicam."/>
   <translation tag="How the toolhead icon appears" pt="Como o ícone do cabeçote aparece"/>
+  <translation tag="How tools are numbered on badges and labels" pt="Como as ferramentas são numeradas em emblemas e rótulos"/>
   <translation tag="Hub" pt="Hub"/>
   <translation tag="Hub &amp; Cutter" pt="Hub e cortador"/>
   <translation tag="Hub Bowden Length" pt="Comprimento do bowden do hub"/>
@@ -3685,6 +3687,7 @@
   <translation tag="System default" pt="Padrão do sistema"/>
   <translation tag="System detected" pt="Sistema detectado"/>
   <translation tag="System is {}" pt="O sistema está: {}"/>
+  <translation tag="T0, T1, T2" pt="T0, T1, T2"/>
   <translation tag="TANGLE" pt="EMARANHADO"/>
   <translation tag="TD-1 filament color detection" pt="Detecção de cor de filamento TD-1"/>
   <translation tag="TEMPERATURE SENSORS" pt="SENSORES DE TEMPERATURA"/>
@@ -4080,6 +4083,7 @@
   <translation tag="Tool" pt="Ferramenta"/>
   <translation tag="Tool Change Failed" pt="Falha ao trocar de ferramenta"/>
   <translation tag="Tool Changer" pt="Trocador de Ferramentas"/>
+  <translation tag="Tool Numbers" pt="Números de ferramenta"/>
   <translation tag="Tool Offsets" pt="Offsets de ferramenta"/>
   <translation tag="Tool Switcher" pt="Seletor de ferramentas"/>
   <translation tag="Tool change failed: {}" pt="Falha ao trocar ferramenta: {}"/>

@@ -97,6 +97,7 @@
   <translation tag="1 print" en="1 print"/>
   <translation tag="1 profile" en="1 profile"/>
   <translation tag="1 unit" en="1 unit"/>
+  <translation tag="1, 2, 3" en="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" en="1. Each nozzle is heated, wiped and parked at the front for you to brush clean"/>
   <translation tag="1. Printer homes all axes (~1 minute)" en="1. Printer homes all axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" en="1. Printer homes and probes the bed"/>
@@ -1786,6 +1787,7 @@
   <translation tag="How the Jog tab arranges its buttons" en="How the Jog tab arranges its buttons"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." en="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply."/>
   <translation tag="How the toolhead icon appears" en="How the toolhead icon appears"/>
+  <translation tag="How tools are numbered on badges and labels" en="How tools are numbered on badges and labels"/>
   <translation tag="Hub" en="Hub"/>
   <translation tag="Hub &amp; Cutter" en="Hub &amp; Cutter"/>
   <translation tag="Hub Bowden Length" en="Hub Bowden Length"/>
@@ -3685,6 +3687,7 @@
   <translation tag="System default" en="System default"/>
   <translation tag="System detected" en="System detected"/>
   <translation tag="System is {}" en="System is {}"/>
+  <translation tag="T0, T1, T2" en="T0, T1, T2"/>
   <translation tag="TANGLE" en="TANGLE"/>
   <translation tag="TD-1 filament color detection" en="TD-1 filament color detection"/>
   <translation tag="TEMPERATURE SENSORS" en="TEMPERATURE SENSORS"/>
@@ -4080,6 +4083,7 @@
   <translation tag="Tool" en="Tool"/>
   <translation tag="Tool Change Failed" en="Tool Change Failed"/>
   <translation tag="Tool Changer" en="Tool Changer"/>
+  <translation tag="Tool Numbers" en="Tool Numbers"/>
   <translation tag="Tool Offsets" en="Tool Offsets"/>
   <translation tag="Tool Switcher" en="Tool Switcher"/>
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>

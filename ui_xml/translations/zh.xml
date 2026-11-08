@@ -97,6 +97,7 @@
   <translation tag="1 print" zh="1 次打印"/>
   <translation tag="1 profile" zh="1 个配置"/>
   <translation tag="1 unit" zh="1 个单元"/>
+  <translation tag="1, 2, 3" zh="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" zh="1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁"/>
   <translation tag="1. Printer homes all axes (~1 minute)" zh="1. 打印机全部轴归零（约1分钟）"/>
   <translation tag="1. Printer homes and probes the bed" zh="1. 打印机归位并探测热床"/>
@@ -1786,6 +1787,7 @@
   <translation tag="How the Jog tab arranges its buttons" zh="点动页按钮的排列方式"/>
   <translation tag="How the printer&apos;s axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply." zh="打印机各轴的驱动方式,取自其 Klipper 配置。HelixScreen 据此决定归零方式,以及适用哪些皮带和运动工具。"/>
   <translation tag="How the toolhead icon appears" zh="工具头图标的显示方式"/>
+  <translation tag="How tools are numbered on badges and labels" zh="角标和标签上工具的编号方式"/>
   <translation tag="Hub" zh="集线器"/>
   <translation tag="Hub &amp; Cutter" zh="集线器与切刀"/>
   <translation tag="Hub Bowden Length" zh="集线器波顿管长度"/>
@@ -3685,6 +3687,7 @@
   <translation tag="System default" zh="系统默认"/>
   <translation tag="System detected" zh="检测到系统"/>
   <translation tag="System is {}" zh="系统状态: {}"/>
+  <translation tag="T0, T1, T2" zh="T0, T1, T2"/>
   <translation tag="TANGLE" zh="打结"/>
   <translation tag="TD-1 filament color detection" zh="TD-1 耗材颜色检测"/>
   <translation tag="TEMPERATURE SENSORS" zh="温度传感器"/>
@@ -4080,6 +4083,7 @@
   <translation tag="Tool" zh="工具"/>
   <translation tag="Tool Change Failed" zh="工具切换失败"/>
   <translation tag="Tool Changer" zh="换刀器"/>
+  <translation tag="Tool Numbers" zh="工具编号"/>
   <translation tag="Tool Offsets" zh="工具偏移"/>
   <translation tag="Tool Switcher" zh="工具切换器"/>
   <translation tag="Tool change failed: {}" zh="工具切换失败: {}"/>

@@ -97,6 +97,7 @@ translations:
   1 print: 1 print
   1 profile: 1 profile
   1 unit: 1 unit
+  1, 2, 3: 1, 2, 3
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Each nozzle is heated, wiped and parked at the front for you to brush clean
   1. Printer homes all axes (~1 minute): 1. Printer homes all axes (~1 minute)
   1. Printer homes and probes the bed: 1. Printer homes and probes the bed
@@ -1902,6 +1903,7 @@ translations:
   ? How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   : How the printer's axes are driven, as its Klipper config declares it. HelixScreen uses it to decide how homing works and which belt and motion tools apply.
   How the toolhead icon appears: How the toolhead icon appears
+  How tools are numbered on badges and labels: How tools are numbered on badges and labels
   Hub: Hub
   Hub & Cutter: Hub & Cutter
   Hub Bowden Length: Hub Bowden Length
@@ -3934,6 +3936,7 @@ translations:
   System default: System default
   System detected: System detected
   System is {}: System is {}
+  T0, T1, T2: T0, T1, T2
   TANGLE: TANGLE
   TD-1 filament color detection: TD-1 filament color detection
   TEMPERATURE SENSORS: TEMPERATURE SENSORS
@@ -4403,6 +4406,7 @@ translations:
   Tool: Tool
   Tool Change Failed: Tool Change Failed
   Tool Changer: Tool Changer
+  Tool Numbers: Tool Numbers
   Tool Offsets: Tool Offsets
   Tool Switcher: Tool Switcher
   'Tool change failed: {}': 'Tool change failed: {}'

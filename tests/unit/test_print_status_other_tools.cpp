@@ -130,9 +130,39 @@ TEST_CASE("other tools: configured names give way to numbers where they do not f
 
 TEST_CASE("other tools: a configured tool name is its badge, a generated one the 1-based number",
           "[print_status_other_tools]") {
-    CHECK(other_tool_badge("Left", 0) == "Left");
-    CHECK(other_tool_badge("T2", 2) == "3");
-    CHECK(other_tool_badge("T0", 0) == "1");
+    CHECK(other_tool_label(ui::ToolNumberStyle::Physical, "Left", 0).badge == "Left");
+    CHECK(other_tool_label(ui::ToolNumberStyle::Physical, "T2", 2).badge == "3");
+    CHECK(other_tool_label(ui::ToolNumberStyle::Physical, "T0", 0).badge == "1");
+}
+
+TEST_CASE("other tools: each head is labeled in the printer's tool number style",
+          "[print_status_other_tools][tool_style]") {
+    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1"),
+                                         tool_on(2, "extruder2"), tool_on(3, "extruder3")};
+    const auto others = other_heads(physical_heads(tools), 1, false);
+    REQUIRE(others.size() == 3);
+    const auto labels = [&](ui::ToolNumberStyle style) {
+        std::vector<std::string> out;
+        for (const OtherHead& head : others) {
+            const OtherToolReading r = other_tool_label(style, tools[head.tool].name, head.tool);
+            // The fallback number is empty where it would only repeat the badge.
+            CHECK(r.number.empty());
+            out.push_back(r.badge);
+        }
+        return out;
+    };
+    CHECK(labels(ui::ToolNumberStyle::Gcode) == std::vector<std::string>{"T0", "T2", "T3"});
+    CHECK(labels(ui::ToolNumberStyle::Physical) == std::vector<std::string>{"1", "3", "4"});
+}
+
+TEST_CASE("other tools: a configured name falls back to the number in the printer's style",
+          "[print_status_other_tools][tool_style]") {
+    const OtherToolReading gcode = other_tool_label(ui::ToolNumberStyle::Gcode, "Left", 0);
+    CHECK(gcode.badge == "Left");
+    CHECK(gcode.number == "T0");
+    const OtherToolReading physical = other_tool_label(ui::ToolNumberStyle::Physical, "Left", 0);
+    CHECK(physical.badge == "Left");
+    CHECK(physical.number == "1");
 }
 
 TEST_CASE("other heads: each head besides the printing one, once, named by its tool",
