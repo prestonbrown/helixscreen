@@ -145,12 +145,16 @@ TEST_CASE("SpoolmanSlotSaver detect_changes: catalog product changed sets filame
 // save() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver save on an unlinked slot with no colour is incomplete",
-          "[spoolman][slot_saver]") {
+/// The mock printer and API every save() case talks to.
+struct SaverApiFixture {
     PrinterState state;
     MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    MoonrakerAPIMock api{client, state};
+};
 
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save on an unlinked slot with no colour is incomplete",
+                 "[spoolman][slot_saver]") {
     SpoolmanSlotSaver saver(&api);
 
     SlotInfo original;
@@ -192,12 +196,8 @@ TEST_CASE("a picked grey is a colour the save accepts, never the no-colour marke
     CHECK(helix::ams::picked_color(0x123456) == 0x123456);
 }
 
-TEST_CASE("SpoolmanSlotSaver save does nothing when no changes detected",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture, "SpoolmanSlotSaver save does nothing when no changes detected",
+                 "[spoolman][slot_saver]") {
     SpoolmanSlotSaver saver(&api);
 
     SlotInfo original = make_test_slot();
@@ -215,12 +215,9 @@ TEST_CASE("SpoolmanSlotSaver save does nothing when no changes detected",
     REQUIRE(callback_success); // No-op success
 }
 
-TEST_CASE("SpoolmanSlotSaver save only updates weight when no filament-level changes",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save only updates weight when no filament-level changes",
+                 "[spoolman][slot_saver]") {
     // Ensure mock has a spool with id=42
     auto& spools = client.spoolman_mock().get_mock_spools();
     SpoolInfo test_spool;
@@ -259,11 +256,9 @@ TEST_CASE("SpoolmanSlotSaver save only updates weight when no filament-level cha
     }
 }
 
-TEST_CASE("SpoolmanSlotSaver save repoints spool to existing filament when vendor changes",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save repoints spool to existing filament when vendor changes",
+                 "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     // Seed the original vendor + filament (id=100, referenced by make_test_slot).
@@ -299,11 +294,10 @@ TEST_CASE("SpoolmanSlotSaver save repoints spool to existing filament when vendo
     REQUIRE(client.spoolman_mock().created_filaments.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver save creates new vendor + filament and repoints spool when no match",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save creates new vendor + filament and repoints spool when no match",
+    "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     // Seed original vendor/filament so resolution can find them.
@@ -350,12 +344,10 @@ TEST_CASE("SpoolmanSlotSaver save creates new vendor + filament and repoints spo
     REQUIRE(updates[0].patch["filament_id"] == 500);
 }
 
-TEST_CASE("SpoolmanSlotSaver save chains filament repoint then weight update when both changed",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save chains filament repoint then weight update when both changed",
+    "[spoolman][slot_saver]") {
     // Need a mock spool for update_spoolman_spool_weight() to find and update.
     auto& spools = client.spoolman_mock().get_mock_spools();
     SpoolInfo test_spool;
@@ -411,11 +403,10 @@ TEST_CASE("SpoolmanSlotSaver save chains filament repoint then weight update whe
 // spool's filament_id — it never mutates the existing filament record)
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver save creates new filament and repoints spool when material changes",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save creates new filament and repoints spool when material changes",
+    "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     client.spoolman_mock().add_vendor(1, "Polymaker");
@@ -448,10 +439,8 @@ TEST_CASE("SpoolmanSlotSaver save creates new filament and repoints spool when m
     REQUIRE(updates[0].patch["filament_id"] == 101);
 }
 
-TEST_CASE("SpoolmanSlotSaver save creates vendor when brand is new", "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture, "SpoolmanSlotSaver save creates vendor when brand is new",
+                 "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     // Seed the original vendor/filament only.
@@ -489,11 +478,9 @@ TEST_CASE("SpoolmanSlotSaver save creates vendor when brand is new", "[spoolman]
     REQUIRE(updates[0].patch["filament_id"] == 502);
 }
 
-TEST_CASE("SpoolmanSlotSaver save sends color_hex without leading # when creating filament",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save sends color_hex without leading # when creating filament",
+                 "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     client.spoolman_mock().add_vendor(1, "Polymaker");
@@ -518,12 +505,9 @@ TEST_CASE("SpoolmanSlotSaver save sends color_hex without leading # when creatin
     REQUIRE(hex[0] != '#');
 }
 
-TEST_CASE("SpoolmanSlotSaver save repoints then updates weight when both change",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save repoints then updates weight when both change",
+                 "[spoolman][slot_saver]") {
     // Need a mock spool for update_spoolman_spool_weight() to find.
     auto& spools = client.spoolman_mock().get_mock_spools();
     SpoolInfo test_spool;
@@ -661,13 +645,10 @@ TEST_CASE("SpoolmanSlotSaver is_filament_complete: a brand, a material and a cho
 // find_or_create_vendor() Tests
 // ============================================================================
 
-TEST_CASE(
+TEST_CASE_METHOD(
+    SaverApiFixture,
     "SpoolmanSlotSaver find_or_create_vendor: reuses existing vendor by name (case-insensitive)",
     "[spoolman][slot_saver][vendor]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
     // Pre-seed vendor with id=7, name="Polymaker".
     client.spoolman_mock().add_vendor(7, "Polymaker");
 
@@ -684,12 +665,9 @@ TEST_CASE(
     REQUIRE(client.spoolman_mock().created_vendors.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_vendor: creates new vendor when name not found",
-          "[spoolman][slot_saver][vendor]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver find_or_create_vendor: creates new vendor when name not found",
+                 "[spoolman][slot_saver][vendor]") {
     // Clear any spool-synthesized vendors so lookup definitely misses.
     serve_only_linked_spool(client);
     client.spoolman_mock().add_vendor(7, "Polymaker");
@@ -712,11 +690,9 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_vendor: creates new vendor when name
 // find_or_create_filament() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: mismatched material -> creates new",
-          "[spoolman][slot_saver][filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver find_or_create_filament: mismatched material -> creates new",
+                 "[spoolman][slot_saver][filament]") {
     serve_only_linked_spool(client);
     client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000");
     client.spoolman_mock().next_created_filament_id = 101;
@@ -736,12 +712,11 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: mismatched material -> cre
     REQUIRE(payload["name"] == "PETG");
 }
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: a created filament carries the printer's "
-          "diameter",
-          "[spoolman][slot_saver][filament][filament_diameter]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver find_or_create_filament: a created filament carries the printer's "
+    "diameter",
+    "[spoolman][slot_saver][filament][filament_diameter]") {
     serve_only_linked_spool(client);
     client.spoolman_mock().next_created_filament_id = 101;
 
@@ -754,11 +729,9 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: a created filament carries
           Catch::Approx(2.85f));
 }
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: invalid color hex triggers on_error",
-          "[spoolman][slot_saver][filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver find_or_create_filament: invalid color hex triggers on_error",
+                 "[spoolman][slot_saver][filament]") {
     serve_only_linked_spool(client);
 
     SpoolmanSlotSaver saver(&api);
@@ -774,11 +747,9 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: invalid color hex triggers
     REQUIRE(client.spoolman_mock().created_filaments.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver find_or_create_filament: accepts leading # and strips it",
-          "[spoolman][slot_saver][filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver find_or_create_filament: accepts leading # and strips it",
+                 "[spoolman][slot_saver][filament]") {
     serve_only_linked_spool(client);
     client.spoolman_mock().add_filament(100, 7, "PLA", "FF0000", "PLA");
 
@@ -796,11 +767,9 @@ TEST_CASE("SpoolmanSlotSaver find_or_create_filament: accepts leading # and stri
 // repoint_spool() Tests
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver repoint_spool: PATCHes spool with new filament_id",
-          "[spoolman][slot_saver][repoint]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver repoint_spool: PATCHes spool with new filament_id",
+                 "[spoolman][slot_saver][repoint]") {
     serve_only_linked_spool(client);
     SpoolmanSlotSaver saver(&api);
 
@@ -823,12 +792,11 @@ TEST_CASE("SpoolmanSlotSaver repoint_spool: PATCHes spool with new filament_id",
 // Incompleteness + skip-on-match paths (save() behavior)
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver save: linked spool + incomplete filament fields + no weight change "
-          "-> incomplete, no API calls",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save: linked spool + incomplete filament fields + no weight change "
+    "-> incomplete, no API calls",
+    "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     SlotInfo original = make_test_slot();
@@ -848,13 +816,11 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + incomplete filament fields + n
     REQUIRE(client.spoolman_mock().created_filaments.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver save: linked spool + incomplete filament fields + weight change "
-          "-> incomplete, and the weight waits with it",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save: linked spool + incomplete filament fields + weight change "
+    "-> incomplete, and the weight waits with it",
+    "[spoolman][slot_saver]") {
     // Need the spool to exist for the weight update to land.
     auto& spools = client.spoolman_mock().get_mock_spools();
     SpoolInfo test_spool;
@@ -894,12 +860,10 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + incomplete filament fields + w
     }
 }
 
-TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to same filament_id "
-          "-> no repoint",
-          "[spoolman][slot_saver]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save: linked spool + filament resolves to same filament_id "
+                 "-> no repoint",
+                 "[spoolman][slot_saver]") {
     serve_only_linked_spool(client);
 
     // Seed vendor + filament that will be matched exactly.
@@ -935,12 +899,11 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to same fila
 // save(): no linked spool -> create-new-spool path
 // ============================================================================
 
-TEST_CASE("SpoolmanSlotSaver save: no linked spool + complete fields -> creates spool and returns "
-          "IDs",
-          "[spoolman][slot_saver][create]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save: no linked spool + complete fields -> creates spool and returns "
+    "IDs",
+    "[spoolman][slot_saver][create]") {
     serve_only_linked_spool(client); // isolate from synthesized vendors
     client.spoolman_mock().add_vendor(7, "Polymaker");
     client.spoolman_mock().next_created_filament_id = 101;
@@ -976,11 +939,9 @@ TEST_CASE("SpoolmanSlotSaver save: no linked spool + complete fields -> creates 
     REQUIRE(spool_payload["remaining_weight"] == 750.0);
 }
 
-TEST_CASE("SpoolmanSlotSaver save: no linked spool + incomplete fields -> no Spoolman calls",
-          "[spoolman][slot_saver][create]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save: no linked spool + incomplete fields -> no Spoolman calls",
+                 "[spoolman][slot_saver][create]") {
     serve_only_linked_spool(client);
 
     SlotInfo original;
@@ -1003,12 +964,11 @@ TEST_CASE("SpoolmanSlotSaver save: no linked spool + incomplete fields -> no Spo
     REQUIRE(client.spoolman_mock().created_spools.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver save: no linked spool + complete fields + zero weight -> creates "
-          "spool without weight field",
-          "[spoolman][slot_saver][create]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(
+    SaverApiFixture,
+    "SpoolmanSlotSaver save: no linked spool + complete fields + zero weight -> creates "
+    "spool without weight field",
+    "[spoolman][slot_saver][create]") {
     serve_only_linked_spool(client);
     client.spoolman_mock().add_vendor(7, "Polymaker");
     client.spoolman_mock().next_created_filament_id = 101;
@@ -1117,12 +1077,9 @@ TEST_CASE("SpoolmanSlotSaver save: linked spool + filament resolves to existing 
 //   CreateAndRebind   — different physical spool; create a new one, leave the old alone
 //   UnlinkLocalOnly   — stop tracking this in Spoolman; keep values lane-local
 
-TEST_CASE("SpoolmanSlotSaver CreateAndRebind creates even when a link exists",
-          "[spoolman][slot_saver][intent]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver CreateAndRebind creates even when a link exists",
+                 "[spoolman][slot_saver][intent]") {
     SlotInfo original = make_test_slot(); // spoolman_id = 42
     SlotInfo edited = original;
     edited.brand = "Creality";
@@ -1149,12 +1106,8 @@ TEST_CASE("SpoolmanSlotSaver CreateAndRebind creates even when a link exists",
     }
 }
 
-TEST_CASE("SpoolmanSlotSaver UnlinkLocalOnly writes nothing to Spoolman",
-          "[spoolman][slot_saver][intent]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SaverApiFixture, "SpoolmanSlotSaver UnlinkLocalOnly writes nothing to Spoolman",
+                 "[spoolman][slot_saver][intent]") {
     SlotInfo original = make_test_slot();
     SlotInfo edited = original;
     edited.material = "PETG";
@@ -1173,11 +1126,8 @@ TEST_CASE("SpoolmanSlotSaver UnlinkLocalOnly writes nothing to Spoolman",
     CHECK(client.spoolman_mock().weight_updates.empty());
 }
 
-TEST_CASE("SpoolmanSlotSaver UpdateLinked still patches the linked spool",
-          "[spoolman][slot_saver][intent]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture, "SpoolmanSlotSaver UpdateLinked still patches the linked spool",
+                 "[spoolman][slot_saver][intent]") {
     serve_only_linked_spool(client);
 
     SlotInfo original = make_test_slot();
@@ -1581,11 +1531,9 @@ TEST_CASE("SpoolmanSlotSaver: only the exact record a save files is reused witho
     }
 }
 
-TEST_CASE("SpoolmanSlotSaver save: reuse, a repoint and a catalog pick through the API",
-          "[spoolman][slot_saver][exact_filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SaverApiFixture,
+                 "SpoolmanSlotSaver save: reuse, a repoint and a catalog pick through the API",
+                 "[spoolman][slot_saver][exact_filament]") {
     serve_only_linked_spool(client);
     client.spoolman_mock().add_vendor(1, "Polymaker");
     client.spoolman_mock().add_filament(100, 1, "PLA", "7A7A7A", "Stone Grey");
