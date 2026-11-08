@@ -16,6 +16,7 @@
 #include "light_button_config.h"
 #include "lvgl.h"
 #include "moonraker_manager.h"
+#include "plate_glow.h"
 #include "print_start_collector.h"
 #include "print_start_phase_label.h"
 #include "printer_image_manager.h"
@@ -415,8 +416,13 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
         current, target, subject_int_or_zero(printer_state_.get_heater_power_subject(type)), mode);
     const bool printing = host_.printing && host_.printing();
     // A chamber's temperature matters to the print whether or not its heater runs.
-    return heater_chip(present, current, target, status, printing, show_power, badge,
-                       heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
+    ChipContent c =
+        heater_chip(present, current, target, status, printing, show_power, badge,
+                    heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
+    // The plate glows by how hot it is, at target or cooling as much as climbing.
+    if (chip == PrintStatusChip::Bed && present)
+        c.glow = bed_glow_level(current);
+    return c;
 }
 
 ChipContent PrintStatusTiles::fan(PrintStatusChip chip, bool labeled) {
@@ -467,7 +473,7 @@ void PrintStatusTiles::publish(PrintStatusChip chip, const ChipContent& c, bool 
     set_int(&s.tone, static_cast<int>(c.tone));
     set_int(&s.progress, has_progress(chip) ? c.progress_pct : -1);
     set_int(&s.state, is_heater(chip) ? c.status_state : 0);
-    set_int(&s.glow, glow ? 1 : 0);
+    set_int(&s.glow, glow ? std::max(1, c.glow) : 0);
     set_int(&s.line, line ? 1 : 0);
     set_int(&s.shown, shown ? 1 : 0);
     if (has_progress(chip)) {
@@ -529,7 +535,11 @@ void PrintStatusTiles::paint_heat_chip(PrintStatusChip chip, const ChipContent& 
     if (chip == PrintStatusChip::Nozzle) {
         paint(lv_obj_find_by_name(root, "ps_chip_toolhead"));
     }
-    if (lv_obj_t* glow = lv_obj_find_by_name(root, ("ps_glow_" + key).c_str())) {
+    // The plate glow takes its color from the XML; the region discs take the heat's.
+    lv_obj_t* glow = chip == PrintStatusChip::Bed
+                         ? nullptr
+                         : lv_obj_find_by_name(root, ("ps_glow_" + key).c_str());
+    if (glow) {
         // DECLARATIVE_OK: heat color comes from get_heating_state_color()
         lv_obj_set_style_bg_color(glow, color, LV_PART_MAIN);
     }
