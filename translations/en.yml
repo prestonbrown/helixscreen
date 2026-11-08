@@ -2657,6 +2657,7 @@ translations:
   Nothing to remap: Nothing to remap
   Nothing to tune here: Nothing to tune here
   'Nothing to unload: no filament at the nozzle': 'Nothing to unload: no filament at the nozzle'
+  Whether the Z arrows follow the bed or the Z value: Whether the Z arrows follow the bed or the Z value
   Which belt is each path?: Which belt is each path?
   Which belt is which?: Which belt is which?
   'Which lane is in the toolhead?': 'Which lane is in the toolhead?'
@@ -4755,6 +4756,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   Z: Z
+  Z Buttons Move: Z Buttons Move
   Z Calibration: Z Calibration
   Z Movement: Z Movement
   Z Offset: Z Offset

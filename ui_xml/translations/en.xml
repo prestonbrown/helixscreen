@@ -4336,6 +4336,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." en="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs."/>
   <translation tag="Where UI sounds play" en="Where UI sounds play"/>
   <translation tag="Whether filament is loaded" en="Whether filament is loaded"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" en="Whether the Z arrows follow the bed or the Z value"/>
   <translation tag="Which belt is each path?" en="Which belt is each path?"/>
   <translation tag="Which belt is which?" en="Which belt is which?"/>
   <translation tag="Which lane is in the toolhead?" en="Which lane is in the toolhead?"/>
@@ -4420,6 +4421,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." en="Your {0} looks like it has {1}, but it is set up for {2}."/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." en="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide."/>
   <translation tag="Z" en="Z"/>
+  <translation tag="Z Buttons Move" en="Z Buttons Move"/>
   <translation tag="Z Calibration" en="Z Calibration"/>
   <translation tag="Z Movement" en="Z Movement"/>
   <translation tag="Z Offset" en="Z Offset"/>

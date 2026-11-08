@@ -57,11 +57,6 @@
                               options="Auto&#10;3D View&#10;2D Layers&#10;Thumbnail Only"
                               options_tag="Auto&#10;3D View&#10;2D Layers&#10;Thumbnail Only"
                               callback="on_gcode_mode_changed"/>
-        <setting_dropdown_row name="row_z_movement_style"
-                              label="Z Movement" icon="arrow_up_down" description="How Z-axis movement is displayed"
-                              options="Auto&#10;Bed Moves&#10;Nozzle Moves"
-                              options_tag="Auto&#10;Bed Moves&#10;Nozzle Moves"
-                              bind_selected="settings_z_movement_style" callback="on_z_movement_style_changed"/>
         <setting_dropdown_row name="row_bed_mesh_mode"
                               label="Bed Mesh Render" icon="grid_large"
                               description="Choose rendering mode for bed mesh visualization"

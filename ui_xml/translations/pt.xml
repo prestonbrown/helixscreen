@@ -4336,6 +4336,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." pt="Quando habilitado, apenas a macro é executada. Quando desabilitado, as temperaturas são definidas primeiro, depois a macro é executada."/>
   <translation tag="Where UI sounds play" pt="Onde os sons da interface são reproduzidos"/>
   <translation tag="Whether filament is loaded" pt="Se há filamento carregado"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" pt="Se as setas Z seguem a mesa ou o valor Z"/>
   <translation tag="Which belt is each path?" pt="Qual correia é cada caminho?"/>
   <translation tag="Which belt is which?" pt="Qual correia é qual?"/>
   <translation tag="Which lane is in the toolhead?" pt="Qual via está na cabeça?"/>
@@ -4420,6 +4421,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." pt="Sua {0} parece ter {1}, mas está configurada para {2}."/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." pt="Sua linha {} passa configurações por ferramenta que o mapeamento de filamento não altera ({}). Uma ferramenta para a qual você mapear filamento pode não ser aquecida. Consulte &quot;Filament Mapping&quot; no guia do usuário."/>
   <translation tag="Z" pt="Z"/>
+  <translation tag="Z Buttons Move" pt="Os botões Z movem"/>
   <translation tag="Z Calibration" pt="Calibração Z"/>
   <translation tag="Z Movement" pt="Movimento Z"/>
   <translation tag="Z Offset" pt="Z Offset"/>
