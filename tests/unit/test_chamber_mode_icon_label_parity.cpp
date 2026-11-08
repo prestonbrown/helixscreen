@@ -10,7 +10,7 @@
  * chamber icon with the plain (mode-unaware) classify_heat_state(), so a
  * chamber in Maintaining mode — where the "target" is a cooling CEILING, not
  * a heat goal — pulsed heating-red while the label beside it (which already
- * had Maintaining-aware logic) showed a neutral color. The fix routes both
+ * had Maintaining-aware logic) showed a neutral color. Both go
  * through the shared classify_heat_state_with_mode().
  *
  * Drives BOTH consumers off the SAME underlying PrinterState chamber subjects
@@ -151,7 +151,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     binder.unbind();
 }
 
-// The pulse-suppression side of the fix (Maintaining must never pulse, even
+// Pulse suppression (Maintaining must never pulse, even
 // when cold) is covered directly against helix::ui::HeatingIconAnimator in
 // test_heating_animator_state.cpp — lv_anim_get() keys off the animator
 // instance as its `var`, which is a private member here (animator_), so that

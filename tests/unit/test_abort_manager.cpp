@@ -203,7 +203,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: Initial state is IDLE",
 // init_subjects() must NOT eagerly build the abort backdrop. Building it runs
 // create_blurred_backdrop -> init_gpu_blur (EGL/Mali init), which hard-faults
 // inside the driver on some GPUs at cold startup. Deferring it to the first real
-// abort is the fix; this guards against the eager create_modal() call returning.
+// abort avoids that; this guards against the eager create_modal() call returning.
 TEST_CASE_METHOD(AbortManagerTestFixture,
                  "AbortManager: init_subjects does not eagerly build modal", "[abort][lazy]") {
     AbortManager& m = AbortManager::instance();

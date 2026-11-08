@@ -728,7 +728,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Drain the update queue WITHOUT lv_timer_handler. schedule() creates the timer
     // from a queued lambda, but a 0ms timer would then fire and null itself inside
     // the same process_lvgl() sweep — making "fired instantly" (the bug) read
-    // identical to "never scheduled" (the fix). Draining alone lets the timer be
+    // identical to "never scheduled" (correct). Draining alone lets the timer be
     // created but never run, so its mere existence is the failure signal.
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
@@ -860,7 +860,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // The runout pause. AFC does not self-home, so refuse_if_printing() now
     // ALLOWS the unload here — pause-then-swap is the recovery Klipper asks for,
-    // and the panel must hand the button back or the fix is invisible.
+    // and the panel must hand the button back or the recovery is unreachable.
     set_job_state(helix::PrintJobState::PAUSED);
     CHECK(read("filament_load_disabled") == 1);   // slot 3 already loaded
     CHECK(read("filament_unload_disabled") == 0); // the paused-swap fix

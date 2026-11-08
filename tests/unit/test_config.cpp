@@ -779,10 +779,7 @@ TEST_CASE_METHOD(
 
 TEST_CASE("Config::init() should NOT write log_level to new config file",
           "[core][config][log_level][integration]") {
-    // TDD TEST: This test SHOULD FAIL initially because config.cpp currently
-    // includes log_level in get_default_config() and writes it during init().
-    //
-    // The fix (Step 5) will remove log_level from defaults, making this pass.
+    // get_default_config() must not include log_level, so init() never writes it.
 
     // Create a temp directory for the test config
     std::string temp_dir = helix::test::unique_temp_dir("helix_test");

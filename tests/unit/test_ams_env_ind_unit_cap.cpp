@@ -17,7 +17,7 @@
  * reported. Unit 4's badge bound seven names nothing had registered and stayed
  * permanently dark and silent — no crash, because every getter bounds-checks.
  *
- * The fix raises the cap to 8 (what the system-path canvas has always drawn) and
+ * The cap is 8 (what the system-path canvas has always drawn) and
  * routes card name-building through AmsState::env_indicator_subject_names(), so
  * a rig past even that cap gets the always-off placeholders instead of names
  * nothing registered.

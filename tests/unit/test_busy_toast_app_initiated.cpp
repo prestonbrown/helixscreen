@@ -13,7 +13,7 @@
  * housekeeping, an LED change) then hit the busy branch and toasted the user
  * about the very operation they had just started themselves.
  *
- * The fix is scoped to the TOAST DECISION only. Neither blocking-op predicate
+ * Only the TOAST DECISION changes. Neither blocking-op predicate
  * moves: motion must keep refusing a late jog during a filament op (#1108
  * toolhead-collision hazard). MoonrakerAPI::execute_gcode stamps
  * PrinterState::app_macro_activity() around every non-discretionary send, and

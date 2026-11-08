@@ -310,8 +310,8 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
 // Crash report #827: the new session that reports a crash writes its own boot
 // lines to syslog/journal before collecting the log tail. A small tail (50
 // lines) ended up showing only post-crash startup noise, with the pre-crash
-// context pushed off the top. The fix: collect a larger buffer and filter
-// lines whose timestamp is after the crash time. These tests pin the
+// context pushed off the top. So the reporter collects a larger buffer and
+// filters lines whose timestamp is after the crash time. These tests pin the
 // filter's contract — pre-crash kept, post-crash dropped, unparseable kept.
 TEST_CASE_METHOD(CrashReporterTestFixture,
                  "CrashReporter: collect_report filters post-crash lines from log tail",

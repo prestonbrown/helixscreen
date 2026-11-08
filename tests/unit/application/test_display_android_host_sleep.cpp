@@ -13,7 +13,7 @@
  * fell through to the software overlay — a black LVGL rect over a fully lit,
  * battery-draining panel.
  *
- * The fix maps our Display Sleep setting onto Android's own sleep: at idle we
+ * HelixScreen maps our Display Sleep setting onto Android's own sleep: at idle we
  * clear keep-screen-on and let the OS power the panel off; on wake we re-assert
  * it. Display Sleep = "Never" must NEVER clear the flag (wall-mounted tablets).
  *
