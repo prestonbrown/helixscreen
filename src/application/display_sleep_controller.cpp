@@ -555,6 +555,11 @@ void DisplaySleepController::wake() {
     }
 
     if (!m_display_sleeping && !m_display_dimmed) {
+        // An owed first frame restores the panel itself; restoring the flush here
+        // would page-flip a stale frame onto a panel that is still powered off.
+        if (m_wake_frame_owed) {
+            return;
+        }
         // Reaching here means the display is meant to be awake, so a flush still
         // suppressed is a frozen panel that no later wake would clear.
         restore_flush_after_sleep();
