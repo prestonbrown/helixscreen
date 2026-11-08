@@ -128,7 +128,7 @@ A long press on a control you drag does not enter Edit Mode: the arc on a Fan Sp
 - The corner brackets **pulse** gently to indicate the active selection
 - **Tap empty space** to deselect the current widget
 - Only one widget can be selected at a time
-- **Tap the selected widget again**, or **long-press any widget and lift without moving**, to open its menu. The menu sits beside the widget, which stays outlined, and lists what you can do to it: **Configure** for widgets that have settings, and **Remove**. Tap outside the menu to close it without doing anything.
+- **Tap the selected widget again**, or **press and hold any widget**, to open its menu. A held menu appears while your finger is still down: lift without moving to keep it open, or keep moving to drag the widget instead. The menu sits beside the widget, which stays outlined, and lists what you can do to it: **Configure** for widgets that have settings, and **Remove**. Tap outside the menu to close it without doing anything.
 - Pressing a widget that is not selected only selects it, even if your finger then slides: a slide across the grid swipes pages rather than dragging a widget
 
 ### Moving a Widget
@@ -221,7 +221,7 @@ The **Reset** button in the catalog header resets your whole dashboard — see [
 
 ### Removing a Widget
 
-1. **Tap** the widget you want to remove to select it, then tap it again to open its menu. You can also long-press the widget and lift your finger without moving it.
+1. **Tap** the widget you want to remove to select it, then tap it again to open its menu. You can also press and hold the widget, then lift your finger without moving it.
 2. Tap **Remove** in the menu.
 3. The widget is removed from your grid, and a **Widget removed** message appears with an **Undo** button for a few seconds. Tap **Undo** to put the widget back where it was, with its settings. If something has taken its spot, it goes to a free space on its page. Opening the Widget Catalog, deleting a page, or tapping **Done** ends the chance to undo.
 

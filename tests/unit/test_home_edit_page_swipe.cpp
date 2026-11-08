@@ -2277,15 +2277,15 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on an unselected widget grabs it after
     enter_edit_mode();
 
     // One gesture: press the unselected widget, hold past a long press (the
-    // hold grabs what the press selected), keep holding and move. The drag
-    // must start without a release in between.
+    // hold arms a grab of what the press selected), keep holding and move. The
+    // drag must start without a release in between.
     const lv_point_t c = center_of(widget);
     indev.press(c.x, c.y); // selects: no arm, still a swipe candidate
     REQUIRE(grid().selected_widget() == widget);
     CHECK(scroll_live());
 
-    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: grab
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: arms
+    CHECK(GridEditModeTestAccess::press_armed(grid()));
     CHECK_FALSE(scroll_live());
 
     int x = c.x;
@@ -3389,8 +3389,10 @@ TEST_CASE_METHOD(EditHomeFixture, "a drop's page-creating intent ends with its g
 
     // A hold selects the widget and grabs it, released where it grabbed.
     indev.press(c.x, c.y);                  // selects
-    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: grab
+    indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: arms
+    indev.move(c.x + past_drag_threshold(), c.y);
     REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    indev.move(c.x, c.y);
     indev.release(c.x, c.y);
     settle();
 
@@ -3431,6 +3433,8 @@ TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, n
         CHECK(scroll_live()); // selection alone must not own the swipe
 
         indev.release(edge_x, mid_y);
+        grid().close_tile_callout();
+        settle();
         indev.prime(edge_x, mid_y); // a fresh press on the edge: arms pending
         CHECK(GridEditModeTestAccess::press_armed(grid()));
         CHECK_FALSE(scroll_live());
@@ -3451,6 +3455,8 @@ TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, n
         CHECK(scroll_live());
 
         indev.release(center_x, mid_y);
+        grid().close_tile_callout();
+        settle();
         indev.prime(center_x, mid_y); // a fresh press on the widget: arms pending
         CHECK(GridEditModeTestAccess::press_armed(grid()));
         CHECK_FALSE(scroll_live());
@@ -4986,7 +4992,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK_FALSE(lv_obj_has_flag(remove, LV_OBJ_FLAG_HIDDEN));
 }
 
-TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile released in place opens its callout",
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile raises its callout, and lifting leaves it open",
                  "[edit-callout][grid_edit][home]") {
     build_home();
     enter_edit_mode();
@@ -5000,13 +5006,19 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile released in place opens its 
     const lv_point_t c = center_of(widget);
     indev.press(c.x, c.y);
     indev.hold(indev.long_press_hold_ms());
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
-    // Not while the finger is down: the hold is a live drag until it lifts.
-    CHECK_FALSE(grid().is_callout_open());
-    indev.release(c.x, c.y);
+    // Raised with the finger still down; nothing is dragged yet.
+    REQUIRE(grid().is_callout_open());
+    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    // A finger settling within the drag threshold leaves it up.
+    const int settle_x = c.x + past_drag_threshold() - 1;
+    indev.move(settle_x, c.y);
+    REQUIRE(grid().is_callout_open());
+    indev.release(settle_x, c.y);
     process_lvgl(static_cast<int>(kReadPeriodMs));
 
+    // The lift is neither a dismissal nor a tap on a row.
     REQUIRE(grid().is_callout_open());
+    CHECK(config().is_placed("temperature"));
     // The widget is back in its cell, selected, and the drop committed nothing.
     CHECK(lv_obj_get_parent(widget_on(0, "temperature")) == page(0));
     CHECK(grid().selected_widget() == widget_on(0, "temperature"));
@@ -5024,9 +5036,11 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold that moves the tile drags it and opens
     const lv_point_t c = center_of(widget);
     indev.press(c.x, c.y);
     indev.hold(indev.long_press_hold_ms());
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_callout_open());
     const int to_x = c.x + tracks_px(kCellTracks);
     indev.move(c.x + 30, c.y);
+    CHECK_FALSE(grid().is_callout_open());
+    REQUIRE(GridEditModeTestAccess::dragging(grid()));
     indev.move(to_x, c.y);
     indev.release(to_x, c.y);
     settle();
@@ -5056,7 +5070,26 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK_FALSE(grid().is_callout_open());
 }
 
-TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode on a tile opens its callout",
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a hold on the selected tile's resize edge resizes, with no callout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home(1, 1);
+    enter_edit_mode();
+    select_by_tap("temperature");
+    const lv_area_t wa = area_of(widget_on(0, "temperature"));
+    const helix::CellMetrics m = page_metrics(0);
+    const int x =
+        wa.x1 + GridEditModeTestAccess::edge_hit_band_for_cell(std::min(m.cell_w, m.cell_h)) / 2;
+    const int y = (wa.y1 + wa.y2) / 2;
+    indev.press(x, y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK(GridEditModeTestAccess::resizing(grid()));
+    CHECK_FALSE(grid().is_callout_open());
+    indev.release(x, y);
+    settle();
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode on a tile raises its callout",
                  "[edit-callout][grid_edit][home]") {
     build_home();
     lv_obj_t* widget = widget_on(0, "temperature");
@@ -5065,6 +5098,8 @@ TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode on a tile open
     indev.hold(indev.long_press_hold_ms());
     REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
     REQUIRE(grid().selected_widget() == widget);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    REQUIRE(grid().is_callout_open()); // up with the finger still down
     SECTION("released where it held") {
         indev.release(c.x, c.y);
         process_lvgl(static_cast<int>(kReadPeriodMs));

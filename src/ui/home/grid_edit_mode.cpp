@@ -1505,11 +1505,11 @@ void GridEditMode::handle_long_press(lv_event_t* e) {
         return;
     }
 
-    // A hold is a grab, however the selection arose: a hold that found the
+    // A hold arms a grab, however the selection arose: a hold that found the
     // widget already selected AND a hold that selected it mid-gesture both
-    // latch the gesture as a grab and start the drag immediately. A swipe
-    // never gets here - scroll adoption suppresses LONG_PRESSED - so a quick
-    // drag on an unselected widget still flips the page.
+    // latch the gesture. A swipe never gets here - scroll adoption suppresses
+    // LONG_PRESSED - so a quick drag on an unselected widget still flips the
+    // page.
     press_armed_ = false;
     if (selected_) {
         gesture_can_arm_ = true;
@@ -1522,7 +1522,14 @@ void GridEditMode::handle_long_press(lv_event_t* e) {
             lv_obj_get_coords(selected_, &sel_area);
             gesture_on_selected_ = point_in_area(press_origin_, sel_area);
         }
-        handle_drag_start(e);
+        if (hold_raises_callout()) {
+            // The shield stays press-locked under the backdrop, so this finger's
+            // release still reaches the grid and is no tap on the callout.
+            press_armed_ = true;
+            open_tile_callout();
+        } else {
+            handle_drag_start(e);
+        }
     }
     notify_gesture_ownership();
 }
@@ -1533,6 +1540,11 @@ void GridEditMode::handle_pressing(lv_event_t* e) {
         lv_point_t at;
         lv_indev_get_point(travel_indev, &at);
         track_gesture_travel(at);
+        // Only the hold that raised it can be pressing while it is open: its
+        // backdrop takes every later press. Closing lets the grab below proceed.
+        if (press_armed_ && is_callout_open() && past_drag_threshold(at)) {
+            close_tile_callout();
+        }
     }
     if (!grid_input_acts() || gesture_inert_) {
         return;
@@ -1598,9 +1610,7 @@ void GridEditMode::handle_pressing(lv_event_t* e) {
 
     // Drag threshold check: start real drag when finger moves enough
     if (press_armed_ && selected_) {
-        int dx = pt.x - press_origin_.x;
-        int dy = pt.y - press_origin_.y;
-        if (dx * dx + dy * dy > kDragThresholdPx * kDragThresholdPx) {
+        if (past_drag_threshold(pt)) {
             press_armed_ = false;
             handle_drag_start(e);
             // After the call: its guard rejections return with nothing armed,
@@ -1646,6 +1656,22 @@ void GridEditMode::handle_released(lv_event_t* e) {
 bool GridEditMode::release_opens_callout(const CalloutReleaseFacts& f) {
     return f.press_on_selected && !f.resized && !f.committed &&
            f.max_travel_px <= kDragThresholdPx && !f.inert && f.input_acts;
+}
+
+bool GridEditMode::past_drag_threshold(lv_point_t pt) const {
+    const int dx = pt.x - press_origin_.x;
+    const int dy = pt.y - press_origin_.y;
+    return dx * dx + dy * dy > kDragThresholdPx * kDragThresholdPx;
+}
+
+bool GridEditMode::hold_raises_callout() const {
+    if (!gesture_on_selected_ || dragging_ || resizing_) {
+        return false;
+    }
+    lv_area_t sel_area;
+    lv_obj_get_coords(selected_, &sel_area);
+    return detect_resize_edge(press_origin_.x, press_origin_.y, sel_area) == ResizeEdge::None ||
+           !is_selected_widget_resizable();
 }
 
 void GridEditMode::track_gesture_travel(lv_point_t pt) {
@@ -2948,19 +2974,17 @@ void GridEditMode::handle_press_cancelled(lv_event_t* e) {
     // place of RELEASED (lib/lvgl/src/indev/lv_indev.c#indev_proc_release).
     if (active_ && gesture_entered_ && lv_event_get_code(e) == LV_EVENT_PRESS_LOST) {
         // The hold that entered edit mode ended its press, so its release
-        // arrives as this. Released where it held, on the tile it selected, it
-        // opens that tile's callout like any hold released in place.
+        // arrives as this and no PRESSING reports the finger moving. The
+        // callout it raised closes here if the finger left the tile's hold.
         if (lv_indev_t* indev = lv_indev_active()) {
             lv_point_t at;
             lv_indev_get_point(indev, &at);
             track_gesture_travel(at);
         }
-        const bool opens =
-            selected_ != nullptr && gesture_max_travel_px_ <= kDragThresholdPx && grid_input_acts();
-        clear_gesture_state();
-        if (opens) {
-            open_tile_callout_next_tick();
+        if (gesture_max_travel_px_ > kDragThresholdPx) {
+            close_tile_callout();
         }
+        clear_gesture_state();
         return;
     }
     if (!active_ || !owns_gesture()) {

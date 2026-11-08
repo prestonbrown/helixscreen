@@ -156,9 +156,13 @@ swipeable: a swipe that starts on a widget must still flip the page.
   press landed on a resizable widget's edge. Any other press selects the widget under the finger
   on that first cycle, and no later cycle of the gesture selects again: a finger moving on is a
   swipe, never a new selection.
-- **A hold grabs.** LONG_PRESSED in a session (`src/ui/home/grid_edit_mode.cpp#handle_long_press`)
-  grabs the selected widget, or selects the widget under the finger and grabs it. A hold on empty
-  grid with nothing selected opens the widget catalog at that cell. A swipe never gets here: once
+- **A hold raises the tile callout and arms a grab.** LONG_PRESSED in a session
+  (`src/ui/home/grid_edit_mode.cpp#handle_long_press`) acts on the selected widget, or selects the
+  widget under the finger. Inside the tile it arms the grab and opens the callout at that moment,
+  with the finger down (`hold_raises_callout`). Travel past `kDragThresholdPx` closes the callout
+  and starts the drag; lifting without that travel leaves the callout open. On a resizable tile's
+  edge band the hold starts the resize at once and raises no callout. A hold on empty grid with
+  nothing selected opens the widget catalog at that cell. A swipe never gets here: once
   a scroll owns the gesture, LVGL sends no LONG_PRESSED.
 - **An inert gesture takes no further grid action** (`gesture_inert_`): its pressing cycles
   neither arm nor select, and its holds neither grab nor open the catalog. Two gestures are
@@ -168,15 +172,18 @@ swipeable: a swipe that starts on a widget must still flip the page.
   (`finish_resize_snap()`), whose rebuild replaces the objects under it on the next tick.
 - **While the widget catalog is open, grid input takes no action** (see
   [The widget catalog](#the-widget-catalog)).
-- **A tap on the selected tile, or a hold released in place, opens the tile callout**
+- **A tap on the selected tile opens the tile callout**
   (`src/ui/home/grid_edit_mode.cpp#release_opens_callout`). The release opens it when the press
-  landed inside the tile selected before it (or the tile a hold grabbed), no resize ran, the drop
-  committed nothing, the pointer never got more than `kDragThresholdPx` from the press, the
-  gesture was not inert, and grid input acts. It opens on the next tick, after a held widget is
-  back in its cell, and only if no press has begun since. The hold that enters edit mode opens it
-  too when it lifts where it held on a tile: that hold ends its press, so its release arrives as
-  PRESS_LOST (`src/ui/home/grid_edit_mode.cpp#handle_press_cancelled`). The first tap on an
+  landed inside the tile selected before it, no resize ran, the drop committed nothing, the pointer
+  never got more than `kDragThresholdPx` from the press, the gesture was not inert, and grid input
+  acts. It opens on the next tick, and only if no press has begun since. The first tap on an
   unselected tile only selects it, and a drag or a resize never opens the callout.
+- **The finger that raised the callout is not a press on it.** The shield keeps the press lock
+  under the backdrop, so a hold's RELEASED reaches the grid and leaves the callout open. The hold
+  that enters edit mode raises it on the next tick (`open_tile_callout_next_tick`). That hold ended
+  its press, so its release arrives as PRESS_LOST
+  (`src/ui/home/grid_edit_mode.cpp#handle_press_cancelled`), and lifting past `kDragThresholdPx`
+  closes the callout there.
 - **The tile callout** (`include/ui_tile_edit_callout.h`, `ui_xml/tile_edit_callout.xml`) is a
   `ContextMenu` placed with `AnchorMode::AroundAnchor`: below the tile, else above, else right,
   else left, else over it, clamped to the screen. A ring on its backdrop outlines the tile. Its
@@ -195,8 +202,9 @@ swipeable: a swipe that starts on a widget must still flip the page.
   lockout; a dropped tap logs `Row tap ignored` at info.
 - **Known limit: the entering hold's travel is measured from its press to its lift only.** That
   hold ends its press (`helix::ui::end_press`), and LVGL sends no PRESSING while it waits for the
-  release (`lib/lvgl/src/indev/lv_indev.c#indev_proc_press`), so a finger that wanders past
-  `kDragThresholdPx` and comes back before lifting still opens the callout.
+  release (`lib/lvgl/src/indev/lv_indev.c#indev_proc_press`). The callout it raised stays up while
+  the finger moves and closes at the lift, and a finger that wanders past `kDragThresholdPx` and
+  comes back before lifting leaves it open.
 - **A click is a release that lands where its press did.** LVGL sends CLICKED after any release no
   scroll took, a drag's included. `on_home_grid_clicked` selects under the pointer only when
   `finger_drifted_since_press()` is false (`src/ui/home/ui_panel_home.cpp#on_home_grid_clicked`): a drag

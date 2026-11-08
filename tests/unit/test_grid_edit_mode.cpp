@@ -489,15 +489,14 @@ TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target
     }
 }
 
-TEST_CASE("release_opens_callout: a tap on the selected tile or a hold released in place",
-          "[grid_edit][edit-callout]") {
+TEST_CASE("release_opens_callout: a tap on the selected tile", "[grid_edit][edit-callout]") {
     using Facts = GridEditMode::CalloutReleaseFacts;
     Facts tap;
     tap.press_on_selected = true;
     tap.max_travel_px = 0;
     tap.input_acts = true;
     CHECK(GridEditMode::release_opens_callout(tap));
-    // At the threshold still a tap; a hold released in place has the same facts.
+    // At the threshold still a tap.
     Facts at_threshold = tap;
     at_threshold.max_travel_px = 12;
     CHECK(GridEditMode::release_opens_callout(at_threshold));

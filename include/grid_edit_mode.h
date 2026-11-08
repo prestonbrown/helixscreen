@@ -354,9 +354,8 @@ class GridEditMode {
         bool input_acts = false;        ///< grid input acted at the release
     };
 
-    /// True for a tap on the selected tile and for a hold released in place: a
-    /// press inside the selected tile, no resize, nothing committed, at most
-    /// kDragThresholdPx of travel, not inert, while grid input acts.
+    /// True for a tap on the selected tile: a press inside the selected tile, no resize, nothing
+    /// committed, at most kDragThresholdPx of travel, not inert, while grid input acts.
     [[nodiscard]] static bool release_opens_callout(const CalloutReleaseFacts& f);
 
     /// Whether the tile callout is on screen.
@@ -369,6 +368,11 @@ class GridEditMode {
 
     /// Close the tile callout without acting. Safe when it is not open.
     void close_tile_callout();
+
+    /// Open the callout on the next tick for the selected tile, once the
+    /// gesture that asked for it has settled the selection. A press since then
+    /// cancels it.
+    void open_tile_callout_next_tick();
 
   private:
     friend struct helix::GridEditModeTestAccess;
@@ -643,9 +647,11 @@ class GridEditMode {
     std::string callout_widget_id_;
     /// Run the action the callout sent for the tile it was raised for.
     void on_callout_action(helix::ui::TileCalloutAction action);
-    /// Open the callout on the next tick for the selected tile, once the
-    /// release that asked for it has settled the selection.
-    void open_tile_callout_next_tick();
+    /// Whether @p pt is past the drag threshold from the press.
+    [[nodiscard]] bool past_drag_threshold(lv_point_t pt) const;
+    /// Whether this hold, latched on the selected tile, raises its callout
+    /// instead of grabbing at once: a hold inside the tile, outside a resize edge.
+    [[nodiscard]] bool hold_raises_callout() const;
     PanelWidgetConfig* config_ = nullptr;
     int page_index_ = 0;
     RebuildCallback rebuild_cb_;
