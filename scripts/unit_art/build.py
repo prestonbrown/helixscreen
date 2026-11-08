@@ -11,9 +11,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, box_turtle  # noqa: E402
+from unit_art.units import ace_pro, ams_ht, box_turtle, btt_vivid, kms  # noqa: E402
 
-UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED]
+UNITS = [ace_pro.UNIT, box_turtle.UNIT, box_turtle.ENCLOSED, btt_vivid.UNIT, kms.UNIT, ams_ht.UNIT]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
@@ -106,10 +106,11 @@ def _png_uri(path):
 def contact_sheet(out_dir, sheet_path):
     """Every unit composed from its real layers, on dark and light cards."""
     # An SVG mask recolours each lane the way the runtime will.
-    cells, x_step, y = [], 360, 0
+    # A row clears the 320 px box a tall unit's art fills.
+    cells, x_step, row_h, y = [], 360, 340, 0
     for bg in ("#1a1b1e", "#e8e8ea"):
         x = 0
-        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(UNITS))}" height="290" fill="{bg}"/>')
+        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(UNITS))}" height="{row_h}" fill="{bg}"/>')
         for unit in UNITS:
             root = Path(out_dir) / unit.id
             m = json.loads((root / "manifest.json").read_text())
@@ -127,7 +128,7 @@ def contact_sheet(out_dir, sheet_path):
                     )
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["front"])}"/>')
             x += x_step
-        y += 290
+        y += row_h
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{x_step * max(1, len(UNITS))}" height="{y}">{"".join(cells)}</svg>'
     sheet_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = sheet_path.with_suffix(".svg")
