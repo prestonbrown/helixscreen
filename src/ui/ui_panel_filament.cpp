@@ -2049,15 +2049,22 @@ void FilamentPanel::populate_extruder_dropdown() {
     // sizes itself to its widest option, so it always has room for the full
     // form; the closed control shows only the G-code name. With one head, every
     // tool is a lane the hub feeds into it, so each is named by its lane
-    // ("Slot 1 (T0)"): "Tool 2" would name a toolhead the printer does not have.
+    // ("Slot 1 (T0)", "1A (T0)"): "Tool 2" would name a toolhead the printer
+    // does not have.
     const bool tools_are_lanes = !ts.has_multiple_toolheads();
-    const auto lane_noun = helix::ui::active_lane_noun();
+    // A lane is named by the backend that feeds it, which need not be the
+    // active one.
+    auto lane_label = [](const ToolInfo& tool) {
+        const auto* backend = AmsState::instance().get_backend(tool.backend_index);
+        return backend ? helix::ui::backend_lane_label(*backend, tool.backend_slot)
+                       : helix::ui::active_lane_label(tool.backend_slot);
+    };
     std::string options;
     for (const auto& tool : ts.tools()) {
         if (!options.empty())
             options += '\n';
         options += tools_are_lanes && tool.backend_slot >= 0
-                       ? helix::ui::fed_lane_tool_label(lane_noun, tool.backend_slot, tool.index,
+                       ? helix::ui::fed_lane_tool_label(lane_label(tool), tool.index,
                                                         helix::ui::ToolLabelForm::Full)
                        : helix::ui::active_tool_label(tool.name, tool.index,
                                                       helix::ui::ToolLabelForm::Full);
