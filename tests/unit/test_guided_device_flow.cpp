@@ -284,13 +284,18 @@ TEST_CASE_METHOD(GuidedFlowFixture, "section action buttons take the standard bu
 // Controls come from the setting_*_row components and carry every field
 // ============================================================================
 
-TEST_CASE_METHOD(GuidedFlowFixture, "a disabled toggle is locked and says why",
+TEST_CASE_METHOD(GuidedFlowFixture, "a disabled control is locked, and a toggle says why",
                  "[ams][device-section]") {
     DeviceAction soft = DeviceAction::toggle("unload_t0", "Unload at end", "prefs", false, "",
                                              "Unload this head when a print ends");
     soft.enabled = false;
     soft.disable_reason = "Soft filament is never unloaded";
-    lv_obj_t* root = open_prefs({soft});
+    DeviceAction slider = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
+    slider.enabled = false;
+    DeviceAction dropdown =
+        DeviceAction::dropdown("mode", "Mode", "prefs", {"Off", "Auto"}, std::string("Auto"));
+    dropdown.enabled = false;
+    lv_obj_t* root = open_prefs({soft, slider, dropdown});
 
     lv_obj_t* row = lv_obj_find_by_name(root, "unload_t0");
     REQUIRE(row != nullptr);
@@ -298,6 +303,13 @@ TEST_CASE_METHOD(GuidedFlowFixture, "a disabled toggle is locked and says why",
     REQUIRE(sw != nullptr);
     CHECK(lv_obj_has_state(sw, LV_STATE_DISABLED));
     CHECK(text_of(row, "description") == "Soft filament is never unloaded");
+    lv_obj_t* s = helix::test::find_device_action_slider(root, "len");
+    REQUIRE(s != nullptr);
+    CHECK(lv_obj_has_state(s, LV_STATE_DISABLED));
+    lv_obj_t* d = helix::test::find_device_action_control(root, "mode", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+    CHECK(lv_obj_has_state(d, LV_STATE_DISABLED));
+    CHECK(lv_dropdown_get_selected(d) == 1);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture,
@@ -396,24 +408,6 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     REQUIRE(sent.has_value());
     CHECK(*sent == Catch::Approx(1.5));
     CHECK(text_of(row, "value") == "1.50 x");
-}
-
-TEST_CASE_METHOD(GuidedFlowFixture, "a disabled slider and dropdown are locked",
-                 "[ams][device-section]") {
-    DeviceAction slider = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
-    slider.enabled = false;
-    DeviceAction dropdown =
-        DeviceAction::dropdown("mode", "Mode", "prefs", {"Off", "Auto"}, std::string("Auto"));
-    dropdown.enabled = false;
-    lv_obj_t* root = open_prefs({slider, dropdown});
-
-    lv_obj_t* s = helix::test::find_device_action_slider(root, "len");
-    REQUIRE(s != nullptr);
-    CHECK(lv_obj_has_state(s, LV_STATE_DISABLED));
-    lv_obj_t* d = helix::test::find_device_action_control(root, "mode", &lv_dropdown_class);
-    REQUIRE(d != nullptr);
-    CHECK(lv_obj_has_state(d, LV_STATE_DISABLED));
-    CHECK(lv_dropdown_get_selected(d) == 1);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture, "a machine-motion action greys while a print holds the printer",
@@ -531,35 +525,25 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     CHECK(last_executed().empty());
 }
 
-TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value for an action disabled meanwhile sends nothing",
+TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value is sent only while its action is available",
                  "[ams][device-section]") {
     using helix::ui::AmsDeviceSectionDetailOverlayTestAccess;
     DeviceAction len = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
     open_prefs({len});
     auto& overlay = get_ams_device_section_detail_overlay();
     AmsDeviceSectionDetailOverlayTestAccess::open_keypad_for(overlay, "len");
-
-    // While the keypad is up the backend disables it, and the section rebuilds.
-    len.enabled = false;
-    len.disable_reason = "Loading configuration...";
-    backend->set_device_actions({len});
-    overlay.refresh();
-    settle();
-
+    std::string expected = "len";
+    SECTION("disabled while the keypad is up: the section rebuilds and nothing is sent") {
+        len.enabled = false;
+        len.disable_reason = "Loading configuration...";
+        backend->set_device_actions({len});
+        overlay.refresh();
+        settle();
+        expected.clear();
+    }
     AmsDeviceSectionDetailOverlayTestAccess::keypad_value(42.0f);
     settle();
-    CHECK(last_executed().empty());
-}
-
-TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value for an available action is sent",
-                 "[ams][device-section]") {
-    using helix::ui::AmsDeviceSectionDetailOverlayTestAccess;
-    open_prefs({DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm")});
-    AmsDeviceSectionDetailOverlayTestAccess::open_keypad_for(
-        get_ams_device_section_detail_overlay(), "len");
-    AmsDeviceSectionDetailOverlayTestAccess::keypad_value(42.0f);
-    settle();
-    CHECK(last_executed() == "len");
+    CHECK(last_executed() == expected);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture, "the device button disable expressions parse and evaluate",
