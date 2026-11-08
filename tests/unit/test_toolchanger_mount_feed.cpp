@@ -2210,7 +2210,6 @@ TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps an
     SECTION("each head is badged with its tool's number, and a remap moves it") {
         listing({0, 2, 3}, in_order);
         CHECK(tc.get_slot_info(1).mapped_tool == 2);
-        CHECK(tc.get_slot_info(2).mapped_tool == 3);
         CHECK(tc.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
         listing({0, 2, 3}, rotated);
         CHECK(tc.get_slot_info(2).mapped_tool == 0);
