@@ -42,6 +42,7 @@ import argparse
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -63,16 +64,17 @@ COMMENT = re.compile(r"(//|/\*|^\s*\*|#)")
 
 # History and process phrases, read in comment text only. A pronoun before the
 # past-habit "used to" is what separates history from purpose: "a pipe used to wake
-# the loop" and "whatever used to be in the slot" describe the code as it is.
+# the loop", "the code used to parse the header" and "whatever used to be in the
+# slot" describe the code as it is. A date counts only after "as of": "until
+# <date>" as often states an expiry that is still ahead.
 PHRASES = (
-    ("used to", re.compile(r"\b(?:it|this|that|which|we|they|code)\s+used\s+to\b", re.I)),
+    ("used to", re.compile(r"\b(?:it|this|that|which|we|they)\s+used\s+to\b", re.I)),
     ("pre-fix", re.compile(r"\bpre-fix\b", re.I)),
     ("the old code", re.compile(r"\bthe\s+old\s+code\b", re.I)),
     ("before the fix", re.compile(r"\bbefore\s+(?:the|this)\s+fix\b", re.I)),
     ("fixes the bug where", re.compile(r"\bfix(?:es|ed)?\s+the\s+bug\s+where\b", re.I)),
     ("was changed to", re.compile(r"\bwas\s+changed\s+to\b", re.I)),
-    ("dated note", re.compile(r"(?<![\w-])(?:as\s+of|until)\s+(?:19|20)\d\d-[01]\d-[0-3]\d\b",
-                              re.I)),
+    ("dated note", re.compile(r"(?<![\w-])as\s+of\s+(?:19|20)\d\d-[01]\d-[0-3]\d\b", re.I)),
 )
 ESCAPE = "ARCHAEOLOGY_OK:"
 
@@ -184,13 +186,48 @@ def in_scope(path: str) -> bool:
     return path.split("/", 1)[0] in SCAN_DIRS and Path(path).suffix in SCAN_SUFFIXES
 
 
+def comment_key(text: str) -> str:
+    """Comment text with its markers dropped and whitespace collapsed, so a line
+    re-indented or reflowed onto a different opener compares equal to itself."""
+    text = re.sub(r"^\s*(?://+|#+|/\*+|\*+)", "", text)
+    text = re.sub(r"\*+/\s*$", "", text)
+    return " ".join(text.split())
+
+
+def removed_comments(diff_text: str) -> Counter:
+    """The comment text of every line the diff removes, deleted files included.
+
+    A removed line is read on its own: its comment, or the line itself when it
+    is a block-comment continuation (` * text`) the lines around it would show.
+    """
+    keys: Counter = Counter()
+    syntax = "none"
+    for line in diff_text.splitlines():
+        if line.startswith("--- "):
+            syntax = comment_syntax(line[6:]) if line.startswith("--- a/") else "none"
+            continue
+        if not line.startswith("-") or not line[1:].strip():
+            continue
+        text = line[1:]
+        comment = comment_only_lines(text, syntax)[0] if syntax != "none" else ""
+        if not comment.strip() and text.lstrip().startswith("*"):
+            comment = text
+        key = comment_key(comment)
+        if key:
+            keys[key] += 1
+    return keys
+
+
 def phrase_findings(diff_text: str, read_new) -> list[tuple[str, int, str, str]]:
     """(path, lineno, phrase, line) for each added comment line naming history.
 
     read_new(path) returns the file's new content: a line inside a block comment
-    is only known to be comment from the lines around it.
+    is only known to be comment from the lines around it. An added comment whose
+    text the same diff also removes is moved or reflowed, not written: each
+    removed line excuses one added copy.
     """
     out = []
+    moved = removed_comments(diff_text)
     for path, (added, _removed) in sorted(parse_diff(diff_text).items()):
         if not in_scope(path) or not added:
             continue
@@ -203,7 +240,11 @@ def phrase_findings(diff_text: str, read_new) -> list[tuple[str, int, str, str]]
                 continue
             for name, rx in PHRASES:
                 if rx.search(comments[lineno - 1]):
-                    out.append((path, lineno, name, text.strip()))
+                    key = comment_key(comments[lineno - 1])
+                    if moved[key] > 0:
+                        moved[key] -= 1
+                    else:
+                        out.append((path, lineno, name, text.strip()))
                     break
     return out
 
@@ -214,10 +255,26 @@ def git_out(root: Path, *args: str) -> str:
     return r.stdout.decode("utf-8", "replace") if r.returncode == 0 else ""
 
 
+def git_checked(root: Path, *args: str) -> str | None:
+    """git's stdout, or None after printing its error: a diff that fails must
+    not read as a diff with nothing in it."""
+    r = subprocess.run(["git", *args], cwd=root, capture_output=True)
+    if r.returncode != 0:
+        err = r.stderr.decode("utf-8", "replace").strip()
+        print(f"ERROR: git {' '.join(args)} failed: {err}", file=sys.stderr)
+        return None
+    return r.stdout.decode("utf-8", "replace")
+
+
+# Renames off, deletions in: a renamed file's lines are then all added, and the
+# deleted side supplies the removed lines that excuse the ones it carried over.
+DIFF_ARGS = ("-U0", "--no-ext-diff", "--no-renames", "--diff-filter=AMD")
+
+
 def check_phrases(root: Path, staged: bool, base: str | None) -> int:
     root = Path(git_out(root, "rev-parse", "--show-toplevel").strip() or root)
     if staged:
-        diff = git_out(root, "diff", "--cached", "-U0", "--no-ext-diff", "--diff-filter=AM")
+        diff = git_checked(root, "diff", "--cached", *DIFF_ARGS)
         scope = "staged"
 
         def read_new(p):
@@ -229,13 +286,18 @@ def check_phrases(root: Path, staged: bool, base: str | None) -> int:
         if base == "HEAD":
             print("OK: no committed work to check for history phrases.")
             return 0
-        diff = git_out(root, "diff", "-U0", "--no-ext-diff", "--diff-filter=AM",
-                       f"{base}...HEAD")
+        if subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"],
+                          cwd=root, capture_output=True).returncode != 0:
+            print(f"ERROR: --base {base} does not name a commit.", file=sys.stderr)
+            return 2
+        diff = git_checked(root, "diff", *DIFF_ARGS, f"{base}...HEAD")
         scope = f"{base[:12]}...HEAD"
 
         def read_new(p):
             return git_out(root, "show", f"HEAD:{p}")
 
+    if diff is None:
+        return 2
     hits = phrase_findings(diff, read_new)
     if not hits:
         print(f"OK: no history phrases in added comments ({scope}).")

@@ -155,8 +155,7 @@ stage_cpp() {
         '// before this fix the tooltip stayed armed' \
         '// This fixes the bug where the panel froze.' \
         '// The timeout was changed to 5s.' \
-        '// Every BoxTurtle as of 2026-07-29 falls through.' \
-        '// The search was line-oriented until 2026-08-29.'; do
+        '// Every BoxTurtle as of 2026-07-29 falls through.'; do
         git -C "$REPO" reset -q --hard
         stage_cpp "$line"
         [ "$status" -eq 1 ] || fail "not flagged: $line ($output)"
@@ -205,7 +204,9 @@ stage_cpp() {
         '// This prevents the bug where icons are added but fonts are not.' \
         '// 2026-06-15 12:00:00 UTC is 08:00 EDT.' \
         '// Verbatim from klippy.log of the 2026-08-16 print.' \
-        '//   debug-bundle.sh --list --until 2026-02-26'; do
+        '//   debug-bundle.sh --list --until 2026-02-26' \
+        '// Set by the code used to parse the header.' \
+        '// Until 2027-01-01 the API key stays valid.'; do
         git -C "$REPO" reset -q --hard
         stage_cpp "$line"
         [ "$status" -eq 0 ] || fail "flagged: $line ($output)"
@@ -231,6 +232,64 @@ stage_cpp() {
     git -C "$REPO" add scripts/a.sh
     run python3 "$GATE" --repo-root "$REPO" --staged
     [ "$status" -eq 0 ]
+}
+
+@test "phrases: a base that does not resolve is an error, not a pass" {
+    phrase_repo
+    run python3 "$GATE" --repo-root "$REPO" --base no-such-ref
+    [ "$status" -eq 2 ]
+    contains "no-such-ref" "$output"
+    [[ "$output" != *"OK:"* ]] || fail "reported OK: $output"
+}
+
+@test "phrases: a grandfathered comment moved or reflowed passes; a new phrase in the same change fails" {
+    phrase_repo
+    printf '// The old code dropped this.\nint g() { return 1; }\n' >> "$REPO/src/a.cpp"
+    git -C "$REPO" commit -qam grandfathered
+    # Moved below g() and re-indented.
+    printf 'int f() { return 0; }\nint g() { return 1; }\n    //   The old   code dropped this.\n' \
+        > "$REPO/src/a.cpp"
+    git -C "$REPO" add src/a.cpp
+    run python3 "$GATE" --repo-root "$REPO" --staged
+    [ "$status" -eq 0 ] || fail "a move was flagged: $output"
+
+    printf '// It used to scan the whole cache.\n' >> "$REPO/src/a.cpp"
+    git -C "$REPO" add src/a.cpp
+    run python3 "$GATE" --repo-root "$REPO" --staged
+    [ "$status" -eq 1 ]
+    contains "src/a.cpp:4" "$output"
+    [[ "$output" != *"src/a.cpp:3"* ]] || fail "the moved line was flagged: $output"
+
+    # One removed line excuses one added copy, not two.
+    git -C "$REPO" reset -q --hard
+    printf 'int f() { return 0; }\nint g() { return 1; }\n// The old code dropped this.\n// The old code dropped this.\n' \
+        > "$REPO/src/a.cpp"
+    git -C "$REPO" add src/a.cpp
+    run python3 "$GATE" --repo-root "$REPO" --staged
+    [ "$status" -eq 1 ]
+}
+
+@test "phrases: a renamed file is read, and the comments it carries over pass" {
+    phrase_repo
+    # Enough unchanged lines that git pairs b.cpp with c.cpp as a rename.
+    { printf '// The old code dropped this.\n'; printf 'int g%d();\n' 1 2 3 4 5 6 7 8 9; } \
+        > "$REPO/src/b.cpp"
+    git -C "$REPO" add src/b.cpp
+    git -C "$REPO" commit -qm b
+    local base
+    base="$(git -C "$REPO" rev-parse HEAD)"
+    git -C "$REPO" mv src/b.cpp src/c.cpp
+    printf 'int h();\n' >> "$REPO/src/c.cpp"
+    git -C "$REPO" commit -qam moved
+    run python3 "$GATE" --repo-root "$REPO" --base "$base"
+    [ "$status" -eq 0 ] || fail "a moved file was flagged: $output"
+
+    # A renamed file is still read: a phrase it gains fails.
+    printf '// This used to be gated on the flag.\n' >> "$REPO/src/c.cpp"
+    git -C "$REPO" commit -qam gained
+    run python3 "$GATE" --repo-root "$REPO" --base "$base"
+    [ "$status" -eq 1 ]
+    contains "src/c.cpp:12" "$output"
 }
 
 @test "phrases: ARCHAEOLOGY_OK on the line or the one above passes" {
