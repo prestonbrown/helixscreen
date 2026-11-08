@@ -461,9 +461,9 @@ TEST_CASE("INDX contract: calibration gates", "[ams][indx][contract]") {
 
 TEST_CASE("INDX contract: tools are named the app's way", "[ams][indx][contract]") {
     CHECK(indx::tool_text(2) == "Tool 3 (T2)");
-    CHECK(indx::tool_text(2) == helix::ui::tool_label_in_form(helix::ui::LaneNoun::Tool,
-                                                              helix::ui::tool_label(2), 2,
-                                                              helix::ui::ToolLabelForm::Full));
+    CHECK(indx::tool_text(2) == helix::ui::tool_label_in_form(
+                                    helix::ui::LaneNoun::Tool, helix::ui::ToolNumberStyle::Physical,
+                                    helix::ui::tool_label(2), 2, helix::ui::ToolLabelForm::Full));
     CHECK_THAT(indx::seat_confirm_message(2), Catch::Matchers::ContainsSubstring("Tool 3 (T2)"));
     CHECK_THAT(indx::remove_confirm_message(2), Catch::Matchers::ContainsSubstring("Tool 3 (T2)"));
 

@@ -1582,7 +1582,20 @@ void PrintStatusPanel::apply_gcode_viewer_pause() {
     }
     const bool viewer_layer = lv_subject_get_int(&gcode_viewer_mode_subject_) != 0;
     const bool camera_covers = lv_subject_get_int(&camera_showing_subject_) != 0;
-    helix::ui::gcode_viewer_set_paused(gcode_viewer_, !viewer_layer || camera_covers);
+    // The checklist is opaque but clips its corners, so LVGL never treats it
+    // as covering what lies beneath: without the pause, every redraw of the
+    // checklist renders the viewer under it too.
+    const bool checklist_covers = lv_subject_get_int(&preparing_visible_subject_) != 0;
+    helix::ui::gcode_viewer_set_paused(gcode_viewer_,
+                                       !viewer_layer || camera_covers || checklist_covers);
+}
+
+void PrintStatusPanel::set_preparing_visible(bool visible) {
+    lv_subject_set_int(&preparing_visible_subject_, visible ? 1 : 0);
+    // An inactive panel's viewer was paused by on_deactivating() and stays so.
+    if (is_active_) {
+        apply_gcode_viewer_pause();
+    }
 }
 
 void PrintStatusPanel::update_preview_camera() {
@@ -2518,7 +2531,7 @@ void PrintStatusPanel::on_print_start_phase_changed(int phase) {
     // immediate: once preparation is over the overlay must go at once.
     if (!preparing) {
         cancel_preparing_show_timer();
-        lv_subject_set_int(&preparing_visible_subject_, 0);
+        set_preparing_visible(false);
     } else if (lv_subject_get_int(&preparing_visible_subject_) == 0 && !preparing_show_timer_) {
         preparing_show_timer_ = lv_timer_create(
             [](lv_timer_t* t) {
@@ -2528,7 +2541,7 @@ void PrintStatusPanel::on_print_start_phase_changed(int phase) {
                 // Re-check: preparation may have ended while we waited.
                 if (lv_subject_get_int(
                         self->printer_state_.print_state().get_print_start_phase_subject()) != 0) {
-                    lv_subject_set_int(&self->preparing_visible_subject_, 1);
+                    self->set_preparing_visible(true);
                 }
             },
             kPreparingShowDelayMs, this);

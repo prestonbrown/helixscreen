@@ -24,16 +24,15 @@
     chrome, so the pair reads as one "tool token" without covering the nozzle
     outline.
 
-    The digit is the number ALONE. Display contexts never spell "T<n>":
-    the T prefix is the 0-based G-code spelling and reads as off-by-one next
-    to this 1-based digit. tool_badge_text already carries the 1-based
-    number via lane_number_text() (include/display_numbering.h) — do not
-    format a number anywhere else.
+    The badge is the printer's own spelling of the tool: "1" on a machine
+    labeled from 1, "T0" on a klipper-toolchanger rig labeled with its G-code
+    names, or a name the owner configured ("Left"). tool_badge_text already
+    carries it via active_tool_badge_label() (include/display_numbering.h);
+    do not format a tool number anywhere else.
 
     Binds to ToolState subjects by default:
-    - show_tool_badge: 1 = show digit, 0/empty = bare icon (single-tool)
-    - tool_badge_text: the tool's 1-based display number (e.g., "1" for tool
-      index 0), not the full name
+    - show_tool_badge: 1 = show the badge, 0/empty = bare icon (single-tool)
+    - tool_badge_text: the active tool's badge ("1", "T0" or "Left")
 
     badge_font defaults to #font_body_bold: a breakpoint-scaled bold face, and
     the smallest one at that — noto_sans_bold ships nothing below 14px, so at

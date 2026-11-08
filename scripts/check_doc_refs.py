@@ -20,8 +20,9 @@
 #   make   — every `make <target>` command in a scanned doc names a target that
 #            Makefile or mk/*.mk defines (README.md and CONTRIBUTING.md too)
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
-#   counts — README.md and docs/user/ state the shipped filament systems,
-#            theme presets and printer database size truthfully
+#   counts — README.md, docs/user/ and the Play Store listing state the
+#            shipped filament systems, theme presets and printer database
+#            size truthfully
 #   stale  — report-only: cites whose file changed after the doc last did
 #
 # A citation names a place — `src/printer/printer_state.cpp#update_from_status` —
@@ -50,7 +51,7 @@
 #                                # refs+links, plus the index check
 #   check_doc_refs.py --refs     # broken references only
 #   check_doc_refs.py --index    # index completeness only
-#   check_doc_refs.py --counts   # shipped-count claims in README.md + docs/user/ only
+#   check_doc_refs.py --counts   # shipped-count claims in README, docs/user/, store listing
 #   check_doc_refs.py --list     # show what was scanned
 #   check_doc_refs.py --stale    # report-only: cites older than the code they
 #                                # describe (release-time re-verify list)
@@ -61,6 +62,7 @@
 #                                # (plans/, printer-research/) are exempt.
 
 import argparse
+import glob
 import os
 import re
 import sys
@@ -578,6 +580,8 @@ def check_index():
 # been reworded out of existence, not satisfied.
 COUNTS_README = 'README.md'
 COUNTS_USER_DIR = 'docs/user'
+# Store listings repeat the same claims to people deciding whether to install.
+COUNTS_STORE_GLOB = 'android/fastlane/metadata/android/*/full_description.txt'
 AMS_TYPES_HEADER = 'include/ams_types.h'
 PRINTER_DATABASE = 'assets/config/printer_database.json'
 THEME_PRESET_DIR = 'assets/config/themes/defaults'
@@ -590,8 +594,8 @@ _AMS_ROW_RE = re.compile(r'\{AmsType::(\w+),\s*"([^"]+)"')
 _BACKEND_COUNT_RE = re.compile(
     r'\b(\d+)\s+(?:filament systems|filament system backends|'
     r'multi-material (?:backends|systems))\b(\s*[:(])?', re.I)
-# "18 presets" / "18 theme presets", on a line about themes.
-_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:theme\s+)?presets\b', re.I)
+# "18 presets" / "18 theme presets" / "18 themes", on a line about themes.
+_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:(?:theme\s+)?presets|themes)\b', re.I)
 # A floor claim: "over 100 printers", "100+ models".
 _PRINTER_FLOOR_RE = re.compile(
     r'\b(?:(over)\s+(\d+)|(\d+)\+)\s+(?:printer models|printers|models)\b', re.I)
@@ -632,6 +636,7 @@ def count_targets():
     for root, dirs, files in os.walk(COUNTS_USER_DIR):
         prune_dirs(root, dirs)
         targets.extend(os.path.join(root, f) for f in files if f.endswith('.md'))
+    targets.extend(glob.glob(COUNTS_STORE_GLOB))
     return sorted(set(t for t in targets if os.path.isfile(t)))
 
 
@@ -790,7 +795,7 @@ def main():
     ap.add_argument('--refs', action='store_true', help='Only check references resolve')
     ap.add_argument('--index', action='store_true', help='Only check index completeness')
     ap.add_argument('--counts', action='store_true',
-                    help='Only check shipped-count claims in README.md and docs/user/')
+                    help='Only check shipped-count claims in README.md, docs/user/ and the Play Store listing')
     ap.add_argument('--devel', nargs='*', dest='devel_paths', metavar='PATH',
                     help='Check docs/devel/**/*.md (or only the given .md files '
                          'and directories): path refs and markdown links')

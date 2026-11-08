@@ -359,3 +359,31 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         CHECK(ev->recovery_actions[0].gcode.empty());
     }
 }
+
+TEST_CASE("every backend's constant traits number tools from 1", "[ams][traits][tool_style]") {
+    using helix::ui::ToolNumberStyle;
+    struct Row {
+        const char* name;
+        BackendTraits traits;
+    };
+    const Row rows[] = {
+        {"defaults", BackendTraits{}},
+        {"Happy Hare", AmsBackendHappyHare::kTraits},
+        {"AFC", AmsBackendAfc::kTraits},
+        {"AD5X IFS", AmsBackendAd5xIfs::kTraits},
+        {"CFS", helix::printer::AmsBackendCfs::kTraits},
+        {"ACE", AmsBackendAce::kTraits},
+        {"QIDI Box", AmsBackendQidi::kTraits},
+        {"OpenAMS", AmsBackendOpenAms::kTraits},
+        {"INDX", AmsBackendIndx::kIndxTraits},
+        {"Tool changer", AmsBackendToolChanger::kTraits},
+        {"Tool changer with feed", AmsBackendToolChanger::kTraitsWithFeed},
+        {"Tool changer mount feed", AmsBackendToolChanger::kTraitsMountFeed},
+        {"Snapmaker", AmsBackendSnapmaker::kTraits},
+    };
+    for (const Row& row : rows) {
+        INFO(row.name);
+        CHECK(row.traits.tool_number_style == ToolNumberStyle::Physical);
+    }
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).tool_number_style() == ToolNumberStyle::Physical);
+}

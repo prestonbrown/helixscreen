@@ -46,7 +46,7 @@ std::string backup_options(LaneNoun noun, const std::vector<int>& candidates, in
 
     // One option per candidate, in the backend's own word ("Lane 1", "Gate 1").
     for (int i : candidates) {
-        options += "\n" + helix::ui::lane_label(noun, i);
+        options += "\n" + helix::ui::active_tool_lane_label(noun, i);
         if (slot >= 0 && eligible) {
             switch (eligible(slot, i)) {
             case helix::printer::BackupEligibility::Incompatible:
@@ -131,7 +131,7 @@ bool commit_assigned_tool(AmsBackend& backend, int slot, int tool) {
             // locale that inflects would otherwise have the verb or a
             // preposition agree with a noun that changes per backend.
             std::string msg =
-                helix::ui::lane_label(backend.lane_noun(), slot) + ": " +
+                helix::ui::active_tool_lane_label(backend.lane_noun(), slot) + ": " +
                 fmt::format(lv_tr("{} and {} are both mapped here"), helix::ui::tool_label(tool),
                             helix::ui::tool_label(static_cast<int>(i)));
             ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str());

@@ -164,21 +164,46 @@ bool write_file_atomic(const std::string& path, std::string_view data, Durabilit
 }
 
 LineReader::LineReader(const std::string& path, char delim)
-    : file_(open_file(path, "rb")), delim_(delim) {}
+    : file_(open_file(path, "rb")), delim_(delim) {
+    if (file_) {
+        // buf_ is the only buffer: stdio's own would copy every byte twice.
+        std::setvbuf(file_.get(), nullptr, _IONBF, 0);
+    }
+}
+
+bool LineReader::fill() {
+    constexpr std::size_t kChunkBytes = 4096;
+    if (at_end_) {
+        return false;
+    }
+    buf_.resize(kChunkBytes);
+    pos_ = 0;
+    len_ = std::fread(buf_.data(), 1, buf_.size(), file_.get());
+    if (len_ == 0) {
+        at_end_ = true;
+        return false;
+    }
+    return true;
+}
 
 bool LineReader::next(std::string& line) {
     if (!file_) {
         return false;
     }
     line.clear();
-    const int delim = static_cast<unsigned char>(delim_);
-    int c;
-    while ((c = std::getc(file_.get())) != EOF) {
-        if (c == delim) {
+    while (pos_ < len_ || fill()) {
+        const char* start = buf_.data() + pos_;
+        const std::size_t avail = len_ - pos_;
+        const void* hit = std::memchr(start, static_cast<unsigned char>(delim_), avail);
+        if (hit) {
+            const auto n = static_cast<std::size_t>(static_cast<const char*>(hit) - start);
+            line.append(start, n);
+            pos_ += n + 1;
             last_had_delimiter_ = true;
             return true;
         }
-        line.push_back(static_cast<char>(c));
+        line.append(start, avail);
+        pos_ = len_;
     }
     last_had_delimiter_ = false;
     return !line.empty();

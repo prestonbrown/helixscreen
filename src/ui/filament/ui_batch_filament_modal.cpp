@@ -142,7 +142,7 @@ std::string contents_suffix(const SlotInfo& info, std::optional<bool> present, b
 
 std::string BatchFilamentModal::row_label(LaneNoun noun, int slot, const SlotInfo& info,
                                           std::optional<bool> present, bool at_toolhead) {
-    return lane_label(noun, slot) + contents_suffix(info, present, at_toolhead);
+    return active_tool_lane_label(noun, slot) + contents_suffix(info, present, at_toolhead);
 }
 
 bool BatchFilamentModal::row_at_toolhead(const AmsBackend& backend, int head, int slot) {
@@ -156,9 +156,9 @@ bool BatchFilamentModal::row_at_toolhead(const AmsBackend& backend, int head, in
 }
 
 std::string BatchFilamentModal::head_row_label(const HeadRowText& text) {
-    std::string label = lane_label(text.head_noun, text.head);
+    std::string label = active_tool_lane_label(text.head_noun, text.head);
     if (text.show_slot && text.slot >= 0) {
-        label += " \u00b7 " + lane_label(text.slot_noun, text.slot);
+        label += " \u00b7 " + active_tool_lane_label(text.slot_noun, text.slot);
     }
     if (!text.reason.empty()) {
         return label + " (" + text.reason + ")";
@@ -268,7 +268,8 @@ bool BatchFilamentModal::dispatch_batch(AmsBackend& backend, const std::vector<i
     if (sift.dropped >= 0) {
         // Name the first head we are dropping and why; a batch that silently
         // shrinks is worse than one that explains itself.
-        NOTIFY_WARNING("{} {}: {}", lv_tr("Skipped"), lane_label(backend.lane_noun(), sift.dropped),
+        NOTIFY_WARNING("{} {}: {}", lv_tr("Skipped"),
+                       active_tool_lane_label(backend.lane_noun(), sift.dropped),
                        lv_tr(filament_op_eligibility_reason(sift.drop_reason)));
     }
     if (sift.eligible.empty()) {

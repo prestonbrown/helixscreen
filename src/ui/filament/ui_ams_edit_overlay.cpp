@@ -1327,8 +1327,9 @@ void AmsEditOverlay::update_ui() {
     if (slot_index_ == -2) {
         snprintf(title_buf_, sizeof(title_buf_), "%s", lv_tr("External Filament"));
     } else {
-        snprintf(title_buf_, sizeof(title_buf_), "%s",
-                 helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
+        snprintf(
+            title_buf_, sizeof(title_buf_), "%s",
+            helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
     }
     lv_subject_copy_string(&title_subject_, title_buf_);
 

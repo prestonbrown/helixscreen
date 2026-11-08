@@ -134,6 +134,18 @@ The toolhead picture used on the Home screen and the print status screen.
 
 Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own built-in toolhead picture (such as the Creality K1 and K2) get it automatically; those pictures aren't in the menu.
 
+### Tool Numbers
+
+How a tool's number is written where it appears on its own: the small badge beside the nozzle, the other-tools chip on the print status screen, and names such as "Nozzle 2". This row only appears on printers with more than one nozzle.
+
+| Option | Shows |
+|--------|-------|
+| **Auto** (default) | "T0, T1, T2" on a tool changer whose Klipper tools are all named `T0`, `T1`, ...; "1, 2, 3" on every other printer |
+| **1, 2, 3** | Each tool's position, counted from 1 ("Nozzle 2") |
+| **T0, T1, T2** | Each tool's G-code name, counted from 0 ("Nozzle T1") |
+
+A tool you named yourself in Klipper (such as `[tool Left]`) keeps its name on the badge whatever you pick. Choose the option that matches the labels on your machine's tools or docks.
+
 ### G-code Preview
 
 How the print status screen draws the file that's printing.

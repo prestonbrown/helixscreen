@@ -163,3 +163,54 @@ def test_a_tree_without_git_runs_everything(tmp_path):
     assert rc == 0
     assert files == [TOOL_A, TOOL_B, PRODUCT]
     assert "not a git checkout" in err
+
+
+APP_A = "tests/shell/test_ctl_drive.bats"
+APP_B = "tests/shell/test_binary_path.bats"
+
+
+def _repo_with_app_files(tmp_path):
+    """The base repo plus two product files that drive the built app."""
+    root = _repo(tmp_path)
+    _write(root, APP_A, '@test "ctl" {\n    require_app "$BIN"\n}\n')
+    _write(root, APP_B, 'BIN="$REPO_ROOT/build/bin/helix-screen"\n')
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "app files")
+    return root
+
+
+def test_app_needs_selects_only_files_that_drive_the_built_binary(tmp_path):
+    root = _repo_with_app_files(tmp_path)
+    rc, files, err = _run(root, "--base", "HEAD", "--app", "needs")
+    assert rc == 0, err
+    assert files == [APP_B, APP_A]
+
+
+def test_app_without_selects_the_rest_and_the_halves_partition_the_selection(tmp_path):
+    root = _repo_with_app_files(tmp_path)
+    _write(root, "scripts/qc/b.sh", "changed\n")
+    _, whole, _ = _run(root, "--base", "HEAD")
+    _, needs, _ = _run(root, "--base", "HEAD", "--app", "needs")
+    rc, without, err = _run(root, "--base", "HEAD", "--app", "without")
+    assert rc == 0, err
+    assert without == [TOOL_B, PRODUCT]
+    assert sorted(needs + without) == sorted(whole)
+    assert not set(needs) & set(without)
+
+
+def test_app_split_never_adds_a_file_the_change_did_not_select(tmp_path):
+    root = _repo_with_app_files(tmp_path)
+    _write(root, TOOL_A, 'require_app "$BIN"\n')
+    _git(root, "commit", "-q", "-am", "tooling file drives the app")
+    rc, files, _ = _run(root, "--base", "HEAD", "--app", "needs")
+    assert rc == 0
+    assert TOOL_A not in files
+
+
+def test_the_real_ctl_tests_wait_for_the_app_build():
+    rc, files, err = _run(REPO_ROOT, "--all", "--app", "needs")
+    assert rc == 0, err
+    assert "tests/shell/test_helixctl_json.bats" in files
+    assert "tests/shell/test_headless_display.bats" in files
+    rc, files, _ = _run(REPO_ROOT, "--all", "--app", "without")
+    assert "tests/shell/test_helixctl_json.bats" not in files
