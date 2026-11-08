@@ -458,17 +458,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "main-thread setters during a ghost build do n
     // little on its own; the point is that it drives the interleaving that the
     // snapshot was introduced to make safe.
     //
-    // The worker used to capture color_extrusion_, tool_palette_ and the whole
-    // transform ITSELF, on the worker thread, under a comment reading "capture
-    // ALL shared state at thread start". That window is precisely when the main
-    // thread is free to be writing, and set_extrusion_color(), set_scale(),
-    // set_offset(), set_content_offset_y() and set_canvas_size() all wrote into
-    // it without joining first. set_tool_color_palette() was the one that had
-    // been hardened, and its comment names the hazard.
+    // A worker that captured color_extrusion_, tool_palette_ and the transform
+    // itself, at thread start, would read them precisely when the main thread is
+    // free to be writing: set_extrusion_color(), set_scale(), set_offset(),
+    // set_content_offset_y() and set_canvas_size() write without joining first.
     //
-    // capture_ghost_snapshot() now runs on the spawning thread and the worker
-    // reads nothing but its own copy, so the writes below cannot be observed by
-    // it at all.
+    // capture_ghost_snapshot() runs on the spawning thread and the worker reads
+    // nothing but its own copy, so the writes below cannot be observed by it at
+    // all.
     auto gcode = make_two_object_tower(60);
     lv_obj_t* canvas = lv_canvas_create(test_screen());
     REQUIRE(canvas != nullptr);
@@ -494,12 +491,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "main-thread setters during a ghost build do n
         frame();
     }
 
-    // Hammer the setters that used to be unsynchronized, for a FIXED number of
+    // Hammer the setters that write without joining, for a FIXED number of
     // rounds rather than "until the build finishes". Several of them invalidate
     // the ghost, so a wait-for-completion loop here never converges: each round
-    // respawns the worker it is waiting on. The first version of this test did
-    // exactly that, spun to its guard, and passed anyway when run alongside
-    // other cases purely on timing.
+    // respawns the worker it is waiting on, spins to its guard, and passes
+    // alongside other cases purely on timing.
     constexpr int kRounds = 150;
     for (int i = 1; i <= kRounds; ++i) {
         r.set_extrusion_color(lv_color_hex(i & 1 ? 0x3060C0 : 0xC06030));

@@ -230,8 +230,7 @@ TEST_CASE("AFC // narration classifies as it did before", "[afc][narration][corp
 
 TEST_CASE_METHOD(LVGLTestFixture, "bare AFC narration reaches the step bar",
                  "[afc][narration][corpus]") {
-    // The whole point of fix 1: these lines used to be dropped by the `//` filter
-    // before any matcher saw them.
+    // These lines must survive the `//` filter and reach a matcher.
     reset_step_baseline();
     GcodeNarrationRouter router(nullptr, nullptr);
 

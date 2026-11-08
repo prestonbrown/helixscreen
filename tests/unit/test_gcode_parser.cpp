@@ -1410,7 +1410,7 @@ TEST_CASE("GCodeParser - drawable_segments on a real 4-color prime-tower file",
           "[gcode][parser][feature_type][integration]") {
     // The scenario #1425 describes, on a real slicer file rather than a stub:
     // a 4-color OrcaSlicer print whose prime tower is a large share of the
-    // segment mass. The 3D budget used to be charged for that whole share.
+    // segment mass. The 3D budget must not be charged for that whole share.
     std::string test_file = "assets/test_gcodes/u1_4color_ring.gcode";
     std::ifstream check(test_file);
     if (!check.good()) {

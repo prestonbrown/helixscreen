@@ -45,8 +45,8 @@ namespace {
 
 /// A macro/filament op — non-discretionary, so execute_gcode stamps it.
 constexpr const char* MACRO = "UNLOAD_FILAMENT";
-/// A benign discretionary command — never stamped, and the thing that used to
-/// trigger the spurious toast.
+/// A benign discretionary command: never stamped, and the one that must not
+/// trigger a spurious toast.
 constexpr const char* kDiscretionary = "M106 S128";
 /// A light tap: discretionary, and on its own enough to read idle_timeout
 /// "Printing" for most of a second.

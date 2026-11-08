@@ -13,12 +13,12 @@
  * with a real ToolState topology + a recording AMS backend injected into the real
  * AmsState singleton. It asserts WHICH slot argument reaches the backend.
  *
- * The bug this guards (single-source-of-truth fix): execute_load/execute_unload
- * used to read backend->get_system_info().current_slot and act on THAT, so on a
- * BoxTurtle where lane 4 (slot 3) was loaded to the toolhead but the dropdown
- * defaulted to T0, Load acted on the already-loaded lane 3 instead of the
- * selected lane 0. Both executors now call the private selected_op_slot() — the
- * same resolution the button gating uses — so the op can never diverge.
+ * execute_load/execute_unload must not act on backend->get_system_info()
+ * .current_slot: on a BoxTurtle where lane 4 (slot 3) is loaded to the
+ * toolhead but the dropdown defaults to T0, Load would act on the
+ * already-loaded lane 3 instead of the selected lane 0. Both executors call the
+ * private selected_op_slot(), the same resolution the button gating uses, so
+ * the op can never diverge.
  *
  * Mutation check: reverting execute_load() to dispatching on sys.current_slot
  * makes "BoxTurtle: Load follows the selected tool" FAIL (the backend is asked

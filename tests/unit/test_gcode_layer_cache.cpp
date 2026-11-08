@@ -513,9 +513,8 @@ TEST_CASE("GCodeLayerCache clear waits for in-flight loads", "[gcode][cache][thr
     // Callers destroy the data source right after clear() (see
     // GCodeStreamingController::close()). A loader closure captures that source,
     // so clear() returning while a load is still running would leave the loader
-    // reading a freed file. Dropping the lock around loader() removed the
-    // implicit barrier that used to guarantee this; the explicit drain replaces
-    // it, and this pins it.
+    // reading a freed file. loader() runs without the lock, so only the
+    // explicit drain guarantees this, and this pins it.
     GCodeLayerCache cache(1024 * 1024);
 
     std::atomic<bool> load_running{false};
