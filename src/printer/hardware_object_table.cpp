@@ -158,14 +158,29 @@ bool contains_word_ci(std::string_view name, const std::string_view (&words)[N])
     return false;
 }
 
+/// Whether @p name ends in @p suffix (lowercase), ignoring case.
+bool ends_with_ci(std::string_view name, std::string_view suffix) {
+    if (name.size() < suffix.size())
+        return false;
+    const std::string_view tail = name.substr(name.size() - suffix.size());
+    return std::equal(tail.begin(), tail.end(), suffix.begin(), [](char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) == b;
+    });
+}
+
 /// Precedence fan > LED > speaker; matching is a case-insensitive substring
 /// ("caselight", "Enclosure_LEDs" and "fan0" all match).
 ObjectKind output_pin_kind(std::string_view pin_name) {
     static constexpr std::string_view kFanWords[] = {"fan"};
     static constexpr std::string_view kLedWords[] = {"light", "led", "lamp"};
     static constexpr std::string_view kSpeakerWords[] = {"beeper", "buzzer", "speaker"};
-    if (contains_word_ci(pin_name, kFanWords))
+    if (contains_word_ci(pin_name, kFanWords)) {
+        // An enable pin only gates a fan driven by its own PWM pin (`fan0_en` beside
+        // `fan0`), so it has no speed to show or command.
+        if (ends_with_ci(pin_name, "_en") || ends_with_ci(pin_name, "_enable"))
+            return ObjectKind::Unknown;
         return ObjectKind::OutputPinFan;
+    }
     if (contains_word_ci(pin_name, kLedWords))
         return ObjectKind::OutputPinLed;
     if (contains_word_ci(pin_name, kSpeakerWords))
