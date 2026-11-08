@@ -6,6 +6,7 @@
 #include "json_utils.h"
 #include "moonraker_types.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -78,16 +79,23 @@ inline std::vector<std::string> parse_klipper_bound_power_devices(const nlohmann
     for (const auto& [section, options] : j["result"]["config"].items()) {
         if (section.size() <= kSectionPrefix.size() ||
             std::string_view(section).substr(0, kSectionPrefix.size()) != kSectionPrefix ||
-            !options.is_object() || !options.contains("bound_services") ||
-            !options["bound_services"].is_array()) {
+            !options.is_object()) {
             continue;
         }
-        for (const auto& service : options["bound_services"]) {
-            if (service.is_string() &&
-                is_klipper_service_name(service.get_ref<const std::string&>())) {
-                bound.push_back(section.substr(kSectionPrefix.size()));
-                break;
-            }
+        const auto names_klipper = [](const nlohmann::json& service) {
+            return service.is_string() &&
+                   is_klipper_service_name(service.get_ref<const std::string&>());
+        };
+        // Moonraker still honours the deprecated single-valued `bound_service`.
+        bool is_bound =
+            options.contains("bound_service") && names_klipper(options["bound_service"]);
+        if (!is_bound && options.contains("bound_services") &&
+            options["bound_services"].is_array()) {
+            const auto& services = options["bound_services"];
+            is_bound = std::any_of(services.begin(), services.end(), names_klipper);
+        }
+        if (is_bound) {
+            bound.push_back(section.substr(kSectionPrefix.size()));
         }
     }
     return bound;

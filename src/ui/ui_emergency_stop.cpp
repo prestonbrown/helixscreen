@@ -626,9 +626,11 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
     }
 
     // Moonraker stops Klipper along with a bound power device, so Klipper being
-    // down is the normal state of a printer switched off on purpose (#2076).
+    // down is the normal state of a printer switched off on purpose (#2076). That
+    // stop carries no message, so a fault Klipper did report still shows.
     // Handled, not declined: there is nothing to retry.
-    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ &&
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ && printer_state_ &&
+        printer_state_->network_state().get_klippy_fault_message().empty() &&
         helix::PowerDeviceState::instance().klipper_bound_device_off()) {
         spdlog::info("[KlipperRecovery] Not showing {}: a power device that stops Klipper is off",
                      recovery_reason_str(reason));

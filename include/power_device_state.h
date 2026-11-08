@@ -60,7 +60,7 @@ class PowerDeviceState {
     void set_klipper_bound_devices(std::vector<std::string> devices);
 
     /// Whether a device that stops Klipper is off, so Klipper being down is expected.
-    /// False while the bindings are unknown. Main thread.
+    /// False while the bindings are unknown or the device reports "error". Main thread.
     [[nodiscard]] bool klipper_bound_device_off() const;
 
     /// Update a device's status directly (for mock/testing).
@@ -90,7 +90,8 @@ class PowerDeviceState {
         bool locked_while_printing = false;
         std::unique_ptr<lv_subject_t> status_subject;
         SubjectLifetime lifetime;
-        int raw_status = 0; ///< 0=off, 1=on (before lock evaluation)
+        int raw_status = 0;        ///< 0=off, 1=on (before lock evaluation)
+        bool reported_off = false; ///< Moonraker said "off"; "error" says nothing about services
     };
 
     /// Publish @p info's raw status, or 2 (locked) when it is a powered
