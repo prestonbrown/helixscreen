@@ -42,7 +42,7 @@ These boards share a small amount of memory and two slow processor cores with Kl
 
 When Moonraker lists more than one enabled webcam, HelixScreen picks one automatically: the first camera whose service is an MJPEG streamer (mjpegstreamer, ustreamer) and whose serving process is running, otherwise the first camera with a usable snapshot image, polled. That automatic choice is what the standalone fullscreen viewer and the QR scanner always show.
 
-The home widget can be pointed at a specific camera instead. Open the camera configuration (edit mode, then the gear icon) and choose it under **Source**:
+The home widget can be pointed at a specific camera instead. Open the camera configuration (edit mode, then Configure in the widget's menu) and choose it under **Source**:
 
 - **Automatic** — the camera HelixScreen would pick on its own.
 - A named camera — one of the enabled webcams in Moonraker's list. A camera whose service is not MJPEG (WebRTC, HLS, an IP camera) is marked **Snapshot only**: HelixScreen will poll its snapshot image rather than stream it. A camera whose service is not running is marked **Unavailable**.
@@ -71,7 +71,7 @@ At the smallest widget size (1x1) the camera shows only an icon and does not str
 To correct a camera that's mounted upside-down or mirrored, open the camera configuration:
 
 1. Enter Home dashboard **edit mode**.
-2. Tap the gear icon on the Camera widget.
+2. Tap the Camera widget to select it, tap it again to open its menu, and tap **Configure**.
 
 The configuration dialog offers:
 
