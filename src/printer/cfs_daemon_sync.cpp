@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "cfs_daemon_sync.h"
 
+#include "ams_types.h"
+#include "cfs_status_parse.h"
 #include "core/http_executor.h"
+#include "filament_catalog.h"
+#include "filament_op_dispatch.h"
 
 #include <spdlog/spdlog.h>
 
@@ -65,6 +69,50 @@ std::string encode_modify_material(const DaemonMaterial& m) {
     // Replacement, not a throw, on a malformed UTF-8 label: this build has no
     // exceptions to catch one with.
     return frame.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+}
+
+// The daemon's record for a bay just written, from what the write carried and
+// the slot as it now stands. rfid is the 5-char catalog code of the material
+// written ("" for a color-only write or a code the catalog does not know, as
+// Creality Print sends for an untagged spool). Temps and the product label prefer the slot's own
+// values and fall back to the catalog product of the code written, or of the user's pick.
+std::optional<DaemonMaterial> daemon_material_for(int global_index, const SlotInfo* slot,
+                                                  const std::string& material,
+                                                  const std::string& brand,
+                                                  const std::string& catalog_id,
+                                                  const std::string& mat_code, uint32_t color_rgb) {
+    const auto address = daemon_address(global_index, helix::ui::kExternalSpoolSlot);
+    if (!address) {
+        return std::nullopt;
+    }
+    const auto catalog = helix::printer::FilamentCatalog::load_codes_cached("cfs");
+    // Only a code the catalog knows is a material id; anything else the
+    // firmware reported (a raw tag UID) would name nothing to the daemon.
+    const std::string code = helix::printer::CfsMaterialDb::strip_code(mat_code);
+    const helix::printer::EffectiveFilament* coded =
+        code.empty() ? nullptr : catalog->resolve_code("cfs", code);
+    const helix::printer::EffectiveFilament* entry =
+        coded ? coded : (catalog_id.empty() ? nullptr : catalog->resolve_id(catalog_id));
+    const std::string usable_brand = is_raw_tag_uid(brand) ? std::string{} : brand;
+
+    DaemonMaterial record;
+    record.box_id = address->box_id;
+    record.slot_id = address->slot_id;
+    record.rfid = coded ? code : std::string{};
+    record.color_rgb = color_rgb;
+    record.type = !material.empty() ? material : (entry ? entry->type : std::string{});
+    record.vendor = !usable_brand.empty() ? usable_brand : (entry ? entry->brand : std::string{});
+    if (slot && !slot->product_name.empty()) {
+        record.name = slot->product_name;
+    } else if (entry && !entry->name.empty()) {
+        record.name = entry->name;
+    } else {
+        record.name = record.type;
+    }
+    const bool slot_temps = slot && slot->nozzle_temp_min > 0 && slot->nozzle_temp_max > 0;
+    record.min_temp_c = slot_temps ? slot->nozzle_temp_min : (entry ? entry->nozzle_min : 0);
+    record.max_temp_c = slot_temps ? slot->nozzle_temp_max : (entry ? entry->nozzle_max : 0);
+    return record;
 }
 
 const char* to_string(DaemonSendResult result) {

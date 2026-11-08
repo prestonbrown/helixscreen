@@ -28,6 +28,10 @@
  * after it, on an HttpExecutor worker, inside a fixed time budget, and every
  * failure (nothing listening, refused handshake, timeout) is a debug line.
  */
+namespace helix {
+struct SlotInfo;
+}
+
 namespace helix::cfs {
 
 /// One slot as the daemon's modifyMaterial record describes it.
@@ -65,6 +69,15 @@ inline constexpr const char* kDaemonDefaultPressure = "0.04";
 
 /// The whole modifyMaterial frame text for @p material.
 [[nodiscard]] std::string encode_modify_material(const DaemonMaterial& material);
+
+/// The record for slot @p global_index after a BOX_MODIFY_TN_DATA write of
+/// @p mat_code (the full firmware code, "" for a color-only write) and
+/// @p color_rgb. @p slot is the slot as it now stands, or null. nullopt for an
+/// index the daemon cannot address.
+[[nodiscard]] std::optional<DaemonMaterial>
+daemon_material_for(int global_index, const helix::SlotInfo* slot, const std::string& material,
+                    const std::string& brand, const std::string& catalog_id,
+                    const std::string& mat_code, uint32_t color_rgb);
 
 struct DaemonEndpoint {
     std::string host = "127.0.0.1";

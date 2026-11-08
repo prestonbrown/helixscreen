@@ -2508,48 +2508,6 @@ void AmsBackendCfs::persist_slot_weight(int slot_index, float remaining_weight_g
                                         remaining_weight_g, total_weight_g, tag);
 }
 
-// The daemon's record for a bay just written, from what the write carried and
-// the slot as it now stands. rfid is the 5-char catalog code of the material
-// written ("" for a color-only write or a code the catalog does not know, as
-// Creality Print sends for an untagged spool). Temps and the product label prefer the slot's own
-// values and fall back to the catalog product of the code written, or of the user's pick.
-static std::optional<helix::cfs::DaemonMaterial>
-daemon_material_for(int global_index, const SlotInfo* slot, const std::string& material,
-                    const std::string& brand, const std::string& catalog_id,
-                    const std::string& mat_code, uint32_t color_rgb) {
-    const auto address = helix::cfs::daemon_address(global_index, helix::ui::kExternalSpoolSlot);
-    if (!address) {
-        return std::nullopt;
-    }
-    const auto catalog = FilamentCatalog::load_codes_cached("cfs");
-    // Only a code the catalog knows is a material id; anything else the
-    // firmware reported (a raw tag UID) would name nothing to the daemon.
-    const std::string code = CfsMaterialDb::strip_code(mat_code);
-    const EffectiveFilament* coded = code.empty() ? nullptr : catalog->resolve_code("cfs", code);
-    const EffectiveFilament* entry =
-        coded ? coded : (catalog_id.empty() ? nullptr : catalog->resolve_id(catalog_id));
-    const std::string usable_brand = helix::cfs::is_raw_tag_uid(brand) ? std::string{} : brand;
-
-    helix::cfs::DaemonMaterial record;
-    record.box_id = address->box_id;
-    record.slot_id = address->slot_id;
-    record.rfid = coded ? code : std::string{};
-    record.color_rgb = color_rgb;
-    record.type = !material.empty() ? material : (entry ? entry->type : std::string{});
-    record.vendor = !usable_brand.empty() ? usable_brand : (entry ? entry->brand : std::string{});
-    if (slot && !slot->product_name.empty()) {
-        record.name = slot->product_name;
-    } else if (entry && !entry->name.empty()) {
-        record.name = entry->name;
-    } else {
-        record.name = record.type;
-    }
-    const bool slot_temps = slot && slot->nozzle_temp_min > 0 && slot->nozzle_temp_max > 0;
-    record.min_temp_c = slot_temps ? slot->nozzle_temp_min : (entry ? entry->nozzle_min : 0);
-    record.max_temp_c = slot_temps ? slot->nozzle_temp_max : (entry ? entry->nozzle_max : 0);
-    return record;
-}
-
 void AmsBackendCfs::notify_slot_daemon(const helix::cfs::DaemonMaterial& material) {
     helix::cfs::post_daemon_frame(daemon_endpoint_, helix::cfs::encode_modify_material(material));
 }
@@ -2812,9 +2770,9 @@ void AmsBackendCfs::push_slot_identity_to_firmware(int global_index, const std::
             own_write_echoes_.arm(global_index, std::string{});
         }
 
-        daemon_record =
-            daemon_material_for(global_index, system_info_.get_slot_global(global_index), material,
-                                brand, catalog_id, mat_code, color_rgb);
+        daemon_record = helix::cfs::daemon_material_for(
+            global_index, system_info_.get_slot_global(global_index), material, brand, catalog_id,
+            mat_code, color_rgb);
     }
 
     if (!mat_code.empty()) {
