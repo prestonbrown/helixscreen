@@ -42,6 +42,11 @@
                             label="Widget Labels" icon="view_grid"
                             description="Show text labels on icon-only home screen widgets" subject="show_widget_labels"
                             callback="on_widget_labels_changed"/>
+        <!-- Speed & flow units -->
+        <setting_toggle_row name="row_speed_flow_units"
+                            label="Speed &amp; Flow in mm/s" icon="speed"
+                            description="Show print speed and flow as mm/s and mm³/s instead of percent"
+                            subject="settings_speed_flow_physical_units" callback="on_speed_flow_units_changed"/>
       </setting_group>
       <!-- ================================================================== -->
       <!-- PRINTER VISUALS -->

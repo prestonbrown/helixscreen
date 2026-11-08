@@ -339,6 +339,7 @@ src/ui/filament/ui_spoolman_list_view.cpp  # scope decision 2026-08-12: unreacha
 src/ui/filament/ui_spoolman_overlay.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_spoolman_setup.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_ams_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_appearance.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_connection.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_fan_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut

@@ -334,6 +334,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: App startup
     encountered an error. Some features may be unavailable.
   Appearance: Appearance
+  Appearance & Region: Appearance & Region
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   Applies to: Applies to
@@ -818,6 +819,7 @@ translations:
   Color: Color
   Color Mismatch: Color Mismatch
   Color Sensors: Color Sensors
+  Colors for every screen: Colors for every screen
   Command Failed: Command Failed
   Command failed: Command failed
   Communication Test: Communication Test
@@ -3641,6 +3643,7 @@ translations:
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
   Set temperature between {}°C and {}°C: Set temperature between {}°C and {}°C
   Set the X and Y belts with the motorized tensioners: Set the X and Y belts with the motorized tensioners
+  Set the clock, theme and units. You can change any of these later in Settings.: Set the clock, theme and units. You can change any of these later in Settings.
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   Set up: Set up
@@ -3673,6 +3676,7 @@ translations:
     tapping a macro
   Show instead of dimming: Show instead of dimming
   Show light controls for a light connected to this printer: 'Show light controls for a light connected to this printer'
+  Show print speed and flow as mm/s and mm³/s instead of percent: Show print speed and flow as mm/s and mm³/s instead of percent
   Show printer icon in navigation bar: Show printer icon in navigation bar
   Show sliced colors: Show sliced colors
   Show temp for: Show temp for
@@ -3748,6 +3752,7 @@ translations:
   Spaghetti detected (%d%%): Spaghetti detected (%d%%)
   Speaker: Speaker
   Speed: Speed
+  Speed & Flow in mm/s: Speed & Flow in mm/s
   Speed / Flow: Speed / Flow
   Speed Settings: Speed Settings
   Speed and flow overrides, with a tap to tune: Speed and flow overrides, with a tap to tune
@@ -4282,6 +4287,7 @@ translations:
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: This printer has no timezone, so its clock reads UTC. Pick yours.
   'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.

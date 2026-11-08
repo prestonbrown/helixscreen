@@ -342,6 +342,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: Si è verificato
     un errore all'avvio dell'app. Alcune funzioni potrebbero non essere disponibili.
   Appearance: Aspetto
+  Appearance & Region: "Aspetto e regione"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Applicato a {}. Klipper lo dimentica al riavvio: inserisci {} come Pressure Advance nel profilo filamento dello slicer, oppure salvalo sulla bobina.'
   Applies to: Si applica a
@@ -838,6 +839,7 @@ translations:
   Color: Colore
   Color Mismatch: Colore non corrispondente
   Color Sensors: Sensori di colore
+  Colors for every screen: "Colori di tutte le schermate"
   Command Failed: 'Comando non riuscito'
   Command failed: Comando non riuscito
   Communication Test: 'Test di comunicazione'
@@ -3717,6 +3719,7 @@ translations:
     per la risoluzione dei problemi
   Set temperature between {}°C and {}°C: 'Imposta una temperatura tra {}°C e {}°C'
   Set the X and Y belts with the motorized tensioners: "Regola le cinghie X e Y con i tenditori motorizzati"
+  Set the clock, theme and units. You can change any of these later in Settings.: "Imposta orologio, tema e unità. Puoi cambiarli in seguito nelle Impostazioni."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Impostare a mano tipo e colore del filamento per questo slot. Se il tag dovrebbe essere leggibile, reinserire la bobina con l'etichetta rivolta verso il lettore quando la box è inattiva
   Set up: Configura
@@ -3751,6 +3754,7 @@ translations:
     quando si tocca una macro
   Show instead of dimming: Mostra invece di attenuare
   Show light controls for a light connected to this printer: 'Mostra i controlli di una luce collegata a questa stampante'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "Mostra velocità e flusso in mm/s e mm³/s invece che in percentuale"
   Show printer icon in navigation bar: Mostra icona stampante nella barra di navigazione
   Show sliced colors: Mostra colori sezionati
   Show temp for: Mostra temperatura per
@@ -3827,6 +3831,7 @@ translations:
   Spaghetti detected (%d%%): Spaghetti rilevati (%d%%)
   Speaker: Altoparlante
   Speed: Velocità
+  Speed & Flow in mm/s: "Velocità e flusso in mm/s"
   Speed / Flow: 'Velocità / Flusso'
   Speed Settings: 'Impostazioni di velocità'
   Speed and flow overrides, with a tap to tune: 'Velocità e flusso; tocca per regolare'
@@ -4380,6 +4385,7 @@ translations:
   This printer has no IFS.: "Questa stampante non ha l'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Questa stampante non ha la macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "Questa stampante non ha un fuso orario, quindi l'orologio segna UTC. Scegli il tuo."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Questa stampante non ha il comando {}, quindi l''offset Z non può essere salvato.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati.

@@ -39,6 +39,10 @@ class LanguageTimeSettingsOverlay : public OverlayBase {
     void init_timezone_dropdown();
 };
 
+/// Fill a timezone row's dropdown with the offered zones and select the active one.
+/// Settings and the setup wizard share it, so both offer the same list.
+void populate_timezone_row(lv_obj_t* row, const char* owner);
+
 inline LanguageTimeSettingsOverlay& get_language_time_settings_overlay() {
     return lazy_global<LanguageTimeSettingsOverlay>("LanguageTimeSettingsOverlay");
 }

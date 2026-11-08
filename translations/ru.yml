@@ -385,6 +385,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: При запуске
     приложения произошла ошибка. Некоторые функции могут быть недоступны.
   Appearance: Внешний вид
+  Appearance & Region: "Внешний вид и регион"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку.'
   Applies to: Применяется к
@@ -888,6 +889,7 @@ translations:
   Color: Цвет
   Color Mismatch: Несоответствие цвета
   Color Sensors: Датчики цвета
+  Colors for every screen: "Цвета всех экранов"
   Command Failed: 'Ошибка команды'
   Command failed: Ошибка команды
   Communication Test: 'Проверка связи'
@@ -3766,6 +3768,7 @@ translations:
     для устранения неполадок
   Set temperature between {}°C and {}°C: 'Установите температуру от {}°C до {}°C'
   Set the X and Y belts with the motorized tensioners: "Натянуть ремни X и Y моторизованными натяжителями"
+  Set the clock, theme and units. You can change any of these later in Settings.: "Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает
   Set up: Настроить
@@ -3800,6 +3803,7 @@ translations:
     при нажатии на макрос
   Show instead of dimming: Показывать вместо затемнения
   Show light controls for a light connected to this printer: 'Показывать управление подсветкой, подключённой к этому принтеру'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "Показывать скорость и поток в мм/с и мм³/с вместо процентов"
   Show printer icon in navigation bar: Показывать значок принтера в панели навигации
   Show sliced colors: Показать цвета из слайсера
   Show temp for: Показывать темп. для
@@ -3875,6 +3879,7 @@ translations:
   Spaghetti detected (%d%%): Обнаружены «спагетти» (%d%%)
   Speaker: Динамик
   Speed: Скорость
+  Speed & Flow in mm/s: "Скорость и поток в мм/с"
   Speed / Flow: 'Скорость / Поток'
   Speed Settings: 'Настройки скорости'
   Speed and flow overrides, with a tap to tune: 'Скорость и поток; нажмите для настройки'
@@ -4428,6 +4433,7 @@ translations:
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
