@@ -1124,6 +1124,19 @@ WiFiError WiFiManager::apply_radio_enabled(bool enabled) {
         return WiFiError(WiFiResult::NOT_INITIALIZED, "No WiFi backend", "WiFi system not ready");
     }
 
+    // A backend whose init failed (a wedged daemon at boot, a failed earlier
+    // enable) stays down until something starts it, and every radio call on
+    // it answers "WiFi system not ready". Turning WiFi on is that something.
+    // Blocking start() is fine here: radio changes run on the control lane.
+    if (enabled && !backend_->is_running()) {
+        spdlog::info("[WiFiManager] WiFi backend is not running; starting it to turn WiFi on");
+        WiFiError started = backend_->start();
+        if (!started.success()) {
+            return started;
+        }
+        notify_state_observers(/*country_may_have_changed=*/true);
+    }
+
     // Radio on/off, NOT backend start()/stop(). stop() tears down the control
     // connection to wpa_supplicant entirely, so a subsequent STATUS has
     // nothing to query — every later call logs "send_command called but not
