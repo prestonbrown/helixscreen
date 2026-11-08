@@ -17,6 +17,7 @@
 #include "gcode_error_router.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "power_device_state.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"
 #include "static_panel_registry.h"
@@ -574,6 +575,19 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
                       "clearing stale reference");
         recovery_dialog_ = nullptr;
         recovery_reason_ = RecoveryReason::NONE;
+    }
+
+    // Moonraker stops Klipper along with a bound power device, so Klipper being
+    // down is the normal state of a printer switched off on purpose (#2076). That
+    // stop carries no fault, and the last message from a running Klipper is its
+    // ready text, so a fault Klipper did report still shows.
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ && printer_state_ &&
+        (printer_state_->get_klippy_state_message().empty() ||
+         printer_state_->get_klippy_state_message() == "Printer is ready") &&
+        helix::PowerDeviceState::instance().klipper_bound_device_off()) {
+        spdlog::info("[KlipperRecovery] Not showing {}: a power device that stops Klipper is off",
+                     recovery_reason_str(reason));
+        return true;
     }
 
     // If dialog is still showing, update reason if it's worse (SHUTDOWN -> DISCONNECTED means

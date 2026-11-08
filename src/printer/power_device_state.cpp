@@ -75,6 +75,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
             info.type = dev.type;
             info.locked_while_printing = dev.locked_while_printing;
             info.raw_status = status_string_to_int(dev.status);
+            info.reported_off = dev.status == "off";
             continue;
         }
 
@@ -83,6 +84,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         info.type = dev.type;
         info.locked_while_printing = dev.locked_while_printing;
         info.raw_status = status_string_to_int(dev.status);
+        info.reported_off = dev.status == "off";
 
         info.status_subject = std::make_unique<lv_subject_t>();
         lv_subject_init_int(info.status_subject.get(), info.raw_status);
@@ -149,6 +151,18 @@ bool PowerDeviceState::is_locked_while_printing(const std::string& device) const
     return false;
 }
 
+void PowerDeviceState::set_klipper_bound_devices(std::vector<std::string> devices) {
+    klipper_bound_devices_ = std::move(devices);
+}
+
+bool PowerDeviceState::klipper_bound_device_off() const {
+    return std::any_of(klipper_bound_devices_.begin(), klipper_bound_devices_.end(),
+                       [this](const std::string& name) {
+                           auto it = devices_.find(name);
+                           return it != devices_.end() && it->second.reported_off;
+                       });
+}
+
 std::vector<std::string> PowerDeviceState::device_names() const {
     std::vector<std::string> names;
     names.reserve(devices_.size());
@@ -176,11 +190,13 @@ void PowerDeviceState::update_device_status(const std::string& device, const std
     spdlog::debug("[PowerDeviceState] update_device_status: device='{}' status='{}'", device,
                   status);
     auto tok = lifetime_.token();
-    tok.defer("PowerDeviceState::update_device_status", [this, device, new_raw]() {
+    const bool reported_off = status == "off";
+    tok.defer("PowerDeviceState::update_device_status", [this, device, new_raw, reported_off]() {
         auto it = devices_.find(device);
         if (it == devices_.end())
             return;
         it->second.raw_status = new_raw;
+        it->second.reported_off = reported_off;
         publish_effective_status(it->second);
     });
 }
@@ -214,7 +230,8 @@ void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
             EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::NORMAL);
         }
 
-        tok.defer("PowerDeviceState::on_power_changed", [this, device_name, new_raw]() {
+        tok.defer("PowerDeviceState::on_power_changed", [this, device_name, new_raw,
+                                                         reported_off = new_status == "off"]() {
             auto it = devices_.find(device_name);
             if (it == devices_.end()) {
                 spdlog::trace("[PowerDeviceState] Ignoring update for unknown device '{}'",
@@ -223,6 +240,7 @@ void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
             }
 
             it->second.raw_status = new_raw;
+            it->second.reported_off = reported_off;
             publish_effective_status(it->second);
         });
     }
@@ -278,6 +296,8 @@ void PowerDeviceState::deinit_subjects() {
     // PrinterState has already freed that subject; either way its context is
     // freed. Leaving it attached would keep calling back into torn-down state.
     print_state_observer_.reset();
+
+    klipper_bound_devices_.clear();
 
     // Signal death then expire lifetime tokens (#816)
     for (auto& [name, info] : devices_) {

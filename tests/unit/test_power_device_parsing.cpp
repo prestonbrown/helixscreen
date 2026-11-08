@@ -147,3 +147,37 @@ TEST_CASE("Power device parsing skips a non-object array element", "[power][pars
     REQUIRE(devices.size() == 1);
     CHECK(devices[0].device == "lamp");
 }
+
+TEST_CASE("Power devices bound to Klipper are read from server.config",
+          "[power][parsing][moonraker]") {
+    using helix::parse_klipper_bound_power_devices;
+    using Names = std::vector<std::string>;
+
+    SECTION("only sections naming a Klipper service count") {
+        const json reply = json::parse(R"({"result": {"config": {
+            "power": {},
+            "power printer": {"bound_services": ["klipper"]},
+            "power light": {"bound_services": ["crowsnest"]},
+            "power old": {"bound_service": "klipper"},
+            "powerline": {"bound_services": ["klipper"]}
+        }}})");
+        auto bound = parse_klipper_bound_power_devices(reply);
+        std::sort(bound.begin(), bound.end());
+        CHECK(bound == Names{"old", "printer"});
+    }
+    SECTION("malformed replies read as unbound") {
+        for (const char* text :
+             {R"({})", R"({"result": []})", R"({"result": {"config": 3}})",
+              R"({"result": {"config": {"power a": {"bound_services": "klipper"}}}})",
+              R"({"result": {"config": {"power a": {"bound_services": [1, null]}}}})"}) {
+            CAPTURE(text);
+            CHECK(parse_klipper_bound_power_devices(json::parse(text)).empty());
+        }
+    }
+    SECTION("service names") {
+        using helix::is_klipper_service_name;
+        CHECK(is_klipper_service_name("klipper-1.service"));
+        CHECK_FALSE(is_klipper_service_name("klipper_mcu"));
+        CHECK_FALSE(is_klipper_service_name("moonraker"));
+    }
+}

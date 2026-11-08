@@ -8,6 +8,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "app_globals.h"
+#include "power_device_state.h"
 #include "printer_state.h"
 #include "translation_loader.h"
 
@@ -862,3 +863,66 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A refused restart tap leaves the recovery d
 }
 
 #endif // __APPLE__
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A power-off that stops Klipper shows no dialog",
+                 "[recovery][power]") {
+    auto& estop = EmergencyStopOverlay::instance();
+    auto& power = PowerDeviceState::instance();
+    using Access = EmergencyStopOverlayTestAccess;
+    Access::reset_recovery_reason(estop);
+    Access::reset_suppression(estop);
+    Access::reset_pending_recovery_reason(estop);
+    Access::set_restart_in_progress(estop, false);
+    estop.init(state(), api());
+    estop.create();
+
+    power.set_devices(
+        {PowerDevice{"printer", "gpio", "off", false}, PowerDevice{"light", "gpio", "on", false}});
+    state().set_klippy_state_sync(KlippyState::READY);
+    process_lvgl(20);
+
+    const auto klipper_stops = [&] {
+        estop.suppress_recovery_dialog(50);
+        estop.show_recovery_for(RecoveryReason::SHUTDOWN);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(200);
+        helix::ui::UpdateQueue::instance().drain();
+        return Access::recovery_reason(estop);
+    };
+
+    SECTION("the device bound to Klipper is off, with no message") {
+        power.set_klipper_bound_devices({"printer"});
+        CHECK(klipper_stops() == RecoveryReason::NONE);
+    }
+    SECTION("the last message is still Klipper's ready text") {
+        power.set_klipper_bound_devices({"printer"});
+        state().set_klippy_state_message("Printer is ready");
+        CHECK(klipper_stops() == RecoveryReason::NONE);
+    }
+    SECTION("a bound device that is on leaves the stop unexplained") {
+        power.set_klipper_bound_devices({"light"});
+        CHECK(klipper_stops() == RecoveryReason::SHUTDOWN);
+    }
+    SECTION("an unrelated device being off explains nothing") {
+        power.set_klipper_bound_devices({});
+        CHECK(klipper_stops() == RecoveryReason::SHUTDOWN);
+    }
+    SECTION("a bound device in error says nothing about Klipper") {
+        power.set_klipper_bound_devices({"printer"});
+        power.update_device_status("printer", "error");
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(klipper_stops() == RecoveryReason::SHUTDOWN);
+    }
+    SECTION("a fault Klipper reported shows even with the device off") {
+        power.set_klipper_bound_devices({"printer"});
+        state().set_klippy_state_message("MCU 'mcu' shutdown: Timer too close");
+        CHECK(klipper_stops() == RecoveryReason::SHUTDOWN);
+    }
+
+    estop.deinit_subjects();
+    power.deinit_subjects();
+    Access::reset_recovery_reason(estop);
+    Access::reset_suppression(estop);
+    Access::reset_pending_recovery_reason(estop);
+    helix::ui::UpdateQueue::instance().drain();
+}
