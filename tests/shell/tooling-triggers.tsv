@@ -118,6 +118,7 @@ tests/shell/test_namespace_gate.bats	docs/devel/DEVELOPMENT.md scripts/check_nam
 tests/shell/test_ninja_jobserver.bats	scripts/ninja-jobserver.sh
 tests/shell/test_no_echo_ansi.bats	scripts/install-dev.sh scripts/lib/installer/
 tests/shell/test_no_mocks_gate.bats	Makefile scripts/check_no_mocks.py scripts/compile_command.py scripts/diff_base.py scripts/esp32_syntax_check.py scripts/merge_compile_commands.py scripts/mock_symbol_pattern.txt
+tests/shell/test_old_toolchain_gate.bats	.github/workflows/nightly.yml scripts/check_old_toolchain.py scripts/merge_compile_commands.py
 tests/shell/test_order_dependence_gate.bats	scripts/check_test_order_dependence.py
 tests/shell/test_orphan_callbacks_gate.bats	scripts/check_orphan_callbacks.py scripts/check_required_names.py scripts/source_strip.py
 tests/shell/test_orphan_subjects_gate.bats	assets/config/default_layout.json scripts/check_orphan_subjects.py
@@ -137,11 +138,13 @@ tests/shell/test_prepush_land_gate_stamp.bats	.githooks/lib/land-gate-stamp.sh .
 tests/shell/test_prepush_work_branches.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push scripts/quality-checks.sh
 tests/shell/test_print_compile_command.bats	Makefile VERSION.txt include/lvgl_pch.h scripts/compile_command.py scripts/merge_compile_commands.py src/system/config.cpp tests/mocks/mock_websocket_server.cpp tests/unit/application/application_test_fixture.cpp tests/unit/test_json_utils.cpp
 tests/shell/test_print_state_cast_gate.bats	scripts/check_print_state_cast.py
+tests/shell/test_printer_images_gate.bats	scripts/check_printer_images.py scripts/qc/design_pixels.sh
 tests/shell/test_pytest_asyncio_deps_gate.bats	moonraker-plugin/tests/test_helix_print.py requirements.txt scripts/check_pytest_asyncio_deps.py
 tests/shell/test_quality_cache_replay.bats	scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
 tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
+tests/shell/test_raw_print_job_state_gate.bats	scripts/check_raw_print_job_state.py scripts/qc/decl_ui.sh src/printer/print_lifecycle_state.cpp
 tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/source_strip.py scripts/staged_content.py src/ui/filament/ui_spool_wizard.cpp
 tests/shell/test_release_channel.bats	RELEASE_CHANNEL scripts/release-channel.sh
 tests/shell/test_release_config_deploy.bats	Makefile config/99-helixscreen-backlight.rules config/creality-backend.init config/helixscreen.env config/helixscreen.init mk/cross.mk scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/release.sh tests/shell/helpers.bash
@@ -183,9 +186,11 @@ tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_
 tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh
 tests/shell/test_test_tautology_gate.bats	include/version.h mk/tests.mk scripts/check_test_mirrors.py scripts/check_test_tautology.py scripts/source_strip.py src/ui/notify/ui_toast_manager.cpp tests/ui_test_utils.cpp
+tests/shell/test_test_widget_registry_gate.bats	scripts/check_test_widget_registry.py scripts/qc/_lib.sh scripts/qc/test_widget_registry.sh
 tests/shell/test_theme_artifacts_gate.bats	scripts/check_theme_artifacts.py scripts/gen_theme_tokens.py scripts/staged_content.py src/generated/theme_token_table.cpp src/ui/theme/theme_manager.cpp tests/fixtures/theme_const_golden.txt ui_xml/globals.xml
 tests/shell/test_thirdparty_abi_stamp.bats	Makefile mk/bluetooth.mk mk/display-lib.mk mk/patches.mk mk/pi-dual-link.mk mk/rules.mk mk/splash.mk mk/tests.mk mk/tools.mk mk/watchdog.mk
 tests/shell/test_thumbnail_cache_guard_gate.bats	scripts/check_thumbnail_cache_guard.py scripts/qc/decl_ui.sh scripts/source_strip.py scripts/staged_content.py tests/unit/test_thumbnail_cache.cpp
+tests/shell/test_timer_destructor_cancel_gate.bats	scripts/check_timer_destructor_cancel.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_todo_marker_gate.bats	scripts/check_todo_markers.py scripts/qc/todo_markers.sh scripts/quality-checks.sh
 tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scripts/staged_content.py src/ui/controls/ui_panel_motion.cpp tests/unit/test_job_holds_machine.cpp
 tests/shell/test_touch_rotation_source_gate.bats	scripts/check_touch_rotation_source.py src/platform/display/display_backend_drm.cpp src/platform/display/display_backend_fbdev.cpp
@@ -207,6 +212,7 @@ tests/shell/test_wifi_pii_gate.bats	scripts/check_wifi_pii_logging.py scripts/so
 tests/shell/test_workflow_concurrency_gate.bats	.github/workflows/ tests/shell/helpers.bash
 tests/shell/test_workflow_submodules_gate.bats	.github/actions/ .github/workflows/ scripts/check_workflow_submodules.py
 tests/shell/test_worktree_setup.bats	Makefile lib/helix-xml lib/libhv lib/lua lib/lvgl lib/spdlog mk/patches.mk patches/ scripts/ccache-shared-config.sh scripts/check_patch_markers.py scripts/gen_patch_markers.py scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/worktree_lib.sh scripts/setup-worktree.sh scripts/sync-worktree-mtimes.py server/telemetry-worker/package.json
+tests/shell/test_x11_macro_collisions_gate.bats	scripts/check_x11_macro_collisions.py scripts/qc/decl_ui.sh scripts/source_strip.py
 tests/shell/test_xargs_portable_gates.bats	scripts/qc/ scripts/quality-checks.sh
 tests/shell/test_xml_create_registered_gate.bats	scripts/check_xml_create_registered.py
 tests/shell/test_xml_create_then_hide_gate.bats	scripts/check_xml_create_then_hide.py scripts/qc/decl_ui.sh
