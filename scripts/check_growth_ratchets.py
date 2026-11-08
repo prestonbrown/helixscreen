@@ -20,13 +20,15 @@ to conflict on. A count may fall; a branch may not raise it.
                    class body or inside an out-of-line `Class::method` body, for
                    every class that has a parameter of the dependency's type
                    anywhere in the tree (its class body, or the parameter list
-                   of a `Class::method` definition). A file may not gain one.
+                   of a `Class::method` definition), and every class deriving
+                   from one at any depth. A file may not gain one.
   active instance  Static-storage pointers that hand an XML callback "the
                    current instance" (`static Foo* active_instance_;`,
                    `static Foo* s_active_`, an anonymous-namespace
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
-                   definition is not a second pointer and is not counted.
+                   definition is not a second pointer and is not counted, and
+                   a name containing `inactive` is not the pattern at all.
 
 One ban, on the whole tree at HEAD rather than the branch's change: no call to
 lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or tests/
@@ -80,13 +82,15 @@ def _param_re(type_re: str) -> re.Pattern:
     return re.compile(rf"[(,]\s*(?:const\s+)?{_QUAL}{type_re}\s*{_PTR_TAIL}")
 
 
-_ACTIVE_NAME = r"(?:s_|g_)?\w*active\w*|(?:s_|g_)\w+_instance_?"
+# "inactive" names the opposite of the pattern, so a name containing it is not one.
+_NOT_INACTIVE = r"(?!\w*inactive)"
+_ACTIVE_NAME = rf"(?:s_|g_)?{_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?"
 _KEYWORDS = {"return", "delete", "throw", "case", "goto", "else", "new"}
 ACTIVE_STATIC_RE = re.compile(
     rf"^[ \t]*(?:inline\s+)?static\s+(?:inline\s+)?(?:const\s+)?([\w:<>]+)\s*\*\s*(?:const\s+)?"
     rf"({_ACTIVE_NAME})\s*(?:=\s*nullptr\s*|\{{\s*(?:nullptr)?\s*\}}\s*)?;", re.M)
 ACTIVE_GLOBAL_RE = re.compile(
-    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_)\w*active\w*|(?:s_|g_)\w+_instance_?)"
+    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_){_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
 
 VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
@@ -376,15 +380,36 @@ def tree_with(root: Path, rev: str, needle: str, sources=APP_SOURCES) -> dict[st
     return read_blobs(root, rev, paths)
 
 
-def receivers_at(root: Path, rev: str, type_re: str):
-    return receivers(tree_with(root, rev, type_re.replace("I?", "")), _param_re(type_re))
+def receivers_at(root: Path, rev: str, type_re: str, subclasses: bool = True):
+    """(receiving classes, static methods per class) at `rev`. `subclasses=False`
+    skips the inheritance walk for a caller that only needs the statics."""
+    classes, statics = receivers(tree_with(root, rev, type_re.replace("I?", "")),
+                                 _param_re(type_re))
+    return (with_subclasses(root, rev, classes) if subclasses else classes), statics
+
+
+def with_subclasses(root: Path, rev: str, classes: set[str]) -> set[str]:
+    """`classes` plus every class at `rev` deriving from one, at any depth: a class
+    that inherits the dependency's member receives it as surely as its base does."""
+    found, frontier = set(classes), set(classes)
+    while frontier:
+        args = [a for name in sorted(frontier) for a in ("-e", name)]
+        try:
+            hits = git(root, "grep", "-l", "-w", "-F", *args, rev, "--", *APP_SOURCES).split()
+        except subprocess.CalledProcessError:
+            break
+        table = _class_table(read_blobs(root, rev, [h.split(":", 1)[1] for h in hits]))
+        frontier = {name for name, (_, bases) in table.items()
+                    if name not in found and found.intersection(bases)}
+        found |= frontier
+    return found
 
 
 def global_access_counts(root: Path, rev: str, type_re: str, accessor: str,
                          classes: set[str] | None = None, only=None) -> Counter:
     """Accessor calls per file inside `classes` (default: the classes receiving the
     dependency at `rev`), with static members judged by `rev`'s own declarations."""
-    rev_classes, statics = receivers_at(root, rev, type_re)
+    rev_classes, statics = receivers_at(root, rev, type_re, subclasses=classes is None)
     classes = rev_classes if classes is None else classes
     blobs = tree_with(root, rev, accessor)
     counts = Counter()

@@ -261,6 +261,32 @@ rebase_here() {
     contains "get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
 }
 
+@test "a class that inherits a receiving base receives the dependency too, at any depth" {
+    cat > "$REPO/include/derived.h" <<'EOF'
+class Detail : public Panel {
+  public:
+    void show();
+};
+class Leaf final : public helix::Detail {
+  public:
+    void poke();
+};
+class Unrelated : public Plain {
+  public:
+    void poke();
+};
+EOF
+    printf 'void Detail::show() {\n}\nvoid Leaf::poke() {\n}\nvoid Unrelated::poke() {\n}\n' > "$REPO/src/ui/derived.cpp"
+    rebase_here "subclasses"
+    sed -i.bak 's/^\(void [A-Za-z]*::[a-z]*() {\)$/\1\n    get_printer_state().touch();/' "$REPO/src/ui/derived.cpp"
+    rm "$REPO/src/ui/derived.cpp.bak"
+    [ "$(grep -c get_printer_state "$REPO/src/ui/derived.cpp")" -eq 3 ]
+    commit_all "subclasses reach for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/derived.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 2" "$output"
+}
+
 @test "a class that starts receiving the dependency on this branch is not judged by it yet" {
     inject "void Plain::refresh()" "get_printer_state().touch(); get_printer_state().poke();"
     rebase_here "plain uses the global"
@@ -347,6 +373,19 @@ void f() {
 EOF
     printf 'static Panel* s_active_ = nullptr;\n' > "$REPO/tests/unit/test_panel.cpp"
     commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+    contains "active-instance pointers +0" "$output"
+}
+
+@test "a name that says inactive is not an active-instance pointer" {
+    cat > "$REPO/src/ui/inactive.cpp" <<'EOF'
+static Panel* s_inactive_panel = nullptr;
+class Pool {
+    static Panel* inactive_head_;
+};
+EOF
+    commit_all "inactive names"
     ratchets
     [ "$status" -eq 0 ]
     contains "active-instance pointers +0" "$output"
