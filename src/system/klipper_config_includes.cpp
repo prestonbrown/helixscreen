@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -29,10 +30,11 @@ std::string config_get_directory(const std::string& path) {
 }
 
 std::string config_resolve_path(const std::string& current_file, const std::string& include_path) {
+    // Normal form, because Moonraker lists and serves paths without "." or "..",
+    // while Klipper resolves them, so `../macros/x.cfg` is a file it really reads.
     std::string dir = config_get_directory(current_file);
-    if (dir.empty())
-        return include_path;
-    return dir + "/" + include_path;
+    const std::string joined = dir.empty() ? include_path : dir + "/" + include_path;
+    return std::filesystem::path(joined).lexically_normal().generic_string();
 }
 
 bool config_glob_match(const std::string& pattern, const std::string& text) {
