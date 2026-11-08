@@ -57,7 +57,6 @@
 #include <utility>
 #include <vector>
 
-// Forward declaration
 struct ui_frequency_response_chart_t;
 
 // ============================================================================

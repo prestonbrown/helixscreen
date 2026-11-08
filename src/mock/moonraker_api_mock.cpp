@@ -610,7 +610,6 @@ void MoonrakerFileTransferAPIMock::download_file(const std::string& root, const 
         return;
     }
 
-    // Try to read the local file
     std::ifstream file(local_path, std::ios::binary);
     if (file) {
         std::ostringstream content;
@@ -857,7 +856,6 @@ void MoonrakerFileTransferAPIMock::download_file_to_path(
         return;
     }
 
-    // Copy the file to destination
     std::ifstream src(local_path, std::ios::binary);
     if (!src) {
         spdlog::error("[MoonrakerAPIMock] Failed to open source file: {}", local_path);
@@ -1147,7 +1145,6 @@ void MoonrakerAPIMock::get_power_devices(PowerDevicesCallback on_success, ErrorC
 
     spdlog::info("[MoonrakerAPIMock] Returning mock power devices");
 
-    // Initialize mock states if not already done
     if (mock_power_states_.empty()) {
         mock_power_states_["printer_psu"] = true;
         mock_power_states_["led_strip"] = true;
@@ -1186,7 +1183,6 @@ void MoonrakerAPIMock::set_device_power(const std::string& device, const std::st
                                         SuccessCallback on_success, ErrorCallback on_error) {
     (void)on_error; // Mock never fails
 
-    // Update mock state
     bool new_state = false;
     if (action == "on") {
         new_state = true;
@@ -1574,8 +1570,8 @@ bool MockScrewsTiltState::is_level(float tolerance_mm) const {
 std::string MockScrewsTiltState::diff_to_adjustment(float diff_mm) {
     // Klipper (screws_tilt_adjust.py) computes diff = z_base - z and emits CW
     // for a positive diff on a CW-M* thread, CCW for a negative one. The mock
-    // must match: emitting the opposite sign is what made --test unable to
-    // reproduce the level-verdict bug (prestonbrown/helixscreen#1225).
+    // must match, or --test cannot reproduce level-verdict problems
+    // (prestonbrown/helixscreen#1225).
     const float mm_per_turn = screw_thread_pitch_mm(mock_internal::kMockScrewThread);
 
     // Klipper zeroes the adjustment inside a 1 micron deadband *before* dividing
@@ -1657,7 +1653,6 @@ void MoonrakerAdvancedAPIMock::start_bed_mesh_calibrate(
         c->current++;
 
         if (c->current <= c->total) {
-            // Report progress
             spdlog::debug("[MoonrakerAdvancedAPIMock] Probe {}/{}", c->current, c->total);
             if (c->on_progress) {
                 c->on_progress(c->current, c->total);

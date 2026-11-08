@@ -23,7 +23,6 @@ void MoonrakerAPI::set_led(const std::string& led, double red, double green, dou
         return;
     }
 
-    // Validate LED name
     if (!is_safe_identifier(led)) {
         report_validation_error(
             on_error, "set_led", "Invalid LED name contains illegal characters",

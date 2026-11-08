@@ -386,6 +386,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: При запуске
     приложения произошла ошибка. Некоторые функции могут быть недоступны.
   Appearance: Внешний вид
+  Appearance & Region: "Внешний вид и регион"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку.'
   Applies to: Применяется к
@@ -519,6 +520,9 @@ translations:
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
   Belt Tension needs a CoreXY printer. This one is {}.: 'Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}.'
+  Belt tension and cutter calibration: "Натяжение ремней и калибровка резака"
+  Belt tensioning completed: "Натяжение ремней завершено"
+  'Belt tensioning failed: {}': "Не удалось натянуть ремни: {}"
   Belts already match: "Ремни уже совпадают"
   Beta: Бета
   'Beta features: OFF': 'Beta-функции: ВЫКЛ'
@@ -886,6 +890,7 @@ translations:
   Color: Цвет
   Color Mismatch: Несоответствие цвета
   Color Sensors: Датчики цвета
+  Colors for every screen: "Цвета всех экранов"
   Command Failed: 'Ошибка команды'
   Command failed: Ошибка команды
   Communication Test: 'Проверка связи'
@@ -1851,8 +1856,8 @@ translations:
     стол перед калибровкой для точного смещения с учётом теплового расширения.
   Heat nozzle: Нагреть сопло
   Heat soak: Прогрев
-  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
-  : 'Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen его не запускает.'
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  : 'Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen предлагает этот макрос в параметрах перед печатью.'
   Heat the bed to {}°C: Нагреть стол до {}°C
   Heat the chamber too: Нагреть и камеру
   Heat the extruder to at least {}°C before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}°C
@@ -3764,6 +3769,8 @@ translations:
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала
     для устранения неполадок
   Set temperature between {}°C and {}°C: 'Установите температуру от {}°C до {}°C'
+  Set the X and Y belts with the motorized tensioners: "Натянуть ремни X и Y моторизованными натяжителями"
+  Set the clock, theme and units. You can change any of these later in Settings.: "Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает
   Set up: Настроить
@@ -3798,6 +3805,7 @@ translations:
     при нажатии на макрос
   Show instead of dimming: Показывать вместо затемнения
   Show light controls for a light connected to this printer: 'Показывать управление подсветкой, подключённой к этому принтеру'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "Показывать скорость и поток в мм/с и мм³/с вместо процентов"
   Show printer icon in navigation bar: Показывать значок принтера в панели навигации
   Show sliced colors: Показать цвета из слайсера
   Show temp for: Показывать темп. для
@@ -3873,6 +3881,7 @@ translations:
   Spaghetti detected (%d%%): Обнаружены «спагетти» (%d%%)
   Speaker: Динамик
   Speed: Скорость
+  Speed & Flow in mm/s: "Скорость и поток в мм/с"
   Speed / Flow: 'Скорость / Поток'
   Speed Settings: 'Настройки скорости'
   Speed and flow overrides, with a tap to tune: 'Скорость и поток; нажмите для настройки'
@@ -4125,7 +4134,9 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Временная настройка
     для этой печати, если не сохранена в панели управления
   Temporary for this print; a tool change resets it: "Временно для этой печати; смена инструмента сбрасывает её"
+  Tension Belts: "Натянуть ремни"
   'Tensioner: {}': "Натяжитель: {}"
+  Tensioning belts...: "Натяжение ремней..."
   Tertiary: Третичный
   Test All Lanes: 'Проверить все каналы'
   Test Connection: Тест соединения
@@ -4290,6 +4301,7 @@ translations:
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным.
+  The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "Принтер при необходимости ищет ноль, затем определяет положение резака. Держите путь филамента свободным."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
 
   : Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются.
@@ -4305,6 +4317,8 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно.
   The printer lost power while printing {}. Resume where it left off?: Принтер потерял питание при печати {}. Продолжить с места остановки?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно.
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : "Принтер может выполнить парковку и переместить печатающую головку, затем моторизованные натяжители натянут ремни X и Y. Освободите стол и портал."
   The printer moves the toolhead and measures its motors.: 'Принтер перемещает печатающую головку и измеряет моторы.'
   The printer no longer has a print to resume.: У принтера больше нет печати для продолжения.
   The printer reads the file up to the last saved position. A large file can take a minute.: Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту.
@@ -4366,6 +4380,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Этот .3mf нужно преобразовать в G-code, прежде чем ставить в очередь. Напечатайте его отсюда.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Отключённые шаги подготовки нельзя применить к этому .3mf. Включите их снова, чтобы напечатать.'
+  Filament Mapping at print start: 'Сопоставление филамента при запуске печати'
   Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'Сопоставление филамента не может переписать этот .3mf. Напечатайте его без переназначения.'
   'This .3mf''s plates are still loading. Try again in a moment.': 'Пластины этого .3mf ещё загружаются. Попробуйте снова через мгновение.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Этот .3mf нужно преобразовать в G-code на принтере, прежде чем его можно будет напечатать.'
@@ -4421,6 +4436,7 @@ translations:
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.

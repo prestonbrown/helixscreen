@@ -640,6 +640,12 @@ live axis bounds. PREPARE parks at the stored `extrude_pos_x`, so that reach is 
 only value on record, 184.5, is one K1 Max's stored setting and not a factory chute X, so nothing
 bounds the stored X absolutely across repeated saves.
 
+When box.cfg's `[box]` `clean_left_pos_*` / `clean_right_pos_*` reach `configfile.settings`
+(`cfs::parse_chute_wiper`, read from the same query as the address table), the guard also stops Y
+0.3 mm short of that wiper line while X is at or past the wiper's near end, and keeps X off the
+wiper while Y is beyond the line (#2007). A K1C reports park 152.5/221.5 and the silicone wiper
+from X 153.5 to 178.0 at Y 225.3, so the fine reach past park overlaps the wiper's first 1 mm.
+
 ### Machine geometry from the same log
 
 `[stepper_y] position_min=-0.5 position_max=307.5` (`gcode_position_max=295`, a Creality

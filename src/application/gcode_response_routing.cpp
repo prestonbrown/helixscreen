@@ -11,6 +11,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "event_journal_recorder.h"
 #include "filament_insert_watcher.h"
 #include "gcode_error_router.h"
@@ -85,6 +86,8 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
         if (m_action_prompt_modal && screen) {
             m_action_prompt_modal->show_prompt(screen, data);
         }
+        // A macro waiting on an answer must not wait behind a dark panel.
+        helix::request_display_wake();
     });
 
     m_action_prompt_manager->set_on_close([this]() {

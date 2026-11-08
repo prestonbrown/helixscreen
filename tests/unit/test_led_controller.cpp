@@ -44,6 +44,18 @@ struct LedControllerFixture : public HelixTestFixture {
     }
 };
 
+/// The controller initialized without an API for one case, and deinitialized after.
+struct InitedLedControllerFixture : public LedControllerFixture {
+    helix::led::LedController& ctrl = helix::led::LedController::instance();
+    InitedLedControllerFixture() {
+        ctrl.deinit();
+        ctrl.init(nullptr, nullptr);
+    }
+    ~InitedLedControllerFixture() override {
+        ctrl.deinit();
+    }
+};
+
 TEST_CASE_METHOD(LedControllerFixture, "LedController singleton access", "[led]") {
     auto& ctrl = helix::led::LedController::instance();
     auto& ctrl2 = helix::led::LedController::instance();
@@ -61,15 +73,9 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController init and deinit", "[led]")
     REQUIRE(!ctrl.is_initialized());
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController has_any_backend empty", "[led]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController has_any_backend empty", "[led]") {
     REQUIRE(!ctrl.has_any_backend());
     REQUIRE(ctrl.available_backends().empty());
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedControllerFixture,
@@ -323,12 +329,8 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController deinit clears all backends
     REQUIRE(ctrl.effects().effects().empty());
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip returns correct type",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: backend_for_strip returns correct type", "[led][controller]") {
     // Add native strip
     helix::led::LedStripInfo native_strip;
     native_strip.name = "Chamber Light";
@@ -353,37 +355,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip returns
 
     // No backend owns an id nothing discovered, so nothing is sent to it
     REQUIRE_FALSE(ctrl.backend_for_strip("unknown_strip").has_value());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip identifies macro backend",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: get/set_led_on_at_start",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    // Add a macro device
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Cabinet Light";
-    macro.type = helix::led::MacroLedType::ON_OFF;
-    macro.on_macro = "LIGHTS_ON";
-    macro.off_macro = "LIGHTS_OFF";
-    ctrl.macro().add_macro(macro);
-    ctrl.set_configured_macros({macro});
-
-    // Macro devices are identified by display name
-    REQUIRE(ctrl.backend_for_strip("Cabinet Light") == helix::led::LedBackendType::MACRO);
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedControllerFixture, "LedController: get/set_led_on_at_start",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Default should be false
     REQUIRE(ctrl.get_led_on_at_start() == false);
 
@@ -392,17 +367,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: get/set_led_on_at_start",
 
     ctrl.set_led_on_at_start(false);
     REQUIRE(ctrl.get_led_on_at_start() == false);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: apply_startup_preference does nothing when disabled",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     ctrl.set_led_on_at_start(false);
     // set_startup_brightness() also moves last_brightness, so move it back after.
     ctrl.set_startup_brightness(40);
@@ -413,41 +382,14 @@ TEST_CASE_METHOD(LedControllerFixture,
 
     // Disabled: the startup brightness is not applied.
     REQUIRE(ctrl.last_brightness() == before);
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedControllerFixture,
-                 "LedController: apply_startup_preference with no strips is a no-op",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    ctrl.set_led_on_at_start(true);
-    // set_startup_brightness() also moves last_brightness, so move it back after.
-    ctrl.set_startup_brightness(40);
-    ctrl.set_last_brightness(100);
-    const int before = ctrl.last_brightness();
-
-    ctrl.apply_startup_preference({});
-
-    // Nothing to light: the startup brightness is not applied.
-    REQUIRE(ctrl.last_brightness() == before);
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 1: macro: prefix handling
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip with macro: prefix",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: backend_for_strip with macro: prefix",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo macro;
     macro.display_name = "Cabinet Light";
     macro.type = helix::led::MacroLedType::ON_OFF;
@@ -459,16 +401,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip with ma
     // Both prefixed and unprefixed should resolve to MACRO
     REQUIRE(ctrl.backend_for_strip("macro:Cabinet Light") == helix::led::LedBackendType::MACRO);
     REQUIRE(ctrl.backend_for_strip("Cabinet Light") == helix::led::LedBackendType::MACRO);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: set_power dispatches macro: prefixed ids",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: set_power dispatches macro: prefixed ids", "[led][controller]") {
     helix::led::LedMacroInfo macro;
     macro.display_name = "Cabinet Light";
     macro.type = helix::led::MacroLedType::ON_OFF;
@@ -482,21 +418,15 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: set_power dispatches macr
     ctrl.set_power({"macro:Cabinet Light"}, true);
     CHECK_FALSE(ctrl.toggle_power({"macro:Cabinet Light"}));
     CHECK(ctrl.toggle_power({"macro:Cabinet Light"}));
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 2: all_selectable_strips
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: all_selectable_strips includes native + WLED + macros",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Add a native strip
     helix::led::LedStripInfo native_strip;
     native_strip.name = "Chamber Light";
@@ -544,33 +474,21 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(strips[2].id == "macro:Cabinet Light");
     REQUIRE(strips[2].backend == helix::led::LedBackendType::MACRO);
     REQUIRE(strips[3].id == "macro:Desk Lamp");
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: all_selectable_strips empty when no backends",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     auto strips = ctrl.all_selectable_strips();
     REQUIRE(strips.empty());
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 3: first_available_strip
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip priority order",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: first_available_strip priority order",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // With nothing: empty
     REQUIRE(ctrl.first_available_strip().empty());
 
@@ -605,16 +523,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip pri
     ctrl.native().add_strip(native_strip);
 
     REQUIRE(ctrl.first_available_strip() == "neopixel chamber_light");
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip skips PRESET macros",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: first_available_strip skips PRESET macros", "[led][controller]") {
     helix::led::LedMacroInfo preset_macro;
     preset_macro.display_name = "Party Mode";
     preset_macro.type = helix::led::MacroLedType::PRESET;
@@ -628,8 +540,6 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip ski
 
     // Should skip PRESET and return TOGGLE
     REQUIRE(ctrl.first_available_strip() == "macro:Desk Lamp");
-
-    ctrl.deinit();
 }
 
 // ============================================================================
@@ -1733,12 +1643,9 @@ TEST_CASE_METHOD(LedMockApiFixture,
 // config -- must never see an unnamed entry.
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro survives set_configured_macros",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro survives set_configured_macros",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Exactly what the + Add button builds.
     helix::led::LedMacroInfo draft;
     draft.display_name = "";
@@ -1750,17 +1657,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro survives set_
     REQUIRE(ctrl.configured_macros().size() == 1);
     REQUIRE(ctrl.configured_macros()[0].display_name.empty());
     REQUIRE(ctrl.configured_macros()[0].type == helix::led::MacroLedType::ON_OFF);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: draft macro keeps its index beside named ones",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo named;
     named.display_name = "Cabinet Light";
     named.type = helix::led::MacroLedType::ON_OFF;
@@ -1777,16 +1678,10 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(ctrl.configured_macros().size() == 2);
     REQUIRE(ctrl.configured_macros()[0].display_name == "Cabinet Light");
     REQUIRE(ctrl.configured_macros()[1].display_name.empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not a selectable strip",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: draft macro is not a selectable strip",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
@@ -1798,31 +1693,21 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not a sele
         CHECK(!strip.name.empty());
     }
     REQUIRE(ctrl.all_selectable_strips().empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is never first_available_strip",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro is never first_available_strip",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
 
     REQUIRE(ctrl.first_available_strip().empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not pushed to the backend",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro is not pushed to the backend",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
@@ -1830,16 +1715,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not pushed
     // MacroBackend keys on display_name; an empty key can never be executed.
     REQUIRE(ctrl.macro().macros().empty());
     REQUIRE(!ctrl.macro().is_available());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes it to a real device",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: naming a draft promotes it to a real device",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // + Add
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
@@ -1863,8 +1743,6 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes i
     REQUIRE(strips[0].id == "macro:Cabinet Light");
     REQUIRE(strips[0].backend == helix::led::LedBackendType::MACRO);
     REQUIRE(ctrl.first_available_strip() == "macro:Cabinet Light");
-
-    ctrl.deinit();
 }
 
 // ============================================================================
@@ -1899,12 +1777,9 @@ namespace {
 void led_lifetime_noop_cb(lv_observer_t*, lv_subject_t*) {}
 } // namespace
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController registry deinit expires its token before freeing its subjects",
                  "[led][observer][crash_hardening]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
     REQUIRE(ctrl.is_initialized());
 
     auto token = ctrl.get_subjects_lifetime();
@@ -1921,8 +1796,6 @@ TEST_CASE_METHOD(LedControllerFixture,
 
     CHECK_FALSE(*token);
     guard.reset();
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(
@@ -2059,13 +1932,9 @@ TEST_CASE_METHOD(LedMockApiFixture,
 // Configfile capabilities survive discovery, in the order production runs them
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: configfile capabilities applied before discovery survive it",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // The discovery sequence's configfile query lands before discover_from_hardware.
     const nlohmann::json cfg = {
         {"neopixel chamber", {{"pin", "PA1"}, {"color_order", "GRBW"}}},
@@ -2113,8 +1982,6 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(ctrl.effects().effects().size() == 1);
     CHECK(ctrl.effects().effects()[0].target_leds.empty());
     CHECK_FALSE(helix::led::find_strip(ctrl.native().strips(), "led status")->supports_color);
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedMockApiFixture,
@@ -2207,13 +2074,9 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: an output_pin with no pwm li
     ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: an addressable strip's white channel comes from its color_order",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Production order: configfile, then discovery, then a status frame. Klipper
     // reports four color_data channels for every LED type.
     ctrl.apply_configfile({{"neopixel grb", {{"pin", "PA1"}}},
@@ -2243,16 +2106,11 @@ TEST_CASE_METHOD(LedControllerFixture,
     // A chain is white-capable only when every LED in it has W.
     CHECK(page("neopixel chain").white == helix::led::WhiteMode::Mixed);
     CHECK(page("dotstar star").white == helix::led::WhiteMode::Mixed);
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: an addressable chip name with no instance is not a strip type",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Only "<chip> <name>" is an addressable strip. A bare chip, or one whose name is empty,
     // keeps the fail-closed white-only default and learns nothing from color_order.
     ctrl.apply_configfile({{"neopixel ", {{"pin", "PA1"}, {"color_order", "GRBW"}}},
@@ -2270,7 +2128,6 @@ TEST_CASE_METHOD(LedControllerFixture,
         CHECK_FALSE(strip.supports_white);
         CHECK_FALSE(strip.pin_config_known);
     }
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedMockApiFixture,

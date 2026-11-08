@@ -438,7 +438,6 @@ void MotionPanel::init_subjects() {
     int bed_moves =
         lv_subject_get_int(get_printer_state().capabilities_state().subject(Capability::BedMoves));
 
-    // Update Z axis label
     update_z_axis_label(bed_moves != 0);
 
     update_z_button_blocked();
@@ -807,10 +806,8 @@ void MotionPanel::setup_jog_pad() {
     // centred with dead bands), landscape centres it in the wider wrapper.
     const lv_align_t pad_align = lv_obj_get_style_align(jog_pad_container, LV_PART_MAIN);
 
-    // Delete placeholder container
     helix::ui::safe_delete(jog_pad_container);
 
-    // Create jog pad widget
     jog_pad_ = ui_jog_pad_create(jog_wrapper);
     if (jog_pad_) {
         lv_obj_set_name(jog_pad_, "jog_pad");
@@ -1054,8 +1051,7 @@ void MotionPanel::update_z_button_blocked() {
         z_direction_blocked(z_homed, bounds.has_z, z, bounds.z_min, bounds.z_max, -up_dir) ? 1 : 0);
 }
 
-// Observer callbacks migrated to lambda-based observer factory pattern
-// See register_position_observers() for inline observers
+// Position observers are inline lambdas in register_position_observers().
 
 void MotionPanel::update_z_axis_label(bool bed_moves) {
     bed_moves_ = bed_moves; // Store for Z button direction inversion
@@ -1842,7 +1838,6 @@ void MotionPanel::set_jog_mode(JogMode mode) {
 
     update_jog_distance_labels();
 
-    // Persist setting
     auto* cfg = Config::get_instance();
     cfg->set("/motion/jog_mode", static_cast<int>(mode));
     cfg->save();

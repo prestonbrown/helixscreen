@@ -33,7 +33,6 @@
 #include <set>
 #include <string>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -967,8 +966,7 @@ class PrintSelectDetailView : public OverlayBase {
     static constexpr uint32_t kPreflightReadyTimeoutMs = 8000;
 
     // Pre-print option toggle state lives in `option_rows_renderer_` (one
-    // heap-allocated subject per option) — the legacy fixed six subjects
-    // (preprint_bed_mesh_, preprint_qgl_, etc.) were retired in Phase 3.5.
+    // heap-allocated subject per option), never in fixed per-option members.
     lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
     // 1 = tapping the filament card opens the remap picker. Drives BOTH the
     // chevron that advertises the tap and the card's own clickable flag, so a

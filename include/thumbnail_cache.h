@@ -116,8 +116,7 @@ class ThumbnailCache {
     /// `degraded` is true when the path is a graceful fallback rather than the
     /// thing that was asked for: process_and_callback() answers a pre-scaling
     /// FAILURE through this success channel, handing back the raw PNG. It still
-    /// renders, just without the pre-scale, and callers could not previously
-    /// tell the two apart.
+    /// renders, just without the pre-scale.
     using SuccessCallback = helix::SharedCallback<void(const std::string& path, bool degraded)>;
 
     /// Callback for failed thumbnail fetch (receives error message)
@@ -238,7 +237,7 @@ class ThumbnailCache {
     /**
      * @brief Fetch a thumbnail described by a request, guarded by a load context
      *
-     * The single fetch entry point every consumer is being moved onto. The
+     * The single fetch entry point every consumer uses. The
      * request carries what to fetch (key, target, format, freshness, api); the
      * context carries whether the answer is still wanted.
      *
@@ -390,9 +389,8 @@ class ThumbnailCache {
      * @brief Diagnostics: full cache-directory walks performed by this instance
      *
      * Every walk is O(files in cache) `readdir` + `stat` syscalls, so this is the
-     * quantity the in-memory index exists to keep flat. It was the missing signal
-     * in prestonbrown/helixscreen#1207 — the per-fetch cost was invisible because
-     * nothing counted it.
+     * quantity the in-memory index exists to keep flat. Without this count the
+     * per-fetch cost of a walk is invisible (prestonbrown/helixscreen#1207).
      *
      * @return Monotonic count of directory walks since construction
      */
@@ -427,9 +425,9 @@ class ThumbnailCache {
      * 3. Download PNG if needed, then pre-scale
      * 4. Return .bin path on success
      *
-     * Private because every consumer now goes through fetch(): reaching this
-     * directly skips the ThumbnailLoadContext guard, which is how the idle
-     * thumbnail ended up with no staleness protection at all.
+     * Private because every consumer goes through fetch(): reaching this
+     * directly skips the ThumbnailLoadContext guard and with it all staleness
+     * protection.
      *
      * @param source_modified Optional source file modification time (Unix timestamp).
      *        If provided and the cached file is older than this, the cache is
@@ -483,8 +481,8 @@ class ThumbnailCache {
      *
      * Rather than ask each of those paths to remember, both public entry points
      * wrap the caller's callbacks once, here. run_on_main() runs inline when
-     * already on the main thread, so the synchronous cache-hit behaviour callers
-     * have today is unchanged. See prestonbrown/helixscreen#960, #1202.
+     * already on the main thread, so a cache hit still answers synchronously.
+     * See prestonbrown/helixscreen#960, #1202.
      */
     static SuccessCallback on_main(SuccessCallback cb);
     static ErrorCallback on_main_err(ErrorCallback cb);
@@ -518,8 +516,8 @@ class ThumbnailCache {
     /// (prestonbrown/helixscreen#1207).
     ///
     /// Held across scan-sort-remove, so a scan cannot observe a directory another
-    /// thread is halfway through unlinking. That is what made the walks throw
-    /// mid-iteration and silently abandon the pass.
+    /// thread is halfway through unlinking. A walk that does throws mid-iteration
+    /// and silently abandons the pass.
     mutable std::mutex mutex_;
 
     /// One cached file, as seen by a directory scan.
@@ -534,7 +532,7 @@ class ThumbnailCache {
      *
      * Per-entry failures are skipped rather than fatal. A single un-stat'able
      * file (concurrently unlinked, a broken link, a permission change) must cost
-     * only that file — wrapping the whole loop in one try/catch returned the
+     * only that file — one try/catch around the whole loop would return the
      * partial sum accumulated before the throw, which reads as "the cache is
      * smaller than it is" and silently disables eviction.
      *
@@ -545,12 +543,12 @@ class ThumbnailCache {
     [[nodiscard]] std::vector<CacheEntry> scan_locked(size_t* total_out) const;
 
     // =========================================================================
-    // In-memory index (prestonbrown/helixscreen#1207, defect 2)
+    // In-memory index (prestonbrown/helixscreen#1207)
     // =========================================================================
     //
-    // Before this, every fetch()/fetch_optimized()/save_raw_png() walked the
-    // whole cache directory with a stat per file, whether or not anything got
-    // evicted. Scrolling 850 files x 3 thumbnails made that a per-scroll-tick
+    // Without it, every fetch()/fetch_optimized()/save_raw_png() would walk the
+    // whole cache directory with a stat per file, whether or not anything gets
+    // evicted. Scrolling 850 files x 3 thumbnails makes that a per-scroll-tick
     // cost, much of it on the main thread.
     //
     // The index turns the steady-state check into arithmetic. What makes it

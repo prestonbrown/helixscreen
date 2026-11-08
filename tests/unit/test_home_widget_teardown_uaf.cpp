@@ -13,7 +13,7 @@
  * stay live, the pointers dangle, and the next UpdateQueue drain runs
  * queued observer applies against freed widgets.
  *
- * Field shape: bundle 7F94FHC8 (v0.99.117, Snapmaker U1, four toolheads +
+ * Field shape: a debug bundle (v0.99.117, Snapmaker U1, four toolheads +
  * AFC) aborted with "malloc(): invalid size (unsorted)" — a write into
  * freed heap bracketed by two audits to the home-panel widget fan-out.
  *
@@ -183,8 +183,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     REQUIRE(temp != nullptr);
     lv_subject_set_int(temp, 2450);
 
-    // Tree dies while the handler is still sitting in the queue. Pre-fix the
-    // row token never expired, so update_row_display() ran
+    // Tree dies while the handler is still sitting in the queue. If the row
+    // token never expired, update_row_display() would run
     // lv_label_set_text_fmt() on the freed row labels.
     lv_obj_delete(page);
     UpdateQueue::instance().drain();
@@ -512,7 +512,7 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 }
 
 // The camera's divergence from the other three home widgets, pinned so nobody
-// "completes" the fix by copying their lifetime_.invalidate() in here. A token
+// "tidies" it by copying their lifetime_.invalidate() in here. A token
 // the running CameraStream captured at start_stream() compares its snapshot
 // against the guard's generation counter, so an invalidate() drops every
 // subsequent frame for the life of that stream - and the fullscreen overlay is

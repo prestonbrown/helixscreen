@@ -14,7 +14,7 @@
  * [exclude_object] section therefore never overwrote the sets, and the previous
  * printer's object list stayed on screen indefinitely.
  *
- * The fix hangs excluded_objects_state_.clear_objects() off the PrinterCacheRegistry
+ * PrinterState hangs excluded_objects_state_.clear_objects() off the PrinterCacheRegistry
  * invalidator that PrinterState already registers. These tests drive the real
  * invalidate_all() entry point rather than calling clear_objects() directly, so
  * unhooking the invalidator fails them.

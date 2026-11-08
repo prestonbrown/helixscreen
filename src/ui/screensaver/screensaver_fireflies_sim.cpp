@@ -5,10 +5,14 @@
 #include "screensaver_buffer.h"
 #include "screensaver_fast_math.h"
 #include "screensaver_pixel_writer.h"
+#include "screensaver_print_colors.h"
+#include "screensaver_stroke_digits.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
 
 namespace helix::ui {
 
@@ -76,7 +80,49 @@ constexpr float kWindMax = 6.0f;
 constexpr float kWindRise = 0.3f;
 constexpr float kWindEaseMs = 2000.0f;
 
+// The gathered text is sampled on a coarse grid of this many cells per glyph unit; a cell whose
+// centre lies inside a stroke is a place a fly can take.
+constexpr int32_t kTextGridUnit = 16;
+constexpr int32_t kTextGridW =
+    static_cast<int32_t>((1.0f + kFirefliesTextStroke) * kTextGridUnit + 0.5f);
+constexpr int32_t kTextGridH =
+    static_cast<int32_t>((kStrokeDigitPathH + kFirefliesTextStroke) * kTextGridUnit + 0.5f);
+static_assert(kFirefliesTextMaxChars * kTextGridW * kTextGridH <= UINT16_MAX,
+              "a text cell fits a uint16_t");
+// Gap between glyph boxes, in glyph units, and the share of the frame the text may fill.
+constexpr float kTextGap = 0.3f;
+constexpr float kTextWidthShare = 0.7f;
+constexpr float kTextHeightShare = 0.6f;
+// Fly k takes the text cell frac(k * kGoldenStride) of the way through the text, so every
+// prefix of the flies, the few a cheap rung draws included, spreads over the whole text.
+constexpr double kGoldenStride = 0.6180339887498949;
+// A gathered fly closes on its place at kGatherGain per second of distance, hovering round it
+// kHoverRadius units wide at kHoverRate rad/s so a held text stays alive.
+constexpr float kGatherGain = 2.0f;
+constexpr float kHoverRadius = 0.25f;
+constexpr float kHoverRate = 1.5f;
+constexpr float kGoldenAngle = 2.3999632f;
+// The camera sits kCamDist units in front of the box's centre, its focal length set so the box's
+// middle depth plane fills the frame's height.
+constexpr float kCamDist = 100.0f;
+
+bool print_running(ClockMode m) {
+    return m == ClockMode::PROGRESS || m == ClockMode::COUNTDOWN || m == ClockMode::PAUSED;
+}
+
 } // namespace
+
+FirefliesTextLayout fireflies_text_layout(int32_t w, int32_t h, size_t chars) {
+    const auto n = static_cast<float>(std::max<size_t>(chars, 1));
+    const float box_w = 1.0f + kFirefliesTextStroke;
+    const float box_h = kStrokeDigitPathH + kFirefliesTextStroke;
+    const auto fw = static_cast<float>(w);
+    const auto fh = static_cast<float>(h);
+    const float unit = std::min(kTextWidthShare * fw / (n * box_w + (n - 1.0f) * kTextGap),
+                                kTextHeightShare * fh / box_h);
+    const float span = (n * box_w + (n - 1.0f) * kTextGap) * unit;
+    return {unit, (fw - span) / 2.0f, (fh - box_h * unit) / 2.0f, (box_w + kTextGap) * unit};
+}
 
 float fireflies_tail_brightness(float u) {
     if (!(u >= 0.0f && u <= 1.0f)) {
@@ -101,7 +147,8 @@ float FirefliesSim::speed_mult() const {
     return mode_ == FirefliesMode::HYPERSPEED ? 3.0f : 1.0f;
 }
 
-void FirefliesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level) {
+void FirefliesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+                        const ClockReading& print) {
     w_ = static_cast<int32_t>(frame.w);
     h_ = static_cast<int32_t>(frame.h);
     world_w_ = kFirefliesWorldH * static_cast<float>(w_) / static_cast<float>(std::max(h_, 1));
@@ -139,19 +186,7 @@ void FirefliesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t 
     }
 
     tail_.resize(flies * kFirefliesTailPoints * 3);
-    for (size_t i = 0; i < flies; i++) {
-        const int16_t fx = to_fixed(flies_[i].pos.x);
-        const int16_t fy = to_fixed(flies_[i].pos.y);
-        const int16_t fz = to_fixed(flies_[i].pos.z);
-        int16_t* t = &tail_[i * kFirefliesTailPoints * 3];
-        for (size_t p = 0; p < kFirefliesTailPoints; p++) {
-            t[p * 3] = fx;
-            t[p * 3 + 1] = fy;
-            t[p * 3 + 2] = fz;
-        }
-    }
-    tail_head_ = 0;
-    tail_count_ = 1;
+    reset_tails();
     mode_ = FirefliesMode::NORMAL;
     mode_left_ms_ = 0;
     mode_total_ms_ = 0;
@@ -164,6 +199,128 @@ void FirefliesSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t 
     wind_changes_ = 0;
     last_wind_change_ms_ = 0;
     update_wind();
+
+    fly_target_.assign(flies, SaverVec3{});
+    text_cells_.assign(kFirefliesTextMaxChars * kTextGridW * kTextGridH, 0);
+    print_mode_ = ClockMode::CLOCK;
+    print_pct_ = 0;
+    print_start_ms_ = 0;
+    gathering_ = false;
+    gather_done_ = false;
+    gather_text_[0] = '\0';
+    read_print(print, rng, true);
+    if (print_mode_ == ClockMode::DONE) {
+        // A print that ended before the saver started: open on the held text.
+        for (size_t i = 0; i < flies; i++) {
+            flies_[i].pos = fly_target_[i];
+        }
+        reset_tails();
+    }
+}
+
+void FirefliesSim::reset_tails() {
+    for (size_t i = 0; i < flies_.size(); i++) {
+        const int16_t fx = to_fixed(flies_[i].pos.x);
+        const int16_t fy = to_fixed(flies_[i].pos.y);
+        const int16_t fz = to_fixed(flies_[i].pos.z);
+        int16_t* t = &tail_[i * kFirefliesTailPoints * 3];
+        for (size_t p = 0; p < kFirefliesTailPoints; p++) {
+            t[p * 3] = fx;
+            t[p * 3 + 1] = fy;
+            t[p * 3 + 2] = fz;
+        }
+    }
+    tail_head_ = 0;
+    tail_count_ = 1;
+}
+
+void FirefliesSim::read_print(const ClockReading& print, std::minstd_rand& rng, bool at_init) {
+    const ClockMode was = print_mode_;
+    print_mode_ = print.mode;
+    print_pct_ = std::clamp(print.progress_pct, 0, 100);
+    spell_states_ = print.spell_states;
+    if (print_running(print_mode_) && (at_init || !print_running(was))) {
+        print_start_ms_ = elapsed_ms_;
+    }
+    const bool failed = print_mode_ == ClockMode::FAILED || print_mode_ == ClockMode::CANCELLED;
+    const bool was_failed = was == ClockMode::FAILED || was == ClockMode::CANCELLED;
+    if (failed && !was_failed && !at_init) {
+        // The swarms scatter: every bait heads somewhere new at once.
+        for (Bait& b : baits_) {
+            if (b.alive) {
+                b.target = random_waypoint(rng);
+                b.retarget_ms = random_int(rng, kRetargetMinMs, kRetargetMaxMs);
+            }
+        }
+    }
+    update_gather();
+}
+
+void FirefliesSim::update_gather() {
+    const bool done = print_mode_ == ClockMode::DONE;
+    const bool want =
+        done || (print_running(print_mode_) &&
+                 (elapsed_ms_ - print_start_ms_) % kFirefliesGatherEveryMs < kFirefliesGatherMs);
+    if (!want) {
+        gathering_ = false;
+        return;
+    }
+    if (gathering_ && !done && !gather_done_) {
+        // A gather holds the percent it started with.
+        return;
+    }
+    char text[sizeof(gather_text_)];
+    if (done) {
+        static constexpr char kCheck[] = {kGlyphCheck, '\0'};
+        std::snprintf(text, sizeof(text), "%s", spell_states_ ? "DONE" : kCheck);
+    } else {
+        std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(print_pct_));
+    }
+    if (!gathering_ || std::strcmp(text, gather_text_) != 0) {
+        std::memcpy(gather_text_, text, sizeof(text));
+        place_targets(gather_text_);
+    }
+    gathering_ = true;
+    gather_done_ = done;
+}
+
+void FirefliesSim::place_targets(const char* text) {
+    const size_t n = std::min(std::strlen(text), kFirefliesTextMaxChars);
+    const float half = kFirefliesTextStroke / 2.0f;
+    size_t covered = 0;
+    for (size_t c = 0; c < n; c++) {
+        for (int32_t gy = 0; gy < kTextGridH; gy++) {
+            const float py = (static_cast<float>(gy) + 0.5f) / kTextGridUnit - half;
+            for (int32_t gx = 0; gx < kTextGridW; gx++) {
+                const float px = (static_cast<float>(gx) + 0.5f) / kTextGridUnit - half;
+                if (stroke_glyph_distance(text[c], px, py) <= half) {
+                    text_cells_[covered++] =
+                        static_cast<uint16_t>((c * kTextGridH + gy) * kTextGridW + gx);
+                }
+            }
+        }
+    }
+    const FirefliesTextLayout lay = fireflies_text_layout(w_, h_, n);
+    const float cell_px = lay.unit_px / kTextGridUnit;
+    const float px_per_unit = focal_ / kCamDist;
+    for (size_t i = 0; i < fly_target_.size(); i++) {
+        if (covered == 0) {
+            fly_target_[i] = {};
+            continue;
+        }
+        const double at = std::fmod((static_cast<double>(i) + 0.5) * kGoldenStride, 1.0);
+        const size_t k =
+            std::min(covered - 1, static_cast<size_t>(at * static_cast<double>(covered)));
+        const size_t cell = text_cells_[k];
+        const size_t c = cell / static_cast<size_t>(kTextGridW * kTextGridH);
+        const auto gy = static_cast<int32_t>(cell / kTextGridW % kTextGridH);
+        const auto gx = static_cast<int32_t>(cell % kTextGridW);
+        const float sx = lay.x0 + static_cast<float>(c) * lay.advance_px +
+                         (static_cast<float>(gx) + 0.5f) * cell_px;
+        const float sy = lay.y0 + (static_cast<float>(gy) + 0.5f) * cell_px;
+        fly_target_[i] = {(sx - static_cast<float>(w_) / 2.0f) / px_per_unit,
+                          (sy - static_cast<float>(h_) / 2.0f) / px_per_unit, 0.0f};
+    }
 }
 
 void FirefliesSim::new_wind_heading(std::minstd_rand& rng) {
@@ -209,7 +366,7 @@ uint32_t FirefliesSim::tail_age_ms() const {
 }
 
 void FirefliesSim::clear() {
-    release_buffers(baits_, flies_, tail_, drawn_tiles_, now_tiles_);
+    release_buffers(baits_, flies_, tail_, drawn_tiles_, now_tiles_, fly_target_, text_cells_);
     tail_head_ = 0;
     tail_count_ = 0;
     steps_.reset();
@@ -219,7 +376,7 @@ void FirefliesSim::clear() {
 }
 
 size_t FirefliesSim::heap_bytes() const {
-    return buffer_bytes(baits_, flies_, tail_, drawn_tiles_, now_tiles_);
+    return buffer_bytes(baits_, flies_, tail_, drawn_tiles_, now_tiles_, fly_target_, text_cells_);
 }
 
 void FirefliesSim::request_level(size_t level) {
@@ -379,6 +536,7 @@ void FirefliesSim::schedule_next_mode(std::minstd_rand& rng) {
 }
 
 void FirefliesSim::advance_one(std::minstd_rand& rng) {
+    update_gather();
     if (mode_ != FirefliesMode::NORMAL) {
         mode_left_ms_ -= static_cast<int32_t>(kFirefliesStepMs);
         if (mode_left_ms_ <= 0) {
@@ -430,10 +588,22 @@ void FirefliesSim::advance_one(std::minstd_rand& rng) {
         }
     }
 
-    for (Fly& f : flies_) {
-        const float speed = kFirefliesFlySpeed * f.pace * mult;
-        steer(f.vel, seek(f.pos, baits_[f.bait].pos, speed), speed,
-              kFirefliesFlyAccel * f.pace * mult);
+    const float hover_s = static_cast<float>(elapsed_ms_) / 1000.0f * kHoverRate;
+    for (size_t i = 0; i < flies_.size(); i++) {
+        Fly& f = flies_[i];
+        if (gathering_) {
+            // Arrive rather than swing through: the pull eases off near the place.
+            const float speed = kFirefliesFlySpeed * f.pace;
+            const float a = static_cast<float>(i) * kGoldenAngle + hover_s;
+            const SaverVec3 place =
+                fly_target_[i] + SaverVec3{std::cos(a), std::sin(a), 0.0f} * kHoverRadius;
+            steer(f.vel, clamp_length((place - f.pos) * kGatherGain, speed), speed,
+                  kFirefliesFlyAccel * f.pace);
+        } else {
+            const float speed = kFirefliesFlySpeed * f.pace * mult;
+            steer(f.vel, seek(f.pos, baits_[f.bait].pos, speed), speed,
+                  kFirefliesFlyAccel * f.pace * mult);
+        }
         f.pos = f.pos + f.vel * kStepS;
     }
 
@@ -467,9 +637,6 @@ void FirefliesSim::advance_one(std::minstd_rand& rng) {
 
 namespace {
 
-// The camera sits kCamDist units in front of the box's centre, its focal length set so the box's
-// middle depth plane fills the frame's height.
-constexpr float kCamDist = 100.0f;
 // Nothing nearer than this is drawn: a nearer point magnifies past 4x into long, wide spans.
 constexpr float kNearest = kCamDist / 4.0f;
 
@@ -567,8 +734,11 @@ template <typename Px> void FirefliesSim::draw(FrameTarget& frame, std::vector<D
     std::fill(now_tiles_.begin(), now_tiles_.end(), uint8_t{0});
     const FirefliesLevel& lv = kFirefliesLevels[level_];
     const float height_scale = static_cast<float>(h_) / kReferenceHeight;
-    const float glow = mode_ == FirefliesMode::GLOW ? kGlowGain : 1.0f;
-    const bool halo = mode_ == FirefliesMode::GLOW && lv.halo;
+    // A finished print's held text glows as GLOW does.
+    const bool glowing = mode_ == FirefliesMode::GLOW || print_mode_ == ClockMode::DONE;
+    const float glow = glowing ? kGlowGain : 1.0f;
+    const bool halo = glowing && lv.halo;
+    const bool failed = print_mode_ == ClockMode::FAILED || print_mode_ == ClockMode::CANCELLED;
     const float half_w = static_cast<float>(w_) / 2.0f;
     const float half_h = static_cast<float>(h_) / 2.0f;
     const auto project = [&](SaverVec3 p, Projected& out) {
@@ -587,7 +757,9 @@ template <typename Px> void FirefliesSim::draw(FrameTarget& frame, std::vector<D
     for (size_t i = 0; i < count; i++) {
         const Fly& fly = flies_[i];
         LightPainter<Px> paint(frame, now_tiles_.data(), tiles_x_);
-        const Rgb color = hue_color(static_cast<uint32_t>(fly_hue_deg(i) * 256.0f / 360.0f));
+        const Rgb color = failed
+                              ? kPrintFailed
+                              : hue_color(static_cast<uint32_t>(fly_hue_deg(i) * 256.0f / 360.0f));
 
         // The tail, head to oldest: one segment per pair of recorded points, each point blown
         // downwind by its age.
@@ -791,8 +963,9 @@ void FirefliesSim::collect_dirty(std::vector<DirtyRect>& dirty) {
 }
 
 void FirefliesSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
-                        std::vector<DirtyRect>& dirty) {
+                        const ClockReading& print, std::vector<DirtyRect>& dirty) {
     level_ = pending_level_;
+    read_print(print, rng, false);
     const uint32_t steps = steps_.steps_due(dt_ms, kFirefliesStepMs, kMaxStepsPerFrame);
     for (uint32_t i = 0; i < steps; i++) {
         advance_one(rng);

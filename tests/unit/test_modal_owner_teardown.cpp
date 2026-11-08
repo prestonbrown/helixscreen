@@ -564,9 +564,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
 // The confirmation helpers are owned by an instance (#1379)
 // ============================================================================
 
-// modal_confirm()/modal_alert() used to push through the static factory with
-// owner = nullptr, so nothing observed their close: no on_hide(), no lifetime_,
-// and a dismissal reported nothing to the caller. Housing them on an internal
+// modal_confirm()/modal_alert() pushed through the static factory with
+// owner = nullptr would leave nothing observing their close: no on_hide(), no
+// lifetime_, and a dismissal reporting nothing to the caller. Housing them on an internal
 // Modal subclass makes on_hide() the always-fires resolve point.
 TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal instance",
                  "[modal][teardown][1379]") {
@@ -976,10 +976,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A dismissal callback may close its own dial
 }
 
 // ESC must report a dismissal on EVERY dialog shape, not just the ones whose
-// cancel button carries a caller callback. Previously on_cancel() served double
-// duty as the cancel-button hook, so a confirmation with a cancel button but no
-// cancel callback latched answered_ on ESC and on_dismiss never fired - the
-// #1380 leak surviving on the ESC path while working on a backdrop tap. Routing
+// cancel button carries a caller callback. If on_cancel() doubled as the
+// cancel-button hook, a confirmation with a cancel button but no cancel
+// callback would latch answered_ on ESC and on_dismiss would never fire (the
+// #1380 leak on the ESC path while a backdrop tap works). Routing
 // every button to the class's own handler leaves on_cancel() reachable only
 // from esc_key_cb, which makes "closed with no button pressed" decidable.
 TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel button but no callback",
@@ -995,7 +995,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel butto
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
         [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
-    // The cancel button exists - this is the shape that used to swallow ESC.
+    // The cancel button exists: the shape that could swallow ESC.
     REQUIRE(lv_obj_find_by_name(dialog, "btn_secondary") != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);

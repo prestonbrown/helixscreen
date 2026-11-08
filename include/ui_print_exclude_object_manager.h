@@ -32,7 +32,6 @@ enum class PrintJobState;
 #include <string>
 #include <unordered_set>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -76,7 +75,6 @@ class PrintExcludeObjectManager {
 
     ~PrintExcludeObjectManager();
 
-    // Non-copyable, non-movable
     PrintExcludeObjectManager(const PrintExcludeObjectManager&) = delete;
     PrintExcludeObjectManager& operator=(const PrintExcludeObjectManager&) = delete;
     PrintExcludeObjectManager(PrintExcludeObjectManager&&) = delete;
@@ -237,7 +235,6 @@ class PrintExcludeObjectManager {
     /// is usually intentional and a notification about stale excludes would be noise.
     ObserverGuard print_state_observer_;
 
-    /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
     /// Track if init() was called
@@ -304,8 +301,6 @@ class PrintExcludeObjectManager {
      * @brief Static callback for gcode viewer long-press
      */
     static void on_object_long_pressed(lv_obj_t* viewer, const char* object_name, void* user_data);
-
-    // excluded_objects_observer_cb migrated to lambda in init()
 
     /**
      * @brief Timer callback when undo window expires

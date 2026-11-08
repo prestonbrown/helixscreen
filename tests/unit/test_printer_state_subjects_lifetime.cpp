@@ -15,7 +15,7 @@
 //
 // Both directions matter and both are asserted below. Skipping the removal when
 // the subject is NOT dead is its own use-after-free — it orphans a live observer
-// node whose context is about to be freed (bundles 449TVQ82 / X3RA4252) — so an
+// node whose context is about to be freed — so an
 // empty token is never an acceptable stand-in for a live one.
 
 #include "ui_observer_guard.h"

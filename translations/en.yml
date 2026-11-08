@@ -335,6 +335,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: App startup
     encountered an error. Some features may be unavailable.
   Appearance: Appearance
+  Appearance & Region: Appearance & Region
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   Applies to: Applies to
@@ -457,6 +458,9 @@ translations:
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt Tension needs a CoreXY printer. This one is {}.: Belt Tension needs a CoreXY printer. This one is {}.
+  Belt tension and cutter calibration: Belt tension and cutter calibration
+  Belt tensioning completed: Belt tensioning completed
+  'Belt tensioning failed: {}': 'Belt tensioning failed: {}'
   Belts already match: Belts already match
   Beta: Beta
   'Beta features: OFF': 'Beta features: OFF'
@@ -816,6 +820,7 @@ translations:
   Color: Color
   Color Mismatch: Color Mismatch
   Color Sensors: Color Sensors
+  Colors for every screen: Colors for every screen
   Command Failed: Command Failed
   Command failed: Command failed
   Communication Test: Communication Test
@@ -1757,8 +1762,8 @@ translations:
     before calibrating for accurate offset with thermal expansion.
   Heat nozzle: Heat nozzle
   Heat soak: Heat soak
-  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
-  : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   Heat the bed to {}°C: Heat the bed to {}°C
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
@@ -3639,6 +3644,8 @@ translations:
   Set local timezone for time display: Set local timezone for time display
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
   Set temperature between {}°C and {}°C: Set temperature between {}°C and {}°C
+  Set the X and Y belts with the motorized tensioners: Set the X and Y belts with the motorized tensioners
+  Set the clock, theme and units. You can change any of these later in Settings.: Set the clock, theme and units. You can change any of these later in Settings.
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   Set up: Set up
@@ -3671,6 +3678,7 @@ translations:
     tapping a macro
   Show instead of dimming: Show instead of dimming
   Show light controls for a light connected to this printer: 'Show light controls for a light connected to this printer'
+  Show print speed and flow as mm/s and mm³/s instead of percent: Show print speed and flow as mm/s and mm³/s instead of percent
   Show printer icon in navigation bar: Show printer icon in navigation bar
   Show sliced colors: Show sliced colors
   Show temp for: Show temp for
@@ -3746,6 +3754,7 @@ translations:
   Spaghetti detected (%d%%): Spaghetti detected (%d%%)
   Speaker: Speaker
   Speed: Speed
+  Speed & Flow in mm/s: Speed & Flow in mm/s
   Speed / Flow: Speed / Flow
   Speed Settings: Speed Settings
   Speed and flow overrides, with a tap to tune: Speed and flow overrides, with a tap to tune
@@ -3985,7 +3994,9 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Temporary adjustment
     for this print, unless saved on Controls panel
   Temporary for this print; a tool change resets it: Temporary for this print; a tool change resets it
+  Tension Belts: Tension Belts
   'Tensioner: {}': 'Tensioner: {}'
+  Tensioning belts...: Tensioning belts...
   Tertiary: Tertiary
   Test All Lanes: Test All Lanes
   Test Connection: Test Connection
@@ -4147,6 +4158,7 @@ translations:
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.
+  The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: The printer homes if needed, then finds the cutter's position. Keep the filament path clear.
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
   : The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
   The printer homes, then probes each screw position.: The printer homes, then probes each screw position.
@@ -4160,6 +4172,8 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: The printer lost power during a print. The resumed layer may not line up exactly.
   The printer lost power while printing {}. Resume where it left off?: The printer lost power while printing {}. Resume where it left off?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: The printer lost power while printing {}. The resumed layer may not line up exactly.
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
@@ -4219,6 +4233,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: This .3mf has to be converted to G-code before it can be queued. Print it from here instead.
   The queue prints this .3mf's default plate. Print this plate from here instead.: The queue prints this .3mf's default plate. Print this plate from here instead.
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.
+  Filament Mapping at print start: Filament Mapping at print start
   Filament Mapping cannot rewrite this .3mf. Print it without remapping.: Filament Mapping cannot rewrite this .3mf. Print it without remapping.
   'This .3mf''s plates are still loading. Try again in a moment.': 'This .3mf''s plates are still loading. Try again in a moment.'
   This .3mf has to be converted to G-code on the printer before it can print.: This .3mf has to be converted to G-code on the printer before it can print.
@@ -4275,6 +4290,7 @@ translations:
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: This printer has no timezone, so its clock reads UTC. Pick yours.
   'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.

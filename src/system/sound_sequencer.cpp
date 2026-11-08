@@ -113,7 +113,6 @@ void SoundSequencer::sequencer_loop() {
         std::chrono::microseconds(static_cast<int>(std::max(1.0f, min_tick) * 1000.0f));
 
     while (running_.load()) {
-        // Check for stop request
         if (stop_requested_.load()) {
             stop_requested_.store(false);
             if (playing_.load()) {
@@ -209,7 +208,6 @@ void SoundSequencer::sequencer_loop() {
         std::this_thread::sleep_for(tick_interval);
     }
 
-    // Clean shutdown
     if (playing_.load()) {
         end_playback();
     }
@@ -353,7 +351,6 @@ void SoundSequencer::advance_step() {
             return;
         }
 
-        // Done playing
         end_playback();
         return;
     }

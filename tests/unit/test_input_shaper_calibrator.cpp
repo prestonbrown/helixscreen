@@ -915,7 +915,7 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "get_results is always valid 
 //
 // When a calibration command (G28, MEASURE_AXES_NOISE, SHAPER_CALIBRATE)
 // trips a Klipper "Internal error on command" / shutdown — e.g. the Creality
-// record_z_pos crash on a K2 with a missing z_pos.json (bundle 5LSSSKPX) —
+// record_z_pos crash on a K2 with a missing z_pos.json —
 // the printer halts. firmware_halt_message() recognizes that and returns a
 // clear, actionable string so the wizard can say "firmware fault, restart and
 // retry" instead of dumping a raw {"code":"key60",...} JSON envelope.
@@ -934,7 +934,7 @@ TEST_CASE("firmware_halt_message detects NOT_READY (Klipper halted preflight)",
 
 TEST_CASE("firmware_halt_message detects Klipper 'Internal error on command' envelope",
           "[calibrator][input_shaper][error_handling][1021]") {
-    // The exact shape that halted the K2 in bundle 5LSSSKPX, delivered as a
+    // The exact shape that halted a K2, delivered as a
     // raw JSON-RPC envelope string (no friendly extraction upstream).
     MoonrakerError err;
     err.type = MoonrakerErrorType::JSON_RPC_ERROR;

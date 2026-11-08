@@ -354,6 +354,28 @@ kept — and a full box frame reporting an explicit `enable == 1` drops it (some
 re-armed the CFS through Creality's own screen; in-memory clear on the bg thread, the
 persisted flag re-clears idempotently on the next boot).
 
+### Calibration section
+
+The device operations' **Calibration** section holds one-at-a-time actions that move
+the machine (`calibration_in_flight_` locks them, `refuse_motion_if_printing()` refuses
+during a print or pause). What it lists depends on the dialect and the printer's macros:
+
+| Action | K1 stock | K2 stock / Kalico port |
+|--------|----------|------------------------|
+| **Calibrate Cutter** (`cfs_cutter` flow) | `BOX_FIND_CUT_POS` | `CALIBRATE_CUT_POS`, when the printer defines that `gcode_macro` |
+| **Calibrate Purge Chute** (`cfs_purge_chute` flow) | `BOX_CUSTOM_COMMAND` steps | none |
+| **Tension Belts** (`cfs_belt_tension` flow) | none | `BELT_TENSION`, when the printer defines that `gcode_macro` |
+
+Stock K2 firmware defines both macros: `CALIBRATE_CUT_POS` homes if needed and wraps
+`MOTOR_CHECK_CUT_POS`; `BELT_TENSION` homes X/Y if needed, parks with
+`BOX_MOVE_TO_SAFE_POS`, turns the steppers off and runs `BELT_MDL_SET MDL_NAME=mdlx|mdly
+MDL_N=140`. The Kalico port's `BELT_TENSION` calls `BELT_TENSION_SET AXIS=X|Y TENSION=140`
+and its `CALIBRATE_CUT_POS` is a Python command rather than a macro, so that port shows
+Tension Belts only. Both macros read `AXES`, but they disagree on `AXES=XY` (stock runs X
+alone), so HelixScreen sends `BELT_TENSION` bare, which tensions both axes on each (#2059).
+The cutter and belt flows share one status line under the buttons
+(`ui_xml/components/cfs_cutter_status.xml`).
+
 ### No CFS on the bus
 
 Stock K2 firmware registers `box` whether or not a CFS is attached. With none, every

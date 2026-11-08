@@ -159,6 +159,7 @@ class RemoteControlServer {
     nlohmann::json handle_list_panels(const nlohmann::json& params);
     nlohmann::json handle_list_components(const nlohmann::json& params);
     nlohmann::json handle_list_callbacks(const nlohmann::json& params);
+    nlohmann::json handle_perf(const nlohmann::json& params);
     nlohmann::json handle_get_current(const nlohmann::json& params);
     /// Absolute locator for a target, so `cd` can record where it landed.
     nlohmann::json handle_resolve(const nlohmann::json& params);

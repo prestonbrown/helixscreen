@@ -199,26 +199,22 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
         return;
     }
 
-    // Filename label
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
         lv_label_set_text(filename_label, job.filename.c_str());
     }
 
-    // Date label
     lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");
     if (date_label) {
         lv_label_set_text(date_label, job.date_str.c_str());
     }
 
-    // Duration label
     lv_obj_t* duration_label = helix::ui::find_required(row, "row_duration", "HistoryListView");
     if (duration_label) {
         lv_label_set_text(duration_label,
                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
     }
 
-    // Filament type label
     lv_obj_t* filament_label = helix::ui::find_required(row, "row_filament", "HistoryListView");
     if (filament_label) {
         lv_label_set_text(filament_label,
@@ -243,7 +239,6 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
         lv_obj_set_style_bg_color(status_bar, color, LV_PART_MAIN);
     }
 
-    // Show the row
     lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
 
     (void)data_index; // Used by on_row_click_static via pool_indices_
@@ -266,7 +261,6 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
         init_pool();
     }
 
-    // Create spacers if needed
     create_spacers();
 
     // Cache row dimensions on first populate
@@ -295,7 +289,6 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
         lv_obj_scroll_to_y(scroll_parent_, 0, LV_ANIM_OFF);
     }
 
-    // Update visible rows
     update_visible(jobs);
 
     spdlog::debug("[HistoryListView] Populated: {} jobs, pool size {}", jobs.size(), pool_.size());

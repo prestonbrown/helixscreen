@@ -355,6 +355,7 @@
   <translation tag="App Background" ru="Фон приложения"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." ru="При запуске приложения произошла ошибка. Некоторые функции могут быть недоступны."/>
   <translation tag="Appearance" ru="Внешний вид"/>
+  <translation tag="Appearance &amp; Region" ru="Внешний вид и регион"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку."/>
   <translation tag="Applies to" ru="Применяется к"/>
   <translation tag="Apply" ru="Применить"/>
@@ -479,6 +480,9 @@
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
   <translation tag="Belt Tension Check" ru="Проверка натяжения ремня"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ru="Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}."/>
+  <translation tag="Belt tension and cutter calibration" ru="Натяжение ремней и калибровка резака"/>
+  <translation tag="Belt tensioning completed" ru="Натяжение ремней завершено"/>
+  <translation tag="Belt tensioning failed: {}" ru="Не удалось натянуть ремни: {}"/>
   <translation tag="Belts already match" ru="Ремни уже совпадают"/>
   <translation tag="Beta" ru="Бета"/>
   <translation tag="Beta features: OFF" ru="Beta-функции: ВЫКЛ"/>
@@ -808,6 +812,7 @@
   <translation tag="Color" ru="Цвет"/>
   <translation tag="Color Mismatch" ru="Несоответствие цвета"/>
   <translation tag="Color Sensors" ru="Датчики цвета"/>
+  <translation tag="Colors for every screen" ru="Цвета всех экранов"/>
   <translation tag="Command Failed" ru="Ошибка команды"/>
   <translation tag="Command failed" ru="Ошибка команды"/>
   <translation tag="Communication Test" ru="Проверка связи"/>
@@ -1499,6 +1504,7 @@
   <translation tag="Filament In The Toolhead" ru="Филамент в печатающей головке"/>
   <translation tag="Filament Jam" ru="Затор филамента"/>
   <translation tag="Filament Mapping" ru="Сопоставление филамента"/>
+  <translation tag="Filament Mapping at print start" ru="Сопоставление филамента при запуске печати"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." ru="Сопоставление филамента не может переписать этот .3mf. Напечатайте его без переназначения."/>
   <translation tag="Filament Mapping is not available on this device." ru="Сопоставление филамента недоступно на этом устройстве."/>
   <translation tag="Filament Mapping is unavailable" ru="Сопоставление филамента недоступно"/>
@@ -1698,7 +1704,7 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." ru="Нагрейте стол перед калибровкой для точного смещения с учётом теплового расширения."/>
   <translation tag="Heat nozzle" ru="Нагреть сопло"/>
   <translation tag="Heat soak" ru="Прогрев"/>
-  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." ru="Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen его не запускает."/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." ru="Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen предлагает этот макрос в параметрах перед печатью."/>
   <translation tag="Heat the bed to {}°C" ru="Нагреть стол до {}°C"/>
   <translation tag="Heat the chamber too" ru="Нагреть и камеру"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" ru="Перед загрузкой филамента нагрейте экструдер минимум до {}°C"/>
@@ -3468,6 +3474,8 @@
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>
   <translation tag="Set logging verbosity for troubleshooting" ru="Установить уровень детализации журнала для устранения неполадок"/>
   <translation tag="Set temperature between {}°C and {}°C" ru="Установите температуру от {}°C до {}°C"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" ru="Натянуть ремни X и Y моторизованными натяжителями"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ru="Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ru="Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает"/>
   <translation tag="Set up" ru="Настроить"/>
   <translation tag="Set up your label printer in Settings" ru="Настройте принтер этикеток в Настройках"/>
@@ -3497,6 +3505,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" ru="Показывать диалог подтверждения при нажатии на макрос"/>
   <translation tag="Show instead of dimming" ru="Показывать вместо затемнения"/>
   <translation tag="Show light controls for a light connected to this printer" ru="Показывать управление подсветкой, подключённой к этому принтеру"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ru="Показывать скорость и поток в мм/с и мм³/с вместо процентов"/>
   <translation tag="Show printer icon in navigation bar" ru="Показывать значок принтера в панели навигации"/>
   <translation tag="Show sliced colors" ru="Показать цвета из слайсера"/>
   <translation tag="Show temp for" ru="Показывать темп. для"/>
@@ -3564,6 +3573,7 @@
   <translation tag="Spaghetti detected (%d%%)" ru="Обнаружены «спагетти» (%d%%)"/>
   <translation tag="Speaker" ru="Динамик"/>
   <translation tag="Speed" ru="Скорость"/>
+  <translation tag="Speed &amp; Flow in mm/s" ru="Скорость и поток в мм/с"/>
   <translation tag="Speed / Flow" ru="Скорость / Поток"/>
   <translation tag="Speed Settings" ru="Настройки скорости"/>
   <translation tag="Speed and flow overrides, with a tap to tune" ru="Скорость и поток; нажмите для настройки"/>
@@ -3795,7 +3805,9 @@
   <translation tag="Temporary adjustment for this print" ru="Временная настройка для этой печати"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ru="Временная настройка для этой печати, если не сохранена в панели управления"/>
   <translation tag="Temporary for this print; a tool change resets it" ru="Временно для этой печати; смена инструмента сбрасывает её"/>
+  <translation tag="Tension Belts" ru="Натянуть ремни"/>
   <translation tag="Tensioner: {}" ru="Натяжитель: {}"/>
+  <translation tag="Tensioning belts..." ru="Натяжение ремней..."/>
   <translation tag="Tertiary" ru="Третичный"/>
   <translation tag="Test All Lanes" ru="Проверить все каналы"/>
   <translation tag="Test Both" ru="Тест обоих"/>
@@ -3936,6 +3948,7 @@
   <translation tag="The printer has not reported its maximum velocity yet." ru="Принтер ещё не сообщил максимальную скорость."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>
+  <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ru="Принтер при необходимости ищет ноль, затем определяет положение резака. Держите путь филамента свободным."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ru="Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются."/>
   <translation tag="The printer homes, then probes each screw position." ru="Принтер выполняет парковку, затем измеряет каждую позицию винта."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ru="Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен."/>
@@ -3947,6 +3960,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ru="Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ru="Принтер потерял питание при печати {}. Продолжить с места остановки?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ru="Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." ru="Принтер может выполнить парковку и переместить печатающую головку, затем моторизованные натяжители натянут ремни X и Y. Освободите стол и портал."/>
   <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
   <translation tag="The printer no longer has a print to resume." ru="У принтера больше нет печати для продолжения."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
@@ -4044,6 +4058,7 @@
   <translation tag="This printer has no IFS." ru="У этого принтера нет IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>

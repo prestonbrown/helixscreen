@@ -276,7 +276,6 @@ void TelemetryManager::init(const std::string& config_dir) {
     pending_settings_changes_.clear();
     is_shutdown_snapshot_ = false;
 
-    // Ensure config directory exists
     try {
         fs::create_directories(config_dir_);
     } catch (const fs::filesystem_error& e) {
@@ -284,23 +283,20 @@ void TelemetryManager::init(const std::string& config_dir) {
                       e.what());
     }
 
-    // Load or generate device identity
     ensure_device_id();
 
     // One id per init(); never persisted, so a restart is a new boot.
     boot_id_ = generate_boot_id();
 
-    // Restore persisted event queue
     load_queue();
 
     // Load enabled state from settings.json via Config singleton (the single
-    // source of truth shared with SystemSettingsManager). Previously this
-    // was loaded from a separate telemetry_config.json, and a sync line in
-    // application.cpp clobbered it with SystemSettingsManager's value on
-    // every startup — silently disabling telemetry for any user whose
-    // settings.json didn't have the key set. Legacy file is migrated by
-    // config.cpp's migrate_v13_to_v14(), which runs before Config finishes
-    // loading, so by now /telemetry_enabled is already authoritative.
+    // source of truth shared with SystemSettingsManager). A telemetry_config.json
+    // left by older installs is folded in by config.cpp's migrate_v13_to_v14(),
+    // which runs before Config finishes loading, so by now /telemetry_enabled is
+    // already authoritative. Nothing else may sync this value at startup: a
+    // second writer would disable telemetry for anyone whose settings.json lacks
+    // the key.
     {
         Config* cfg = Config::get_instance();
         const bool user_enabled = cfg->get<bool>("/telemetry_enabled", false);
@@ -359,14 +355,12 @@ void TelemetryManager::shutdown() {
         settings_debounce_timer_ = nullptr;
     }
 
-    // Persist queue to disk
     save_queue();
 
     // The shutdown deltas above hold everything; nothing is left to recover.
     std::error_code ec;
     fs::remove(fs::path(config_dir_) / kAccumulatorFile, ec);
 
-    // Join background send thread if active
     if (send_thread_.joinable()) {
         spdlog::debug("[TelemetryManager] Joining send thread...");
         send_thread_.join();
@@ -403,8 +397,7 @@ void TelemetryManager::set_enabled(bool enabled) {
 
     // Persist to settings.json via Config (single source of truth).
     // SystemSettingsManager::set_telemetry_enabled() also calls this path,
-    // so there is exactly one writer now — application.cpp no longer needs
-    // to clobber our state on every startup.
+    // so this is the one writer of /telemetry_enabled.
     Config* cfg = Config::get_instance();
     cfg->set<bool>("/telemetry_enabled", enabled);
     cfg->save();
@@ -509,7 +502,6 @@ void TelemetryManager::notify_panel_changed(const std::string& panel_name) {
         panel_time_sec_[current_panel_] += static_cast<int>(elapsed);
     }
 
-    // Start tracking the new panel
     current_panel_ = panel_name;
     panel_start_time_ = now;
     panel_visits_[panel_name]++;
@@ -769,7 +761,6 @@ void TelemetryManager::check_previous_update() {
 
     spdlog::info("[TelemetryManager] Found update success flag from previous session");
 
-    // Read and parse the flag file
     json flag;
     {
         std::ifstream ifs(flag_path);
@@ -1179,7 +1170,6 @@ void TelemetryManager::load_queue() {
             queue_.push_back(std::move(event));
         }
 
-        // Enforce max queue size
         while (queue_.size() > kMaxQueueSize) {
             queue_.erase(queue_.begin());
         }
@@ -1502,7 +1492,6 @@ nlohmann::json TelemetryManager::build_session_event() const {
     // ---- host section (always available, doesn't require printer connection) ----
     json host;
 
-    // Architecture from uname
     {
         struct utsname uts;
         if (uname(&uts) == 0) {
@@ -1752,12 +1741,10 @@ nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& 
     event["timestamp"] = get_timestamp();
     event["trigger"] = trigger;
 
-    // Calculate uptime from init_time_
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
     event["uptime_sec"] = static_cast<int>(uptime.count());
 
-    // Get current memory stats from MemoryMonitor
     auto stats = helix::MemoryMonitor::get_current_stats();
     event["rss_kb"] = static_cast<int>(stats.vm_rss_kb);
     event["vm_size_kb"] = static_cast<int>(stats.vm_size_kb);
@@ -2207,7 +2194,7 @@ nlohmann::json TelemetryManager::build_delta_event(const char* kind,
 }
 
 // =============================================================================
-// Phase 3: Print Start Context + Error Tracking
+// Print Start Context + Error Tracking
 // =============================================================================
 
 void TelemetryManager::record_print_start_context(const std::string& source, bool has_thumbnail,
@@ -2319,7 +2306,6 @@ nlohmann::json TelemetryManager::build_error_event(const std::string& category,
     event["code"] = code;
     event["context"] = context;
 
-    // Uptime from init_time_
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
     event["uptime_sec"] = static_cast<int>(uptime.count());
@@ -2378,7 +2364,6 @@ void TelemetryManager::ensure_device_id() {
 
     std::string device_path = get_device_id_path();
 
-    // Try to load existing device identity
     try {
         std::ifstream file(device_path);
         if (file.good()) {
@@ -2396,13 +2381,11 @@ void TelemetryManager::ensure_device_id() {
         spdlog::warn("[TelemetryManager] Failed to load device identity: {}", e.what());
     }
 
-    // Generate new device identity
     device_uuid_ = generate_uuid_v4();
     device_salt_ = generate_uuid_v4(); // Salt is also a random UUID for simplicity
 
     spdlog::info("[TelemetryManager] Generated new device identity");
 
-    // Persist to disk
     try {
         json data;
         data["uuid"] = device_uuid_;
@@ -3011,7 +2994,6 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
     bool is_terminal = job_has_ended(current);
 
     if (was_active && is_terminal) {
-        // Map PrintJobState to telemetry outcome string
         std::string outcome;
         switch (current) {
         case PrintJobState::COMPLETE:
@@ -3028,7 +3010,6 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
             break;
         }
 
-        // Gather data from PrinterState subjects
         int duration_sec = lv_subject_get_int(ps.print_state().get_print_elapsed_subject());
         int phases_completed = s_telemetry_max_phase;
 

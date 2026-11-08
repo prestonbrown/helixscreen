@@ -23,8 +23,8 @@ namespace helix {
  * That is not a small leak. On the card path every thumbnail becomes a `.bin`
  * several times the size of its source PNG, so an index blind to them
  * under-counts by most of the cache. An under-counting cache reads as "well
- * under the limit" and stops evicting entirely — the same silent failure mode
- * b0db2b957 fixed when a bad directory entry truncated the scan.
+ * under the limit" and stops evicting entirely — the same silent failure as a
+ * directory scan cut short by a bad entry.
  *
  * This class is the seam. The processor drops a path in; the cache picks it up
  * on its next accounting pass and pays one `stat` for it, rather than a walk of

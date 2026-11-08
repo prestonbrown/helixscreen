@@ -91,7 +91,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         print_state.deinit_subjects();
     } // destroyed with callbacks still queued
 
-    // Pre-fix this drains seven lambdas into freed member subjects. The
+    // Unguarded, this drains seven lambdas into freed member subjects. The
     // assertion below only proves the queue emptied; the use-after-free itself
     // is what an ASAN build of this case reports.
     UpdateQueue::instance().drain();
@@ -147,8 +147,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "SpoolWizard vendor load is dropped when the o
 
     UpdateQueue::instance().drain();
 
-    // Pre-fix the deferred body still ran and repopulated all_vendors_ against
-    // an overlay that is no longer live.
+    // An unguarded deferred body would still run and repopulate all_vendors_
+    // against an overlay that is no longer live.
     CHECK(wizard.all_vendors().empty());
     CHECK(UpdateQueue::instance().pending_count() == 0);
 }
@@ -203,8 +203,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     UpdateQueue::instance().drain();
 
-    // Pre-fix each of these writes into a subject that was deinited underneath
-    // it, and lv_subject_notify walks the freed observer list.
+    // Unguarded, each of these writes into a subject that was deinited
+    // underneath it, and lv_subject_notify walks the freed observer list.
     CHECK(lv_subject_get_int(caps.subject(Capability::HasSpoolman)) == 0);
     CHECK(lv_subject_get_int(caps.subject(Capability::HasTimelapse)) == 0);
     CHECK(lv_subject_get_int(caps.subject(Capability::HasWebcam)) == 0);
@@ -295,7 +295,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "MoonrakerAPI build-volume notify survives des
     } // ~MoonrakerAPI invalidates the guard, then lv_subject_deinit()s the subject
 
     // Honest limits: this asserts only that the drain completed and emptied the
-    // queue. Pre-fix the queued lambda called lv_subject_set_int() on the freed
+    // queue. An unguarded queued lambda calls lv_subject_set_int() on the freed
     // build_volume_version_, which is UB that does not reliably detonate in a
     // normal build — an ASAN run of this case is what reports the use-after-free.
     // #1146's SIGSEGV landed on whichever unrelated test drained next, not here.
@@ -391,8 +391,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     UpdateQueue::instance().drain();
 
-    // Pre-fix the queued apply wrote the detection result into a subject that
-    // had been deinited and re-inited underneath it.
+    // An unguarded queued apply would write the detection result into a
+    // subject that had been deinited and re-inited underneath it.
     CHECK(std::string(lv_subject_get_string(adxl)) == before);
     CHECK(UpdateQueue::instance().pending_count() == 0);
 }
@@ -458,7 +458,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "InputShaperPanel drops the config query once 
 
     UpdateQueue::instance().drain();
 
-    // Pre-fix the unconfigured result repainted a panel the user had left.
+    // The unconfigured result must not repaint a panel the user has left.
     CHECK(lv_subject_get_int(configured) == 1);
     CHECK(UpdateQueue::instance().pending_count() == 0);
 }

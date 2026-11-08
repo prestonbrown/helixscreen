@@ -465,13 +465,12 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_clear_hint_visible_subject_, clear_hint.empty() ? 0 : 1);
     }
 
-    // The header names the position in the backend's own word ("Lane 3",
-    // "Gate 3"), 1-based. lane_label() owns both halves, so there is no buffer
-    // here a translated noun can overrun.
+    // The header names the position as the hardware does: the lane's own name
+    // ("2B") when the backend has one, else the backend's word with a 1-based
+    // number ("Gate 3").
     lv_obj_t* slot_header = lv_obj_find_by_name(menu_obj, "slot_header");
     if (slot_header) {
-        lv_label_set_text(slot_header,
-                          helix::ui::active_tool_lane_label(menu_lane_noun(), slot_index).c_str());
+        lv_label_set_text(slot_header, menu_lane_label(slot_index).c_str());
     }
 
     // Show "Select Spool" and "Scan QR Code" buttons if Spoolman is available
@@ -879,6 +878,11 @@ void AmsContextMenu::on_scan_qr_cb(lv_event_t* /*e*/) {
 
 LaneNoun AmsContextMenu::menu_lane_noun() const {
     return backend_ ? backend_->lane_noun() : helix::ui::active_lane_noun();
+}
+
+std::string AmsContextMenu::menu_lane_label(int slot_index) const {
+    const std::string name = backend_ ? backend_->lane_name(slot_index) : std::string{};
+    return name.empty() ? helix::ui::active_tool_lane_label(menu_lane_noun(), slot_index) : name;
 }
 
 void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_index,

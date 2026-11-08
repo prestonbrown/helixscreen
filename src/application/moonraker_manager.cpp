@@ -156,6 +156,9 @@ void MoonrakerManager::shutdown() {
     // queued for the main thread sees the bumped generation and skips instead of
     // running present_event() against a half-torn-down manager.
     lifetime_.invalidate();
+    // Held telemetry belongs to the session ending here.
+    discard_held_status();
+    m_status_hold = false;
 
     if (!m_initialized) {
         return;
@@ -292,6 +295,7 @@ void MoonrakerManager::process_notifications() {
 
         // Check for connection state change (queued from state_change_callback)
         if (notification.contains("_connection_state")) {
+            apply_held_status();
             const json* new_state_json = helix::json_util::find_member(notification, "new_state");
             if (!new_state_json || !(new_state_json->is_number() || new_state_json->is_boolean())) {
                 spdlog::warn("[MoonrakerManager] Connection-state notification without a numeric "
@@ -356,10 +360,49 @@ void MoonrakerManager::process_notifications() {
             }
         } else {
             if (auto frame = helix::parse_status_notification(notification)) {
+                if (m_status_hold && !frame->from_cached_snapshot && !frame->whole_objects &&
+                    (m_status_coalescer.empty() ||
+                     m_status_coalescer.klippy_epoch() == klippy_epoch) &&
+                    helix::status_is_telemetry_only(*frame->status)) {
+                    m_status_coalescer.hold(*frame->status, frame->eventtime, klippy_epoch,
+                                            lv_tick_get());
+                    continue;
+                }
+                apply_held_status();
                 helix::dispatch_status_frame(*frame, klippy_epoch);
             }
         }
     }
+
+    if (m_status_coalescer.due(lv_tick_get(), helix::kAsleepStatusIntervalMs)) {
+        apply_held_status();
+    }
+}
+
+void MoonrakerManager::set_status_hold(bool on) {
+    if (m_status_hold == on) {
+        return;
+    }
+    m_status_hold = on;
+    spdlog::debug("[MoonrakerManager] Status hold {}", on ? "on" : "off");
+    if (!on) {
+        apply_held_status();
+    }
+}
+
+void MoonrakerManager::apply_held_status() {
+    std::optional<helix::StatusCoalescer::Held> held = m_status_coalescer.take();
+    if (!held) {
+        return;
+    }
+    helix::StatusFrame frame;
+    frame.status = &held->status;
+    frame.eventtime = held->eventtime;
+    helix::dispatch_status_frame(frame, held->klippy_epoch);
+}
+
+void MoonrakerManager::discard_held_status() {
+    m_status_coalescer.clear();
 }
 
 void MoonrakerManager::process_timeouts() {

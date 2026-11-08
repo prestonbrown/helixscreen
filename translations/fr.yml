@@ -347,6 +347,7 @@ translations:
     de l'application a rencontré une erreur. Certaines fonctionnalités peuvent être
     indisponibles.
   Appearance: Apparence
+  Appearance & Region: "Apparence et région"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Appliqué à {}. Klipper l'oublie au redémarrage : saisissez {} comme Pressure Advance dans le profil de filament de votre trancheur, ou enregistrez-le sur la bobine."
   Applies to: S'applique à
@@ -473,6 +474,9 @@ translations:
   Belt Tension: Tension de courroie
   Belt Tension Check: Vérification de tension de courroie
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tension de courroie nécessite une imprimante CoreXY. Celle-ci est {}.'
+  Belt tension and cutter calibration: "Tension des courroies et calibration du coupeur"
+  Belt tensioning completed: "Tension des courroies terminée"
+  'Belt tensioning failed: {}': "Échec de la tension des courroies : {}"
   Belts already match: "Les courroies concordent déjà"
   Beta: Bêta
   'Beta features: OFF': 'Fonctionnalités Beta : OFF'
@@ -844,6 +848,7 @@ translations:
   Color: Couleur
   Color Mismatch: Couleur incompatible
   Color Sensors: Capteurs de couleur
+  Colors for every screen: "Couleurs de tous les écrans"
   Command Failed: 'Échec de la commande'
   Command failed: Échec de la commande
   Communication Test: 'Test de communication'
@@ -1817,8 +1822,8 @@ translations:
     le plateau avant de calibrer pour un offset précis avec la dilatation thermique.
   Heat nozzle: Chauffer la buse
   Heat soak: Stabilisation thermique
-  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
-  : 'Le heat soak laisse le caisson chauffer avant une impression. Il apparaît car l''imprimante a une macro de heat soak ou il a été activé dans les réglages ; HelixScreen ne le lance pas.'
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  : 'Le heat soak laisse le caisson chauffer avant une impression. Il apparaît car l''imprimante a une macro de heat soak ou il a été activé dans les réglages ; HelixScreen propose la macro dans les options avant impression.'
   Heat the bed to {}°C: Chauffer le plateau à {}°C
   Heat the chamber too: "Chauffer aussi l'enceinte"
   Heat the extruder to at least {}°C before loading filament: Chauffez l'extrudeur à au moins {}°C avant de charger le filament
@@ -3736,6 +3741,8 @@ translations:
   Set logging verbosity for troubleshooting: Définir le niveau de détail des logs
     pour le dépannage
   Set temperature between {}°C and {}°C: 'Définissez une température entre {}°C et {}°C'
+  Set the X and Y belts with the motorized tensioners: "Régler les courroies X et Y avec les tendeurs motorisés"
+  Set the clock, theme and units. You can change any of these later in Settings.: "Réglez l'horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Réglez à la main le type et la couleur du filament pour ce slot. Si l'étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos
   Set up: Configurer
@@ -3771,6 +3778,7 @@ translations:
     de confirmation lors de l'appui sur une macro
   Show instead of dimming: Afficher au lieu d'atténuer
   Show light controls for a light connected to this printer: 'Afficher les commandes d''éclairage d''une lumière connectée à cette imprimante'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "Afficher la vitesse et le débit en mm/s et mm³/s plutôt qu'en pourcentage"
   Show printer icon in navigation bar: Afficher l'icône de l'imprimante dans la barre
     de navigation
   Show sliced colors: Afficher les couleurs tranchées
@@ -3849,6 +3857,7 @@ translations:
   Spaghetti detected (%d%%): Spaghetti détecté (%d%%)
   Speaker: Haut-parleur
   Speed: Vitesse
+  Speed & Flow in mm/s: "Vitesse et débit en mm/s"
   Speed / Flow: 'Vitesse / Débit'
   Speed Settings: 'Paramètres de vitesse'
   Speed and flow overrides, with a tap to tune: 'Vitesse et débit ; touchez pour régler'
@@ -4096,7 +4105,9 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Ajustement
     temporaire pour cette impression, sauf si enregistré dans le panneau Contrôles
   Temporary for this print; a tool change resets it: "Temporaire pour cette impression ; un changement d'outil le réinitialise"
+  Tension Belts: "Tendre les courroies"
   'Tensioner: {}': "Tendeur : {}"
+  Tensioning belts...: "Tension des courroies..."
   Tertiary: Tertiaire
   Test All Lanes: 'Tester toutes les voies'
   Test Connection: Tester la connexion
@@ -4263,6 +4274,7 @@ translations:
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'L''imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu''à ce que les mesures concordent, puis indique un seul chiffre.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: L'imprimante prend l'origine et balaie le coupeur (environ 1 minute). Laissez le chemin du filament dégagé.
+  The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "L'imprimante prend l'origine si nécessaire, puis localise la position du coupeur. Laissez le chemin du filament dégagé."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
 
   : L'imprimante fait sa prise d'origine, puis éloigne le plateau de la buse autant que possible. Certaines bobines ne supportent pas assez la chaleur et peuvent se déformer. Rien ne bouge depuis cet écran tant que vous n'avez pas confirmé que les bobines ne sont plus sur le plateau ; Mainsail, les macros et les impressions envoyées depuis un slicer ne sont pas bloqués.
@@ -4282,6 +4294,8 @@ translations:
     a été mise hors tension pendant l''impression de {}. Reprendre là où elle s''est
     arrêtée ?'
   The printer lost power while printing {}. The resumed layer may not line up exactly.: L'imprimante a été mise hors tension pendant l'impression de {}. La couche reprise peut ne pas s'aligner exactement.
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : "L'imprimante peut faire son origine et déplacer la tête d'outil, puis les tendeurs motorisés règlent les courroies X et Y. Dégagez le plateau et le portique."
   The printer moves the toolhead and measures its motors.: 'L''imprimante déplace la tête et mesure ses moteurs.'
   The printer no longer has a print to resume.: L'imprimante n'a plus d'impression à reprendre.
   The printer reads the file up to the last saved position. A large file can take a minute.: L'imprimante lit le fichier jusqu'à la dernière position enregistrée. Un gros fichier peut prendre une minute.
@@ -4346,6 +4360,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Ce .3mf doit être converti en G-Code avant de pouvoir être mis en file d''attente. Imprimez-le d''ici.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La file d''attente imprime la plaque par défaut de ce .3mf. Imprimez cette plaque d''ici.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Les étapes de préparation désactivées ne peuvent pas être appliquées à ce .3mf. Réactivez-les pour l''imprimer.'
+  Filament Mapping at print start: 'Mappage du filament au démarrage de l''impression'
   Filament Mapping cannot rewrite this .3mf. Print it without remapping.: 'L''association des filaments ne peut pas réécrire ce .3mf. Imprimez-le sans réassociation.'
   'This .3mf''s plates are still loading. Try again in a moment.': 'Les plaques de ce .3mf sont encore en cours de chargement. Réessayez dans un instant.'
   This .3mf has to be converted to G-code on the printer before it can print.: 'Ce .3mf doit être converti en G-Code sur l''imprimante avant de pouvoir être imprimé.'
@@ -4403,6 +4418,7 @@ translations:
   This printer has no IFS.: "Cette imprimante n'a pas d'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Cette imprimante n'a pas de macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "Cette imprimante n'a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.

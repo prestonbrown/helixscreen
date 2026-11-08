@@ -22,7 +22,6 @@
 class ExcludeObjectMapViewTestAccess; // NAMESPACE_OK: test seam befriended below, defined in the
                                       // unit test
 
-// Forward declarations
 namespace helix {
 class PrinterExcludedObjectsState;
 }
@@ -46,7 +45,6 @@ class ExcludeObjectMapView {
     ExcludeObjectMapView();
     ~ExcludeObjectMapView();
 
-    // Non-copyable
     ExcludeObjectMapView(const ExcludeObjectMapView&) = delete;
     ExcludeObjectMapView& operator=(const ExcludeObjectMapView&) = delete;
 

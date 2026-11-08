@@ -14,7 +14,7 @@ namespace helix::ui {
  * displaces. Its job is to cover the controls while the object map takes the
  * preview — which is a different edge in each layout.
  *
- * LANDSCAPE — controls are the right-hand column, historically 4/9 of the row,
+ * LANDSCAPE — controls are the right-hand column, 4/9 of the row,
  * so a 44%-wide list anchored right covers them almost exactly.
  *
  * PORTRAIT — controls are the bottom of a stack, so a 44%-wide list anchored

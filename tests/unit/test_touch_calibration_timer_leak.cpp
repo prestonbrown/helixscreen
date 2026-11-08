@@ -4,16 +4,16 @@
 // Regression: TouchCalibrationPanel's timer starters must cancel before they
 // create.
 //
-// start_fast_revert_timer() and start_countdown_timer() used to assign straight
-// over their handle. Re-entering VERIFY therefore left the previous lv_timer_t
-// armed in LVGL's global list with user_data == the panel, and the destructor
-// could only ever delete the newest handle. The orphan then fired inside some
-// later, unrelated test's process_lvgl() and wrote through a freed `this`
+// start_fast_revert_timer() and start_countdown_timer() must cancel before
+// assigning over their handle. Otherwise re-entering VERIFY leaves the previous
+// lv_timer_t armed in LVGL's global list with user_data == the panel, the
+// destructor can only delete the newest handle, and the orphan fires inside
+// some later, unrelated test's process_lvgl() and writes through a freed `this`
 // (AddressSanitizer: heap-buffer-overflow WRITE of 8 bytes at
 // touch_calibration_panel.cpp `self->fast_revert_timer_ = nullptr`).
 //
-// start_stall_timer() always had the cancel-first shape; these pin the other
-// two to it. The leak is invisible without counting LVGL's timers, because the
+// start_stall_timer() has the same cancel-first shape; these pin the other two
+// to it. The leak is invisible without counting LVGL's timers, because the
 // panel's own handle looks perfectly healthy either way.
 
 #include "../lvgl_test_fixture.h"

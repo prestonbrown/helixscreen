@@ -181,15 +181,16 @@ setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head
 no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
 `zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
 
-Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`: its
-`server.info` lists `print_start_tools` whatever the AFC setting, or, on builds from before
-that flag, the built-in AFC is on), `print_start_params()` answers the print's map as
-`printer.print.start`'s `tools`, each head as its 1-based slot (`helix::print_start`), so
-Z-Mod's colour prompt does not open for a print HelixScreen starts. The remap strategy is
-then Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and
-Print carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>`
-itself and a rewrite would map every tool twice. A Z-Mod build that advertises neither (the
-afclite shim, or `AFC=0` without the flag) keeps the GcodeRewrite remap and is sent no map.
+Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`),
+`print_start_params()` answers the print's map as `printer.print.start`'s `tools`, each head
+as its 1-based slot (`helix::print_start`), so Z-Mod's colour prompt does not open for a
+print HelixScreen starts. Z-Mod passes `tools` on to `SET_ZCOLOR` as `T<i>=<slot>` whatever
+its `AFC` setting, so this holds with the built-in AFC on or off. The remap strategy is then
+Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and Print
+carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>` itself
+and a rewrite would map every tool twice. A Creator 5 with the afclite plugin
+(`toolchanger_addon::firmware_picks_lanes_at_print()`) opens that plugin's own lane picker at
+print start, so it keeps the GcodeRewrite remap and is sent no map.
 
 ### Tool reading
 

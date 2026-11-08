@@ -26,9 +26,8 @@ constexpr int kHeaterTypeCount = 3;
  * @brief Preset target temperatures (°C) for a single heater.
  *
  * `material[i]` is the target for quick-preset slot i, parallel to
- * helix::presets::name(i). Slots are indexed, never material-named: the old
- * `{int pla; int petg; int abs;}` layout hardcoded the assumption that slot 0
- * is PLA, which stopped being true as soon as a user reassigned a slot.
+ * helix::presets::name(i). Slots are indexed, never material-named: a user can
+ * reassign any slot, so slot 0 is not necessarily PLA.
  */
 struct HeaterPresets {
     int off = 0;

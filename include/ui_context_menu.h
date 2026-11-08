@@ -150,11 +150,9 @@ class ContextMenu {
      */
     static void register_shared_callbacks();
 
-    // Non-copyable
     ContextMenu(const ContextMenu&) = delete;
     ContextMenu& operator=(const ContextMenu&) = delete;
 
-    // Movable
     ContextMenu(ContextMenu&& other) noexcept;
     ContextMenu& operator=(ContextMenu&& other) noexcept;
 

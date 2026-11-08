@@ -319,6 +319,7 @@
   <translation tag="App Background" de="App-Hintergrund"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." de="Beim Starten der App ist ein Fehler aufgetreten. Einige Funktionen sind möglicherweise nicht verfügbar."/>
   <translation tag="Appearance" de="Darstellung"/>
+  <translation tag="Appearance &amp; Region" de="Darstellung &amp; Region"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." de="Auf {} angewendet. Klipper vergisst den Wert beim Neustart: Trage {} als Pressure Advance im Filamentprofil deines Slicers ein oder speichere ihn auf der Spule."/>
   <translation tag="Applies to" de="Gilt für"/>
   <translation tag="Apply" de="Anwenden"/>
@@ -437,6 +438,9 @@
   <translation tag="Belt Tension" de="Riemenspannung"/>
   <translation tag="Belt Tension Check" de="Riemenspannungsprüfung"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." de="Die Riemenspannung benötigt einen CoreXY-Drucker. Dieser Drucker ist {}."/>
+  <translation tag="Belt tension and cutter calibration" de="Riemenspannung und Schneider-Kalibrierung"/>
+  <translation tag="Belt tensioning completed" de="Riemenspannung abgeschlossen"/>
+  <translation tag="Belt tensioning failed: {}" de="Riemenspannung fehlgeschlagen: {}"/>
   <translation tag="Belts already match" de="Riemen passen bereits"/>
   <translation tag="Beta" de="Beta"/>
   <translation tag="Beta features: OFF" de="Beta-Funktionen: AUS"/>
@@ -766,6 +770,7 @@
   <translation tag="Color" de="Farbe"/>
   <translation tag="Color Mismatch" de="Farbabweichung"/>
   <translation tag="Color Sensors" de="Farbsensoren"/>
+  <translation tag="Colors for every screen" de="Farben für alle Bildschirme"/>
   <translation tag="Command Failed" de="Befehl fehlgeschlagen"/>
   <translation tag="Command failed" de="Befehl fehlgeschlagen"/>
   <translation tag="Communication Test" de="Kommunikationstest"/>
@@ -1454,6 +1459,7 @@
   <translation tag="Filament In The Toolhead" de="Filament im Werkzeugkopf"/>
   <translation tag="Filament Jam" de="Filamentstau"/>
   <translation tag="Filament Mapping" de="Filament-Zuordnung"/>
+  <translation tag="Filament Mapping at print start" de="Filament-Zuordnung beim Druckstart"/>
   <translation tag="Filament Mapping cannot rewrite this .3mf. Print it without remapping." de="Die Filamentzuordnung kann diese .3mf-Datei nicht umschreiben. Drucke sie ohne Neuzuordnung."/>
   <translation tag="Filament Mapping is not available on this device." de="Die Filament-Zuordnung ist auf diesem Gerät nicht verfügbar."/>
   <translation tag="Filament Mapping is unavailable" de="Filament-Zuordnung ist nicht verfügbar"/>
@@ -1650,7 +1656,7 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." de="Bett vor der Kalibrierung heizen für genauen Offset mit Wärmeausdehnung."/>
   <translation tag="Heat nozzle" de="Düse aufheizen"/>
   <translation tag="Heat soak" de="Aufwärmen"/>
-  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." de="Heat Soak lässt den Bauraum vor einem Druck aufwärmen. Er wird angezeigt, weil der Drucker ein Heat-Soak-Makro hat oder er in den Einstellungen eingeschaltet wurde; HelixScreen führt ihn nicht aus."/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." de="Heat Soak lässt den Bauraum vor einem Druck aufwärmen. Er wird angezeigt, weil der Drucker ein Heat-Soak-Makro hat oder er in den Einstellungen eingeschaltet wurde; HelixScreen bietet das Makro in den Vordruck-Optionen an."/>
   <translation tag="Heat the bed to {}°C" de="Bett auf {}°C heizen"/>
   <translation tag="Heat the chamber too" de="Kammer ebenfalls heizen"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" de="Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C"/>
@@ -3411,6 +3417,8 @@
   <translation tag="Set local timezone for time display" de="Lokale Zeitzone für Zeitanzeige festlegen"/>
   <translation tag="Set logging verbosity for troubleshooting" de="Protokollierungsdetailgrad für Fehlerbehebung festlegen"/>
   <translation tag="Set temperature between {}°C and {}°C" de="Stellen Sie eine Temperatur zwischen {}°C und {}°C ein"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" de="X- und Y-Riemen mit den motorisierten Spannern einstellen"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." de="Uhr, Design und Einheiten festlegen. Du kannst alles später in den Einstellungen ändern."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" de="Filamenttyp und Farbe für diesen Slot von Hand einstellen. Sollte der Tag lesbar sein, die Spule bei stillstehender Box mit dem Etikett zum Leser neu einlegen"/>
   <translation tag="Set up" de="Einrichten"/>
   <translation tag="Set up your label printer in Settings" de="Etikettendrucker in Einstellungen einrichten"/>
@@ -3440,6 +3448,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" de="Bestätigungsdialog beim Antippen eines Makros anzeigen"/>
   <translation tag="Show instead of dimming" de="Anzeigen statt Abdunkeln"/>
   <translation tag="Show light controls for a light connected to this printer" de="Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" de="Druckgeschwindigkeit und Fluss in mm/s und mm³/s statt in Prozent anzeigen"/>
   <translation tag="Show printer icon in navigation bar" de="Druckersymbol in Navigationsleiste anzeigen"/>
   <translation tag="Show sliced colors" de="Slice-Farben anzeigen"/>
   <translation tag="Show temp for" de="Temperatur anzeigen für"/>
@@ -3507,6 +3516,7 @@
   <translation tag="Spaghetti detected (%d%%)" de="Spaghetti erkannt (%d%%)"/>
   <translation tag="Speaker" de="Lautsprecher"/>
   <translation tag="Speed" de="Geschwindigkeit"/>
+  <translation tag="Speed &amp; Flow in mm/s" de="Geschwindigkeit &amp; Fluss in mm/s"/>
   <translation tag="Speed / Flow" de="Geschwindigkeit / Fluss"/>
   <translation tag="Speed Settings" de="Geschwindigkeitseinstellungen"/>
   <translation tag="Speed and flow overrides, with a tap to tune" de="Geschwindigkeit und Fluss, zum Abstimmen antippen"/>
@@ -3732,7 +3742,9 @@
   <translation tag="Temporary adjustment for this print" de="Temporäre Anpassung für diesen Druck"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" de="Temporäre Anpassung für diesen Druck, sofern nicht im Steuerungspanel gespeichert"/>
   <translation tag="Temporary for this print; a tool change resets it" de="Temporär für diesen Druck; ein Werkzeugwechsel setzt sie zurück"/>
+  <translation tag="Tension Belts" de="Riemen spannen"/>
   <translation tag="Tensioner: {}" de="Spanner: {}"/>
+  <translation tag="Tensioning belts..." de="Riemen werden gespannt..."/>
   <translation tag="Tertiary" de="Tertiär"/>
   <translation tag="Test All Lanes" de="Alle Spuren testen"/>
   <translation tag="Test Both" de="Beide"/>
@@ -3873,6 +3885,7 @@
   <translation tag="The printer has not reported its maximum velocity yet." de="Der Drucker hat seine Höchstgeschwindigkeit noch nicht gemeldet."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." de="Der Drucker heizt die Düse, macht ein paar kurze Testbewegungen in einer Ecke der Platte und misst sie selbst. Er wiederholt, bis die Messwerte übereinstimmen, und meldet dann eine Zahl."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." de="Der Drucker referenziert und vermisst den Schneider (ca. 1 Minute). Halten Sie den Filamentweg frei."/>
+  <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." de="Der Drucker referenziert bei Bedarf und ermittelt dann die Position des Schneiders. Halten Sie den Filamentweg frei."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." de="Der Drucker referenziert und fährt das Heizbett dann so weit wie möglich von der Düse weg. Manche Spulen sind nicht hitzebeständig genug und können sich verformen. Von diesem Bildschirm aus bewegt sich nichts, bis du bestätigst, dass die Spulen vom Heizbett sind; Mainsail, Makros und von einem Slicer gesendete Drucke werden nicht blockiert."/>
   <translation tag="The printer homes, then probes each screw position." de="Der Drucker fährt die Referenz an und misst dann jede Schraubenposition."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." de="Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist."/>
@@ -3884,6 +3897,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." de="Der Drucker hatte während eines Drucks einen Stromausfall. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Dort fortsetzen, wo er aufgehört hat?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." de="Der Drucker kann referenzieren und den Werkzeugkopf bewegen, dann stellen die motorisierten Spanner die X- und Y-Riemen ein. Bett und Portal freihalten."/>
   <translation tag="The printer moves the toolhead and measures its motors." de="Der Drucker bewegt den Druckkopf und vermisst seine Motoren."/>
   <translation tag="The printer no longer has a print to resume." de="Der Drucker hat keinen Druck mehr zum Fortsetzen."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." de="Der Drucker liest die Datei bis zur letzten gespeicherten Position. Eine große Datei kann eine Minute dauern."/>
@@ -3981,6 +3995,7 @@
   <translation tag="This printer has no IFS." de="Dieser Drucker hat kein IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" de="Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." de="Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus."/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." de="Dieser Drucker hat keine Zeitzone, daher zeigt seine Uhr UTC. Wähle deine."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." de="Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." de="Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" de="Den INDX-Makros dieses Druckers fehlt: {}"/>

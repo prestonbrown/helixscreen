@@ -19,10 +19,9 @@
  * it must still be untouched when the background call returns, and settle only
  * once the queue drains.
  *
- * This test is only meaningful because ui_emergency_stop.o is now linked into
- * the test binary. It previously was not: mk/tests.mk filtered it out and
- * ui_test_utils.cpp supplied a hand-written copy, so anything asserted here
- * validated the copy instead of the shipped code.
+ * This test is only meaningful because ui_emergency_stop.o is linked into the
+ * test binary. A hand-written copy in ui_test_utils.cpp would make anything
+ * asserted here validate the copy instead of the shipped code.
  */
 
 #include "ui_emergency_stop.h"

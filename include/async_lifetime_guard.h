@@ -197,8 +197,8 @@ class LifetimeToken {
         // slot in the queue that outlives the owner. This is the common shape
         // for a debounced background worker (sleep, then defer) whose owner was
         // destroyed while it slept: AmsBackendAd5xIfs::schedule_zcolor_query
-        // holds a 500ms sleep on an HttpExecutor lane, and every backend torn
-        // down inside that window used to leave a doomed callback behind.
+        // holds a 500ms sleep on an HttpExecutor lane, and a backend torn down
+        // inside that window would otherwise leave a doomed callback behind.
         // Checking here is safe on any thread — the token owns a shared_ptr to
         // the counter and never touches the guard or its owner.
         if (gen->load(std::memory_order_acquire) != snapshot) {
@@ -244,7 +244,6 @@ class AsyncLifetimeGuard {
         invalidate();
     }
 
-    // Non-copyable, non-movable
     AsyncLifetimeGuard(const AsyncLifetimeGuard&) = delete;
     AsyncLifetimeGuard& operator=(const AsyncLifetimeGuard&) = delete;
     AsyncLifetimeGuard(AsyncLifetimeGuard&&) = delete;

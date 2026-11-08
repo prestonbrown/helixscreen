@@ -123,14 +123,13 @@ struct PrimaryFanSlots {
  *
  * Handles both static fan subjects (main fan speed, version) and
  * dynamic per-fan subjects created during printer discovery.
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  */
 class PrinterFanState {
   public:
     PrinterFanState() = default;
     ~PrinterFanState() = default;
 
-    // Non-copyable
     PrinterFanState(const PrinterFanState&) = delete;
     PrinterFanState& operator=(const PrinterFanState&) = delete;
 
@@ -167,11 +166,10 @@ class PrinterFanState {
      * @brief Re-apply a role mapping to the fans already discovered.
      *
      * For the targeted-roles wizard, where the hardware did not change — only
-     * which discovered fan plays which role. Callers used to reach for
-     * init_fans() because it was the only entry point that accepted a
-     * FanRoleConfig, which meant re-passing a fan list on a config change and
-     * hoping it matched what was discovered. This re-uses the retained list, so
-     * the two cannot drift apart.
+     * which discovered fan plays which role. Calling init_fans() instead would
+     * mean re-passing a fan list on a config change and hoping it matched what
+     * was discovered. This re-uses the retained list, so the two cannot drift
+     * apart.
      *
      * Note this is NOT list-preserving: roles decide whether the bare [fan]
      * object is shadowed by a named part fan, so a role change can legitimately

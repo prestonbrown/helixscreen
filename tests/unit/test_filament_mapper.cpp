@@ -567,7 +567,7 @@ TEST_CASE("FilamentMapper use_current_assignments: seed matrix over tool numberi
         // filter to an empty remap. If this fails where it is expected to hold,
         // the seed is quietly emitting a route the user never asked for - the
         // original bug. Because the seed and the filter now share ONE routing,
-        // this holds for every shape - it used to fail above tool 3.
+        // this holds for every shape, including tools above 3.
         if (c.expect_identity) {
             CHECK(FilamentMapper::identity_filtered_remap(mappings, c.routing).empty());
         }
@@ -606,9 +606,9 @@ TEST_CASE("use_current_assignments honours the backend's firmware routing",
 
 TEST_CASE("identity_filtered_remap agrees with the seed under the same routing",
           "[filament_mapper][remap][routing]") {
-    // These two functions used to disagree above tool 3: the seed said T5 owns
-    // lane 5, the filter said the firmware default for T5 was head 0 and so
-    // emitted the seed as a real remap. Sharing one routing makes agreement
+    // With separate routings these two functions disagree above tool 3: the seed
+    // says T5 owns lane 5, the filter says the firmware default for T5 is head 0
+    // and so emits the seed as a real remap. Sharing one routing makes agreement
     // structural instead of something a test has to pin.
     std::vector<GcodeToolInfo> tools = {{0, 0xFF0000, "PLA"}, {5, 0x00FF00, "PLA"}};
     std::vector<AvailableSlot> slots;

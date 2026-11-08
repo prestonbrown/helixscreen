@@ -326,6 +326,7 @@ class PrintStatusWidget : public PanelWidget {
     // Cached widget references (looked up after XML creation)
     helix::ui::WidgetRef print_card_thumb_;          // Idle state thumbnail
     helix::ui::WidgetRef print_card_active_thumb_;   // Active print thumbnail
+    helix::ui::WidgetRef detailed_thumb_;            // Detailed layout thumbnail (binds the path)
     helix::ui::WidgetRef print_card_layout_;         // Row/column layout container
     helix::ui::WidgetRef print_card_thumb_wrap_;     // Thumbnail wrapper
     helix::ui::WidgetRef print_card_info_;           // Info section (filename/progress)

@@ -16,7 +16,7 @@
  *      print-active refusal specifically (not "invalid slot", not
  *      "not supported"), and with nothing reaching the wire.
  *   2. PAUSED follows that backend's own filament_ops_self_home() — refuse when
- *      it is true (AD5X's buried _G28, bundle XWPBR2DX), allow when it is false
+ *      it is true (AD5X's buried _G28), allow when it is false
  *      (pause-then-swap is the runout recovery workflow).
  *   3. select_slot is gated exactly when it IS a tool change. That classification
  *      is DERIVED, by comparing what select_slot and change_tool actually do on
@@ -262,7 +262,7 @@ TEST_CASE_METHOD(FactoryGateFixture,
 // Pause-then-swap is the runout / colour-change recovery workflow, so a backend
 // that never homes must let it through. A backend whose firmware macro homes
 // itself must not: AD5X's _IFS_REMOVE_CURRENT_PRUTOK runs a buried _G28 that
-// probes the nozzle into the part (bundle XWPBR2DX), and Layer 1 cannot see it.
+// probes the nozzle into the part, and Layer 1 cannot see it.
 // ============================================================================
 
 TEST_CASE_METHOD(FactoryGateFixture,

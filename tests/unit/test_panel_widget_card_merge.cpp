@@ -9,9 +9,8 @@
  * widgets that opt into the shared background. The flood fill and the grid are
  * both addressed in TRACKS, so a widget parked on an odd track - reachable by
  * drag for any widget whose registry def supports half-cell resolution - is
- * backed like any other. The fill used to work in cells, which truncated such a
- * position, so those widgets were dropped from the merge and drew no background
- * at all.
+ * backed like any other. A fill that works in cells truncates such a position,
+ * dropping those widgets from the merge so they draw no background at all.
  *
  * Two invariants. Containment: a card that overlaps a widget at all must cover
  * it completely — a card offset by half a cell leaves the widget's far edge

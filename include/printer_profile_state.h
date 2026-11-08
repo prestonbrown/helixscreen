@@ -9,6 +9,7 @@
 #include <lvgl.h>
 #include <map>
 #include <string>
+#include <utility>
 
 namespace helix {
 
@@ -146,6 +147,12 @@ class PrinterProfileState {
         timelapse_default_enabled_ = enabled;
     }
 
+    /// The soak macro the synthesized heat soak option runs ahead of the
+    /// start; empty when the printer has none or the user turned it off.
+    void set_heat_soak_macro(std::string macro) {
+        heat_soak_macro_ = std::move(macro);
+    }
+
     /// The database declares this printer's own timelapse option, so its firmware
     /// records timelapses and the plugin's controls do not apply.
     [[nodiscard]] bool firmware_owns_timelapse() const {
@@ -233,6 +240,7 @@ class PrinterProfileState {
     bool db_hides_dot_dirs_ = false;
     bool timelapse_default_enabled_ = false;
     bool firmware_owns_timelapse_ = false;
+    std::string heat_soak_macro_;
     /// What the firmware reports for each pre-print option it stores itself.
     /// Empty on printers whose firmware stores none.
     std::map<std::string, bool> firmware_option_defaults_;

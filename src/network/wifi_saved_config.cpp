@@ -252,7 +252,7 @@ std::string escape_bytes(const std::string& raw) {
 }
 
 /// Inverse of escape_bytes(). Text with no `\xNN` escapes (every entry
-/// written before this fix existed, plus any hand-edited/legacy file) passes
+/// written without escaping, plus any hand-edited/legacy file) passes
 /// through unchanged, so this is safe to apply unconditionally to whatever
 /// parse_store() reads back.
 std::string unescape_bytes(const std::string& escaped) {

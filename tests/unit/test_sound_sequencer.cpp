@@ -195,11 +195,30 @@ static bool wait_until_done(SoundSequencer& seq, int timeout_ms = 5000) {
 // 1. Single tone step: correct freq sent to backend, silenced after duration
 // ============================================================================
 
-TEST_CASE("SoundSequencer: single tone step plays correct freq", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
+/// A started sequencer over a recording backend, shut down after the case.
+struct StartedSequencer {
+    std::shared_ptr<MockBackend> backend = std::make_shared<MockBackend>();
+    SoundSequencer seq{backend};
+    StartedSequencer() {
+        seq.start();
+    }
+    ~StartedSequencer() {
+        seq.shutdown();
+    }
+};
 
+struct FullVolume {
+    FullVolume() {
+        set_full_volume();
+    }
+};
+
+/// The same at full volume, set before the sequencer starts, for the cases that
+/// measure amplitude.
+struct LoudSequencer : FullVolume, StartedSequencer {};
+
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: single tone step plays correct freq",
+                 "[sound][sequencer][slow]") {
     auto sound = make_tone(1000.0f, 100.0f);
     seq.play(sound);
 
@@ -221,19 +240,14 @@ TEST_CASE("SoundSequencer: single tone step plays correct freq", "[sound][sequen
 
     // Should have been silenced after completion
     CHECK(backend->silence_count() > 0);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 2. Multi-step sequence: steps play in order
 // ============================================================================
 
-TEST_CASE("SoundSequencer: multi-step sequence plays in order", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: multi-step sequence plays in order",
+                 "[sound][sequencer][slow]") {
     // Use longer durations so we get enough events per step
     auto sound = make_multi_step({{500.0f, 80.0f}, {1000.0f, 80.0f}, {1500.0f, 80.0f}});
     seq.play(sound);
@@ -263,19 +277,14 @@ TEST_CASE("SoundSequencer: multi-step sequence plays in order", "[sound][sequenc
     CHECK(saw_500);
     CHECK(saw_1000_after_500);
     CHECK(saw_1500_after_1000);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 3. Pause step: silence() called, correct duration gap
 // ============================================================================
 
-TEST_CASE("SoundSequencer: pause step produces silence", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: pause step produces silence",
+                 "[sound][sequencer][slow]") {
     // tone -> pause -> tone
     SoundDefinition def;
     def.name = "pause_test";
@@ -320,8 +329,6 @@ TEST_CASE("SoundSequencer: pause step produces silence", "[sound][sequencer][slo
     }
     CHECK(has_1000);
     CHECK(has_2000);
-
-    seq.shutdown();
 }
 
 // ============================================================================
@@ -395,12 +402,8 @@ TEST_CASE("SoundSequencer: sub-floor steps are stretched to the min_tick_ms inte
 // 4. ADSR attack: amplitude ramps from 0 to ~1.0 during attack phase
 // ============================================================================
 
-TEST_CASE("SoundSequencer: ADSR attack ramps amplitude up", "[sound][sequencer][slow]") {
-    set_full_volume();
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(LoudSequencer, "SoundSequencer: ADSR attack ramps amplitude up",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     // Longer duration and attack — CI runners can be slow to deliver the
@@ -463,20 +466,14 @@ TEST_CASE("SoundSequencer: ADSR attack ramps amplitude up", "[sound][sequencer][
     if (min_attack_amp <= 1.0f) {
         CHECK(min_attack_amp < max_sustain_amp);
     }
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 5. ADSR decay: amplitude drops from 1.0 toward sustain level
 // ============================================================================
 
-TEST_CASE("SoundSequencer: ADSR decay drops amplitude toward sustain", "[sound][sequencer][slow]") {
-    set_full_volume();
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(LoudSequencer, "SoundSequencer: ADSR decay drops amplitude toward sustain",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     step.duration_ms = 600;
@@ -518,20 +515,14 @@ TEST_CASE("SoundSequencer: ADSR decay drops amplitude toward sustain", "[sound][
 
     CHECK(found_decay);
     CHECK(found_sustain);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 6. ADSR sustain: amplitude holds at sustain level
 // ============================================================================
 
-TEST_CASE("SoundSequencer: ADSR sustain holds amplitude", "[sound][sequencer][slow]") {
-    set_full_volume();
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(LoudSequencer, "SoundSequencer: ADSR sustain holds amplitude",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     step.duration_ms = 500;
@@ -571,19 +562,14 @@ TEST_CASE("SoundSequencer: ADSR sustain holds amplitude", "[sound][sequencer][sl
     REQUIRE(sustain_samples > 0);
     float ratio = static_cast<float>(near_sustain) / sustain_samples;
     CHECK(ratio > 0.7f);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 7. ADSR release: amplitude fades to 0 at end of step
 // ============================================================================
 
-TEST_CASE("SoundSequencer: ADSR release fades amplitude to zero", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: ADSR release fades amplitude to zero",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     step.duration_ms = 400;
@@ -623,19 +609,14 @@ TEST_CASE("SoundSequencer: ADSR release fades amplitude to zero", "[sound][seque
 
     // Last events should have low amplitude (near end of release)
     CHECK(tones.back().amplitude < 0.5f);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 8. LFO on frequency: freq oscillates around base frequency
 // ============================================================================
 
-TEST_CASE("SoundSequencer: LFO modulates frequency", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: LFO modulates frequency",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     step.duration_ms = 500; // long enough for several LFO cycles
@@ -668,20 +649,14 @@ TEST_CASE("SoundSequencer: LFO modulates frequency", "[sound][sequencer][slow]")
     // Should stay within the LFO depth range
     CHECK(min_freq > 700.0f);
     CHECK(max_freq < 1300.0f);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 9. LFO on amplitude: amplitude modulates
 // ============================================================================
 
-TEST_CASE("SoundSequencer: LFO modulates amplitude", "[sound][sequencer][slow]") {
-    set_full_volume();
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(LoudSequencer, "SoundSequencer: LFO modulates amplitude",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 1000;
     step.duration_ms = 500;
@@ -712,19 +687,14 @@ TEST_CASE("SoundSequencer: LFO modulates amplitude", "[sound][sequencer][slow]")
     // Range: 0.8 - 0.4 = 0.4 to 0.8 + 0.4 = 1.0 (clamped)
     CHECK(min_amp < 0.7f);
     CHECK(max_amp > 0.6f);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 10. Sweep on frequency: freq interpolates from start to end
 // ============================================================================
 
-TEST_CASE("SoundSequencer: sweep interpolates frequency", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: sweep interpolates frequency",
+                 "[sound][sequencer][slow]") {
     SoundStep step;
     step.freq_hz = 500;
     step.duration_ms = 300;
@@ -757,19 +727,14 @@ TEST_CASE("SoundSequencer: sweep interpolates frequency", "[sound][sequencer][sl
     }
     float increase_ratio = static_cast<float>(increases) / (tones.size() - 1);
     CHECK(increase_ratio > 0.8f);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 11. Priority: EVENT sound replaces UI sound
 // ============================================================================
 
-TEST_CASE("SoundSequencer: EVENT priority replaces UI sound", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: EVENT priority replaces UI sound",
+                 "[sound][sequencer][slow]") {
     // Play a long UI sound
     auto ui_sound = make_tone(500.0f, 1000.0f);
     seq.play(ui_sound, SoundPriority::UI);
@@ -794,19 +759,14 @@ TEST_CASE("SoundSequencer: EVENT priority replaces UI sound", "[sound][sequencer
         }
     }
     CHECK(saw_event_freq);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 12. Priority: UI sound does NOT replace EVENT sound
 // ============================================================================
 
-TEST_CASE("SoundSequencer: UI priority does NOT replace EVENT sound", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: UI priority does NOT replace EVENT sound",
+                 "[sound][sequencer][slow]") {
     // Play a long EVENT sound
     auto event_sound = make_tone(2000.0f, 300.0f);
     seq.play(event_sound, SoundPriority::EVENT);
@@ -828,19 +788,14 @@ TEST_CASE("SoundSequencer: UI priority does NOT replace EVENT sound", "[sound][s
     for (auto& t : tones) {
         CHECK(t.freq_hz == Approx(2000.0f).margin(2.0f));
     }
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 13. Priority: ALARM replaces everything
 // ============================================================================
 
-TEST_CASE("SoundSequencer: ALARM replaces EVENT sound", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: ALARM replaces EVENT sound",
+                 "[sound][sequencer][slow]") {
     // Play a long EVENT sound
     auto event_sound = make_tone(2000.0f, 1000.0f);
     seq.play(event_sound, SoundPriority::EVENT);
@@ -864,19 +819,14 @@ TEST_CASE("SoundSequencer: ALARM replaces EVENT sound", "[sound][sequencer][slow
         }
     }
     CHECK(saw_alarm);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 14. Repeat: sequence plays N times
 // ============================================================================
 
-TEST_CASE("SoundSequencer: repeat plays sequence N times", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: repeat plays sequence N times",
+                 "[sound][sequencer][slow]") {
     auto sound = make_tone(1000.0f, 80.0f);
     sound.repeat = 3;
 
@@ -892,19 +842,14 @@ TEST_CASE("SoundSequencer: repeat plays sequence N times", "[sound][sequencer][s
     // Total playback should be ~3x a single repeat
     auto tones = backend->get_tones();
     CHECK(tones.size() > 5);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 15. stop(): playback halts, backend silenced
 // ============================================================================
 
-TEST_CASE("SoundSequencer: stop halts playback and silences", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: stop halts playback and silences",
+                 "[sound][sequencer][slow]") {
     auto sound = make_tone(1000.0f, 2000.0f); // 2 second sound
     seq.play(sound);
 
@@ -917,19 +862,14 @@ TEST_CASE("SoundSequencer: stop halts playback and silences", "[sound][sequencer
 
     // Backend should have been silenced
     CHECK(backend->silence_count() > 0);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 16. is_playing(): true during playback, false after
 // ============================================================================
 
-TEST_CASE("SoundSequencer: is_playing reflects playback state", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: is_playing reflects playback state",
+                 "[sound][sequencer][slow]") {
     CHECK_FALSE(seq.is_playing());
 
     auto sound = make_tone(1000.0f, 200.0f);
@@ -939,19 +879,14 @@ TEST_CASE("SoundSequencer: is_playing reflects playback state", "[sound][sequenc
 
     REQUIRE(wait_until_done(seq));
     CHECK_FALSE(seq.is_playing());
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 17. play() is non-blocking (returns immediately)
 // ============================================================================
 
-TEST_CASE("SoundSequencer: play is non-blocking", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: play is non-blocking",
+                 "[sound][sequencer][slow]") {
     auto sound = make_tone(1000.0f, 1000.0f);
 
     auto start = std::chrono::steady_clock::now();
@@ -964,18 +899,14 @@ TEST_CASE("SoundSequencer: play is non-blocking", "[sound][sequencer][slow]") {
     CHECK(elapsed < 10);
 
     seq.stop();
-    seq.shutdown();
 }
 
 // ============================================================================
 // 18. Rapid play() calls: last one wins for same priority
 // ============================================================================
 
-TEST_CASE("SoundSequencer: rapid play calls - last wins", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: rapid play calls - last wins",
+                 "[sound][sequencer][slow]") {
     // Fire off several play calls rapidly (all UI priority)
     seq.play(make_tone(500.0f, 300.0f));
     seq.play(make_tone(1000.0f, 300.0f));
@@ -996,19 +927,14 @@ TEST_CASE("SoundSequencer: rapid play calls - last wins", "[sound][sequencer][sl
         }
     }
     CHECK(saw_2000);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 19. Empty sequence: no crash, no playback
 // ============================================================================
 
-TEST_CASE("SoundSequencer: empty sequence does not crash", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: empty sequence does not crash",
+                 "[sound][sequencer][slow]") {
     // The loop parks the device before its first tick, so a suspend proves the
     // sequencer thread is running and will see whatever is queued next.
     REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
@@ -1029,19 +955,14 @@ TEST_CASE("SoundSequencer: empty sequence does not crash", "[sound][sequencer][s
 
     CHECK_FALSE(seq.is_playing());
     CHECK(backend->tone_count() == 0);
-
-    seq.shutdown();
 }
 
 // ============================================================================
 // 20. Zero-duration step: skipped gracefully
 // ============================================================================
 
-TEST_CASE("SoundSequencer: zero-duration step is skipped", "[sound][sequencer][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: zero-duration step is skipped",
+                 "[sound][sequencer][slow]") {
     SoundDefinition def;
     def.name = "zero_dur";
     def.repeat = 1;
@@ -1072,8 +993,6 @@ TEST_CASE("SoundSequencer: zero-duration step is skipped", "[sound][sequencer][s
         }
     }
     CHECK(saw_1000);
-
-    seq.shutdown();
 }
 
 // ============================================================================
@@ -1086,27 +1005,19 @@ TEST_CASE("SoundSequencer: zero-duration step is skipped", "[sound][sequencer][s
 // for the whole process lifetime — ALSA writing silence every period, Android
 // holding an AudioTrack (the #1253 spam).
 
-TEST_CASE("SoundSequencer: parks the device before any sound plays",
-          "[sound][sequencer][device_park]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer, "SoundSequencer: parks the device before any sound plays",
+                 "[sound][sequencer][device_park]") {
     // The loop must park without ever being asked to play.
     REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
 
     // The park is the barrier for this one: it has happened, and no sound has
     // been requested, so a resume here would be the device being held open.
     CHECK(backend->resume_calls.load() == 0);
-
-    seq.shutdown();
 }
 
-TEST_CASE("SoundSequencer: wakes the device to play and parks it again after",
-          "[sound][sequencer][device_park][slow]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
+TEST_CASE_METHOD(StartedSequencer,
+                 "SoundSequencer: wakes the device to play and parks it again after",
+                 "[sound][sequencer][device_park][slow]") {
     REQUIRE(UITest::wait_until([&] { return backend->suspend_calls.load() >= 1; }));
 
     const int suspends_before = backend->suspend_calls.load();
@@ -1121,8 +1032,6 @@ TEST_CASE("SoundSequencer: wakes the device to play and parks it again after",
 
     // ...and parked again once the queue drained.
     CHECK(UITest::wait_until([&] { return backend->suspend_calls.load() > suspends_before; }));
-
-    seq.shutdown();
 }
 
 // ============================================================================
@@ -1133,12 +1042,9 @@ TEST_CASE("SoundSequencer: wakes the device to play and parks it again after",
 // set_external_tick(nullptr) returns, so the call must not return while the
 // sequencer thread is still inside the old callback.
 
-TEST_CASE("SoundSequencer: clearing the external tick waits out a tick in flight",
-          "[sound][sequencer][threading]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer,
+                 "SoundSequencer: clearing the external tick waits out a tick in flight",
+                 "[sound][sequencer][threading]") {
     std::atomic<bool> in_tick{false};
     std::atomic<bool> release{false};
     std::atomic<bool> tick_done{false};
@@ -1168,16 +1074,11 @@ TEST_CASE("SoundSequencer: clearing the external tick waits out a tick in flight
     release.store(true);
     clearer.join();
     CHECK(done_when_cleared.load());
-
-    seq.shutdown();
 }
 
-TEST_CASE("SoundSequencer: setting the external tick from inside it is refused",
-          "[sound][sequencer][threading]") {
-    auto backend = std::make_shared<MockBackend>();
-    SoundSequencer seq(backend);
-    seq.start();
-
+TEST_CASE_METHOD(StartedSequencer,
+                 "SoundSequencer: setting the external tick from inside it is refused",
+                 "[sound][sequencer][threading]") {
     std::atomic<int> ticks{0};
     std::atomic<bool> inner_call_returned{false};
     seq.set_external_tick([&](float) {
@@ -1193,5 +1094,4 @@ TEST_CASE("SoundSequencer: setting the external tick from inside it is refused",
     CHECK(UITest::wait_until([&] { return ticks.load() > after_inner; }, 2000));
 
     seq.set_external_tick(nullptr);
-    seq.shutdown();
 }

@@ -72,7 +72,6 @@ namespace tio = ::helix::text_io;
 PrintSelectDetailView::~PrintSelectDetailView() {
     // lifetime_ destructor auto-invalidates all outstanding tokens
 
-    // Clean up temp gcode file
     if (!temp_gcode_path_.empty()) {
         reclaim_download(temp_gcode_path_);
         temp_gcode_path_.clear();
@@ -342,10 +341,9 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     }
 
     // The pre-print option rows are populated dynamically from the active
-    // printer's PrePrintOptionSet — see populate_option_rows(). The
-    // hardcoded checkbox widgets that used to live in the XML are gone;
-    // their pointers exist only as inert nullptr fields kept on the class
-    // for backward compatibility with external callers (none today).
+    // printer's PrePrintOptionSet — see populate_option_rows(). The XML has
+    // no fixed checkbox widgets; these pointers are inert nullptr fields with
+    // no external callers.
     bed_mesh_checkbox_ = nullptr;
     qgl_checkbox_ = nullptr;
     z_tilt_checkbox_ = nullptr;
@@ -421,7 +419,6 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         refresh_preview_colors_and_mismatch();
     });
 
-    // Look up history status display
     history_status_row_ = find_required(overlay_root_, "history_status_row", get_name());
     history_status_icon_ = find_required(overlay_root_, "history_status_icon", get_name());
     history_status_label_ = find_required(overlay_root_, "history_status_label", get_name());
@@ -1691,9 +1688,8 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
 
     // One chip surface for every backend: the card renders from its own store,
     // so all this has to decide is whether that surface is on screen. The
-    // tool-count rule that used to live here as swatches_card_visible_for()
-    // moved into the card — one predicate, so a state that hides the card can no
-    // longer show a second surface drawing the same chips.
+    // tool-count rule lives in the card — one predicate, so a state that hides
+    // the card cannot show a second surface drawing the same chips.
     //
     // LAST, after set_used_tools(). This function exists because the precise
     // used-tool set has just arrived, and that set is an INPUT to the rule:
@@ -1773,9 +1769,9 @@ std::set<int> PrintSelectDetailView::tools_used_effective() const {
     // owns that source choice for BOTH print surfaces — parsed file on a full
     // load, layer-index scan when streaming — including the single-extruder {0}
     // convention, so a file answers identically here and in the live render
-    // regardless of which parse path it happened to take. This used to ask the
-    // parsed file directly and so went empty on every streamed file, leaving the
-    // headless scan as the only source on exactly the large files.
+    // regardless of which parse path it happened to take. Asking the parsed
+    // file directly would go empty on every streamed file, leaving the headless
+    // scan as the only source on exactly the large files.
     //
     // Fall back to the headless scan: it is the only source on a 2D-only build
     // where no viewer exists at all, and it lands first on a cache hit.
@@ -2285,8 +2281,8 @@ void PrintSelectDetailView::apply_scan_result(std::set<int> tools) {
     // by the headless scan. On 2D-only platforms (Snapmaker U1, AD5M)
     // the gcode viewer never parses, so try_extract_gcode_colors() —
     // the viewer-parse owner of this render — never fires and the
-    // detail panel would otherwise show no color info at all
-    // (regression 22d37fd47). Mirror its visibility decision and
+    // detail panel would otherwise show no color info at all.
+    // Mirror its visibility decision and
     // render here, sourcing the tool set from tools_used_effective()
     // so the chips reflect the precise used tools (e.g. {0,2}), not an
     // over-counted palette.
@@ -2441,19 +2437,16 @@ void PrintSelectDetailView::apply_footer_summary(const helix::gcode::GcodeFooter
 }
 
 void PrintSelectDetailView::load_gcode_for_preview() {
-    // Skip if no viewer widget
     if (!gcode_viewer_) {
         spdlog::debug("[DetailView] No gcode_viewer_ widget - skipping G-code preview");
         return;
     }
 
-    // Skip if no API available
     if (!api_) {
         spdlog::debug("[DetailView] No API available - skipping G-code preview");
         return;
     }
 
-    // Skip if no filename
     if (current_filename_.empty()) {
         spdlog::debug("[DetailView] No filename - skipping G-code preview");
         return;
@@ -2537,8 +2530,8 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // Check "Thumbnail Only" render mode - skip all gcode downloading/parsing.
     // This is the ONLY user-forced skip: past here we render whatever mode the
     // viewer is in (3D on GLES devices, 2D-layer otherwise), just like the
-    // print-status panel. 2D-mode devices used to fall back to the thumbnail
-    // here; now they get the real toolpath preview — with the effective
+    // print-status panel. 2D-mode devices get the real toolpath preview
+    // rather than the thumbnail — with the effective
     // lane-matched colors (apply_preview_colors) — so the browser shows the
     // colors the print will actually use. Oversized files still degrade to the
     // thumbnail below via preview_gate().
@@ -2792,8 +2785,7 @@ void PrintSelectDetailView::populate_option_rows() {
     // ordering is what the renderer's class doc spells out as "case 1" of
     // the lifetime contract — observers are uninstalled while widgets are
     // still alive, so the deferred widget-delete tick has nothing to do for
-    // them. Repopulating mid-session is therefore not the race that this
-    // early-return originally guarded against.
+    // them. Repopulating mid-session is therefore not a lifetime race.
     const std::string& current_type = printer_state_->profile_state().printer_type();
     std::string rows_key = current_type;
     for (const auto& opt : option_set.options) {
@@ -2832,8 +2824,8 @@ void PrintSelectDetailView::populate_option_rows() {
     // CAUTION — do NOT hide options the printer handles natively without the
     // plugin. K2 Plus bed_mesh is a MacroParam whose START_PRINT/PRINT_PREPARED
     // takes the skip directly (setup_gcode present), so the predicate returns
-    // false and it stays visible. Hiding it was a shipped regression; the
-    // predicate now enforces the distinction structurally.
+    // false and it stays visible. The predicate enforces the distinction
+    // structurally.
     auto visibility_lookup = [this, &rendered](const std::string& id) -> lv_subject_t* {
         if (!prep_manager_ || !printer_state_) {
             return nullptr;

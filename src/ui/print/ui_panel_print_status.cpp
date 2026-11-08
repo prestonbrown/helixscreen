@@ -961,7 +961,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     gradient_background_ = lv_obj_find_by_name(thumbnail_section, "gradient_background");
     preview_camera_image_ = lv_obj_find_by_name(thumbnail_section, "preview_camera_image");
 
-    preview_.attach_widgets(print_thumbnail_, gcode_viewer_);
+    preview_.attach_widgets(print_thumbnail_, gcode_viewer_,
+                            lv_obj_find_by_name(overlay_content, "ps_checklist_thumbnail"));
 
     if (gcode_viewer_) {
         spdlog::debug("[{}]   ✓ G-code viewer widget found", get_name());

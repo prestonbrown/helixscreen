@@ -25,11 +25,10 @@ import re
 import sys
 from pathlib import Path
 
-# Two shapes, one mistake. The second was the gate's blind spot until 2026-08-19:
-# an observer lambda takes `int`, and the cast lands three to thirty lines away
-# from the get_*_subject() call that decided which enum is correct - so a reader
-# cannot check the pairing at a glance, which is the whole hazard. Seven sites
-# were sitting in it; the typed observer factories replaced them.
+# Two shapes, one mistake. In the second, an observer lambda takes `int`, and the
+# cast lands three to thirty lines away from the get_*_subject() call that decided
+# which enum is correct - so a reader cannot check the pairing at a glance, which
+# is the whole hazard. The typed observer factories are the replacement.
 PATTERN = re.compile(
     r"static_cast<\s*(PrintState|helix::PrintJobState|PrintJobState)\s*>\s*\("
     r"(?:\s|//[^\n]*)*(lv_subject_get_int|[A-Za-z_][A-Za-z0-9_]*\s*\))"

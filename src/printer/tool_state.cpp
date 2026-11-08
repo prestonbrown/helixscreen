@@ -195,6 +195,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     }
     std::sort(discovered_extruders_.begin(), discovered_extruders_.end());
     toolchanger_reports_mount_ = false;
+    tool_numbers_.clear();
 
     // init_tools enumerates tools from extruders/toolchanger — semantically
     // incompatible with an AMS-backend topology override. Drop any prior
@@ -252,6 +253,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         // [toolchanger] object to gate on.
         const auto& tool_names = hardware.tool_names();
         toolchanger_reports_mount_ = hardware.has_tool_changer();
+        tool_numbers_ = hardware.tool_numbers();
 
         const std::vector<std::string>& extruder_names = discovered_extruders_;
 
@@ -532,6 +534,17 @@ void ToolState::clear_backend_active_tool() {
     spdlog::debug("[ToolState] Backend released the active tool");
 }
 
+int ToolState::index_for_tool_number(int number) const {
+    if (number < 0) {
+        return -1;
+    }
+    if (tool_numbers_.empty()) {
+        return number < static_cast<int>(tools_.size()) ? number : -1;
+    }
+    const auto it = std::find(tool_numbers_.begin(), tool_numbers_.end(), number);
+    return it == tool_numbers_.end() ? -1 : static_cast<int>(it - tool_numbers_.begin());
+}
+
 void ToolState::update_from_status(const nlohmann::json& status) {
     if (tools_.empty()) {
         return;
@@ -547,7 +560,12 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         if (status.contains("toolchanger") && status["toolchanger"].is_object()) {
             const auto& tc = status["toolchanger"];
             if (tc.contains("tool_number") && tc["tool_number"].is_number_integer()) {
-                int new_index = tc["tool_number"].get<int>();
+                const int number = tc["tool_number"].get<int>();
+                const int new_index = index_for_tool_number(number);
+                if (new_index < 0 && number >= 0) {
+                    spdlog::debug("[ToolState] toolchanger.tool_number {} names no listed tool",
+                                  number);
+                }
                 if (new_index != active_tool_index_) {
                     active_tool_index_ = new_index;
                     lv_subject_set_int(&active_tool_, active_tool_index_);

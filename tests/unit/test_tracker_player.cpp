@@ -144,8 +144,8 @@ TEST_CASE("TrackerPlayer basic playback starts and stops", "[tracker][player]") 
 }
 
 TEST_CASE("TrackerPlayer fallback emits note frequency, not sample rate", "[tracker][player]") {
-    // Real MOD rows carry an Amiga period. The fallback used to emit
-    // kAmigaClock/period — the Paula SAMPLE-playback rate, 8-14 kHz for
+    // Real MOD rows carry an Amiga period. The fallback must not emit
+    // kAmigaClock/period, the Paula SAMPLE-playback rate, 8-14 kHz for
     // typical notes, ultrasonic on a piezo with 2-4 kHz resonance. A melody
     // must emit the equal-tempered note frequency instead.
     const uint8_t c4 = 49; // A-4 is 58 in this numbering; C-4 = 58 - 9

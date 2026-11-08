@@ -19,7 +19,7 @@ INSPECTOR_INTERACTIVE_OBJ := $(OBJ_DIR)/tools/moonraker_inspector_interactive.o
 CPP_TERMINAL_VERSION_STUB_OBJ := $(OBJ_DIR)/tools/cpp_terminal_version_stub.o
 
 # Inspector needs JSON-RPC request tracking (no LVGL, no UI, no SDL2)
-# The tracker + format_utils have zero app dependencies after refactoring
+# The tracker + format_utils have zero app dependencies
 INSPECTOR_DEPS := \
 	$(OBJ_DIR)/api/moonraker_request_tracker.o \
 	$(OBJ_DIR)/format_utils.o \
@@ -326,9 +326,9 @@ check-doc-anchors:
 # LVGL event-code table for the crash worker (Python)
 # ==============================================================================
 # The worker renders "code=42 (DELETE)" on every auto-filed crash issue, and that
-# label is frequently the whole diagnosis. Its table used to be typed by hand and
-# drifted when LVGL 9.5 inserted four codes mid-enum, so a DELETE crash was filed
-# as SCREEN_UNLOAD_START. lv_event_code_t is now the source of truth and the
+# label is frequently the whole diagnosis. A hand-typed table drifts whenever LVGL
+# inserts codes mid-enum (9.5 inserted four, which would file a DELETE crash as
+# SCREEN_UNLOAD_START), so lv_event_code_t is the source of truth and the
 # committed table is derived from it.
 #
 # Targets:

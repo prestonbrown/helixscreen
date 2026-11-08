@@ -536,7 +536,6 @@ std::string PrinterHardware::guess_runout_sensor(const std::vector<std::string>&
         return match;
     }
 
-    // No match found
     spdlog::debug("[PrinterHardware] guess_runout_sensor() -> no match found");
     return "";
 }

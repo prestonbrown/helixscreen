@@ -733,34 +733,23 @@ struct ScopedZmodIfsBackend {
 };
 } // namespace
 
-TEST_CASE("print start on a Z-Mod AD5X carries the card's map, Auto left empty",
+TEST_CASE("print start on a Z-Mod AD5X carries the card's map only with the built-in AFC",
           "[remap-restore][print_start_params][2033]") {
     LVGLTestFixture fx;
     ConfigDirGuard config_dir{"ifs_print_start_tools"};
-    ScopedZmodIfsBackend be;
+    const bool builtin_afc = GENERATE(true, false);
+    CAPTURE(builtin_afc);
+    ScopedZmodIfsBackend be{builtin_afc};
     Harness h;
     helix::ui::PrintSelectDetailView view;
     h.controller.set_detail_view(&view);
-    // T0 picked onto port 3, T1 a seed on port 1, T2 Auto.
+    // T0 picked onto port 3, T1 a seed on port 1, T2 Auto, which stays empty.
     helix::ToolMapping auto_row = row(2, 1, false);
     auto_row.is_auto = true;
     view.set_filament_mappings({row(0, 2, true), row(1, 0, false), auto_row});
 
-    CHECK(h.controller.print_start_params() == helix::PrintStartParams{{"tools", "3,1"}});
-    h.controller.set_detail_view(nullptr);
-}
-
-TEST_CASE("print start on a Z-Mod AD5X with AFC=0 sends no tool map",
-          "[remap-restore][print_start_params][2033]") {
-    LVGLTestFixture fx;
-    ConfigDirGuard config_dir{"ifs_print_start_no_tools"};
-    ScopedZmodIfsBackend be{/*builtin_afc=*/false};
-    Harness h;
-    helix::ui::PrintSelectDetailView view;
-    h.controller.set_detail_view(&view);
-    view.set_filament_mappings({row(0, 2, true)});
-
-    CHECK(h.controller.print_start_params().empty());
+    CHECK(h.controller.print_start_params() ==
+          (builtin_afc ? helix::PrintStartParams{{"tools", "3,1"}} : helix::PrintStartParams{}));
     h.controller.set_detail_view(nullptr);
 }
 

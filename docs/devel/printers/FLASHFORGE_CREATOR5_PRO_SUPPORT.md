@@ -181,11 +181,20 @@ keeps the tool changer, and the AD5X keeps its IFS backend.
 **A print's tool map rides on the print start.** With the built-in emulation, Z-Mod no
 longer prints from its lane map: its Moonraker takes the map for one print as a `tools`
 parameter of `printer.print.start` (`"2,,1"`: index the G-code tool, value the 1-based
-slot), and without one opens its own colour prompt. `helix::print_start`
-(`include/print_start_params.h`) owns that knowledge, keyed on the built-in AFC
-(`has_zmod_afc()`): Z-Mod's Moonraker gained `tools` with it and publishes no version that
-says so, so a Z-Mod with `AFC=0` or the afclite shim keeps its own prompt and is sent no
-map. The filament
+slot), and without one opens its own colour prompt. The Moonraker side, including the
+`print_start_tools` flag in `server.info`, is described in
+[FLASHFORGE_AD5X_SUPPORT.md § "Z-Mod 1.7.5"](FLASHFORGE_AD5X_SUPPORT.md#z-mod-175-native-3mf-and-the-print-start-tool-map).
+`helix::print_start` (`include/print_start_params.h`) owns that knowledge. On the Creator 5
+the tool changer sends the map only with the built-in AFC on (`has_zmod_afc()`). A Creator 5
+with `AFC=0` or the afclite shim keeps the G-code rewrite remap and is sent no map, even
+where its Moonraker advertises `print_start_tools`, because nobody has yet checked on
+hardware that Z-Mod with AFC off reads `T<i>=<slot>` as heads
+([`FILAMENT_BACKEND_TOOLCHANGER.md`](../FILAMENT_BACKEND_TOOLCHANGER.md#z-mod-on-the-creator-5-pro)).
+The AFC-on path is hardware-checked: on our Creator 5 Pro with Z-Mod 1.7.5-260 and `AFC=1`, a
+print started from HelixScreen reached Klipper as `_ZSDCARD_PRINT_FILE ... SILENT=1
+AUTO_ASSIGN=0 T0=2 T1=2 T2=3 T3=4`, no prompt appeared and the right head heated. Each test
+print was stopped after START_PRINT, so a full multi-tool print is not covered
+([#2033](https://github.com/prestonbrown/helixscreen/issues/2033)). The filament
 backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
 answer. Every print HelixScreen starts there from the file card carries every lane the card
 shows, picked or seeded, so Z-Mod's prompt does not open for it; a tool set to Auto, or one
@@ -194,8 +203,9 @@ sends each head as its 1-based slot and remaps Native, never rewriting the job. 
 and a PA tower have no card and send no map, so Z-Mod asks as it always has. `SET_MAP` and the other table writes
 still go out, which is what Z-Mod builds without the `tools` parameter route by; their
 Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
-plugin (a file rewritten for a pre-print option) runs `SDCARD_PRINT_FILE` and carries no
-map.
+plugin (a file rewritten for a pre-print option) can carry the map only by starting the file
+through Z-Mod's `klippy_apis.start_print(filename, tools=...)`; a plain `SDCARD_PRINT_FILE`
+start drops it ([#2038](https://github.com/prestonbrown/helixscreen/issues/2038)).
 
 **The swap routine and its step bar.** A tool change cuts the filament at a station and
 wipes the nozzle on rubber instead of purging bulk filament (FlashForge's own wiki: the
@@ -376,3 +386,34 @@ Each item below says whether it is done or still open.
    so `FilamentSensorManager#scan_required_lanes` takes each required head's `fd_ex`
    reading as that head's filament state. Not yet confirmed on a real C5: whether a
    stood-down switch keeps reporting live.
+
+## Reforge firmware quirks
+
+Reforge (`Klipper4FlashForge/firmware`) runs Klipper and Moonraker under s6, with its data
+directory at `/usr/data/anvil-data` and its mod tree at `/usr/data/anvil`. Two of its layout
+choices change what HelixScreen can read. Both were reported and measured on a real Creator 5
+Pro by the reporter of the linked issues.
+
+**Config includes cannot be downloaded.** The config directory holds the mod's own files
+(`printer.base.cfg`, `ff-print-macros.cfg`, the other `ff-*.cfg`, `timelapse.cfg`,
+`printer.chamber.cfg`) as symlinks into `/usr/data/anvil/config`. Moonraker reserves its own
+source path (Moonraker's file manager calls `add_reserved_path("moonraker", srcdir, False)`), and on
+Reforge that path is the whole `/usr/data/anvil` tree, so `GET
+/server/files/config/printer.base.cfg` answers 403 for every client, Mainsail included
+([#2061](https://github.com/prestonbrown/helixscreen/issues/2061)). Klipper's
+`configfile.config` still carries every macro body (`START_PRINT` lives in
+`ff-print-macros.cfg`). The print start analysis therefore reads `gcode_macro` sections from
+that object first (`src/print/print_start_analyzer.cpp#configfile_macro_definitions`) and
+downloads the include chain only when the object has no print start macro. A file that answers
+403 or 404 is skipped with one warning, and only a lost connection is retried
+(`src/print/print_start_analyzer.cpp#is_unreadable_file`).
+
+**The image has no system zoneinfo.** `/usr/share/zoneinfo` does not exist, and
+`/etc/localtime` points into `/usr/data/anvil-data/misc/zoneinfo`. HelixScreen's device
+builds link musl statically, and musl does not read `TZDIR`, so pointing `TZDIR` at the
+bundled zone files and setting `TZ=Europe/Berlin` falls back to UTC. When the system has no
+zoneinfo, HelixScreen sets `TZ` to the absolute path of the bundled zone file, which musl opens
+directly (`src/system/timezone_env.cpp#apply`). The reporter confirmed the fix on Reforge with
+v1.1.0-beta.17, including a switch to `Asia/Tokyo` that moved the log clock by nine hours
+([#2003](https://github.com/prestonbrown/helixscreen/issues/2003)). The setting is read from
+`display.timezone` in `settings.json`; a top-level `timezone` key is ignored.

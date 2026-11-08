@@ -12,7 +12,7 @@
 
 #include <lvgl.h>
 
-// Mirrors cjk_font_manager.cpp:10 and theme_manager.cpp:29. Without it, a build
+// Mirrors the same guard in cjk_font_manager.cpp and theme_manager.cpp. Without it, a build
 // path that forgot -DHELIX_MAX_FONT_TIER would evaluate every guard below as
 // `0 >= N` and silently register almost no fonts -- a blank UI rather than a
 // build error. mk/cross.mk always passes it; this is the backstop for the day
@@ -21,7 +21,6 @@
 #define HELIX_MAX_FONT_TIER 6 // default: all tiers (micro=0 .. xxlarge=6)
 #endif
 
-// Static member definitions
 bool AssetManager::s_fonts_registered = false;
 bool AssetManager::s_images_registered = false;
 int AssetManager::s_registered_font_tier = -1;
@@ -48,10 +47,9 @@ int register_base_fonts() {
 
     // Micro-only 8px faces. Registered whatever the startup tier: a name entry
     // costs ~100 bytes and does not fault the glyph pages, and the symbols are
-    // linked unconditionally anyway. Skipping them used to be free because the
-    // breakpoint could never fall; now that it can, a window shrunk to MICRO
-    // would find font_body_micro unresolvable and get bumped up to the _large
-    // tier instead of down (#1210).
+    // linked unconditionally anyway. The breakpoint can fall at runtime: without
+    // them a window shrunk to MICRO would find font_body_micro unresolvable and
+    // get bumped up to the _large tier instead of down (#1210).
     reg("noto_sans_8", &noto_sans_8);
     reg("source_code_pro_8", &source_code_pro_8);
 
@@ -264,7 +262,7 @@ void AssetManager::register_fonts() {
     // already the height). Matches responsive_dimension() in theme_manager.
     // Fonts only used at larger breakpoints are skipped to save memory
     // (~500-800KB of .rodata pages that won't be faulted in) — but the skip is
-    // now a deferral, not a latch: theme_manager_refresh_layout_constants()
+    // a deferral, not a latch: theme_manager_refresh_layout_constants()
     // calls back here when a runtime resize raises the breakpoint (#1210).
     const int32_t resp_res = responsive_dimension(nullptr);
     register_fonts_for_tier(to_int(breakpoint_for(resp_res)));

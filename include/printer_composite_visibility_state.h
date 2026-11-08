@@ -77,8 +77,9 @@ class PrinterCompositeVisibilityState {
      *
      * @param plugin_installed True if HelixPrint plugin is installed
      * @param capabilities Reference to capabilities state for has_* queries
-     * @param framework_option_count Count of options declared by the new
-     *        PrePrintOption framework for the active printer.
+     * @param framework_option_count Rows the active printer's declared
+     *        options draw: options the detail view leaves out, or whose
+     *        required macro is missing, are not counted.
      * @param macro_option_count Rows the PRINT_START analysis adds; each needs
      *        the plugin to deliver its skip.
      */

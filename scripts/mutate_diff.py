@@ -482,7 +482,8 @@ def filter_scope(key, default_key, is_compiled):
 # file's tests, which is most of what a run costs. Each changed file gets its
 # own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
 # it (Catch2's [#<test file>] tags): those naming its stem, the header a source
-# implements, or that header's class (reach_names), else --tests. Hunks sharing a
+# implements, or that header's class (reach_names); a data file also by the tests
+# reaching the sources DATA_CONSUMERS_MAP says read it. Else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
@@ -494,6 +495,52 @@ AUTO_TESTS_MAX_FILES = 12
 AUTO_TESTS_MAX_REACHED = 40
 # The why of a filter auto_tests_filter chose.
 AUTO_TESTS_WHY = 'test files reaching it'
+# Data file glob -> the sources that read it, with the text proving they do.
+DATA_CONSUMERS_MAP = 'scripts/mutate_data_consumers.tsv'
+
+
+def parse_data_consumers(text):
+    """[(glob, source, evidence, names)] from the consumer map's text; ValueError
+    on a row without glob, source and evidence. `names` is the optional fourth
+    field split on commas, () when absent."""
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        fields = [f.strip() for f in line.split('\t')]
+        if len(fields) not in (3, 4) or not all(fields):
+            raise ValueError(f'{DATA_CONSUMERS_MAP}:{n}: expected '
+                             'glob<TAB>source<TAB>evidence[<TAB>names]')
+        names = tuple(x.strip() for x in fields[3].split(',') if x.strip()) \
+            if len(fields) == 4 else ()
+        out.append((fields[0], fields[1], fields[2], names))
+    return out
+
+
+def load_data_consumers(root):
+    """The consumer map's rows, or [] when the repo has none."""
+    f = root / DATA_CONSUMERS_MAP
+    return parse_data_consumers(f.read_text(errors='replace')) if f.is_file() else []
+
+
+def data_consumers(path, rows):
+    """The sources whose reach_names judge `path`: those of its rows that name no
+    reach of their own, in map order."""
+    out = []
+    for glob, source, _evidence, names in rows:
+        if fnmatch(path, glob) and not names and source not in out:
+            out.append(source)
+    return out
+
+
+def data_names(path, rows):
+    """The words `path`'s rows name in place of their source's reach_names: a
+    loader narrower than the file that holds it."""
+    out = []
+    for glob, _source, _evidence, names in rows:
+        if fnmatch(path, glob):
+            out += [n for n in names if n not in out]
+    return out
 
 
 def parse_tests_for(specs):
@@ -505,6 +552,14 @@ def parse_tests_for(specs):
             raise ValueError(f'--tests-for {spec!r}: expected GLOB=FILTER')
         out.append((glob.strip(), filt.strip()))
     return out
+
+
+def read_or_empty(path):
+    """A file's text, or '' when it cannot be read."""
+    try:
+        return path.read_text(errors='replace')
+    except OSError:
+        return ''
 
 
 def _test_sources(root):
@@ -550,26 +605,36 @@ def reach_names(path, source_text=''):
     return names
 
 
-def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text=''):
+def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text='',
+                      consumers=(), extra_names=()):
     """`[#test_a]~[.]~[slow],...` for the test files naming any of `path`'s
-    reach_names, or ''.
+    reach_names, those of a `consumers` (source, text) pair that reads it, or one
+    of `extra_names`, or ''.
 
     Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. Names under four characters
     say nothing and are skipped. A stem more than `max_files` files name is a
-    common word, and the answer is ''. The header and class a source implements
+    common word: the answer is '', unless consumers or extra_names give a reach,
+    which then stands alone. The header and class a source implements
     may bring the total up to AUTO_TESTS_MAX_REACHED (or `max_files`, if larger);
     past that the answer is '' too: a filter missing some of the file's tests
     reports their kills as survivors, so the whole --tests judges it instead.
     """
+    names = reach_names(path, source_text)
+    for source, text in consumers:
+        names += [n for n in reach_names(source, text) if n not in names]
+    names += [n for n in extra_names if n not in names]
     hits = set()
-    for i, name in enumerate(reach_names(path, source_text)):
+    for i, name in enumerate(names):
         if len(name) < 4:
             continue
         word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
         hits.update(t for t, text in test_sources.items() if word.search(text))
         if i == 0 and len(hits) > max_files:
-            return ''
+            if not (consumers or extra_names):
+                return ''
+            # The map's declared reach is the evidence a common stem is not.
+            hits = set()
     if not hits or len(hits) > max(max_files, AUTO_TESTS_MAX_REACHED):
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
@@ -632,13 +697,15 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
 
 
 def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES,
-               source_text=''):
-    """(filter, why) for one changed file, whose text is `source_text`."""
+               source_text='', consumers=(), extra_names=()):
+    """(filter, why) for one changed file, whose text is `source_text`, read by
+    the `consumers` (source, text) pairs."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources, max_files, source_text)
+        filt = auto_tests_filter(path, test_sources, max_files, source_text, consumers,
+                                 extra_names)
         if filt:
             return filt, AUTO_TESTS_WHY
     return default, '--tests'
@@ -2735,6 +2802,95 @@ def record_proof(root, message, head):
     return True, ''
 
 
+# ---------------------------------------------------------------------------
+# EXTRACTIONS
+#
+# A refactor that moves code into a new file reverts badly. Each hunk that swaps
+# inline code for a call into the new file restores, when reverted, the code that
+# moved, which behaves the same, so it survives; each hunk of the new file is
+# uncompilable, since its callers still need it. Neither verdict says whether a
+# test watches the moved logic. The summary names that shape: a survivor that
+# introduces a name an added file declares (one the file's pre-image does not
+# have), grouped by the added file, with that file's hunks no revert could judge
+# and the --inside run that mutates its added lines instead.
+# ---------------------------------------------------------------------------
+_IDENT = re.compile(r'[A-Za-z_]\w*')
+_DECLARED_FUNC = re.compile(
+    r'^\s*(?!(?:return|else|new|delete|throw|co_return|case|goto)\b)[\w:<>,]+'
+    r'(?:\s*[*&]+\s*|\s+)(?:\w+::)*(\w+)\s*\(', re.M)
+_DECLARED_TYPE = re.compile(r'\b(?:class|struct|enum(?:\s+class)?|namespace|using)\s+(\w+)')
+# A member or variable: `std::optional<bool> motion_detected;`, `int n = 0;`.
+_DECLARED_VAR = re.compile(
+    r'^\s*(?!(?:return|else|delete|throw|co_return|case|goto|using|typedef)\b)'
+    r'[\w:]+(?:<[^;()]*>)?(?:\s*[*&]+\s*|\s+)(\w+)\s*(?:=[^;]*|\{[^;]*\})?;', re.M)
+
+
+def text_at(root, rev, path):
+    """`path`'s text at `rev`, or '' when it did not exist there."""
+    r = run(['git', 'show', f'{rev}:{path}'], cwd=root)
+    return r.stdout if r.returncode == 0 else ''
+
+
+def added_files(hunks):
+    """The paths whose hunks the diff adds from nothing."""
+    return {h['file'] for h in hunks if '\n--- /dev/null' in '\n' + h['patch']}
+
+
+def declared_names(text):
+    """The functions, types, members and variables a source declares."""
+    return (set(_DECLARED_FUNC.findall(text)) | set(_DECLARED_TYPE.findall(text))
+            | set(_DECLARED_VAR.findall(text)))
+
+
+def extraction_targets(survivors, added_texts, pre_texts):
+    """{survivor label: added file} for each survivor hunk that replaces code (it
+    removes a line as well as adding one) and whose added lines bring in a name
+    (four characters or more) the file did not have and an added file declares.
+    A hunk that only adds a call is new behaviour, not moved code. A name an added
+    header declares is credited to the added source of the same stem, the file
+    whose lines --inside can mutate. `added_texts` and `pre_texts` map paths to
+    their text."""
+    by_kind = sorted(added_texts, key=lambda p: (p.endswith(HEADER_SUFFIXES), p))
+    declared = [(path, declared_names(added_texts[path])) for path in by_kind]
+    sources = {Path(p).stem: p for p in by_kind if not p.endswith(HEADER_SUFFIXES)}
+    out = {}
+    for h in survivors:
+        pre = pre_texts.get(h['file'])
+        if h['file'] in added_texts or not pre:
+            continue
+        if not any(line.startswith('-') and line[1:].strip() for line in h['body'][1:]):
+            continue
+        had = set(_IDENT.findall(pre))
+        new_names = {n for line in h['body'] if line.startswith('+')
+                     for n in _IDENT.findall(line[1:]) if len(n) >= 4 and n not in had}
+        for path, names in declared:
+            if new_names & names:
+                out[f"{h['file']}:{h['line']}"] = sources.get(Path(path).stem, path)
+                break
+    return out
+
+
+def extraction_report(targets, unjudged):
+    """The summary's lines for `targets` (extraction_targets), given the label of
+    every hunk its revert could not judge; [] when there are none."""
+    if not targets:
+        return []
+    lines = [f'EXTRACTION: {len(targets)} survivor(s) replace code with a call into a file '
+             'this diff adds. A revert restores the code it replaced, which likely '
+             'behaves the same, so their survival says little about whether a test '
+             'watches the moved logic:']
+    for added in sorted(set(targets.values())):
+        callers = sorted((label for label, t in targets.items() if t == added),
+                         key=lambda x: (x.rsplit(':', 1)[0], int(x.rsplit(':', 1)[1])))
+        lines.append(f'  {added} <- {", ".join(callers)}')
+        inside = [u for u in unjudged if u.rsplit(':', 1)[0] == added]
+        if inside:
+            lines.append(f'    {len(inside)} hunk(s) inside {added} cannot be judged by a '
+                         'revert.')
+        lines.append(f'    --inside N --only {added} mutates the lines it adds instead.')
+    return lines
+
+
 # The progress line each verdict gets. `killed` is deliberately the quiet one:
 # it is the expected outcome, and everything else wants reading.
 LOUD_VERDICT = {'survived': 'SURVIVED', 'inconclusive': 'INCONCLUSIVE'}
@@ -3702,6 +3858,11 @@ def main():
     # What judges each file: (Catch2 filter, bats files, pytest files).
     auto = not args.no_auto_tests
     sources = _test_sources(root) if auto else {}
+    try:
+        consumer_rows = load_data_consumers(root) if auto else []
+    except ValueError as e:
+        print(f'mutate-diff: {e}', file=sys.stderr)
+        return 2
     shell_sources = _script_test_sources(root, 'tests/shell', '*.bats') if auto else {}
     python_sources = _script_test_sources(root, 'tests/python', 'test_*.py') if auto else {}
     # Each file's key is (Catch2 filter, bats files, pytest files): what judges it.
@@ -3711,12 +3872,12 @@ def main():
         if path in key_of:
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
-            try:
-                text = (root / path).read_text(errors='replace') if auto else ''
-            except OSError:
-                text = ''
+            text = read_or_empty(root / path) if auto else ''
+            consumers = [(c, read_or_empty(root / c))
+                         for c in data_consumers(path, consumer_rows)]
             filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
-                                            args.auto_tests_max, text)
+                                            args.auto_tests_max, text, consumers,
+                                            data_names(path, consumer_rows))
             # No script suite in the key: a C++ file sharing a group with a
             # script nothing names would pay the whole bats suite's baseline.
             key_of[path] = (filt, '', '')
@@ -4073,10 +4234,18 @@ def main():
         where = 'its own filter' if pool else ' + '.join(sorted(judged_by))
         if 'catch2' in judged_by and not pool:
             where = where.replace('catch2', f'catch2 {args.tests!r}')
+        hunk_of = {f"{h['file']}:{h['line']}": h for h in mutable}
+        moved = extraction_targets(
+            [hunk_of[label] for label, _, _ in survived if label in hunk_of],
+            {p: read_or_empty(root / p) for p in added_files(hunks)},
+            {p: text_at(root, base, p)
+             for p in {label.rsplit(':', 1)[0] for label, _, _ in survived}})
         sys.stdout.flush()
         print(f'\nFAIL: {len(survived)} hunk(s) survived reversion - nothing in '
               f'{where} detects them:', file=sys.stderr)
         for label, _, _ in survived:
+            if label in moved:
+                continue
             judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
             print(f'  {label}{judged}', file=sys.stderr)
         auto_judged = sorted({label.rsplit(':', 1)[0] for label, _, _ in survived
@@ -4088,6 +4257,8 @@ def main():
                   file=sys.stderr)
         for label in inside_survived:
             print(f'  {label} (inside)', file=sys.stderr)
+        for line in extraction_report(moved, [label for label, _, _ in unproven + unjudged]):
+            print(line, file=sys.stderr)
         return 1
     n_killed = sum(1 for r in results if r[1].startswith('killed'))
     if not (unproven or unjudged or deferred or unexamined):

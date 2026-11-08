@@ -6,9 +6,9 @@
 
 namespace helix {
 
-// Test-only accessor for Config private/protected members. Replaces the
-// per-fixture `friend class` declarations that used to live in config.h
-// (the friend-TestAccess pattern; see tests/test_helpers/*_test_access.h).
+// Test-only accessor for Config private/protected members, so config.h needs
+// no per-fixture `friend class` declarations (the friend-TestAccess pattern;
+// see tests/test_helpers/*_test_access.h).
 class ConfigTestAccess {
   public:
     static json& data(Config& c) {

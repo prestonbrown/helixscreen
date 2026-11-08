@@ -135,5 +135,5 @@ verify-egl: $(TARGET)
 	fi
 	@echo "$(GREEN)✓ $(TARGET) carries the EGL presentation path$(RESET)"
 
--include $(wildcard $(EGL_VARIANT_DIR)/*.d)
--include $(shell find $(EGL_LVGL_VARIANT_DIR) -name '*.d' 2>/dev/null)
+-include $(call depfiles,$(EGL_VARIANT_DIR)/*.d)
+-include $(if $(READ_DEPFILES),$(shell find $(EGL_LVGL_VARIANT_DIR) -name '*.d' 2>/dev/null))

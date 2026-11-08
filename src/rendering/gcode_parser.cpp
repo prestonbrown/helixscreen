@@ -394,7 +394,6 @@ bool GCodeParser::parse_movement_command(std::string_view line) {
         add_segment(current_position_, new_position, is_extruding, e_delta);
     }
 
-    // Update state
     current_position_ = new_position;
     if (has_extrusion) {
         current_e_ = new_e;
@@ -446,11 +445,9 @@ void GCodeParser::parse_arc_command(std::string_view line, bool clockwise) {
     if (param_value_at(line, words.j, value))
         j_offset = value;
 
-    // Calculate arc center
     float cx = current_position_.x + i_offset;
     float cy = current_position_.y + j_offset;
 
-    // Calculate start and end angles
     float start_angle = std::atan2(current_position_.y - cy, current_position_.x - cx);
     float end_angle = std::atan2(end_pos.y - cy, end_pos.x - cx);
     float radius = std::sqrt(i_offset * i_offset + j_offset * j_offset);
@@ -463,7 +460,6 @@ void GCodeParser::parse_arc_command(std::string_view line, bool clockwise) {
         return;
     }
 
-    // Calculate sweep angle
     float sweep = end_angle - start_angle;
     if (clockwise) {
         if (sweep >= 0)
@@ -1098,7 +1094,6 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
 
     // Calculate actual extrusion width from E-delta and XY distance
     if (is_extrusion && e_delta > 0.00001f) {
-        // Calculate XY distance
         float dx = end.x - start.x;
         float dy = end.y - start.y;
         float xy_distance = std::sqrt(dx * dx + dy * dy);
@@ -1130,7 +1125,6 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
         }
     }
 
-    // Update layer data
     Layer& current_layer = layers_.back();
     current_layer.segments.push_back(segment);
 
@@ -1324,13 +1318,11 @@ ParsedGCodeFile GCodeParser::finalize(bool whole_file) {
     result.objects = std::move(objects_);
     result.global_bounding_box = global_bounds_;
 
-    // Calculate statistics
     for (const auto& layer : result.layers) {
         result.total_segments += layer.segments.size();
     }
     result.drawable_segments = drawable_segments_;
 
-    // Transfer metadata
     result.filament_type = metadata_filament_type_;
     result.filament_color_hex = metadata_filament_color_;
     result.nozzle_diameter_mm = metadata_nozzle_diameter_;
@@ -1373,7 +1365,6 @@ ParsedGCodeFile GCodeParser::finalize(bool whole_file) {
                       out_of_range_width_count_);
     }
 
-    // Debug: Log object bounding boxes
     for (const auto& [name, obj] : result.objects) {
         spdlog::trace("[GCode Parser] Object '{}' AABB: min=({:.2f},{:.2f},{:.2f}) "
                       "max=({:.2f},{:.2f},{:.2f}) "
@@ -1602,7 +1593,6 @@ std::string get_cached_thumbnail(const std::string& gcode_path, const std::strin
     static bool cache_dir_error_shown = false;
     static bool write_error_shown = false;
 
-    // Generate cache filename from gcode path
     std::string filename = gcode_path;
     size_t last_slash = filename.find_last_of("/\\");
     if (last_slash != std::string::npos) {
@@ -1651,7 +1641,6 @@ std::string get_cached_thumbnail(const std::string& gcode_path, const std::strin
         spdlog::info("[GCode Parser] Created thumbnail cache directory: {}", cache_dir);
     }
 
-    // Extract and save thumbnail
     if (save_thumbnail_to_file(gcode_path, cache_path)) {
         return cache_path;
     }
@@ -1889,7 +1878,6 @@ GCodeHeaderMetadata extract_header_metadata(const std::string& filepath) {
     GCodeHeaderMetadata metadata;
     metadata.filename = filepath;
 
-    // Get file size and modification time
     struct stat file_stat;
     if (stat(filepath.c_str(), &file_stat) == 0) {
         metadata.file_size = static_cast<uint64_t>(file_stat.st_size);

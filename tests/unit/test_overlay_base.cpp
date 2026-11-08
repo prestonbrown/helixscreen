@@ -17,6 +17,7 @@
 
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
 
 #include "../lvgl_test_fixture.h"
@@ -289,6 +290,32 @@ TEST_CASE_METHOD(ShowFixture, "show() with destroy_on_close frees the tree on po
     CHECK(NavigationManager::instance().is_panel_on_top(overlay.get_root()));
     pop(overlay);
     process_async_timers();
+}
+
+TEST_CASE_METHOD(ShowFixture, "show() feeds the overlay open trace one build and one open per show",
+                 "[overlay_base][overlay_show][overlay_open_trace]") {
+    const auto counts = [] {
+        for (const auto& r : helix::nav::overlay_open_records()) {
+            if (r.name == "ShowOverlay") {
+                return std::make_pair(r.builds, r.opens);
+            }
+        }
+        return std::make_pair(0u, 0u);
+    };
+    lv_obj_invalidate(test_screen());
+    lv_refr_now(nullptr); // ends opens earlier cases left waiting for a frame
+    const auto before = counts();
+    ShowOverlay overlay(nullptr, /*destroy=*/true);
+    for (int i = 0; i < 2; ++i) {
+        REQUIRE(overlay.show(test_screen()));
+        settle();
+        lv_obj_invalidate(test_screen());
+        lv_refr_now(nullptr);
+        pop(overlay);
+        process_async_timers();
+    }
+    CHECK(counts().first == before.first + 2);
+    CHECK(counts().second == before.second + 2);
 }
 
 TEST_CASE_METHOD(ShowFixture,

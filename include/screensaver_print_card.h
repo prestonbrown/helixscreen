@@ -34,7 +34,8 @@ struct PrintCardLayout {
 /// The card for a `screen_w` x `screen_h` screen.
 PrintCardLayout layout_print_card(int32_t screen_w, int32_t screen_h);
 
-/// Where the card sits before drift: centred, a card's height up from the bottom.
+/// Where the card sits before drift: centred at the bottom of the screen, clear of the middle
+/// where the scenes tell the print, its bottom edge a margin above the screen's.
 DirtyRect print_card_home(int32_t screen_w, int32_t screen_h, const PrintCardLayout& layout);
 
 /// What the card shows; equal faces draw identical pixels.

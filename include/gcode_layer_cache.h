@@ -20,7 +20,6 @@
 namespace helix {
 namespace gcode {
 
-// Forward declaration
 class GCodeDataSource;
 
 /**

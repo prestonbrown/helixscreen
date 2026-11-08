@@ -120,7 +120,7 @@ TEST_CASE("suppress_all mutes every surface and records nothing",
 
 TEST_CASE("key69: one Klipper rejection never yields a stacked generic toast",
           "[error-center][rpc-error-policy][key69]") {
-    // bdf32d07d: the K2 chamber rejection produced three toasts (generic +
+    // The K2 chamber rejection can produce three toasts (generic +
     // caller's own + `!!`). The caller's contextual toast wins; the generic
     // fallback stays quiet and the `!!` copy dedups against it.
     const Decision d = decide(shows, gcode);

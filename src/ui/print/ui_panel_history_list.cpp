@@ -89,7 +89,6 @@ void HistoryListPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(subject_empty_hint_, empty_hint_buf_,
                               "Completed prints will appear here", "history_empty_hint", subjects_);
 
-    // Initialize detail overlay subjects
     init_detail_subjects();
 }
 
@@ -293,13 +292,11 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
 
     is_active_ = false;
 
-    // Remove history manager observer
     if (history_manager_ && history_observer_) {
         history_manager_->remove_observer(&history_observer_);
         history_observer_ = nullptr;
     }
 
-    // Cancel any pending search timer
     search_debounce_.cancel();
 
     // Reset filter state for fresh start on next activation
@@ -327,7 +324,6 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
     load_more_guard_.release();
     has_more_data_ = true;
 
-    // Reset virtual scroll view
     if (list_view_) {
         list_view_->reset();
     }
@@ -441,7 +437,6 @@ void HistoryListPanel::load_more() {
                                          get_name(), new_jobs.size(),
                                          jobs_.size() + new_jobs.size(), total);
 
-                            // Append new jobs
                             jobs_.insert(jobs_.end(), new_jobs.begin(), new_jobs.end());
 
                             // Only a short page says there is no more.
@@ -561,7 +556,6 @@ void HistoryListPanel::populate_list(bool preserve_scroll) {
         return;
     }
 
-    // Update empty state
     update_empty_state();
 
     if (filtered_jobs_.empty()) {
@@ -950,18 +944,16 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
         }
     }
 
-    // Update thumbnail display
     lv_obj_t* thumbnail_image =
         helix::ui::find_required(detail_overlay_, "thumbnail_image", get_name());
     lv_obj_t* thumbnail_fallback =
         helix::ui::find_required(detail_overlay_, "thumbnail_fallback", get_name());
 
     // One staleness context per overlay open. Creating it bumps
-    // detail_overlay_generation_, exactly as the bare `++` did, so a thumbnail
-    // still in flight from a previously-opened job now reports stale. It also
-    // carries the panel's lifetime token, which the raw generation compare
-    // never had — the queued apply below used to dereference a possibly-freed
-    // panel just to read the counter.
+    // detail_overlay_generation_, so a thumbnail still in flight from a
+    // previously-opened job reports stale. It also carries the panel's lifetime
+    // token, so the queued apply below never dereferences a possibly-freed panel
+    // just to read the counter.
     ThumbnailLoadContext ctx = ThumbnailLoadContext::create(lifetime_, &detail_overlay_generation_);
 
     if (thumbnail_image && thumbnail_fallback) {
@@ -1046,7 +1038,6 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
     // Register detail sub-overlay with nullptr lifecycle — managed by HistoryListPanel
     helix::nav::register_overlay(detail_overlay_, nullptr);
 
-    // Push the overlay
     helix::nav::push_overlay(detail_overlay_);
     spdlog::info("[{}] Showing detail overlay for: {}", get_name(), job.filename);
 }
@@ -1078,7 +1069,6 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     lv_subject_copy_string(&detail_duration_,
                            helix::format::duration(static_cast<int>(job.print_duration)).c_str());
 
-    // Format layers
     char layers_buf[32];
     if (job.layer_count > 0) {
         snprintf(layers_buf, sizeof(layers_buf), "%u", job.layer_count);
@@ -1087,7 +1077,6 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     }
     lv_subject_copy_string(&detail_layers_, layers_buf);
 
-    // Format layer height
     char layer_height_buf[32];
     if (job.layer_height > 0) {
         helix::format::format_distance_mm(job.layer_height, 2, layer_height_buf,
@@ -1097,7 +1086,6 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     }
     lv_subject_copy_string(&detail_layer_height_, layer_height_buf);
 
-    // Format temperatures
     char temp_buf[32];
     if (job.nozzle_temp > 0) {
         snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", job.nozzle_temp);

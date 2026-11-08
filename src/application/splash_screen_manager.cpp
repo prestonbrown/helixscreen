@@ -90,8 +90,8 @@ void SplashScreenManager::start(pid_t splash_pid) {
     // repainting /dev/fb0 (the remote screen) until its own 180s backstop, then
     // clears it — the remote goes black. When we were given no PID, adopt the one
     // the watchdog exported in HELIX_SPLASH_PID (verified via /proc/<pid>/comm) so
-    // the normal handoff path (check_and_signal -> SIGUSR1) retires it, no longer
-    // dependent solely on the watchdog's single reap. Only when the arg PID was
+    // the normal handoff path (check_and_signal -> SIGUSR1) retires it rather than
+    // leaving it to the watchdog's single reap. Only when the arg PID was
     // absent — a launcher-provided PID always wins.
     if (m_splash_pid <= 0) {
         pid_t env_pid = read_env_splash_pid();
@@ -113,7 +113,6 @@ void SplashScreenManager::check_and_signal() {
         return; // Already signaled
     }
 
-    // No splash process
     if (m_splash_pid <= 0) {
         m_signaled = true;
         m_post_refresh_frames = 1;
@@ -138,7 +137,6 @@ void SplashScreenManager::check_and_signal() {
 
     signal_and_wait();
 
-    // Schedule post-splash refresh
     spdlog::info("[SplashManager] Splash exited, scheduling post-splash refresh");
     m_post_refresh_frames = 1;
 }

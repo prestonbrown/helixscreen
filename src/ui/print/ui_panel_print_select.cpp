@@ -232,7 +232,6 @@ PrintSelectPanel::~PrintSelectPanel() {
                                             this);
         helix::ui::remove_event_cb_if_alive(list_rows_container_, on_scroll_static, this);
 
-        // Delete pending timers
         if (refresh_timer_) {
             lv_timer_delete(refresh_timer_);
             refresh_timer_ = nullptr;
@@ -434,7 +433,6 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     card_view_.reset();
     list_view_.reset();
 
-    // Find widget references
     card_view_container_ = helix::ui::find_required(panel_, "card_view_container", get_name());
     list_view_container_ = helix::ui::find_required(panel_, "list_view_container", get_name());
     list_rows_container_ = helix::ui::find_required(panel_, "list_rows_container", get_name());
@@ -485,7 +483,6 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Note: view_toggle_btn, source buttons, and header click handlers are now in XML via
     // <event_cb>
 
-    // Initialize USB source manager
     usb_source_ = std::make_unique<helix::ui::PrintSelectUsbSource>();
     usb_source_->setup(panel);
     // Apply pending USB manager if set_usb_manager was called before setup()
@@ -559,7 +556,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             panel->refresh_guard_.release();
 
             // Snapshot previous file list (filename + modified time, in sorted
-            // order) before replacing — used to skip repopulation when nothing
+            // order) before replacing, so repopulation is skipped when nothing
             // changed. Timestamps catch re-uploads of the same filename.
             struct FileSnapshot {
                 std::string filename;
@@ -920,7 +917,6 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
 void PrintSelectPanel::toggle_view() {
     if (current_view_mode_ == PrintSelectViewMode::CARD) {
-        // Switch to list view
         current_view_mode_ = PrintSelectViewMode::LIST;
         if (card_view_) {
             card_view_->stop_prebuild();
@@ -944,7 +940,6 @@ void PrintSelectPanel::toggle_view() {
             list_view_->animate_entrance();
         }
     } else {
-        // Switch to card view
         current_view_mode_ = PrintSelectViewMode::CARD;
 
         // Update reactive subject - XML bindings handle container visibility
@@ -954,7 +949,6 @@ void PrintSelectPanel::toggle_view() {
         helix::ui::icon::set_source(view_toggle_icon_, "list");
         spdlog::debug("[{}] Switched to card view", get_name());
 
-        // Repopulate card view
         populate_card_view();
 
         // Animate card container entrance with crossfade
@@ -968,7 +962,6 @@ void PrintSelectPanel::sort_by(PrintSelectSortColumn column) {
     // Convert PrintSelectSortColumn to FileSorter's SortColumn (identical enum values)
     auto sorter_column = static_cast<helix::ui::SortColumn>(static_cast<int>(column));
 
-    // Delegate toggle logic to file_sorter_
     file_sorter_.sort_by(sorter_column);
 
     // Update local state from file_sorter_ (for UI code that uses these members)
@@ -1697,7 +1690,6 @@ void PrintSelectPanel::process_metadata_result(size_t i, const std::string& file
                 }
             }
 
-            // Schedule debounced view refresh
             self->schedule_view_refresh();
 
             // Update detail view if this file is currently selected
@@ -2483,7 +2475,6 @@ void PrintSelectPanel::schedule_view_refresh() {
             },
             kRefreshDebounceMs, self);
 
-        // Make it a one-shot timer
         lv_timer_set_repeat_count(self->refresh_timer_, 1);
     });
 }
@@ -2620,7 +2611,6 @@ void PrintSelectPanel::merge_history_into_file_list() {
         }
     }
 
-    // Delegate to history integration module
     helix::ui::PrintSelectHistoryIntegration::merge_history_into_files(
         file_list_, history_manager->get_filename_stats(), current_print_filename);
 
@@ -2704,7 +2694,6 @@ void PrintSelectPanel::update_sort_indicators() {
     // Animation constants for sort indicator transition
     constexpr int32_t kFadeDurationMs = 200;
 
-    // Check if animations are enabled
     bool animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
 
     // Helper lambda for animated show/hide with crossfade
@@ -2713,7 +2702,6 @@ void PrintSelectPanel::update_sort_indicators() {
             return;
 
         if (show) {
-            // Show icon
             lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
 
             if (!animations_enabled) {

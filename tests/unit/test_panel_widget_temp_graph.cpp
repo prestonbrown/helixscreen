@@ -1095,6 +1095,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "TempGraphWidget config: one bound row per series, switches and follow save",
                  "[temp_graph][panel_widget][config][rows]") {
+    init_widget_registrations(); // the row switches' XML callbacks are registered there
     TempGraphWidget widget("test_rows");
     widget.set_config({{"sensors",
                         {

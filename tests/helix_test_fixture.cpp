@@ -319,6 +319,8 @@ void HelixTestFixture::reset_printer_state() {
     // The print lifecycle lives in subjects, so clear_data() leaves it alone,
     // and a test that drove the global printer into a job leaves the next test
     // reading a print in progress (Clear Spool refused, pause paths armed).
+    // print_active is checked on its own: tests set it directly, with the job
+    // state still standby, and discovery reads it as a running print.
     // Returned to standby through the production path, which notifies only
     // when a value actually moves. Standby alone keeps the finished job's
     // progress and layer, as it does on a printer, so the next test's first
@@ -330,6 +332,7 @@ void HelixTestFixture::reset_printer_state() {
         if (ps.are_subjects_initialized() &&
             (print.get_print_lifecycle() != PrintState::Idle || print.is_in_print_start() ||
              print.get_print_job_state() != helix::PrintJobState::STANDBY ||
+             lv_subject_get_int(print.get_print_active_subject()) != 0 ||
              lv_subject_get_int(print.get_print_layer_current_subject()) != 0 ||
              lv_subject_get_int(print.get_print_progress_subject()) != 0)) {
             print.reset_print_start_state(); // deferred: drained below

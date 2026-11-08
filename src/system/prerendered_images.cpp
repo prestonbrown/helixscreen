@@ -323,6 +323,10 @@ bool printer_cache_entry_matches(const std::string& cache_filename,
     return pos < cache_filename.size() && cache_filename[pos] == '-';
 }
 
+bool printer_image_source_exists(const std::string& source_image_path) {
+    return helix::fs::exists(strip_lvgl_prefix(source_image_path));
+}
+
 bool generate_cached_printer_image(const std::string& source_image_path, int width, int height,
                                    const std::string& output_path) {
     std::string fs_path = strip_lvgl_prefix(source_image_path);

@@ -8,7 +8,7 @@
  * Context: PerformanceState::set_source() runs at app init, BEFORE the WS is
  * connected. send_jsonrpc is gated by ready_to_send (see send_gate tests), so
  * MoonrakerPerformanceSource's initial discovery RPC is silently dropped on
- * cold-connect. The fix is the connected-observer registry: components that
+ * cold-connect without the connected-observer registry: components that
  * initialise early register a callback that fires once the WS is up.
  */
 

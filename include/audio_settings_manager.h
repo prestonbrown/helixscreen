@@ -32,7 +32,6 @@ class AudioSettingsManager {
     /// The static PersistedSetting table this manager is built from.
     static settings::TableView persisted_table();
 
-    // Non-copyable
     AudioSettingsManager(const AudioSettingsManager&) = delete;
     AudioSettingsManager& operator=(const AudioSettingsManager&) = delete;
 

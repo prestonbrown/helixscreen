@@ -60,7 +60,6 @@ void IppPrintModal::init_dropdowns() {
         std::clamp(settings.get_label_size_index(), 0, static_cast<int>(templates.size()) - 1);
     const auto& tmpl = templates[tmpl_idx];
 
-    // Set template name display
     auto* name_label = find_widget("template_name");
     if (name_label) {
         lv_label_set_text(name_label, tmpl.name.c_str());
@@ -99,7 +98,6 @@ void IppPrintModal::init_dropdowns() {
 }
 
 void IppPrintModal::on_ok() {
-    // Read dropdown values
     auto* count_dd = find_widget("dropdown_count");
     auto* start_dd = find_widget("dropdown_start");
     int count = count_dd ? static_cast<int>(lv_dropdown_get_selected(count_dd)) + 1 : 1;

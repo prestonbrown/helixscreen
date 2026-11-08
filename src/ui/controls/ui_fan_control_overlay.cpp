@@ -270,7 +270,6 @@ void FanControlOverlay::schedule_fans_rebuild() {
 }
 
 void FanControlOverlay::on_deactivating(DeactivateReason) {
-    // Unsubscribe from all observers
     fans_observer_.reset();
     chamber_air_observer_.reset();
     anim_settings_observer_.reset();
@@ -533,7 +532,6 @@ void FanControlOverlay::update_fan_speeds() {
                         lv_label_set_text(card_info.speed_label, speed_str);
                     }
                 }
-                // Update arc indicator
                 if (card_info.arc) {
                     lv_arc_set_value(card_info.arc, fan.speed_percent);
                 }

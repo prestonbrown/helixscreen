@@ -126,7 +126,7 @@ TEST_CASE("init_early installs a ring sink whose contents survive into init", "[
     // the entire config diagnostic trail — "Restored from backup", "Corrupt
     // config saved to", "Failed to parse" — is logged BEFORE init() runs. It was
     // being lost twice over: the early logger sat at WARN with no ring sink, and
-    // init() then built a brand-new ring. Bundle XGVDYEB5 showed the result — a
+    // init() then built a brand-new ring. One debug bundle showed the result — a
     // user-visible "settings were corrupted, restored from backup" toast and not
     // one matching line anywhere in a 20,000-line log_tail.
     //
