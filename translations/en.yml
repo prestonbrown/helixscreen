@@ -3693,6 +3693,7 @@ translations:
   Shutting down...: Shutting down...
   Signal: Signal
   'Signal #': 'Signal #'
+  Signal macro renaming: Signal macro renaming
   Similarity: Similarity
   Single object: Single object
   Single toggle macro. State is not tracked.: Single toggle macro. State is not tracked.
@@ -4261,6 +4262,7 @@ translations:
   This needs the plugin's file analysis, which isn't running.: This needs the plugin's file analysis, which isn't running.
   This plugin asks for no special permissions.: This plugin asks for no special permissions.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: This plugin lets HelixScreen control print start options like bed mesh and QGL.
+  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.
   This print does not report layers, so no layer pause can be scheduled.: This print does not report layers, so no layer pause can be scheduled.
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: This

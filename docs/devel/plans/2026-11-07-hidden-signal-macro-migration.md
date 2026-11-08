@@ -450,9 +450,9 @@ rename) and a `firmware_managed` state; the real run passes the checked names as
 `allowed_names`, so a file that changed between plan and write into calling another hidden name
 is skipped instead of renamed past the gate; a `nothing` run keeps a stored `done` report. Q5
 stays open: on a firmware-managed install (the installer's `/oem/apps/helixscreen` or
-`/etc/hooks/lmd.d/30-helixscreen.sh` markers) the plugin only reports. Left for phase 4: the
+`/etc/hooks/lmd.d/30-helixscreen.sh` markers) the plugin only reports. The
 `server.helix.signal_migration` Lua allowlist entry, the mock's feature and endpoint, and the
-`kKnownPluginFeatures` row. Owed on a real printer before release: an instrumented 1.0.x
+`kKnownPluginFeatures` row came with phase 4. Owed on a real printer before release: an instrumented 1.0.x
 `PRINT_START` with the hidden pack loaded renames once with one backup, a restart then runs a
 print with every phase and the ready signal, and a printer still on the visible pack stays
 `waiting_for_pack` with its config untouched.
@@ -482,3 +482,14 @@ The scan runs in `src/api/moonraker_discovery_sequence.cpp` beside the other con
 which costs that file two upward includes (`macro_manager.h` for the pack's section names,
 `signal_macro_names.h`) and four lines over its size cap; the branch grants both. Moving the call
 into `PrinterDiscovery` would put `MacroManager` into the ESP32 link, which leaves it out.
+
+Phase 4 is implemented on the same branch, except the helper-macros row line
+(`signal_names_line`), which waits for a layout pass at 800x480 and the smallest breakpoint.
+`SlicedSignalWatcher` (`include/sliced_signal_names.h`, owned by `GcodeResponseRouting`) reads
+every console line through `unknown_signal_command`, records the name under the printer's
+`helix_macros/sliced_signal_names` setting, re-evaluates the macros status, and shows one toast
+per name per watcher. `macro_content_for` and `evaluate_status` read the recorded names as
+`extra_names`. The recording does not narrow the forwarders: any recorded name forwards all
+eleven, like a caller does (Q3 above). A forwarder answers a sliced file's call silently, so the
+app has no evidence that a printer with forwarders is clean, and narrowing needs a product call
+on what counts as proof.

@@ -3780,6 +3780,7 @@ translations:
   Shutting down...: Wird heruntergefahren...
   Signal: Signal
   'Signal #': Signal-Nr.
+  Signal macro renaming: 'Umbenennung der Signalmakros'
   Similarity: "Übereinstimmung"
   Single object: 'Einzelnes Objekt'
   Single toggle macro. State is not tracked.: Einzelnes Umschalt-Makro. Status wird
@@ -4366,6 +4367,7 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Dafür wird die Dateianalyse des Plugins benötigt, die nicht läuft."
   This plugin asks for no special permissions.: 'Dieses Plugin fragt nach keinen besonderen Berechtigungen.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Dieses Plugin ermöglicht HelixScreen die Steuerung von Druckstartoptionen wie Bettnetz und QGL.'
+  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: 'Dieser Druck ruft {} auf, das der Drucker nicht mehr hat. Tippen Sie unter Erweitert auf „Hilfsmakros aktualisieren“, damit es weiter funktioniert.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Dieser Druck kann nicht fortgesetzt werden. Starten Sie ihn neu oder schalten Sie die Bettprüfung aus, wenn das wiederholt passiert.'
   This print does not report layers, so no layer pause can be scheduled.: 'Dieser Druck meldet keine Schichten, daher kann keine Pause bei einer Schicht geplant werden.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Dieser

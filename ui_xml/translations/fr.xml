@@ -3459,6 +3459,7 @@
   <translation tag="Shutting down..." fr="Arrêt en cours..."/>
   <translation tag="Signal" fr="Signal"/>
   <translation tag="Signal #" fr="Signal n°"/>
+  <translation tag="Signal macro renaming" fr="Renommage des macros de signal"/>
   <translation tag="Similarity" fr="Similitude"/>
   <translation tag="Single object" fr="Objet unique"/>
   <translation tag="Single toggle macro. State is not tracked." fr="Macro à bascule unique. L&apos;état n&apos;est pas suivi."/>
@@ -3968,6 +3969,7 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." fr="Ceci nécessite l&apos;analyse des fichiers du plugin, qui ne tourne pas."/>
   <translation tag="This plugin asks for no special permissions." fr="Ce plugin ne demande aucune autorisation particulière."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." fr="Ce plugin permet à HelixScreen de contrôler les options de démarrage d&apos;impression comme le maillage du plateau et QGL."/>
+  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." fr="Cette impression appelle {}, que l&apos;imprimante n&apos;a plus. Touchez « Mettre à jour les macros d&apos;aide » dans Avancé pour qu&apos;elle continue de fonctionner."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." fr="Cette impression ne peut pas reprendre. Relancez-la, ou désactivez la vérification du plateau si cela se reproduit."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." fr="Cette impression ne signale pas ses couches, aucune pause par couche ne peut donc être prévue."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" fr="Cette impression nécessite environ %.0fg mais il reste environ %.0fg sur la bobine. Démarrer quand même ?"/>

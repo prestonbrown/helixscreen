@@ -7,12 +7,14 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
+#include "config.h"
 #include "core/update_queue.h"
 #include "helix_plugin_features.h"
 #include "macro_manager.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "signal_macro_names.h"
+#include "sliced_signal_names.h"
 
 #include <algorithm>
 #include <sstream>
@@ -483,4 +485,58 @@ TEST_CASE("the mock plugin reports the signal macro migration and its report", "
     const auto lines = helix::plugin_feature_lines({{"signal_macro_migration", parsed}});
     REQUIRE(lines.size() == 1);
     CHECK(lines[0].label != lines[0].name);
+}
+
+// ============================================================================
+// Names a sliced file calls
+// ============================================================================
+
+TEST_CASE("unknown_signal_command reads the signal name Klipper did not know", "[signal_macros]") {
+    CHECK(sm::unknown_signal_command("// Unknown command:\"HELIX_READY\"") == "HELIX_READY");
+    CHECK(sm::unknown_signal_command("!! Unknown command:\"helix_phase_qgl\"") ==
+          "HELIX_PHASE_QGL");
+    CHECK_FALSE(sm::unknown_signal_command("Unknown command:\"_HELIX_READY\""));
+    CHECK_FALSE(sm::unknown_signal_command("Unknown command:\"FOO\""));
+    CHECK_FALSE(sm::unknown_signal_command("Unknown command:\"HELIX_READY"));
+    CHECK_FALSE(sm::unknown_signal_command("HELIX:READY"));
+}
+
+TEST_CASE("a recorded name is forwarded and marks the macros outdated", "[signal_macros]") {
+    const auto hw = printer_with(hidden_pack(), kCurrentPackObjects);
+
+    CHECK(sm::drift(scan_of(hidden_pack()), {"HELIX_READY"}) == SignalNameDrift::AddAliases);
+    CHECK(helix::MacroManager::macro_content_for(hw, {"HELIX_READY"})
+              .find(sm::alias_block(all_names())) != std::string::npos);
+    CHECK(helix::MacroManager::evaluate_status(hw, {"HELIX_READY"}) ==
+          helix::MacroInstallStatus::OUTDATED);
+    CHECK(helix::MacroManager::evaluate_status(hw, {}) == helix::MacroInstallStatus::INSTALLED);
+}
+
+TEST_CASE("the watcher records a signal name Klipper did not know, once", "[signal_macros]") {
+    LVGLTestFixture fixture;
+    helix::Config* cfg = helix::Config::get_instance();
+    const std::string key = cfg->df() + "helix_macros/sliced_signal_names";
+    const json saved = cfg->get<json>(key, json());
+    cfg->set<json>(key, json::array());
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    auto respond = [&](const std::string& line) {
+        client.dispatch_method_callback("notify_gcode_response", {{"params", json::array({line})}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    };
+
+    std::vector<std::string> notices;
+    {
+        helix::SlicedSignalWatcher watcher(
+            &client, [&](const std::string& name) { notices.push_back(name); });
+        respond("// Unknown command:\"HELIX_READY\"");
+        respond("// Unknown command:\"HELIX_READY\"");
+        respond("// Unknown command:\"FOO\"");
+    }
+    respond("// Unknown command:\"HELIX_ENDED\"");
+
+    CHECK(notices == std::vector<std::string>{"HELIX_READY"});
+    CHECK(sm::recorded_signal_names() == std::vector<std::string>{"HELIX_READY"});
+    CHECK_FALSE(sm::record_signal_name("HELIX_READY"));
+    CHECK_FALSE(sm::record_signal_name("NOT_A_SIGNAL"));
+    cfg->set<json>(key, saved);
 }

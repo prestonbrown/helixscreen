@@ -150,6 +150,11 @@ class MacroManager {
      */
     [[nodiscard]] static MacroInstallStatus evaluate_status(const PrinterDiscovery& hardware);
 
+    /// evaluate_status with the signal names recorded from sliced files given
+    /// (signal_macros::recorded_signal_names() in the one-argument form).
+    [[nodiscard]] static MacroInstallStatus
+    evaluate_status(const PrinterDiscovery& hardware, const std::vector<std::string>& extra_names);
+
     /**
      * @brief Compare two dotted version strings numerically per component
      *
@@ -269,14 +274,18 @@ class MacroManager {
      * @brief The helix_macros.cfg content to stage on this printer
      *
      * Every printer gets the pack with the hidden signal names. A printer that
-     * already defines HELIX_READY may call the visible names from its own
-     * macros and sliced files, so a forwarder for each visible name
-     * (signal_macros::alias_block) follows the pack.
+     * had the visible names, calls one, or recorded one from a sliced file
+     * (signal_macros::recorded_signal_names()) gets a forwarder for each
+     * visible name (signal_macros::alias_block) after the pack.
      *
      * @param hardware Discovery snapshot with the printer's macro names
      * @return Complete cfg file content, or empty if the file is not found
      */
     [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware);
+
+    /// macro_content_for with the recorded signal names given.
+    [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware,
+                                                       const std::vector<std::string>& extra_names);
 
     /**
      * @brief Get the version from the local macro file

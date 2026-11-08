@@ -3516,6 +3516,7 @@
   <translation tag="Shutting down..." ru="Выключение..."/>
   <translation tag="Signal" ru="Сигнал"/>
   <translation tag="Signal #" ru="Сигнал №"/>
+  <translation tag="Signal macro renaming" ru="Переименование сигнальных макросов"/>
   <translation tag="Similarity" ru="Схожесть"/>
   <translation tag="Single object" ru="Один объект"/>
   <translation tag="Single toggle macro. State is not tracked." ru="Один макрос переключения. Состояние не отслеживается."/>
@@ -4031,6 +4032,7 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ru="Нужен анализ файлов плагина, но он не запущен."/>
   <translation tag="This plugin asks for no special permissions." ru="Этот плагин не запрашивает специальных разрешений."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ru="Этот плагин позволяет HelixScreen управлять опциями начала печати, такими как сетка стола и QGL."/>
+  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." ru="Эта печать вызывает {}, которого больше нет на принтере. Нажмите «Обновить вспомогательные макросы» в разделе «Дополнительно», чтобы он продолжал работать."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." ru="Эту печать нельзя продолжить. Перезапустите её или отключите проверку стола, если это повторяется."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." ru="Эта печать не сообщает слои, поэтому паузу на слое запланировать нельзя."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ru="Для этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?"/>

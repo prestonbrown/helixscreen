@@ -3771,6 +3771,7 @@ translations:
   Shutting down...: Spegnimento in corso...
   Signal: Segnale
   'Signal #': 'Segnale #'
+  Signal macro renaming: 'Rinomina delle macro di segnale'
   Similarity: "Similitudine"
   Single object: 'Oggetto singolo'
   Single toggle macro. State is not tracked.: Singola macro toggle. Lo stato non è
@@ -4358,6 +4359,7 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "Serve l'analisi dei file del plugin, che non è in esecuzione."
   This plugin asks for no special permissions.: 'Questo plugin non richiede permessi speciali.'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'Questo plugin permette a HelixScreen di controllare opzioni avvio stampa come mesh piano e QGL.'
+  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: 'Questa stampa richiama {}, che la stampante non ha più. Tocca «Aggiorna macro di ausilio» in Avanzate perché continui a funzionare.'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'Questa stampa non può essere ripresa. Riavviala, oppure disattiva il controllo del piano se continua a succedere.'
   This print does not report layers, so no layer pause can be scheduled.: 'Questa stampa non riporta gli strati, quindi non è possibile programmare una pausa a uno strato.'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Questa

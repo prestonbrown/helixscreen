@@ -15,6 +15,7 @@ class GcodeErrorRouter;
 class GcodeNarrationRouter;
 class IMoonrakerClient;
 class LanClientAuthRouter;
+class SlicedSignalWatcher;
 } // namespace helix
 namespace helix::ui {
 class ActionPromptModal;
@@ -84,6 +85,9 @@ class GcodeResponseRouting {
 
     // The screen's own printer event journal, kept while the plugin's is not ready.
     std::unique_ptr<EventJournalRecorder> m_event_journal_recorder;
+
+    // Records a visible signal name a sliced file calls that Klipper does not know.
+    std::unique_ptr<SlicedSignalWatcher> m_sliced_signal_watcher;
 };
 
 } // namespace helix

@@ -201,4 +201,23 @@ SignalNameDrift drift(const SignalMacroScan& scan, const std::vector<std::string
     return SignalNameDrift::None;
 }
 
+std::optional<std::string> unknown_signal_command(std::string_view response) {
+    constexpr std::string_view kPrefix = "Unknown command:\"";
+    const size_t start = response.find(kPrefix);
+    if (start == std::string_view::npos) {
+        return std::nullopt;
+    }
+    const size_t name_start = start + kPrefix.size();
+    const size_t end = response.find('"', name_start);
+    if (end == std::string_view::npos) {
+        return std::nullopt;
+    }
+    std::string name =
+        text_io::to_upper(std::string(response.substr(name_start, end - name_start)));
+    if (std::find(kVisibleNames.begin(), kVisibleNames.end(), name) == kVisibleNames.end()) {
+        return std::nullopt;
+    }
+    return name;
+}
+
 } // namespace helix::signal_macros

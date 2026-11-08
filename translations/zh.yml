@@ -3573,6 +3573,7 @@ translations:
   Shutting down...: 正在关机...
   Signal: 信号
   'Signal #': '信号 #'
+  Signal macro renaming: '信号宏重命名'
   Similarity: "相似度"
   Single object: '单个对象'
   Single toggle macro. State is not tracked.: 单个切换宏。不跟踪状态。
@@ -4125,6 +4126,7 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "这需要插件的文件分析，但它未在运行。"
   This plugin asks for no special permissions.: '此插件不请求任何特殊权限。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: '此插件让 HelixScreen 控制打印启动选项，如热床网格和 QGL。'
+  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: '此打印调用了 {}，但打印机已不再有该宏。请在高级中点击“更新帮助宏”以保持其正常工作。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: '此打印无法继续。请重新开始打印；如果反复出现，可关闭热床检查。'
   This print does not report layers, so no layer pause can be scheduled.: '此打印未报告层信息，因此无法设置按层暂停。'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: 本次打印需要约

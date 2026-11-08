@@ -19,6 +19,7 @@
 #include "json_fwd.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -114,5 +115,9 @@ enum class SignalNameDrift {
 
 [[nodiscard]] SignalNameDrift drift(const SignalMacroScan& scan,
                                     const std::vector<std::string>& extra_names);
+
+/// The visible signal name in a Klipper `Unknown command:"HELIX_X"` response,
+/// uppercased, or nullopt for any other line.
+[[nodiscard]] std::optional<std::string> unknown_signal_command(std::string_view response);
 
 } // namespace helix::signal_macros

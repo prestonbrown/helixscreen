@@ -8,6 +8,7 @@
 #include "helix_regex.h"
 #include "preprint_skip_wrappers.h"
 #include "signal_macro_names.h"
+#include "sliced_signal_names.h"
 
 #include <spdlog/spdlog.h>
 
@@ -258,6 +259,11 @@ MacroInstallStatus MacroManager::get_status() const {
 }
 
 MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardware) {
+    return evaluate_status(hardware, signal_macros::recorded_signal_names());
+}
+
+MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardware,
+                                                 const std::vector<std::string>& extra_names) {
     // No objects list consumed yet: the printer has not told us anything,
     // and "no helix macros found" in that vacuum would be a claim, not an
     // observation.
@@ -297,9 +303,10 @@ MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardwar
     }
 
     // The loaded signal names differ from what an update would stage: the old
-    // visible pack, a called name with no definition, or a forwarder nothing calls.
+    // visible pack, a called or recorded name with no definition, or a forwarder
+    // nothing needs.
     const auto& scan = hardware.signal_macro_scan();
-    if (scan && signal_macros::drift(*scan, {}) != signal_macros::SignalNameDrift::None) {
+    if (scan && signal_macros::drift(*scan, extra_names) != signal_macros::SignalNameDrift::None) {
         return MacroInstallStatus::OUTDATED;
     }
 
@@ -456,17 +463,24 @@ std::string MacroManager::get_macro_content() {
 }
 
 std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
+    return macro_content_for(hardware, signal_macros::recorded_signal_names());
+}
+
+std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware,
+                                            const std::vector<std::string>& extra_names) {
     std::string content = get_macro_content();
     if (content.empty()) {
         return content;
     }
-    if (!hardware.signal_macro_scan() && !hardware.has_helix_macro("HELIX_READY")) {
+    if (!hardware.signal_macro_scan() && !hardware.has_helix_macro("HELIX_READY") &&
+        extra_names.empty()) {
         return content;
     }
     const auto& scan = hardware.signal_macro_scan();
     if (scan) {
-        return with_alias_block(std::move(content), signal_macros::alias_block(
-                                                        signal_macros::names_to_alias(*scan, {})));
+        return with_alias_block(
+            std::move(content),
+            signal_macros::alias_block(signal_macros::names_to_alias(*scan, extra_names)));
     }
     std::vector<std::string> all(signal_macros::kVisibleNames.begin(),
                                  signal_macros::kVisibleNames.end());

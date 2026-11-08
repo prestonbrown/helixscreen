@@ -19,9 +19,11 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lan_client_auth_router.h"
+#include "macro_manager.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
+#include "sliced_signal_names.h"
 
 #include <spdlog/spdlog.h>
 
@@ -143,6 +145,21 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
 
     m_event_journal_recorder = std::make_unique<EventJournalRecorder>(client);
 
+    // A sliced file calling a visible signal name the printer no longer defines:
+    // the name is recorded, the macros row offers the update that forwards it,
+    // and the user hears why once.
+    m_sliced_signal_watcher =
+        std::make_unique<SlicedSignalWatcher>(client, [](const std::string& visible) {
+            auto& state = get_printer_state();
+            state.plugin_status_state().set_helix_macros_base_status(
+                MacroManager::evaluate_status(state.get_discovery()));
+            const std::string text = fmt::format(
+                lv_tr("This print calls {}, which the printer no longer has. Tap Update Helper "
+                      "Macros in Advanced to keep it working."),
+                visible);
+            ToastManager::instance().show(ToastSeverity::WARNING, text.c_str(), 8000);
+        });
+
     // Layer tracking fallback: some slicers don't emit SET_PRINT_STATS_INFO, so
     // print_stats.info never updates current_layer. The response lines carry it.
     client->register_method_callback(
@@ -187,6 +204,7 @@ void GcodeResponseRouting::detach_handlers(IMoonrakerClient* client) {
 }
 
 void GcodeResponseRouting::release_routers() {
+    m_sliced_signal_watcher.reset();
     m_event_journal_recorder.reset();
     m_gcode_narration_router.reset();
     m_lan_client_auth_router.reset();

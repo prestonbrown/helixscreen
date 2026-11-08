@@ -3459,6 +3459,7 @@
   <translation tag="Shutting down..." ja="シャットダウン中..."/>
   <translation tag="Signal" ja="信号"/>
   <translation tag="Signal #" ja="信号番号"/>
+  <translation tag="Signal macro renaming" ja="信号マクロの名前変更"/>
   <translation tag="Similarity" ja="類似度"/>
   <translation tag="Single object" ja="オブジェクト1個"/>
   <translation tag="Single toggle macro. State is not tracked." ja="単一のトグルマクロ。状態は追跡されません。"/>
@@ -3968,6 +3969,7 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ja="プラグインのファイル解析が必要ですが、実行されていません。"/>
   <translation tag="This plugin asks for no special permissions." ja="このプラグインは特別な権限を要求しません。"/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." ja="このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。"/>
+  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." ja="この印刷は {} を使用しますが、プリンターにはもうありません。動作を続けるには、詳細設定の「ヘルパーマクロを更新」をタップしてください。"/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." ja="この印刷は再開できません。印刷をやり直すか、繰り返し起きる場合はベッドチェックをオフにしてください。"/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." ja="この印刷はレイヤーを報告しないため、レイヤーでの一時停止は予約できません。"/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ja="この印刷には約 %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？"/>

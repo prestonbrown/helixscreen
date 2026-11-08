@@ -3459,6 +3459,7 @@
   <translation tag="Shutting down..." en="Shutting down..."/>
   <translation tag="Signal" en="Signal"/>
   <translation tag="Signal #" en="Signal #"/>
+  <translation tag="Signal macro renaming" en="Signal macro renaming"/>
   <translation tag="Similarity" en="Similarity"/>
   <translation tag="Single object" en="Single object"/>
   <translation tag="Single toggle macro. State is not tracked." en="Single toggle macro. State is not tracked."/>
@@ -3968,6 +3969,7 @@
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." en="This needs the plugin&apos;s file analysis, which isn&apos;t running."/>
   <translation tag="This plugin asks for no special permissions." en="This plugin asks for no special permissions."/>
   <translation tag="This plugin lets HelixScreen control print start options like bed mesh and QGL." en="This plugin lets HelixScreen control print start options like bed mesh and QGL."/>
+  <translation tag="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working." en="This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working."/>
   <translation tag="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening." en="This print can&apos;t be resumed. Restart it, or turn off the bed check if it keeps happening."/>
   <translation tag="This print does not report layers, so no layer pause can be scheduled." en="This print does not report layers, so no layer pause can be scheduled."/>
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" en="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?"/>

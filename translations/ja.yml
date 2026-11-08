@@ -3582,6 +3582,7 @@ translations:
   Shutting down...: シャットダウン中...
   Signal: 信号
   'Signal #': 信号番号
+  Signal macro renaming: '信号マクロの名前変更'
   Similarity: "類似度"
   Single object: 'オブジェクト1個'
   Single toggle macro. State is not tracked.: 単一のトグルマクロ。状態は追跡されません。
@@ -4134,6 +4135,7 @@ translations:
   This needs the plugin's file analysis, which isn't running.: "プラグインのファイル解析が必要ですが、実行されていません。"
   This plugin asks for no special permissions.: 'このプラグインは特別な権限を要求しません。'
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: 'このプラグインにより、HelixScreen がベッドメッシュや QGL などの印刷開始オプションを制御できます。'
+  This print calls {}, which the printer no longer has. Tap Update Helper Macros in Advanced to keep it working.: 'この印刷は {} を使用しますが、プリンターにはもうありません。動作を続けるには、詳細設定の「ヘルパーマクロを更新」をタップしてください。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'この印刷は再開できません。印刷をやり直すか、繰り返し起きる場合はベッドチェックをオフにしてください。'
   This print does not report layers, so no layer pause can be scheduled.: 'この印刷はレイヤーを報告しないため、レイヤーでの一時停止は予約できません。'
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: この印刷には約
