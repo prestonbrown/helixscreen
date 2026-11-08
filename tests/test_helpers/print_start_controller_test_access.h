@@ -105,14 +105,6 @@ class PrintStartControllerTestAccess {
             backend_index, helix::AmsType::NONE, std::move(mapping));
     }
 
-    static void persist_record() {
-        helix::ui::PrintStartController::persist_remap_state();
-    }
-
-    static void clear_record() {
-        helix::ui::PrintStartController::clear_persisted_remap_state();
-    }
-
     static void restore(helix::ui::PrintStartController& c) {
         c.restore_filament_mapping();
     }
