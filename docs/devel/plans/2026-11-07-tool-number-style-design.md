@@ -287,3 +287,7 @@ size report at the finish, not before.
    wanted?** Out of scope here; the enum is shaped so a lane style could follow.
 6. **Is the setting wanted at all**, or is the derivation enough? Recommend keeping it:
    it is the only fix for an owner whose config and dock plates disagree.
+
+## Decisions (Preston, 2026-11-07)
+
+- klipper-toolchanger rigs whose tools are all named T<n> show "T0", "T1" by auto-detection, and a per-printer setting (Auto / 1, 2, 3 / T0, T1, T2) overrides it. Everyone else stays 1-based.
