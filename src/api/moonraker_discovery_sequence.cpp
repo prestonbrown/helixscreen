@@ -217,28 +217,14 @@ void MoonrakerDiscoverySequence::discover_power_devices() {
     client_.send_jsonrpc(
         "machine.device_power.devices", json::object(),
         [](const json& response) {
-            std::vector<PowerDevice> devices;
-            if (response.contains("result") && response["result"].contains("devices")) {
-                for (const auto& dev : response["result"]["devices"]) {
-                    if (!dev.is_object())
-                        continue;
-                    PowerDevice pd;
-                    pd.device = dev.value("device", "");
-                    pd.type = dev.value("type", "");
-                    pd.status = dev.value("status", "off");
-                    pd.locked_while_printing = dev.value("locked_while_printing", false);
-                    if (!pd.device.empty()) {
-                        devices.push_back(std::move(pd));
-                    }
-                }
-            }
-            spdlog::info("[Moonraker Client] Power device detection: {} devices", devices.size());
+            auto devices =
+                std::make_shared<std::vector<PowerDevice>>(parse_power_devices(response));
+            spdlog::info("[Moonraker Client] Power device detection: {} devices", devices->size());
             get_printer_state().capabilities_state().set_power_device_count(
-                static_cast<int>(devices.size()));
+                static_cast<int>(devices->size()));
             // Marshal to UI thread — set_devices creates LVGL subjects
-            auto devices_copy = std::make_shared<std::vector<PowerDevice>>(std::move(devices));
-            helix::ui::queue_update("PowerDeviceState::set_devices", [devices_copy]() {
-                helix::PowerDeviceState::instance().set_devices(*devices_copy);
+            helix::ui::queue_update("PowerDeviceState::set_devices", [devices]() {
+                helix::PowerDeviceState::instance().set_devices(*devices);
             });
         },
         [](const MoonrakerError& err) {
