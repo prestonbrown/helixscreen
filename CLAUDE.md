@@ -77,7 +77,7 @@ agent brief, because agents default to over-verifying.
 |---|---|---|
 | **While building** - each task, each agent, each review fix | `make t F='[tags the change touches]'` once after the change. A new or changed test: break the line it pins once, see it go red, restore | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
 | **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding. 2. One screenshot per changed screen. 3. ONE `make land-gate` on the combined result, on the fastest free machine (thelio, then zeus; never a Mac) | a gate per branch; a second full gate for a docs-only or test-only fix; waiting on mutation |
-| **Landed** - right after the push, every batch, never skipped | `make mutate-diff MUTATE_ARGS="--base <the origin/main it landed on>"` from the landed tree, in the background, capped at 30 minutes. A survivor is a follow-up fix (a test that pins it) | blocking the merge on it |
+| **Landed** - right after the push, every batch, never skipped | `make mutate-diff MUTATE_ARGS="--base <the origin/main it landed on>"` from the landed tree, in the background, capped at 45 minutes. A survivor is a follow-up fix (a test that pins it) | blocking the merge on it |
 | **Gate red** | Flaky or environment stage: `make land-gate STAGES=<stage>` on the same clean HEAD. A real finding: fix it, rerun only that stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
 | **Release** | Whole-branch mutation, ASAN on the test host, device checks | |
 

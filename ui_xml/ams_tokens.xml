@@ -206,6 +206,9 @@
 
     <!-- The dryer page's unit picture, with the airflow drawn over it. Micro and Tiny
          hide it (ams_environment_overlay.xml), so it needs no size there. -->
+    <px name="dryer_unit_art_size_small" value="96"/>
+    <px name="dryer_unit_art_size_medium" value="128"/>
+    <px name="dryer_unit_art_size_large" value="160"/>
     <px name="dryer_unit_picture_size_small" value="40"/>
     <px name="dryer_unit_picture_size_medium" value="56"/>
     <px name="dryer_unit_picture_size_large" value="64"/>
