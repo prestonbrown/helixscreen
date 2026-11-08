@@ -2134,3 +2134,88 @@ TEST_CASE_METHOD(LVGLTestFixture,
     AmsState::instance().set_backend(nullptr);
     set_connection(ConnectionState::CONNECTED);
 }
+
+// ============================================================================
+// The mounted tool's number
+// ============================================================================
+
+namespace {
+
+/// A changer whose tools carry the numbers @p numbers, listed the way
+/// klipper-toolchanger publishes them: ascending, names in the same order.
+std::unique_ptr<AckingChanger> numbered_changer(const std::vector<int>& numbers) {
+    auto tc = std::make_unique<AckingChanger>(static_cast<int>(numbers.size()));
+    std::vector<std::string> names;
+    json listed_names = json::array();
+    for (int n : numbers) {
+        names.push_back("T" + std::to_string(n));
+        listed_names.push_back("tool T" + std::to_string(n));
+    }
+    tc->set_discovered_tools(names);
+    tc->feed(
+        json{{"toolchanger",
+              {{"status", "ready"}, {"tool_numbers", numbers}, {"tool_names", listed_names}}}});
+    return tc;
+}
+
+} // namespace
+
+TEST_CASE("A mounted tool's number names its slot, not its position",
+          "[toolchanger][mount_feed][tool_number]") {
+    SECTION("tools 0, 2, 3 with T2 mounted: the T2 head, and an unload empties it") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 1);
+
+        REQUIRE(tc->unload_filament(-1).success());
+        REQUIRE_FALSE(tc->sent_.empty());
+        // The head on the carriage needs no mount: the first stage heats it.
+        CHECK(tc->sent_.front().find("HEATER=" + mf::heater_name(1) + " ") != std::string::npos);
+        for (const auto& g : tc->sent_) {
+            CHECK(g.find(mf::heater_name(2)) == std::string::npos);
+            CHECK(g.find("tool T3") == std::string::npos);
+        }
+    }
+
+    SECTION("tools 0, 2 with T2 mounted: the second head") {
+        auto tc = numbered_changer({0, 2});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 1);
+    }
+
+    SECTION("contiguous 0, 1, 2 is unchanged") {
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 2);
+        tc->feed_status("ready", 0);
+        CHECK(tc->get_current_slot() == 0);
+    }
+
+    SECTION("a number the printer does not list seats nothing") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed_status("ready", 1);
+        CHECK(tc->get_current_slot() == -1);
+        CHECK_FALSE(tc->unload_filament(-1).success());
+        CHECK(tc->sent_.empty());
+    }
+
+    SECTION("an ASSIGN_TOOL remap resolves through the listing it rewrites") {
+        // ASSIGN_TOOL TOOL="tool T2" N=0: T2's head now answers to 0, and the
+        // tool that held 0 loses its number.
+        auto tc = numbered_changer({0, 1, 2});
+        tc->feed(json{{"toolchanger",
+                       {{"tool_numbers", {0, 1}},
+                        {"tool_names", {"tool T2", "tool T1"}},
+                        {"tool_number", 0}}}});
+        CHECK(tc->get_current_slot() == 2);
+    }
+
+    SECTION("a reassigned number follows its tool when only the names change") {
+        // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
+        // Moonraker's delta carries tool_names alone.
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T0", "tool T3", "tool T2"}}}}});
+        tc->feed_status("ready", 2);
+        CHECK(tc->get_current_slot() == 2);
+    }
+}

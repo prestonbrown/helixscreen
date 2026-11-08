@@ -982,6 +982,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     void parse_toolchanger_state(const nlohmann::json& tc_data);
 
+    /// Cache toolchanger.tool_numbers / tool_names from a frame carrying either.
+    /// Returns true when the frame changed the listing. Caller holds mutex_.
+    bool parse_tool_listing_locked(const nlohmann::json& tc_data);
+
+    /// The slot whose tool carries the G-code number @p tool_number, -1 for
+    /// none. Once the printer has listed its tools, a number it does not list
+    /// seats nothing. Caller holds mutex_.
+    [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
+
     /// Latch one firmware material reading: the types and palette it carried,
     /// and each slot's material and colour filed as vendor-cache observations.
     /// Caller holds mutex_.
@@ -1103,6 +1112,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+
+    /// toolchanger.tool_numbers and tool_names as last reported, cached apart:
+    /// Moonraker's deltas carry only the list that changed. Each name has its
+    /// "tool " prefix stripped to match tool_names_. Empty until reported.
+    std::optional<std::vector<int>> listed_tool_numbers_;
+    std::optional<std::vector<std::string>> listed_tool_names_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?
