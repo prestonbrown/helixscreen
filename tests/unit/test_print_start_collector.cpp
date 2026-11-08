@@ -9527,3 +9527,28 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
     drain_async_updates();
     CHECK_FALSE(collector().is_active());
 }
+
+TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
+                 "PrintStartCollector: the ETA tick retires a printer-announced start gone quiet",
+                 "[print][collector][creator5][2054]") {
+    REQUIRE(have_profile_);
+    helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    drain_async_updates();
+    send_gcode_response(kCreatorFiveStartTable);
+    drain_async_updates();
+    REQUIRE(collector().is_active());
+    REQUIRE(collector().armed_by_printer());
+
+    // No file opens and the printer says nothing more: only the tick can notice.
+    clock.advance(std::chrono::minutes(11));
+    void* const addr = &collector();
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (lv_timer_get_user_data(t) == addr) {
+            lv_timer_ready(t);
+        }
+    }
+    lv_timer_handler();
+    drain_async_updates();
+    CHECK_FALSE(collector().is_active());
+}

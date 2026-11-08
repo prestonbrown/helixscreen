@@ -617,3 +617,17 @@ TEST_CASE_METHOD(SentStartFixture,
     report("printing", "part.gcode");
     CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
 }
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A printer-announced reprint of the same file is named when it goes active",
+                 "[print_control][preparing_cancel][2054]") {
+    report("cancelled", "benchy.gcode");
+    ps().set_printer_side_pre_start(true);
+    REQUIRE(ps().get_effective_print_filename().empty());
+
+    // The file opens with the name print_stats already held: only the state moves.
+    get_printer_state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    drain();
+    CHECK(ps().get_effective_print_filename() == "benchy.gcode");
+    ps().set_printer_side_pre_start(false);
+}
