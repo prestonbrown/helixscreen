@@ -194,6 +194,19 @@ Procedure, run once per gate change, on zeus:
 The corpus reaches no CI red in the `esp32` size budget or firmware link, which the gate does
 not run. Those stay out of scope here.
 
+## Status (2026-11-08)
+
+| Item | State |
+|---|---|
+| Sequence 1, record what a gate did | Done. Each history row adds the judged SHA (`+dirty`), the base SHA and `<step>=<STATUS>:<seconds>` for every step. Results under `build/land-gate/results/` still go with the tree |
+| Cut 2, instrumentation | Done. `app-build.why.log`: objects recompiled (oldest first), shared stamps whose mtime moved, the flags stamp's text when it changed, ccache counter delta. The fix waits on what the next gates record. One candidate to check against them: the fresh lane's makes parse at t=0 beside app-build, and two parses writing `.build-flags.new` at once can let one `cmp` read the other's half-written file and move a stamp holding truncated text |
+| Cut 4, bats at t=0 | Done. `bats_select.py --app` splits the selection on `require_app` or `build/bin/`; the `without` half starts with the gate, the `needs` half waits for app-build's row. `apply-patches` now runs before every full gate's lanes, not only a test-host one |
+| Cut 5, parallel app tail | Done. ui, plugin, no-mocks and a test-host gate's quality run side by side; quality skips `qc_python_tests` (`HELIX_QC_SKIP_PYTHON_TESTS=1`) |
+| Cut 1, lanes on zeus | Open: question 1 |
+| Cut 3, selector on `release/1.1` | Open: question 3 decides `release-gate`'s `BATS_ALL` |
+| Selected C++ first red (cut 8) | Open: question 4 |
+| Cuts 6, 7, 9 | Not started; revisit after re-measuring |
+
 ## Open questions
 
 1. May the gate's local lanes move to zeus (cut 1)? It needs `parallel` added to the

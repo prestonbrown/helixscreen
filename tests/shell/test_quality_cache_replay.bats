@@ -117,3 +117,20 @@ with_stamp_helpers() {
   [ -n "$(hash_with 1)" ]
   [ "$(hash_with 1)" != "$(hash_with 0)" ]
 }
+
+@test "HELIX_QC_SKIP_PYTHON_TESTS=1 leaves tests/python to the caller, and its pass never stands in for a full one" {
+  local venv="$BATS_TEST_TMPDIR/venv-python"
+  printf '#!/bin/sh\necho "pytest ran" >> "%s/ran"\necho "1 passed"\n' "$BATS_TEST_TMPDIR" >"$venv"
+  chmod +x "$venv"
+  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" HELIX_QC_SKIP_PYTHON_TESTS=1 qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ]
+  [ ! -e "$BATS_TEST_TMPDIR/ran" ]
+  contains "the land gate's python step runs tests/python" "$output"
+  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
+  [ -e "$BATS_TEST_TMPDIR/ran" ]
+  hash_with() {
+    HELIX_QC_SKIP_PYTHON_TESTS="$1" bash -c \
+      'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+  }
+  [ "$(hash_with 1)" != "$(hash_with 0)" ]
+}

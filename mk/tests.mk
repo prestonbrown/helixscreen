@@ -626,17 +626,22 @@ test-kiauh:
 # Which files run is scripts/bats_select.py's answer: every product file, and
 # each build-tooling file (tests/shell/tooling-triggers.tsv) whose paths differ
 # from BATS_BASE, by default the fork point. BATS_ALL=1 runs every file.
+# BATS_APP=needs or BATS_APP=without keeps only the selected files that drive
+# the built app, or only the rest (bats_select.py --app), so a gate can start the
+# second half before its app build ends. A half with no file in it passes.
 BATS_BIN ?= bats
 BATS_REQUIRED ?=
 BATS_ALLOW_SERIAL ?=
 BATS_BASE ?=
 BATS_ALL ?=
+BATS_APP ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v "$(BATS_BIN)" >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
-		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
+		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
+		if [ -z "$$BATS_FILES" ]; then echo "✓ no shell test file selected$(if $(BATS_APP), (BATS_APP=$(BATS_APP)))"; exit 0; fi; \
 		if command -v parallel >/dev/null 2>&1; then \
 			jobs_dir=$$(mktemp -d); \
 			BATS_BIN="$(BATS_BIN)" HELIX_JOBS_FILE=$$jobs_dir/slots scripts/helix-claim hold --grow "$$jobs_dir/slots" -- \

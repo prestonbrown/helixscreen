@@ -107,6 +107,8 @@ qc_state_hash() {
     # edited in place will not invalidate the stamp. Tracked work always does.
     git ls-files --others --exclude-standard 2>/dev/null | sort || true
     echo "link verdict required: ${HELIX_LINK_BOUNDARY_REQUIRED:-0}"
+    # A sweep that left tests/python to the land gate is not a full sweep.
+    echo "python tests skipped: ${HELIX_QC_SKIP_PYTHON_TESTS:-0}"
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
