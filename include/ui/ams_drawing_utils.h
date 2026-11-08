@@ -131,7 +131,7 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
 void set_lane_badge_active(lv_obj_t* badge, bool active);
 
 /** Rewrite the number a create_lane_badge() badge shows. */
-void set_lane_badge_number(lv_obj_t* badge, int lane_number);
+void set_lane_badge_number(lv_obj_t* badge, int lane_number); // NAMESPACE_OK: in ams_draw
 
 // Shared dashed-circle draw callback for the empty-slot placeholder (moved here from
 // ui_ams_slot.cpp so both the overlay and the home widget share it).

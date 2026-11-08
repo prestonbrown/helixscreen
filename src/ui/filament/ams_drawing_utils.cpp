@@ -814,7 +814,7 @@ std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane
     return number < 0 ? std::string() : std::to_string(number);
 }
 
-void set_lane_badge_number(lv_obj_t* badge, int lane_number) {
+void set_lane_badge_number(lv_obj_t* badge, int lane_number) { // NAMESPACE_OK: in ams_draw
     if (lv_obj_t* lbl = badge ? lv_obj_get_child(badge, 0) : nullptr) {
         lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
     }
