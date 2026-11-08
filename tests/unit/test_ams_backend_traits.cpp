@@ -179,6 +179,18 @@ helix::ClassifyContext paused_job() {
 
 } // namespace
 
+TEST_CASE("only CFS firmware owns a lane's identity", "[ams][traits][box_wins]") {
+    CHECK(helix::printer::AmsBackendCfs::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAfc::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAd5xIfs::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAce::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendQidi::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendOpenAms::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendSnapmaker::kTraits.firmware_owns_lane_identity);
+}
+
 TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_traits]") {
     struct Row {
         const char* name;

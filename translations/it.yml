@@ -3231,6 +3231,7 @@ translations:
   Random: Casuale
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
+  Re-apply spool: ''
   Re-identify: Rileva di nuovo
   Re-measure: 'Misura di nuovo'
   Re-measure (~{} min): "Rimisura (~{} min)"
@@ -4147,6 +4148,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'Le macro di ausilio sono installate e si attivano dopo il riavvio di Klipper.'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock.
   The left RFID reader in this CFS unit may need service: Il lettore RFID sinistro di questa unità CFS potrebbe richiedere assistenza
+  The linked spool says {}.: ''
   The loaded slot is not known yet: "Lo slot caricato non è ancora noto"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : La bobina caricata è {}, ma questo file è stato sezionato per {}. Il filamento con cariche richiede un flusso più basso e un ugello indurito.
@@ -5088,6 +5090,7 @@ translations:
   'Reset to tag': 'Ripristina dal tag'
   'Save the changes to this spool?': 'Salvare le modifiche a questa bobina?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Non corrisponde alla bobina Spoolman collegata. Aggiornarla in Spoolman oppure scollegarla e tenerla su questo slot?'
+  Unlink: ''
   'Unlink, keep on this slot': 'Scollega, tieni su questo slot'
   'Unsaved changes': 'Modifiche non salvate'
   Update heater model?: Aggiornare il modello del riscaldatore?
