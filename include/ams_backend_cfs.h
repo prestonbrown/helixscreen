@@ -4,11 +4,14 @@
 
 #if HELIX_HAS_CFS
 
+#include "ui_timer_guard.h"
+
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <optional>
@@ -500,6 +503,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
         return "[AMS CFS]";
     }
     void on_started() override;
+    /// Query box, motor, sensor and extruder state; the answer lands through
+    /// handle_status_update on the main thread. Starts no new session.
+    void query_box_state();
 
     /// Push the user's chosen slot identity back to firmware via the
     /// `BOX_MODIFY_TN_DATA` gcode (registered by the box_wrapper C extension,
@@ -608,6 +614,29 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// (that firmware reports the external slot itself) as is any non-IDLE
     /// action (a mid-load sensor rise is the bay feed, not a bypass engage).
     void derive_stock_bypass_locked();
+
+    /// How long after start an empty bus decides nothing. A K2 with a CFS reads
+    /// box.state "disconnect" with every address "None" from ~7 s after Klipper
+    /// is ready until its unit answers at ~38 s, the same frame a K2 with no
+    /// CFS sends for good (#1933); 90 s is more than twice that.
+    static constexpr std::chrono::seconds kUnitSettle{90};
+
+    /// The merged stock box state reads "disconnect" (#1933).
+    bool bus_reported_empty_ = false;
+    /// kUnitSettle has passed since on_started().
+    bool unit_settle_expired_ = false;
+    helix::ui::LvglTimerGuard unit_settle_timer_;
+
+    /// Main thread: arm the one-shot settle timer.
+    void begin_unit_settle();
+    /// Main thread: the settle ended; decide over the bus as last reported.
+    void finish_unit_settle();
+    /// external_spool_only from the bus report, the units seen this session and
+    /// the settle. Returns whether it changed; the caller emits the event.
+    bool converge_external_spool_only_locked();
+    /// Stock dialect: the bypass toggle exists unless the external spool is the
+    /// only path.
+    void converge_stock_supports_bypass_locked();
 
     // Callback lifetime management
     helix::AsyncLifetimeGuard lifetime_;

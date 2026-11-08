@@ -1358,7 +1358,12 @@ struct AmsSystemInfo {
     /// capability answer would claim a negative it never read.
     bool endless_spool_groups_reported = false;
 
-    bool supports_bypass = false;            ///< Has bypass selector position
+    bool supports_bypass = false; ///< Has bypass selector position
+    /// The backend's firmware object is up but no unit sits behind it, so the
+    /// external spool is the toolhead's only feed: bypass is permanent, the
+    /// toolhead sensor alone says what is loaded, and there is no filament
+    /// system to manage (a stock K2 publishes `box` with no CFS attached, #1904).
+    bool external_spool_only = false;
     bool has_hardware_bypass_sensor = false; ///< true=auto-detect sensor, false=virtual/manual
     TipMethod tip_method = TipMethod::CUT;   ///< How filament tip is handled during unload
     bool supports_purge = false;             ///< Has purge capability after load

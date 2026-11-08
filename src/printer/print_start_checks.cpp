@@ -185,7 +185,10 @@ CheckResult gate_bypass_engaged_lane_print(const PrintStartContext& ctx) {
     // size (see print_lane_requirement). Multi-tool means the file needs AMS
     // lanes, and firmware (AFC _check_bypass, verified) refuses a lane load
     // while bypass filament is in the toolhead.
-    if (!ctx.any_bypass_active || print_lane_requirement(ctx) <= 1) {
+    //
+    // With no filament system presented the external spool is the printer's
+    // only path: there is no bypass to turn off.
+    if (!ctx.any_bypass_active || !ctx.ams_available || print_lane_requirement(ctx) <= 1) {
         return pass_result();
     }
     return warn_result(
@@ -243,7 +246,10 @@ CheckResult gate_required_filament_present(const PrintStartContext& ctx) {
     // lane — the lanes it happens to map to are irrelevant, and an empty one
     // must not block the print. Bypass engage itself proved filament at the
     // toolhead. (Multi-tool bypass keeps the check; gate 2 already warned.)
-    if (ctx.any_bypass_active && print_lane_requirement(ctx) <= 1) {
+    //
+    // A backend presenting no filament system has no lanes to consult and an
+    // always-active bypass that proves nothing, so it takes the sensor check.
+    if (ctx.ams_available && ctx.any_bypass_active && print_lane_requirement(ctx) <= 1) {
         return pass_result();
     }
     if (ctx.ams_manages_filament && ctx.has_active_backend) {

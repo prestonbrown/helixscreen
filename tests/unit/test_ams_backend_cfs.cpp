@@ -5722,3 +5722,136 @@ TEST_CASE("CFS routing ignores our own unconfirmed tool-table write",
         CHECK(helper.firmware_default_routing().head(1) == 3);
     }
 }
+
+namespace {
+
+/// A stock `box` frame with nothing on the bus: every address reports the
+/// "None" state a K2 publishes for an empty one, and the box's own state is
+/// `box_state` ("disconnect" on a K2 with no CFS, "connect" while a CFS unit
+/// is still answering its first RS-485 poll).
+json make_empty_bus_box(const char* box_state) {
+    json box = json::parse(R"({"filament": 0, "enable": 1, "auto_refill": 0,
+                               "filament_useup": 1, "map": {}})");
+    box["state"] = box_state;
+    for (const char* unit : {"T1", "T2", "T3", "T4"}) {
+        box[unit] = {{"state", "None"},
+                     {"filament", "None"},
+                     {"version", "-1"},
+                     {"vender", {"-1", "-1", "-1", "-1"}},
+                     {"remain_len", {"-1", "-1", "-1", "-1"}},
+                     {"color_value", {"-1", "-1", "-1", "-1"}},
+                     {"material_type", {"-1", "-1", "-1", "-1"}}};
+    }
+    return box;
+}
+
+json empty_notification() {
+    return json{{"params", json::array({json::object(), 0})}};
+}
+
+} // namespace
+
+TEST_CASE("CFS with no unit on the bus feeds only the external spool", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    cfs.mark_running();
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
+    REQUIRE(cfs.get_system_info().units.empty());
+
+    SECTION("before the unit settle ends it claims nothing") {
+        CHECK_FALSE(cfs.is_bypass_active());
+        CHECK(cfs.requires_slot_selection_for_load());
+        CHECK(cfs.get_system_info().supports_bypass);
+    }
+
+    CfsTestAccess::finish_unit_settle(cfs);
+
+    SECTION("after the settle it is bypass with no declaration and no toggle") {
+        CHECK(cfs.get_system_info().external_spool_only);
+        CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
+        CHECK(cfs.is_bypass_active());
+        CHECK_FALSE(cfs.requires_slot_selection_for_load());
+        CHECK_FALSE(cfs.get_system_info().supports_bypass);
+    }
+
+    SECTION("a box re-query from a device action keeps the verdict") {
+        REQUIRE(cfs.execute_device_action("comm_test", std::any{}).result == AmsResult::SUCCESS);
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
+        CHECK(cfs.get_system_info().external_spool_only);
+        CHECK(cfs.is_bypass_active());
+    }
+
+    SECTION("the bypass toggle refuses: there is no other side to switch to") {
+        CHECK(cfs.enable_bypass().result != AmsResult::SUCCESS);
+        CHECK(cfs.disable_bypass().result != AmsResult::SUCCESS);
+        CHECK(cfs.captured.empty());
+    }
+
+    SECTION("the toolhead sensor decides whether the spool is loaded") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, empty_notification());
+        CHECK(cfs.get_system_info().current_slot == helix::ui::EXTERNAL_SPOOL_SLOT);
+
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/false);
+        CfsTestAccess::handle_status(cfs, empty_notification());
+        CHECK(cfs.get_system_info().current_slot == -1);
+    }
+
+    SECTION("unload of the loaded spool runs the factory external-spool script") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, empty_notification());
+        REQUIRE(cfs.unload_filament(helix::ui::EXTERNAL_SPOOL_SLOT).result == AmsResult::SUCCESS);
+        REQUIRE(cfs.dispatched.size() == 1);
+        CHECK(cfs.dispatched[0] ==
+              AmsBackendCfs::bypass_unload_gcode(CfsTestAccess::macro_variant(cfs),
+                                                 /*has_quit_material=*/false));
+    }
+
+    SECTION("a unit coming online ends it, loaded spool included") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, empty_notification());
+        REQUIRE(cfs.get_system_info().current_slot == helix::ui::EXTERNAL_SPOOL_SLOT);
+
+        CfsTestAccess::handle_status(
+            cfs, make_cfs_notification(make_single_unit_box({"101001", "-1", "-1", "-1"},
+                                                            {"01A1A1A", "-1", "-1", "-1"})));
+        const auto info = cfs.get_system_info();
+        CHECK_FALSE(info.external_spool_only);
+        CHECK_FALSE(cfs.is_bypass_active());
+        CHECK(info.supports_bypass);
+        CHECK(info.current_slot != helix::ui::EXTERNAL_SPOOL_SLOT);
+    }
+}
+
+TEST_CASE("CFS settle ending over an already-empty bus decides without a new frame",
+          "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
+    REQUIRE_FALSE(cfs.is_bypass_active());
+
+    CfsTestAccess::finish_unit_settle(cfs);
+    CHECK(cfs.is_bypass_active());
+    CHECK(cfs.get_system_info().current_slot == helix::ui::EXTERNAL_SPOOL_SLOT);
+}
+
+TEST_CASE("CFS boot frame with every address None is not an empty bus while the box says connect",
+          "[ams][cfs][bypass][1933]") {
+    CfsRemapHelper cfs;
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("connect")));
+    CfsTestAccess::finish_unit_settle(cfs);
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+    CHECK_FALSE(cfs.is_bypass_active());
+    CHECK(cfs.requires_slot_selection_for_load());
+}
+
+TEST_CASE("CFS unit seen this session keeps the CFS when the bus later reads empty",
+          "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    CfsTestAccess::handle_status(
+        cfs, make_cfs_notification(make_single_unit_box({"101001", "-1", "-1", "-1"},
+                                                        {"01A1A1A", "-1", "-1", "-1"})));
+    CfsTestAccess::finish_unit_settle(cfs);
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box("disconnect")));
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+    CHECK_FALSE(cfs.is_bypass_active());
+}

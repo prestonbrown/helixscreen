@@ -540,13 +540,18 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     ctx.filament_color_count = filament_colors_.size();
 
     auto& ams = AmsState::instance();
-    ctx.ams_available = ams.is_available();
     ctx.any_bypass_active = ams.any_bypass_active();
     ctx.external_spool = ams.get_external_spool_info();
     ctx.has_active_backend = ams.get_backend() != nullptr;
+    // A backend whose only feed is the external spool presents no filament
+    // system: the printer's own sensors answer for it, not its lanes.
+    bool any_filament_system = false;
     for (int i = 0; i < ams.backend_count(); ++i) {
         if (auto* backend = ams.get_backend(i)) {
-            ctx.ams_manages_filament = true;
+            if (!backend->get_system_info().external_spool_only) {
+                any_filament_system = true;
+                ctx.ams_manages_filament = true;
+            }
             if (backend->auto_unloads_after_print()) {
                 ctx.any_auto_unload_backend = true;
             }
@@ -557,6 +562,7 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
             ctx.toolhead_clearable.push_back(false);
         }
     }
+    ctx.ams_available = ams.is_available() && any_filament_system;
 
     if (detail_view_) {
         ctx.has_detail_view = true;

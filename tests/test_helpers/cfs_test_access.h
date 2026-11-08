@@ -179,6 +179,11 @@ class CfsTestAccess {
         b.system_info_.filament_loaded = detected;
     }
 
+    /// Fire the post-start unit settle the backend's one-shot timer would.
+    static void finish_unit_settle(helix::printer::AmsBackendCfs& b) {
+        b.finish_unit_settle();
+    }
+
     /// Run the real completion path (the gcode-script success callback body),
     /// including phase verification.
     static void complete_action(helix::printer::AmsBackendCfs& b) {
