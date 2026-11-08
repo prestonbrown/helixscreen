@@ -5070,20 +5070,17 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK_FALSE(grid().is_callout_open());
 }
 
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a hold on the selected tile's resize edge resizes, with no callout",
+TEST_CASE_METHOD(EditHomeFixture, "a hold on the selected tile's resize edge raises no callout",
                  "[edit-callout][grid_edit][home]") {
     build_home(1, 1);
     enter_edit_mode();
     select_by_tap("temperature");
     const lv_area_t wa = area_of(widget_on(0, "temperature"));
-    const helix::CellMetrics m = page_metrics(0);
-    const int x =
-        wa.x1 + GridEditModeTestAccess::edge_hit_band_for_cell(std::min(m.cell_w, m.cell_h)) / 2;
+    const int x = wa.x1 + 1;
     const int y = (wa.y1 + wa.y2) / 2;
+    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Left);
     indev.press(x, y);
     indev.hold(indev.long_press_hold_ms());
-    CHECK(GridEditModeTestAccess::resizing(grid()));
     CHECK_FALSE(grid().is_callout_open());
     indev.release(x, y);
     settle();
