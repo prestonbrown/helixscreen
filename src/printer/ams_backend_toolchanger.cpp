@@ -23,6 +23,7 @@
 #include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -55,6 +56,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
 void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discovery) {
     namespace addon = helix::toolchanger_addon;
     set_discovered_tools(discovery.tool_names());
+    set_configured_tool_numbers(discovery.configured_tool_numbers());
     set_feeder(addon::resolve_feeder(discovery,
                                      helix::SettingsManager::instance().get_feeder_open_macro(),
                                      helix::SettingsManager::instance().get_feeder_close_macro()));
@@ -106,6 +108,12 @@ void AmsBackendToolChanger::set_discovered_tools(std::vector<std::string> tool_n
     }
 
     spdlog::info("[AMS ToolChanger] Set {} discovered tools", tool_names_.size());
+}
+
+void AmsBackendToolChanger::set_configured_tool_numbers(
+    std::unordered_map<std::string, int> numbers) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    configured_tool_numbers_ = std::move(numbers);
 }
 
 // Destructor not needed -- base class handles subscription cleanup
@@ -3189,8 +3197,16 @@ AmsError AmsBackendToolChanger::reset_tool_mappings() {
         const bool listed = !home_tool_numbers_.empty();
         if (listed) {
             for (int i = 0; i < tool_count; ++i) {
-                const auto found = home_tool_numbers_.find(tool_names_[static_cast<size_t>(i)]);
-                const int home = found != home_tool_numbers_.end() ? found->second : -1;
+                const auto& name = tool_names_[static_cast<size_t>(i)];
+                int home = -1;
+                if (const auto configured =
+                        configured_tool_numbers_.find(helix::text_io::to_lower(name));
+                    configured != configured_tool_numbers_.end()) {
+                    home = configured->second;
+                } else if (const auto first = home_tool_numbers_.find(name);
+                           first != home_tool_numbers_.end()) {
+                    home = first->second;
+                }
                 if (home >= 0 && listed_number_for_slot_locked(i) != home) {
                     remaps_needed.emplace_back(home, tool_names_[static_cast<size_t>(i)]);
                 }

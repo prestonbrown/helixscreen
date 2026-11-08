@@ -83,6 +83,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     void set_discovered_tools(std::vector<std::string> tool_names);
 
+    /// Each tool's configured number, keyed by lowercased tool name (from
+    /// PrinterDiscovery::configured_tool_numbers()). A mapping reset returns
+    /// every tool to it.
+    void set_configured_tool_numbers(std::unordered_map<std::string, int> numbers);
+
     /// Tool names plus the feeder, tool sensor, swap commands and material
     /// source resolved from discovery.
     void set_discovery(const helix::PrinterDiscovery& discovery) override;
@@ -1129,9 +1134,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// "tool " prefix stripped to match tool_names_. Empty until reported.
     std::optional<std::vector<int>> listed_tool_numbers_;
     std::optional<std::vector<std::string>> listed_tool_names_;
-    /// Each tool's number in the first complete listing that named it: the
-    /// configured numbering reset_tool_mappings() returns the tools to.
+    /// Each tool's number in the first complete listing that named it, which
+    /// reset_tool_mappings() falls back to for a tool with no configured number.
     std::map<std::string, int> home_tool_numbers_;
+    /// Configured numbers from [tool <name>] sections, lowercased names. They
+    /// outrank home_tool_numbers_, which a remap made before connecting skews.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?

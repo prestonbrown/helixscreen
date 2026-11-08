@@ -2236,6 +2236,24 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         CHECK(tc->sent_.size() == 3);
     }
 
+    SECTION("a reset uses the configured numbers when the first listing was already remapped") {
+        AckingChanger tc(3);
+        tc.set_discovered_tools({"T0", "T2", "T3"});
+        tc.set_configured_tool_numbers({{"t0", 0}, {"t2", 2}, {"t3", 3}});
+        tc.feed(json{{"toolchanger",
+                      {{"status", "ready"},
+                       {"tool_numbers", {0, 2, 3}},
+                       {"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc.reset_tool_mappings().success());
+        const auto sent = [&](const std::string& g) {
+            return std::find(tc.sent_.begin(), tc.sent_.end(), g) != tc.sent_.end();
+        };
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T0\" N=0"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T2\" N=2"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T3\" N=3"));
+        CHECK(tc.sent_.size() == 3);
+    }
+
     SECTION("a reset of tools already on their numbers sends nothing") {
         auto tc = numbered_changer({0, 2, 3});
         REQUIRE(tc->reset_tool_mappings().success());
