@@ -6,7 +6,7 @@
  * @brief notify_filelist_changed must only refresh for the root the panel lists.
  *
  * PrintSelectFileProvider hardcodes the "gcodes" root, so a change anywhere else
- * cannot alter what the panel shows. Debug bundle L53W5PKG: an AFC printer
+ * cannot alter what the panel shows. In one debug bundle, an AFC printer
  * rewrites config:AFC/AFC.var.unit on every SET_* command and a SAVE_VARIABLE
  * delayed_gcode rewrites config:saved_variables.cfg, which drove 113 full
  * server.files.get_directory round trips in one session while the user sat on

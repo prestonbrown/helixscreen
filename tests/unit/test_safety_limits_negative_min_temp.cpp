@@ -54,7 +54,7 @@ using namespace helix;
 
 namespace {
 
-/// The reporter's configuration (bundle 6QWNVZY5): every extruder carries
+/// The reporter's configuration: every extruder carries
 /// min_temp: -100 so Klipper tolerates the open thermistor on an empty dock.
 constexpr double kReportedMinTemp = -100.0;
 

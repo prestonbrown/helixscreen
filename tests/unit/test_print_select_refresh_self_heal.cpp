@@ -25,7 +25,7 @@ using namespace std::chrono_literals;
 //
 // FlashForge's Moonraker returned a doubled folder segment
 // ("Feinkost/Feinkost/Gridfinity") that the server reports as missing; the panel
-// retried it every refresh forever (debug bundle TJVQDCZ6). When get_directory
+// retried it every refresh forever. When get_directory
 // fails because the directory is gone, the panel should fall back to root rather
 // than loop. Resetting only when NOT already at root prevents an infinite
 // reset->refresh->fail cycle if root itself ever errors.

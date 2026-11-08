@@ -370,8 +370,8 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     // against the live set. If an observer's backing object was destroyed during
     // the same dispatch pass — e.g. a PrintStatusWidget torn down on panel
     // teardown, whose destructor calls remove_observer() — the stale snapshot
-    // still dereferenced the now-freed std::function pointer (SIGSEGV, debug
-    // bundle S52DJB5W: fault ~0x800020c during nav-away + reconnect).
+    // still dereferenced the now-freed std::function pointer (SIGSEGV,
+    // fault ~0x800020c during nav-away + reconnect).
     std::atomic<int> victim_count{0};
 
     // The "victim" models that torn-down widget: it is removed mid-dispatch and

@@ -123,7 +123,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "pending action set then cleared on stat
 // gcode.script RPC still answers `ok`, so dispatch_prepared_resume's error path
 // never runs and the optimistic spinner is left to the 150s backstop. For 150s
 // the button reads "Resuming..." AND is disabled, so the user cannot retry even
-// after clearing the runout (bundle JX2FVRB9: RESUME at 07:33:29 rejected for
+// after clearing the runout (one AD5X log: RESUME at 07:33:29 rejected for
 // filament-out, pending finally cleared at 07:35:59).
 //
 // Mutation check: make notify_printer_error() a no-op and the first REQUIRE in

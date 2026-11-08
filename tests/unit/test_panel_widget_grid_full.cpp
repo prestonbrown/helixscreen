@@ -254,7 +254,7 @@ bool mentions(const std::vector<std::string>& warnings, const char* needle) {
 
 } // namespace
 
-/// Fixture: landscape 800x480 — the geometry from bundle XGVDYEB5.
+/// Fixture: landscape 800x480 — the geometry from a field report.
 class GridFullFixture : public XMLTestFixture {
   public:
     GridFullFixture() {

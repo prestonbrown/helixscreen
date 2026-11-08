@@ -133,7 +133,7 @@ TEST_CASE("PanelWidgetManager raw pointer shared resources", "[panel_widget][man
     mgr.clear_shared_resources();
 }
 
-// Regression test for AD5X bundles XG9QJ3V9 / PFEHDEXF (v0.99.49):
+// Regression test for two AD5X debug bundles (v0.99.49):
 // SIGBUS in unsubscribe_on_delete_cb -> lv_obj_remove_event_cb_with_user_data
 // during early startup, after a burst of 8 hardware-gate subjects fired in
 // ~150 ms. Each firing triggered populate_page synchronously in the same
@@ -385,7 +385,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
 namespace {
 
-// Spy PanelWidget for the grid *rebuild* race (#983, bundle VDJ3J9UV). Unlike
+// Spy PanelWidget for the grid *rebuild* race (#983). Unlike
 // GridSpyWidget it actively FORCES a synchronous layout from inside attach() —
 // exactly what PrintStatusWidget does (resize_and_publish -> lv_obj_update_layout,
 // ui_progress_arc.cpp). On a rebuild the page container is reused and is still in

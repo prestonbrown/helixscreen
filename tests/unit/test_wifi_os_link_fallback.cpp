@@ -272,7 +272,7 @@ TEST_CASE("start_scan with OS link up suppresses the scan-failed user warning",
 
 TEST_CASE("A scan that fails right after our own forget does not warn the user",
           "[wifi][unit][ad5x]") {
-    // AD5X bundle TAU4PW4H: the user taps Forget on the CONNECTED network, that
+    // On an AD5X, the user taps Forget on the CONNECTED network, that
     // disassociates, the overlay restarts scanning immediately, the trigger
     // fails while the link is mid-teardown — and because the link genuinely is
     // down at that instant, the os_link_up() suppression above does not apply.
