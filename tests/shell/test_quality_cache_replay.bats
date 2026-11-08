@@ -151,6 +151,7 @@ with_gate_results() {
 }
 
 @test "HELIX_QC_SKIP_PYTHON_TESTS=1 leaves tests/python to the caller, and its pass never stands in for a full one" {
+  unset GITHUB_ACTIONS
   local venv="$BATS_TEST_TMPDIR/venv-python"
   printf '#!/bin/sh\necho "pytest ran" >> "%s/ran"\necho "1 passed"\n' "$BATS_TEST_TMPDIR" >"$venv"
   chmod +x "$venv"

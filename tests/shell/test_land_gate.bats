@@ -654,6 +654,7 @@ PY
 }
 
 @test "test-shell hands BATS_APP to the selector as --app, and an empty half runs no bats" {
+    unset BATS_ALL BATS_BASE
     fake_selector_fragment
     FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell \
         BATS_BIN=fake-bats BATS_APP=needs
