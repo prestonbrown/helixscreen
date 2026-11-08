@@ -12,6 +12,11 @@
 #include "first_run_tour.h"
 #include "tour_steps.h"
 
+#include <algorithm>
+#include <array>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::Config;
@@ -31,6 +36,7 @@ void reset_tour_settings() {
     // Edit mode gates the tour, and the subject is global, so a case that leaves
     // it set would decide every case that runs after it.
     lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    FirstRunTour::instance().set_printer_ready(true);
     // In-memory singleton state is left clean by the public API used in these
     // tests: start()/skip() always pair, and advance() past the last step calls
     // finish() which resets running_. No explicit reset needed.
@@ -60,7 +66,6 @@ TEST_CASE("FirstRunTour gate: re-triggers when last_seen_version is behind TOUR_
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", 0);
-    // kTourVersion is 1; last_seen=0 < 1, so tour should re-trigger.
     REQUIRE(FirstRunTour::should_auto_start() == true);
 }
 
@@ -133,33 +138,135 @@ TEST_CASE("FirstRunTour mark_completed writes both flags", "[tour]") {
     REQUIRE(cfg->get<int>("/tour/last_seen_version", 0) == helix::tour::kTourVersion);
 }
 
-TEST_CASE("Tour steps: always 8 steps regardless of AMS", "[tour]") {
-    auto steps_no_ams = build_tour_steps(/*has_ams=*/false);
-    auto steps_with_ams = build_tour_steps(/*has_ams=*/true);
-    REQUIRE(steps_no_ams.size() == 8);
-    REQUIRE(steps_with_ams.size() == 8);
+namespace {
+std::vector<std::string> titles(const std::vector<TourStep>& steps) {
+    std::vector<std::string> out;
+    for (const auto& s : steps)
+        out.push_back(s.title_key);
+    return out;
 }
+bool has_title(const std::vector<TourStep>& steps, const std::string& title) {
+    const auto t = titles(steps);
+    return std::find(t.begin(), t.end(), title) != t.end();
+}
+const TourStep& step_titled(const std::vector<TourStep>& steps, const std::string& title) {
+    auto it = std::find_if(steps.begin(), steps.end(),
+                           [&](const TourStep& s) { return s.title_key == title; });
+    REQUIRE(it != steps.end());
+    return *it;
+}
+} // namespace
 
-TEST_CASE("Tour steps: step 2 targets AMS widget when present, nozzle otherwise", "[tour]") {
+TEST_CASE("Tour steps: the filament system step exists only with a filament system", "[tour]") {
     auto with_ams = build_tour_steps(true);
     auto without = build_tour_steps(false);
-    REQUIRE(with_ams[1].target_name == "ams");
-    REQUIRE(without[1].target_name == "nozzle_temps");
+    REQUIRE(with_ams.size() == without.size() + 1);
+    CHECK(has_title(with_ams, "Your filament system"));
+    CHECK_FALSE(has_title(without, "Your filament system"));
 }
 
-TEST_CASE("Tour steps: step 4 is print_status widget, steps 5-8 are nav buttons", "[tour]") {
-    auto steps = build_tour_steps(true);
-    REQUIRE(steps[3].target_name == "print_status");
-    REQUIRE(steps[4].target_name == "nav_btn_controls");
-    REQUIRE(steps[5].target_name == "nav_btn_filament");
-    REQUIRE(steps[6].target_name == "nav_btn_advanced");
-    REQUIRE(steps[7].target_name == "nav_btn_settings");
+TEST_CASE("Tour steps: the at-a-glance step targets AMS when present, nozzle otherwise", "[tour]") {
+    CHECK(step_titled(build_tour_steps(true), "Your printer at a glance").target_name == "ams");
+    CHECK(step_titled(build_tour_steps(false), "Your printer at a glance").target_name ==
+          "nozzle_temps");
 }
 
-TEST_CASE("Tour steps: welcome and customize steps have correct targets", "[tour]") {
+TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar", "[tour]") {
     auto steps = build_tour_steps(true);
-    REQUIRE(steps[0].target_name.empty());        // Welcome is centered
-    REQUIRE(steps[2].target_name == "fan_stack"); // Customize example tile
+    CHECK(steps.front().title_key == "Welcome to HelixScreen");
+    CHECK(steps.front().target_name.empty());
+    CHECK(steps.back().target_name == "nav_btn_settings");
+    CHECK(step_titled(steps, "Customize your home screen").target_name == "fan_stack");
+    CHECK_FALSE(has_title(steps, "New in 1.1"));
+}
+
+TEST_CASE("Tour steps: panel steps name the screen that holds their target", "[tour]") {
+    auto steps = build_tour_steps(true);
+    CHECK(step_titled(steps, "Load and unload").panel == helix::tour::TourPanel::Filament);
+    CHECK(step_titled(steps, "Load and unload").anchor_hint ==
+          helix::tour::TooltipAnchor::LeftNarrowed);
+    const auto& ams = step_titled(steps, "Your filament system");
+    CHECK(ams.panel == helix::tour::TourPanel::AmsOverlay);
+    CHECK(ams.target_name == "ams_unit_card");
+    CHECK(ams.fallback_target_name == "unit_cards_row");
+    CHECK(step_titled(steps, "Controls").panel == helix::tour::TourPanel::Home);
+}
+
+TEST_CASE("Tour steps: the filament system step directly follows the Filament panel step",
+          "[tour]") {
+    auto t = titles(build_tour_steps(true));
+    auto filament = std::find(t.begin(), t.end(), "Load and unload");
+    REQUIRE(filament != t.end());
+    REQUIRE(filament + 1 != t.end());
+    CHECK(*(filament + 1) == "Your filament system");
+}
+
+TEST_CASE("Tour steps: Print Status is shown as a picture", "[tour]") {
+    const auto& s = step_titled(build_tour_steps(false), "A new Print Status screen");
+    CHECK(s.target_name.empty());
+    CHECK_FALSE(s.preview_image.empty());
+}
+
+TEST_CASE("Tour steps: a 1.0 upgrader sees only what is new", "[tour]") {
+    using V = std::vector<std::string>;
+    CHECK(titles(build_tour_steps(true, 1)) == V{"New in 1.1", "Customize your home screen",
+                                                 "A new Print Status screen", "Load and unload",
+                                                 "Your filament system"});
+    CHECK(titles(build_tour_steps(false, 1)) == V{"New in 1.1", "Customize your home screen",
+                                                  "A new Print Status screen", "Load and unload"});
+}
+
+TEST_CASE("Tour steps: nothing is new to someone on the current version", "[tour]") {
+    CHECK(build_tour_steps(true, helix::tour::kTourVersion).empty());
+}
+
+TEST_CASE("auto_start_seen_version: only a finished tour counts as seen", "[tour]") {
+    CHECK(helix::tour::auto_start_seen_version(false, 1) == 0);
+    CHECK(helix::tour::auto_start_seen_version(true, 0) == 0);
+    CHECK(helix::tour::auto_start_seen_version(true, 1) == 1);
+}
+
+TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
+    reset_tour_settings();
+    FirstRunTour::instance().set_printer_ready(false);
+    CHECK_FALSE(FirstRunTour::should_auto_start());
+    FirstRunTour::instance().set_printer_ready(true);
+    CHECK(FirstRunTour::should_auto_start());
+}
+
+TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
+    reset_tour_settings();
+    Config::get_instance()->set<bool>("/tour/completed", true);
+    Config::get_instance()->set<int>("/tour/last_seen_version", 1);
+    REQUIRE(helix::tour::kTourVersion == 2);
+    CHECK(FirstRunTour::should_auto_start());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
+                 "[tour]") {
+    reset_tour_settings();
+    auto& nav = NavigationManager::instance();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    nav.set_panels(panels.data());
+    nav.set_active(helix::PanelId::Home);
+
+    auto& t = FirstRunTour::instance();
+    t.start();
+    const auto t_list = titles(build_tour_steps(helix::tour::hardware_has_ams()));
+    const auto index = std::find(t_list.begin(), t_list.end(), "Load and unload") - t_list.begin();
+    for (auto i = 0; i < index; ++i) {
+        REQUIRE(t.is_running());
+        CHECK(nav.get_active() == helix::PanelId::Home);
+        t.advance();
+    }
+    REQUIRE(t.is_running());
+    CHECK(nav.get_active() == helix::PanelId::Filament);
+
+    t.skip();
+    CHECK(nav.get_active() == helix::PanelId::Home);
+    CHECK_FALSE(t.is_running());
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {
@@ -184,7 +291,8 @@ TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: advance past last step finishe
     reset_tour_settings();
     auto& t = FirstRunTour::instance();
     t.start();
-    for (int i = 0; i < 8; ++i)
+    const auto count = build_tour_steps(helix::tour::hardware_has_ams()).size();
+    for (std::size_t i = 0; i < count; ++i)
         t.advance();
     REQUIRE(!t.is_running());
     REQUIRE(Config::get_instance()->get<bool>("/tour/completed", false) == true);

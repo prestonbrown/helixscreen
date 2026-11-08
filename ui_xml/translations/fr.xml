@@ -168,6 +168,7 @@
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." fr="Une macro qui nettoie la buse. HelixScreen peut l&apos;exécuter avant une impression depuis les options de pré-impression."/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" fr="Une broche d&apos;E/S moteur n&apos;a pas pu être restaurée. Éteignez et rallumez l&apos;imprimante pour récupérer"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" fr="Les paramètres d&apos;un moteur n&apos;ont pas pu être écrits. Éteignez et rallumez l&apos;imprimante pour réessayer"/>
+  <translation tag="A new Print Status screen" fr="Un nouvel écran d&apos;état de l&apos;impression"/>
   <translation tag="A newer version of the helper macros is available" fr="Une version plus récente des macros d&apos;aide est disponible"/>
   <translation tag="A picture of your printer" fr="Une photo de votre imprimante"/>
   <translation tag="A print holds the printer." fr="Une impression occupe l&apos;imprimante."/>
@@ -1142,6 +1143,7 @@
   <translation tag="Duplicate" fr="Dupliquer"/>
   <translation tag="Duplicated" fr="Dupliqué"/>
   <translation tag="Duration" fr="Durée"/>
+  <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." fr="Pendant une impression, retrouvez une pastille pour chaque chauffage, ventilateur et lumière, la liste des étapes de démarrage, ainsi que la progression et les commandes dans un seul bandeau."/>
   <translation tag="E-Stop (M112)" fr="Arrêt d&apos;urgence (M112)"/>
   <translation tag="E-Stop Confirmation" fr="Confirmation arrêt d&apos;urgence"/>
   <translation tag="EDDY CURRENT" fr="EDDY CURRENT"/>
@@ -1747,6 +1749,7 @@
   <translation tag="Helper Macros" fr="Macros d&apos;aide"/>
   <translation tag="Helper macros already installed" fr="Les macros d&apos;aide sont déjà installées"/>
   <translation tag="Helper macros are up to date" fr="Les macros d&apos;aide sont à jour"/>
+  <translation tag="Here&apos;s a quick look at what changed since your last version." fr="Un aperçu rapide de ce qui a changé depuis votre dernière version."/>
   <translation tag="Hide Firmware Noise" fr="Masquer le bruit du firmware"/>
   <translation tag="Hide Temperature Reports" fr="Masquer les rapports de température"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" fr="Masquer le clavier à l&apos;écran lorsqu&apos;un clavier USB est branché"/>
@@ -2078,6 +2081,7 @@
   <translation tag="Load a filament first before trying to unload" fr="Chargez d&apos;abord du filament avant d&apos;essayer de le décharger"/>
   <translation tag="Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one" fr="Chargez une nouvelle bobine dans ce slot, ou activez le réapprovisionnement automatique pour basculer sur une bobine équivalente"/>
   <translation tag="Load all stopped" fr="Chargement global arrêté"/>
+  <translation tag="Load and unload" fr="Charger et décharger"/>
   <translation tag="Load and unload filament at the tool by hand" fr="Chargez et déchargez le filament à la main sur l&apos;outil"/>
   <translation tag="Load canceled: nozzle target dropped" fr="Chargement annulé : la cible de la buse a baissé"/>
   <translation tag="Load complete" fr="Chargement terminé"/>
@@ -2090,7 +2094,8 @@
   <translation tag="Load or unload filament." fr="Chargez ou déchargez du filament."/>
   <translation tag="Load stopped" fr="Chargement arrêté"/>
   <translation tag="Load the required filaments or start anyway?" fr="Charger les filaments requis ou démarrer quand même ?"/>
-  <translation tag="Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors." fr="Chargez, déchargez et changez les bobines. Visualisez votre système multi-filaments en un coup d&apos;œil, associez le filament aux outils et surveillez les capteurs de fin de filament."/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." fr="Chargez, déchargez et purgez ici. Choisissez d&apos;abord un matériau pour régler ses températures."/>
+  <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." fr="Chargez, déchargez et changez de bobine, réglez les températures et surveillez les capteurs de filament."/>
   <translation tag="Load..." fr="Charger..."/>
   <translation tag="Loaded" fr="Chargé"/>
   <translation tag="Loading" fr="Chargement"/>
@@ -2122,7 +2127,7 @@
   <translation tag="Login Required" fr="Connexion requise"/>
   <translation tag="Logs" fr="Journaux"/>
   <translation tag="Long Press Time" fr="Durée d&apos;appui long"/>
-  <translation tag="Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout." fr="Appui long sur n&apos;importe quelle tuile pour entrer en mode édition — réorganisez, redimensionnez, supprimez ou ajoutez des widgets, et ajoutez des pages supplémentaires pour votre disposition préférée."/>
+  <translation tag="Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages." fr="Appuyez longuement sur une tuile pour passer en mode édition. La nouvelle grille permet de réorganiser, redimensionner, retirer ou ajouter des widgets, et de les faire glisser entre les pages."/>
   <translation tag="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)" fr="Appui long sur la grille d&apos;accueil pour réorganiser les widgets (désactivez si cela se déclenche par accident)"/>
   <translation tag="Longest Disconnect" fr="Déconnexion la plus longue"/>
   <translation tag="Looking for the active spool..." fr="Recherche de la bobine active..."/>
@@ -2273,7 +2278,6 @@
   <translation tag="Modifying G-code needs the HelixPrint plugin. Printing original file." fr="Modifier le G-Code nécessite le plugin HelixPrint. Le fichier original sera imprimé."/>
   <translation tag="Monitor for print abnormalities (K2 Plus camera-based)" fr="Surveiller les anomalies d&apos;impression (caméra K2 Plus)"/>
   <translation tag="Monitor for print abnormalities (camera-based)" fr="Surveiller les anomalies d&apos;impression (caméra)"/>
-  <translation tag="Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job." fr="Surveillez les impressions en cours — temps restant, couche actuelle et progression. Appuyez pour mettre en pause, reprendre ou annuler la tâche active."/>
   <translation tag="Monitoring" fr="Surveillance"/>
   <translation tag="Month" fr="Mois"/>
   <translation tag="Moonraker" fr="Moonraker"/>
@@ -2366,6 +2370,7 @@
   <translation tag="New Spool: Step {} of {}" fr="Nouvelle bobine : étape {} sur {}"/>
   <translation tag="New Version Available" fr="Nouvelle version disponible"/>
   <translation tag="New fan name" fr="Nouveau nom du ventilateur"/>
+  <translation tag="New in 1.1" fr="Nouveautés de la 1.1"/>
   <translation tag="New plugin available: {}. Enable it in Settings &gt; Plugins." fr="Nouveau plugin disponible : {}. Activez-le dans Paramètres &gt; Plugins."/>
   <translation tag="New printer successfully added" fr="Nouvelle imprimante ajoutée avec succès"/>
   <translation tag="New profile name" fr="Nouveau nom de profil"/>
@@ -3748,6 +3753,7 @@
   <translation tag="Tap + to add" fr="Touchez + pour ajouter"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" fr="Appuyez sur Redémarrer le firmware pour récupérer. Sur la K2, cela redémarre aussi le pont MCU rpi"/>
   <translation tag="Tap Resume to try the load again from {}." fr="Touchez Reprendre pour relancer le chargement depuis {}."/>
+  <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." fr="Touchez un slot pour le charger ou le décharger, choisir une bobine ou modifier ses informations. Vos modifications restent synchronisées avec l&apos;imprimante et Spoolman."/>
   <translation tag="Tap again to confirm this orientation" fr="Appuyez à nouveau pour confirmer cette orientation"/>
   <translation tag="Tap an empty spot inside the enclosure" fr="Touchez un endroit vide dans le caisson"/>
   <translation tag="Tap any tile to open its full controls or toggle its state." fr="Appuyez sur n&apos;importe quelle tuile pour ouvrir ses commandes complètes ou basculer son état."/>
@@ -4485,6 +4491,7 @@
   <translation tag="You can skip this and calibrate later in Settings." fr="Vous pouvez ignorer cette étape et calibrer plus tard dans les paramètres."/>
   <translation tag="You have unsaved changes. Discard them?" fr="Vous avez des modifications non enregistrées. Les abandonner ?"/>
   <translation tag="Your completed prints will appear here" fr="Vos impressions terminées apparaîtront ici"/>
+  <translation tag="Your filament system" fr="Votre système de filament"/>
   <translation tag="Your files" fr="Vos fichiers"/>
   <translation tag="Your print start or end macro also sets LEDs. It and Automatic LED Control may override each other." fr="Votre macro de début ou de fin d&apos;impression contrôle aussi les LED. Elle et le contrôle automatique des LED peuvent s&apos;annuler mutuellement."/>
   <translation tag="Your printer at a glance" fr="Votre imprimante en un coup d&apos;œil"/>

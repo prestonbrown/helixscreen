@@ -281,6 +281,14 @@ struct ChevronSize {
  */
 ChevronSize chevron_size_for_gauge(float gauge);
 
+/// The nearest odd pixel width at or above @p gauge, so a vertical tube has a
+/// center pixel a chevron can share.
+int centered_gauge(int gauge);
+
+/// @p size with a whole-pixel arm spread and an odd stroke, so arms rasterize
+/// evenly to each side of a vertical centerline.
+ChevronSize pixel_centered(ChevronSize size);
+
 /**
  * @brief Chevrons streaming along @p p, written to @p out (at most @p max).
  *

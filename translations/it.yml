@@ -177,6 +177,7 @@ translations:
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Una macro che pulisce l''ugello. HelixScreen può eseguirla prima di una stampa dalle opzioni di pre-stampa.'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Impossibile ripristinare un pin IO del motore. Spegnere e riaccendere la stampante per ripristinare
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Impossibile scrivere i parametri di un motore. Spegnere e riaccendere la stampante e riprovare
+  "A new Print Status screen": "Una nuova schermata Stato stampa"
   A newer version of the helper macros is available: 'È disponibile una versione più recente delle macro di ausilio'
   A picture of your printer: Immagine della tua stampante
   A print holds the printer.: "Una stampa occupa la stampante."
@@ -1003,21 +1004,30 @@ translations:
     disponibili.
   Could not answer the connection request: 'Impossibile rispondere alla richiesta di connessione'
   'Could not check {} - it stays in the queue': 'Impossibile verificare {} – resta in coda'
+  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "Durante la stampa vedi un indicatore per ogni riscaldatore, ventola e luce, l'elenco della sequenza di avvio, e avanzamento e comandi in un'unica barra."
   "Every screen and setting explained": "Ogni schermata e impostazione spiegata"
   "Getting Started": "Primi passi"
+  "Here's a quick look at what changed since your last version.": "Una rapida panoramica di ciò che è cambiato dalla tua ultima versione."
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Le basi: la procedura guidata di configurazione, come spostarsi tra le schermate e i gesti touch."
   Load all stopped: Caricamento di tutti interrotto
+  "Load and unload": "Carica e scarica"
   Load stopped: Caricamento interrotto
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carica, scarica e spurga da qui. Scegli prima un materiale per impostarne le temperature."
+  "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Carica, scarica e cambia bobine, imposta le temperature e controlla i sensori del filamento."
+  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "Tieni premuto un riquadro per entrare in modalità modifica. La nuova griglia ti permette di riordinare, ridimensionare, rimuovere o aggiungere widget e trascinarli tra le pagine."
   'Moonraker answered at {}.': "Moonraker ha risposto su {}."
+  "New in 1.1": "Novità della 1.1"
   No filament was inserted in time: 'Nessun filamento inserito in tempo'
   Print hours between filter changes. Off hides this meter.: 'Ore di stampa tra un cambio filtro e l’altro. Spento nasconde questo contatore.'
   Print hours between nozzle changes. Off hides this meter.: 'Ore di stampa tra un cambio ugello e l’altro. Spento nasconde questo contatore.'
   Print hours between rail cleaning and lubrication. Off hides this meter.: 'Ore di stampa tra una pulizia e lubrificazione delle guide e l’altra. Spento nasconde questo contatore.'
   Print hours this week and lifetime totals: 'Ore di stampa di questa settimana e totali complessivi'
   "Setup, navigation and gestures": "Configurazione, navigazione e gesti"
+  "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Tocca uno slot per caricarlo o scaricarlo, scegliere una bobina o modificarne i dati. Le tue modifiche restano allineate con la stampante e Spoolman."
   Unload stopped: Scaricamento interrotto
   "User Guide": "Guida utente"
+  "Your filament system": "Il tuo sistema filamento"
   '{} could not be checked from Home - review it and tap Print': 'Impossibile verificare {} dalla Home – controllalo e tocca Stampa'
   Could not apply the new IPv4 settings.: 'Impossibile applicare le nuove impostazioni IPv4.'
   Could not change printer.cfg: Impossibile modificare printer.cfg
@@ -2290,8 +2300,6 @@ translations:
   Load Profile: 'Carica profilo'
   Load the required filaments or start anyway?: Caricare i filamenti richiesti o avviare
     comunque?
-  ? Load, unload, and swap spools. View your multi-filament system at a glance, map filament to tools, and monitor runout sensors.
-  : Carica, scarica e sostituisci le bobine. Visualizza a colpo d'occhio il tuo sistema multi-filamento, mappa il filamento sugli strumenti e monitora i sensori di esaurimento.
   Load...: Carica...
   Loaded: Caricato
   Loading: Caricamento
@@ -2323,7 +2331,6 @@ translations:
   Login Required: 'Accesso richiesto'
   Logs: Log
   Long Press Time: 'Durata della pressione prolungata'
-  'Long-press any tile to enter edit mode — rearrange, resize, remove, or add widgets, and add extra pages for your preferred layout.': 'Tieni premuto un riquadro per entrare in modalità modifica — riorganizza, ridimensiona, rimuovi o aggiungi widget, e aggiungi pagine extra per il tuo layout preferito.'
   Long-press the home grid to rearrange widgets (turn off if it triggers by accident): 'Premi a lungo sulla griglia iniziale per riordinare i widget (disattiva se si attiva per sbaglio)'
   Longest Disconnect: Disconnessione più lunga
   Loosen {0} noticeably: "Allenta {0} in modo evidente"
@@ -2480,7 +2487,6 @@ translations:
   Mixed-Temperature Materials: 'Materiali a temperature miste'
   Mode: Modalità
   Modified: Modificato
-  'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitora le stampe in corso — tempo rimanente, layer attuale e avanzamento. Tocca per mettere in pausa, riprendere o annullare il lavoro attivo.'
   Monitoring: Monitoraggio
   Month: Mese
   Moonraker: Moonraker
