@@ -5,6 +5,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "screensaver_base.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_print_card.h"
@@ -266,6 +267,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "a saver without its own display shows the car
     reported.print.phase = helix::ui::ClockPrintPhase::NONE;
     advance_saver(ss, 33);
     CHECK_FALSE(ss.print_card_shown());
+
+    // Stopping the saver takes the card with it; the next start makes a fresh one.
+    reported.print.phase = helix::ui::ClockPrintPhase::PAUSED;
+    advance_saver(ss, 33);
+    REQUIRE(ss.print_card_shown());
+    ss.stop();
+    CHECK_FALSE(ss.print_card_shown());
+    CHECK(ss.print_card_obj() == nullptr);
+    ss.start();
+    REQUIRE(ss.is_active());
+    advance_saver(ss, 33);
+    CHECK(ss.print_card_shown());
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER
