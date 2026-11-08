@@ -94,8 +94,19 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK_FALSE(em.is_callout_open());
     CHECK(em.selected_widget() == scene.widget);
 
+    // A click with no input device behind it (helix-screen ctl) is no finger
+    // under a new card, so the lockout does not hold it back.
+    process_lvgl(50);
+    em.open_tile_callout();
+    REQUIRE(em.is_callout_open());
+    lv_obj_t* remove = lv_obj_find_by_name(lv_screen_active(), "tile_callout_remove");
+    REQUIRE(remove != nullptr);
+    lv_obj_send_event(remove, LV_EVENT_CLICKED, nullptr);
+    CHECK_FALSE(scene.config->is_placed("temperature"));
+
     em.exit();
     lv_obj_set_user_data(scene.widget, nullptr);
+    process_lvgl(50);
     process_lvgl(50);
     lv_obj_delete(scene.container);
 }

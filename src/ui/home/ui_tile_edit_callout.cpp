@@ -167,9 +167,13 @@ void TileEditCallout::pick(lv_event_t* e, TileCalloutAction action) {
         spdlog::warn("[TileEditCallout] No active instance for a row tap");
         return;
     }
-    if (!self->lockout_.release_acts(released_over_target(e), lv_tick_get())) {
-        spdlog::debug(
-            "[TileEditCallout] Row tap ignored: inside the lockout or lifted off the row");
+    // A click with no input device behind it (helix-screen ctl, tests) has no
+    // finger that could have landed on the card as it appeared.
+    const bool from_touch = lv_indev_active() != nullptr;
+    if (from_touch && !self->lockout_.release_acts(released_over_target(e), lv_tick_get())) {
+        spdlog::info("[TileEditCallout] Row tap ignored: pressed within {} ms of the card "
+                     "appearing, or lifted off the row",
+                     TapLockout::kDefaultMs);
         return;
     }
     self->dispatch_action(static_cast<int>(action));

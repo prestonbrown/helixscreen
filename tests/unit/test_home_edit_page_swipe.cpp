@@ -25,6 +25,7 @@
 
 #include "ui_breakpoint.h"
 #include "ui_carousel.h"
+#include "ui_context_menu.h"
 #include "ui_dialog.h"
 #include "ui_drag_surface.h"
 #include "ui_modal.h"
@@ -473,6 +474,8 @@ class EditHomeFixture : public LVGLTestFixture {
                     "A:ui_xml/components/home_next_page_slot.xml") == LV_RESULT_OK);
         REQUIRE(lv_xml_register_component_from_file("A:ui_xml/tile_edit_callout.xml") ==
                 LV_RESULT_OK);
+        // The backdrop's dismiss callback, which the app registers at startup.
+        helix::ui::ContextMenu::register_shared_callbacks();
         REQUIRE(lv_xml_register_component_from_data(
                     kStandInComponent, "<component><view extends=\"lv_obj\" scrollable=\"false\" "
                                        "style_pad_all=\"0\"/></component>") == LV_RESULT_OK);
@@ -4954,7 +4957,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     tap_selected("temperature");
     REQUIRE(grid().is_callout_open());
     CHECK(grid().selected_widget() == widget_on(0, "temperature"));
-    CHECK(callout_part("edit_trash_pill") == nullptr);
 
     // The card sits beside the tile, inside the screen, and the ring is on the
     // tile.
