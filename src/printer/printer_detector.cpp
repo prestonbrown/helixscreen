@@ -2125,6 +2125,27 @@ std::string PrinterDetector::canonical_type_name(const std::string& printer_name
     return printer_name;
 }
 
+namespace {
+/// The contender of an ambiguous @p detected that is the saved type or one of
+/// its variant family (relate_types), or nullptr when the result separated or
+/// no tied candidate is the saved machine. A shared picture is not enough: one
+/// image can stand for a whole model line of different sizes.
+const std::string* contender_for_saved_machine(const std::string& saved_type,
+                                               const PrinterDetectionResult& detected) {
+    if (!detected.ambiguous() || saved_type.empty()) {
+        return nullptr;
+    }
+    for (const auto& contender : detected.contenders) {
+        if (contender == saved_type ||
+            PrinterDetector::relate_types(saved_type, contender).relation !=
+                PrinterDetector::TypeRelation::DifferentModel) {
+            return &contender;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,
@@ -2156,8 +2177,21 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
     if (!detected.detected()) {
         return MismatchDecision::NoDetection;
     }
-    return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, flag_value,
-                                  detected.margin());
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    if (settled == nullptr) {
+        return classify_type_mismatch(saved_type, detected.type_name, detected.confidence,
+                                      flag_value, detected.margin());
+    }
+    // A contender is not separated from the winner, so it carries the winner's
+    // confidence; the saved type is what separated it from the other machines.
+    return classify_type_mismatch(saved_type, *settled, detected.confidence, flag_value,
+                                  kDetectMinMargin);
+}
+
+std::string PrinterDetector::mismatch_subject(const std::string& saved_type,
+                                              const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : detected.type_name;
 }
 
 PrinterDetector::TypeRelationResult

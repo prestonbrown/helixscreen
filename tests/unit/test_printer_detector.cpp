@@ -742,6 +742,80 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a saved model settles a tie between that model's firmware "
+                 "variant and another model's",
+                 "[printer][detector][mismatch][k2][k2improvements]") {
+    // A K2 Plus on k2-improvements that declares no bed: the mod's definitive
+    // macro is the base score of both mod entries, the bonus caps, and the
+    // hostname that names the Plus is lost in the ceiling. Detection ties the
+    // Plus and the Pro mod entries while excluding the stock K2 Plus the user
+    // saved. The tie is about which model; both candidates agree on the
+    // firmware, and the saved type already answers the model.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .sensors = {},
+                                 .fans = {},
+                                 .leds = {},
+                                 .hostname = "k2plus",
+                                 .printer_objects = {"motor_control", "fan_feedback", "load_ai",
+                                                     "gcode_macro _START_PRINT_VARS",
+                                                     "gcode_macro START_PRINT"},
+                                 .steppers = {},
+                                 .kinematics = "corexy",
+                                 .build_volume = {}};
+
+    const auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+    REQUIRE(result.confidence == 100);
+    REQUIRE(result.ambiguous());
+    REQUIRE(result.contenders.size() == 2);
+
+    using PD = PrinterDetector;
+    SECTION("the saved stock model is offered its own variant") {
+        CHECK(PD::mismatch_subject("Creality K2 Plus", result) ==
+              "Creality K2 Plus (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, "") ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("the other saved model is offered ITS variant, whichever entry won") {
+        CHECK(PD::mismatch_subject("Creality K2 Pro", result) ==
+              "Creality K2 Pro (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro", result, "") ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("a saved type that is one of the tied candidates is confirmed") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro (k2-improvements)", result, "") ==
+              PD::MismatchDecision::MatchesSavedType);
+    }
+    SECTION("a saved model outside the tie leaves it ambiguous") {
+        CHECK(PD::mismatch_subject("Creality K2", result) == result.type_name);
+        CHECK(PD::classify_type_mismatch("Creality K2", result, "") ==
+              PD::MismatchDecision::Ambiguous);
+        CHECK(PD::classify_type_mismatch("Voron 2.4", result, "") ==
+              PD::MismatchDecision::Ambiguous);
+    }
+    SECTION("a dismissal for the saved type still holds") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, "Creality K2 Plus") ==
+              PD::MismatchDecision::AlreadyDismissed);
+    }
+}
+
+TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
+          "[printer][detector][mismatch]") {
+    // The Neptune 4 line shares one image across four sizes. A Max tied with
+    // another machine is no evidence that a saved Pro is really a Max.
+    PrinterDetectionResult tied{"Elegoo Neptune 4 Max", 95, "tied"};
+    tied.runner_up_type_name = "Voron 2.4";
+    tied.runner_up_confidence = 95;
+    tied.contenders = {"Elegoo Neptune 4 Max", "Voron 2.4"};
+    REQUIRE(tied.ambiguous());
+
+    CHECK(PrinterDetector::mismatch_subject("Elegoo Neptune 4 Pro", tied) == tied.type_name);
+    CHECK(PrinterDetector::classify_type_mismatch("Elegoo Neptune 4 Pro", tied, "") ==
+          PrinterDetector::MismatchDecision::Ambiguous);
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build
