@@ -250,6 +250,14 @@ TEST_CASE_METHOD(RunnerFixture, "cold pull: a seated lane heats with nothing unl
     CHECK(backend->is_filament_loaded());
 }
 
+TEST_CASE_METHOD(RunnerFixture, "cold pull: the ring is full at a reached soak", "[cold_pull]") {
+    runner->init_subjects();
+    begin_heating();
+    feed("extruder", 228, 230);
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Feed);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "cold_pull_progress")) == 100);
+}
+
 TEST_CASE_METHOD(RunnerFixture, "cold pull: no extruder refuses the start", "[cold_pull]") {
     state.temperature_state().init_extruders({});
     CHECK(runner->can_start() == ColdPullRefusal::NoHeater);

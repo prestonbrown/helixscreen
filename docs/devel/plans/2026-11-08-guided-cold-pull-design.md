@@ -243,13 +243,13 @@ heating, falling to pull while cooling. The caption under it reads `current / go
 ### 7. Inspect (`Inspect`)
 
 - Heater off on entry (`set_target(head.heater, 0)`); nothing is hot while the user looks.
-- Two reference pictures side by side, clean cone and dirty tip, at 2 x 200 x 150 (800x480) or
+- Two drawn reference tips side by side (`<cold_pull_tip_sketch>`, the belt sketches' technique), clean cone and dirty tip, at 2 x 200 x 150 (800x480) or
   2 x 130 x 98 (480x272) with a caption under each. Hint line: "Stretched thin: pull a little
   colder. Snapped: pull a little warmer." with the Pull number tappable.
 - Pass counter "Pass 2".
 - Seated lane: after a hand pull the filament is out of the hotend while the backend still
   reports the lane loaded. `ColdPullFlow::lane_needs_reseat()` shows "This lane still shows as
-  loaded..." here and on the end screen until the filament is fed back on a Repeat. The flow sends
+  loaded..." here and on the end screen until a Repeat's extrude completes; Done alone proves nothing. The flow sends
   no backend command for this.
 - Action row: Repeat (back to Heat, counter + 1), Done.
 

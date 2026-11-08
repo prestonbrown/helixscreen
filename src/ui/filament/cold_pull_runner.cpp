@@ -689,10 +689,7 @@ void ColdPullRunner::publish() {
     const int goal = f.goal_c();
     int pct = 0;
     if (goal > 0) {
-        // Rising toward the soak, or falling toward the pull, from where the stage began.
-        const int span = std::abs(goal - ring_from_c_);
-        const int done_c = span == 0 ? 1 : std::abs(current - ring_from_c_);
-        pct = span == 0 ? 100 : std::clamp(done_c * 100 / span, 0, 100);
+        pct = cold_pull_ring_percent(stage, ring_from_c_, current, goal);
         lv_subject_copy_string(&temp_text_, fmt::format("{} / {}°C", current, goal).c_str());
     } else {
         lv_subject_copy_string(&temp_text_, fmt::format("{}°C", current).c_str());

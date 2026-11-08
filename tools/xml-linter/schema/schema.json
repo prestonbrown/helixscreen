@@ -2024,6 +2024,14 @@
       },
       "inherits": "lv_obj"
     },
+    "cold_pull_tip_sketch": {
+      "attributes": {
+        "dirty": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "humidity_drop": {
       "attributes": {
         "bind_value": {
@@ -3024,6 +3032,7 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "cold_pull_tip_sketch",
     "humidity_drop",
     "lv_obj-bind_tile_rung",
     "setting_group"

@@ -110,6 +110,11 @@ struct ColdPullActions {
     }
 };
 
+/// The temperature ring's fill: toward @p goal_c from where the stage began at
+/// @p from_c, and full on the stages entered because the goal was reached.
+[[nodiscard]] int cold_pull_ring_percent(ColdPullStage stage, int from_c, int current_c,
+                                         int goal_c);
+
 class ColdPullFlow {
   public:
     using TimePoint = std::chrono::steady_clock::time_point;
@@ -199,7 +204,7 @@ class ColdPullFlow {
     bool fan_changed_ = false;
     bool was_above_pull_ = false;
     bool hold_stopped_ = false;
-    bool filament_out_ = false; ///< Pulled by hand and not fed back yet
+    bool filament_out_ = false; ///< Pulled by hand; a completed extrude shows it is back
     bool parked_ = false;
     int last_current_c_ = 0;
     TimePoint next_hold_at_{};

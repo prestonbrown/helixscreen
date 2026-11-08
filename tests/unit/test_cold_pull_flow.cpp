@@ -457,10 +457,25 @@ TEST_CASE("cold pull: after a hand pull the lane is owed a re-seat", "[cold_pull
         CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush);
         CHECK(f.lane_needs_reseat());
         CHECK(f.extrude(t0 + 3min).gcode == "M83\nG1 E60 F300");
+        CHECK(f.lane_needs_reseat()); // not back until the extrude has run
         (void)f.command_finished(true, t0 + 3min + 1s);
-        (void)f.fed(t0 + 3min + 2s);
         CHECK_FALSE(f.lane_needs_reseat());
         CHECK(f.feed_mode() == ColdPullFeedMode::Loaded);
+    }
+    SECTION("Done without feeding it back leaves it owed") {
+        (void)f.repeat(t0 + 1min);
+        (void)f.temperature(228, 230, t0 + 2min);
+        REQUIRE(f.stage() == ColdPullStage::Feed);
+        (void)f.fed(t0 + 3min);
+        CHECK(f.stage() == ColdPullStage::Cooling);
+        CHECK(f.lane_needs_reseat());
+    }
+    SECTION("a refused extrude does not settle it") {
+        (void)f.repeat(t0 + 1min);
+        (void)f.temperature(228, 230, t0 + 2min);
+        (void)f.extrude(t0 + 3min);
+        (void)f.command_finished(false, t0 + 3min + 1s);
+        CHECK(f.lane_needs_reseat());
     }
     SECTION("cancelling a repeat before the feed leaves it owed") {
         (void)f.repeat(t0 + 1min);
@@ -539,6 +554,19 @@ TEST_CASE("cold pull: a clogged head reaches the pull with nothing extruded", "[
         (void)f.pulled(t0 + 11s);
         CHECK(f.stage() == ColdPullStage::Inspect);
     }
+}
+
+TEST_CASE("cold pull: the ring reads the climb and is full once the goal is reached",
+          "[cold_pull]") {
+    CHECK(cold_pull_ring_percent(ColdPullStage::Heating, 30, 130, 230) == 50);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Cooling, 230, 160, 90) == 50);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Heating, 30, 20, 230) == 0);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Heating, 30, 240, 230) == 100);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Heating, 230, 230, 230) == 100);
+    // Feed and Pull start within a few degrees of the goal: no span to measure.
+    CHECK(cold_pull_ring_percent(ColdPullStage::Feed, 226, 228, 230) == 100);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Feed, 228, 227, 230) == 100);
+    CHECK(cold_pull_ring_percent(ColdPullStage::Pull, 93, 92, 90) == 100);
 }
 
 TEST_CASE("cold pull: edits persist per material; unset and corrupt read as defaults",

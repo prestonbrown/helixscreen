@@ -26,6 +26,13 @@ bool within(int a, int b, int tolerance) {
 
 } // namespace
 
+int cold_pull_ring_percent(ColdPullStage stage, int from_c, int current_c, int goal_c) {
+    if (stage == ColdPullStage::Feed || stage == ColdPullStage::Pull || goal_c == from_c) {
+        return 100;
+    }
+    return std::clamp((current_c - from_c) * 100 / (goal_c - from_c), 0, 100);
+}
+
 ColdPullFlow::ColdPullFlow(ColdPullParams params) : params_(std::move(params)) {}
 
 bool ColdPullFlow::ended() const {
@@ -207,7 +214,6 @@ ColdPullActions ColdPullFlow::fed(TimePoint now) {
     }
     feed_.reset();
     in_flight_ = InFlight::None;
-    filament_out_ = false;
     return enter_cooling(now);
 }
 
@@ -232,6 +238,7 @@ ColdPullActions ColdPullFlow::command_finished(bool ok, TimePoint now) {
         return {};
     }
     (void)feed_->command_finished(true);
+    filament_out_ = false;
     return {};
 }
 

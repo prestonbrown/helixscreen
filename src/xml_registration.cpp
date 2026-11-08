@@ -12,6 +12,7 @@
 #include "ui_belt_path_sketch.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
+#include "ui_cold_pull_tip_sketch.h"
 #include "ui_color_picker.h"
 #include "ui_confetti.h"
 #include "ui_context_menu.h"
@@ -484,6 +485,7 @@ void register_xml_components() {
     helix::ui::register_belt_path_sketch_widget(); // before the panel XML that uses it
     helix::ui::register_belt_gap_gauge_widget();
 #endif
+    helix::ui::register_cold_pull_tip_sketch_widget(); // before the cold pull overlay XML
 
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
 
