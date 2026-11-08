@@ -22,6 +22,7 @@
 #include "leveling_probe_points.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_detector.h" // For BuildVolume struct
+#include "signal_macro_names.h"
 
 #include <algorithm>
 #include <cctype>
@@ -802,6 +803,17 @@ class PrinterDiscovery {
         return skip_active_;
     }
 
+    /// Which signal names this printer's config calls and which forwarders it
+    /// has loaded; signal_macros::scan() over configfile.settings.
+    void set_signal_macro_scan(signal_macros::SignalMacroScan scan) {
+        signal_macro_scan_ = std::move(scan);
+    }
+
+    /// nullopt until configfile.settings was read.
+    [[nodiscard]] const std::optional<signal_macros::SignalMacroScan>& signal_macro_scan() const {
+        return signal_macro_scan_;
+    }
+
     /// Macros that set LEDs, directly or through another macro, from
     /// helix::analyze_led_driving_macros(); stored uppercased like macros_.
     void set_led_driving_macros(std::unordered_set<std::string> macros) {
@@ -1110,6 +1122,7 @@ class PrinterDiscovery {
     std::unordered_set<std::string> led_driving_macros_;     ///< Macros that set LEDs
     std::vector<skip_wrappers::Op> skip_wrappable_;
     std::vector<skip_wrappers::Op> skip_active_;
+    std::optional<signal_macros::SignalMacroScan> signal_macro_scan_;
     std::string sensor_toggle_command_; ///< Empty = the SET_FILAMENT_SENSOR builtin
     std::string screws_tilt_builtin_;   ///< Empty = no SCREWS_TILT_CALCULATE wrapper
     std::unordered_set<std::string> helix_macros_;

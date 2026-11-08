@@ -279,7 +279,6 @@ src/printer/status_dispatch.cpp
 src/printer/storage_report.cpp
 src/printer/storage_report_service.cpp
 src/printer/preprint_skip_wrappers.cpp
-src/printer/signal_macro_names.cpp
 src/printer/z_offset_calibration_approach.cpp
 src/printer/z_offset_persistence.cpp
 src/printer/layer_pause.cpp

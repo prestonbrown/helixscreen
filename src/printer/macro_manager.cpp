@@ -71,11 +71,10 @@ std::string parse_file_version(const std::string& content) {
 }
 
 /**
- * @brief Parse macro names from file content
+ * @brief Every [gcode_macro NAME] section name in file content, internal ones included
  * @param content File content
- * @return Vector of macro names
  */
-std::vector<std::string> parse_macro_names(const std::string& content) {
+std::vector<std::string> parse_section_macro_names(const std::string& content) {
     std::vector<std::string> names;
     // Anchored to line start: a real Klipper section header always starts in
     // column 0, so this does not also match one quoted inside a comment.
@@ -86,14 +85,22 @@ std::vector<std::string> parse_macro_names(const std::string& content) {
     while (std::getline(stream, line)) {
         helix::RegexMatch match;
         if (helix::regex_search(line, match, macro_pattern)) {
-            std::string name = match[1].str();
-            // Skip internal state macros
-            if (!name.empty() && name[0] != '_') {
-                names.push_back(name);
-            }
+            names.push_back(match[1].str());
         }
     }
+    return names;
+}
 
+/**
+ * @brief Parse the macro names people run themselves from file content
+ * @param content File content
+ * @return Names without a leading underscore
+ */
+std::vector<std::string> parse_macro_names(const std::string& content) {
+    std::vector<std::string> names = parse_section_macro_names(content);
+    names.erase(std::remove_if(names.begin(), names.end(),
+                               [](const std::string& n) { return n.empty() || n[0] == '_'; }),
+                names.end());
     return names;
 }
 
@@ -289,6 +296,13 @@ MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardwar
         }
     }
 
+    // The loaded signal names differ from what an update would stage: the old
+    // visible pack, a called name with no definition, or a forwarder nothing calls.
+    const auto& scan = hardware.signal_macro_scan();
+    if (scan && signal_macros::drift(*scan, {}) != signal_macros::SignalNameDrift::None) {
+        return MacroInstallStatus::OUTDATED;
+    }
+
     return MacroInstallStatus::INSTALLED;
 }
 
@@ -443,8 +457,16 @@ std::string MacroManager::get_macro_content() {
 
 std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
     std::string content = get_macro_content();
-    if (content.empty() || !hardware.has_helix_macro("HELIX_READY")) {
+    if (content.empty()) {
         return content;
+    }
+    if (!hardware.signal_macro_scan() && !hardware.has_helix_macro("HELIX_READY")) {
+        return content;
+    }
+    const auto& scan = hardware.signal_macro_scan();
+    if (scan) {
+        return with_alias_block(std::move(content), signal_macros::alias_block(
+                                                        signal_macros::names_to_alias(*scan, {})));
     }
     std::vector<std::string> all(signal_macros::kVisibleNames.begin(),
                                  signal_macros::kVisibleNames.end());
@@ -454,6 +476,23 @@ std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
 std::string MacroManager::get_version() {
     std::string content = load_macro_file();
     return parse_file_version(content);
+}
+
+std::vector<std::string> MacroManager::pack_section_names() {
+    std::vector<std::string> sections;
+    for (const auto& name : parse_section_macro_names(load_macro_file())) {
+        sections.push_back("gcode_macro " + text_io::to_lower(name));
+    }
+    for (auto visible : signal_macros::kVisibleNames) {
+        const std::string name(visible);
+        for (const auto& spelling : {name, signal_macros::hidden_name(name)}) {
+            std::string key = "gcode_macro " + text_io::to_lower(spelling);
+            if (std::find(sections.begin(), sections.end(), key) == sections.end()) {
+                sections.push_back(std::move(key));
+            }
+        }
+    }
+    return sections;
 }
 
 std::vector<std::string> MacroManager::get_macro_names() {

@@ -5,7 +5,11 @@
  * @brief The signal macro names and the forwarders that keep a visible name callable.
  */
 
+#include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "macro_manager.h"
+#include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "signal_macro_names.h"
 
 #include <algorithm>
@@ -14,8 +18,12 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 namespace sm = helix::signal_macros;
+using nlohmann::json;
+using sm::SignalCaller;
+using sm::SignalNameDrift;
 
 namespace {
 
@@ -29,6 +37,52 @@ std::vector<std::string> hidden_sections(const std::string& content) {
         if (line.rfind(open, 0) == 0 && line.back() == ']') {
             names.push_back(line.substr(13, line.size() - 14));
         }
+    }
+    return names;
+}
+
+json macro(const std::string& gcode, const std::string& description = "G-Code macro") {
+    return {{"gcode", gcode}, {"description", description}};
+}
+
+/// The configfile.settings entry Klipper reports for one of our forwarders.
+json forwarder(const std::string& visible) {
+    return macro(sm::hidden_name(visible),
+                 std::string(sm::kAliasDescriptionPrefix) + sm::hidden_name(visible));
+}
+
+/// Every hidden signal macro, as a printer on the current pack reports them.
+json hidden_pack() {
+    json s = json::object();
+    for (auto visible : sm::kVisibleNames) {
+        std::string key = "gcode_macro _" + std::string(visible);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+        s[key] = macro("SET_GCODE_VARIABLE MACRO=_HELIX_STATE VARIABLE=phase VALUE='\"X\"'");
+    }
+    s["gcode_macro helix_start_print"] = macro("_HELIX_PHASE_HOMING\nG28\n_HELIX_READY");
+    return s;
+}
+
+/// The pack an earlier HelixScreen staged: every signal under its visible name.
+json visible_pack() {
+    json s = json::object();
+    for (auto visible : sm::kVisibleNames) {
+        std::string key = "gcode_macro " + std::string(visible);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+        s[key] = macro("SET_GCODE_VARIABLE MACRO=_HELIX_STATE VARIABLE=phase VALUE='\"X\"'");
+    }
+    s["gcode_macro helix_start_print"] = macro("HELIX_PHASE_HOMING\nG28\nHELIX_READY");
+    return s;
+}
+
+sm::SignalMacroScan scan_of(const json& settings) {
+    return sm::scan(settings, helix::MacroManager::pack_section_names());
+}
+
+std::vector<std::string> caller_names(const sm::SignalMacroScan& scan) {
+    std::vector<std::string> names;
+    for (const auto& c : scan.callers) {
+        names.push_back(c.name);
     }
     return names;
 }
@@ -79,4 +133,235 @@ TEST_CASE("alias_block writes pack order and drops unknown names", "[signal_macr
 TEST_CASE("alias_block of no names is empty", "[signal_macros]") {
     CHECK(sm::alias_block({}).empty());
     CHECK(sm::alias_block({"HELIX_START_PRINT"}).empty());
+}
+
+// ============================================================================
+// scan(): which visible names the printer's own config calls
+// ============================================================================
+
+TEST_CASE("scan finds a PRINT_START that calls a visible name", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("G28\nHELIX_READY");
+
+    const auto result = scan_of(s);
+
+    CHECK(result.callers ==
+          std::vector<SignalCaller>{{"gcode_macro print_start", "gcode", "HELIX_READY"}});
+}
+
+TEST_CASE("scan matches a call in any letter case", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("helix_ready");
+
+    CHECK(caller_names(scan_of(s)) == std::vector<std::string>{"HELIX_READY"});
+}
+
+TEST_CASE("scan does not count a longer name that contains a visible one", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("_HELIX_READY\nHELIX_READYX\nMY_HELIX_READY");
+
+    CHECK(scan_of(s).callers.empty());
+}
+
+TEST_CASE("scan reads gcode outside gcode_macro sections", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_button x"] = {{"pin", "PA1"}, {"press_gcode", "HELIX_PHASE_HOMING"}};
+    s["delayed_gcode later"] = {{"gcode", "HELIX_ENDED"}, {"initial_duration", 1.0}};
+    s["idle_timeout"] = {{"gcode", "HELIX_RESET\nM84"}, {"timeout", 600.0}};
+
+    CHECK(scan_of(s).callers ==
+          std::vector<SignalCaller>{{"delayed_gcode later", "gcode", "HELIX_ENDED"},
+                                    {"gcode_button x", "press_gcode", "HELIX_PHASE_HOMING"},
+                                    {"idle_timeout", "gcode", "HELIX_RESET"}});
+}
+
+TEST_CASE("scan counts a mention inside a Jinja lookup", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro status"] = macro("{% set m = printer[\"gcode_macro HELIX_READY\"] %}");
+
+    CHECK(caller_names(scan_of(s)) == std::vector<std::string>{"HELIX_READY"});
+}
+
+TEST_CASE("scan skips the pack's own sections under either spelling", "[signal_macros]") {
+    CHECK(scan_of(hidden_pack()).callers.empty());
+    CHECK(scan_of(visible_pack()).callers.empty());
+    CHECK(scan_of(visible_pack()).foreign.empty());
+}
+
+TEST_CASE("scan lists our forwarders as aliases, not callers", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
+    s["gcode_macro helix_phase_qgl"] = forwarder("HELIX_PHASE_QGL");
+
+    const auto result = scan_of(s);
+
+    CHECK(result.aliases == std::vector<std::string>{"HELIX_READY", "HELIX_PHASE_QGL"});
+    CHECK(result.callers.empty());
+    CHECK(result.foreign.empty());
+}
+
+TEST_CASE("scan keeps a user's own macro of a signal name apart", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro helix_ready"] = macro("RESPOND MSG=\"mine\"", "My ready macro");
+    s["gcode_macro print_start"] = macro("HELIX_READY");
+
+    const auto result = scan_of(s);
+
+    CHECK(result.foreign == std::vector<std::string>{"HELIX_READY"});
+    CHECK(result.aliases.empty());
+    CHECK(caller_names(result) == std::vector<std::string>{"HELIX_READY"});
+    // Their macro wins, and a forwarder of the same name would merge into it.
+    CHECK(sm::names_to_alias(result, {}).empty());
+}
+
+TEST_CASE("scan sees the hidden names loaded only when all of them are", "[signal_macros]") {
+    CHECK(scan_of(hidden_pack()).hidden_loaded);
+    CHECK_FALSE(scan_of(visible_pack()).hidden_loaded);
+
+    json partial = hidden_pack();
+    partial.erase("gcode_macro _helix_phase_purging");
+    CHECK_FALSE(scan_of(partial).hidden_loaded);
+}
+
+TEST_CASE("scan of malformed settings is empty", "[signal_macros]") {
+    for (const json& bad : {json("oops"), json::array({1, 2}), json::object(), json(nullptr)}) {
+        const auto result = scan_of(bad);
+        CHECK(result.callers.empty());
+        CHECK(result.aliases.empty());
+        CHECK_FALSE(result.hidden_loaded);
+    }
+    json s = hidden_pack();
+    s["gcode_macro odd"] = {{"gcode", 5}, {"variable_x", json::array({"HELIX_READY"})}};
+    s["not_an_object"] = "HELIX_READY";
+    CHECK(scan_of(s).callers.empty());
+}
+
+// ============================================================================
+// drift(): what is loaded against what an update would stage
+// ============================================================================
+
+TEST_CASE("drift reads each loaded state", "[signal_macros]") {
+    SECTION("the old visible pack") {
+        json s = visible_pack();
+        s["gcode_macro print_start"] = macro("HELIX_READY");
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::MoveToHidden);
+    }
+    SECTION("hidden only, but PRINT_START calls a visible name") {
+        json s = hidden_pack();
+        s["gcode_macro print_start"] = macro("HELIX_READY");
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::AddAliases);
+    }
+    SECTION("a forwarder nothing calls") {
+        json s = hidden_pack();
+        s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::DropAliases);
+    }
+    SECTION("forwarders match the callers") {
+        json s = hidden_pack();
+        s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
+        s["gcode_macro print_start"] = macro("HELIX_READY");
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::None);
+    }
+    SECTION("a user's own macro of the called name needs nothing") {
+        json s = hidden_pack();
+        s["gcode_macro helix_ready"] = macro("M117 mine", "Mine");
+        s["gcode_macro print_start"] = macro("HELIX_READY");
+        CHECK(sm::drift(scan_of(s), {}) == SignalNameDrift::None);
+    }
+}
+
+TEST_CASE("names_to_alias merges extra names in pack order", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("HELIX_PHASE_QGL\nHELIX_READY\nHELIX_READY");
+
+    CHECK(sm::names_to_alias(scan_of(s), {"HELIX_ENDED", "NOT_A_SIGNAL"}) ==
+          std::vector<std::string>{"HELIX_READY", "HELIX_ENDED", "HELIX_PHASE_QGL"});
+}
+
+// ============================================================================
+// What MacroManager stages and reports from the scan
+// ============================================================================
+
+namespace {
+
+helix::PrinterDiscovery printer_with(const json& settings, const json& objects) {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    hw.set_signal_macro_scan(scan_of(settings));
+    return hw;
+}
+
+const json kOldPackObjects =
+    json::array({"gcode_macro HELIX_READY", "gcode_macro _HELIX_STATE",
+                 "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"});
+
+const json kCurrentPackObjects =
+    json::array({"gcode_macro _HELIX_READY", "gcode_macro _HELIX_STATE",
+                 "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"});
+
+} // namespace
+
+TEST_CASE("macro_content_for forwards only the names the config calls", "[signal_macros]") {
+    json s = visible_pack();
+    s["gcode_macro print_start"] = macro("HELIX_READY");
+    const auto hw = printer_with(s, kOldPackObjects);
+
+    const std::string base = helix::MacroManager::get_macro_content();
+    const std::string content = helix::MacroManager::macro_content_for(hw);
+
+    REQUIRE(content.rfind(base, 0) == 0);
+    CHECK(content.find(sm::alias_block({"HELIX_READY"}), base.size()) != std::string::npos);
+    CHECK(content.find("[gcode_macro HELIX_ENDED]") == std::string::npos);
+}
+
+TEST_CASE("macro_content_for drops the forwarders nothing calls", "[signal_macros]") {
+    // HELIX_READY is defined, which without a scan forwards all eleven.
+    const auto hw = printer_with(visible_pack(), kOldPackObjects);
+
+    CHECK(helix::MacroManager::macro_content_for(hw) == helix::MacroManager::get_macro_content());
+}
+
+TEST_CASE("evaluate_status offers an update when a called name has no definition",
+          "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro print_start"] = macro("HELIX_READY");
+
+    CHECK(helix::MacroManager::evaluate_status(printer_with(s, kCurrentPackObjects)) ==
+          helix::MacroInstallStatus::OUTDATED);
+    CHECK(helix::MacroManager::evaluate_status(printer_with(hidden_pack(), kCurrentPackObjects)) ==
+          helix::MacroInstallStatus::INSTALLED);
+
+    helix::PrinterDiscovery unscanned;
+    unscanned.parse_objects(kCurrentPackObjects);
+    CHECK(helix::MacroManager::evaluate_status(unscanned) == helix::MacroInstallStatus::INSTALLED);
+}
+
+namespace {
+
+/// Runs the real discovery sequence over the mock's handlers.
+class ScanDiscoveryClient : public MoonrakerClientMock {
+  public:
+    using MoonrakerClientMock::MoonrakerClientMock;
+
+    void discover_printer_real() {
+        MoonrakerClient::discover_printer([]() {}, [](const std::string&) {});
+    }
+};
+
+} // namespace
+
+TEST_CASE("discovery records which signal names the config calls", "[signal_macros][discovery]") {
+    LVGLTestFixture fixture;
+    ScanDiscoveryClient client;
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.set_config_settings_section("gcode_macro my_start", macro("G28\nHELIX_READY"));
+
+    REQUIRE_FALSE(client.hardware().signal_macro_scan().has_value());
+    client.discover_printer_real();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    const auto scan = client.hardware().signal_macro_scan();
+    REQUIRE(scan.has_value());
+    const SignalCaller expected{"gcode_macro my_start", "gcode", "HELIX_READY"};
+    CHECK(std::find(scan->callers.begin(), scan->callers.end(), expected) != scan->callers.end());
 }

@@ -294,6 +294,16 @@ class MacroManager {
      */
     [[nodiscard]] static std::vector<std::string> get_macro_names();
 
+    /**
+     * @brief Every section name the bundled pack defines, for signal_macros::scan()
+     *
+     * The signal macros appear under both spellings, since an earlier pack
+     * defined them without the underscore.
+     *
+     * @return Section names as configfile.settings keys them ("gcode_macro _helix_ready")
+     */
+    [[nodiscard]] static std::vector<std::string> pack_section_names();
+
   private:
     IMoonrakerAPI& api_;
     const PrinterDiscovery& hardware_;
