@@ -18,6 +18,7 @@
 #include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_tray_projection.h"
+#include "ams_tray_shell_draw.h"
 #include "app_globals.h" // get_printer_state: the print lifecycle the clear guard reads
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
@@ -59,7 +60,6 @@ namespace tray = helix::ui::tray;
 
 namespace {
 
-constexpr int kCapPoints = 17;
 constexpr int kMaxLids = kAmsDetailMaxSlots;
 
 // Opacities of the faces and glass, dark theme first.
@@ -94,6 +94,10 @@ struct TrayState {
 
 TrayState s_tray;
 
+tray::ShellView shell_view() {
+    return {s_tray.box, s_tray.shell, s_tray.spool_size, s_tray.lane_x, s_tray.lane_count};
+}
+
 lv_color_t tray_token(const char* name, bool dark) {
     char key[48];
     snprintf(key, sizeof(key), "%s_%s", name, dark ? "dark" : "light");
@@ -118,97 +122,6 @@ void load_tray_look() {
     s_tray.opa = dark ? kDarkOpa : kLightOpa;
 }
 
-lv_point_precise_t to_screen(lv_point_t origin, tray::PointF p) {
-    return {static_cast<lv_value_precise_t>(origin.x + p.x),
-            static_cast<lv_value_precise_t>(origin.y + p.y)};
-}
-
-/// A convex polygon as a triangle fan.
-void fill_convex(lv_layer_t* layer, lv_point_t origin, const tray::PointF* pts, int n,
-                 lv_color_t color, lv_opa_t opa) {
-    lv_draw_triangle_dsc_t tri;
-    lv_draw_triangle_dsc_init(&tri);
-    tri.color = color;
-    tri.opa = opa;
-    for (int i = 1; i + 1 < n; ++i) {
-        tri.p[0] = to_screen(origin, pts[0]);
-        tri.p[1] = to_screen(origin, pts[i]);
-        tri.p[2] = to_screen(origin, pts[i + 1]);
-        lv_draw_triangle(layer, &tri);
-    }
-}
-
-void stroke(lv_layer_t* layer, lv_point_t origin, const tray::PointF* pts, int n, bool closed,
-            lv_color_t color, lv_opa_t opa) {
-    lv_draw_line_dsc_t line;
-    lv_draw_line_dsc_init(&line);
-    line.color = color;
-    line.opa = opa;
-    line.width = 1;
-    line.round_start = 1;
-    line.round_end = 1;
-    const int segments = closed ? n : n - 1;
-    for (int i = 0; i < segments; ++i) {
-        line.p1 = to_screen(origin, pts[i]);
-        line.p2 = to_screen(origin, pts[(i + 1) % n]);
-        lv_draw_line(layer, &line);
-    }
-}
-
-void edge(lv_layer_t* layer, lv_point_t origin, tray::PointF a, tray::PointF b, lv_color_t color,
-          lv_opa_t opa) {
-    const tray::PointF pts[2] = {a, b};
-    stroke(layer, origin, pts, 2, false, color, opa);
-}
-
-/// One lid: its two caps and their convex hull.
-struct Lid {
-    tray::TrayBox box; // fl/fr are the lid's ends
-    tray::PointF left[kCapPoints], right[kCapPoints];
-    tray::PointF hull[2 * kCapPoints];
-    int hull_n = 0;
-};
-
-float cross(tray::PointF o, tray::PointF a, tray::PointF b) {
-    return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-}
-
-void build_lid(const tray::TrayBox& unit_box, float lid_h, float x0, float x1, Lid& lid) {
-    lid.box = unit_box;
-    lid.box.fl = x0;
-    lid.box.fr = x1;
-    if (s_tray.shell) {
-        tray::shell_cap_polyline(unit_box, *s_tray.shell, s_tray.spool_size, x0, lid.left,
-                                 kCapPoints);
-        tray::shell_cap_polyline(unit_box, *s_tray.shell, s_tray.spool_size, x1, lid.right,
-                                 kCapPoints);
-    } else {
-        tray::cap_polyline(unit_box, lid_h, x0, lid.left, kCapPoints);
-        tray::cap_polyline(unit_box, lid_h, x1, lid.right, kCapPoints);
-    }
-    // Monotone-chain hull; the right cap is the left one shifted along x.
-    tray::PointF pts[2 * kCapPoints];
-    for (int i = 0; i < kCapPoints; ++i) {
-        pts[i] = lid.left[i];
-        pts[kCapPoints + i] = lid.right[i];
-    }
-    helix::sort_small(pts, pts + 2 * kCapPoints, [](tray::PointF a, tray::PointF b) {
-        return a.x < b.x || (a.x == b.x && a.y < b.y);
-    });
-    int k = 0;
-    for (int i = 0; i < 2 * kCapPoints; ++i) {
-        while (k >= 2 && cross(lid.hull[k - 2], lid.hull[k - 1], pts[i]) <= 0)
-            --k;
-        lid.hull[k++] = pts[i];
-    }
-    for (int i = 2 * kCapPoints - 2, lower = k + 1; i >= 0; --i) {
-        while (k >= lower && cross(lid.hull[k - 2], lid.hull[k - 1], pts[i]) <= 0)
-            --k;
-        lid.hull[k++] = pts[i];
-    }
-    lid.hull_n = k - 1;
-}
-
 /// The lid spans: one over the row, or one per lane.
 int lid_spans(float* x0, float* x1) {
     if (s_tray.lid == tray::LidMode::Unit) {
@@ -231,105 +144,6 @@ lv_point_t container_origin(lv_obj_t* obj) {
     return {a.x1, a.y1};
 }
 
-/// Inside faces and the lid's interior, behind the spools.
-void fill_box(lv_layer_t* layer, lv_point_t o, float x0, float y0, float x1, float y1, uint32_t rgb,
-              int32_t radius = 0) {
-    lv_draw_rect_dsc_t dsc;
-    lv_draw_rect_dsc_init(&dsc);
-    dsc.bg_color = lv_color_hex(rgb);
-    dsc.bg_opa = LV_OPA_COVER;
-    dsc.radius = radius;
-    const lv_area_t area = {o.x + (int32_t)x0, o.y + (int32_t)y0, o.x + (int32_t)x1,
-                            o.y + (int32_t)y1};
-    lv_draw_rect(layer, &dsc, &area);
-}
-
-/// The solid side of the unit at @p x, floor to the cheek's top edge.
-void fill_cheek(lv_layer_t* layer, lv_point_t o, float x, uint32_t rgb) {
-    const tray::UnitShell& shell = *s_tray.shell;
-    for (int i = 0; i + 1 < shell.cheek_n; ++i) {
-        const tray::PointF top0 = tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i);
-        const tray::PointF top1 = tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i + 1);
-        const float rise = s_tray.box.rise / s_tray.box.depth;
-        const float z0 = shell.cheek[i].depth_frac * s_tray.box.depth;
-        const float z1 = shell.cheek[i + 1].depth_frac * s_tray.box.depth;
-        const tray::PointF quad[4] = {
-            top0, top1, {top1.x, s_tray.box.fb - rise * z1}, {top0.x, s_tray.box.fb - rise * z0}};
-        fill_convex(layer, o, quad, 4, lv_color_hex(rgb), LV_OPA_COVER);
-    }
-}
-
-/// The glass at a lid's end, reaching down to the body's contour.
-void fill_shell_cap(lv_layer_t* layer, lv_point_t o, const tray::PointF* cap, float x,
-                    lv_color_t color, lv_opa_t opa) {
-    for (int i = 0; i + 1 < kCapPoints; ++i) {
-        const tray::PointF low0 =
-            tray::cheek_under(s_tray.box, *s_tray.shell, s_tray.spool_size, x, cap[i]);
-        const tray::PointF low1 =
-            tray::cheek_under(s_tray.box, *s_tray.shell, s_tray.spool_size, x, cap[i + 1]);
-        const tray::PointF strip[4] = {cap[i], cap[i + 1], low1, low0};
-        fill_convex(layer, o, strip, 4, color, opa);
-    }
-}
-
-/// The body's top edge along one end of the unit.
-void stroke_cheek(lv_layer_t* layer, lv_point_t o, float x, lv_color_t color, lv_opa_t opa) {
-    const tray::UnitShell& shell = *s_tray.shell;
-    for (int i = 0; i + 1 < shell.cheek_n; ++i) {
-        edge(layer, o, tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i),
-             tray::cheek_point(s_tray.box, shell, s_tray.spool_size, x, i + 1), color, opa);
-    }
-}
-
-/// The lid's top edges across the row: where its flat top starts and ends.
-void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t color,
-                    lv_opa_t opa) {
-    float crest = lid.right[0].y;
-    for (int i = 1; i < kCapPoints; ++i)
-        crest = std::min(crest, lid.right[i].y);
-    int first = -1, last = -1;
-    for (int i = 0; i < kCapPoints; ++i) {
-        if (lid.right[i].y <= crest + 1.0f) {
-            first = first < 0 ? i : first;
-            last = i;
-        }
-    }
-    edge(layer, o, lid.left[first], lid.right[first], color, opa);
-    if (last != first)
-        edge(layer, o, lid.left[last], lid.right[last], color, opa);
-}
-
-/// A unit's own front wall, rail and side, in the shell's hardware colours.
-void draw_shell_front(lv_layer_t* layer, lv_point_t o) {
-    const tray::UnitShell& shell = *s_tray.shell;
-    const tray::TrayBox& b = s_tray.box;
-    const float scale = s_tray.spool_size / tray::kShellReferenceSpool;
-    const float rail = shell.rail_px * scale;
-    fill_cheek(layer, o, b.fr, shell.body);
-    fill_box(layer, o, b.fl, b.ft, b.fr, b.fb, shell.body, 3);
-    fill_box(layer, o, b.fl + 3, b.ft + rail + 2, b.fr - 3, b.fb - 3, shell.panel, 3);
-    fill_box(layer, o, b.fl + 4, b.ft, b.fr - 4, b.ft + rail, shell.rail, 2);
-    const float tab = 7.0f * scale;
-    for (int i = 0; i < s_tray.lane_count; ++i) {
-        const float x = s_tray.lane_x[i];
-        fill_box(layer, o, x - tab, b.ft - 3.0f * scale, x + tab, b.ft, shell.accent);
-        fill_box(layer, o, x - 1, b.ft + rail * 0.35f, x + 1, b.ft + rail * 0.85f, 0xf7f7f2);
-    }
-    if (shell.corner) {
-        const float block = 8.0f * scale;
-        const float back_x = b.fr + tray::kDepthSkew * b.depth;
-        fill_box(layer, o, back_x - block, b.ft - b.rise, back_x, b.fb - b.rise, shell.corner);
-        fill_box(layer, o, b.fl, b.ft - 1.0f, b.fl + block, b.fb, shell.corner);
-        fill_box(layer, o, b.fr - block, b.ft - 1.0f, b.fr, b.fb, shell.corner);
-    }
-    if (shell.has_latch) {
-        // Below the rail, so it never lands on a lane's tick.
-        const float mid = (b.fl + b.fr) / 2.0f;
-        fill_box(layer, o, mid - 15.0f * scale, b.ft + rail - 3.0f * scale, mid + 15.0f * scale,
-                 b.ft + rail + 5.0f * scale, 0xd8dade, 4);
-    }
-}
-
 void tray_back_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
     if (!layer || !s_tray.valid)
@@ -341,16 +155,16 @@ void tray_back_draw_cb(lv_event_t* e) {
     const bool simple = helix::ui::reduced_effects();
 
     if (!simple) {
-        fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
-        fill_convex(layer, o, f.floor, 4, c.floor, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.floor, 4, c.floor, LV_OPA_COVER);
         if (s_tray.shell)
-            fill_cheek(layer, o, s_tray.box.fl, s_tray.shell->body);
+            tray::fill_cheek(shell_view(), layer, o, s_tray.box.fl, s_tray.shell->body);
         else
-            fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
+            tray::fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
-    edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
     if (s_tray.shell)
-        stroke_cheek(layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
+        tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
 
     if (simple || s_tray.lid == tray::LidMode::None)
         return;
@@ -358,23 +172,24 @@ void tray_back_draw_cb(lv_event_t* e) {
     // of the lid's lower interior.
     float x0[kMaxLids], x1[kMaxLids];
     const int lids = lid_spans(x0, x1);
-    Lid lid;
+    tray::Lid lid;
     for (int i = 0; i < lids; ++i) {
-        build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
-        fill_convex(layer, o, lid.hull, lid.hull_n, c.shell, s_tray.opa.shell);
+        tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+        tray::fill_convex(layer, o, lid.hull, lid.hull_n, c.shell, s_tray.opa.shell);
     }
-    fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
-    edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    tray::fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
+    tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
     if (s_tray.shell) {
         for (int i = 0; i < lids; ++i) {
-            build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
-            stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge, s_tray.opa.glass_edge);
+            tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+            tray::stroke(layer, o, lid.left, tray::kCapPoints, false, c.glass_edge,
+                         s_tray.opa.glass_edge);
         }
     }
 }
 
 /// The sheen: one diffuse band, a horizontal gradient per row.
-void draw_sheen(lv_layer_t* layer, lv_point_t o, const Lid& lid) {
+void draw_sheen(lv_layer_t* layer, lv_point_t o, const tray::Lid& lid) {
     tray::SheenSpan span{};
     tray::SheenRow rows[tray::kSheenMaxRows];
     const int n = tray::sheen_rows(lid.box, s_tray.lid_h, s_tray.opa.sheen, span, rows);
@@ -410,7 +225,7 @@ void tray_front_draw_cb(lv_event_t* e) {
     const bool simple = helix::ui::reduced_effects();
 
     if (s_tray.shell && !simple) {
-        draw_shell_front(layer, o);
+        tray::draw_shell_front(shell_view(), layer, o);
     } else if (!simple) {
         lv_draw_rect_dsc_t front;
         lv_draw_rect_dsc_init(&front);
@@ -419,7 +234,7 @@ void tray_front_draw_cb(lv_event_t* e) {
         const lv_area_t area = {o.x + (int32_t)f.front[0].x, o.y + (int32_t)f.front[0].y,
                                 o.x + (int32_t)f.front[2].x, o.y + (int32_t)f.front[2].y};
         lv_draw_rect(layer, &front, &area);
-        fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
     }
     const tray::PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
     const tray::PointF bl_t = f.back_wall[0], br_t = f.back_wall[1], br_b = f.back_wall[2],
@@ -429,35 +244,35 @@ void tray_front_draw_cb(lv_event_t* e) {
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
     if (!s_tray.shell || simple) {
         for (const auto& ab : edges)
-            edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+            tray::edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
     } else {
-        stroke_cheek(layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
+        tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
     }
 
     float x0[kMaxLids], x1[kMaxLids];
     const int lids = lid_spans(x0, x1);
-    Lid lid;
+    tray::Lid lid;
     const TrayOpacities& a = s_tray.opa;
     for (int i = 0; i < lids; ++i) {
-        build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+        tray::build_lid(shell_view(), s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
         if (!simple) {
-            fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
+            tray::fill_convex(layer, o, lid.hull, lid.hull_n, c.glass, a.glass);
             if (s_tray.shell)
-                fill_shell_cap(layer, o, lid.right, x1[i], c.glass, a.cap);
+                tray::fill_shell_cap(shell_view(), layer, o, lid.right, x1[i], c.glass, a.cap);
             else
-                fill_convex(layer, o, lid.right, kCapPoints, c.glass, a.cap);
+                tray::fill_convex(layer, o, lid.right, tray::kCapPoints, c.glass, a.cap);
             draw_sheen(layer, o, lid);
         }
         if (!s_tray.shell)
-            stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
+            tray::stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
         else
-            stroke_lid_top(layer, o, lid, c.glass_edge, a.glass_edge);
-        stroke(layer, o, lid.right, kCapPoints, false, c.glass_edge,
-               (lv_opa_t)(a.glass_edge * 7 / 10));
+            tray::stroke_lid_top(layer, o, lid, c.glass_edge, a.glass_edge);
+        tray::stroke(layer, o, lid.right, tray::kCapPoints, false, c.glass_edge,
+                     (lv_opa_t)(a.glass_edge * 7 / 10));
         // A unit's left end stands behind its spools and is drawn with the back faces.
         if (!s_tray.shell || simple) {
-            stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge,
-                   (lv_opa_t)(a.glass_edge * 3 / 10));
+            tray::stroke(layer, o, lid.left, tray::kCapPoints, false, c.glass_edge,
+                         (lv_opa_t)(a.glass_edge * 3 / 10));
         }
     }
 }

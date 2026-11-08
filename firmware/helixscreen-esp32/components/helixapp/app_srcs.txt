@@ -563,6 +563,7 @@ src/ui/printers/ui_change_host_modal.cpp
 src/ui/filament/ui_clog_bar.cpp
 src/ui/filament/ui_clog_meter.cpp
 src/generated/ams_unit_shells_gen.cpp
+src/ui/filament/ams_tray_shell_draw.cpp
 src/ui/filament/ams_unit_shell.cpp
 src/ui/filament/ui_unit_art.cpp
 src/ui/filament/ui_dryer_presentation.cpp
