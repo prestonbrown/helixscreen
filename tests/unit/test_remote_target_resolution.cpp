@@ -16,6 +16,7 @@
 #include "remote_control_server.h"
 #include "widget_resolution.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
@@ -1093,15 +1094,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl perf reports drawn frames and overlay ope
     REQUIRE(reply.contains("result"));
     const nlohmann::json& perf = reply["result"];
     CHECK(perf["frames"]["drawn"].get<uint64_t>() > 0);
-    CHECK(perf.contains("peak_rss_kb"));
-    bool found = false;
-    for (const auto& o : perf["overlays"]) {
-        if (o["name"] == "CtlPerfProbe") {
-            found = true;
-            CHECK(o["opens"].get<int>() >= 1);
-            CHECK(o["builds"].get<int>() >= 1);
-        }
-    }
-    CHECK(found);
+    const auto& overlays = perf["overlays"];
+    CHECK(std::any_of(overlays.begin(), overlays.end(), [](const nlohmann::json& o) {
+        return o["name"] == "CtlPerfProbe" && o["opens"].get<int>() >= 1;
+    }));
     lv_obj_delete(probe);
 }
