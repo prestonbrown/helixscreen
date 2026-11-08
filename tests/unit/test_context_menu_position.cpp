@@ -224,3 +224,38 @@ TEST_CASE("compute_card_pos: a corner tile's around-anchored card clamps along i
     CHECK(p.pos.x == 354);
     CHECK(p.pos.y == 70);
 }
+
+TEST_CASE("compute_card_pos: at 480x272 the tile callout stays on screen beside tiles at every "
+          "edge and corner",
+          "[context-menu][position][edit-callout]") {
+    // The grid host at Micro spans x 42..479 beside the navbar. A 1x1 tile is
+    // 70x64, a 2x2 142x132. The cards: 112x78 as measured with both rows, and
+    // the 120x84 worst case.
+    constexpr int32_t kMargin = 6;
+    constexpr int32_t kGap = 2;
+    constexpr int32_t kLeft = 46;
+    constexpr int32_t kTop = 4;
+    constexpr int32_t kRight = 476;
+    constexpr int32_t kBottom = 268;
+    const lv_point_t card = GENERATE(lv_point_t{112, 78}, lv_point_t{120, 84});
+    const lv_point_t size = GENERATE(lv_point_t{70, 64}, lv_point_t{142, 132});
+    const int32_t xs[] = {kLeft, (kLeft + kRight) / 2 - size.x / 2, kRight - size.x};
+    const int32_t ys[] = {kTop, (kTop + kBottom) / 2 - size.y / 2, kBottom - size.y};
+    for (int32_t x : xs) {
+        for (int32_t y : ys) {
+            const lv_area_t anchor = tile(x, y, size.x, size.y);
+            const Placed p = around(card, anchor, kMicro, kMargin, kGap);
+            const lv_area_t placed{p.pos.x, p.pos.y, p.pos.x + card.x - 1, p.pos.y + card.y - 1};
+            CAPTURE(card.x, card.y, x, y, size.x, size.y, p.pos.x, p.pos.y,
+                    static_cast<int>(p.side));
+            CHECK(placed.x1 >= kMargin);
+            CHECK(placed.y1 >= kMargin);
+            CHECK(placed.x2 < kMicro.x - kMargin);
+            CHECK(placed.y2 < kMicro.y - kMargin);
+            // Every tile up to 2x2 leaves a side for the card: it never covers it.
+            CHECK(p.side != AnchorSide::Over);
+            CHECK((placed.x2 < anchor.x1 || placed.x1 > anchor.x2 || placed.y2 < anchor.y1 ||
+                   placed.y1 > anchor.y2));
+        }
+    }
+}
