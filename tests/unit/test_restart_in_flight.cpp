@@ -249,10 +249,10 @@ TEST_CASE_METHOD(RestartInFlightFixture,
     counting_api.fail_with = MoonrakerError::connection_lost("printer.restart");
 
     SECTION("Restart Klipper") {
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
-        settle();
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
-        settle();
+        for (int press = 0; press < 2; ++press) {
+            EmergencyStopOverlayTestAccess::restart_klipper(estop);
+            settle();
+        }
         CHECK(counting_api.klipper_restarts == 1);
     }
     SECTION("Firmware Restart") {
