@@ -163,10 +163,13 @@ TEST_CASE("Power devices bound to Klipper are read from server.config",
             "power printer": {"bound_services": ["klipper"]},
             "power light": {"bound_services": ["crowsnest"]},
             "power spare": {"type": "gpio"},
+            "power old": {"bound_service": "klipper"},
             "powerline": {"bound_services": ["klipper"]},
             "job_queue": {"bound_services": ["klipper"]}
         }}})");
-        CHECK(parse_klipper_bound_power_devices(reply) == Names{"printer"});
+        auto bound = parse_klipper_bound_power_devices(reply);
+        std::sort(bound.begin(), bound.end());
+        CHECK(bound == Names{"old", "printer"});
     }
     SECTION("malformed replies read as unbound") {
         for (const char* text :

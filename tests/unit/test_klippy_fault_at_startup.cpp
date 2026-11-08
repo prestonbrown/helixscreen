@@ -235,11 +235,18 @@ TEST_CASE_METHOD(StartupFaultFixture, "A power-off that stops Klipper shows no d
     report("ready", "");
     REQUIRE(recovery_card() == nullptr);
 
-    // Moonraker's notify_klippy_disconnected carries no message.
-    const auto klipper_stops = [&] {
-        state().set_klippy_state(KlippyState::SHUTDOWN);
+    // A power-off arms a suppression window, and notify_klippy_disconnected carries
+    // no message, so the decision is made when the window expires.
+    const auto settle = [&] {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(200);
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(100);
+    };
+    const auto klipper_stops = [&] {
+        EmergencyStopOverlay::instance().suppress_recovery_dialog(50);
+        state().set_klippy_state(KlippyState::SHUTDOWN);
+        settle();
     };
 
     SECTION("the device bound to Klipper is off") {
@@ -255,6 +262,17 @@ TEST_CASE_METHOD(StartupFaultFixture, "A power-off that stops Klipper shows no d
     SECTION("an unrelated device being off explains nothing") {
         power.set_klipper_bound_devices({});
         klipper_stops();
+        CHECK(recovery_card() != nullptr);
+    }
+    SECTION("a bound device in error says nothing about Klipper") {
+        power.set_klipper_bound_devices({"printer"});
+        power.update_device_status("printer", "error");
+        klipper_stops();
+        CHECK(recovery_card() != nullptr);
+    }
+    SECTION("a fault Klipper reported shows even with the device off") {
+        power.set_klipper_bound_devices({"printer"});
+        report("shutdown", "MCU 'mcu' shutdown: Timer too close");
         CHECK(recovery_card() != nullptr);
     }
 }
