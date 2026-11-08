@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -991,6 +992,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// seats nothing. Caller holds mutex_.
     [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
 
+    /// The G-code number the printer's listing gives slot @p slot_index's
+    /// tool, -1 when the listing names no number for it. Caller holds mutex_.
+    [[nodiscard]] int listed_number_for_slot_locked(int slot_index) const;
+
     /// Latch one firmware material reading: the types and palette it carried,
     /// and each slot's material and colour filed as vendor-cache observations.
     /// Caller holds mutex_.
@@ -1118,6 +1123,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// "tool " prefix stripped to match tool_names_. Empty until reported.
     std::optional<std::vector<int>> listed_tool_numbers_;
     std::optional<std::vector<std::string>> listed_tool_names_;
+    /// Each tool's number in the first complete listing that named it: the
+    /// configured numbering reset_tool_mappings() returns the tools to.
+    std::map<std::string, int> home_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?

@@ -1446,7 +1446,28 @@ bool AmsBackendToolChanger::parse_tool_listing_locked(const nlohmann::json& tc_d
         changed = changed || listed_tool_names_ != names;
         listed_tool_names_ = std::move(names);
     }
+    if (listed_tool_numbers_ && listed_tool_names_ &&
+        listed_tool_numbers_->size() == listed_tool_names_->size()) {
+        for (size_t i = 0; i < listed_tool_names_->size(); ++i) {
+            home_tool_numbers_.emplace((*listed_tool_names_)[i], (*listed_tool_numbers_)[i]);
+        }
+    }
     return changed;
+}
+
+int AmsBackendToolChanger::listed_number_for_slot_locked(int slot_index) const {
+    if (slot_index < 0 || slot_index >= static_cast<int>(tool_names_.size()) ||
+        !listed_tool_numbers_ || !listed_tool_names_ ||
+        listed_tool_numbers_->size() != listed_tool_names_->size()) {
+        return -1;
+    }
+    const auto& name = tool_names_[static_cast<size_t>(slot_index)];
+    for (size_t i = 0; i < listed_tool_names_->size(); ++i) {
+        if ((*listed_tool_names_)[i] == name) {
+            return (*listed_tool_numbers_)[i];
+        }
+    }
+    return -1;
 }
 
 int AmsBackendToolChanger::slot_for_tool_number_locked(int tool_number) const {
@@ -3134,7 +3155,20 @@ AmsError AmsBackendToolChanger::reset_tool_mappings() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         int tool_count = static_cast<int>(tool_names_.size());
-        for (int i = 0; i < tool_count; ++i) {
+        // A printer that lists its tools may number them with gaps (0, 2, 3),
+        // so a slot index is not its tool's number: each tool goes back to the
+        // number it had when the tools were discovered.
+        const bool listed = !home_tool_numbers_.empty();
+        if (listed) {
+            for (int i = 0; i < tool_count; ++i) {
+                const auto found = home_tool_numbers_.find(tool_names_[static_cast<size_t>(i)]);
+                const int home = found != home_tool_numbers_.end() ? found->second : -1;
+                if (home >= 0 && listed_number_for_slot_locked(i) != home) {
+                    remaps_needed.emplace_back(home, tool_names_[static_cast<size_t>(i)]);
+                }
+            }
+        }
+        for (int i = 0; !listed && i < tool_count; ++i) {
             if (i < static_cast<int>(system_info_.tool_to_slot_map.size()) &&
                 system_info_.tool_to_slot_map[i] != i) {
                 // Tool i is currently mapped to a different slot — restore to identity

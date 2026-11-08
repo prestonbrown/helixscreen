@@ -2223,6 +2223,25 @@ TEST_CASE("A mounted tool's number names its slot, not its position",
         CHECK(tc->get_current_slot() == 2);
     }
 
+    SECTION("a reset returns each tool to its own number, gaps included") {
+        auto tc = numbered_changer({0, 2, 3});
+        tc->feed(json{{"toolchanger", {{"tool_names", {"tool T3", "tool T0", "tool T2"}}}}});
+        REQUIRE(tc->reset_tool_mappings().success());
+        const auto sent = [&](const std::string& g) {
+            return std::find(tc->sent_.begin(), tc->sent_.end(), g) != tc->sent_.end();
+        };
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T0\" N=0"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T2\" N=2"));
+        CHECK(sent("ASSIGN_TOOL TOOL=\"tool T3\" N=3"));
+        CHECK(tc->sent_.size() == 3);
+    }
+
+    SECTION("a reset of tools already on their numbers sends nothing") {
+        auto tc = numbered_changer({0, 2, 3});
+        REQUIRE(tc->reset_tool_mappings().success());
+        CHECK(tc->sent_.empty());
+    }
+
     SECTION("a reassigned number follows its tool when only the names change") {
         // ASSIGN_TOOL swapping two numbers leaves tool_numbers as it was, so
         // Moonraker's delta carries tool_names alone.
