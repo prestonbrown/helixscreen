@@ -350,7 +350,7 @@ they arrive in changes.
 
 **A run is bounded, and any stop leaves the tree as it found it.**
 
-- `--max-minutes N` (default and maximum 30; `--release` lifts the cap, and
+- `--max-minutes N` (default and maximum 45; `--release` lifts the cap, and
   only then does `0` mean none) caps the whole run, baseline included. At the
   cap the in-flight hunk is stopped and restored, and it and
   every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
@@ -496,10 +496,12 @@ slow. A bats or pytest case red at baseline (inside the test container some fail
 the environment alone: root, no jobpool) is set aside by name, printed, and every other
 case judges; a red Catch2 baseline still stops the run. Files sharing what judges
 them run as one group, each group a child run with its own baseline, inside the one
-30-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
+45-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
 `--tests`, `--shell-tests` and `--python-tests`.
 Generated output (`src/generated/`, `ui_xml/translations/`) is not mutated: its source is,
 and the regeneration gates pin the two together.
+
+`make mutate-diff` passes `--pool`, so a landing run shares one build and one set of worker copies across every file.
 
 **A whole-branch run is a release-class job, on an idle test host:** `--release --max-minutes
 0 --pool --auto-tests-max 100 --confirm-survivors --inside 2 --first <path>`. `--pool` keeps
