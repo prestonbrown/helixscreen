@@ -4,6 +4,8 @@
 
 #include "screensaver_fireflies.h"
 
+#include "locale_formats.h"
+
 #include <spdlog/spdlog.h>
 
 using helix::ui::DirtyRect;
@@ -34,12 +36,17 @@ const char* mode_name(helix::ui::FirefliesMode mode) {
 
 } // namespace
 
+bool helix::ui::FirefliesScreensaver::on_start() {
+    sim_.set_spell_english(locale_current_language().rfind("en", 0) == 0);
+    return SimSaver<FirefliesSim>::on_start();
+}
+
 void helix::ui::FirefliesScreensaver::on_frame(uint32_t dt_ms, std::vector<DirtyRect>& dirty) {
     uint32_t begun[kFirefliesModeCount];
     for (size_t m = 0; m < kFirefliesModeCount; m++) {
         begun[m] = sim_.modes_begun(static_cast<FirefliesMode>(m));
     }
-    step_sim(dt_ms, dirty);
+    step_sim(dt_ms, dirty, print_reading());
     for (size_t m = 0; m < kFirefliesModeCount; m++) {
         if (sim_.modes_begun(static_cast<FirefliesMode>(m)) != begun[m]) {
             spdlog::debug("[Screensaver] Fireflies mode: {}",

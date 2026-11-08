@@ -142,9 +142,11 @@ uint64_t hyperspace_run(uint32_t seed) {
     return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
 }
 
-uint64_t fireflies_run(uint32_t seed) {
+uint64_t fireflies_run(uint32_t seed, bool printing) {
     FirefliesScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t maze_run(uint32_t seed) {
@@ -297,10 +299,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(run != other);
     }
     SECTION("fireflies") {
-        const uint64_t other = fireflies_run(14);
-        const uint64_t run = fireflies_run(13);
-        check_replay("fireflies", run, [] { return fireflies_run(13); });
+        const uint64_t other = fireflies_run(14, false);
+        const uint64_t run = fireflies_run(13, false);
+        const uint64_t print = fireflies_run(13, true);
+        check_replay("fireflies", run, [] { return fireflies_run(13, false); });
+        check_replay("fireflies_print", print, [] { return fireflies_run(13, true); });
         CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("maze") {
         const uint64_t other = maze_run(18);
