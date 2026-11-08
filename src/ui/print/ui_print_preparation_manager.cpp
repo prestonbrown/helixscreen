@@ -2541,9 +2541,11 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                                  helix::print_start::kPluginStartToolsMinVersion)
                            : PluginFeatureState::Absent;
         if (helix::print_start::plugin_drops_tool_map(start_params, start_tools)) {
+            const auto tools = start_params.find("tools");
             spdlog::warn("[PrintPreparationManager] The HelixPrint plugin cannot pass the tool "
                          "map ({}) on for {}: the printer routes it by its own prompt",
-                         start_params.at("tools"), job->file_path);
+                         tools != start_params.end() ? tools->second : std::string("?"),
+                         job->file_path);
         }
     }
 
