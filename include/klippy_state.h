@@ -43,4 +43,12 @@ const char* klippy_state_name(KlippyState state);
  */
 bool is_klippy_config_error(std::string_view state_message);
 
+/**
+ * @brief Whether a Klipper state_message reports an MCU it could not reach at startup
+ *
+ * Klipper's wording from mcu.py and serialhdl.py ("mcu 'mcu': Unable to connect").
+ * This is what an unpowered mainboard looks like from the host.
+ */
+bool is_klippy_mcu_connect_error(std::string_view state_message);
+
 } // namespace helix

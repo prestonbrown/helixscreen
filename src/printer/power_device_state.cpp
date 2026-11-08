@@ -148,6 +148,15 @@ bool PowerDeviceState::is_locked_while_printing(const std::string& device) const
     return false;
 }
 
+bool PowerDeviceState::any_device_off() const {
+    for (const auto& [name, info] : devices_) {
+        if (info.raw_status == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<std::string> PowerDeviceState::device_names() const {
     std::vector<std::string> names;
     names.reserve(devices_.size());

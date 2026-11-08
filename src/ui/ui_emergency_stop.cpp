@@ -20,6 +20,7 @@
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "notice.h"
+#include "power_device_state.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"
 
@@ -620,6 +621,18 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
         spdlog::debug("[KlipperRecovery] Ignoring {} - AbortManager handling recovery",
                       recovery_reason_str(reason));
         return false;
+    }
+
+    // A mainboard switched off through a power device: Home's status icon and
+    // power controls already cover it, and neither restart can reach an MCU
+    // with no power. Handled, not declined: there is nothing to retry.
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ && printer_state_ &&
+        is_klippy_mcu_connect_error(printer_state_->network_state().get_klippy_fault_message()) &&
+        helix::PowerDeviceState::instance().any_device_off()) {
+        spdlog::info("[KlipperRecovery] Not showing {}: the MCU is unreachable and a power "
+                     "device is off",
+                     recovery_reason_str(reason));
+        return true;
     }
 
     // If dialog is still showing, update reason if it's worse (SHUTDOWN -> DISCONNECTED means
