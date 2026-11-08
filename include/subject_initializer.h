@@ -30,6 +30,7 @@ class PluginStatusRefresh;
 } // namespace helix
 namespace helix::ui {
 class FilamentOpHeater;
+class ColdPullRunner;
 class PlrOfferController;
 class ChamberStallPrompt;
 } // namespace helix::ui
@@ -57,6 +58,10 @@ class SubjectInitializer {
   public:
     SubjectInitializer();
     ~SubjectInitializer();
+
+    /// Lets what this owns send its last commands while the client is still
+    /// connected: a live cold pull turns its heater off and restores its fan.
+    void before_disconnect();
 
     // Non-copyable, non-movable (owns observer guards)
     SubjectInitializer(const SubjectInitializer&) = delete;
@@ -158,6 +163,7 @@ class SubjectInitializer {
     std::unique_ptr<helix::PluginStatusRefresh> m_plugin_status_refresh;
     std::unique_ptr<helix::TemperatureController> m_temp_controller;
     std::unique_ptr<helix::ui::FilamentOpHeater> m_filament_op_heater;
+    std::unique_ptr<helix::ui::ColdPullRunner> m_cold_pull_runner;
     std::unique_ptr<helix::BedDryingController> m_bed_drying;
     std::unique_ptr<TemperatureService> m_temp_control_panel;
     // Registered as a shared resource by this object, owned by MoonrakerManager.
