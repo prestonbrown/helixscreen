@@ -9,7 +9,6 @@
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
-#include "lane_translation.h"
 #include "lvgl.h"
 #include "system/child_process.h"
 #include "system/moonraker_local_probe.h"
@@ -776,10 +775,13 @@ void HelixPluginInstaller::snooze_install_prompt() {
 
 namespace {
 
+/// A clock reading older than this names no real moment: a device without an
+/// RTC reads 1970 (or its build date) until NTP reaches it. 2020-01-01 UTC;
+/// HelixScreen's first release is 2025.
+constexpr int64_t kEarliestTrustedClockS = 1577836800;
+
 bool plugin_prompt_clock_trusted(int64_t s) {
-    return s >= std::chrono::duration_cast<std::chrono::seconds>(
-                    ams::k_unknown_stamp_before.time_since_epoch())
-                    .count();
+    return s >= kEarliestTrustedClockS;
 }
 
 } // namespace

@@ -11,7 +11,6 @@
 #include "error_event.h"
 #include "filament_slot_override_store.h"
 #include "happy_hare_status_parse.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "slot_registry.h"
 
@@ -167,7 +166,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         // Live temp/target read from heater_generic via Moonraker subscriptions
         t.has_environment_sensors = true;
         // Happy Hare persists via MMU_GATE_MAP SPOOLID
-        t.has_firmware_spool_persistence = true;
         // Happy Hare publishes gate spool_id in mmu status
         t.printer_reports_spool_ids = true;
         // mmu.action stays Idle until MMU_LOAD/MMU_UNLOAD starts, and through
@@ -232,14 +230,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     toolchange_phase_template(StepOperationType op) const override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsSubscriptionBackend::IdentityWrite
-    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -310,14 +301,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     AmsError stop_drying_gates(int unit, const std::vector<int>& gates) override;
     AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
                            int unit = 0) override;
-
-    /// Publish the external spool as lane{N+1} in the SHARED lane_data
-    /// namespace — Happy Hare's plugin never publishes its bypass/external
-    /// spool (verified: push_lane_data iterates gates only), and its boot-time
-    /// cleanup deletes records with lane >= num_gates. Our entry is wiped at
-    /// HH boot; the AmsState event triggers (bypass engage, external-spool
-    /// edit) re-publish.
-    void publish_external_spool_lane(const SlotInfo* spool) override;
 
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
@@ -398,6 +381,25 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
+    /// The gate map holds the name on every version and the vendor on v4,
+    /// and no remaining weight: the extras record keeps the rest.
+    void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override {
+        store.set_extras_fields(extras_fields_locked());
+    }
+    [[nodiscard]] helix::ams::ExtrasFields extras_fields_locked() const {
+        helix::ams::ExtrasFields fields;
+        fields.remaining_weight = true;
+        fields.spool_name = false;
+        fields.brand = !is_v4_locked();
+        return fields;
+    }
+    /// Re-point the store's extras fields once the layout names the version.
+    /// Caller holds mutex_.
+    void sync_extras_fields_locked() {
+        if (override_store_) {
+            override_store_->set_extras_fields(extras_fields_locked());
+        }
+    }
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS HappyHare]";
@@ -437,14 +439,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     // AFC. See AmsBackendAfc for the full rationale.
     //
     static constexpr const char* kOverrideNamespace = "helix-screen-hh-overrides";
-    /// Store on the SHARED lane_data namespace, used only by
-    /// publish_external_spool_lane. Happy Hare's plugin owns that namespace.
-    std::unique_ptr<helix::ams::FilamentSlotOverrideStore> lane_publish_store_;
-    void persist_override(int slot_index, const SlotInfo& info,
-                          const helix::ams::Observation& declared);
-    /// Put @p info's filament fields and tool mapping on @p slot, the half an
-    /// edit and a sync share. Callers hold mutex_.
-    void write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info);
 
     // The MMU_HEATER target for @p unit: UNIT= where unit_suffix_locked() needs
     // one, then " GATES=g0,g1,..." naming the unit's gates on multi-unit (EMU)
@@ -505,37 +499,14 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     // no // narration, so the backend drives the bar itself. Caller holds mutex_.
     void sync_narration_step();
 
-    /// What one printer.mmu frame accumulates while it is applied: the gate
-    /// identity it stated and cleared, which the echo guard judges at the
-    /// filing step, and what must happen once mutex_ is released.
-    ///
-    /// The accumulator gate_readings_ carries the gate map's last word on every
-    /// key, so a frame silent about material would otherwise offer the pre-edit
-    /// material as this frame's statement and release the material declaration
-    /// before its echo lands. The echo guard therefore judges these instead.
+    /// What one printer.mmu frame accumulates while it is applied: what must
+    /// happen once mutex_ is released.
     struct MmuFrame {
         /// A fault stood when the frame began (reason_for_pause was non-empty).
         bool was_faulted = false;
-        std::map<int, helix::ams::Observation> stated;
-        std::map<int, helix::ams::Observation> cleared;
         /// Gates that went from empty to holding filament with no spool
         /// binding to say what went in.
         std::vector<int> unverified_insert_gates;
-
-        /// Observation has no default constructor, so every entry is created
-        /// through these with a definite source.
-        helix::ams::Observation& stated_for(int gate) {
-            return stated
-                .try_emplace(gate,
-                             helix::ams::Observation{helix::ams::ObservationSource::VendorCache})
-                .first->second;
-        }
-        helix::ams::Observation& cleared_for(int gate) {
-            return cleared
-                .try_emplace(gate,
-                             helix::ams::Observation{helix::ams::ObservationSource::VendorCache})
-                .first->second;
-        }
     };
 
     // The sections of one printer.mmu frame, applied under mutex_ in this order.
@@ -547,11 +518,10 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     void apply_mmu_topology_locked(const happy_hare::MmuTopologyDelta& topology);
     void apply_gate_status_locked(const happy_hare::GateIdentityDelta& identity);
     /// gate_color_rgb / gate_color / gate_material.
-    void apply_gate_appearance_locked(const happy_hare::GateIdentityDelta& identity,
-                                      MmuFrame& frame);
-    /// Spool binding (with its reconcile), temperature, names, tool map and
+    void apply_gate_appearance_locked(const happy_hare::GateIdentityDelta& identity);
+    /// Spool binding, temperature, names, tool map and
     /// endless-spool groups.
-    void apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta, MmuFrame& frame);
+    void apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta);
     void apply_mmu_telemetry_locked(const happy_hare::MmuTelemetryDelta& telemetry);
     /// Pre-gate sensors, drying and the endless-spool enable bit.
     void apply_mmu_sensors_locked(const happy_hare::MmuStatusDelta& delta);
@@ -582,14 +552,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /**
      * @brief Blank the identity only a departed source could have stated.
      *
-     * reconcile_lane_binding() drops the Spoolman, user and remembered records
-     * from a gate's lane the moment the gate map stops agreeing with them. The
-     * fields below are the ones apply_mmu_status_locked() never writes, so with those
-     * records gone nothing can restate them, and apply_resolved() does not
-     * write a field no source observed. They would otherwise stand on a gate
-     * describing a spool that has nothing to do with it - on a re-bind, the
-     * incoming spool wearing the outgoing one's brand
-     * (prestonbrown/helixscreen#1672).
+     * A gate the gate map moves to another spool stops resolving the previous
+     * spool's Spoolman details. The fields below are the ones
+     * apply_mmu_status_locked() never writes, so nothing restates them, and
+     * apply_resolved() does not write a field no source observed. They would otherwise stand on a
+     * gate describing a spool that has nothing to do with it - on a re-bind, the incoming spool
+     * wearing the outgoing one's brand (prestonbrown/helixscreen#1672).
      *
      * Colour, material, gate name and the spool id are left alone: the gate map
      * states each of them and this frame has already written them.
@@ -753,13 +721,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// remembers.
     std::map<int, helix::ams::Observation> gate_readings_;
 
-    // The base's own_write_echoes_, on this backend:
-    // What the user's own MMU_GATE_MAP write declared, so the gate map
-    // echoing it back through printer.mmu is not filed as firmware's reading.
-    // The gate map is user-maintained, so no tag names the spool a write was
-    // made against: suppression ends on a differing value, a key published
-    // empty, the re-bind verdict in the gate_spool_id parse, or a clear.
-
     // Path visualization state
     int filament_pos_{0};     ///< Happy Hare filament_pos value
     int bowden_progress_{-1}; ///< Bowden loading progress 0-100% (-1=unavailable, v4)
@@ -824,7 +785,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     };
     ConfigDefaults config_defaults_;
 
-    /// User overrides (set via UI, persisted to Config)
+    /// Tunables Happy Hare does not report: a change goes to the MMU with
+    /// MMU_TEST_CONFIG, which lasts until Klipper restarts, so the value is
+    /// kept in Moonraker (kHhTuningNamespace / kHhTuningKey, one object of
+    /// key: {value, config_default}) where every screen on the printer reads
+    /// it, and re-applied at connect. Clog detection is not here: the mmu
+    /// status reports its mode.
     struct UserOverrides {
         std::optional<float> gear_from_buffer_speed;
         std::optional<float> gear_from_spool_speed;
@@ -837,7 +803,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         std::optional<float> toolhead_entry_to_extruder;
         std::optional<float> toolhead_ooze_reduction;
         std::optional<int> sync_to_extruder;
-        std::optional<int> clog_detection;
     };
     UserOverrides user_overrides_;
 
@@ -849,7 +814,29 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     std::vector<std::string> espooler_per_gate_;
     int flowguard_encoder_mode_ = -1; ///< -1 = not yet received from Moonraker
 
+    static constexpr const char* kHhTuningNamespace = "helix-screen";
+    static constexpr const char* kHhTuningKey = "hh_tuning";
+    /// The tuning document as last read or written. Main thread.
+    nlohmann::json hh_tuning_ = nlohmann::json::object();
+    /// Moonraker has answered for the document (it was read, or holds none).
+    /// Until then nothing is written over it. Main thread.
+    bool hh_tuning_read_ = false;
+    bool hh_tuning_reading_ = false;
+    /// Changes saved before the document was read, merged into it on the read.
+    nlohmann::json hh_tuning_unsaved_ = nlohmann::json::object();
+
+    /// Read the tuning document from Moonraker, then adopt it. Main thread.
     void load_persisted_overrides();
+    /// Load @p doc into user_overrides_ (dropping an entry whose
+    /// config_default no longer matches the configfile), move a leftover
+    /// local /hh_overrides record into it when Moonraker holds none, write it
+    /// back when either changed it (@p writable: the read succeeded), and
+    /// re-apply. Main thread.
+    void adopt_hh_tuning(nlohmann::json doc, bool writable);
+    void write_hh_tuning();
+    /// File @p entry under @p key: written now when the document has been
+    /// read, else kept for the read (started here if none is out). Main thread.
+    void store_hh_tuning_entry(const std::string& key, nlohmann::json entry);
     void save_override(const std::string& key, float value);
     void save_override(const std::string& key, int value);
     void reapply_overrides();

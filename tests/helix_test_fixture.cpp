@@ -54,7 +54,6 @@
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
-#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -156,17 +155,6 @@ struct ConfigSandbox {
         fs::create_directories(base / "backup", ec);
         dir = base.string();
 
-        // FilamentSlotOverrideStore's on-disk read-cache defaults to
-        // helix::get_user_config_dir() — the RELATIVE "config", i.e. the
-        // repo's own config/ under the test binary's CWD. AMS backend tests
-        // construct real backends whose stores get no per-instance dir (the
-        // per-test TestAccess classes that pin one exist only in the
-        // dedicated store tests), so `make test-run` wrote
-        // config/filament_slot_overrides.json into the repo. Redirect the
-        // process-wide fallback here — static initializer, so before main()
-        // and before any backend thread exists. Per-instance dirs still win.
-        helix::ams::detail::slot_override_cache_dir_ref() = dir;
-
         // The user filament overlay resolves to the same relative "config" dir.
         // MaterialSettingsManager writes it on every override change.
         helix::printer::detail::user_overlay_dir_ref() = dir;
@@ -231,13 +219,6 @@ void reset_config_singleton() {
     std::error_code backup_ec;
     std::filesystem::remove_all(config_sandbox_dir() + "/state", backup_ec);
     std::filesystem::remove_all(config_sandbox_dir() + "/backup", backup_ec);
-
-    // ToolState persists tool_spools.json into helix::get_user_config_dir(),
-    // which defaults to the RELATIVE dir "config" — i.e. the repo's own
-    // config/ under the test binary's CWD. It really did write there during
-    // `make test-run`, which also means a later run could load another run's
-    // spool assignments. set_config_dir() is the supported override.
-    helix::ToolState::instance().set_config_dir(config_sandbox_dir());
 
     // A test that wrote the overlay leaves its types merged into the material
     // table; drop both so the next test sees only the shipped types.

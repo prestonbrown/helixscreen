@@ -712,6 +712,7 @@ translations:
   Change heater control?: Cambiare il controllo del riscaldatore?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Modifica le impostazioni della stampante tramite Moonraker, incluso caricare, riscrivere ed eliminare file nella cartella di configurazione della stampante.'
+  Change the name or the linked spool in Spoolman.: "Modifica il nome o la bobina collegata in Spoolman."
   Change tool: Cambia utensile
   Changes apply immediately. Adjust during print for tuning.: Le modifiche si applicano
     immediatamente. Regolare durante la stampa per la messa a punto.
@@ -2270,6 +2271,8 @@ translations:
   Loading filament...: Caricamento filamento...
   Loading filaments...: Caricamento filamenti...
   Loading history...: Caricamento cronologia...
+  Loading lane details. Try again in a moment.: Caricamento dettagli corsia. Riprova tra un momento.
+  Loading lane details…: Caricamento dettagli corsia…
   Loading photo: 'Caricamento foto'
   Loading spools...: Caricamento bobine...
   Loading vendors...: Caricamento fornitori...
@@ -2357,6 +2360,7 @@ translations:
   Main LED Strip: Striscia LED principale
   Maintaining: Mantenimento
   Maintenance: 'Manutenzione'
+  Make color, material and spool changes in Spoolman.: "Modifica colore, materiale e bobina in Spoolman."
   Make sure every nozzle is clean.: Assicurati che tutti gli ugelli siano puliti.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': "Assicurati che nella testina non sia caricato filamento: può ammorbidirsi nell'estrusore mentre il piano si scalda."
 
@@ -2706,6 +2710,7 @@ translations:
   Not in your spools? Set it up: Non è tra le tue bobine? Configuralo
   Not now: Non ora
   Not turned: 'Non girato'
+  'Not saved: {}. Try again.': "Non salvato: {}. Riprova."
   Not set: Non impostato
   Not yet available on this display: 'Non ancora disponibile su questo display'
   Not yet calibrated: Non ancora calibrato
@@ -2808,6 +2813,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Apri il .3mf in File di stampa per stampare di nuovo questo piatto.'
   Open the CFS unit and remove the broken filament from the slot: Aprire l'unità CFS e rimuovere il filamento spezzato dallo slot
   Open the slot editor when you load a new spool: 'Apri l''editor dello slot quando carichi una nuova bobina'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS conserva questa bobina in Spoolman, che qui accetta solo materiale, colore, marca e peso"
+  OpenAMS manages this spool's link: "OpenAMS gestisce il collegamento di questa bobina"
+  AFC has no Spoolman configured: "AFC non ha Spoolman configurato"
   Opened: Aperta
   Operation already in progress: Operazione già in corso
   Operation timed out: Timeout dell'operazione
@@ -4989,11 +4997,18 @@ translations:
   tall: di altezza
   target {}%: 'target {}%'
   target {}°: 'target {}°'
+  the ACE needs a material and its nozzle temperature: "l'ACE richiede un materiale e la sua temperatura dell'ugello"
+  "the CFS can't change a slot while a print is running": "il CFS non può modificare uno slot durante una stampa"
+  the QIDI Box filament list has not loaded: "l'elenco filamenti della QIDI Box non è stato caricato"
+  the QIDI Box has no {} in its filament list: "la QIDI Box non ha {} nel suo elenco filamenti"
   the extruder: l'estrusore
   the left belt: "cinghia sinistra"
   the lower belt: "cinghia inferiore"
+  the printer did not confirm it: "la stampante non l'ha confermato"
+  the printer refused it: "la stampante l'ha rifiutato"
   the right belt: "cinghia destra"
   the upper belt: "cinghia superiore"
+  this printer fills its gates from Spoolman, so change the spool there: "questa stampante riempie i suoi gate da Spoolman, cambia la bobina lì"
   this week: questa settimana
   too slow: troppo lento
   tool(s): utensile/i

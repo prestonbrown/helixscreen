@@ -1294,6 +1294,12 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
             NOTIFY_WARNING("{}", helix::ui::clear_spool_blocked_hint(backend->lane_noun(), slot));
             break;
         }
+        // The menu greys Clear with this reason; a caller holding an older
+        // menu is refused here, quietly, since the reason is already shown.
+        if (const std::string refusal = backend->clear_spool_refusal(slot); !refusal.empty()) {
+            spdlog::info("[AMS] Clear of slot {} refused: {}", slot, refusal);
+            break;
+        }
 
         // Clear spool assignment: reset material/color/spool data, keep slot status.
         // Routed through AmsState::commit_slot_edit so the Spoolman server's
@@ -1435,7 +1441,8 @@ void offer_clear_after_unverified_insert(int slot) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend ||
         clear_spool_blocked_by_print(get_printer_state().print_state().get_print_lifecycle(),
-                                     backend->slot_is_actively_loaded(slot))) {
+                                     backend->slot_is_actively_loaded(slot)) ||
+        !backend->clear_spool_refusal(slot).empty()) {
         return;
     }
     // A lane with no details has nothing the new spool could contradict.

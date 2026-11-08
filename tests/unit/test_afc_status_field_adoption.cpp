@@ -221,11 +221,10 @@ TEST_CASE("the status version is adopted once upstream emits it", "[ams][afc][11
     CHECK(afc.version() == "1.2.1");
 }
 
-// #808 is unimplemented on every branch, so the vendor reader only ever sees a
-// missing key. It must not touch slot.brand in that case — and must not treat an
-// empty value as a clear either, since a wiped brand is unrecoverable on the
-// lane_data path.
-TEST_CASE("the vendor reader neither invents nor wipes a brand", "[ams][afc][1175]") {
+// A missing vendor key is a delta that left the vendor alone; an empty one is
+// AFC stating the lane has none.
+TEST_CASE("the vendor reader keeps a brand through silence and clears it on empty",
+          "[ams][afc][1175]") {
     AfcStatusFieldHelper afc;
 
     afc.feed_lane({{"material", "PETG"}});
@@ -235,9 +234,9 @@ TEST_CASE("the vendor reader neither invents nor wipes a brand", "[ams][afc][117
     afc.feed_lane({{"spool_vendor", "Polymaker"}});
     REQUIRE(afc.get_slot_info(0).brand == "Polymaker");
 
-    afc.feed_lane({{"spool_vendor", ""}});
-    CHECK(afc.get_slot_info(0).brand == "Polymaker");
-
     afc.feed_lane({{"material", "PLA"}});
     CHECK(afc.get_slot_info(0).brand == "Polymaker");
+
+    afc.feed_lane({{"spool_vendor", ""}});
+    CHECK(afc.get_slot_info(0).brand.empty());
 }

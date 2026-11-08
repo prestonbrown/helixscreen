@@ -102,12 +102,15 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
     /// own errors are cleared by reset().
     AmsError clear_fault(int slot_index) override;
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+    /// False until the component probe answers: an edit before it would pick
+    /// the wrong write path.
+    [[nodiscard]] bool lane_records_ready() const override {
+        return !component_probe_out_ && AmsSubscriptionBackend::lane_records_ready();
+    }
+    void clear_slot_override(int slot_index) override;
+    /// With [openams_spoolman] loaded the bay's link is the component's.
+    [[nodiscard]] std::string clear_spool_refusal(int slot_index) const override;
 
     /// Group names are configured in klipper_openams; `T<n>` groups are read
     /// as tool n and cannot be re-aimed from here.
@@ -164,14 +167,12 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
     }
     void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
-    /// OpenAMS reports no filament identity, so the persisted lane record is
-    /// the only account of what a slot holds and a resync re-reads it.
-    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
-        return false;
-    }
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
+    /// With [openams_spoolman] loaded, lane_data is its protected namespace
+    /// and weights live in Spoolman, so neither is written here.
+    void persist_slot_weight(int slot_index, float remaining_weight_g,
+                             float total_weight_g) override;
+    void persist_external_identity_impl(int slot_index,
+                                        const helix::ams::Observation& spoolman) override;
 
     /// Sends one advertised load/unload command. The command runs the complete
     /// configured toolchange, homing included, so no home is added here; the
@@ -188,13 +189,39 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
     using Group = openams::Group;
     using UnitDryer = openams::UnitDryer;
 
-    /// Re-read the lane_data records and file what they say onto the lanes.
-    /// The read never blocks and never holds the backend mutex; the filing
-    /// runs on the main thread. A spool link written after start (by the
-    /// openams_spoolman component, or by another tool) shows up through this.
-    void refresh_lane_records();
-    void apply_lane_records(int backend_block,
-                            const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
+    /// The openams [openams_spoolman] Moonraker component is loaded: it
+    /// writes lane_data (a namespace Moonraker protects from clients) and
+    /// takes edits through server.openams_spoolman.edit. Learned from its
+    /// status endpoint at start and from its status notification. Written on
+    /// the main thread; the persist hooks read it from wherever they run.
+    std::atomic<bool> spoolman_component_{false};
+    /// The start-time component probe is out: whether the server has the
+    /// component is not known yet.
+    std::atomic<bool> component_probe_out_{false};
+
+    /// An edit through the component: refused inline for a field it cannot
+    /// hold, otherwise posted, with the lane's pending edit acknowledged or
+    /// withdrawn by the answer.
+    AmsError apply_edit_through_component(int slot_index, const SlotInfo& info);
+
+    /// File the component's per-bay status (its `bays` object, keyed
+    /// "<unit>-<bay>") as each slot's Firmware source: the linked spool id
+    /// and the summary it publishes for it. Marks the component loaded.
+    /// Main thread.
+    void adopt_component_status(const nlohmann::json& status);
+    /// Ask the component for its status and adopt the answer. Main thread.
+    void query_component_status();
+
+    /// Without [openams_spoolman] the lane record is a lane's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return !spoolman_component_;
+    }
+
+    /// With the component loaded its lane_data is per tool, not per slot,
+    /// and until the probe answers nobody knows which.
+    [[nodiscard]] bool lane_records_describe_slots() const override {
+        return !component_probe_out_ && !spoolman_component_;
+    }
 
     /// Parallel to system_info_.units.
     std::vector<std::vector<UnitFault>> unit_faults_;

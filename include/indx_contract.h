@@ -64,7 +64,8 @@ struct Reading {
     /// LOAD_FILAMENT.filament_presets, keyed as the printer writes them.
     std::optional<std::map<std::string, FilamentPreset>> presets;
     /// T<n>.spool_id, where the T<n> macro declares one (not upstream; the
-    /// variable exists only on macro sets that track a spool per tool).
+    /// variable exists only on macro sets that track a spool per tool). 0
+    /// when it names none (None, 0 or a negative id).
     std::map<int, int> tool_spool_ids;
 
     bool operator==(const Reading& o) const {

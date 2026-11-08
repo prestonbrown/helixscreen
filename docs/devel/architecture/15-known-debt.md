@@ -134,16 +134,12 @@ The direction is proven: `format_temperature_pair()` ([`src/ui/controls/ui_tempe
 
 The lane source model (`Observation`, `LaneSources`, `resolve()`; [`07-filament-ams.md`](07-filament-ams.md) § "Lane identity by source") is supplied by every AMS backend and read by the panels. Two pieces of residue are known and have no issue of their own:
 
-**The echo question has three hand-built answers.** `AmsBackend::own_write_expectation`
-([`include/ams_backend.h#own_write_expectation`](../../../include/ams_backend.h)),
+**The echo question has two answers.** A HelixScreen edit stands on its lane as `Pending`
+until a `Firmware` or `Record` reading states the same value
+([`include/lane_source_store.h#strip_echoed_fields`](../../../include/lane_source_store.h)), and
 `SlotFingerprintTracker::expect_any_of`
 ([`include/filament_slot_override_store.h#SlotFingerprintTracker/"expect_any_of(int slot_index,"`](../../../include/filament_slot_override_store.h))
-and `helix::ams::OwnWriteEchoes`
-([`include/lane_echo.h#OwnWriteEchoes`](../../../include/lane_echo.h)) each suppress one
-flavour of "is this reading someone else's write or the echo of my own?" for one backend
-family. `Observation` ([`include/lane_observation.h#"struct Observation {"`](../../../include/lane_observation.h)) carries no field for the answer, so the source model
-states which source spoke and not whose write it was. A backend that writes a user's edit to the printer and
-parses it back files the echo as a `VendorCache` reading unless one of the three catches it.
+keeps an RFID backend from reading its own write-back as a spool swap.
 
 **A Spoolman save that wrote part of what it was asked for leaves the lane on the pre-save identity.**
 A successful save re-reads the spool through `SpoolmanManager::refresh_spool()`

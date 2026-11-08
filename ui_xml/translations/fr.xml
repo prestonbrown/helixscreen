@@ -195,6 +195,7 @@
   <translation tag="AFC buffer" fr="Tampon AFC"/>
   <translation tag="AFC failure reset complete" fr="Réinitialisation erreur AFC terminée"/>
   <translation tag="AFC failure reset failed" fr="Échec de la réinitialisation erreur AFC"/>
+  <translation tag="AFC has no Spoolman configured" fr="AFC n&apos;a pas de Spoolman configuré"/>
   <translation tag="AFC recovery complete" fr="Récupération AFC terminée"/>
   <translation tag="AFC recovery failed" fr="Échec de la récupération AFC"/>
   <translation tag="AFC reset complete" fr="Réinitialisation AFC terminée"/>
@@ -658,6 +659,7 @@
   <translation tag="Change Tool While Paused" fr="Changer d&apos;outil en pause"/>
   <translation tag="Change heater control?" fr="Changer le contrôle du chauffage ?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." fr="Modifie les paramètres de l&apos;imprimante via Moonraker, y compris le téléversement, la réécriture et la suppression de fichiers dans le dossier de configuration de l&apos;imprimante."/>
+  <translation tag="Change the name or the linked spool in Spoolman." fr="Modifiez le nom ou la bobine liée dans Spoolman."/>
   <translation tag="Change tool" fr="Changer d&apos;outil"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." fr="Les modifications s&apos;appliquent immédiatement. Ajustez pendant l&apos;impression pour le réglage."/>
   <translation tag="Changes are temporary and reset on printer reboot" fr="Les modifications sont temporaires et réinitialisées au redémarrage de l&apos;imprimante"/>
@@ -2068,6 +2070,8 @@
   <translation tag="Loading filament..." fr="Chargement du filament..."/>
   <translation tag="Loading filaments..." fr="Chargement des filaments..."/>
   <translation tag="Loading history..." fr="Chargement de l&apos;historique..."/>
+  <translation tag="Loading lane details. Try again in a moment." fr="Chargement des détails de la voie. Réessayez dans un instant."/>
+  <translation tag="Loading lane details…" fr="Chargement des détails de la voie…"/>
   <translation tag="Loading photo" fr="Chargement de la photo"/>
   <translation tag="Loading spools..." fr="Chargement des bobines..."/>
   <translation tag="Loading vendors..." fr="Chargement des fournisseurs..."/>
@@ -2151,6 +2155,7 @@
   <translation tag="Main LED Strip" fr="Bandeau LED principal"/>
   <translation tag="Maintaining" fr="Maintien"/>
   <translation tag="Maintenance" fr="Maintenance"/>
+  <translation tag="Make color, material and spool changes in Spoolman." fr="Modifiez la couleur, le matériau et la bobine dans Spoolman."/>
   <translation tag="Make sure every nozzle is clean." fr="Assurez-vous que toutes les buses sont propres."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." fr="Vérifiez qu&apos;aucun filament n&apos;est chargé dans la tête d&apos;outil : il peut ramollir dans l&apos;extrudeur pendant que le plateau chauffe."/>
   <translation tag="MakeID (Bluetooth)" fr="MakeID (Bluetooth)"/>
@@ -2478,6 +2483,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." fr="Pas assez de place pour remettre le widget. Il reste supprimé."/>
   <translation tag="Not in your spools? Set it up" fr="Pas dans vos bobines ? Configurez-la"/>
   <translation tag="Not now" fr="Pas maintenant"/>
+  <translation tag="Not saved: {}. Try again." fr="Non enregistré : {}. Réessayez."/>
   <translation tag="Not set" fr="Non défini"/>
   <translation tag="Not turned" fr="Pas tourné"/>
   <translation tag="Not yet available on this display" fr="Pas encore disponible sur cet écran"/>
@@ -2574,6 +2580,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." fr="Ouvrez le .3mf dans Fichiers d&apos;impression pour réimprimer ce plateau."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" fr="Ouvrez l&apos;unité CFS et retirez le filament cassé du slot"/>
   <translation tag="Open the slot editor when you load a new spool" fr="Ouvrir l&apos;éditeur de slot au chargement d&apos;une nouvelle bobine"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" fr="OpenAMS conserve cette bobine dans Spoolman, qui n&apos;accepte ici que le matériau, la couleur, la marque et le poids"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" fr="OpenAMS gère le lien de cette bobine"/>
   <translation tag="Opened" fr="Ouverte"/>
   <translation tag="Operation already in progress" fr="Opération déjà en cours"/>
   <translation tag="Operation timed out" fr="Délai dépassé pour l&apos;opération"/>
@@ -4546,11 +4554,18 @@
   <translation tag="tall" fr="de haut"/>
   <translation tag="target {}%" fr="cible {}%"/>
   <translation tag="target {}°" fr="cible {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" fr="l&apos;ACE a besoin d&apos;un matériau et de sa température de buse"/>
+  <translation tag="the CFS can&apos;t change a slot while a print is running" fr="le CFS ne peut pas modifier un emplacement pendant une impression"/>
+  <translation tag="the QIDI Box filament list has not loaded" fr="la liste de filaments de la QIDI Box n&apos;est pas chargée"/>
+  <translation tag="the QIDI Box has no {} in its filament list" fr="la QIDI Box n&apos;a pas de {} dans sa liste de filaments"/>
   <translation tag="the extruder" fr="l&apos;extrudeur"/>
   <translation tag="the left belt" fr="la courroie gauche"/>
   <translation tag="the lower belt" fr="la courroie du bas"/>
+  <translation tag="the printer did not confirm it" fr="l&apos;imprimante ne l&apos;a pas confirmé"/>
+  <translation tag="the printer refused it" fr="l&apos;imprimante l&apos;a refusé"/>
   <translation tag="the right belt" fr="la courroie droite"/>
   <translation tag="the upper belt" fr="la courroie du haut"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" fr="cette imprimante remplit ses gates depuis Spoolman, changez la bobine là-bas"/>
   <translation tag="this week" fr="cette semaine"/>
   <translation tag="too slow" fr="trop lent"/>
   <translation tag="tool(s)" fr="outil(s)"/>

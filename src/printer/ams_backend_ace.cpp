@@ -26,7 +26,6 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
@@ -188,29 +187,7 @@ void AmsBackendAce::on_started() {
         own_load_ = false;
     }
 
-    // Load persisted per-slot overrides from the shared FilamentSlotOverrideStore
-    // BEFORE issuing the initial status query — otherwise the first status
-    // callback (libhv background thread) could fire and parse slots before
-    // overrides_ is populated, so the first EVENT_STATE_CHANGED frame would
-    // miss override data. load_blocking runs on this (main) thread; the
-    // Moonraker DB callback fires on the libhv event loop, so the two threads
-    // don't interfere. Migration from helix-screen:ace_slot_overrides to
-    // lane_data happens automatically inside load_blocking the first time
-    // lane_data is empty (Task 8).
-    if (api_) {
-        auto loaded =
-            helix::ams::make_loaded_override_store(api_, "ace", get_type(), backend_log_tag(),
-                                                   "lane_data", /*migrates_legacy_namespace=*/true);
-        if (loaded.store) {
-            helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                              backend_index());
-        }
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            override_store_ = std::move(loaded.store);
-            overrides_ = std::move(loaded.overrides);
-        }
-    }
+    open_lane_record_store("ace");
 
     // start() refuses to run without a client, but a directly-constructed
     // backend (tests) reaches here with none and the query below would
@@ -756,8 +733,10 @@ void AmsBackendAce::apply_hub_temps_locked(int slot_index, SlotInfo& slot,
         user_temps_[static_cast<size_t>(slot_index)]) {
         return;
     }
-    slot.nozzle_temp_min = entry.temp_min.value_or(slot.nozzle_temp_min);
-    slot.nozzle_temp_max = entry.temp_max.value_or(slot.nozzle_temp_max);
+    // The ACEPRO driver keeps one temperature per slot, `temp`.
+    const int temp = entry.temp.value_or(0);
+    slot.nozzle_temp_min = entry.temp_min.value_or(temp > 0 ? temp : slot.nozzle_temp_min);
+    slot.nozzle_temp_max = entry.temp_max.value_or(temp > 0 ? temp : slot.nozzle_temp_max);
 }
 
 void AmsBackendAce::note_tag_frame_locked(int slot_index, const helix::ace::SlotDelta& entry,
@@ -809,73 +788,93 @@ std::optional<helix::ams::TagReading> AmsBackendAce::tag_reading(int slot_index)
     return tag_readings_[static_cast<size_t>(slot_index)];
 }
 
-AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info,
-                                        const helix::ams::Observation& declared) {
+std::string AmsBackendAce::set_slot_gcode(int slot_index, const SlotInfo& info) const {
+    // ACE_SET_SLOT takes the whole inventory entry: COLOR=R,G,B, MATERIAL= and
+    // TEMP=1..300 are all required, or EMPTY=1 for a slot with none.
+    if (info.material.empty() && !helix::ams::is_declarable_color(info.color_rgb)) {
+        return slot_command("ACE_SET_SLOT", slot_index) + " EMPTY=1";
+    }
+    helix::ams::FilamentSlotOverride temps;
+    temps.material = info.material;
+    helix::ams::populate_temps_from_slot_info(temps, info);
+    const int nozzle = helix::ams::resolved_temps(temps).nozzle_temp;
+    if (info.material.empty() || nozzle <= 0 || nozzle > 300) {
+        return {};
+    }
+    const uint32_t rgb =
+        helix::ams::is_declarable_color(info.color_rgb) ? info.color_rgb & 0xFFFFFFu : 0u;
+    return slot_command("ACE_SET_SLOT", slot_index) +
+           fmt::format(" COLOR={},{},{} MATERIAL={} TEMP={}", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF,
+                       rgb & 0xFF, helix::text_io::quote_gcode_param(info.material), nozzle);
+}
+
+void AmsBackendAce::apply_edit_to_slot(int slot_index, const SlotInfo& info) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    SlotInfo* slot = mutable_slot_locked(slot_index);
+    if (!slot) {
+        return;
+    }
+    // The hub states its own temperatures on the REST bridge, and the record
+    // keeps one for every edit, so only an edit that moved them marks them the
+    // user's (apply_hub_temps_locked).
+    if (info.nozzle_temp_min != slot->nozzle_temp_min ||
+        info.nozzle_temp_max != slot->nozzle_temp_max) {
+        const auto idx = static_cast<size_t>(slot_index);
+        if (user_temps_.size() <= idx) {
+            user_temps_.resize(idx + 1, false);
+        }
+        user_temps_[idx] = true;
+    }
+    write_filament_fields(*slot, info);
+}
+
+AmsError AmsBackendAce::apply_user_edit(int slot_index, const SlotInfo& info) {
+    bool hub_stores_edits = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-
-        SlotInfo* slot = mutable_slot_locked(slot_index);
-        if (!slot) {
+        if (!mutable_slot_locked(slot_index)) {
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 highest_slot_index(system_info_));
         }
-        const bool temps_moved = info.nozzle_temp_min != slot->nozzle_temp_min ||
-                                 info.nozzle_temp_max != slot->nozzle_temp_max;
-        if (temps_moved) {
-            const auto idx = static_cast<size_t>(slot_index);
-            if (user_temps_.size() <= idx) {
-                user_temps_.resize(idx + 1, false);
-            }
-            user_temps_[idx] = true;
+        hub_stores_edits = instance_commands_;
+    }
+
+    // The ACEPRO driver keeps each slot's colour, material and temperature in
+    // its inventory, so the edit goes there and the lane waits for the hub to
+    // restate it. Other drivers hold no write: the lane record is the edit.
+    if (hub_stores_edits) {
+        const std::string gcode = set_slot_gcode(slot_index, info);
+        if (gcode.empty()) {
+            return AmsError(AmsResult::WRONG_STATE,
+                            fmt::format("ACE_SET_SLOT needs a material and a nozzle temperature "
+                                        "(material '{}')",
+                                        info.material),
+                            lv_tr("the ACE needs a material and its nozzle temperature"), "",
+                            slot_index);
         }
-        write_filament_fields(*slot, info);
-
-        // Stage the override into overrides_ so the edit survives a restart;
-        // the lane's own declaration, filed when the edit is committed, is what
-        // apply_resolved_lane paints on every subsequent parse.
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        // The record is saved once the driver has run the write: one it
+        // rejects saves nothing.
+        auto record = record_once_written(slot_index, info);
+        auto on_written = [this, slot_index, info, record]() {
+            apply_edit_to_slot(slot_index, info);
+            record();
+        };
+        return execute_gcode(gcode, on_written, withdraw_edit_if_rejected(slot_index),
+                             /*silent=*/false);
     }
 
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        persist_user_record_locked(slot_index, info);
+    }
+    apply_edit_to_slot(slot_index, info);
     spdlog::info("[ACE] Updated slot {} info: {} {}", slot_index, info.material, info.color_name);
-
-    if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
-    }
-
     emit_event(kEventSlotChanged, std::to_string(slot_index));
     return AmsErrorHelper::success();
 }
 
 SlotInfo* AmsBackendAce::identity_slot_locked(int slot_index) {
     return mutable_slot_locked(slot_index);
-}
-
-AmsSubscriptionBackend::IdentityWrite
-AmsBackendAce::write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) {
-    if (!slot) {
-        return {AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
-                                             highest_slot_index(system_info_))};
-    }
-    write_filament_fields(*slot, info);
-    spdlog::info("[ACE] Synced slot {} info: {} {}", slot_index, info.material, info.color_name);
-    return {};
-}
-
-void AmsBackendAce::persist_external_identity_impl(int slot_index,
-                                                   const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendAce::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                        float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
 }
 
 AmsError AmsBackendAce::can_set_tool_mapping(int /*tool_number*/, int /*slot_index*/) const {
@@ -1620,17 +1619,16 @@ void AmsBackendAce::apply_ace_object_locked(const helix::ace::ObjectDelta& d, in
             // partial identity for a whole-record write to narrow. It also
             // makes an absent sensed record provably a guard rather than a
             // translation that did not run.
-            helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+            helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
             cache.color_rgb = observed_color;
             cache.material = observed_material;
-            helix::ams::ingest(lane_id(idx), cache);
+            file_hub_reading_locked(idx, cache);
+            apply_hub_temps_locked(idx, slot, entry);
             note_tag_frame_locked(idx, entry, observed_present);
 
-            // Layer user-configured overrides on top of firmware-reported
-            // data. Override wins for any non-default field - for ACE
-            // that includes color and material, since ACE hardware
-            // doesn't carry brand/spool_name/weights at all and the user
-            // edit is the authoritative source for color/material too.
+            // Lay the lane over the hub's paint: the hub's own colour and
+            // material where it holds them, the record for everything it
+            // does not (and, on drivers that store no edit, for those too).
             // The REST poll brings every slot through here each
             // kPollIntervalMs, so ACE names no slot to cached_slot_locked().
             apply_resolved_lane(slot, idx);
@@ -2304,10 +2302,10 @@ bool AmsBackendAce::parse_slots_response(const json& data) {
             helix::ams::ingest(lane_id(idx), sensed);
         }
 
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         cache.color_rgb = observed_color;
         cache.material = material;
-        helix::ams::ingest(lane_id(idx), cache);
+        file_hub_reading_locked(idx, cache);
 
         apply_hub_temps_locked(idx, slot, entry);
         note_tag_frame_locked(idx, entry, observed_present);
@@ -2716,8 +2714,30 @@ void AmsBackendAce::judge_insert_locked(SlotInfo& slot, int slot_index,
     forget_user_temps_locked(slot_index);
 }
 
+void AmsBackendAce::clear_slot_override(int slot_index) {
+    if (defer_clear_to_firmware_write(slot_index)) {
+        return;
+    }
+    // The lane half of Clear Spool: on ACEPRO the hub's own clear
+    // (ACE_SET_SLOT EMPTY=1) went out with the cleared edit before this.
+    AmsSubscriptionBackend::clear_slot_override(slot_index);
+}
+
 void AmsBackendAce::after_override_cleared_locked(int slot_index, SlotInfo& /*slot*/) {
     forget_user_temps_locked(slot_index);
+}
+
+bool AmsBackendAce::lane_record_is_only_identity() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !instance_commands_;
+}
+
+void AmsBackendAce::file_hub_reading_locked(int slot_index, helix::ams::Observation& hub) {
+    const helix::ams::LaneId lane = lane_id(slot_index);
+    if (!instance_commands_) {
+        helix::ace::yield_to_record(hub, helix::ams::lane_sources(lane).record);
+    }
+    helix::ams::ingest(lane, hub);
 }
 
 } // namespace helix

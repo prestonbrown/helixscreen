@@ -936,7 +936,7 @@ EOF
     local filing='helix::ams::ingest(lane, stated);'
     # A mutation whose target has moved changes nothing and passes vacuously.
     grep -qF "$filing" src/printer/spoolman_manager.cpp
-    sed -e 's@helix::ams::ingest(lane, stated);@owner.sync_external_identity(slot_index, slot);@' \
+    sed -e 's@helix::ams::ingest(lane, stated);@owner.apply_user_edit(slot_index, slot);@' \
         src/printer/spoolman_manager.cpp > "$mutated"
 
     run check_weight_poll_is_weight_only "$mutated"
@@ -965,7 +965,7 @@ EOF
     # substitution keeps the list at two and hands write() to code the funnels
     # do not cover.
     local mutated="${BATS_TEST_TMPDIR}/lane_store_swapped_friend.h"
-    sed -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
+    sed -e 's@^\([[:space:]]*\)friend void file_pending(LaneId, const Observation\&);@\1friend void sync_from_backend(LaneId, const Observation\&);@' \
         include/lane_source_store.h > "$mutated"
 
     [ "$(grep -cE '^[[:space:]]*friend ' "$mutated")" -eq 2 ]
@@ -1014,8 +1014,8 @@ EOF
 @test "the friend-list gate ignores harmless reordering of the same friends" {
     local mutated="${BATS_TEST_TMPDIR}/lane_store_reordered_friends.h"
     sed -e 's@^\([[:space:]]*\)friend void ingest(LaneId, const Observation\&);@\1PLACEHOLDER_SWAP@' \
-        -e 's@^\([[:space:]]*\)friend void commit_slot_edit(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
-        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void commit_slot_edit(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)friend void file_pending(LaneId, const Observation\&);@\1friend void ingest(LaneId, const Observation\&);@' \
+        -e 's@^\([[:space:]]*\)PLACEHOLDER_SWAP@\1friend void file_pending(LaneId, const Observation\&);@' \
         include/lane_source_store.h > "$mutated"
 
     run check_friend_list "$mutated" "$LANE_STORE_FRIENDS_EXPECTED"
@@ -1058,32 +1058,6 @@ EOF
     run check_lane_store_write_is_private "$mutated"
     [ "$status" -eq 1 ]
     [[ "$output" == *"was not found"* ]]
-}
-
-@test "the mock publish gate fires when a second call site is added" {
-    local mutated="${BATS_TEST_TMPDIR}/mock_two_publishes.cpp"
-    sed -e 's@^\([[:space:]]*\)publish_lane_observations();@\1publish_lane_observations();\n\1publish_lane_observations();@' \
-        src/printer/ams_backend_mock.cpp > "$mutated"
-
-    run check_mock_publishes_lane_readings_once "$mutated"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"found 2"* ]]
-}
-
-@test "the mock publish gate fails closed when the method is renamed" {
-    local mutated="${BATS_TEST_TMPDIR}/mock_renamed_publish.cpp"
-    sed -e 's@publish_lane_observations@refile_lane_readings@g' \
-        src/printer/ams_backend_mock.cpp > "$mutated"
-
-    run check_mock_publishes_lane_readings_once "$mutated"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"is not defined in"* ]]
-}
-
-@test "the mock publish gate fails closed when the file is missing" {
-    run check_mock_publishes_lane_readings_once "${BATS_TEST_TMPDIR}/does_not_exist.cpp"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"could not locate"* ]]
 }
 
 # --- Hand-built tool labels and lane/slot offsets must route through display_numbering.h ---
@@ -1662,20 +1636,21 @@ EOF
     contains "FilamentSlotOverrideStore" "$output"
 }
 
-@test "the override-store gate stays quiet on the helper and on the publish store" {
-    # The silent half: the sanctioned spelling moves a store the helper built,
-    # and the publish store is a different member with no map behind it.
-    local d="${BATS_TEST_TMPDIR}/quiet"
+@test "the override-store gate stays quiet on the two sanctioned openers" {
+    # The silent half: the backends' one opener and AmsState's bypass store,
+    # each in its own file, each as the one assignment the gate allows.
+    local d="${BATS_TEST_TMPDIR}/quiet/printer"
     mkdir -p "$d"
-    cat > "$d/ams_backend_ok.cpp" <<'EOF'
-void AmsBackendOk::on_started() {
-    auto loaded = helix::ams::make_loaded_override_store(api_, "ok", get_type(),
-                                                         backend_log_tag());
+    cat > "$d/ams_subscription_backend.cpp" <<'EOF'
+void AmsSubscriptionBackend::open_lane_record_store(std::string id, std::string ns) {
     std::lock_guard<std::mutex> lock(mutex_);
-    override_store_ = std::move(loaded.store);
-    overrides_ = std::move(loaded.overrides);
-    lane_publish_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        api_, "ok", style, "lane_data");
+        override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            api_, std::move(id), helix::ams::lane_key_style_for(get_type()), std::move(ns));
+}
+EOF
+    cat > "$d/ams_state_external_spool.cpp" <<'EOF'
+void AmsState::open_bypass_store() {
+    bypass_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api, "bypass", style);
 }
 EOF
     run override_store_offenders "$d"

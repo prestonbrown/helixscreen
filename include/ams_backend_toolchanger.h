@@ -110,12 +110,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// backend that treats material as a free-form label.
     [[nodiscard]] std::optional<std::vector<std::string>> get_supported_materials() const override;
 
-    /// True once a frame has carried the firmware's slots AND palette: only
-    /// then can an edit be snapped into the palette and normalized into the
-    /// types before it is sent. Before that, an edit stays local as on any
-    /// tool changer.
-    [[nodiscard]] bool firmware_stores_color_and_material(int slot_index) const override;
-
     /// Constant capability answers; see BackendTraits.
     static constexpr BackendTraits kTraits = [] {
         BackendTraits t;
@@ -472,14 +466,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void on_connection_lost() override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsSubscriptionBackend::IdentityWrite
-    write_synced_identity_locked(int slot_index, SlotInfo* slot, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
+    /// The T<n> record is a tool's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return true;
+    }
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -582,6 +574,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] bool clears_override_without_slot() const override {
         return true;
     }
+
+    /// Whether this machine's firmware holds each head's colour and material
+    /// (a material source with a writer, whose slots and palette a frame has
+    /// carried): an edit writes them there, and the lane record copies them
+    /// from the firmware. Caller holds mutex_.
+    [[nodiscard]] bool firmware_holds_identity_locked() const;
+
+    /// Copy each head's firmware colour and material into its record.
+    void on_lane_records_read_locked() override;
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }
@@ -863,6 +864,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// Each head's material and colour as the firmware last stated them, so a
     /// frame restating them is not taken for a change.
     std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_slot_values_;
+    /// Per head, the material and colour the firmware states for a head that
+    /// holds filament; what on_lane_records_read_locked() copies into the
+    /// record. Under mutex_.
+    std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_identity_;
     /// Each afclite lane's spool_id as last published, by lane name.
     std::unordered_map<std::string, int> afc_lane_spool_seen_;
     /// Latest per-dock occupancy from the dock sensors, indexed by slot: true
@@ -1023,19 +1028,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// The store is the sole source of filament identity here, so a clear
     /// blanks every identity field: nothing will restate them.
     void clear_override_fields(SlotInfo& slot) const override;
-
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
-    /// klipper-toolchanger reports no filament identity, so nothing here files
-    /// a vendor-cache reading from a status frame and the persisted record is
-    /// the lane's only account of what a slot holds.
-    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
-        return false;
-    }
 
     /**
      * @brief Parse individual tool state from Moonraker JSON

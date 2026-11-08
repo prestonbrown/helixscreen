@@ -20,9 +20,11 @@
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_platform_tier.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -280,6 +282,22 @@ class AmsEditOverlayViewTestAccess {
     void call_handle_weight_tap() {
         overlay_.handle_weight_tap();
     }
+    int save_state() {
+        return lv_subject_get_int(&overlay_.save_state_subject_);
+    }
+    std::string save_error() {
+        return lv_subject_get_string(&overlay_.save_error_subject_);
+    }
+    bool closed() const {
+        return overlay_.completion_fired_;
+    }
+    SlotInfo working_info() const {
+        return overlay_.working_info_;
+    }
+    static std::string not_saved_message(helix::ams::PendingOutcome outcome,
+                                         const std::string& reason) {
+        return AmsEditOverlay::not_saved_message(outcome, reason);
+    }
     void set_save_in_flight(bool in_flight) {
         overlay_.save_in_flight_ = in_flight;
         overlay_.update_sync_button_state();
@@ -426,7 +444,7 @@ void seed_linked_spool(MoonrakerAPIMock& api, MoonrakerClientMock& client,
     it->color_hex = "8A949E";
     it->initial_weight_g = 1000.0;
     it->remaining_weight_g = 850.0;
-    backend.sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1030,7 +1048,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     client.spoolman_mock().get_mock_spools().push_back(linked_a);
     // The backend mirrors the overlay's initial info, the way a live backend
     // holds the tracked slot the editor was opened on.
-    backend->sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(*backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1097,7 +1115,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     linked_a.material = "ASA";
     linked_a.color_hex = "8A949E";
     client.spoolman_mock().get_mock_spools().push_back(linked_a);
-    backend->sync_external_identity(0, tracked_slot());
+    helix::test::apply_edit(*backend, 0, tracked_slot());
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -1166,7 +1184,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     SlotInfo seeded = backend->get_slot_info(0);
     seeded.spoolman_id = 169;
     seeded.material = "PLA";
-    backend->sync_external_identity(0, seeded);
+    helix::test::apply_edit(*backend, 0, seeded);
 
     // Spoolman "unavailable" so the editor's Save takes the synchronous
     // local-close branch (no async PATCH seam).
@@ -2832,7 +2850,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
                  "[ams_edit_overlay][dropdown][callback][commit]") {
     SlotInfo start = untracked_slot();
     start.material = "TPU-85A";
-    REQUIRE(backend->sync_external_identity(0, start).success());
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
 
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3650,8 +3668,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record ne
 
     CHECK_FALSE(fired);                          // still open
     CHECK(access.detail_comment() == "keep me"); // edits kept
-    REQUIRE(toasts.size() == 1);                 // and the user is told
-    CHECK(toasts[0].find("haven't loaded") != std::string::npos);
+    CHECK(toasts.empty());                       // told in the editor, not a toast
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error().find("haven't loaded") != std::string::npos);
     access.set_detail_field("detail_field_comment", "");
     close_editor_overlay();
     set_spoolman_available(false);
@@ -3897,14 +3916,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         notes_patched = notes_patched || upd.patch.dump().find("kept") != std::string::npos;
     }
     REQUIRE(notes_patched);
-    bool honest = false;
-    bool false_claim = false;
-    for (const auto& t : toasts) {
-        honest = honest || t.find("saved the price, location, lot and notes") != std::string::npos;
-        false_claim = false_claim || t.find("Nothing changed on this printer") != std::string::npos;
-    }
-    CHECK(honest);
-    CHECK_FALSE(false_claim);
+    // Told in the editor that stays open, not in a toast.
+    CHECK(toasts.empty());
+    const std::string said = access.save_error();
+    CHECK(said.find("saved the price, location, lot and notes") != std::string::npos);
+    CHECK(said.find("Nothing changed on this printer") == std::string::npos);
     close_editor_overlay();
     set_spoolman_available(false);
 }
@@ -3946,8 +3962,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(results[0].slot_info.remaining_weight_g == 321);
     CHECK(access.view() == AmsEditOverlay::kViewEditor); // still open
     CHECK(access.detail_comment() == "later");
-    REQUIRE(toasts.size() == 1);
-    CHECK(toasts[0].find("offline") != std::string::npos);
+    CHECK(toasts.empty());
+    CHECK(access.save_error().find("offline") != std::string::npos);
     access.set_detail_field("detail_field_comment", "");
     close_editor_overlay();
     set_spoolman_available(false);
@@ -4032,22 +4048,16 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "picker greys spools other lanes hold, never the lane's own, on a remapped lane",
-                 "[ams_edit_overlay][picker][tool-state]") {
-    auto& ts = ToolState::instance();
-    ts.deinit_subjects();
-    ts.init_subjects(false);
-    PrinterDiscovery hw;
-    hw.parse_objects(nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"}));
-    ts.init_tools(hw);
-    REQUIRE(ts.tool_count() == 3);
-
-    // Lane 2 feeds T0, so its spool sits in ToolState under tool 0.
-    REQUIRE(backend->set_tool_mapping(0, 2).success());
-    UpdateQueue::instance().drain();
-    REQUIRE(backend->get_slot_info(2).mapped_tool == 0);
-    ts.assign_spool(0, 9001, "Lane 2 spool");
-    ts.assign_spool(2, 9002, "T2 spool");
+                 "picker greys spools other lanes link, never the lane's own",
+                 "[ams_edit_overlay][picker][lane_truth]") {
+    // A spool is in use when a lane links it; a tool holds no spool of its own.
+    const auto link = [this](int slot, int spool_id) {
+        SlotInfo info = backend->get_slot_info(slot);
+        info.spoolman_id = spool_id;
+        helix::test::apply_edit(*backend, slot, info);
+    };
+    link(2, 9001);
+    link(0, 9002);
 
     std::vector<SpoolInfo> spools(2);
     spools[0].id = 9001;
@@ -4096,12 +4106,11 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(disabled(list, 9002));
 
     close_editor_overlay();
-    ts.deinit_subjects();
 }
 
 // A box that owns its tool table (CFS, like the mock) feeds every lane through
 // one extruder, yet ToolState takes a tool per entry of that table from the
-// backend's topology, so a loaded lane on T2 holds its spool under tool 2.
+// backend's topology; the picker still asks the lanes which spools are taken.
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "picker on a one-extruder box greys every other lane's spool, never its own",
                  "[ams_edit_overlay][picker][tool-state]") {
@@ -4115,7 +4124,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     const auto link = [this](int slot, int spool_id) {
         SlotInfo info = backend->get_slot_info(slot);
         info.spoolman_id = spool_id;
-        backend->sync_external_identity(slot, info);
+        helix::test::apply_edit(*backend, slot, info);
     };
     link(0, 9001);
     link(2, 9003);
@@ -4124,8 +4133,6 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     REQUIRE(backend->get_slot_info(2).mapped_tool == 2);
     REQUIRE(ts.tool_count() == 4);
-    REQUIRE(ts.tools()[0].spoolman_id == 9001);
-    REQUIRE(ts.tools()[2].spoolman_id == 9003);
 
     std::vector<SpoolInfo> spools(2);
     spools[0].id = 9001;
@@ -4325,7 +4332,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off wit
     SlotInfo linked = tracked_slot();
     linked.slot_index = -2;
     linked.global_index = -2;
-    AmsState::instance().set_external_spool_info(linked);
+    helix::AmsStateTestAccess::seed_external_spool(linked);
     REQUIRE(AmsState::instance().get_external_spool_info().has_value());
 
     auto& overlay = get_ams_edit_overlay();
@@ -4474,4 +4481,246 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(false);
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+// ============================================================================
+// Save waits for the lane to hold it
+// ============================================================================
+
+namespace {
+
+/// A tool changer whose lane records are its only identity, on the mock
+/// Moonraker, as AmsState's backend.
+class RecordBackedChanger : public helix::AmsBackendToolChanger {
+  public:
+    explicit RecordBackedChanger(helix::IMoonrakerAPI* api)
+        : helix::AmsBackendToolChanger(api, nullptr) {
+        set_discovered_tools({"T0", "T1"});
+        running_ = true;
+    }
+    helix::AmsError execute_gcode(const std::string&) override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
+        return helix::AmsErrorHelper::success();
+    }
+};
+
+void settle() {
+    for (int i = 0; i < 4; ++i) {
+        UpdateQueue::instance().drain();
+    }
+}
+
+struct SaveAckFixture : LVGLUITestFixture {
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api;
+    RecordBackedChanger* backend = nullptr;
+
+    SaveAckFixture() : api(client, get_printer_state()) {
+        auto& ams = AmsState::instance();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        get_printer_state().init_subjects(false);
+        ams.init_subjects(false);
+        get_printer_state().capabilities_state().set_spoolman_available(false);
+
+        client.mock_db_set("lane_data", "T1",
+                           {{"lane", "1"}, {"material", "PLA"}, {"color", "#FFFFFF"}});
+        auto owned = std::make_unique<RecordBackedChanger>(&api);
+        backend = owned.get();
+        ams.set_backend(std::move(owned));
+        ams.set_moonraker_api(&api);
+        helix::ToolChangerTestAccess::call_on_started(*backend);
+        settle();
+        REQUIRE(backend->get_slot_info(1).material == "PLA");
+    }
+
+    ~SaveAckFixture() override {
+        auto& ams = AmsState::instance();
+        ams.set_moonraker_api(nullptr);
+        UpdateQueue::instance().drain();
+        ams.clear_backends();
+        UpdateQueue::instance().drain();
+        ams.deinit_subjects();
+    }
+
+    /// Open the editor on lane 1 with the production consumer's commit, stage
+    /// PETG and press Save.
+    void save_petg(AmsEditOverlayViewTestAccess& access) {
+        auto& overlay = get_ams_edit_overlay();
+        REQUIRE(overlay.show_for_slot(
+            test_screen(), 1, backend->get_slot_info(1), &api,
+            [](const AmsEditOverlay::EditResult& r) {
+                if (!r.saved || r.slot_index < 0) {
+                    return;
+                }
+                const SlotInfo original =
+                    AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+                (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+            }));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        SlotInfo edited = backend->get_slot_info(1);
+        edited.material = "PETG";
+        access.set_working_info(edited);
+        access.call_handle_save();
+        UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(SaveAckFixture, "the spool editor closes once the lane holds the save",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+
+    // The write is out: the editor waits, saying so, with the edit pending.
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 1);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+
+    client.fire_deferred("server.database.post_item");
+    settle();
+    CHECK(access.closed());
+    CHECK(access.save_state() == 0);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+    REQUIRE(access.save_state() == 1);
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: database is read-only. Try again.");
+    // The form keeps the user's values; the lane shows what Moonraker holds.
+    CHECK(access.working_info().material == "PETG");
+    CHECK(backend->get_slot_info(1).material == "PLA");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save refused before it is written keeps the editor open",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.fail_next("server.database.post_item", MoonrakerError::unknown("disk full"));
+    save_petg(access);
+    settle();
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: disk full. Try again.");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "an edit that only clears still reports a failed write",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    auto& overlay = get_ams_edit_overlay();
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 1, backend->get_slot_info(1), &api, [](const AmsEditOverlay::EditResult& r) {
+            if (!r.saved || r.slot_index < 0) {
+                return;
+            }
+            const SlotInfo original =
+                AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+            (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+        }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo cleared = backend->get_slot_info(1);
+    REQUIRE(cleared.material == "PLA");
+    cleared.material.clear();
+    access.set_working_info(cleared);
+    client.defer_next("server.database.post_item");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    REQUIRE(access.save_state() == 1);
+
+    client.fire_deferred_error("server.database.post_item",
+                               MoonrakerError::unknown("database is read-only"));
+    settle();
+    CHECK_FALSE(access.closed());
+    CHECK(access.save_state() == 2);
+    CHECK(access.save_error() == "Not saved: database is read-only. Try again.");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a meter flush between Save and its echo still closes the editor",
+                 "[ams_edit_overlay][save_ack][review]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    auto& overlay = get_ams_edit_overlay();
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 1, backend->get_slot_info(1), &api, [](const AmsEditOverlay::EditResult& r) {
+            if (!r.saved || r.slot_index < 0) {
+                return;
+            }
+            const SlotInfo original =
+                AmsState::instance().get_backend()->get_slot_info(r.slot_index);
+            (void)AmsState::instance().commit_slot_edit(r.slot_index, original, r.slot_info);
+        }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo edited = backend->get_slot_info(1);
+    edited.material = "PETG";
+    edited.remaining_weight_g = 500.0f;
+    edited.total_weight_g = 1000.0f;
+    access.set_working_info(edited);
+    client.defer_next("server.database.post_item");
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    REQUIRE(access.save_state() == 1);
+
+    // The edit lands; the read that would echo it is out when the print's
+    // meter writes the weight it counted down from the edit's.
+    client.defer_next("server.database.get_item");
+    client.fire_deferred("server.database.post_item");
+    UpdateQueue::instance().drain();
+    backend->update_slot_weight(1, 499.6f, 1000.0f, /*persist=*/true);
+    client.fire_deferred("server.database.get_item");
+    settle();
+
+    CHECK(access.closed());
+    CHECK(access.save_state() == 0);
+    CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a commit result nobody took is not reported by a later save",
+                 "[ams_edit_overlay][save_ack][review]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    // A refusal from an earlier commit on the same slot, never taken.
+    helix::AmsStateTestAccess::leave_slot_edit_result(
+        AmsState::instance(), 1, AmsError(AmsResult::NOT_CONNECTED, "stale", "stale refusal"));
+    auto& overlay = get_ams_edit_overlay();
+    // A completion that commits nothing (the external spool's, for one).
+    REQUIRE(overlay.show_for_slot(test_screen(), 1, backend->get_slot_info(1), &api,
+                                  [](const AmsEditOverlay::EditResult&) {}));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    SlotInfo edited = backend->get_slot_info(1);
+    edited.material = "PETG";
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+    CHECK(access.save_error().find("stale") == std::string::npos);
+    CHECK(access.closed());
+}
+
+TEST_CASE("a save that is not confirmed names the reason, or a generic one",
+          "[ams_edit_overlay][save_ack]") {
+    CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed,
+                                                          "lane busy") ==
+          "Not saved: lane busy. Try again.");
+    CHECK(
+        AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::TimedOut, "") ==
+        "Not saved: the printer did not confirm it. Try again.");
+    CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed, "") ==
+          "Not saved: the printer refused it. Try again.");
 }

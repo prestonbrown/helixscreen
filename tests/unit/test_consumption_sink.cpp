@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/mock_printer.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "consumption_sink.h"
+#include "core/update_queue.h"
 #include "lane_source_store.h"
 
 #include "../catch_amalgamated.hpp"
@@ -16,19 +19,25 @@ namespace {
 // Uses LVGLTestFixture because AmsState::init_subjects + lv_tick_get require
 // LVGL initialization. Mirrors the existing tracker tests.
 struct ExternalSpoolSinkFixture : LVGLTestFixture {
+    /// The database the bypass record is written to.
+    MockPrinter db;
+
     ExternalSpoolSinkFixture() {
         auto& ams = helix::AmsState::instance();
         ams.init_subjects(false);
+        ams.set_moonraker_api(&db.api);
 
         helix::SlotInfo info;
         info.material = "PLA";
         info.remaining_weight_g = 1000.0f;
         info.total_weight_g = 1000.0f;
-        ams.set_external_spool_info_in_memory(info);
+        helix::AmsStateTestAccess::seed_external_spool(info);
     }
 
     ~ExternalSpoolSinkFixture() override {
         helix::AmsState::instance().clear_external_spool_info();
+        helix::ui::UpdateQueue::instance().drain();
+        helix::AmsState::instance().set_moonraker_api(nullptr);
     }
 };
 
@@ -60,7 +69,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: unknown weight no
     helix::SlotInfo info;
     info.material = "PLA";
     info.remaining_weight_g = -1.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     ExternalSpoolSink sink;
     sink.snapshot(0.0f);
@@ -73,7 +82,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: unknown material 
     info.material = "UnknownNovelMaterial9000";
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     ExternalSpoolSink sink;
     sink.snapshot(0.0f);
@@ -97,7 +106,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture,
     info.material = "PLA";
     info.remaining_weight_g = 5.0f; // only 5 g available
     info.total_weight_g = 1000.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     ExternalSpoolSink sink;
     sink.snapshot(0.0f);
@@ -122,7 +131,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture,
     REQUIRE(current.has_value());
     helix::SlotInfo edited = *current;
     edited.remaining_weight_g = 500.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(edited);
+    helix::AmsStateTestAccess::seed_external_spool(edited);
 
     // Next tick detects the external write and rebaselines (no decrement).
     sink.apply_delta(1100.0f);
@@ -137,28 +146,29 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture,
 }
 
 TEST_CASE_METHOD(ExternalSpoolSinkFixture,
-                 "ExternalSpoolSink: flush persists the binding, "
-                 "not the resolved view",
+                 "ExternalSpoolSink: flush writes the meter's count, not the resolved view",
                  "[consumption_sink][external][1632]") {
     ExternalSpoolSink sink;
     sink.snapshot(0.0f);
-    sink.apply_delta(1000.0f); // ~3 g consumed; raw and Metered both ~997 g
-    auto raw_before = helix::AmsState::instance().raw_external_spool_info();
-    REQUIRE(raw_before.has_value());
-    REQUIRE(raw_before->remaining_weight_g < 1000.0f);
+    sink.apply_delta(1000.0f); // ~3 g consumed, filed as Metered
+    const float counted = helix::AmsState::instance().get_external_spool_info()->remaining_weight_g;
+    REQUIRE(counted < 1000.0f);
+    // The record still holds the weight it was read with.
+    REQUIRE(helix::AmsState::instance().raw_external_spool_info()->remaining_weight_g == 1000.0f);
 
-    // A resolved weight that disagrees with the stored record (a newer meter
-    // reading filed on the lane). Flushing must persist the binding as it
-    // stands, not bake the resolved view into the stored record.
+    // A resolved weight that disagrees with the meter (another reading filed
+    // on the lane). Flushing must write what this sink counted.
     helix::ams::Observation metered(helix::ams::ObservationSource::Metered);
     metered.remaining_weight_g = 500.0f;
     helix::ams::ingest(helix::ams::kBypassLaneId, metered);
 
     sink.flush();
 
-    auto raw_after = helix::AmsState::instance().raw_external_spool_info();
-    REQUIRE(raw_after.has_value());
-    CHECK(raw_after->remaining_weight_g == raw_before->remaining_weight_g);
+    const auto written = db.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(written.is_object());
+    CHECK(written["remaining_weight_g"].get<float>() == Catch::Approx(counted));
+    CHECK(helix::AmsState::instance().raw_external_spool_info()->remaining_weight_g ==
+          Catch::Approx(counted));
 }
 
 TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: Spoolman-linked spool not metered",
@@ -168,7 +178,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: Spoolman-linked s
     info.spoolman_id = 4;
     info.remaining_weight_g = 1000.0f;
     info.total_weight_g = 1000.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(info);
+    helix::AmsStateTestAccess::seed_external_spool(info);
 
     ExternalSpoolSink sink;
     sink.snapshot(0.0f);
@@ -188,7 +198,7 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: linking mid-print
     linked.spoolman_id = 4;
     linked.remaining_weight_g = 1000.0f;
     linked.total_weight_g = 1000.0f;
-    helix::AmsState::instance().set_external_spool_info_in_memory(linked);
+    helix::AmsStateTestAccess::seed_external_spool(linked);
 
     sink.apply_delta(1000.0f); // ~3 g consumed
 

@@ -4,8 +4,7 @@
 #include "ams_subscription_backend.h"
 
 #include "core/http_executor.h"
-#include "lane_echo.h"
-#include "lane_legacy_migration.h"
+#include "json_utils.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "moonraker_error.h"
@@ -37,6 +36,7 @@ AmsSubscriptionBackend::~AmsSubscriptionBackend() {
         debounce_cancel_->cancelled = true;
     }
     debounce_cancel_->cv.notify_all();
+    lane_record_poll_.reset();
     // Release without unsubscribe -- MoonrakerClient may already be destroyed
     subscription_.release();
 }
@@ -103,7 +103,14 @@ AmsError AmsSubscriptionBackend::start() {
 
     // Derived class post-start work (version detection, config loading, etc.)
     on_started();
-    read_unread_lane_records();
+    if (lv_is_initialized()) {
+        lane_record_poll_.reset(lv_timer_create(
+            [](lv_timer_t* timer) {
+                static_cast<AmsSubscriptionBackend*>(lv_timer_get_user_data(timer))
+                    ->poll_lane_records();
+            },
+            static_cast<uint32_t>(std::chrono::milliseconds(kLaneRecordPollPeriod).count()), this));
+    }
 
     return AmsErrorHelper::success();
 }
@@ -120,7 +127,6 @@ void AmsSubscriptionBackend::handle_status_update(const nlohmann::json& notifica
         !(*params)[0].is_object()) {
         return;
     }
-    read_unread_lane_records();
     handle_status((*params)[0]);
 }
 
@@ -132,49 +138,27 @@ void AmsSubscriptionBackend::stop() {
         }
         on_stopping();
         subscription_.reset();
+        lane_record_poll_.reset();
         running_ = false;
         spdlog::info("{} Backend stopped", backend_log_tag());
     }
     on_stopped();
 }
 
-std::uint64_t AmsSubscriptionBackend::own_write_echo_sequence(int slot_index) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return own_write_echoes_.staged_sequence(slot_index);
-}
-
-void AmsSubscriptionBackend::abandon_own_write_echoes(int slot_index,
-                                                      std::uint64_t staged_sequence) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    own_write_echoes_.abandon(slot_index, staged_sequence);
-}
-
 void AmsSubscriptionBackend::clear_override_locked(int slot_index, SlotInfo* slot) {
-    // An unlink marker is not identity, so the clear keeps it on an otherwise
-    // empty record: dropping it would let firmware's stale id relink the lane.
-    const auto existing = overrides_.find(slot_index);
-    const int unlinked_spool_id =
-        existing != overrides_.end() ? existing->second.unlinked_spool_id : 0;
     overrides_.erase(slot_index);
+    // The next read counts as a change, so a clear that did not land repaints
+    // the record it left.
+    lane_wire_seen_.erase(slot_index);
     // The lane's own records go with it: a clear that reached only one store
     // would leave resolve() still reporting the identity just removed.
     helix::ams::reset_lane_to_machine_readings(lane_id(slot_index));
-    // The user just disowned the write, so what firmware repeats from here on
-    // is its own word again.
-    own_write_echoes_.abandon(slot_index);
 
     if (slot) {
         clear_override_fields(*slot);
     }
 
-    if (unlinked_spool_id > 0) {
-        helix::ams::FilamentSlotOverride& marker = overrides_[slot_index];
-        marker.unlinked_spool_id = unlinked_spool_id;
-        if (override_store_) {
-            helix::ams::save_override_async(override_store_.get(), slot_index, marker,
-                                            backend_log_tag(), "unlink");
-        }
-    } else if (override_store_) {
+    if (override_store_) {
         // Capture by value: clear_async's Moonraker callback can fire after
         // the backend itself is gone.
         const std::string tag = backend_log_tag();
@@ -205,278 +189,509 @@ bool AmsSubscriptionBackend::is_running() const {
 }
 
 void AmsSubscriptionBackend::request_resync() {
-    // A lane whose firmware states its own identity already has a producer on
-    // the vendor-cache slot, and a second one there races it. With nothing to
-    // file, the round-trip has no reader, so it is not made at all.
-    if (firmware_publishes_lane_identity()) {
-        return;
-    }
-    auto* store = lane_record_store();
-    if (!store) {
-        // The persisted record is this backend's identity producer (firmware
-        // states none of its own) and there is no store to read it from, so
-        // the resync cannot be issued. Only a started backend with an
-        // attached API owes a store: a store is built in on_started(), and
-        // one with no API never builds it, so a pre-start or API-less resync
-        // is expected to find nothing and stays quiet.
-        if (running_ && api_) {
-            spdlog::warn("{} request_resync(): no lane-record store to re-read; resync skipped",
-                         backend_log_tag());
-        }
-        return;
-    }
-    // The record map is keyed by slot index, so the lambda needs this
-    // backend's block to name a lane. Carried by value: the deferred callback
-    // has no claim on `this` by the time it runs, and backend_index() is
-    // stamped by registration, which every resync call site is downstream of.
-    // `self` rides the reload callback un-dereferenced; it is reached only
-    // inside the token-guarded defer, which skips a dead owner.
-    const int block = backend_index();
-    auto token = lifetime_.token();
-    AmsSubscriptionBackend* self = this;
-    store->reload_async([token, block,
-                         self](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-        token.defer("AmsSubscriptionBackend::resync_lane_records",
-                    [self, block, records = std::move(records)]() {
-                        for (const auto& [slot, entry] : records) {
-                            // Only what the namespace merely remembers is
-                            // re-filed. A record naming a spool is the
-                            // server's statement and one declaring a colour or material
-                            // is a person's; re-filing either would forge a
-                            // declaration out of a re-read, which is the
-                            // confusion the source model exists to end.
-                            //
-                            // Remembered rather than VendorCache because this
-                            // re-reads our own store, not a firmware frame.
-                            helix::ams::Observation obs =
-                                helix::ams::declared_from_record(entry.record);
-                            if (obs.source != helix::ams::ObservationSource::Remembered) {
-                                continue;
-                            }
-                            // A record another tool wrote is the newest
-                            // statement on the lane when it displaces what
-                            // stands there (prestonbrown/helixscreen#1632):
-                            // it files on the user's rung, where it
-                            // resolves over firmware's cache and yields to
-                            // whatever edit lands next. A record the
-                            // backend's own firmware plugin wrote is a
-                            // reading, not an edit, and keeps filing as
-                            // remembered; anything else does too, below
-                            // whatever a person said.
-                            const helix::ams::LaneId lane = helix::ams::lane_id_for(block, slot);
-                            if (self->file_reread_outside_edit(lane, slot, entry, obs)) {
-                                continue;
-                            }
-                            helix::ams::ingest(lane, obs);
-                        }
-                    });
-    });
-}
-
-bool AmsSubscriptionBackend::file_reread_outside_edit(helix::ams::LaneId lane, int slot_index,
-                                                      const helix::ams::LaneDataRecord& entry,
-                                                      helix::ams::Observation& obs) {
-    bool write_in_flight = false;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        own_write_echoes_.strip_standing(slot_index, obs);
-        write_in_flight = own_write_echoes_.standing(slot_index);
-    }
-    return helix::ams::file_outside_edit_if_newer(lane, entry, obs, write_in_flight);
-}
-
-void AmsSubscriptionBackend::schedule_lane_record_reread() {
-    on_lane_reread_scheduled();
-    if (lane_reread_pending_.exchange(true)) {
-        return;
-    }
-    auto token = lifetime_.token();
-    helix::http::HttpExecutor::fast().submit([this, token, cancel = debounce_cancel_]() {
-        // BG THREAD: only the debounce sleep.
-        if (!debounce_wait(cancel, std::chrono::seconds(2))) {
-            return;
-        }
-        token.defer("AmsSubscriptionBackend::lane_record_reread", [this]() {
-            lane_reread_pending_.store(false);
-            reread_lane_records();
-        });
-    });
-}
-
-/// How long to wait before asking again for lane records that got no answer.
-constexpr std::chrono::seconds kUnreadLaneRecordsRetry{10};
-
-void AmsSubscriptionBackend::read_unread_lane_records() {
-    helix::ams::FilamentSlotOverrideStore* store = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        store = override_store_.get();
-    }
-    if (!store || !store->namespace_unread() || unread_read_in_flight_) {
-        return;
-    }
-    const auto now = std::chrono::steady_clock::now();
-    const bool first = unread_read_started_ == std::chrono::steady_clock::time_point{};
-    if (!first && now - unread_read_started_ < kUnreadLaneRecordsRetry) {
-        return;
-    }
-    if (first) {
-        spdlog::warn("{} lane records were not read at start; holding writes until they are",
-                     backend_log_tag());
-    }
-    unread_read_in_flight_ = true;
-    unread_read_started_ = now;
-    auto token = lifetime_.token();
-    store->reload_async(
-        [this, token, store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-            token.defer("AmsSubscriptionBackend::adopt_unread_lane_records",
-                        [this, store, records = std::move(records)]() mutable {
-                            unread_read_in_flight_ = false;
-                            adopt_unread_lane_records(store, std::move(records));
-                        });
-        },
-        [this, token]() {
-            token.defer("AmsSubscriptionBackend::unread_lane_records_failed",
-                        [this]() { unread_read_in_flight_ = false; });
-        });
-}
-
-void AmsSubscriptionBackend::adopt_unread_lane_records(
-    helix::ams::FilamentSlotOverrideStore* store,
-    std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-    helix::ams::FilamentSlotOverrideStore::HeldWrites writes;
-    int bound = 0;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        // A reconnect replaced the store while this read was out.
-        if (override_store_.get() != store) {
-            return;
-        }
-        writes = store->adopt_namespace_read(std::move(records));
-        overrides_.clear();
-        for (const auto& [slot, entry] : store->last_lane_data_records()) {
-            overrides_[slot] = entry.record;
-        }
-        seed_lane_records_seen_locked();
-        bound = slot_index_bound_locked();
-    }
-    spdlog::info("{} Lane records read: {} record(s); sending {} held save(s), {} clear(s)",
-                 backend_log_tag(), store->last_lane_data_records().size(), writes.saves.size(),
-                 writes.clears.size());
-    helix::ams::ingest_legacy_records(*store, helix::ams::LegacyLockKeys::LaneData,
-                                      backend_index());
-    helix::ams::send_held_writes(store, writes, backend_log_tag());
-    for (int slot = 0; slot < bound; ++slot) {
-        repaint_slot_from_lane(slot);
-    }
-    emit_event(EVENT_STATE_CHANGED);
-}
-
-void AmsSubscriptionBackend::seed_lane_records_seen_locked() {
-    lane_wire_seen_.clear();
-    if (!override_store_) {
-        return;
-    }
-    for (const auto& [slot, entry] : override_store_->last_lane_data_records()) {
-        lane_wire_seen_[slot] = entry.wire;
-    }
+    refresh_lane_records();
 }
 
 void AmsSubscriptionBackend::reread_lane_records() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        lane_wire_seen_.clear();
+        lane_records_unread_ = true;
+    }
+    refresh_lane_records();
+}
+
+void AmsSubscriptionBackend::schedule_lane_refresh() {
+    lifetime_.token().defer("AmsSubscriptionBackend::schedule_lane_refresh",
+                            [this]() { refresh_lane_records(); });
+}
+
+void AmsSubscriptionBackend::open_lane_record_store(std::string backend_id, std::string ns) {
+    if (!api_) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        override_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+            api_, std::move(backend_id), helix::ams::lane_key_style_for(get_type()), std::move(ns));
+        override_store_->set_on_written([this, token = lifetime_.token()]() {
+            token.defer("AmsSubscriptionBackend::refresh_after_write",
+                        [this]() { refresh_lane_records(); });
+        });
+        override_store_->set_on_write_failed([this, token = lifetime_.token()](int slot_index) {
+            token.defer("AmsSubscriptionBackend::repaint_after_failed_write", [this, slot_index]() {
+                repaint_slot_from_lane(slot_index);
+                emit_event(kEventSlotChanged, std::to_string(slot_index));
+                refresh_lane_records();
+            });
+        });
+        override_store_->require_read_before_write();
+        configure_lane_record_store_locked(*override_store_);
+        overrides_.clear();
+        lane_wire_seen_.clear();
+        lane_records_unread_ = true;
+    }
+    refresh_lane_records();
+}
+
+void AmsSubscriptionBackend::refresh_lane_records() {
     helix::ams::FilamentSlotOverrideStore* store = nullptr;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         store = override_store_.get();
     }
-    if (!store) {
-        on_lane_reread_finished({});
+    if (store == nullptr) {
         return;
     }
+    refresh_backend_keys(*store);
+    if (refresh_in_flight_) {
+        refresh_again_ = true;
+        return;
+    }
+    refresh_in_flight_ = true;
     auto token = lifetime_.token();
-    // A read that never lands took no slot.
+    const auto ticket = store->read_ticket();
     store->reload_async(
-        [this, token](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-            token.defer(
-                "AmsSubscriptionBackend::apply_lane_records",
-                [this, records = std::move(records)]() { apply_reread_lane_records(records); });
+        [this, token, store, ticket](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            token.defer("AmsSubscriptionBackend::adopt_lane_records",
+                        [this, store, ticket, records = std::move(records)]() mutable {
+                            adopt_lane_records(store, ticket, std::move(records));
+                        });
         },
-        [this, token]() {
-            token.defer("AmsSubscriptionBackend::lane_reread_failed", [this]() {
-                spdlog::debug("{} lane_data re-read failed; the next change retries",
-                              backend_log_tag());
-                on_lane_reread_finished({});
+        [this, token, store]() {
+            token.defer("AmsSubscriptionBackend::lane_records_unread", [this, store]() {
+                refresh_in_flight_ = false;
+                bool current = false;
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    current = override_store_.get() == store;
+                }
+                // A read the replaced store asked for failing says nothing
+                // about the new store's, which may be waiting on it.
+                if (!current && refresh_again_) {
+                    refresh_again_ = false;
+                    refresh_lane_records();
+                    return;
+                }
+                spdlog::debug("{} lane records not read; the next poll retries", backend_log_tag());
+                refresh_again_ = false;
             });
         });
 }
 
-void AmsSubscriptionBackend::apply_reread_lane_records(
-    const std::unordered_map<int, helix::ams::LaneDataRecord>& records) {
-    std::unordered_set<int> taken;
-    for (const auto& [slot, entry] : records) {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (slot < 0 || slot >= slot_index_bound_locked()) {
-                continue;
-            }
-            auto seen = lane_wire_seen_.find(slot);
-            const bool unchanged = seen != lane_wire_seen_.end() && seen->second == entry.wire;
-            lane_wire_seen_[slot] = entry.wire;
-            if (unchanged) {
-                continue;
-            }
-        }
-        // Every field the record states, not only what request_resync() would
-        // re-file as remembered: the spool link is what this read is for.
-        helix::ams::Observation obs = helix::ams::declared_from_record(entry.record);
-        const auto lane = lane_id(slot);
-        const bool rebinds = helix::ams::outside_record_rebinds(lane, obs);
-        if (!file_reread_outside_edit(lane, slot, entry, obs)) {
-            continue;
-        }
-        spdlog::info("{} Slot {} lane_data rewritten by another tool; taking its record",
-                     backend_log_tag(), slot);
-        taken.insert(slot);
-        {
-            // The override follows the lane: a rebinding starts it afresh, and
-            // anything else amends it, so a later save neither republishes
-            // what the tool replaced nor drops what it left alone.
-            std::lock_guard<std::mutex> lock(mutex_);
-            auto& ovr = overrides_[slot];
-            if (rebinds) {
-                helix::ams::FilamentSlotOverride fresh;
-                fresh.fingerprint = ovr.fingerprint;
-                fresh.unlinked_spool_id = ovr.unlinked_spool_id;
-                ovr = std::move(fresh);
-            }
-            helix::ams::amend_record(ovr, obs);
-        }
-        repaint_slot_from_lane(slot);
-        emit_event(kEventSlotChanged, std::to_string(slot));
-    }
-    on_lane_reread_finished(taken);
-}
-
-AmsError AmsSubscriptionBackend::sync_external_identity(int slot_index, const SlotInfo& info) {
-    IdentityWrite write;
+void AmsSubscriptionBackend::adopt_lane_records(
+    helix::ams::FilamentSlotOverrideStore* store,
+    helix::ams::FilamentSlotOverrideStore::ReadTicket ticket,
+    std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+    refresh_in_flight_ = false;
+    bool changed = false;
+    bool discarded = false;
+    std::unordered_map<int, nlohmann::json> previous;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        write = write_synced_identity_locked(slot_index, identity_slot_locked(slot_index), info);
+        if (override_store_.get() != store) {
+            // A reconnect replaced the store while this read was out.
+            discarded = true;
+        } else if (!store->read_still_current(ticket)) {
+            // One of our writes crossed this read, so it may hold the record
+            // that write replaced. Adopting it would hand the old record to
+            // the next whole-record writer. A write still out re-reads when
+            // it lands; otherwise read again now.
+            discarded = true;
+            if (!store->write_in_flight()) {
+                refresh_again_ = true;
+            }
+        }
     }
-    if (write.err.success() && write.emit) {
-        emit_event(kEventSlotChanged, std::to_string(slot_index));
+    if (discarded) {
+        if (refresh_again_) {
+            refresh_again_ = false;
+            refresh_lane_records();
+        }
+        return;
     }
-    return write.err;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (override_store_.get() != store) {
+            return;
+        }
+        store->adopt_read(records);
+        overrides_.clear();
+        for (const auto& [slot, entry] : records) {
+            overrides_[slot] = entry.record;
+        }
+        previous = std::move(lane_wire_seen_);
+        lane_wire_seen_.clear();
+        for (const auto& [slot, entry] : records) {
+            lane_wire_seen_[slot] = entry.wire;
+        }
+        changed = lane_records_unread_ || previous != lane_wire_seen_;
+        lane_records_unread_ = false;
+        on_lane_records_read_locked();
+    }
+
+    // Every read is filed whole, so a record another client rewrote shows on
+    // the next poll, and a Pending edit it echoes is withdrawn. The bypass
+    // spool's record is the printer's bypass lane, not a slot's; the primary
+    // backend is the one that holds it (AmsState asks backend 0).
+    const bool file_records = lane_records_describe_slots();
+    for (const auto& [slot, entry] : records) {
+        if (!file_records || entry.record.external_mirror) {
+            continue;
+        }
+        const helix::ams::LaneId lane = lane_id(slot);
+        const bool had_pending = helix::ams::lane_sources(lane).pending.has_value();
+        helix::ams::Observation record = helix::ams::record_observation(entry.record);
+        drop_firmware_held_fields(record);
+        helix::ams::ingest(lane, record);
+        changed = changed || had_pending != helix::ams::lane_sources(lane).pending.has_value();
+    }
+    for (const auto& [slot, wire] : previous) {
+        if (records.count(slot) == 0) {
+            helix::ams::drop_lane_source(lane_id(slot), helix::ams::ObservationSource::Record);
+        }
+    }
+    if (backend_index() == 0) {
+        const auto bypass = helix::ams::find_bypass_record(records);
+        const bool had_pending =
+            helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value();
+        helix::ams::file_bypass_record(bypass ? &bypass->second : nullptr);
+        changed =
+            changed ||
+            had_pending != helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value();
+    }
+
+    if (changed) {
+        spdlog::debug("{} lane records read: {} record(s)", backend_log_tag(), records.size());
+        int bound = 0;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            bound = slot_index_bound_locked();
+        }
+        for (int slot = 0; slot < bound; ++slot) {
+            repaint_slot_from_lane(slot);
+        }
+        emit_event(EVENT_STATE_CHANGED);
+    }
+    if (refresh_again_) {
+        refresh_again_ = false;
+        refresh_lane_records();
+    }
 }
 
-AmsSubscriptionBackend::IdentityWrite
-AmsSubscriptionBackend::write_synced_identity_locked(int slot_index, SlotInfo* slot,
-                                                     const SlotInfo& info) {
-    if (!slot) {
-        return {
-            AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slot_index_bound_locked() - 1)};
+std::optional<helix::ams::FilamentSlotOverride> AmsSubscriptionBackend::bypass_record() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto& [slot, record] : overrides_) {
+        if (record.external_mirror) {
+            return record;
+        }
     }
-    slot->assign_filament_fields(info);
-    return {};
+    return std::nullopt;
+}
+
+void AmsSubscriptionBackend::publish_external_spool_lane(
+    const helix::ams::FilamentSlotOverride* record) {
+    helix::ams::FilamentSlotOverrideStore* store = nullptr;
+    int index = -1;
+    int stale = -1;
+    bool slot_record_there = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        store = override_store_.get();
+        index = bypass_lane_index_locked();
+        for (const auto& [slot, held] : overrides_) {
+            if (held.external_mirror && slot != index) {
+                stale = slot;
+            } else if (!held.external_mirror && slot == index) {
+                slot_record_there = true;
+            }
+        }
+    }
+    // A record with no writer at an index past the lanes is a bypass record
+    // written before records named their writer or the bypass; it is ours.
+    if (slot_record_there && index >= 0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto wire = lane_wire_seen_.find(index);
+        const bool legacy = wire == lane_wire_seen_.end() ||
+                            helix::json_util::safe_string(wire->second, "writer").empty();
+        slot_record_there = !legacy || index < slot_index_bound_locked();
+    }
+    const std::string tag = backend_log_tag();
+    const auto refuse = [&tag](const std::string& why) {
+        spdlog::warn("{} bypass spool record not written: {}", tag, why);
+        helix::ams::withdraw_pending(helix::ams::kBypassLaneId, why);
+    };
+    if (store == nullptr || index < 0) {
+        refuse("the lane records are not open");
+        return;
+    }
+    // A Fork CFS numbers its external slot after the boxes it sees, so the
+    // index can name a bay whose box is off the bus; that bay's record stays.
+    if (slot_record_there) {
+        refuse(fmt::format("lane {} holds a slot's record", index));
+        return;
+    }
+    if (stale >= 0) {
+        store->clear_async(stale, [tag, stale](bool ok, const std::string& err) {
+            if (!ok) {
+                spdlog::warn("{} deleting the bypass record at lane {} failed: {}", tag, stale,
+                             err);
+            }
+        });
+    }
+    if (record != nullptr) {
+        helix::ams::save_override_async(store, index, *record, tag, "Bypass spool",
+                                        helix::ams::kBypassLaneId);
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (auto it = overrides_.find(index);
+            it != overrides_.end() && it->second.external_mirror) {
+            overrides_.erase(it);
+        }
+    }
+    store->clear_async(index, [tag, index](bool ok, const std::string& err) {
+        if (!ok) {
+            spdlog::warn("{} deleting the bypass record at lane {} failed: {}", tag, index, err);
+        }
+    });
+}
+
+void AmsSubscriptionBackend::poll_lane_records() {
+    int bound = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        bound = slot_index_bound_locked();
+    }
+    std::vector<helix::ams::LaneId> lanes;
+    lanes.reserve(static_cast<std::size_t>(bound));
+    for (int slot = 0; slot < bound; ++slot) {
+        lanes.push_back(lane_id(slot));
+    }
+    // Only this backend's lanes: it is the one that repaints them.
+    if (!helix::ams::expire_pending(std::chrono::steady_clock::now(), lanes).empty()) {
+        for (int slot = 0; slot < bound; ++slot) {
+            repaint_slot_from_lane(slot);
+        }
+        emit_event(EVENT_STATE_CHANGED);
+    }
+    refresh_lane_records();
+}
+
+void AmsSubscriptionBackend::persist_override(int slot_index, const char* noun) {
+    helix::ams::FilamentSlotOverrideStore* store = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        store = override_store_.get();
+    }
+    helix::ams::persist_staged_override(store, mutex_, overrides_, slot_index, backend_log_tag(),
+                                        noun, lane_id(slot_index));
+}
+
+void AmsSubscriptionBackend::persist_user_record_locked(int slot_index, const SlotInfo& info) {
+    persist_user_record_locked(slot_index, info, info.material);
+}
+
+void AmsSubscriptionBackend::persist_user_record_locked(int slot_index, const SlotInfo& info,
+                                                        const std::string& material) {
+    const helix::ams::FilamentSlotOverride& staged =
+        helix::ams::stage_user_override(overrides_, slot_index, info, material);
+    if (override_store_) {
+        helix::ams::save_override_async(override_store_.get(), slot_index, staged,
+                                        backend_log_tag(), "Override", lane_id(slot_index));
+    }
+}
+
+void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_index,
+                                                                   const SlotInfo& info) {
+    const auto prior = overrides_.find(slot_index);
+    const bool had_prior = prior != overrides_.end();
+    const uint32_t color = had_prior ? prior->second.color_rgb : 0;
+    const bool color_set = had_prior && prior->second.color_set;
+    const std::string material = had_prior ? prior->second.material : std::string{};
+
+    helix::ams::FilamentSlotOverride& staged =
+        helix::ams::stage_user_override(overrides_, slot_index, info);
+    staged.color_rgb = color;
+    staged.color_set = color_set;
+    staged.material = material;
+    if (override_store_) {
+        helix::ams::save_override_async(override_store_.get(), slot_index, staged,
+                                        backend_log_tag(), "Override", lane_id(slot_index));
+    }
+}
+
+void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = overrides_.find(slot_index);
+    if (it == overrides_.end()) {
+        return;
+    }
+    if (!keep_identity) {
+        // RFC 0001: an empty lane keeps its record, with nothing known. The
+        // lane's sources and the painted slot let go of the spool at once, as
+        // a clear does.
+        helix::ams::FilamentSlotOverride emptied;
+        emptied.fingerprint = it->second.fingerprint;
+        it->second = emptied;
+        helix::ams::reset_lane_to_machine_readings(lane_id(slot_index));
+        if (SlotInfo* slot = cached_slot_locked(slot_index)) {
+            clear_override_fields(*slot);
+        }
+    }
+    it->second.loaded = false;
+    if (override_store_) {
+        helix::ams::save_override_async(override_store_.get(), slot_index, it->second,
+                                        backend_log_tag(), "eject");
+    }
+}
+
+bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
+                                                             const std::string& material) {
+    // Another writer's record is not ours to copy into: the save would be
+    // refused, and refused again at every frame or poll.
+    if (lane_records_unread_ ||
+        (override_store_ && override_store_->written_by_another(slot_index))) {
+        return false;
+    }
+    return helix::ams::mirror_firmware_to_lane_data(
+        override_store_.get(), overrides_, slot_index, color, material,
+        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
+}
+
+void AmsSubscriptionBackend::restate_pending_as_stored(int slot_index,
+                                                       std::optional<uint32_t> color,
+                                                       const std::string& material) {
+    const helix::ams::LaneId lane = lane_id(slot_index);
+    const auto pending = helix::ams::lane_sources(lane).pending;
+    if (!pending.has_value()) {
+        return;
+    }
+    helix::ams::Observation stored(helix::ams::ObservationSource::Pending);
+    if (color && pending->color_rgb && (*pending->color_rgb & 0xFFFFFFu) != (*color & 0xFFFFFFu)) {
+        stored.color_rgb = *color;
+    }
+    if (!material.empty() && pending->material && *pending->material != material) {
+        stored.material = material;
+    }
+    if (stored.color_rgb || stored.material) {
+        helix::ams::file_pending(lane, stored);
+    }
+}
+
+void AmsSubscriptionBackend::update_slot_weight_impl(int slot_index, float remaining_weight_g,
+                                                     float total_weight_g, bool persist) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        SlotInfo* live = cached_slot_locked(slot_index);
+        if (live == nullptr) {
+            live = system_info_.get_slot_global(slot_index);
+        }
+        if (live == nullptr) {
+            return;
+        }
+        live->remaining_weight_g = remaining_weight_g;
+        if (total_weight_g >= 0.0f) {
+            live->total_weight_g = total_weight_g;
+        }
+    }
+    if (persist) {
+        persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
+}
+
+helix::SharedCallback<void()> AmsSubscriptionBackend::record_once_written(int slot_index,
+                                                                          SlotInfo recorded) {
+    auto fate = std::make_shared<FirmwareEditFate>();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        firmware_edits_out_[slot_index] = fate;
+    }
+    return [this, slot_index, recorded = std::move(recorded), fate]() {
+        bool clear = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto it = firmware_edits_out_.find(slot_index);
+            if (it != firmware_edits_out_.end() && it->second.lock() == fate) {
+                firmware_edits_out_.erase(it);
+            }
+            clear = fate->clear_after;
+            if (!clear) {
+                persist_user_record_locked(slot_index, recorded);
+            }
+        }
+        if (clear) {
+            clear_slot_override(slot_index);
+        }
+    };
+}
+
+helix::SharedCallback<void(const MoonrakerError&)>
+AmsSubscriptionBackend::withdraw_edit_if_rejected(int slot_index) {
+    std::shared_ptr<FirmwareEditFate> fate;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (const auto it = firmware_edits_out_.find(slot_index); it != firmware_edits_out_.end()) {
+            fate = it->second.lock();
+        }
+    }
+    return [this, slot_index, fate](const MoonrakerError& err) {
+        spdlog::warn("{} edit of slot {} not written: {}", backend_log_tag(), slot_index,
+                     err.message);
+        if (fate) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (fate->clear_after) {
+                spdlog::warn("{} Clear of slot {} not applied: its record is kept",
+                             backend_log_tag(), slot_index);
+            }
+            const auto it = firmware_edits_out_.find(slot_index);
+            if (it != firmware_edits_out_.end() && it->second.lock() == fate) {
+                firmware_edits_out_.erase(it);
+            }
+        }
+        helix::ams::withdraw_pending(lane_id(slot_index), err.message);
+        repaint_slot_from_lane(slot_index);
+        emit_event(kEventSlotChanged, std::to_string(slot_index));
+    };
+}
+
+bool AmsSubscriptionBackend::firmware_edit_out(int slot_index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = firmware_edits_out_.find(slot_index);
+    return it != firmware_edits_out_.end() && !it->second.expired();
+}
+
+bool AmsSubscriptionBackend::defer_clear_to_firmware_write(int slot_index) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto it = firmware_edits_out_.find(slot_index);
+    if (it == firmware_edits_out_.end()) {
+        return false;
+    }
+    const std::shared_ptr<FirmwareEditFate> fate = it->second.lock();
+    if (!fate) {
+        firmware_edits_out_.erase(it);
+        return false;
+    }
+    fate->clear_after = true;
+    spdlog::info("{} Slot {} record clear waits for the firmware write", backend_log_tag(),
+                 slot_index);
+    return true;
+}
+
+void AmsSubscriptionBackend::persist_slot_weight(int slot_index, float remaining_weight_g,
+                                                 float total_weight_g) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
+                                        remaining_weight_g, total_weight_g, backend_log_tag());
+}
+
+void AmsSubscriptionBackend::persist_external_identity_impl(
+    int slot_index, const helix::ams::Observation& spoolman) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
+                                                   spoolman, backend_log_tag());
 }
 
 void AmsSubscriptionBackend::clear_slot_override(int slot_index) {
@@ -522,6 +737,8 @@ void AmsSubscriptionBackend::emit_event(const std::string& event, const std::str
 }
 
 void AmsSubscriptionBackend::on_klipper_restarted() {
+    // Firmware that owns lane_data rewrites it at boot.
+    refresh_lane_records();
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!ams_action_is_busy(system_info_.action)) {

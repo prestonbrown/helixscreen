@@ -193,7 +193,10 @@ std::string brand_from_vender(const std::string& vender) {
 }
 
 std::optional<int> tag_record_spoolman_id(std::string_view vender) {
-    if (!is_tag_record(vender)) {
+    // Only Creality's layout puts the serial at these offsets; CFTag writes
+    // that layout, supplier code included.
+    if (!is_tag_record(vender) ||
+        vender.substr(kTagSupplierOffset, kTagSupplierLength) != kCrealitySupplierCode) {
         return std::nullopt;
     }
     const std::string_view serial = vender.substr(kTagSerialOffset, kTagSerialLength);

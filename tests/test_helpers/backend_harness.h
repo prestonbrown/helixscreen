@@ -135,6 +135,7 @@ template <typename Backend> class StartedBackend : public WiredBackend<Backend> 
     template <typename... Args>
     explicit StartedBackend(Args&&... args) : WiredBackend<Backend>(std::forward<Args>(args)...) {
         REQUIRE(this->start().success());
+        helix::ui::UpdateQueue::instance().drain();
     }
 };
 
@@ -147,6 +148,9 @@ class RegisteredWired : public RegisteredBackend<WiredBackend<Backend>> {
     explicit RegisteredWired(Args&&... args)
         : RegisteredBackend<WiredBackend<Backend>>(std::forward<Args>(args)...) {
         REQUIRE((**this).start().success());
+        // The first read of the lane records lands here. A test of what comes
+        // before it builds a RegisteredBackend<WiredBackend> and starts that.
+        helix::ui::UpdateQueue::instance().drain();
     }
 };
 

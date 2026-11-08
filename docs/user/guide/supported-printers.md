@@ -211,6 +211,26 @@ Some filament systems aren't tied to a specific printer model — HelixScreen de
 
 Full details on each are in [Filament Management](filament.md#ams--multi-material-systems).
 
+### Where each system keeps a spool's details
+
+HelixScreen keeps nothing about your lanes on the screen itself. A lane's details are kept on
+the printer: partly by the filament system, and the rest in a lane record the printer shares
+with OrcaSlicer, Mainsail and any other screen. When you edit a spool, HelixScreen writes the
+change to the place below.
+
+| System | Kept by the system itself | Kept in the shared lane record |
+|--------|---------------------------|--------------------------------|
+| AFC (Box Turtle, ViViD) | Spool link, material, color, weight, tool mapping | Brand, spool name, color name, catalog pick and full weight, in HelixScreen's own record beside AFC's (AFC owns the shared one) |
+| Happy Hare | Spool link, material, color, name, temperature, and brand on Happy Hare 4 | Brand on older versions, full weight, color name and catalog pick, in HelixScreen's own record beside Happy Hare's. A Happy Hare that fills its gates from Spoolman takes changes only in Spoolman |
+| OpenAMS with openams_spoolman | Everything, in Spoolman, through openams_spoolman | Nothing: name and color name can't be kept, and Clear Spool is openams_spoolman's |
+| OpenAMS on its own | Nothing | Everything |
+| Creality CFS | Material and color (and the tag's spool, read from RFID) | Everything else |
+| FlashForge AD5X | Material and color | Everything else |
+| QIDI Box | Material, color and vendor | Everything else (the color is matched to the box's palette) |
+| Snapmaker U1 | Material type, vendor, sub-type and color | Spool link, name and weights |
+| ACE | Color, material and temperature (on the ACEPRO driver) | Everything else |
+| Tool changers | Nothing | Everything, one record per tool |
+
 ---
 
 ## Every Other Klipper Printer

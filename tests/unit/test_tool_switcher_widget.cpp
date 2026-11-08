@@ -15,6 +15,7 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
@@ -1403,7 +1404,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     spool.color_rgb = 0xFF0000;
     spool.multi_color_hexes = "#FF0000,#00FF00,#0000FF";
     spool.material = "PLA Silk";
-    REQUIRE(rig.backend->sync_external_identity(1, spool).success());
+    REQUIRE(helix::test::apply_edit(*rig.backend, 1, spool).success());
     process_lvgl(30);
     PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
     process_lvgl(30);

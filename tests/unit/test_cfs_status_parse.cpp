@@ -255,6 +255,13 @@ TEST_CASE("CFS tag record names a Spoolman spool through its serial",
         CHECK(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165999999000000") == 999999);
         CHECK(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165000002000000") == 2);
     }
+    SECTION("another supplier's record names no spool, whatever its serial says") {
+        // Supplier 1234 in chars 6-9: the serial field of a record that is not
+        // Creality's layout is not a spool id, and reading it as one would link
+        // the lane to whichever Spoolman spool happens to carry that number.
+        CHECK_FALSE(cfs::tag_record_spoolman_id("BB5251234A21010010FFFFFF0165000042000000"));
+        CHECK_FALSE(cfs::tag_record_spoolman_id("04A1B2C3D4E5F6A7B8C9D0E1F2A3123456789ABC"));
+    }
     SECTION("an all-zero serial names no spool") {
         CHECK_FALSE(cfs::tag_record_spoolman_id("AB1240276A21010010FFFFFF0165000000000000"));
     }

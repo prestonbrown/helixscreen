@@ -195,6 +195,7 @@
   <translation tag="AFC buffer" en="AFC buffer"/>
   <translation tag="AFC failure reset complete" en="AFC failure reset complete"/>
   <translation tag="AFC failure reset failed" en="AFC failure reset failed"/>
+  <translation tag="AFC has no Spoolman configured" en="AFC has no Spoolman configured"/>
   <translation tag="AFC recovery complete" en="AFC recovery complete"/>
   <translation tag="AFC recovery failed" en="AFC recovery failed"/>
   <translation tag="AFC reset complete" en="AFC reset complete"/>
@@ -658,6 +659,7 @@
   <translation tag="Change Tool While Paused" en="Change Tool While Paused"/>
   <translation tag="Change heater control?" en="Change heater control?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." en="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder."/>
+  <translation tag="Change the name or the linked spool in Spoolman." en="Change the name or the linked spool in Spoolman."/>
   <translation tag="Change tool" en="Change tool"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." en="Changes apply immediately. Adjust during print for tuning."/>
   <translation tag="Changes are temporary and reset on printer reboot" en="Changes are temporary and reset on printer reboot"/>
@@ -2068,6 +2070,8 @@
   <translation tag="Loading filament..." en="Loading filament..."/>
   <translation tag="Loading filaments..." en="Loading filaments..."/>
   <translation tag="Loading history..." en="Loading history..."/>
+  <translation tag="Loading lane details. Try again in a moment." en="Loading lane details. Try again in a moment."/>
+  <translation tag="Loading lane details…" en="Loading lane details…"/>
   <translation tag="Loading photo" en="Loading photo"/>
   <translation tag="Loading spools..." en="Loading spools..."/>
   <translation tag="Loading vendors..." en="Loading vendors..."/>
@@ -2151,6 +2155,7 @@
   <translation tag="Main LED Strip" en="Main LED Strip"/>
   <translation tag="Maintaining" en="Maintaining"/>
   <translation tag="Maintenance" en="Maintenance"/>
+  <translation tag="Make color, material and spool changes in Spoolman." en="Make color, material and spool changes in Spoolman."/>
   <translation tag="Make sure every nozzle is clean." en="Make sure every nozzle is clean."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." en="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats."/>
   <translation tag="MakeID (Bluetooth)" en="MakeID (Bluetooth)"/>
@@ -2478,6 +2483,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." en="Not enough room to put the widget back. It stays removed."/>
   <translation tag="Not in your spools? Set it up" en="Not in your spools? Set it up"/>
   <translation tag="Not now" en="Not now"/>
+  <translation tag="Not saved: {}. Try again." en="Not saved: {}. Try again."/>
   <translation tag="Not set" en="Not set"/>
   <translation tag="Not turned" en="Not turned"/>
   <translation tag="Not yet available on this display" en="Not yet available on this display"/>
@@ -2574,6 +2580,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." en="Open the .3mf in Print Files to print this plate again."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" en="Open the CFS unit and remove the broken filament from the slot"/>
   <translation tag="Open the slot editor when you load a new spool" en="Open the slot editor when you load a new spool"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" en="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" en="OpenAMS manages this spool&apos;s link"/>
   <translation tag="Opened" en="Opened"/>
   <translation tag="Operation already in progress" en="Operation already in progress"/>
   <translation tag="Operation timed out" en="Operation timed out"/>
@@ -4546,11 +4554,18 @@
   <translation tag="tall" en="tall"/>
   <translation tag="target {}%" en="target {}%"/>
   <translation tag="target {}°" en="target {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" en="the ACE needs a material and its nozzle temperature"/>
+  <translation tag="the CFS can&apos;t change a slot while a print is running" en="the CFS can&apos;t change a slot while a print is running"/>
+  <translation tag="the QIDI Box filament list has not loaded" en="the QIDI Box filament list has not loaded"/>
+  <translation tag="the QIDI Box has no {} in its filament list" en="the QIDI Box has no {} in its filament list"/>
   <translation tag="the extruder" en="the extruder"/>
   <translation tag="the left belt" en="the left belt"/>
   <translation tag="the lower belt" en="the lower belt"/>
+  <translation tag="the printer did not confirm it" en="the printer did not confirm it"/>
+  <translation tag="the printer refused it" en="the printer refused it"/>
   <translation tag="the right belt" en="the right belt"/>
   <translation tag="the upper belt" en="the upper belt"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" en="this printer fills its gates from Spoolman, so change the spool there"/>
   <translation tag="this week" en="this week"/>
   <translation tag="too slow" en="too slow"/>
   <translation tag="tool(s)" en="tool(s)"/>

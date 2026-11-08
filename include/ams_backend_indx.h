@@ -102,6 +102,12 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     [[nodiscard]] std::optional<EditFollowUp> edit_follow_up(int slot_index, const SlotInfo& before,
                                                              const SlotInfo& after) const override;
 
+    /// The tool changer's edit, plus the spool link written to the tool's own
+    /// `T<n>.spool_id` macro variable where its macro declares one: that
+    /// variable is the firmware's link, so a macro or another client that
+    /// changes it wins over the lane record.
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
   protected:
     /// A print is paused. Virtual so tests can pause without a printer.
     [[nodiscard]] virtual bool print_paused() const;
