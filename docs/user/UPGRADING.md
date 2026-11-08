@@ -51,8 +51,11 @@ That retires a few things earlier betas kept on the screen:
 - **Edits held while disconnected** are gone too. Editing is unavailable until the printer is
   connected and its lanes have been read, so nothing waits to be sent later.
 - **`tool_spools.json`**, the per-tool spool list, and the **external spool** saved in
-  `settings.json` are no longer used. A tool's spool is the spool of the lane that feeds it, and
-  the external spool is kept on the printer like any lane.
+  `settings.json` are read once, the first time this release connects, and then deleted. On a
+  tool changer, a tool's spool is linked to the lane that feeds it, unless that lane already
+  names a spool; the external spool becomes the printer's bypass record, unless the printer
+  already has one. From then on a tool's spool is the spool of the lane that feeds it, and the
+  external spool is kept on the printer like any lane.
 
 What carries over: everything already on the printer. Spool links, materials and colors your
 filament system holds, and the lane records earlier betas wrote, are read as they are, with no
