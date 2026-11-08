@@ -49,8 +49,8 @@ std::string tool_label(int gcode_tool);
  *
  * A Klipper tool carries either a name its owner chose ("Left", "Right") or the
  * "T<n>" form tool_label() produces when none was configured. Only the
- * generated form may be replaced by a 1-based display number; a chosen name is
- * what the machine is physically labeled with and is shown verbatim.
+ * generated form may be replaced by a display number; a chosen name is what
+ * the machine is physically labeled with and is shown verbatim.
  */
 bool is_generated_tool_name(std::string_view name);
 
@@ -70,9 +70,9 @@ std::string tool_name_label(LaneNoun noun, std::string_view name, int index);
  * @brief How much of a tool's identity a label spells.
  *
  * Klipper and every slicer count tools from T0, while the machine is labeled
- * from 1. A generated name gets both when there is room, so neither number
- * reads as the other's mistake; a narrow box gets the G-code name alone, the
- * one a user can type.
+ * from 1 unless the user numbers positions from zero. A generated name gets
+ * both when there is room, so neither number reads as the other's mistake; a
+ * narrow box gets the G-code name alone, the one a user can type.
  */
 enum class ToolLabelForm {
     Full, ///< "Tool 1 (T0)": the physical label with the G-code name it answers to
@@ -121,16 +121,45 @@ std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm f
 ToolLabelForm pick_tool_label_form(const std::function<bool(ToolLabelForm)>& fits);
 
 /**
- * @brief Convert a storage index to the number a user sees.
+ * @brief Choose the number the first position shows.
  *
- * The only + 1 in the codebase. Every display path routes through this so a
- * missing conversion is a call that is not here, rather than one correct
- * expression among many hand-written ones.
+ * Off by default: positions count from 1. On, they count from 0, matching
+ * Happy Hare gates and the T0 a tool is called in G-code. Atomic because
+ * backend threads format lane labels too. SettingsManager is the only caller
+ * in the app.
+ */
+void set_lane_numbering_from_zero(bool from_zero);
+
+/// @brief Whether positions currently count from 0.
+bool lane_numbering_from_zero();
+
+/**
+ * @brief Convert a filament or tool position's storage index to the number a user sees.
+ *
+ * The one place the numbering base is decided. Every display path routes
+ * through this so a missing conversion is a call that is not here, rather than
+ * one correct expression among many hand-written ones.
+ *
+ * Never send this to firmware or compare it with firmware text: it follows a
+ * user preference. A number greater than 0 does not mean "valid" either, since
+ * 0 is a real position when counting from zero; test for negative.
  *
  * @param index 0-based storage index
- * @return 1-based display number, or -1 when @p index is negative
+ * @return the display number, or -1 when @p index is negative
  */
 int lane_number(int index);
+
+/**
+ * @brief The 1-based ordinal of something that is not a position: a unit, a
+ *        toolchange in a sequence, a printed object.
+ *
+ * Unaffected by set_lane_numbering_from_zero(): "Unit 1" and "toolchange 3 / 12"
+ * are counts, and firmware unit names are spelled from 1.
+ *
+ * @param index 0-based index
+ * @return 1-based ordinal, or -1 when @p index is negative
+ */
+int display_ordinal(int index);
 
 /// @brief lane_number() as text, or empty when @p index is negative.
 std::string lane_number_text(int index);
@@ -198,7 +227,7 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
 /**
  * @brief A span of physical positions: "Slots 1-4", "Lanes 1-8".
  *
- * The plural noun with a 1-based inclusive range, ordered low to high. Every
+ * The plural noun with an inclusive range, ordered low to high. Every
  * locale spells the plural as one fixed word, so the header never agrees with
  * either number.
  *

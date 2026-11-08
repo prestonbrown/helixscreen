@@ -2738,6 +2738,7 @@ translations:
   'Nozzle:': 'Ugello:'
   'Nozzles still heating: {}': 'Ugelli ancora in riscaldamento: {}'
   Number Pad Layout: Layout del tastierino numerico
+  Number slots from 0: Numera gli slot da 0
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -3622,7 +3623,7 @@ translations:
   Select Spool: Seleziona bobina
   Select a filament slot to load: Seleziona uno slot filamento da caricare
   Select a valid number: Seleziona un numero valido
-  Select a valid number (1-{}): Seleziona un numero valido (1-{})
+  Select a valid number ({}-{}): Seleziona un numero valido ({}-{})
   Select a valid tool: Seleziona uno strumento valido
   Select a valid {}: 'Seleziona un valore valido per {}'
   Select a {}: 'Seleziona {}'
@@ -3727,6 +3728,7 @@ translations:
   Show light controls for a light connected to this printer: 'Mostra i controlli di una luce collegata a questa stampante'
   Show printer icon in navigation bar: Mostra icona stampante nella barra di navigazione
   Show sliced colors: Mostra colori sezionati
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Conta slot, corsie, gate e strumenti da 0, come T0 nel G-code
   Show temp for: Mostra temperatura per
   Show text labels on icon-only home screen widgets: Mostra etichette di testo sui
     widget con sole icone nella schermata home

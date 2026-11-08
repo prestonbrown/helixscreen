@@ -2508,6 +2508,7 @@
   <translation tag="Nozzle:" de="Düse:"/>
   <translation tag="Nozzles still heating: {}" de="Düsen heizen noch: {}"/>
   <translation tag="Number Pad Layout" de="Ziffernblock-Layout"/>
+  <translation tag="Number slots from 0" de="Slots ab 0 nummerieren"/>
   <translation tag="OD" de="OD"/>
   <translation tag="OFF" de="AUS"/>
   <translation tag="OK" de="OK"/>
@@ -3326,7 +3327,7 @@
   <translation tag="Select Spool" de="Spule auswählen"/>
   <translation tag="Select a filament slot to load" de="Filament-Slot zum Laden auswählen"/>
   <translation tag="Select a valid number" de="Wählen Sie eine gültige Nummer"/>
-  <translation tag="Select a valid number (1-{})" de="Wählen Sie eine gültige Nummer (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" de="Wählen Sie eine gültige Nummer ({}-{})"/>
   <translation tag="Select a valid tool" de="Wählen Sie ein gültiges Werkzeug"/>
   <translation tag="Select a valid {}" de="Wählen Sie einen gültigen Wert für {}"/>
   <translation tag="Select a {}" de="Wählen Sie {} aus"/>
@@ -3418,6 +3419,7 @@
   <translation tag="Show light controls for a light connected to this printer" de="Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen"/>
   <translation tag="Show printer icon in navigation bar" de="Druckersymbol in Navigationsleiste anzeigen"/>
   <translation tag="Show sliced colors" de="Slice-Farben anzeigen"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" de="Slots, Spuren, Gates und Werkzeuge ab 0 zählen, passend zu T0 im G-Code"/>
   <translation tag="Show temp for" de="Temperatur anzeigen für"/>
   <translation tag="Show text labels on icon-only home screen widgets" de="Textbeschriftungen auf Icon-Widgets des Startbildschirms anzeigen"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" de="Diesen Bildschirm als Webcam in Mainsail und Fluidd anzeigen"/>

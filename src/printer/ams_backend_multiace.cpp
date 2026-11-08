@@ -534,7 +534,7 @@ int AmsBackendMultiAce::spool_display_number(int slot_index) const {
             break;
         }
     }
-    return n;
+    return n > 0 ? ui::lane_number(n - 1) : 0;
 }
 
 bool AmsBackendMultiAce::can_unload_from_toolhead(int slot_index) const {

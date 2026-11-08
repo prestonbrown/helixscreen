@@ -2508,6 +2508,7 @@
   <translation tag="Nozzle:" it="Ugello:"/>
   <translation tag="Nozzles still heating: {}" it="Ugelli ancora in riscaldamento: {}"/>
   <translation tag="Number Pad Layout" it="Layout del tastierino numerico"/>
+  <translation tag="Number slots from 0" it="Numera gli slot da 0"/>
   <translation tag="OD" it="OD"/>
   <translation tag="OFF" it="OFF"/>
   <translation tag="OK" it="OK"/>
@@ -3326,7 +3327,7 @@
   <translation tag="Select Spool" it="Seleziona bobina"/>
   <translation tag="Select a filament slot to load" it="Seleziona uno slot filamento da caricare"/>
   <translation tag="Select a valid number" it="Seleziona un numero valido"/>
-  <translation tag="Select a valid number (1-{})" it="Seleziona un numero valido (1-{})"/>
+  <translation tag="Select a valid number ({}-{})" it="Seleziona un numero valido ({}-{})"/>
   <translation tag="Select a valid tool" it="Seleziona uno strumento valido"/>
   <translation tag="Select a valid {}" it="Seleziona un valore valido per {}"/>
   <translation tag="Select a {}" it="Seleziona {}"/>
@@ -3418,6 +3419,7 @@
   <translation tag="Show light controls for a light connected to this printer" it="Mostra i controlli di una luce collegata a questa stampante"/>
   <translation tag="Show printer icon in navigation bar" it="Mostra icona stampante nella barra di navigazione"/>
   <translation tag="Show sliced colors" it="Mostra colori sezionati"/>
+  <translation tag="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code" it="Conta slot, corsie, gate e strumenti da 0, come T0 nel G-code"/>
   <translation tag="Show temp for" it="Mostra temperatura per"/>
   <translation tag="Show text labels on icon-only home screen widgets" it="Mostra etichette di testo sui widget con sole icone nella schermata home"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" it="Mostra questo schermo come webcam in Mainsail e Fluidd"/>

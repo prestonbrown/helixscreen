@@ -2597,6 +2597,7 @@ translations:
   'Nozzle:': 喷嘴：
   'Nozzles still heating: {}': '仍在加热的喷嘴: {}'
   Number Pad Layout: 数字键盘布局
+  Number slots from 0: 槽位从 0 开始编号
   OD: OD
   'OFF': 关
   OK: 确定
@@ -3437,7 +3438,7 @@ translations:
   Select Spool: 选择料盘
   Select a filament slot to load: 选择要加载的耗材槽位
   Select a valid number: 请选择有效编号
-  Select a valid number (1-{}): 请选择有效编号（1-{}）
+  Select a valid number ({}-{}): 请选择有效编号（{}-{}）
   Select a valid tool: 请选择有效工具
   Select a valid {}: '请选择有效的 {}'
   Select a {}: '请选择 {}'
@@ -3532,6 +3533,7 @@ translations:
   Show light controls for a light connected to this printer: '显示连接到此打印机的灯的控制'
   Show printer icon in navigation bar: 在导航栏中显示打印机图标
   Show sliced colors: 显示切片颜色
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: 槽位、耗材通道、通道和工具从 0 开始计数，与 G-code 中的 T0 一致
   Show temp for: 显示温度
   Show text labels on icon-only home screen widgets: 在仅图标的主屏小组件上显示文字标签
   Show this screen as a webcam in Mainsail and Fluidd: '在 Mainsail 和 Fluidd 中将此屏幕显示为网络摄像头'

@@ -176,7 +176,7 @@ std::string source_name(const helix::DryerSource& s) {
     if (!s.name.empty())
         return s.name;
     return s.unit_index >= 0
-               ? fmt::format("{} {}", lv_tr("Box"), helix::ui::lane_number(s.unit_index))
+               ? fmt::format("{} {}", lv_tr("Box"), helix::ui::display_ordinal(s.unit_index))
                : std::string(lv_tr("Box"));
 }
 

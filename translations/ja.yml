@@ -2604,6 +2604,7 @@ translations:
   'Nozzle:': 'ノズル:'
   'Nozzles still heating: {}': '加熱中のノズル: {}'
   Number Pad Layout: テンキーの配列
+  Number slots from 0: スロット番号を0から始める
   OD: OD
   'OFF': 'OFF'
   OK: OK
@@ -3446,7 +3447,7 @@ translations:
   Select Spool: スプールを選択
   Select a filament slot to load: 装填するフィラメントスロットを選択
   Select a valid number: 有効な番号を選択してください
-  Select a valid number (1-{}): 有効な番号を選択してください（1-{}）
+  Select a valid number ({}-{}): 有効な番号を選択してください（{}-{}）
   Select a valid tool: 有効なツールを選択してください
   Select a valid {}: '有効な{}を選択してください'
   Select a {}: '{}を選択してください'
@@ -3541,6 +3542,7 @@ translations:
   Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
   Show printer icon in navigation bar: ナビゲーションバーにプリンターアイコンを表示
   Show sliced colors: スライスした色を表示
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: スロット、レーン、ゲート、ツールを0から数えます（G-codeのT0と一致）
   Show temp for: 温度表示対象
   Show text labels on icon-only home screen widgets: アイコンのみのホーム画面ウィジェットにテキストラベルを表示
   Show this screen as a webcam in Mainsail and Fluidd: 'この画面をMainsailとFluiddでウェブカメラとして表示'

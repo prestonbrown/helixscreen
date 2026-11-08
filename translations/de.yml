@@ -2746,6 +2746,7 @@ translations:
   'Nozzle:': 'Düse:'
   'Nozzles still heating: {}': 'Düsen heizen noch: {}'
   Number Pad Layout: Ziffernblock-Layout
+  Number slots from 0: Slots ab 0 nummerieren
   OD: OD
   'OFF': AUS
   OK: OK
@@ -3632,7 +3633,7 @@ translations:
   Select Spool: Spule auswählen
   Select a filament slot to load: Filament-Slot zum Laden auswählen
   Select a valid number: Wählen Sie eine gültige Nummer
-  Select a valid number (1-{}): Wählen Sie eine gültige Nummer (1-{})
+  Select a valid number ({}-{}): Wählen Sie eine gültige Nummer ({}-{})
   Select a valid tool: Wählen Sie ein gültiges Werkzeug
   Select a valid {}: 'Wählen Sie einen gültigen Wert für {}'
   Select a {}: 'Wählen Sie {} aus'
@@ -3736,6 +3737,7 @@ translations:
   Show light controls for a light connected to this printer: 'Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen'
   Show printer icon in navigation bar: Druckersymbol in Navigationsleiste anzeigen
   Show sliced colors: Slice-Farben anzeigen
+  Show slots, lanes, gates and tools counting from 0, matching T0 in G-code: Slots, Spuren, Gates und Werkzeuge ab 0 zählen, passend zu T0 im G-Code
   Show temp for: Temperatur anzeigen für
   Show text labels on icon-only home screen widgets: Textbeschriftungen auf Icon-Widgets
     des Startbildschirms anzeigen
