@@ -5073,20 +5073,96 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK_FALSE(grid().is_callout_open());
 }
 
-TEST_CASE_METHOD(EditHomeFixture, "a hold on the selected tile's resize edge raises no callout",
+TEST_CASE_METHOD(EditHomeFixture, "a hold on the selected tile's resize edge starts the resize",
                  "[edit-callout][grid_edit][home]") {
     build_home(1, 1);
     enter_edit_mode();
     select_by_tap("temperature");
+    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
     const lv_area_t wa = area_of(widget_on(0, "temperature"));
-    const int x = wa.x1 + 1;
-    const int y = (wa.y1 + wa.y2) / 2;
-    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Left);
+    const int x = (wa.x1 + wa.x2) / 2;
+    const int y = wa.y2 - 1;
+    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Bottom);
     indev.press(x, y);
     indev.hold(indev.long_press_hold_ms());
     CHECK_FALSE(grid().is_callout_open());
-    indev.release(x, y);
+    const int to_y = y + tracks_px(kCellTracks);
+    indev.move(x, to_y);
+    indev.release(x, to_y);
     settle();
+    CHECK(entry_on_page(0, "temperature").rowspan == origin.rowspan + kCellTracks);
+    CHECK_FALSE(grid().is_callout_open());
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a fixed-size tile's edge band raises its callout",
+                 "[edit-callout][grid_edit][home]") {
+    helix::RuntimeWidgetDef fixed;
+    fixed.id = "hold_test_fixed_tile";
+    fixed.display_name = "Fixed";
+    fixed.factory = stand_in_factory();
+    REQUIRE(helix::register_runtime_widget_def(std::move(fixed)));
+    helix::ScopeExit cleanup([] { helix::unregister_runtime_widget_def("hold_test_fixed_tile"); });
+    build_home(1, 1);
+    REQUIRE(config().place_entry("hold_test_fixed_tile", 0, 0, kCellTracks, kCellTracks,
+                                 kCellTracks) >= 0);
+    repopulate();
+    enter_edit_mode();
+    select_by_tap("hold_test_fixed_tile");
+    const lv_area_t wa = area_of(widget_on(0, "hold_test_fixed_tile"));
+    const int x = (wa.x1 + wa.x2) / 2;
+    const int y = wa.y2 - 1;
+    REQUIRE(grid().detect_resize_edge(x, y, wa) == helix::GridEditMode::ResizeEdge::Bottom);
+    indev.press(x, y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK(grid().is_callout_open());
+    indev.release(x, y);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "an indev reset under a hold's callout closes it and ends the arm",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    enter_edit_mode();
+    const lv_point_t c = center_of(widget_on(0, "temperature"));
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms());
+    REQUIRE(grid().is_callout_open());
+    REQUIRE(grid().owns_gesture());
+    REQUIRE_FALSE(scroll_live());
+    lv_indev_reset(indev.indev(), nullptr);
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK_FALSE(grid().owns_gesture());
+    CHECK(scroll_live());
+    indev.release(c.x, c.y);
+    settle();
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a raising finger's lift restarts the callout's row lockout",
+                 "[edit-callout][grid_edit][home]") {
+    build_home();
+    const bool entering = GENERATE(false, true);
+    CAPTURE(entering);
+    if (!entering) {
+        enter_edit_mode();
+    }
+    const lv_point_t c = center_of(widget_on(0, "temperature"));
+    indev.press(c.x, c.y);
+    indev.hold(indev.long_press_hold_ms() + 2 * helix::ui::TapLockout::kDefaultMs);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+    REQUIRE(grid().is_callout_open());
+    indev.release(c.x, c.y);
+    process_lvgl(static_cast<int>(kReadPeriodMs));
+
+    // The bounce, right after the lift.
+    const lv_point_t r = center_of(callout_part("tile_callout_remove"));
+    indev.press(r.x, r.y);
+    indev.release(r.x, r.y);
+    CHECK(grid().is_callout_open());
+    CHECK(config().is_placed("temperature"));
+
+    tap_callout_row("tile_callout_remove");
+    CHECK_FALSE(grid().is_callout_open());
+    CHECK_FALSE(config().is_placed("temperature"));
 }
 
 TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode on a tile raises its callout",

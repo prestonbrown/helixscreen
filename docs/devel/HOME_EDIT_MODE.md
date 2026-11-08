@@ -198,7 +198,8 @@ swipeable: a swipe that starts on a widget must still flip the page.
   frame that first draws the card** (`include/tap_lockout.h`). The press decides, not the lift:
   a second press at 240 ms that lifts at 310 ms is refused. The clock starts at the card's first
   `LV_EVENT_DRAW_POST`, not its creation, because a slow board reads no input until that frame is
-  out. A click with no input device behind it (`helix-screen ctl click <name>`, tests) skips the
+  out, and it runs again when the finger that raised the callout lifts, so a bounce of that lift
+  is no tap. A click with no input device behind it (`helix-screen ctl click <name>`, tests) skips the
   lockout; a dropped tap logs `Row tap ignored` at info.
 - **Known limit: the entering hold's travel is measured from its press to its lift only.** That
   hold ends its press (`helix::ui::end_press`), and LVGL sends no PRESSING while it waits for the

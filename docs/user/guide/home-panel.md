@@ -134,7 +134,7 @@ A long press on a control you drag does not enter Edit Mode: the arc on a Fan Sp
 ### Moving a Widget
 
 1. **Select** a widget by tapping it (the widget you long-pressed to enter Edit Mode is already selected)
-2. **Press it again and drag** it to a new position. You can also skip the tap: **press and hold** any widget for about half a second to pick it up, then drag
+2. **Press it again and drag** it to a new position. You can also skip the tap: **press and hold** any widget for about half a second until its menu appears, then keep your finger down and drag. The menu closes and the widget moves
 3. As you drag, a **snap preview** appears showing where the widget will land:
    - **Blue/accent preview** = valid drop position
    - **Red preview** = invalid position (would overlap another widget)

@@ -1638,6 +1638,10 @@ void GridEditMode::handle_released(lv_event_t* e) {
     facts.inert = gesture_inert_;
     facts.input_acts = grid_input_acts();
     last_drop_committed_ = false;
+    // Only the hold that raised it can be armed while it is open.
+    if (press_armed_) {
+        restart_callout_lockout();
+    }
     if (resizing_) {
         handle_resize_end(e);
     } else if (dragging_) {
@@ -1670,8 +1674,18 @@ bool GridEditMode::hold_raises_callout() const {
     }
     lv_area_t sel_area;
     lv_obj_get_coords(selected_, &sel_area);
-    return detect_resize_edge(press_origin_.x, press_origin_.y, sel_area) == ResizeEdge::None ||
-           !is_selected_widget_resizable();
+    return !press_starts_resize(sel_area);
+}
+
+bool GridEditMode::press_starts_resize(const lv_area_t& sel_area) const {
+    return detect_resize_edge(press_origin_.x, press_origin_.y, sel_area) != ResizeEdge::None &&
+           is_selected_widget_resizable();
+}
+
+void GridEditMode::restart_callout_lockout() {
+    if (is_callout_open()) {
+        callout_->restart_lockout(lv_tick_get());
+    }
 }
 
 void GridEditMode::track_gesture_travel(lv_point_t pt) {
@@ -1727,9 +1741,8 @@ void GridEditMode::open_tile_callout_next_tick() {
     if (id.empty()) {
         return;
     }
-    // After the release has settled the selection: a held widget is back in
-    // its cell by then.
-    // A press since the release cancels it: that gesture decides anew.
+    // After the gesture has settled the selection. A press since then cancels
+    // it: that gesture decides anew.
     const uint32_t gesture = gesture_serial_;
     helix::ui::run_next_tick(lifetime_.token(), [this, id, gesture]() {
         if (!active_ || !selected_ || gesture != gesture_serial_ || selected_widget_id() != id) {
@@ -1865,8 +1878,8 @@ void GridEditMode::handle_drag_start(lv_event_t* /*e*/) {
     // Check if the INITIAL press point (not current pointer) was near an edge.
     // By the time drag threshold is met, the pointer may have moved beyond the
     // edge tolerance — use press_origin_ which is where the finger first touched.
-    ResizeEdge edge = detect_resize_edge(press_origin_.x, press_origin_.y, sel_area);
-    if (edge != ResizeEdge::None && is_selected_widget_resizable()) {
+    if (press_starts_resize(sel_area)) {
+        const ResizeEdge edge = detect_resize_edge(press_origin_.x, press_origin_.y, sel_area);
         // Start resize mode instead of drag
         resizing_ = true;
         resize_edge_ = edge;
@@ -2983,6 +2996,8 @@ void GridEditMode::handle_press_cancelled(lv_event_t* e) {
         }
         if (gesture_max_travel_px_ > kDragThresholdPx) {
             close_tile_callout();
+        } else {
+            restart_callout_lockout();
         }
         clear_gesture_state();
         return;
