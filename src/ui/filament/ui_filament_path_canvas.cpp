@@ -765,6 +765,7 @@ bool ui_filament_path_canvas_is_animating(lv_obj_t* obj) {
     return data->anim.segment_active || data->anim.error_pulse_active || flow_visible(*data);
 }
 
+// NAMESPACE_OK: beside this widget's global C API
 void ui_filament_path_canvas_set_manual_motion(lv_obj_t* obj, int motion) {
     auto* data = get_data(obj);
     if (!data)
@@ -772,11 +773,13 @@ void ui_filament_path_canvas_set_manual_motion(lv_obj_t* obj, int motion) {
     set_manual_motion(obj, data, helix::filament_motion_from_int(motion));
 }
 
+// NAMESPACE_OK: beside this widget's global C API
 int ui_filament_path_canvas_get_manual_motion(lv_obj_t* obj) {
     auto* data = get_data(obj);
     return data ? static_cast<int>(data->anim.manual_motion) : 0;
 }
 
+// NAMESPACE_OK: beside this widget's global C API
 bool ui_filament_path_canvas_flow_reversed(lv_obj_t* obj) {
     auto* data = get_data(obj);
     return data && flow_reversed(*data);
