@@ -19,6 +19,11 @@
 // assert which files the panel currently holds without driving widget-level
 // scroll state. Same pattern as BedMeshPanelTestAccess.
 struct PrintSelectPanelTestAccess {
+    /// The plate a selection made before the first listing opens on.
+    static int pending_archive_plate(const PrintSelectPanel& panel) {
+        return panel.pending_archive_plate_;
+    }
+
     /// The installer the install prompt runs, for pointing it at a stub install.sh.
     static helix::HelixPluginInstaller& plugin_installer(PrintSelectPanel& panel) {
         return panel.plugin_installer_;
