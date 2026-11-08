@@ -16,6 +16,9 @@
 
 namespace helix {
 
+/// The paint AmsState::current_color holds while no filament color is known.
+inline constexpr uint32_t kNoFilamentPaint = 0x505050;
+
 /// Values of the "filament_manual_motion" subject.
 enum class FilamentMotion : int {
     Idle = 0,

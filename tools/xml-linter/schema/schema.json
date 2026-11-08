@@ -2033,6 +2033,9 @@
     },
     "filament_motion_glyph": {
       "attributes": {
+        "bind_color": {
+          "type": "color"
+        },
         "bind_motion": {
           "type": "string"
         }

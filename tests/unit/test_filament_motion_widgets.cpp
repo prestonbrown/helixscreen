@@ -35,6 +35,26 @@ struct AnimationsOn {
 
 } // namespace
 
+TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph draws the loaded filament's color",
+                 "[filament-chevrons][widget]") {
+    lv_subject_t color;
+    lv_subject_init_int(&color, static_cast<int>(helix::kNoFilamentPaint));
+    lv_xml_register_subject(nullptr, "test_filament_color", &color);
+    const char* attrs[] = {"bind_color", "test_filament_color", nullptr};
+    auto* obj =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "filament_motion_glyph", attrs));
+    REQUIRE(obj != nullptr);
+    CHECK(helix::ui::filament_motion_glyph_color(obj) == helix::kNoFilamentPaint);
+
+    lv_subject_set_int(&color, 0x12AB34);
+    CHECK(helix::ui::filament_motion_glyph_color(obj) == 0x12AB34);
+    lv_subject_set_int(&color, static_cast<int>(helix::kNoFilamentPaint));
+    CHECK(helix::ui::filament_motion_glyph_color(obj) == helix::kNoFilamentPaint);
+
+    lv_obj_delete(obj);
+    lv_subject_deinit(&color);
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph follows bind_motion",
                  "[filament-chevrons][widget]") {
     lv_subject_t subj;
