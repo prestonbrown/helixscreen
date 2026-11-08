@@ -3211,11 +3211,12 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync leaves an unknown hand-edited
 
 TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync records the channel it agrees on",
                  "[update_checker][moonraker_channel]") {
-    SECTION("already matching") {
+    SECTION("already matching: nothing is written or restarted") {
         seed(conf("beta"));
         set_app_channel(1, true);
         CHECK(sync() == conf("beta"));
         CHECK(api.xfers_.uploads == 0);
+        CHECK(api.restarts == 0);
     }
     SECTION("after writing an app change") {
         seed(conf("stable"));
@@ -3238,16 +3239,6 @@ TEST_CASE_METHOD(ChannelSyncFixture,
     CHECK(api.restarts == 1);
 }
 
-TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync leaves a matching stanza alone",
-                 "[update_checker][moonraker_channel]") {
-    seed(conf("beta"));
-    set_app_channel(1, true);
-
-    CHECK(sync() == conf("beta"));
-    CHECK(api.xfers_.uploads == 0);
-    CHECK(api.restarts == 0);
-}
-
 TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync maps Dev to beta, and clamped Dev to stable",
                  "[update_checker][moonraker_channel]") {
     SECTION("Dev with beta features rides beta") {
@@ -3262,13 +3253,23 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync maps Dev to beta, and clamped
     }
 }
 
-TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never writes without a stanza",
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync writes only this install's stanza on this host",
                  "[update_checker][moonraker_channel]") {
-    const std::string bare = "[server]\nhost: 0.0.0.0\n";
-    seed(bare);
     set_app_channel(1, true);
-
-    CHECK(sync() == bare);
+    std::string seeded = conf("stable", "/home/pi/helixscreen");
+    SECTION("no stanza at all") {
+        seeded = "[server]\nhost: 0.0.0.0\n";
+    }
+    SECTION("a stanza naming a different directory") {}
+    SECTION("this install's directory unknown") {
+        install_root.clear();
+    }
+    SECTION("a remote Moonraker") {
+        seeded = conf("stable");
+        api.set_http_base_url("http://203.0.113.7:7125"); // TEST-NET-3, never this host
+    }
+    seed(seeded);
+    CHECK(sync() == seeded);
     CHECK(api.xfers_.uploads == 0);
     CHECK(api.restarts == 0);
 }
@@ -3318,31 +3319,6 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync matches the stanza path after
 
     CHECK(sync() == conf("beta", "/opt/./helixscreen/"));
     CHECK(api.restarts == 1);
-}
-
-TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never touches another install's stanza",
-                 "[update_checker][moonraker_channel]") {
-    seed(conf("stable", "/home/pi/helixscreen"));
-    set_app_channel(1, true);
-
-    SECTION("stanza names a different directory") {}
-    SECTION("this install's directory is unknown") {
-        install_root.clear();
-    }
-    CHECK(sync() == conf("stable", "/home/pi/helixscreen"));
-    CHECK(api.xfers_.uploads == 0);
-    CHECK(api.restarts == 0);
-}
-
-TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never writes to a remote Moonraker",
-                 "[update_checker][moonraker_channel]") {
-    seed(conf("stable"));
-    set_app_channel(1, true);
-    api.set_http_base_url("http://203.0.113.7:7125"); // TEST-NET-3, never this host
-
-    CHECK(sync() == conf("stable"));
-    CHECK(api.xfers_.uploads == 0);
-    CHECK(api.restarts == 0);
 }
 
 TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync abandons a printer it was detached from",
