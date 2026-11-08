@@ -11,12 +11,12 @@
 /**
  * @file belt_capture.h
  * @brief Writes raw pluck events to disk so the reference machine can hand
- *        over real fixtures instead of eight captures from one evening
+ *        over real fixtures
  *
- * Every threshold in PluckDetector and pitch_estimator was measured against a
- * small, fixed capture set, and the algorithm has since been tuned against
- * that same set - circular. This is the instrument that collects the next
- * round: every resolved event (accepted or rejected) written to disk in the
+ * Every threshold in PluckDetector and pitch_estimator is measured and tuned
+ * against a small, fixed capture set, so checking them against that same set
+ * is circular. This is the instrument that collects more: every resolved
+ * event (accepted or rejected) written to disk in the
  * same format tests/fixtures/belt_plucks/ already uses, so a capture drops
  * straight in as a fixture with no conversion step.
  *

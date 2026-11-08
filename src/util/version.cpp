@@ -144,7 +144,6 @@ std::optional<Version> parse_version(const std::string& version_str) {
     const char* end = version_str.c_str() + version_str.length();
 
     while (start < end && component_idx < 3) {
-        // Skip any leading whitespace
         while (start < end && (*start == ' ' || *start == '\t')) {
             start++;
         }
@@ -179,7 +178,6 @@ std::optional<Version> parse_version(const std::string& version_str) {
         component_idx++;
         start = ptr;
 
-        // Skip the dot separator
         if (start < end && *start == '.') {
             start++;
         } else if (start < end && *start != '-' && *start != '+' && *start != '\0') {
@@ -188,7 +186,6 @@ std::optional<Version> parse_version(const std::string& version_str) {
         }
     }
 
-    // Must have at least major version
     if (component_idx == 0) {
         return std::nullopt;
     }
@@ -226,10 +223,8 @@ bool check_version_constraint(const std::string& constraint, const std::string& 
         return false;
     }
 
-    // Parse operator and required version from constraint
     const char* c = constraint.c_str();
 
-    // Skip leading whitespace
     while (*c == ' ' || *c == '\t') {
         c++;
     }
@@ -255,7 +250,6 @@ bool check_version_constraint(const std::string& constraint, const std::string& 
     }
     // else: no operator means equality
 
-    // Skip whitespace after operator
     while (*c == ' ' || *c == '\t') {
         c++;
     }

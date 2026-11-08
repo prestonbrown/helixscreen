@@ -128,7 +128,6 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
         else if (match[3].matched)
             name = match[3].str();
 
-        // Normalize to uppercase
         name = helix::text_io::to_upper(name);
 
         // Skip duplicates

@@ -21,9 +21,8 @@ namespace helix::http {
 /// Work item executed on a worker thread.
 using HttpWork = helix::Callback<void()>;
 
-/// Bounded-worker executor for HTTP work. Replaces per-request std::thread
-/// spawning, which failed with EAGAIN under thread exhaustion (see commits
-/// 04884df30, 453ec3703 for the band-aid this class supersedes).
+/// Bounded-worker executor for HTTP work, in place of per-request std::thread
+/// spawning, which fails with EAGAIN under thread exhaustion.
 ///
 /// Two process-wide instances are exposed — `fast()` for status/REST calls
 /// (4 workers, preserves burst parallelism for thumbnail loading etc.)

@@ -23,7 +23,7 @@ namespace helix {
  * Uses a version-based notification pattern since LVGL subjects don't
  * natively support set types.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * Usage pattern:
  * 1. Observer subscribes to excluded_objects_version_ subject
@@ -54,7 +54,6 @@ class PrinterExcludedObjectsState {
     PrinterExcludedObjectsState() = default;
     ~PrinterExcludedObjectsState() = default;
 
-    // Non-copyable
     PrinterExcludedObjectsState(const PrinterExcludedObjectsState&) = delete;
     PrinterExcludedObjectsState& operator=(const PrinterExcludedObjectsState&) = delete;
 

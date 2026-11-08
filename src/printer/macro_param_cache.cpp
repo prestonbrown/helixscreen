@@ -214,7 +214,6 @@ void MacroParamCache::populate_from_configfile(
             gcode_template = it.value()["gcode"].get<std::string>();
         }
 
-        // Extract description if present
         std::string description;
         if (it.value().is_object() && it.value().contains("description") &&
             it.value()["description"].is_string()) {

@@ -306,9 +306,10 @@ if [[ ! "$WORKTREE_PATH" = /* ]]; then
     WORKTREE_PATH="$MAIN_TREE/$WORKTREE_PATH"
 fi
 
-# Guard: arg 2 is a PATH. Passing a base branch there is an easy slip, and it
-# used to succeed silently — mkdir -p created a real directory of that name in
-# the repo root and the branch was cut from HEAD instead of the intended base.
+# Guard: arg 2 is a PATH. Passing a base branch there is an easy slip, and
+# without this guard it succeeds silently — mkdir -p creates a real directory
+# of that name in the repo root and the branch is cut from HEAD instead of the
+# intended base.
 if [[ -n "$EXPLICIT_PATH" && ! -e "$WORKTREE_PATH" ]] \
    && git -C "$MAIN_TREE" rev-parse --verify --quiet "$EXPLICIT_PATH" >/dev/null; then
     echo -e "${RED}Error: '$EXPLICIT_PATH' is a git ref, but argument 2 is the worktree PATH.${RESET}"

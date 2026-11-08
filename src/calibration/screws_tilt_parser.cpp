@@ -82,7 +82,6 @@ bool parse_screws_tilt_line(const std::string& line, ScrewTiltResult& out) {
         size_t adjust_pos = line.find(": adjust ");
         if (adjust_pos != std::string::npos) {
             result.adjustment = line.substr(adjust_pos + 9); // Skip ": adjust "
-            // Trim any trailing whitespace
             while (!result.adjustment.empty() &&
                    std::isspace(static_cast<unsigned char>(result.adjustment.back()))) {
                 result.adjustment.pop_back();

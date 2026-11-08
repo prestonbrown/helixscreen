@@ -379,7 +379,6 @@ WiFiManager::~WiFiManager() {
     }
     wait_for_radio_ops();
 
-    // Clean up scanning
     stop_scan();
 
     // Clean up any pending auth-failure grace timer (helixscreen#1050)
@@ -468,7 +467,6 @@ void WiFiManager::start_scan(
     // on any other thread must marshal via helix::ui::queue_update().
     scan_scheduler_.on_user_refresh();
 
-    // Create timer for periodic scanning
     scan_timer_ =
         lv_timer_create(scan_timer_callback, helix::wifi::ScanScheduler::kBaseIntervalMs, this);
     spdlog::debug("[WiFiManager] Timer created: {}", (void*)scan_timer_);
@@ -1703,7 +1701,6 @@ void WiFiManager::handle_scan_complete(const std::string& event_data) {
         spdlog::debug("[WiFiManager] Got {} scan results, dispatching to LVGL thread",
                       networks.size());
 
-        // Use RAII-safe async callback wrapper
         helix::ui::queue_update<ScanCallbackData>(
             std::make_unique<ScanCallbackData>(ScanCallbackData{self_, networks}),
             [](ScanCallbackData* data) {
@@ -1749,7 +1746,6 @@ void WiFiManager::handle_scan_complete(const std::string& event_data) {
     } else {
         LOG_WARN_INTERNAL("Failed to get scan results: {}", result.technical_msg);
 
-        // Use RAII-safe async callback wrapper
         helix::ui::queue_update<ScanCallbackData>(
             std::make_unique<ScanCallbackData>(ScanCallbackData{self_, {}}),
             [](ScanCallbackData* data) {
@@ -1824,7 +1820,6 @@ void WiFiManager::handle_connected(const std::string& event_data) {
         return;
     }
 
-    // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
         std::make_unique<ConnectCallbackData>(
             ConnectCallbackData{self_, true, "", WiFiResult::SUCCESS}),
@@ -1920,7 +1915,6 @@ void WiFiManager::handle_disconnected(const std::string& event_data) {
         return;
     }
 
-    // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
         std::make_unique<ConnectCallbackData>(
             ConnectCallbackData{self_, false, "Disconnected", WiFiResult::CONNECTION_FAILED}),
@@ -1963,7 +1957,6 @@ void WiFiManager::handle_auth_failed(const std::string& event_data) {
     // Pass through backend detail if provided, otherwise generic message
     std::string error_msg = event_data.empty() ? "Authentication failed" : event_data;
 
-    // Use RAII-safe async callback wrapper
     helix::ui::queue_update<ConnectCallbackData>(
         std::make_unique<ConnectCallbackData>(ConnectCallbackData{
             self_, false, std::move(error_msg), WiFiResult::AUTHENTICATION_FAILED}),
