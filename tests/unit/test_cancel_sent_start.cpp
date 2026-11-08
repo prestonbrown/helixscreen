@@ -601,3 +601,19 @@ TEST_CASE_METHOD(SentStartFixture, "A printer switch forgets the start this scre
     get_printer_state().init_subjects(false);
     CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
 }
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A job another client starts is not the one this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    // Same file, started again from elsewhere with nothing of ours preparing.
+    report("complete", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+    report("printing", "part.gcode");
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
