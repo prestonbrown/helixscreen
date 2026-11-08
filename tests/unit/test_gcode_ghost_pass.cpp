@@ -493,9 +493,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "main-thread setters during a ghost build do n
 
     // Hammer the setters that write without joining, for a FIXED number of
     // rounds rather than "until the build finishes". Several of them invalidate
-    // the ghost, so a wait-for-completion loop here never converges: each round
-    // respawns the worker it is waiting on, spins to its guard, and passes
-    // alongside other cases purely on timing.
+    // the ghost, so a wait-for-completion loop here would never converge: each
+    // round respawns the worker it is waiting on, so such a loop spins to its
+    // guard and passes alongside other cases purely on timing.
     constexpr int kRounds = 150;
     for (int i = 1; i <= kRounds; ++i) {
         r.set_extrusion_color(lv_color_hex(i & 1 ? 0x3060C0 : 0xC06030));
