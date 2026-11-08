@@ -220,9 +220,9 @@ void NetworkWidget::detect_network_type(bool force) {
     // for the async probe to finish.
     //
     // Exception: if the backend has just signaled READY (backend_ready_ == true)
-    // and we're currently Disconnected, re-check WiFi status. This fixes the
-    // race where the widget attached before the backend finished init and got
-    // pinned on Disconnected before the READY event could trigger a refresh.
+    // and we're currently Disconnected, re-check WiFi status. A widget that
+    // attached before the backend finished init would otherwise stay pinned on
+    // Disconnected, since the READY event came too early to trigger a refresh.
     //
     // When force=true (from state observer callback), always re-check WiFi so
     // CONNECTED/DISCONNECTED events are reflected even when current_network_
