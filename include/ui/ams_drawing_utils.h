@@ -117,6 +117,9 @@ lv_obj_t* create_transparent_container(lv_obj_t* parent);
 /// so two views of the same lane cannot ghost to different strengths.
 inline constexpr lv_opa_t kGhostOpa = LV_OPA_30;
 
+/// A lane badge's text; empty for a negative number, the "no number" value.
+std::string lane_badge_text(int number);
+
 /** Create a circular lane-number badge (1-based) using AMS badge tokens.
  *  @param parent typically the spool container; caller may re-align.
  *  @param active when true, uses the "success" accent color for the active (loaded) lane. */

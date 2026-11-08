@@ -1175,8 +1175,7 @@ TEST_CASE("Toolhead badges: several toolheads are named by extruder, never by a 
         REQUIRE(layout.total_physical_tools == 2);
         const auto badges = compute_tool_badge_labels(layout, info, 5, 0);
         CHECK(badges.prefix == 'T');
-        CHECK(badges.numbers ==
-              std::vector<int>{helix::ui::lane_number(0), helix::ui::lane_number(1)});
+        CHECK(badges.numbers == std::vector<int>{0, 1});
     }
 
     SECTION("one toolhead keeps the lane alias of the active slot") {
