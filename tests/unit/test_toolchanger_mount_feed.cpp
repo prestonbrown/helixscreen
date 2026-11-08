@@ -2164,8 +2164,7 @@ TEST_CASE("mount-to-feed: a tool number that skips seats the tool Klipper number
 
 TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carriage tool",
           "[toolchanger][tool-number]") {
-    // Moonraker republishes only the fields that changed, so tool_numbers and
-    // tool_names can each arrive alone, after tool_number.
+    // Moonraker sends only changed fields: tool_numbers, tool_names each alone.
     helix::test::ToolChangerHelper tc(3);
     tc.set_discovered_tools({"T0", "T2", "T3"});
     tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
