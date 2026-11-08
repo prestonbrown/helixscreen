@@ -4,8 +4,10 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/screensaver_clock_scopes.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "asset_manager.h"
 #include "screensaver_aqua.h"
 #include "screensaver_fireflies.h"
 #include "screensaver_fireworks.h"
@@ -15,6 +17,7 @@
 #include "screensaver_maze.h"
 #include "screensaver_pipes.h"
 #include "screensaver_starfield.h"
+#include "theme_manager.h"
 
 #include <cinttypes>
 #include <cstdint>
@@ -144,9 +147,27 @@ uint64_t maze_run(uint32_t seed) {
     return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
 }
 
+/**
+ * @brief Pins what a clock saver reads from the app around its run
+ *
+ * Clock savers draw in theme fonts and colors, and the theme stays initialized for the rest
+ * of the process once any case has initialized it, so a run that initializes it itself (light
+ * mode, at the fixture's 800x480, as LVGLUITestFixture does) draws the same pixels whatever
+ * ran before it. The text also reads the language and the Time Format setting.
+ */
+struct ClockSaverScope {
+    ClockSaverScope() {
+        AssetManager::register_all();
+        theme_manager_init(lv_display_get_default(), false);
+    }
+    helix::test::LanguageScope language{"en"};
+    helix::test::TimeFormatScope time_format{helix::TimeFormat::HOUR_12};
+};
+
 /// The flip clock draws no random numbers, so a different start time stands in for a seed. A
 /// 25 s offset starts the run at 10:08:55, so its cards flip to 10:09 five seconds in.
 uint64_t flip_clock_run(uint32_t start_offset_s, bool printing) {
+    ClockSaverScope app;
     FlipClockScreensaver ss;
     uint32_t elapsed_ms = start_offset_s * 1000;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
@@ -154,6 +175,7 @@ uint64_t flip_clock_run(uint32_t start_offset_s, bool printing) {
 }
 
 uint64_t aqua_run(uint32_t seed, bool printing) {
+    ClockSaverScope app;
     AquaScreensaver ss;
     uint32_t elapsed_ms = 0;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
@@ -161,6 +183,7 @@ uint64_t aqua_run(uint32_t seed, bool printing) {
 }
 
 uint64_t highfly_run(uint32_t seed, bool printing) {
+    ClockSaverScope app;
     HighFlyScreensaver ss;
     uint32_t elapsed_ms = 0;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });

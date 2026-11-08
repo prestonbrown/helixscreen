@@ -3,13 +3,13 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/screensaver_clock_scopes.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "screensaver_clock.h"
 #include "screensaver_clock_reading.h"
 #include "screensaver_stroke_digits.h"
-#include "system_settings_manager.h"
 
 #include <algorithm>
 #include <array>
@@ -37,7 +37,9 @@ using helix::ui::ClockTime;
 using helix::ui::StrokeDigitSet;
 
 using helix::test::hms;
+using helix::test::LanguageScope;
 using helix::test::TestFrame;
+using helix::test::TimeFormatScope;
 
 namespace {
 
@@ -489,32 +491,6 @@ TEST_CASE("a glyph set holds only the glyphs it was asked for", "[screensaver][c
 // ============================================================================
 
 namespace {
-
-/// Sets the app language for one test and puts English back after it.
-struct LanguageScope {
-    explicit LanguageScope(const std::string& lang) {
-        set(lang);
-    }
-    ~LanguageScope() {
-        set("en");
-    }
-    static void set(const std::string& lang) {
-        helix::SystemSettingsManager::instance().set_language(lang);
-        helix::ui::locale_set_language(lang);
-    }
-};
-
-/// Pins the Time Format setting for one test and restores what it was.
-struct TimeFormatScope {
-    explicit TimeFormatScope(TimeFormat format)
-        : saved(DisplaySettingsManager::instance().get_time_format()) {
-        DisplaySettingsManager::instance().set_time_format(format);
-    }
-    ~TimeFormatScope() {
-        DisplaySettingsManager::instance().set_time_format(saved);
-    }
-    TimeFormat saved;
-};
 
 /// The weekday in the active language. With the system locale active the name
 /// is whatever this host's libc spells (macOS capitalises French, glibc does
