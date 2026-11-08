@@ -55,6 +55,14 @@ class PowerDeviceState {
     /// Whether any tracked device is off, an "error" status included. Main thread.
     [[nodiscard]] bool any_device_off() const;
 
+    /// Record which devices stop Klipper when they turn off (`bound_services`).
+    /// Kept apart from set_devices(): it comes from a separate Moonraker reply.
+    void set_klipper_bound_devices(std::vector<std::string> devices);
+
+    /// Whether a device that stops Klipper is off, so Klipper being down is expected.
+    /// False while the bindings are unknown. Main thread.
+    [[nodiscard]] bool klipper_bound_device_off() const;
+
     /// Update a device's status directly (for mock/testing).
     /// Marshals to UI thread via queue_update.
     void update_device_status(const std::string& device, const std::string& status);
@@ -90,6 +98,7 @@ class PowerDeviceState {
     void publish_effective_status(DeviceInfo& info);
 
     std::unordered_map<std::string, DeviceInfo> devices_;
+    std::vector<std::string> klipper_bound_devices_;
     ObserverGuard print_state_observer_;
     bool subjects_initialized_ = false;
     helix::AsyncLifetimeGuard lifetime_;
