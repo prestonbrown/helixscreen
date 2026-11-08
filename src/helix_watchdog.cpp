@@ -947,10 +947,6 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
 }
 
 /**
- * @brief Show crash dialog and wait for user choice
- * @return User's choice
- */
-/**
  * @brief Body of the dialog process: draws the dialog and exits with the choice.
  *
  * Runs only in the child forked by show_crash_dialog().
@@ -1055,8 +1051,9 @@ static DialogChoice run_crash_dialog(int width, int height, int rotation, const 
 /**
  * @brief Show the recovery dialog in its own process and return the choice.
  *
- * Any way the dialog can fail ends in RESTART_APP, so the supervisor always
- * goes on to relaunch helix-screen.
+ * A dialog that cannot start, crashes or is interrupted ends in RESTART_APP, so
+ * the supervisor goes on to relaunch helix-screen. The wait has no deadline: the
+ * user may cancel the countdown and read the dialog for as long as they like.
  */
 static DialogChoice show_crash_dialog(int width, int height, int rotation, const CrashInfo& crash,
                                       bool crash_loop_detected) {
