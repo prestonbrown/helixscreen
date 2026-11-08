@@ -474,6 +474,10 @@ class Config {
     /// (set_preset("") is a no-op and cannot clear it)
     void clear_preset();
 
+    /// Whether presets/<preset_name>.json resolves in the writable dir or the
+    /// shipped seed bundle
+    static bool preset_file_exists(const std::string& preset_name);
+
     /**
      * @brief Load a preset file and merge hardware config into active printer
      *
