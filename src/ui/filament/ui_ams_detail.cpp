@@ -814,8 +814,21 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         }
     }
 
-    // The environment pill stands against the box's right end, as tall as the box.
-    if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+    // A unit with its own drawing keeps its pill low and tucked over the end of the body,
+    // where it covers neither a spool nor the lid's outline.
+    if (shell && w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
+        const int32_t tuck = theme_manager_get_spacing("space_sm");
+        // DECLARATIVE_OK: measured layout; the pill's place depends on the drawn unit
+        lv_obj_set_height(w.env_indicator, LV_SIZE_CONTENT);
+        clear_translate(w.env_indicator);
+        lv_obj_update_layout(w.env_indicator);
+        lv_area_t a;
+        lv_obj_get_coords(w.env_indicator, &a);
+        const int32_t left = origin.x + (int32_t)std::lround(tray::pill_left_x(box)) - tuck;
+        const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb) + tuck;
+        lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
+        lv_obj_set_style_translate_y(w.env_indicator, pill_bottom - a.y2, LV_PART_MAIN);
+    } else if (w.env_indicator && !lv_obj_has_flag(w.env_indicator, LV_OBJ_FLAG_HIDDEN)) {
         const int32_t pill_top = origin.y + (int32_t)std::lround(top);
         const int32_t pill_bottom = origin.y + (int32_t)std::lround(box.fb);
         const int32_t box_right = origin.x + (int32_t)std::lround(tray::pill_left_x(box));
