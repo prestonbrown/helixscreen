@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A K2 Plus or Pro on k2-improvements is identified correctly** - when detection cannot tell the two apart, HelixScreen asks instead of keeping a stock K2 profile that loads the wrong print-start steps.
 - **Firmware-variant installs keep their own hardware** (#2064) - a Z-Mod or other variant install no longer gains the stock printer's fans and runout switch in its expected hardware on every boot.
 - **The Fans setup screen no longer reopens at every launch** (#2040) - on printers whose preset names fans the machine does not have, such as a Z-Mod Adventurer 5M Pro, a fan you set to None stays None.
+- **Settings save after a sudo install with a separate service user** - on printers such as the QIDI Q2, an install run with sudo for a non-root service user left HelixScreen's config folder owned by root, so settings never saved. The installer now gives the folder back to the service user, and the service repairs it at every start, so an in-app update heals an affected install too.
 - **A missing extruder can be ignored** - Hardware Health offers Ignore on critical rows, and a printer with `kinematics: none` is not asked for an extruder.
 - **One API key field** (#1970, #1971) - Add Printer accepts a key.
 - **Label printing tells you when a printer needs encryption** (#2034).
