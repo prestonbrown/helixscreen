@@ -17,12 +17,15 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/core/lv_obj_private.h"       // obj->styles: LVGL has no style iterator
+#include "lvgl/src/core/lv_obj_style_private.h" // _lv_obj_style_t fields
 #include "sound_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -290,6 +293,50 @@ void set_local_text_color(lv_obj_t* obj, lv_color_t color) {
 }
 
 /**
+ * The text colour a button's author put on it: a local style_text_color, or an XML
+ * style bound onto it (bind_style) that carries one, in its default state. The shared
+ * variant styles do not count, so a variant's own colour still yields to the contrast
+ * pick. Styles are searched in precedence order, local first.
+ */
+std::optional<lv_color_t> authored_text_color(const lv_obj_t* btn) {
+    auto& tm = ThemeManager::instance();
+    const StyleRole variant_roles[] = {StyleRole::Button,
+                                       StyleRole::ButtonPrimary,
+                                       StyleRole::ButtonSecondary,
+                                       StyleRole::ButtonTertiary,
+                                       StyleRole::ButtonDanger,
+                                       StyleRole::ButtonGhost,
+                                       StyleRole::ButtonTransparent,
+                                       StyleRole::ButtonOutline,
+                                       StyleRole::ButtonSuccess,
+                                       StyleRole::ButtonWarning,
+                                       StyleRole::ButtonDisabled,
+                                       StyleRole::ButtonPressed};
+    for (uint32_t i = 0; i < btn->style_cnt; i++) {
+        const _lv_obj_style_t& entry = btn->styles[i];
+        if (entry.is_theme || entry.is_trans || entry.is_disabled || !entry.style) {
+            continue;
+        }
+        if (lv_obj_style_get_selector_part(entry.selector) != LV_PART_MAIN ||
+            lv_obj_style_get_selector_state(entry.selector) != LV_STATE_DEFAULT) {
+            continue;
+        }
+        bool is_variant = false;
+        for (StyleRole role : variant_roles) {
+            is_variant = is_variant || entry.style == tm.get_style(role);
+        }
+        if (is_variant) {
+            continue;
+        }
+        lv_style_value_t value;
+        if (lv_style_get_prop(entry.style, LV_STYLE_TEXT_COLOR, &value) == LV_STYLE_RES_FOUND) {
+            return value.color;
+        }
+    }
+    return std::nullopt;
+}
+
+/**
  * @brief Update button text color for contrast against the button background
  *
  * Handles both internal label/icon (from text= attr) and XML child labels
@@ -322,7 +369,9 @@ void update_button_text_contrast(lv_obj_t* btn) {
 
     // Determine text color based on button type
     lv_color_t text_color;
-    if (is_ghost) {
+    if (const auto authored = authored_text_color(btn)) {
+        text_color = *authored;
+    } else if (is_ghost) {
         // Ghost/transparent button - use theme text color
         text_color = theme_manager_get_color("text");
     } else {

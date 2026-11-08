@@ -26,6 +26,9 @@
          — every child lands stacked on the origin. -->
     <style name="comfort_list_micro" layout="flex" flex_flow="row_wrap" flex_grow="1"/>
     <style name="comfort_list_wide" layout="flex" flex_flow="column" flex_grow="0"/>
+    <!-- Stop while a cycle runs: a quiet button with danger text, so the running cycle,
+         not the way to end it, is what the page leads with. Start stays primary. -->
+    <style name="dryer_stop_quiet" bg_color="#elevated_bg" bg_opa="255" text_color="#danger"/>
   </styles>
   <view name="ams_environment_overlay"
         extends="overlay_panel" title="Filament Humidity" title_subject="ams_env_overlay_title_text"
@@ -274,6 +277,7 @@
               <ui_button name="btn_start_stop"
                          width="100%" height="#button_height" style_pad_ver="0"
                          bind_text="ams_env_overlay_start_stop_text">
+                <bind_style_if_eq name="dryer_stop_quiet" subject="ams_env_overlay_drying_active" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_ams_env_start_stop_clicked"/>
               </ui_button>
             </lv_obj>
