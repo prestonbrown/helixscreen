@@ -125,6 +125,10 @@ ColdPullRunner::~ColdPullRunner() {
 }
 
 void ColdPullRunner::before_disconnect() {
+    // The printer is reachable but its answer would land after the disconnect.
+    if (owed_ && owed_query_in_flight_) {
+        finish_owed_from_subject();
+    }
     owed_.reset();
     owed_query_in_flight_ = false;
     if (running()) {
@@ -236,7 +240,13 @@ ColdPullRefusal ColdPullRunner::start(ColdPullMaterial material, ColdPullTemps t
                  kLogTag, p.heater, p.temps.soak_c, p.temps.pull_c, p.part_fan, p.prior_fan_percent,
                  p.floor_c, p.homed, p.has_park_macro, p.toolhead_loaded, p.hold_pressure);
     (void)material;
-    owed_.reset();
+    // A cleanup still owed to this printer goes out before the new pull heats.
+    if (owed_) {
+        finish_owed_from_subject();
+    }
+    action_observer_.reset();
+    unload_watching_ = false;
+    ++flow_gen_;
     flow_.emplace(std::move(p));
     watch(true);
     apply(flow_->start(now()));
@@ -337,24 +347,7 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
     }
     const ColdPullParams& p = flow_->params();
     IMoonrakerAPI* api = get_moonraker_api();
-    if (a.heater_target_c) {
-        const int c = *a.heater_target_c;
-        spdlog::info("{} Heater {} -> {}°C", kLogTag, p.heater, c);
-        if (c > 0) {
-            // A post-op cooldown left by an earlier unload would turn this off mid-pull.
-            PostOpCooldownManager::instance().cancel(p.heater);
-            PostOpCooldownManager::instance().cancel(std::string());
-        }
-        if (auto* tc = get_temperature_controller()) {
-            tc->set_target(p.heater, static_cast<double>(c),
-                           {.toast = false, .keep_previous_hot = a.keep_previous_hot});
-        }
-    }
-    if (a.fan_percent && !p.part_fan.empty()) {
-        const std::string g = fan_gcode(p.part_fan, *a.fan_percent);
-        spdlog::info("{} Part fan {} -> {}%", kLogTag, p.part_fan, *a.fan_percent);
-        send_gcode(g, /*report=*/false);
-    }
+    send_heater_and_fan(p.heater, p.part_fan, a);
     if (!a.gcode.empty()) {
         send_gcode(a.gcode, /*report=*/true);
     }
@@ -392,6 +385,28 @@ void ColdPullRunner::apply(const ColdPullActions& a) {
     }
 }
 
+void ColdPullRunner::send_heater_and_fan(const std::string& heater, const std::string& part_fan,
+                                         const ColdPullActions& a) {
+    if (a.heater_target_c) {
+        const int c = *a.heater_target_c;
+        spdlog::info("{} Heater {} -> {}°C", kLogTag, heater, c);
+        if (c > 0) {
+            // A post-op cooldown left by an earlier unload would turn this off mid-pull.
+            PostOpCooldownManager::instance().cancel(heater);
+            PostOpCooldownManager::instance().cancel(std::string());
+        }
+        if (auto* tc = get_temperature_controller()) {
+            tc->set_target(heater, static_cast<double>(c),
+                           {.toast = false, .keep_previous_hot = a.keep_previous_hot});
+        }
+    }
+    if (a.fan_percent && !part_fan.empty()) {
+        const std::string g = fan_gcode(part_fan, *a.fan_percent);
+        spdlog::info("{} Part fan {} -> {}%", kLogTag, part_fan, *a.fan_percent);
+        send_gcode(g, /*report=*/false);
+    }
+}
+
 void ColdPullRunner::send_gcode(const std::string& gcode, bool report) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (gcode.empty()) {
@@ -404,8 +419,8 @@ void ColdPullRunner::send_gcode(const std::string& gcode, bool report) {
         }
         return;
     }
-    auto finished = [this, report](bool ok) {
-        if (report && flow_) {
+    auto finished = [this, report, gen = flow_gen_](bool ok) {
+        if (report && flow_ && gen == flow_gen_) {
             apply(flow_->command_finished(ok, now()));
             after_event();
         }
@@ -439,7 +454,10 @@ void ColdPullRunner::dispatch_unload() {
     const bool loaded = read_unload_target_loaded(backend, info, slot);
     spdlog::info("{} Unloading lane {} before the pull", kLogTag, slot);
 
-    auto finish = [this](bool ok) {
+    auto finish = [this, gen = flow_gen_](bool ok) {
+        if (gen != flow_gen_) {
+            return;
+        }
         action_observer_.reset();
         unload_watching_ = false;
         if (flow_) {
@@ -524,7 +542,8 @@ void ColdPullRunner::on_connection() {
         const std::optional<int> target = flow_->owned_target_c();
         ColdPullActions cleanup = flow_->exit_actions(false);
         if (!cleanup.empty()) {
-            owed_ = Owed{flow_->params().heater, target.value_or(0), cleanup};
+            owed_ =
+                Owed{flow_->params().heater, flow_->params().part_fan, target.value_or(0), cleanup};
         }
     }
     apply(flow_->disconnected());
@@ -542,12 +561,16 @@ void ColdPullRunner::settle_owed() {
     // The heater's subject still holds what it read before the link went down, so the
     // printer is asked for the target it has now.
     owed_query_in_flight_ = true;
+    const uint32_t gen = ++owed_gen_;
     const std::string heater = owed_->heater;
     const json params = {{"objects", {{heater, json::array({"target"})}}}};
     client->send_jsonrpc(
         "printer.objects.query", params,
         lifetime_.bg_cb("ColdPullRunner::owed_target",
-                        [this, heater](const json& response) {
+                        [this, heater, gen](const json& response) {
+                            if (gen != owed_gen_ || !owed_query_in_flight_) {
+                                return;
+                            }
                             owed_query_in_flight_ = false;
                             std::optional<int> target;
                             const json* v = json_util::find_member(response, "result");
@@ -560,11 +583,18 @@ void ColdPullRunner::settle_owed() {
                             finish_owed(target);
                         }),
         lifetime_.bg_cb("ColdPullRunner::owed_target_err",
-                        [this](const MoonrakerError& e) {
-                            // The next ready edge asks again.
+                        [this, gen](const MoonrakerError& e) {
+                            if (gen != owed_gen_ || !owed_query_in_flight_) {
+                                return;
+                            }
                             owed_query_in_flight_ = false;
                             spdlog::warn("{} Could not read the owed heater's target: {}", kLogTag,
                                          e.message);
+                            // Still connected, no other ready edge is coming: go by
+                            // what the subject shows. Dropped again, the next one asks.
+                            if (printer_ready()) {
+                                finish_owed_from_subject();
+                            }
                         }),
         /*timeout_ms=*/0, /*silent=*/true);
 }
@@ -585,13 +615,23 @@ void ColdPullRunner::finish_owed(std::optional<int> target) {
         if (owed.actions.fan_percent) {
             ColdPullActions fan_only;
             fan_only.fan_percent = owed.actions.fan_percent;
-            apply(fan_only);
+            send_heater_and_fan(owed.heater, owed.part_fan, fan_only);
         }
         return;
     }
     spdlog::info("{} Reconnected with our {}°C target still on {}: cleaning up", kLogTag,
                  owed.target_c, owed.heater);
-    apply(owed.actions);
+    send_heater_and_fan(owed.heater, owed.part_fan, owed.actions);
+}
+
+void ColdPullRunner::finish_owed_from_subject() {
+    if (!owed_) {
+        return;
+    }
+    owed_query_in_flight_ = false;
+    lv_subject_t* s = state_.temperature_state().get_extruder_target_subject(owed_->heater);
+    finish_owed(s ? std::optional<int>(temperature::deci_to_degrees(lv_subject_get_int(s)))
+                  : std::nullopt);
 }
 
 void ColdPullRunner::on_sensor(int value) {

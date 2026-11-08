@@ -23,6 +23,7 @@
 #include "subject_managed_panel.h"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <lvgl.h>
 #include <optional>
@@ -105,11 +106,16 @@ class ColdPullRunner {
     /// A cleanup the printer could not take when the connection went away.
     struct Owed {
         std::string heater;
+        std::string part_fan;
         int target_c = 0;
         ColdPullActions actions;
     };
 
     void apply(const ColdPullActions& a);
+    /// The heater and fan fields of @p a, sent to @p heater and @p part_fan. Needs no
+    /// flow, so a cleanup owed after the flow is gone still reaches the printer.
+    void send_heater_and_fan(const std::string& heater, const std::string& part_fan,
+                             const ColdPullActions& a);
     void after_event();
     void publish();
     void publish_setup();
@@ -125,6 +131,9 @@ class ColdPullRunner {
     /// The owed cleanup, once the printer has answered with @p target_c, its heater's
     /// live target (nullopt when it did not say).
     void finish_owed(std::optional<int> target_c);
+    /// finish_owed() on what the owed heater's subject shows, when the printer cannot
+    /// be asked or the answer cannot wait.
+    void finish_owed_from_subject();
     /// @p temps inside the range @p heater accepts.
     [[nodiscard]] ColdPullTemps clamp_for(ColdPullTemps temps, const std::string& heater) const;
     /// The pinned heater's reading and target, in degrees; 0 when it is gone.
@@ -139,6 +148,10 @@ class ColdPullRunner {
     std::optional<ColdPullFlow> flow_;
     std::optional<Owed> owed_;
     bool owed_query_in_flight_ = false;
+    /// Counts flows and owed queries, so a reply that lands late is matched to what
+    /// sent it and ignored once that is gone.
+    uint32_t flow_gen_ = 0;
+    uint32_t owed_gen_ = 0;
     ColdPullMaterial material_ = ColdPullMaterial::Pla;
     ColdPullTemps setup_temps_{};
     int last_sensor_ = -1;

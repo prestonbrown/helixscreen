@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -44,6 +45,7 @@ class HeldExtrusionAPI : public MoonrakerAPI {
                        SuccessCallback on_queued = nullptr, bool caller_surfaces_errors = true,
                        bool bypass_busy_gate = false) override {
         if (gcode.find("G1 E") != std::string::npos) {
+            queued.push_back(on_queued);
             held_queued = std::move(on_queued);
             held_surfaces_errors = caller_surfaces_errors;
             ++held;
@@ -55,8 +57,37 @@ class HeldExtrusionAPI : public MoonrakerAPI {
     }
 
     int held = 0;
+    std::vector<SuccessCallback> queued; ///< Every held extrusion's, oldest first
     SuccessCallback held_queued;
     bool held_surfaces_errors = true;
+};
+
+/// A printer whose objects query fails, or is held unanswered.
+class QueryGateClient : public MoonrakerClientMock {
+  public:
+    using MoonrakerClientMock::MoonrakerClientMock;
+    using MoonrakerClientMock::send_jsonrpc;
+
+    helix::RequestId send_jsonrpc(
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        bool silent = false,
+        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
+        if (method == "printer.objects.query" && (fail_query || hold_query)) {
+            ++queries;
+            if (fail_query && error_cb) {
+                error_cb(MoonrakerError::connection_lost(method));
+            }
+            return 1;
+        }
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
+                                                 std::move(error_cb), timeout_ms, silent, intent);
+    }
+
+    bool fail_query = false;
+    bool hold_query = false;
+    int queries = 0;
 };
 
 /// A head whose unload the user does by hand.
@@ -139,7 +170,7 @@ class RunnerFixture : public LVGLTestFixture {
         return false;
     }
 
-    MoonrakerClientMock client;
+    QueryGateClient client;
     helix::PrinterState state;
     std::unique_ptr<HeldExtrusionAPI> api;
     std::unique_ptr<helix_test::ScopedSharedResource<helix::TemperatureController>> controller;
@@ -261,4 +292,55 @@ TEST_CASE_METHOD(RunnerFixture,
         connection(2);
         CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0"));
     }
+}
+
+TEST_CASE_METHOD(RunnerFixture,
+                 "cold pull: an owed cleanup never waits on an answer that cannot come",
+                 "[cold_pull]") {
+    begin_heating();
+    connection(0);
+    client.clear_gcode_script_history();
+
+    SECTION("the target query fails while still connected") {
+        client.fail_query = true;
+        connection(2);
+        REQUIRE(client.queries == 1);
+        CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0"));
+    }
+    SECTION("teardown arrives while the query is unanswered") {
+        client.hold_query = true;
+        connection(2);
+        REQUIRE(client.queries == 1);
+        REQUIRE_FALSE(sent("TARGET=0"));
+        runner->before_disconnect();
+        drain();
+        CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0"));
+    }
+    SECTION("the overlay reopens Setup before the reconnect") {
+        runner->prepare_setup();
+        connection(2);
+        CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0"));
+    }
+}
+
+TEST_CASE_METHOD(RunnerFixture,
+                 "cold pull: an earlier pull's late reply leaves the next pull alone",
+                 "[cold_pull]") {
+    begin_heating();
+    feed("extruder", 228, 230);
+    runner->extrude();
+    drain();
+    runner->cancel();
+    feed("extruder", 25, 0);
+
+    begin_heating();
+    feed("extruder", 228, 230);
+    runner->extrude();
+    drain();
+    REQUIRE(api->queued.size() == 2);
+    REQUIRE(runner->flow()->busy());
+
+    api->queued.front()();
+    drain();
+    CHECK(runner->flow()->busy());
 }
