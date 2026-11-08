@@ -231,9 +231,11 @@ class GridEditMode {
     /// Handle a click event on the container — hit-tests children for selection
     void handle_click(lv_event_t* e);
 
-    /// A hold (LONG_PRESSED) in a live session grabs: the selected widget, or
-    /// the widget under the pointer once it selects it. A hold on empty grid
-    /// with nothing selected opens the widget catalog instead. An inert gesture
+    /// A hold (LONG_PRESSED) in a live session acts on the selected widget, or
+    /// the widget under the pointer once it selects it: inside the tile it
+    /// raises the callout and arms a grab, on a resizable tile's edge it starts
+    /// the resize. A hold on empty grid with nothing selected opens the widget
+    /// catalog instead. An inert gesture
     /// (see gesture_inert_) does neither, and nor does a hold while the catalog
     /// is open (see grid_input_acts).
     void handle_long_press(lv_event_t* e);
@@ -650,8 +652,14 @@ class GridEditMode {
     /// Whether @p pt is past the drag threshold from the press.
     [[nodiscard]] bool past_drag_threshold(lv_point_t pt) const;
     /// Whether this hold, latched on the selected tile, raises its callout
-    /// instead of grabbing at once: a hold inside the tile, outside a resize edge.
+    /// instead of grabbing at once: a hold inside the tile that does not start
+    /// a resize.
     [[nodiscard]] bool hold_raises_callout() const;
+    /// Whether the press at press_origin_ landed on an edge of @p sel_area that
+    /// resizes the selected widget.
+    [[nodiscard]] bool press_starts_resize(const lv_area_t& sel_area) const;
+    /// The finger that raised the open callout lifted: a bounce is no tap.
+    void restart_callout_lockout();
     PanelWidgetConfig* config_ = nullptr;
     int page_index_ = 0;
     RebuildCallback rebuild_cb_;

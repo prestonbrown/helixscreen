@@ -39,6 +39,12 @@ class TapLockout {
         }
     }
 
+    /// The finger that raised the target lifted at @p tick: a bounce of that
+    /// lift is no tap, so the lockout runs from here.
+    void restart(uint32_t tick) {
+        start_tick_ = tick;
+    }
+
     void on_press(uint32_t tick) {
         press_tick_ = tick;
         press_latched_ = true;

@@ -1231,8 +1231,8 @@ void HomePanel::on_home_grid_long_press(lv_event_t* e) {
                 panel.grid_edit_mode_.open_tile_callout_next_tick();
             }
         } else {
-            // Already in edit mode: the hold grabs, or opens the catalog on
-            // empty grid
+            // Already in edit mode: the hold raises the tile's callout and arms
+            // a grab, resizes from an edge, or opens the catalog on empty grid
             panel.grid_edit_mode_.handle_long_press(e);
         }
     }

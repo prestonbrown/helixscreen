@@ -40,6 +40,11 @@ class TileEditCallout : public ContextMenu {
     bool show_for(lv_obj_t* screen, lv_obj_t* tile, const std::string& title, TileCalloutRows rows,
                   ActionHandler on_action);
 
+    /// Run the row lockout again from @p now, for a raising finger lifting.
+    void restart_lockout(uint32_t now) {
+        lockout_.restart(now);
+    }
+
     /// Register the row callbacks and the subjects the XML binds. Idempotent.
     static void register_callbacks();
 
