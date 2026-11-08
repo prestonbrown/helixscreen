@@ -173,6 +173,7 @@ src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut
 src/printer/print_photos_controller.cpp  # built only with HELIX_HAS_CAMERA; the firmware has no camera
 src/printer/screws_tilt_share_text.cpp  # not in the v1 Core+AMS cut
 src/printer/signal_macro_names.cpp  # only macro_manager.cpp and moonraker_discovery_sequence.cpp call it, both outside the cut
+src/printer/sliced_signal_names.cpp  # only gcode_response_routing.cpp owns it, outside the cut
 src/printer/spoolman_active_spool_sync.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/printer/spoolman_manager.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/printer/spoolman_types.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
