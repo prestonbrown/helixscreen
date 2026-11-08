@@ -14,6 +14,9 @@
 // printer's own node - two answers to the same question, one of them silently
 // dead.
 //
+// v34 then drops external_spool wherever v22 put it (test_config_migration_v34.cpp),
+// so these cases pin the fan-out on cooldown_delay_seconds.
+//
 // The contract that matters is the non-clobber: a printer already holding a
 // real value KEEPS it. Fanning the stale root value over live data would be
 // strictly worse than leaving the orphan alone.
@@ -88,44 +91,17 @@ class MigrationV22Fixture {
 
 } // namespace
 
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 keeps a printer's live external spool over the root one",
-                 "[config][migration]") {
-    // The exact shape found on the K2 Plus: a stale red PETG at the root, the
-    // real ASA-GF in the printer node.
-    write_and_init(
-        json{{"config_version", 21},
-             {"active_printer_id", "k2"},
-             {"filament", {{"external_spool", {{"color_rgb", 16711680}, {"material", "PETG"}}}}},
-             {"printers",
-              {{"k2",
-                {{"moonraker_host", "192.168.30.196"},
-                 {"filament",
-                  {{"external_spool",
-                    {{"assigned", true}, {"material", "ASA-GF"}, {"spoolman_id", 145}}}}}}}}}});
-
-    CHECK(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-    // The live value survives untouched...
-    CHECK(config.get<std::string>("/printers/k2/filament/external_spool/material", "") == "ASA-GF");
-    CHECK(config.get<int>("/printers/k2/filament/external_spool/spoolman_id", 0) == 145);
-    // ...and the orphan is gone, rather than overwriting it.
-    CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
-}
-
-TEST_CASE_METHOD(MigrationV22Fixture, "v22 promotes a root spool when the printer has none",
+TEST_CASE_METHOD(MigrationV22Fixture, "v22 promotes a root value when the printer has none",
                  "[config][migration]") {
     // Losing the value would be the other failure mode: an install that only
     // ever wrote the root key must come out the far side still configured.
     write_and_init(json{{"config_version", 21},
                         {"active_printer_id", "voron"},
-                        {"filament",
-                         {{"external_spool", {{"assigned", true}, {"material", "PETG"}}},
-                          {"cooldown_delay_seconds", 45}}},
+                        {"filament", {{"cooldown_delay_seconds", 45}}},
                         {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
 
-    CHECK(config.get<std::string>("/printers/voron/filament/external_spool/material", "") ==
-          "PETG");
     CHECK(config.get<int>("/printers/voron/filament/cooldown_delay_seconds", 0) == 45);
-    CHECK(config.get<std::string>("/filament/external_spool/material", "GONE") == "GONE");
+    CHECK(config.get<int>("/filament/cooldown_delay_seconds", -1) == -1);
 }
 
 TEST_CASE_METHOD(MigrationV22Fixture, "v22 fans the root value out to EVERY printer",
@@ -151,8 +127,7 @@ TEST_CASE_METHOD(MigrationV22Fixture, "v22 leaves the root key alone when there 
     // fan_out_to_printers() refuses to erase a value it has nowhere to put -
     // the lesson from migrate_v19_to_v20's /led, which deleted user settings
     // outright when the fold was skipped.
-    write_and_init(
-        json{{"config_version", 21}, {"filament", {{"external_spool", {{"material", "PLA"}}}}}});
+    write_and_init(json{{"config_version", 21}, {"filament", {{"cooldown_delay_seconds", 75}}}});
 
-    CHECK(config.get<std::string>("/filament/external_spool/material", "") == "PLA");
+    CHECK(config.get<int>("/filament/cooldown_delay_seconds", 0) == 75);
 }

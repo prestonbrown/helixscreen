@@ -184,11 +184,10 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// the always-show-bypass row.
     lv_subject_t bypass_is_virtual_subject_{};
 
-    /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).
-    /// Set from AmsBackend::printer_reports_spool_ids(), so the row appears
-    /// only on systems whose firmware reports spool ids per lane (AFC, Happy
-    /// Hare); no backend means hidden.
-    lv_subject_t reports_spool_ids_subject_{};
+    /// Subject gating HelixScreen's keep-spool-info-on-eject row (0=hidden,
+    /// 1=shown): AmsBackend::lane_record_is_only_identity(); no backend means
+    /// hidden.
+    lv_subject_t record_only_identity_subject_{};
     lv_subject_t tags_name_spools_subject_{};
 
     /// The firmware's own Keep Spool Info value on every lane

@@ -36,7 +36,7 @@ bool is_valid_data_root(const std::string& dir);
  * relative default "config". Does not create the directory — callers are
  * responsible for fs::create_directories before writing.
  *
- * Used for runtime-mutable state (settings.json, tool_spools.json,
+ * Used for runtime-mutable state (settings.json,
  * telemetry_*.json, custom_images/, user themes, pending_remap.json,
  * etc.). On read-only baselines (Yocto squashfs) HELIX_CONFIG_DIR points
  * at a writable partition (e.g. /etc/klipper/config/helixscreen).

@@ -192,6 +192,7 @@
   <translation tag="AFC buffer" es="Búfer AFC"/>
   <translation tag="AFC failure reset complete" es="Reinicio de fallo AFC completado"/>
   <translation tag="AFC failure reset failed" es="Error al reiniciar fallo AFC"/>
+  <translation tag="AFC has no Spoolman configured" es="AFC no tiene Spoolman configurado"/>
   <translation tag="AFC recovery complete" es="Recuperación AFC completada"/>
   <translation tag="AFC recovery failed" es="Error en recuperación AFC"/>
   <translation tag="AFC reset complete" es="Reinicio AFC completado"/>
@@ -652,6 +653,7 @@
   <translation tag="Change Tool While Paused" es="Cambiar Herramienta en Pausa"/>
   <translation tag="Change heater control?" es="¿Cambiar el control del calentador?"/>
   <translation tag="Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer&apos;s config folder." es="Cambia ajustes de la impresora a través de Moonraker, incluida la subida, reescritura y borrado de archivos en la carpeta de configuración de la impresora."/>
+  <translation tag="Change the name or the linked spool in Spoolman." es="Cambia el nombre o la bobina vinculada en Spoolman."/>
   <translation tag="Change tool" es="Cambiar herramienta"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." es="Los cambios se aplican inmediatamente. Ajuste durante la impresión para afinar."/>
   <translation tag="Changes are temporary and reset on printer reboot" es="Los cambios son temporales y se reinician al reiniciar la impresora"/>
@@ -2042,6 +2044,8 @@
   <translation tag="Loading filament..." es="Cargando filamento..."/>
   <translation tag="Loading filaments..." es="Cargando filamentos..."/>
   <translation tag="Loading history..." es="Cargando historial..."/>
+  <translation tag="Loading lane details. Try again in a moment." es="Cargando detalles del carril. Inténtalo de nuevo en un momento."/>
+  <translation tag="Loading lane details…" es="Cargando detalles del carril…"/>
   <translation tag="Loading photo" es="Cargando foto"/>
   <translation tag="Loading spools..." es="Cargando bobinas..."/>
   <translation tag="Loading vendors..." es="Cargando proveedores..."/>
@@ -2125,6 +2129,7 @@
   <translation tag="Main LED Strip" es="Tira LED Principal"/>
   <translation tag="Maintaining" es="Manteniendo"/>
   <translation tag="Maintenance" es="Mantenimiento"/>
+  <translation tag="Make color, material and spool changes in Spoolman." es="Cambia el color, el material y la bobina en Spoolman."/>
   <translation tag="Make sure every nozzle is clean." es="Asegúrate de que todas las boquillas estén limpias."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." es="Asegúrate de que no haya filamento cargado en el cabezal: puede ablandarse en el extrusor mientras la cama se calienta."/>
   <translation tag="MakeID (Bluetooth)" es="MakeID (Bluetooth)"/>
@@ -2451,6 +2456,7 @@
   <translation tag="Not enough room to put the widget back. It stays removed." es="No hay espacio suficiente para restaurar el widget. Sigue eliminado."/>
   <translation tag="Not in your spools? Set it up" es="¿No está en tus bobinas? Configúralo"/>
   <translation tag="Not now" es="Ahora no"/>
+  <translation tag="Not saved: {}. Try again." es="No guardado: {}. Inténtalo de nuevo."/>
   <translation tag="Not set" es="Sin definir"/>
   <translation tag="Not turned" es="Sin girar"/>
   <translation tag="Not yet available on this display" es="Aún no disponible en esta pantalla"/>
@@ -2547,6 +2553,8 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." es="Abre el .3mf en Archivos de Impresión para volver a imprimir esta placa."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" es="Abra la unidad CFS y retire el filamento roto de la ranura"/>
   <translation tag="Open the slot editor when you load a new spool" es="Abrir el editor de ranura al cargar una bobina nueva"/>
+  <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" es="OpenAMS guarda esta bobina en Spoolman, que aquí solo acepta material, color, marca y peso"/>
+  <translation tag="OpenAMS manages this spool&apos;s link" es="OpenAMS gestiona el vínculo de esta bobina"/>
   <translation tag="Opened" es="Abierta"/>
   <translation tag="Operation already in progress" es="Operación ya en curso"/>
   <translation tag="Operation timed out" es="Tiempo de espera agotado"/>
@@ -4489,11 +4497,18 @@
   <translation tag="tall" es="de alto"/>
   <translation tag="target {}%" es="objetivo {}%"/>
   <translation tag="target {}°" es="objetivo {}°"/>
+  <translation tag="the ACE needs a material and its nozzle temperature" es="el ACE necesita un material y su temperatura de boquilla"/>
+  <translation tag="the CFS can&apos;t change a slot while a print is running" es="el CFS no puede cambiar una ranura mientras se imprime"/>
+  <translation tag="the QIDI Box filament list has not loaded" es="la lista de filamentos de la QIDI Box no se ha cargado"/>
+  <translation tag="the QIDI Box has no {} in its filament list" es="la QIDI Box no tiene {} en su lista de filamentos"/>
   <translation tag="the extruder" es="el extrusor"/>
   <translation tag="the left belt" es="la correa izquierda"/>
   <translation tag="the lower belt" es="la correa inferior"/>
+  <translation tag="the printer did not confirm it" es="la impresora no lo confirmó"/>
+  <translation tag="the printer refused it" es="la impresora lo rechazó"/>
   <translation tag="the right belt" es="la correa derecha"/>
   <translation tag="the upper belt" es="la correa superior"/>
+  <translation tag="this printer fills its gates from Spoolman, so change the spool there" es="esta impresora rellena sus gates desde Spoolman, cambia la bobina allí"/>
   <translation tag="this week" es="esta semana"/>
   <translation tag="too slow" es="demasiado lento"/>
   <translation tag="tool(s)" es="herramienta(s)"/>

@@ -15,6 +15,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -2076,7 +2077,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a unit view ends where the over
         helix::SlotInfo spool;
         spool.color_rgb = 0x3366CC;
         spool.material = "PETG";
-        ams.set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
 
         ams_detail_setup_path_canvas(w, nullptr, 1, &backend, info);
         REQUIRE(get_data(w)->bypass_has_spool);

@@ -1311,7 +1311,7 @@ See [Filament → When Bypass Doesn't Appear](guide/filament.md#when-bypass-does
 #### `keep_spool_info_on_eject`
 **Type:** boolean
 **Default:** `true`
-**Description:** Keep a lane's spool details after it empties, so reloading the same spool after maintenance needs no re-selection. Turn it off to start fresh whenever a lane empties. Applies only to spools selected in HelixScreen; a spool assigned elsewhere (such as Mainsail) clears with the lane. On AFC versions that report their own per-lane setting (`remember_spool`), the printer's setting is used instead of this one, so HelixScreen, Mainsail and every other screen agree: the **Keep Spool Info on Eject** switch then changes the setting on the printer for every lane, and a lane set not to remember clears in HelixScreen when it empties. The toggle (**Keep Spool Info on Eject**, in the AMS Management overlay) is shown only on systems whose firmware tracks spool ids per lane (AFC, Happy Hare); systems that detect spool swaps by tag always refresh on a swap regardless of this setting.
+**Description:** Keep a lane's spool details after it empties, so reloading the same spool after maintenance needs no re-selection. Turn it off to start fresh whenever a lane empties. Applies only where HelixScreen's lane record is the lane's only spool information: tool changers (including MedusaHC and INDX), OpenAMS without its `[openams_spoolman]` component, and the ACE without the ACEPRO driver. When such a lane empties, the record is marked unloaded and keeps (on) or drops (off) its spool details; every screen that reads the record sees the same. Where the firmware holds the spool (AFC, Happy Hare, CFS, AD5X, QIDI Box, Snapmaker U1), the firmware decides what an eject keeps and this setting is not shown. On AFC versions that report their own per-lane setting (`remember_spool`), the **Keep Spool Info on Eject** switch in the AMS Management overlay changes that setting on the printer for every lane instead.
 
 #### `tag_links_spoolman`
 **Type:** boolean
@@ -1621,6 +1621,8 @@ Located in the `filament` section:
 **Type:** array of strings
 **Default:** `[]`
 **Description:** The filament types you have starred, in star order. Written whenever you tap a star in a filament selector; each entry is the filament's product id. Edit it only to reorder or clear: a hand-added id that matches nothing simply never shows.
+
+The external (bypass) spool is not a setting. It is stored on the printer, in Moonraker's database, as a filament lane record named `bypass`, so every screen connected to the printer shows the same spool. An `external_spool` section left in `filament` by an earlier version is removed when the settings file is upgraded.
 
 ---
 

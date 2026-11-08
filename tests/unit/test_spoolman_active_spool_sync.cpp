@@ -18,6 +18,7 @@
 #include "../fake_moonraker_client.h"
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/mock_printer.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
@@ -117,6 +118,8 @@ struct SyncFixture : LVGLTestFixture {
     std::string temp_dir = helix::test::unique_temp_dir("helix_spool_sync");
     FakeMoonrakerClient client;
     RecordingSpoolman spoolman;
+    /// The database the bypass record is written to and read back from.
+    MockPrinter db;
 
     SyncFixture() {
         fs::create_directories(temp_dir);
@@ -125,7 +128,7 @@ struct SyncFixture : LVGLTestFixture {
         fs::remove(helix::app_constants::update::env_backup_fallback());
         Config::get_instance()->init(temp_dir + "/settings.json");
         AmsState::instance().clear_backends();
-        AmsState::instance().clear_external_spool_info();
+        AmsState::instance().set_moonraker_api(&db.api);
         spool_sync::attach(client, spoolman);
     }
 
@@ -134,6 +137,8 @@ struct SyncFixture : LVGLTestFixture {
         helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
         AmsState::instance().clear_backends();
         AmsState::instance().clear_external_spool_info();
+        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        AmsState::instance().set_moonraker_api(nullptr);
         Config::get_instance()->clear_path();
         std::error_code ec;
         fs::remove_all(temp_dir, ec);
@@ -248,18 +253,15 @@ TEST_CASE_METHOD(SyncFixture, "clearing the active spool keeps an unlinked bypas
     CHECK(kept->color_rgb == 0x1A1A1A);
 }
 
-TEST_CASE_METHOD(SyncFixture, "a toolchanger tool with no spool adopts the active one",
-                 "[spoolman_sync][toolchanger]") {
+TEST_CASE_METHOD(SyncFixture,
+                 "a toolchanger tool with no spool links the active one on the lane that feeds it",
+                 "[spoolman_sync][toolchanger][lane_truth]") {
     auto& tools = helix::ToolState::instance();
     tools.deinit_subjects();
     tools.init_subjects(false);
-    tools.set_config_dir(temp_dir);
     helix::PrinterDiscovery hw;
     hw.parse_objects(json::array({"extruder", "extruder1", "heater_bed"}));
     tools.init_tools(hw);
-    tools.load_spool_assignments(nullptr);
-    REQUIRE(tools.spool_assignments_loaded());
-    REQUIRE(tools.tools()[0].spoolman_id == 0);
 
     auto changer = std::make_unique<AmsBackendToolChanger>(nullptr, nullptr);
     changer->set_discovered_tools({"T0", "T1"});
@@ -267,10 +269,8 @@ TEST_CASE_METHOD(SyncFixture, "a toolchanger tool with no spool adopts the activ
     AmsState::instance().init_subjects(true);
     AmsState::instance().sync_from_backend();
     REQUIRE(tools.tools().size() == 2);
-    REQUIRE(tools.tools()[0].spoolman_id == 0);
 
-    // The bare backend reports no mounted tool; mount T0 on the same topology so the
-    // tool list is not rebuilt out from under the assignment.
+    // The bare backend reports no mounted tool; mount T0 on the same topology.
     helix::ToolTopology mounted;
     mounted.tool_count = 2;
     mounted.active_tool = 0;
@@ -278,7 +278,7 @@ TEST_CASE_METHOD(SyncFixture, "a toolchanger tool with no spool adopts the activ
     mounted.backend_index = tools.tools()[0].backend_index;
     tools.set_ams_topology(mounted);
     REQUIRE(tools.active_tool_index() == 0);
-    // A changer never reads as bypass, so the bypass gate cannot be what admits this assign.
+    // A changer never reads as bypass, so the bypass gate cannot be what admits this link.
     REQUIRE_FALSE(AmsState::instance().active_spool_describes_bypass());
 
     notify_active_spool(42);
@@ -286,38 +286,39 @@ TEST_CASE_METHOD(SyncFixture, "a toolchanger tool with no spool adopts the activ
     spoolman.answer_with_spool(0, 42);
     pump();
 
-    REQUIRE(tools.tools().size() == 2);
-    CHECK(tools.tools()[0].spoolman_id == 42);
+    // The tool's spool is its lane's: the link went to the lane, not to ToolState.
+    const auto lane = AmsState::instance().lane_feeding_tool(0);
+    REQUIRE(lane.has_value());
+    CHECK(lane->info.spoolman_id == 42);
     CHECK(external_spool_id() == 0);
 
-    // Already assigned: a different active spool does not displace it.
+    // Already linked: a different active spool does not displace it.
     notify_active_spool(43);
     spoolman.answer_with_spool(1, 43);
     pump();
-    CHECK(tools.tools()[0].spoolman_id == 42);
+    CHECK(AmsState::instance().lane_feeding_tool(0)->info.spoolman_id == 42);
 
     tools.deinit_subjects();
 }
 
-TEST_CASE_METHOD(SyncFixture, "an AMS lane's active spool is not adopted by a tool",
+TEST_CASE_METHOD(SyncFixture, "an AMS lane's active spool is not linked to a tool's lane",
                  "[spoolman_sync][toolchanger]") {
     auto& tools = helix::ToolState::instance();
     tools.deinit_subjects();
     tools.init_subjects(false);
-    tools.set_config_dir(temp_dir);
     helix::PrinterDiscovery hw;
     hw.parse_objects(json::array({"extruder", "extruder1", "heater_bed"}));
     tools.init_tools(hw);
-    tools.load_spool_assignments(nullptr);
     auto mock = std::make_unique<AmsBackendMock>(4);
     mock->set_operation_delay(0);
     AmsState::instance().set_backend(std::move(mock));
+    const int before = AmsState::instance().get_backend()->get_slot_info(0).spoolman_id;
 
     notify_active_spool(42);
     spoolman.answer_with_spool(0, 42);
     pump();
 
-    CHECK(tools.tools()[0].spoolman_id == 0);
+    CHECK(AmsState::instance().get_backend()->get_slot_info(0).spoolman_id == before);
     tools.deinit_subjects();
 }
 

@@ -536,17 +536,6 @@ void SettingsManager::reset_jog_distances() {
     }
 }
 
-bool SettingsManager::get_bypass_declared() const {
-    Config* config = Config::get_instance();
-    return config->get<bool>(config->df() + "ams/bypass_declared", false);
-}
-
-void SettingsManager::set_bypass_declared(bool declared) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "ams/bypass_declared", declared);
-    config->save();
-}
-
 namespace {
 
 /// Config pointer holding one layer of a user filter list.
@@ -656,80 +645,6 @@ void SettingsManager::mark_detection_seeded() {
 }
 
 // ============================================================================
-// Filament Settings
-// ============================================================================
-
-std::optional<SlotInfo> SettingsManager::get_external_spool_info() const {
-    Config* config = Config::get_instance();
-
-    // Primary check: explicit assigned boolean (new format)
-    bool assigned = config->get<bool>(config->df() + "filament/external_spool/assigned", false);
-
-    // Backward compat: old configs have color_rgb but no assigned key
-    if (!assigned) {
-        auto color = config->get<int>(config->df() + "filament/external_spool/color_rgb", -1);
-        if (color == -1) {
-            return std::nullopt;
-        }
-        // Old format detected — treat as assigned (will be migrated on next set)
-    }
-
-    SlotInfo info;
-    info.slot_index = -2; // External spool sentinel
-    info.global_index = -2;
-    info.color_rgb =
-        static_cast<uint32_t>(config->get<int>(config->df() + "filament/external_spool/color_rgb",
-                                               static_cast<int>(kAmsDefaultSlotColor)));
-    info.material = config->get<std::string>(config->df() + "filament/external_spool/material", "");
-    info.brand = config->get<std::string>(config->df() + "filament/external_spool/brand", "");
-    // The external spool has no lane_data record, so this get/set pair is its
-    // ONLY persistence — the catalog product identity has to round-trip here or
-    // the editor reopens on the alphabetically-first variant of the material.
-    info.catalog_id =
-        config->get<std::string>(config->df() + "filament/external_spool/catalog_id", "");
-    info.product_name =
-        config->get<std::string>(config->df() + "filament/external_spool/product_name", "");
-    info.nozzle_temp_min =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_min", 0);
-    info.nozzle_temp_max =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_max", 0);
-    info.bed_temp = config->get<int>(config->df() + "filament/external_spool/bed_temp", 0);
-    info.spoolman_id = config->get<int>(config->df() + "filament/external_spool/spoolman_id", 0);
-    info.spool_name =
-        config->get<std::string>(config->df() + "filament/external_spool/spool_name", "");
-    info.remaining_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/remaining_weight_g", -1.0f);
-    info.total_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/total_weight_g", -1.0f);
-    info.status = SlotStatus::AVAILABLE;
-    return info;
-}
-
-void SettingsManager::set_external_spool_info(const SlotInfo& info) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "filament/external_spool/assigned", true);
-    config->set<int>(config->df() + "filament/external_spool/color_rgb",
-                     static_cast<int>(info.color_rgb));
-    config->set<std::string>(config->df() + "filament/external_spool/material", info.material);
-    config->set<std::string>(config->df() + "filament/external_spool/brand", info.brand);
-    config->set<std::string>(config->df() + "filament/external_spool/catalog_id", info.catalog_id);
-    config->set<std::string>(config->df() + "filament/external_spool/product_name",
-                             info.product_name);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_min",
-                     info.nozzle_temp_min);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_max",
-                     info.nozzle_temp_max);
-    config->set<int>(config->df() + "filament/external_spool/bed_temp", info.bed_temp);
-    config->set<int>(config->df() + "filament/external_spool/spoolman_id", info.spoolman_id);
-    config->set<std::string>(config->df() + "filament/external_spool/spool_name", info.spool_name);
-    config->set<float>(config->df() + "filament/external_spool/remaining_weight_g",
-                       info.remaining_weight_g);
-    config->set<float>(config->df() + "filament/external_spool/total_weight_g",
-                       info.total_weight_g);
-    config->save();
-}
-
-// ============================================================================
 // Chamber Assignment
 // ============================================================================
 
@@ -820,17 +735,6 @@ void SettingsManager::set_chamber_sensor_assignment(const std::string& value) {
 // ============================================================================
 // Filament Settings
 // ============================================================================
-
-void SettingsManager::clear_external_spool_info() {
-    Config* config = Config::get_instance();
-    // Probe first: get_json() would vivify "filament": null on every call and
-    // the unconditional save() below would persist it (#1129).
-    const json* existing = config->try_get_json(config->df() + "filament");
-    if (existing != nullptr && existing->is_object() && existing->contains("external_spool")) {
-        config->get_json(config->df() + "filament").erase("external_spool");
-    }
-    config->save();
-}
 
 // ============================================================================
 // Barcode Scanner Settings

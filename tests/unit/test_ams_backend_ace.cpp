@@ -647,7 +647,7 @@ TEST_CASE("ACE reads a slot where it writes it when slot_count is stale", "[ams]
 
     SlotInfo info = helper.get_slot_info(3);
     info.material = "ASA";
-    REQUIRE(helper.sync_external_identity(3, info).success());
+    REQUIRE(helix::test::apply_edit(helper, 3, info).success());
 
     CHECK(helper.get_slot_info(3).material == "ASA");
 }
@@ -1322,107 +1322,6 @@ TEST_CASE("ACE load does not seat a slot the driver never moved to", "[ams][ace]
 //   5. Slot status transition loaded -> empty does NOT clear the override.
 // ============================================================================
 
-TEST_CASE("ACE override loaded at init is applied over firmware data",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task13_override_applied");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    // Seed an override (brand="Polymaker", color=FF5500, material=PLA). ACE is
-    // override-wins-for-everything — color and material must come from the
-    // override even though firmware reports different values below.
-    helix::ams::FilamentSlotOverride ovr;
-    ovr.brand = "Polymaker";
-    ovr.spool_name = "PolyLite Orange";
-    ovr.spoolman_id = 42;
-    ovr.color_rgb = 0xFF5500;
-    ovr.color_set = true;
-    ovr.material = "PLA";
-    AceTestAccess::seed_override(backend, 0, ovr);
-
-    // Firmware reports slot 0 with DIFFERENT color (green) and material (ABS).
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("available", 0x00FF00, "ABS"));
-
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Polymaker");
-    CHECK(info.spool_name == "PolyLite Orange");
-    CHECK(info.spoolman_id == 42);
-    // Override wins for color and material on ACE.
-    CHECK(info.color_rgb == 0xFF5500u);
-    CHECK(info.material == "PLA");
-}
-
-TEST_CASE("an ACE backend start migrates the legacy override namespace",
-          "[ams][ace][filament_slot_override][migration]") {
-    AceTmpCacheDir tmp("start_migration");
-    MockPrinter mock_printer;
-    mock_printer.client.mock_db_set(
-        "helix-screen", "ace_slot_overrides",
-        json{{"0", json{{"brand", "Polymaker"}, {"material", "PLA"}, {"color_rgb", 0xFF5500}}}});
-
-    AmsBackendAce backend(&mock_printer.api, nullptr);
-    helix::AceTestAccess::start_load(backend);
-
-    CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
-}
-
-TEST_CASE("ACE migrates from helix-screen:ace_slot_overrides on first startup",
-          "[ams][ace][filament_slot_override][migration]") {
-    // Pre-Task-8 ACE wrote per-slot overrides to
-    // helix-screen:ace_slot_overrides. On first startup post-upgrade, the
-    // store's load_blocking() migrates that data into lane_data and deletes
-    // the legacy namespace. Tests through the store + MoonrakerAPIMock
-    // directly so we don't need to drive on_started() (which requires a
-    // started subscription backend).
-    AceTmpCacheDir tmp("task13_migration");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Seed legacy namespace with a PLA Orange override on slot 0.
-    // lane_data is untouched -> forces migration.
-    json legacy = {
-        {"0",
-         {
-             {"brand", "Polymaker"},
-             {"material", "PLA"},
-             {"color_rgb", 0xFF5500},
-             {"spoolman_id", 42},
-             {"spool_name", "PolyLite Orange"},
-         }},
-    };
-    mock_printer.client.mock_db_set("helix-screen", "ace_slot_overrides", legacy);
-
-    helix::ams::FilamentSlotOverrideStore store(&api, "ace", helix::ams::LaneKeyStyle::Lane,
-                                                "lane_data", true);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
-    auto loaded = store.load_blocking();
-
-    // Migrated slot is returned from load_blocking as if it came from lane_data.
-    REQUIRE(loaded.count(0) == 1);
-    CHECK(loaded[0].brand == "Polymaker");
-    CHECK(loaded[0].material == "PLA");
-    CHECK(loaded[0].color_rgb == 0xFF5500u);
-    CHECK(loaded[0].spoolman_id == 42);
-    CHECK(loaded[0].spool_name == "PolyLite Orange");
-
-    // lane_data now holds the AFC-shaped record (1-based key on disk, 0-based
-    // "lane" field inside — see to_lane_data_record's invariant).
-    auto lane1 = mock_printer.client.mock_db_get("lane_data", "lane1");
-    REQUIRE(!lane1.is_null());
-    CHECK(lane1["vendor"] == "Polymaker");
-    CHECK(lane1["lane"] == "0");
-
-    // Legacy namespace deleted post-migration — second startup sees lane_data
-    // populated and skips the migration codepath entirely.
-    CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
-}
-
 TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_override]") {
     AceTmpCacheDir tmp("task13_persist_true");
     MockPrinter mock_printer;
@@ -1431,7 +1330,6 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     // Prime the backend with 4 slots so apply_user_edit's index check passes.
@@ -1467,113 +1365,14 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     // synchronously in-call by MoonrakerAPIMock).
     auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
     REQUIRE(!stored.is_null());
-    CHECK(stored["vendor"] == "Polymaker");
+    CHECK(stored["vendor_name"] == "Polymaker");
     CHECK(stored["spool_id"] == 42);
-    CHECK(stored["helix_spoolman_filament_id"] == 55);
+    CHECK(stored["spoolman_filament_id"] == 55);
     CHECK(stored["material"] == "PLA");
     CHECK(stored["color"] == "#FF5500");
 
     // Legacy namespace NOT touched — ACE no longer writes there.
     CHECK(mock_printer.client.mock_db_get("helix-screen", "ace_slot_overrides").is_null());
-}
-
-TEST_CASE("ACE sync_external_identity does NOT write to store",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task13_persist_false");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},
-                                           {"slots", json::array({
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                     })}});
-
-    SlotInfo edit;
-    edit.brand = "Draft";
-    edit.material = "PLA";
-    edit.color_rgb = 0x123456;
-
-    auto err = backend.sync_external_identity(0, edit);
-    REQUIRE(err.success());
-
-    // No override staged, no DB write.
-    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
-    CHECK(mock_printer.client.mock_db_get("lane_data", "lane1").is_null());
-
-    // Preview edit still visible via get_slot_info (in-memory only).
-    auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Draft");
-    CHECK(info.material == "PLA");
-    CHECK(info.color_rgb == 0x123456u);
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "ACE weight persist leaves the lane's declarations standing",
-                 "[ams][ace][filament_slot_override]") {
-    // persist=true means "write this down", not "a person typed this": the
-    // consumption meter reaches this path at pause and at print completion
-    // with no user edit behind it, and its diff moves the weight alone. A
-    // record that took its authorship from that diff would drop every choice
-    // the lane already carried.
-    AceTmpCacheDir tmp("task18_weight_persist");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},
-                                           {"slots", json::array({
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                     })}});
-
-    SlotInfo edit;
-    edit.brand = "Polymaker";
-    edit.material = "PETG";
-    edit.color_rgb = 0x1E5AA8;
-    REQUIRE(helix::test::apply_edit(backend, 0, edit).success());
-
-    const auto declared = AceTestAccess::get_override(backend, 0);
-    REQUIRE(declared.has_value());
-    REQUIRE(helix::ams::declared_field_names(declared->declared) ==
-            json::array({"color_rgb", "material", "brand"}));
-
-    // What the meter does, through the one entry point weight reaches a lane by.
-    backend.update_slot_weight(0, 730.0f, 1000.0f, /*persist=*/true);
-
-    const auto after = AceTestAccess::get_override(backend, 0);
-    REQUIRE(after.has_value());
-    CHECK(after->remaining_weight_g == Catch::Approx(730.0f));
-    CHECK(after->total_weight_g == Catch::Approx(1000.0f));
-    CHECK(helix::ams::declared_field_names(after->declared) ==
-          json::array({"color_rgb", "material", "brand"}));
-    CHECK(after->brand == "Polymaker");
-    CHECK(after->material == "PETG");
-    CHECK(after->color_rgb == 0x1E5AA8u);
-
-    // And in the record a restart reads back, where the declared set and the
-    // lock keys written from it are what tell a stored declaration from a
-    // stored memory.
-    const auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
-    REQUIRE(!stored.is_null());
-    CHECK(stored["helix_locked_color"] == true);
-    CHECK(stored["helix_locked_material"] == true);
-    CHECK(stored["helix_declared"] == json::array({"color_rgb", "material", "brand"}));
-    CHECK(stored["remaining_weight_g"] == 730.0f);
 }
 
 TEST_CASE("ACE inserting a different tagged spool clears the override",
@@ -1585,7 +1384,6 @@ TEST_CASE("ACE inserting a different tagged spool clears the override",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     // Seed override AND lane_data entry so we can verify clear_async really
@@ -1645,7 +1443,6 @@ TEST_CASE("ACE reloading the same tagged spool keeps the override",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     helix::ams::FilamentSlotOverride ovr;
@@ -1681,7 +1478,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set(
@@ -1751,7 +1547,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set(
@@ -1806,7 +1601,6 @@ TEST_CASE("ACE an rfid state of 2 (identified) reads as a tag read",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     mock_printer.client.mock_db_set(
@@ -1848,7 +1642,6 @@ void assert_rfid_state_sequence(std::int64_t closing_state, bool closing_clears,
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     helix::ams::FilamentSlotOverride ovr;
@@ -1935,7 +1728,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     helix::ams::FilamentSlotOverride ovr;
@@ -1999,7 +1791,6 @@ TEST_CASE("ACE clear_slot_override erases in-memory override and MR DB entry",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     // Seed both halves of the override so the clear has something to remove
@@ -2058,7 +1849,6 @@ TEST_CASE("ACE hands the temperatures back to the hub with the override",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     const auto rest = [](int temp_min, int temp_max) {
@@ -2104,7 +1894,6 @@ TEST_CASE("ACE clear_slot_override is a no-op when no override is present",
     helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
     AmsBackendAce& backend = *backend_reg;
     auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     AceTestAccess::inject_override_store(backend, std::move(store));
 
     AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xAA55FF, "PETG"));
@@ -3157,47 +2946,6 @@ TEST_CASE("Retargeting an ACE dryer keeps the time already served", "[ams][ace][
 // ACE persists into the SHARED lane_data namespace, which Mainsail, OrcaSlicer
 // and AFC's plugin also read. Publishing the lock flags false beside a user's
 // edit tells every one of them the value is not the user's (#965, #1649).
-TEST_CASE("ACE publishes a persisted edit to lane_data as the user's own",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("issue1649_user_locks");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    AmsBackendAce backend(&api, nullptr);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},
-                                           {"slots", json::array({
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                         json{{"status", "empty"}},
-                                                     })}});
-
-    SlotInfo edit;
-    edit.material = "PETG";
-    edit.color_rgb = 0x1188FF;
-    edit.color_name = "Blue";
-    REQUIRE(helix::test::apply_edit(backend, 0, edit).success());
-
-    auto staged = AceTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    REQUIRE(staged->material == "PETG");
-    REQUIRE(staged->color_rgb == 0x1188FFu);
-    CHECK(helix::ams::declares_color(*staged));
-    CHECK(helix::ams::declares_material(*staged));
-
-    // The record every other reader of the namespace actually sees.
-    auto stored = mock_printer.client.mock_db_get("lane_data", "lane1");
-    REQUIRE(!stored.is_null());
-    REQUIRE(stored["color"] == "#1188FF");
-    REQUIRE(stored["material"] == "PETG");
-    CHECK(stored["helix_locked_color"] == true);
-    CHECK(stored["helix_locked_material"] == true);
-}
-
 // ============================================================================
 // Endless spool (prestonbrown/helixscreen#1679)
 // ============================================================================
@@ -4169,4 +3917,153 @@ TEST_CASE("ACE without driver tool numbers judges tool n on slot n",
     const auto seed = ams.seed_tool_mappings({t0}, ams.collect_available_slots());
     REQUIRE(seed.size() == 1);
     CHECK(seed[0].mapped_slot == 0);
+}
+
+// ============================================================================
+// Where an edit is written: the ACEPRO inventory, else the lane record
+// ============================================================================
+
+namespace {
+json slot_reading(const std::string& material, const std::string& color) {
+    return json::array({json{{"status", "ready"}, {"material", material}, {"color", color}},
+                        json{{"status", "ready"}}, json{{"status", "ready"}},
+                        json{{"status", "ready"}}});
+}
+} // namespace
+
+TEST_CASE("ACE on the ACEPRO driver writes an edit and a clear to the hub's inventory",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    edit.nozzle_temp_min = 240;
+    edit.nozzle_temp_max = 250;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    CHECK(b.captured_gcodes ==
+          std::vector<std::string>{"ACE_SET_SLOT INSTANCE=0 INDEX=0 COLOR=0,255,128 "
+                                   "MATERIAL=\"PETG\" TEMP=245"});
+
+    // The hub restates what it was told: the edit is no longer waiting.
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PETG", "#00FF80")}}));
+    CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
+    CHECK(b.get_slot_info(0).material == "PETG");
+
+    // Clear Spool as the menu runs it: the cleared edit, then the lane half.
+    b.captured_gcodes.clear();
+    SlotInfo cleared = b.get_slot_info(0);
+    cleared.material.clear();
+    cleared.color_rgb = helix::kAmsDefaultSlotColor;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), cleared).success());
+    static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
+    CHECK(b.captured_gcodes == std::vector<std::string>{"ACE_SET_SLOT INSTANCE=0 INDEX=0 EMPTY=1"});
+}
+
+TEST_CASE("ACE on the ACEPRO driver keeps a write the hub rejects out of the record",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.pending_error);
+    MoonrakerError err;
+    err.message = "ACE_SET_SLOT error";
+    b.pending_error(err);
+
+    CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+    CHECK_FALSE(helix::ams::lane_sources(harness.lane(0)).pending.has_value());
+    CHECK(b.get_slot_info(0).material == "PLA");
+}
+
+TEST_CASE("ACE on the ACEPRO driver re-sends the temperature the hub holds",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    json slots = slot_reading("PLA", "#FF5500");
+    slots[0]["temp"] = 215;
+    b.test_handle_status_update(status_notification("ace_instance_0", json{{"slots", slots}}));
+
+    // A colour-only edit keeps the hub's own temperature.
+    SlotInfo edit = b.get_slot_info(0);
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    REQUIRE(b.captured_gcodes.size() == 1);
+    CHECK(b.captured_gcodes[0].find("TEMP=215") != std::string::npos);
+}
+
+TEST_CASE("ACE on the ACEPRO driver shows the hub's colour over a record from another client",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG";
+    record.color_rgb = 0x00FF80;
+    record.color_set = true;
+    AceTestAccess::seed_override(b, 0, record);
+
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PLA");
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("ACE on the ACEPRO driver refuses an edit the inventory cannot hold",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    // ACE_SET_SLOT requires a material beside a colour.
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material.clear();
+    edit.color_rgb = 0x00FF80;
+    const auto err = b.commit_user_edit(0, b.get_slot_info(0), edit);
+
+    CHECK_FALSE(err.success());
+    CHECK(err.user_msg.find("material") != std::string::npos);
+    CHECK(b.captured_gcodes.empty());
+    CHECK_FALSE(AceTestAccess::get_override(b, 0).has_value());
+    CHECK(b.get_slot_info(0).material == "PLA");
+}
+
+TEST_CASE("ACE on a driver that stores no edit shows the record over the hub's memory",
+          "[ams][ace][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+
+    SlotInfo edit = b.get_slot_info(0);
+    edit.material = "PETG";
+    edit.color_rgb = 0x00FF80;
+    REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+    CHECK(b.captured_gcodes.empty());
+
+    // The record is what Moonraker holds about the edit; the hub keeps
+    // restating its own memory.
+    const auto record = AceTestAccess::get_override(b, 0);
+    REQUIRE(record.has_value());
+    helix::test::file_override_as_lane_records(b, 0, *record);
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PETG");
+    CHECK(b.get_slot_info(0).color_rgb == 0x00FF80u);
+
+    // Cleared, the hub's reading shows again.
+    b.clear_slot_override(0);
+    b.test_handle_status_update(
+        status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    CHECK(b.get_slot_info(0).material == "PLA");
+    CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
 }

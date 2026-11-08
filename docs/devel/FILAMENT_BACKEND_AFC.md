@@ -188,6 +188,29 @@ AFC state comes from multiple Klipper objects:
 | `quiet_mode` | bool | Quiet mode state |
 | `led_state` | bool | LED strip on/off |
 
+### Lane identity and edits
+
+AFC holds a lane's spool id, material, colour, weight, temps, vendor and name, and writes
+`lane_data` itself (it deletes and republishes the namespace at every boot), so HelixScreen never
+writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC_lane`, plus the
+`lane_data` snapshot), filed as the lane's `Firmware` source.
+
+- **Edits** (`AmsBackendAfc::apply_user_edit`) go to AFC as `SET_SPOOL_ID` (first: both of AFC's
+  `set_spoolID()` branches rewrite the lane), `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT` and
+  `SET_MAP`. A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
+- **Fields AFC cannot hold** (brand, name, colour name, catalog pick, total weight) go to
+  HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
+  every lane record; a spool id, material or colour found there is ignored.
+- **No Spoolman on AFC** (its status `spoolman` is `false` or null): `SET_SPOOL_ID` does nothing
+  and still answers OK (in AFC's AFC_spool.py, cmd_SET_SPOOL_ID runs only with Spoolman configured), so a
+  link is refused in the editor ("AFC has no Spoolman configured") before anything is sent. With
+  Spoolman, AFC also answers OK on a bad id or lane, so the echo, not the reply, is the success.
+- **An unlink** is `SET_SPOOL_ID LANE=x SPOOL_ID=` (empty). A lane with `remember_spool` keeps
+  its id through it (prestonbrown/helixscreen#1717); the lane then shows the id AFC still holds
+  once the pending unlink times out.
+- **Vendor** reads `spool_vendor` (get_status) or `vendor_name` (`lane_data`). An empty value is
+  AFC stating no vendor and clears the brand; a missing key leaves it.
+
 ### Fields that do not mean what they say
 
 Established by measurement on a live BoxTurtle (2026-07-27) and by reading
@@ -316,11 +339,11 @@ politeness mirror of an upstream guard.* Do not remove it as redundant.
 
 **A filament swap resets lane identity when `remember_spool` is false.** AFC re-applies
 `[afc] default_material_type` and `full_weight`, discarding material, colour and weight. Lanes
-carrying a Spoolman `spool_id` survive; lanes without one silently revert. HelixScreen's
-`FilamentSlotOverrideStore` (private AFC namespace) keeps identity across this only on AFC that
-does not report `remember_spool`. Where a lane reports it, HelixScreen follows AFC: a `false` lane
-that empties drops HelixScreen's records too, and the Keep Spool Info switch writes
-`AFC_SET_REMEMBER_SPOOL`.
+carrying a Spoolman `spool_id` survive; lanes without one silently revert. HelixScreen follows
+AFC: a lane whose `remember_spool` is `false` that empties drops HelixScreen's extras record and
+lane sources too (`forget_lane_spool_locked`), and the Keep Spool Info switch writes
+`AFC_SET_REMEMBER_SPOOL`. Turning `remember_spool` off with `AFC_SET_REMEMBER_SPOOL` also wipes
+the identity of a lane that is unloaded at that moment, not only at its next swap.
 
 **Moonraker database** (AFC namespace, `lane_data` key -- v1.0.32+; outer keys
 are `T(n)` per mapping on the virtual-tools firmware, `laneN` before):

@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
 #include "ams_state.h"
@@ -140,7 +141,6 @@ struct OverlayCommitFixture : LVGLTestFixture {
         std::filesystem::remove(app_constants::update::legacy_config_backup_fallback());
         std::filesystem::remove(app_constants::update::env_backup_fallback());
         Config::get_instance()->init(config_path);
-        SettingsManager::instance().clear_external_spool_info();
 
         auto& ams = AmsState::instance();
         ams.clear_backends();
@@ -182,7 +182,7 @@ struct OverlayCommitFixture : LVGLTestFixture {
 
         SlotInfo slot = backend->get_slot_info(0);
         slot.spoolman_id = slot0_spoolman_id;
-        backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*backend, 0, slot);
     }
 };
 

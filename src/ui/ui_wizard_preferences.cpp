@@ -21,13 +21,12 @@
 namespace helix::wizard {
 
 PreferenceRows preference_rows(bool is_subsequent_printer, bool bypass_is_virtual,
-                               bool reports_spool_ids, bool retains_spool_info,
-                               bool has_sound_backend) {
+                               bool lane_record_is_only_identity, bool has_sound_backend) {
     PreferenceRows r;
     r.global = !is_subsequent_printer;
     r.bypass_spool = bypass_is_virtual;
-    // Firmware that keeps the spool itself leaves the toggle with nothing to do.
-    r.keep_spool_info = reports_spool_ids && !retains_spool_info;
+    // Where firmware holds the spool, the firmware decides what an eject keeps.
+    r.keep_spool_info = lane_record_is_only_identity;
     r.sounds = !is_subsequent_printer && has_sound_backend;
     return r;
 }
@@ -53,8 +52,7 @@ void WizardPreferencesStep::update_rows() {
     AmsBackend* backend = AmsState::instance().get_backend();
     const auto rows = preference_rows(
         ctx.is_subsequent_printer, backend && backend->bypass_is_virtual(),
-        backend && backend->printer_reports_spool_ids(),
-        backend && backend->printer_retains_spool_info(), SoundManager::instance().has_backend());
+        backend && backend->lane_record_is_only_identity(), SoundManager::instance().has_backend());
     lv_subject_set_int(&show_global_, rows.global ? 1 : 0);
     lv_subject_set_int(&show_bypass_spool_, rows.bypass_spool ? 1 : 0);
     lv_subject_set_int(&show_keep_spool_info_, rows.keep_spool_info ? 1 : 0);

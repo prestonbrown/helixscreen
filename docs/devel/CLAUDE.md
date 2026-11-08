@@ -73,7 +73,7 @@ All developer documentation lives here. When working on features, look up the re
 | `printer-research/QIDI_BOX_HEATER.md` | QIDI Box PTC heater RE reference: Klipper objects, G-code commands, firmware variants, HelixScreen integration |
 | `printer-research/CREALITY_CFS_K2_INTERNALS.md` | Creality K2 CFS module RE reference: box.cfg, `box` schema variants and field encodings, `BOX_*`/`M8200` commands, error codes, runout and auto-refill, the community Kalico port |
 | `printer-research/CREALITY_CFS_K1_INTERNALS.md` | Creality K1-family CFS box-wrapper RE reference: `BOX_*` command semantics, <tn_data.json>, deferred-failure and resume traps, staged loading, serial timeouts. Read before changing anything the CFS backend emits on K1 |
-| `FILAMENT_SLOT_METADATA.md` | Internal notes on `FilamentSlotOverrideStore`: per-backend integration, hardware-event clearing, lifetime discipline, local cache, legacy migration. Pair with `../specs/filament_slots.md` for the public wire format. |
+| `FILAMENT_SLOT_METADATA.md` | Internal notes on the lane record store: RFC 0001 record shape, writer rule, extras namespaces, `refresh_lane_records()`, Pending edits, the editing gate, per-backend integration, hardware-event clearing. Pair with `../specs/filament_slots.md` for the public wire format. |
 | `MULTI_EXTRUDER_TEMPERATURE.md` | Multi-extruder temperature tracking, ExtruderInfo, dynamic subjects |
 | `TOOL_ABSTRACTION.md` | ToolState singleton, ToolInfo, tool-to-backend mapping, DetectState |
 | `INPUT_SHAPER.md` | Calibration panels, frequency response charts, CSV parser, PID |

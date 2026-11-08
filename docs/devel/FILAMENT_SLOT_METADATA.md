@@ -1,510 +1,394 @@
-# Filament Slot Metadata — Implementation Notes
+# Filament Slot Metadata: Implementation Notes
 
-HelixScreen-internal notes on how we persist per-slot filament overrides. For
-the wire-format specification (what a third-party reader or writer needs to
-know about the `lane_data` namespace), see
-[`../specs/filament_slots.md`](../specs/filament_slots.md). This doc describes
-the code that puts records there and reads them back, and assumes familiarity
-with the public spec.
+HelixScreen-internal notes on how a lane's record is read from and written to
+Moonraker's database. For the wire format a third-party reader or writer needs
+(the `lane_data` namespace), see [`../specs/filament_slots.md`](../specs/filament_slots.md).
+This doc describes the code that puts records there and reads them back, and
+assumes familiarity with the public spec.
 
 ---
 
 ## 1. Overview
 
-HelixScreen stores per-slot filament overrides — user-edited metadata (brand,
-spool name, Spoolman binding, weights, color name) plus color/material — in
-the Moonraker `lane_data` namespace following the AFC convention. This doc
-describes the internal implementation: architecture, per-backend integration,
-lifetime discipline, testing patterns, and the one-shot migration from our
-pre-spec legacy namespaces.
+A lane shows what Moonraker holds. HelixScreen keeps no local copy of any lane
+record: there is no cache file, no queue of writes waiting for a connection and
+no migration of older formats. Each backend reads its lane records from
+Moonraker's database, files them on the lane model as `Record` observations, and
+writes a user's edit back as a whole record. What the last read returned is all
+the app knows about a lane's record.
 
-The public format is covered by [`../specs/filament_slots.md`](../specs/filament_slots.md);
-don't duplicate field semantics here.
-
-All four HelixScreen-managed backends (IFS, Snapmaker, ACE, CFS) emit the
-AFC-standard `lane` / `color` / `material` / `vendor` / `spool_id` /
-`scan_time` / `bed_temp` / `nozzle_temp` fields (where a source value is
-available) in addition to HelixScreen's extension fields. This makes every
-slot edit in HelixScreen round-trip to OrcaSlicer 2.3.2+ with no extra
-configuration on the slicer side — the convention is shared, not
-HelixScreen-specific.
+Records follow RFC 0001 §5 (the Lane Status Surface): every RFC key is present,
+an unknown value is `null` rather than a placeholder, and keys only HelixScreen
+reads carry the `helix_` prefix. OrcaSlicer 2.3.2+ reads the same namespace for
+"Sync filaments from Printer", so a slot edit reaches the slicer with no extra
+configuration. The flow is one-directional: OrcaSlicer never writes `lane_data`.
 
 **Two-string material identity.** OrcaSlicer matches a lane to a preset by the
-`material` string alone, and an unmatched string resolves to a Generic PLA
-preset (wrong temperatures), not a near miss. So `to_lane_data_record()` emits
-`material` as a **slicer-matchable** string produced by
-`filament::orca_match_type()` (`src/printer/filament_variants.cpp`) — explicit
-`orca_type_overrides` entry → exact `orca_library_types` entry → the base
-polymer with the type's one filler (`PA12-CF` → `PA-CF`) →
-`extract_base_material()` base polymer → the field is **omitted** when nothing
-matches — and separately emits `helix_material`, the user's precise identity
-(`ASA-GF`, `PLA Silk`), written unconditionally. `from_lane_data_record()`
-prefers `helix_material`, so HelixScreen's own screen keeps the exact type even
+`material` string alone, and an unmatched string resolves to a Generic PLA preset
+(wrong temperatures), not a near miss. So `to_lane_data_record()`
+(`src/printer/filament_slot_override_store.cpp#to_lane_data_record`) emits
+`material` as a slicer-matchable string from `filament::orca_match_type()`
+(`src/printer/filament_variants.cpp#orca_match_type`): explicit
+`orca_type_overrides` entry, then exact `orca_library_types` entry, then the base
+polymer with the type's one filler (`PA12-CF` to `PA-CF`), then the
+`extract_base_material()` base polymer, and `null` when nothing matches. It writes
+the precise identity (`ASA-GF`, `PLA Silk`) as `filament_type`.
+`from_lane_data_record()` reads `filament_type` first and the legacy
+`helix_material` after, so HelixScreen's own screen keeps the exact type even
 though Orca sees the reduced `material`. The library-type set and override table
 are generated into `assets/filaments.json` by `scripts/import_orca_filaments.py`
-and pre-warmed on the main thread at startup (`filament::warm_orca_tables()`)
-so the first lookup never parses the asset on a WebSocket background thread. See
-[`FILAMENT_MANAGEMENT.md`](FILAMENT_MANAGEMENT.md) § "Two-string identity" for
-the full resolution order and the OrcaSlicer fallback mechanism.
+and pre-warmed on the main thread at startup (`filament::warm_orca_tables()`), so
+the first lookup never parses the asset on a WebSocket background thread. See
+[`FILAMENT_MANAGEMENT.md`](FILAMENT_MANAGEMENT.md) § "Two-string identity" for the
+full resolution order.
 
 **What OrcaSlicer reads.** Orca's `MoonrakerPrinterAgent` (2.3.2 through
-2.5.0-alpha) reads five fields per record: `lane` (a string, 0-based tool
-index), `color`, `material`, `bed_temp` and `nozzle_temp`, and picks the first
-visible preset whose `filament_type` equals `material`. Every other field is
-HelixScreen's or AFC's own. The library-type table is regenerated with
-`make regen-filaments ORCA_TAG=<tag>`, and a newer tag can add types the older
-Orca releases in the field lack (2.5 adds `PLA Silk`, `PETG HF`, `PA6`,
-`PE-CF`, `TPU-AMS`). Mapping a precise type onto one of those makes it match on
-the new release and stop matching on the old ones, so `orca_type_overrides`
-targets only types every supported Orca release carries.
+2.5.0-alpha) reads five fields per record: `lane` (a string, 0-based tool index),
+`color`, `material`, `bed_temp` and `nozzle_temp`, and picks the first visible
+preset whose `filament_type` equals `material`. The library-type table is
+regenerated with `make regen-filaments ORCA_TAG=<tag>`, and a newer tag can add
+types older Orca releases lack (2.5 adds `PLA Silk`, `PETG HF`, `PA6`, `PE-CF`,
+`TPU-AMS`). Mapping a precise type onto one of those makes it match on the new
+release and stop matching on the old ones, so `orca_type_overrides` targets only
+types every supported Orca release carries.
 
 ---
 
-## 2. Architecture
+## 2. The record
 
-The persistence plumbing lives in three places:
+`to_lane_data_record(slot, override, style)` writes one RFC 0001 §5 record:
 
-| File | Role |
-|------|------|
-| `include/filament_slot_override.h` | `FilamentSlotOverride` plain struct — one record's worth of fields, plus `to_lane_data_record` / `from_lane_data_record` for the wire shape. |
-| `include/filament_slot_override_store.h` | `FilamentSlotOverrideStore` class — per-backend instance that owns the MR-DB I/O, the local cache file, and the migration helper. |
-| `src/printer/filament_slot_override_store.cpp` | Implementation: `load_blocking`, `save_async`, `clear_async`, `cache_path`, plus the `try_migrate_legacy` helper and the free `read_cache` / `write_cache_slot` functions. |
+| Key | Value |
+|-----|-------|
+| `lss_version` | `"0.1"` (`kLaneDataLssVersion`) |
+| `writer` | `"helixscreen"` (`kLaneDataWriter`) |
+| `lane` | the 0-based slot index as a string (Orca drops a numeric lane) |
+| `lane_name` | the outer key (`laneN` or `T<n>`, below); `"bypass"` on the bypass spool's record |
+| `loaded` | bool, or `null` |
+| `color` | `"#RRGGBB"`, or `null` when `color_set` is false (pure black is a colour) |
+| `material`, `filament_type` | the Orca match string and the precise type |
+| `vendor_name`, `name` | brand and product name |
+| `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product |
+| `bed_temp`, `nozzle_temp` | numbers resolved from the material at write time, or `null` |
+| `remaining_weight_g`, `total_weight_g` | numbers or `null` |
+| `scan_time` | `null` |
+| `helix_color_name`, `helix_catalog_id`, `helix_product_name`, `helix_spoolman_vendor_id`, `helix_fingerprint`, `helix_unlinked_spool_id`, `helix_filament_id_source` | HelixScreen's own keys, omitted when empty |
 
-Each backend owns one `FilamentSlotOverrideStore` instance keyed by its
-`backend_id`, plus the `overrides_` map that store was loaded into. The
-`backend_id` isolates backends so they cannot stomp each other's records, and
-so the local cache file can round-trip all of them without collision.
-
-| Backend | `backend_id` | Namespace |
-|---------|--------------|-----------|
-| `AmsBackendAd5xIfs` | `ifs` | `lane_data` (shared) |
-| `AmsBackendSnapmaker` | `snapmaker` | `lane_data` (shared) |
-| `AmsBackendAce` | `ace` | `lane_data` (shared) |
-| `AmsBackendCfs` | `cfs` | `lane_data` (shared) |
-| `AmsBackendQidi` | `qidi` | `lane_data` (shared) |
-| `AmsBackendToolChanger` | `toolchanger` | `lane_data` (shared) |
-| `AmsBackendAfc` | `afc` | `helix-screen-afc-overrides` (private) |
-| `AmsBackendHappyHare` | `happyhare` | `helix-screen-hh-overrides` (private) |
-
-AFC and Happy Hare must name a private namespace: their own Klipper plugins own
-`lane_data` and rewrite it on boot, so records left there do not survive and the
-plugin's own load back as if the user had authored them.
-
-`AmsBackendQidi` runs a store in the shared `lane_data` namespace like the rest;
-its `filament_slot{n}` / `color_slot{n}` / `vendor_slot{n}` save_variables are the
-signal its fingerprint is built from, and the record carries the swap-detection
-baseline across restarts (see `FILAMENT_BACKEND_QIDI_BOX.md` § Slot Metadata).
-
-### Acquiring the store
-
-`helix::ams::make_loaded_override_store()` builds the store and loads it in one
-call, returning both halves in a `LoadedOverrideStore`:
-
-```cpp
-auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
-                                                     backend_log_tag(), kOverrideNamespace);
-{
-    std::lock_guard<std::mutex> lock(mutex_);
-    override_store_ = std::move(loaded.store);
-    overrides_ = std::move(loaded.overrides);
-}
-```
-
-A store whose load never ran is not a state any backend wants, and this is the
-only way to get one, so that half-built version has no spelling. Call it with no
-lock held - the round-trip blocks for up to 5s and the status subscription is
-already live - and publish both fields under the lock afterwards.
-
-`AmsBackendHappyHare` uses the helper. The other six still hand-write the
-equivalent block in their own `on_started()` and are a straight follow-up
-conversion; the helper's signature already covers every one of them (the only
-variations are `backend_id`, the namespace, and whether the caller does extra
-work with the store afterwards - AD5X IFS also reads the seated-lane scalar,
-ToolChanger re-layers onto slots built before the load).
-
-### Key methods
-
-| Method | Threading | Purpose |
-|--------|-----------|---------|
-| `load_blocking()` | Called once from backend init, blocks the backend thread | Fetch `lane_data` from MR DB; on error/timeout, fall back to the local JSON cache. Returns `unordered_map<int, FilamentSlotOverride>`. Also triggers `try_migrate_legacy` if `lane_data` is empty and legacy namespaces have data, and runs the one-shot **material heal** (below). |
-| `save_async(slot, override, cb)` | Main thread → HttpExecutor | POST the record to `lane_data/<key>` (see **Outer key style** below), refresh the local cache on success. Retries are the caller's responsibility. |
-| `clear_async(slot, cb)` | Main thread → HttpExecutor | DELETE the slot's `lane_data` entry and drop it from the local cache. |
+`from_lane_data_record()` reads the RFC spellings first and the legacy ones
+(`vendor`, `spool_name`, `helix_material`, a numeric `lane`) after, so a record
+written by an older HelixScreen, AFC, Happy Hare or Mainsail still reads. A
+record with no valid `lane` field does not parse, and costs its slot only.
 
 ### Outer key style
 
-The outer Moonraker DB key is **not** always `laneN`. `format_lane_key()` picks
-between two shapes with **different bases**, and the store's style comes from
-`lane_key_style_for(AmsType)` (`include/filament_slot_override_store.h`):
+The outer Moonraker DB key is not always `laneN`. `format_lane_key()` picks
+between two shapes with different bases, and the store's style comes from
+`lane_key_style_for(AmsType)` (`include/filament_slot_override_store.h#lane_key_style_for`):
 
 | Style | Key | Base | Used by |
 |-------|-----|------|---------|
-| `LaneKeyStyle::Lane` | `laneN` | **1-based** (`lane1` is slot 0) | every filament-switching system — AFC, Happy Hare, ACE, CFS, IFS |
-| `LaneKeyStyle::Tool` | `T<n>` | **0-based** (`T0` is slot 0) | tool changers — Snapmaker, generic `TOOL_CHANGER` |
+| `LaneKeyStyle::Lane` | `laneN` | 1-based (`lane1` is slot 0) | every filament-switching system: AFC, Happy Hare, ACE, CFS, IFS, QIDI, OpenAMS |
+| `LaneKeyStyle::Tool` | `T<n>` | 0-based (`T0` is slot 0) | tool changers: Snapmaker, generic `TOOL_CHANGER` |
 
-The inner `"lane"` field is 0-based in **both**, so the offset between the outer
-key and the inner field is deliberate for `laneN` and absent for `T<n>`. Changing
-one base without the other silently breaks interop with every other reader.
-
-Tool-changer backends that predate the `T<n>` style carry a one-shot
-`try_migrate_lane_keys_to_tool_keys()` at load: any `laneN` record HelixScreen
-itself authored is rewritten as `T<n>` (or dropped when the canonical `T<n>`
-already exists). Records it cannot prove it wrote are left alone.
-| `cache_path()` | Pure | Returns `helix::get_user_config_dir() / "filament_slot_overrides.json"`. |
-
-### Load behavior
-
-`load_blocking` is a sync-over-async bridge. It fires a Moonraker DB request
-and waits up to 5s (tunable via `load_timeout_`) on a `std::condition_variable`
-backed by a `shared_ptr<SyncState>`. Moonraker's request tracker can still
-fire the response callback up to ~60s later, which is why the rendezvous
-state is kept alive via `shared_ptr` — a late callback harmlessly flips flags
-on the still-living state. If the request completes with data, we take it.
-If it errors or times out, we fall back to `read_cache()` for this backend's
-entries. The cache is the offline-fallback view, never authoritative — a
-successful MR fetch always supersedes it.
-
-An errored or timed-out load leaves the store `namespace_unread()`, because the
-cache says nothing about the records on the printer and every save replaces a
-whole record (prestonbrown/helixscreen#2008). Until the namespace is read, saves
-and clears are held, and kept under the backend's `"held"` key in the local cache
-(§4) so a restart does not lose them (prestonbrown/helixscreen#2021): the next
-`load_blocking()` holds them again if its read fails, and if it lands merges them
-onto the records it read and sends them itself. A held write replays only on the
-printer that made it (Config's active printer id) and within 24 hours, and one read
-back from the file is dropped when the printer's record changed since on a field it
-touches (`held_write_conflicts()`): the printer wins. Each stays in the file until
-its send is acknowledged.
-`AmsSubscriptionBackend::read_unread_lane_records()` runs after `on_started()` and
-again from status frames, at most every 10 seconds, until a read lands. Then
-`FilamentSlotOverrideStore::adopt_namespace_read()` applies the held clears and
-merges each held save onto the real record (`merge_held_save()`): only what the
-save changed from the failed load's cache moves, and a colour or material the record
-holds stays unless the save declares it or links a different spool. `adopt_unread_lane_records()`
-replaces `overrides_`, files the result onto the lanes, sends what changed and
-repaints.
-
-### Lifetime safety
-
-MR DB callbacks can fire up to ~60 seconds after the initial call, long after
-a store could be destroyed during teardown or reconfiguration. The store
-avoids capturing `this` in HTTP callbacks and instead captures values plus a
-`shared_ptr<SyncState>` for the sync-over-async bridge. The pattern:
-
-```cpp
-auto state = std::make_shared<SyncState>();
-api_->db_get("lane_data", [state](const auto& result) {
-    std::lock_guard<std::mutex> lk(state->m);
-    state->result = result;
-    state->done = true;
-    state->cv.notify_one();
-});
-// block up to timeout on state->cv
-```
-
-The `state` shared_ptr keeps the rendezvous alive even if the store is
-destroyed between the call and the late callback. This is an intentional
-alternative to `AsyncLifetimeGuard` — the store doesn't own a UI and doesn't
-need lifetime-gated UI updates; it just needs its one response slot to survive.
+The inner `lane` field is 0-based in both, so the offset between the outer key
+and the inner field is deliberate for `laneN` and absent for `T<n>`. Records are
+matched to slots by the inner `lane` field, never the key (RFC 0001 §3):
+`parse_namespace_document()` (`src/printer/filament_slot_override_store.cpp#parse_namespace_document`)
+parses a whole namespace, and when two records name one slot the one under the
+store's canonical key wins. Non-object siblings (an AD5X `seated` scalar an older build wrote) are
+skipped.
 
 ---
 
-## 3. Per-backend integration
+## 3. The store
 
-Each backend ties its `FilamentSlotOverrideStore` into its parse path and its
-own hardware-event signal:
+| File | Role |
+|------|------|
+| `include/filament_slot_override.h` | `FilamentSlotOverride`, one record's fields, and `user_override_from_slot_info()` / `stage_user_override()`, which turn an edited `SlotInfo` into the record to write |
+| `include/filament_slot_override_store.h` | `FilamentSlotOverrideStore`, the wire shape (`to_lane_data_record`, `from_lane_data_record`, `extras_only`, `parse_namespace_document`), the shared persist tail and the fingerprint tracker |
+| `src/printer/filament_slot_override_store.cpp` | the implementation |
+| `include/ams_subscription_backend.h` | `open_lane_record_store()`, `refresh_lane_records()` and the persist helpers every backend calls |
 
-| Backend | Backend ID | Parse hook | Hardware-event signal | Override-exclusive fields |
-|---------|------------|------------|-----------------------|---------------------------|
-| `AmsBackendAd5xIfs` | `ifs` | `update_slot_from_state` → `apply_resolved_lane` | `Adventurer5M.json` color RGB change | brand, spool_name, spoolman filament/vendor ids, weights, color_name |
-| `AmsBackendSnapmaker` | `snapmaker` | tail loop at end of `handle_status` | `filament_detect.info[ch].CARD_UID` byte-array → canonicalized string | spool_name, spoolman filament/vendor ids, remaining_weight_g |
-| `AmsBackendMultiAce` | `snapmaker` (same backend id) | `rebuild_units_locked` per-bay loop, before the lane ingest | Heads: the base's `CARD_UID` path. Bays: the engine table's uid, else material+colour, through the same shared tracker; an entry stating no identity is no signal | spool_name, spoolman filament/vendor ids, remaining_weight_g |
-| `AmsBackendAce` | `ace` | `parse_ace_object` per-slot loop | Status transition: EMPTY/UNKNOWN → present | brand, spool_name, spoolman filament/vendor ids, weights, color_name |
-| `AmsBackendCfs` | `cfs` | `handle_status` tail loop | Composite `material_type\|color_value` fingerprint | spool_name, spoolman filament/vendor ids, remaining_weight_g |
-| `AmsBackendToolChanger` | `toolchanger` | `handle_status` tail loop, `initialize_tools()` tail, and after the start-time load | **None** - see below | *every* field |
-| `AmsBackendAfc` | `afc` | `parse_afc_stepper` and the `lane_data` query parse | AFC's own firmware clears | brand, color_name, spoolman filament/vendor ids |
-| `AmsBackendHappyHare` | `happyhare` | `gate_spool_id` loop in `handle_status` | Gate-map spool id change | brand, spool_name, total_weight_g, color_name, spoolman filament/vendor ids |
+`FilamentSlotOverrideStore` (`include/filament_slot_override_store.h#FilamentSlotOverrideStore`)
+reads and writes one backend's records:
 
-"Override-exclusive fields" are the fields the user can edit on that backend
-but the firmware never supplies — they always come from the override, never
-fall through.
+| Method | Purpose |
+|--------|---------|
+| `reload_async(cb, on_failure)` | One `server.database.get_item` for the whole namespace. `cb` receives the parsed records (narrowed by `extras_only()` on an extras namespace); a namespace nothing has written yet is an empty read. A failed read calls `on_failure`. Callbacks capture nothing of the store |
+| `adopt_read(records)` | Remember each slot's `writer` from the last read, for the writer rule. Main thread |
+| `save_async(slot, record, cb)` / `clear_async(slot, cb)` | Write or delete one slot's record. Refused with an error under the writer rule. On success the store calls the owner's `set_on_written()` callback, which re-reads |
+| `save_key_async` / `clear_key_async` / `load_key_async` | HelixScreen's own plain values, in the `helix-screen` namespace rather than among the lane records (whose every value OrcaSlicer reads as a record): the CFS bypass declaration (`cfs_bypass_declared`) |
+| `save_seated_slot_async` / `clear_seated_slot_async` / `load_seated_slot_blocking` | AD5X IFS's seated lane (`<backend>_seated` through the key calls above): the 0-based lane loaded to the toolhead; a `seated` scalar left in `lane_data` moves there on load |
+
+**The writer rule** (RFC 0001 §2). A record whose `writer` names another producer
+is never overwritten or deleted: `writer_refusal()` checks the writer the last
+read saw for that slot, and `save_async` / `clear_async` answer an error instead
+of sending. A record with no `writer` is legacy and replaceable.
+`written_by_another_producer()` is the same test on a wire record.
+
+Each backend owns one store, keyed by its `backend_id`:
+
+| Backend | `backend_id` | Namespace |
+|---------|--------------|-----------|
+| `AmsBackendAd5xIfs` | `ifs` | `lane_data` |
+| `AmsBackendSnapmaker` (and `AmsBackendMultiAce`) | `snapmaker` | `lane_data` |
+| `AmsBackendAce` | `ace` | `lane_data` |
+| `AmsBackendCfs` | `cfs` | `lane_data` |
+| `AmsBackendQidi` | `qidi` | `lane_data` |
+| `AmsBackendToolChanger` | `toolchanger` | `lane_data` |
+| `AmsBackendOpenAms` | `openams` | `lane_data` |
+| `AmsBackendAfc` | `afc` | `helix-screen-afc-overrides` (extras) |
+| `AmsBackendHappyHare` | `happyhare` | `helix-screen-hh-overrides` (extras) |
+
+### Extras namespaces: AFC and Happy Hare
+
+AFC and Happy Hare own `lane_data`: their Klipper plugins write it themselves (AFC
+wipes the whole namespace at the start of every PREP and refills it a lane at a
+time), so HelixScreen never writes there on those printers and keeps its own
+values in a private namespace (`kOverrideNamespace`, prestonbrown/helixscreen#1158).
+A store on any namespace other than `lane_data` holds extras only
+(`holds_extras_only()`): `extras_only()` (`src/printer/filament_slot_override_store.cpp#extras_only`)
+keeps what the firmware cannot hold, which is brand, name, colour name, catalog
+pick and total weight, plus HelixScreen's bookkeeping. A spool id, material or
+colour in an extras record is ignored on read and never written, because the
+firmware's value is the lane's: AFC and Happy Hare state those through their own
+status, filed as `Firmware`.
+
+---
+
+## 4. Reading: `refresh_lane_records()`
+
+`AmsSubscriptionBackend::refresh_lane_records()`
+(`src/printer/ams_subscription_backend.cpp#refresh_lane_records`) is the one read
+path. It runs:
+
+- at connect: `open_lane_record_store()` (`src/printer/ams_subscription_backend.cpp#open_lane_record_store`)
+  builds the store from a backend's `on_started()` and reads at once;
+- after each write of ours: the store's `set_on_written()` callback defers a
+  refresh, so the lane shows the echo;
+- every `kLaneRecordPollPeriod` (10 s): Moonraker sends no database-change
+  notification, so a record another client rewrote shows on the next poll. The
+  timer is an `LvglTimerGuard` (`lane_record_poll_`) created in `start()` and reset
+  in `stop()` and the destructor; the poll first withdraws expired Pending edits
+  (`poll_lane_records()`), then refreshes;
+- on a user resync (`request_resync()`), a Klipper restart, and from a backend
+  whose parse saw a lane restated (`schedule_lane_refresh()`, safe from any thread).
+
+One database get per refresh. A read already in flight takes the request with it,
+and one more read follows when it lands (`refresh_in_flight_` / `refresh_again_`).
+The reply is deferred to the main thread through the backend's lifetime token.
+
+`adopt_lane_records()` (`src/printer/ams_subscription_backend.cpp#adopt_lane_records`)
+then, under `mutex_`, hands the read to the store (`adopt_read()`), replaces
+`overrides_`, and calls `on_lane_records_read_locked()`, the hook for a backend
+that keeps state derived from the records (CFS, Snapmaker and QIDI seed their
+fingerprint baselines there). Outside the lock it files every record whole as its
+lane's `Record` observation (`record_observation()`, `src/printer/lane_translation.cpp#record_observation`),
+drops the `Record` of a slot whose record vanished, and repaints every slot and
+emits `EVENT_STATE_CHANGED` when the records changed since the last read, a
+Pending edit was echoed, or this is the store's first read (sources filed before
+it, such as a Spoolman fetch, were never painted). A read for a store a reconnect
+has since replaced is dropped. The bypass spool's record (below) is not a slot's
+record: the primary backend (index 0) files it on the bypass lane instead.
+
+A failed read is logged at debug and changes nothing; the next poll retries.
+
+### The bypass spool's record
+
+The bypass (external) spool is a lane record like any other, told apart by
+`lane_name: "bypass"` rather than by its index (`helix_external: true` on a
+1.1 beta record reads the same way). There is no other store: no settings key,
+no in-memory copy.
+
+- **Where it lives.** The primary backend holds it when it answers
+  `AmsBackend::holds_bypass_record()` (every `AmsSubscriptionBackend`): in its
+  own lane-record store at `bypass_lane_index_locked()`, one past its lanes by
+  default (CFS: the Fork's external slot, or 16 on stock firmware). On AFC and
+  Happy Hare that store is the extras namespace, so HelixScreen still never
+  writes `lane_data` there; `extras_only()` keeps a bypass record whole, since
+  no firmware holds the bypass spool. With no such backend (no filament system,
+  or the mock), AmsState keeps it in `lane_data` at lane 0 (`lane1`) and reads
+  it itself: at connect, after each write, and every 10 seconds.
+- **Reading.** Either read path files the record as the `Record` source on
+  `kBypassLaneId` (`file_bypass_record()`).
+  `AmsState::raw_external_spool_info()` is that record with any pending edit
+  laid over it; `get_external_spool_info()` adds the Spoolman details and the
+  meter, which rank above the record's weights.
+- **Writing.** `AmsState::set_external_spool_info()` files the edit as the
+  bypass lane's Pending source and writes the whole record
+  (`external_lane_record()`); the read that follows echoes it, and a failed
+  write withdraws it. `AmsSubscriptionBackend::publish_external_spool_lane()`
+  is the one writer on the backend side: it deletes a record of ours left at an
+  earlier index and never overwrites a slot's record at the index.
+
+### Editing waits for the first read
+
+`AmsBackend::lane_records_ready()` (`include/ams_backend.h#AmsBackend/lane_records_ready`)
+is false on a subscription backend from the moment its store opens until the
+first read lands; a failed read leaves it false. A backend that never opened a
+store is always ready. An edit made before the read would overwrite records nobody
+has seen, and nothing is held to send later, so editing waits:
+
+- `AmsState` publishes `ams_lane_records_ready` (`get_ams_lane_records_ready_subject()`),
+  1 once every backend is ready over a live connection, from each
+  `sync_from_backend()` and on the connection-lost edge.
+- The context menu's **Edit Spool** button binds its disabled state to it
+  (`ui_xml/ams_context_menu.xml`), and both the menu and the spool editor show an
+  inline "Loading lane details…" line while it is 0.
+- The editor's Save binds to `ams_edit_save_blocked`, a `subject_expr` in
+  `ui_xml/ams_edit_overlay.xml` over the editor's own dirty gate
+  (`ams_edit_save_disabled`) and the ready subject.
+- `AmsState::commit_slot_edit()` (`src/printer/ams_state.cpp#commit_slot_edit`)
+  refuses an edit that reaches it another way: with no printer connection it
+  answers `AmsErrorHelper::not_connected()`, and before the read a
+  `NOT_CONNECTED` error saying the lane details are still loading.
+
+---
+
+## 5. Writing: Pending edits
+
+`AmsBackend::commit_user_edit()` (`src/printer/ams_backend.cpp#commit_user_edit`)
+is every editor's commit. It files the edit on the lane as `Pending`
+(`file_pending()`, `include/lane_source_store.h#file_pending`) before
+`apply_user_edit()` writes it, so the lane shows the edit at once. The backend's
+`apply_user_edit()` stages the record (`persist_user_record_locked()`, which runs
+`stage_user_override()`) and saves it, and writes firmware where the machine
+holds the field.
+
+`user_edit_observation()` (`src/printer/lane_translation.cpp#user_edit_observation`)
+builds the Pending observation from the two editor snapshots: only fields the
+edit moved are engaged, so values seeded into the editor from firmware are not
+restated (#965). `spoolman_id` is engaged exactly when the binding changed. On a
+Spoolman-linked lane the spool's own identity is not the person's to move
+(`keep_spool_owned_identity()`); a changed binding first drops what described the
+previous spool (`drop_previous_spool_declarations()`).
+
+A Pending value is withdrawn by whichever comes first:
+
+| Event | Where |
+|-------|-------|
+| **Echo.** A `Firmware` or `Record` reading states the same value | `ingest()` strips the echoed fields (`strip_echoed_fields()`, `include/lane_source_store.h#strip_echoed_fields`). Weights compare within 0.1 g, colours on their RGB. A cleared Pending field is echoed by a `Record` that leaves the field unset, since a record states "none" as `null`; firmware silent on a field is no echo, because most firmware never holds it |
+| **Write failure.** The record write fails, or the firmware refuses the command | `save_override_async()` withdraws the lane's Pending and logs at warn; AFC withdraws on a refused `SET_COLOR` / `SET_MATERIAL`. No toast: the spool editor, which waits on the lane (`await_pending()`), stays open with "Not saved: <reason>. Try again." under Save and keeps the user's values. The store's `set_on_write_failed()` hook repaints the lane |
+| **Refusal.** `apply_user_edit()` fails outright | `commit_user_edit()` withdraws at once and returns the error; a partially applied edit keeps what reached firmware |
+| **Timeout.** Neither echo nor failure within `kPendingWriteTimeout` (30 s) | `expire_pending()`, run by the poll and lazily on read, withdraws it with a warn log; the lane shows what Moonraker holds. No popup |
+
+**Clears.** A cleared text field or zeroed id travels engaged-empty, and filing it
+withdraws the field's earlier Pending value instead of standing as an empty one:
+the clear hands the field back to what Moonraker holds at once
+(prestonbrown/helixscreen#1661). Two clears stay engaged: an unlink
+(`spoolman_id` 0), which must displace the link Moonraker still holds until the
+write lands, and a colour name cleared beside a new colour, which must displace a
+name describing the old colour. An edit that only clears leaves an empty Pending record: it
+shows nothing, but stands for the write, so a waiter still hears the outcome.
+Only a `Record` reading (the read after the write) answers it; firmware frames
+arrive whether or not the write landed.
+
+**Offline.** An edit while disconnected is refused before anything is filed
+(§4). A write that fails is reported through the log and the lane falls back; it
+is never queued.
+
+### The shared persist tail
+
+| Helper | Use |
+|--------|-----|
+| `save_override_async(store, slot, record, tag, noun, lane)` | Save, and on failure withdraw `lane`'s Pending |
+| `persist_staged_override(...)` | Snapshot `overrides_[slot]` under the backend mutex and save it |
+| `AmsSubscriptionBackend::persist_override(slot, noun)` | The same from a backend, taking `mutex_` |
+| `AmsSubscriptionBackend::persist_user_record_locked(slot, info[, material])` | Stage an edited `SlotInfo` as the slot's record and save it |
+| `persist_override_weight()` | Put a metered weight on the record |
+| `persist_override_external_identity()` | Amend a linked slot's record with what Spoolman now states (colour only when the record has none) |
+| `mirror_firmware_to_lane_data(..., MirrorPolicy)` | Mirror firmware-detected colour and material into the record on backends whose firmware does not publish `lane_data` (IFS and Snapmaker `OverwriteAlways`, CFS `FillUnsetOnly`) |
+| `clear_persisted_override()` | Erase a slot's record in memory and on the printer |
+
+---
+
+## 6. Per-backend integration
+
+| Backend | Parse hook | Hardware-event signal | Record-only fields |
+|---------|------------|-----------------------|--------------------|
+| `AmsBackendAd5xIfs` | `update_slot_from_state` then `apply_resolved_lane` | `Adventurer5M.json` colour or type change on a present lane (`check_external_color_change`) runs the mirror | brand, spool name, Spoolman ids, weights, colour name |
+| `AmsBackendSnapmaker` | tail loop of `handle_status` | `filament_detect.info[ch].CARD_UID`, canonicalized | spool name, Spoolman ids, remaining weight |
+| `AmsBackendMultiAce` | `rebuild_units_locked` per-bay loop | heads: the base's `CARD_UID` path; bays: the engine table's uid, else material plus colour, through the same tracker | spool name, Spoolman ids, remaining weight |
+| `AmsBackendAce` | `parse_ace_object` per-slot loop | status EMPTY/UNKNOWN to present | brand, spool name, Spoolman ids, weights, colour name |
+| `AmsBackendCfs` | `handle_status` tail loop | composite `material_type\|color_value` fingerprint | spool name, Spoolman ids, remaining weight |
+| `AmsBackendToolChanger` | `handle_status` tail loop and `initialize_tools()` tail | none (below) | every field |
+| `AmsBackendAfc` | `parse_afc_stepper` | AFC's own firmware clears | brand, name, colour name, catalog pick, total weight (extras) |
+| `AmsBackendHappyHare` | `gate_spool_id` loop in `handle_status` | the gate's spool id moving retires the departed spool's record-only fields (`retire_departed_identity_locked()`) | brand, name, colour name, catalog pick, total weight (extras) |
+
+"Record-only fields" are the fields a user can edit on that backend but the
+firmware never supplies: they come from the `Record`, a Pending edit or Spoolman,
+never from firmware.
 
 ### Tool Changer is the odd one out
 
-Every other backend layers overrides over something the machine reports, and
-clears them when the hardware says the spool physically changed. klipper-toolchanger
-does neither, and both halves of that are load-bearing:
+Every other backend has something the machine reports. klipper-toolchanger does not:
 
-- **The store is the sole source of filament identity, not a layer over one.**
-  `parse_tool_state()` reads `mounted` and `active` and nothing else - no
-  material, colour, brand or weight exists to fall through to. So "override-exclusive
-  fields" is every field, and the merge is trivially "the override wins".
-- **There is deliberately no hardware-event clearing.** Nothing on a tool changer
-  can tell that a user swapped a spool - no RFID, no presence transition, no
-  colour reading. That is a decision, not an omission: inventing a clear signal
-  here would throw away user data on an event that does not mean what it would
-  have to mean. The user-initiated `clear_slot_override()` is a different thing
-  and is implemented: it drops the store record, the only record there is.
-- **The wipe it fixes is `initialize_tools()`**, which resets every slot to
-  `kAmsDefaultSlotColor` with the tool name as a placeholder `spool_name`, and
-  runs on every `set_discovered_tools()`. Overrides are therefore re-layered at
-  three points, not just the parse tail: that function's own tail, the parse
-  tail, and immediately after the start-time load (because `set_discovered_tools()`
-  runs before `start()`, so the slots predate the loaded overrides).
-- **`T<n>` outer keys** (`lane_key_style_for`) are shared with Mainsail #2510's
-  records rather than duplicating them.
-
-Every lane-holding backend implements it: IFS, Snapmaker, ACE, CFS, AFC, Happy
-Hare, the tool changer and the mock reset the lane to machine readings
-(`reset_lane_to_machine_readings()`), erase the in-memory entry, reset the
-override-exclusive fields on the live slot (brand, spool name, Spoolman ids,
-weights, colour name, catalog pick) so the clear shows on the next
-`get_slot_info()`, and fire `clear_async` against the backend's own private
-namespace. The mock keeps no override records, so its implementation is the
-lane reset and the slot-changed event alone. Colour and material are left
-standing, because those come from the parse and the lane's firmware values
-should surface, except on the tool changer, which has no parse underneath:
-its clear blanks the whole slot, colour and material included, because its
-store is the only record there is. `AmsBackendAfc` also empties them in
-firmware with `SET_MATERIAL LANE=x MATERIAL=`, `SET_COLOR LANE=x COLOR=` (AFC
-stores a bare `#`, which the parse reads as no colour) and
-`SET_WEIGHT LANE=x WEIGHT=0`: the commit's empty `SET_SPOOL_ID` only runs
-AFC's `clear_values()` when AFC has Spoolman configured and the lane does not
-remember its spool, so an unlinked lane would otherwise keep them. The
-parse reads that zero weight beside no material and no colour as unknown, not
-an empty spool. One difference from AFC's own eject clear remains: AFC applies
-its default material on a load only when the lane's colour is empty, and the
-bare `#` is not, so the next untagged spool loads with no material until
-something declares one.
-`AmsBackendQidi` also implements it, with
-a firmware half: the
-local clear is the same erase/reset/`clear_async` against the shared
-`lane_data` namespace, and the firmware half is three
-`SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot{n} VALUE=0` writes (row
-ids start at 1, so 0 reads as no identity). `SAVE_VARIABLE` moves nothing, so
-the writes go out mid-print too; the UI already refuses a clear on the lane
-feeding the print. A
-tagged spool re-populates the ids on its next insert, boot or RFID read. The
-`lane_data` records
-their Klipper plugins write are a separate thing and HelixScreen does not touch
-them. For AFC that is not merely etiquette: AFC.py `delete_lane_data()`
-wipes the whole namespace at the start of every PREP and refills it one lane at
-a time, so the namespace is non-durable across reboots *and* transiently
-incomplete during them. AFC/HH overrides go to a private namespace
-(`kOverrideNamespace`) — see prestonbrown/helixscreen#1158.
+- **The record is the sole source of filament identity.** `parse_tool_state()`
+  reads `mounted` and `active` and nothing else, so every identity field comes
+  from the record.
+- **There is no hardware-event clearing.** Nothing on a tool changer can tell
+  that a user swapped a spool: no RFID, no presence transition, no colour reading.
+  Inventing a clear signal would throw away user data on an event that does not
+  mean what it would have to mean. The user's Clear Spool drops the record, the
+  only record there is.
+- **`initialize_tools()`** resets every slot to `kAmsDefaultSlotColor` with the
+  tool name as a placeholder `spool_name` on every `set_discovered_tools()`, so it
+  ends by laying the resolved lane back on (`apply_resolved_lane`), and the store's
+  first read repaints every slot.
+- **`T<n>` outer keys** are shared with Mainsail #2510's records rather than
+  duplicating them.
 
 ---
 
-## 4. Local cache
-
-- **File**: `helix::get_user_config_dir() / "filament_slot_overrides.json"`
-- **Format**: top-level `"version": 1`, then keys by backend_id, each holding
-  a `"slots"` object keyed by stringified slot index:
-
-```json
-{
-  "version": 1,
-  "ifs": {
-    "slots": {
-      "0": { "brand": "Polymaker", "color_name": "Orange", ... },
-      "2": { "brand": "Hatchbox", ... }
-    }
-  },
-  "cfs": {
-    "slots": {
-      "0": { "spool_name": "...", "remaining_weight_g": 850.0 }
-    }
-  }
-}
-```
-
-- **Write**: atomic — write to `.tmp` sibling, then `std::filesystem::rename`
-  into place. Any failure along the way leaves the previous file untouched.
-- **Held writes**: `"held"` beside a backend's `"slots"`, keyed by slot, each
-  `{"cleared": bool, "save": {...}, "printer": id, "held_at": unix seconds}`;
-  present only while writes are held or unacknowledged.
-- **Locking**: every read-modify-write of the file, from any thread or backend,
-  holds one process-wide mutex.
-- **Read**: only when the MR DB fetch fails in `load_blocking`. Never
-  authoritative — it exists so a first-boot-after-reconnect on a flaky
-  network doesn't lose the user's view of recent edits.
-- **Scope**: per-user, persists across app restarts. Not synced between
-  HelixScreen instances — MR DB is the shared source of truth.
-
----
-
-## 5. Merge policy
-
-The merge rule (firmware vs stored record) is documented in
-[`../specs/filament_slots.md`](../specs/filament_slots.md#5-merge-policy).
-Implementation-side a stored record is not merged into a `SlotInfo` at all. It
-is translated into per-source lane records, and the resolver ranks those
-against what firmware states on the current frame.
-
-`ingest_legacy_records()`
-(`src/printer/lane_legacy_migration.cpp#ingest_legacy_records`) runs once per backend
-from its init path, immediately after `load_blocking()`. It hands each parsed
-record to `sources_from_record()`
-(`src/printer/lane_translation.cpp#sources_from_record`), which splits one
-record into the several sources it may legitimately speak for, and files each
-through that source's own funnel: the `LocalUser` part through
-`commit_slot_edit()`, everything else through `ingest()`. The split is by what
-the record says about authorship, not by whether a field holds a value. The
-first row below settles a linked record on its own; the rest are how an
-unlinked one is split:
-
-| What the record holds | Filed as |
-|-----------------------|----------|
-| a `spool_id` above zero | `Spoolman` for the whole identity, except a colour the record's `helix_declared` names, which is `LocalUser`: the colour ladder puts a person above the server. A `helix_locked_*` key on a linked record is not read, since a release 1.0 writer set it on links and meter flushes alike |
-| a field named in the record's `helix_declared` set, colour and material included | `LocalUser`. A declaration stands over a value the record carries, for every field alike: a clear is not a declaration but "whatever the machine reports", so a field the record holds nothing in is never declared, and a name for it in the set (a record written by a build that recorded clears) reads as no declaration |
-| on a record with no `spool_id`, a colour or material its `helix_declared` does not name, beside a `helix_locked_*` key present and true **on the wire** | `LocalUser`: how a record written before the set could name colour and material is read. Absent or false is `Remembered` |
-| `catalog_id` / `product_name` | `LocalUser` regardless of what the record declares: firmware has no concept of a catalog product, so a value there can only be a pick |
-| anything else the record carries | `Remembered`, which the resolver ranks **below** the current firmware frame |
-| `remaining_weight_g` / `total_weight_g` | `Metered`, always: a weight is a measurement whoever wrote it |
-
-A lane's stored record is amended from each changed Spoolman filing, through
-`AmsBackend::persist_external_identity()`
-(`include/ams_backend.h#AmsBackend/persist_external_identity`). It takes the
-identity the server states, leaves a declared colour, the weights, the catalog
-pick and the temperatures alone, claims no authorship, and writes nothing to
-firmware. A lane with no record gets none: a filing is not an edit.
-
-A record written before `helix_declared` existed carries no set, and its brand,
-spool name and vendor id count as declared only beside a colour or material
-declaration the same record carries. That declaration is the evidence a person
-edited the record at all, since the auto-mirror declares neither and can
-populate none of those three.
-
-Each backend's parse then ends with `apply_resolved_lane()`
-(`include/ams_backend.h#AmsBackend/apply_resolved_lane`), which lays
-`resolve()`'s answer onto the `SlotInfo` the parse just built. Only fields some
-source actually observed are written, so a field no source spoke to keeps the
-backend's own value, and the fields the resolver does not own (tool mapping,
-extruder name, endless-spool group, error, environment, remaining length, temps,
-indices) are left exactly as the backend set them.
-
-On the two backends whose `SlotInfo` persists across frames (AD5X IFS, Happy
-Hare), `prepare_lane_repaint_locked()`
-(`include/ams_subscription_backend.h#AmsSubscriptionBackend/prepare_lane_repaint_locked`)
-runs before that paint and blanks the identity fields only the lane's records
-state (`clear_lane_only_identity()`, `src/printer/lane_apply.cpp`), so a
-dropped record stops showing rather than living on in the struct; a field the
-slot's override record carries takes that record's value instead, and colour,
-material and weights stay with the firmware-truth caches. A backend that
-rebuilds its struct from each frame needs none of this.
-
-Beside that ranking sit the two cross-field rules that can invalidate a lane's
-declared identity outright. Both are `classify_binding()`
-(`src/printer/lane_binding.cpp#classify_binding`), a pure function over the lane's
-sources and one `BindingReading`; `reconcile_binding()` applies its verdict by
-dropping the records that declared the broken binding (`Spoolman`, `LocalUser`
-and `Remembered`, leaving `Sensed`, `VendorCache` and `Metered` alone), and the
-backend clears its persisted copy with `clear_persisted_override()` so the
-record does not come back at the next start.
-
-- **Rule 1 — external re-bind.** Firmware reports a positive `spoolman_id`
-  different from the one the lane's declaring sources name → verdict `Rebound`.
-  Not gated by any capability or setting; can fire on any backend whose
-  firmware reports a positive spool id (AFC, Happy Hare, and flat-schema CFS,
-  which parses a per-slot id). Our own in-flight writes are exempt: backends
-  call `AmsBackend::record_own_spool_write()` at the write site, and
-  `AmsBackend::reconcile_lane_binding()` feeds
-  `AmsBackend::own_write_expectation()` into `BindingReading`'s own-write pair:
-  the id firmware last reported before the write and the just-written id do not
-  fire; a third id fires and consumes the expectation.
-- **Rule 2 — eject.** `AmsBackend::printer_reports_spool_ids()` (true only
-  on AFC and Happy Hare) arms **only** this rule: there a firmware id ≤ 0
-  while the lane still declares a positive id is the plugin's own eject
-  signal, and it clears only when the `ams/keep_spool_info_on_eject`
-  setting is off (default on — "Keep Spool Info on Eject" toggle in the AMS
-  Management overlay, shown only where the capability is true). On an AFC
-  lane that reports `remember_spool`, AFC's value decides instead of the
-  setting: `false` drops the lane's records when it empties, `true` keeps
-  them because firmware does (FILAMENT_MANAGEMENT.md, slot metadata).
-
-The id `classify_binding()` compares against must be firmware's own standing
-word for the lane, never a `SlotInfo` field: `apply_resolved_lane()` writes the
-lane's resolved `spoolman_id` back into that struct, so a caller reading it
-would compare a record against itself and no binding could ever look broken.
-
-**Exactly one reader may consume an own-write expectation.**
-`own_write_expectation()` is single-shot: the frame that matches the written id
-erases the entry. It has to be consumed at the site that sees firmware's own
-spool id and nowhere else, or the expectation ends an id early and the next
-frame reads our own in-flight write as somebody else's re-bind.
-`reconcile_lane_binding()` is its only caller, so that holds by construction
-rather than by discipline.
-
-What counts as a value the record "carries" at all, per field type:
-
-| Field type | Treated as "nothing here" |
-|------------|---------------------------|
-| `std::string` | empty string |
-| `int` (ids) | 0 |
-| `float` (weights) | negative |
-| `uint32_t` (`color_rgb`) | `color_set` false, or the value `kAmsDefaultSlotColor` (`0x808080`), which is where a cleared slot and a colourless record both land |
-
-`color_set` is why colour needs two tests rather than one: pure black is a real
-filament colour, so `color_rgb == 0` cannot mean "unset". `is_declarable_color()`
-(`src/printer/lane_translation.cpp#is_declarable_color`) is the second, and it is
-deliberately a struct-side answer only. A producer writing `#808080` on a *wire*
-is stating a grey, which `read_lane_color()` reads as an observation. When adding
-a field to the struct, pick a "nothing here" value a user could never legitimately
-enter for it.
-
-### Tag readings and provenance
+## 7. Tag readings
 
 A backend with a tag reader (an RFID chip, or an inline colour scanner) answers
 `AmsBackend::tag_reading(slot)` with what the tag reported for the spool now in the
 slot, as a `helix::ams::TagReading` (`include/ams_tag_reading.h`): material, brand,
-product, colour with any multi-colour, nozzle min/max, bed temperature and total weight,
-each optional, unset where the tag said nothing. Every other backend answers `nullopt`.
-The reading is the tag's own, kept while a user's edit overrides it, which the lane's
-VendorCache record alone cannot do on a backend whose write-back replaces the box's
-record.
+product, colour with any multi-colour, nozzle min/max, bed temperature and total
+weight, each optional. Every other backend answers `nullopt`. The reading is the
+tag's own, kept while a user's edit overrides it.
 
-`AmsBackend::tag_provenance(slot)` compares `get_slot_info()` against the reading: a field
-is from the tag when the tag states it and the slot shows that value (text
-case-insensitive; colour needs the multi-colour to match too). A user's override that
-differs reads as not from the tag, and `helix::ams::reset_to_tag(slot, reading)` is the
-edit that restores it, which also clears the colour name and a catalog pick the tag's
-identity no longer matches. Generic code calls only these three; the per-backend rule for
-what a tag reading is lives in each leaf doc:
+`AmsBackend::tag_provenance(slot)` compares `get_slot_info()` against the reading:
+a field is from the tag when the tag states it and the slot shows that value (text
+case-insensitive; colour needs the multi-colour to match too).
+`helix::ams::reset_to_tag(slot, reading)` is the edit that restores it, which also
+clears the colour name and a catalog pick the tag's identity no longer matches.
 
 | Backend | Reading | How it is kept |
 |---|---|---|
 | Snapmaker U1 | `filament_detect.info` with a real `CARD_UID` | the firmware keeps it (edits go to `print_task_config`) |
-| CFS | the box's latched record plus the catalog temps for its code; a Spoolman id from the stock record's serial | `fold_tag_frame`; the id is re-read each frame |
-| QIDI Box | the saved RFID ids resolved through the Box tables, plus the profile temps | `fold_tag_frame` |
+| CFS | the box's latched record plus the catalog temps for its code; a Spoolman id from the stock record's serial | `keep_tag_reading()`; the id is re-read each frame |
+| QIDI Box | the saved RFID ids resolved through the Box tables, plus the profile temps | `keep_tag_reading()` |
 | ACE | a frame whose `rfid` says identified | per bay, until a read finds no tag or the bay empties |
 | AFC | the lane's `td1_color` scan | `SlotInfo::scanned_color_rgb` |
 
-`helix::ams::fold_tag_frame(kept, raw, filed)` is the rule for a backend whose user edit
-is written back into the record the tag reader fills: a field the frame states and the
-own-write echo guard files replaces the kept value, a field the guard withholds is our own
-write coming back and keeps it, and a field the frame no longer states is dropped. Two
-limits follow from the box holding one record: after a restart the guard is not armed, so
-what the box reports (by then the user's values) becomes the reading; and a value typed on
-the printer's own screen is indistinguishable from a tag read.
+`helix::ams::keep_tag_reading()` (`src/printer/ams_tag_reading.cpp#keep_tag_reading`)
+keeps what one frame of a box's tag reader states as that slot's reading, with
+the nozzle range the backend's tables give the material; the slot's reading is
+erased when the frame states nothing. A value typed on the printer's own screen
+is indistinguishable from a tag read.
 
-A user override survives the tag reader's next poll everywhere through the lane resolve:
-the declaring LocalUser record outranks VendorCache. The multi-colour is the one tag field
-no lane record carries, so a backend lays it onto the slot only while the lane declares no
-colour, and `SlotInfo::assign_filament_fields` carries it through an edit.
+A user override survives the tag reader's next poll through the lane resolve: a
+Pending edit outranks `Firmware`, and once echoed the edit is what firmware or the
+record states. The multi-colour is the one tag field no lane observation carries,
+so a backend lays it onto the slot only while the lane has no colour of its own,
+and `SlotInfo::assign_filament_fields` carries it through an edit.
 
 ### Tag-declared Spoolman links
 
-Some tags name a Spoolman spool. `TagReading::spoolman_id` carries it, and only a backend's
-own decoder fills it: each tag format has its own values that name no spool (a CFS stock
-tag's factory serial `000001`, a blank), and the decoder drops them, so a set id is always
-one to look up. It is a binding, not a property the slot shows, so it is no `TagField`,
-provenance and `reset_to_tag()` ignore it, and `fold_tag_frame()` leaves it to the backend.
-`AmsBackend::tags_name_spoolman_spools()` says whether a backend's tags can carry one; it
-gates the setting's row and nothing else.
+Some tags name a Spoolman spool. `TagReading::spoolman_id` carries it, and only a
+backend's own decoder fills it: each tag format has values that name no spool (a
+CFS stock tag's factory serial `000001`, a blank), and the decoder drops them, so a
+set id is always one to look up. It is a binding, not a property the slot shows,
+so provenance and `reset_to_tag()` ignore it. `AmsBackend::tags_name_spoolman_spools()`
+says whether a backend's tags can carry one; it gates the setting's row and
+nothing else.
 
-The policy is backend-neutral and lives in one place: `helix::ams::TagSpoolLinkTracker`
-(`include/tag_spool_link.h`), a pure per-lane tracker, driven by
-`AmsState::sync_tag_spool_link` on every primary-backend sync. It acts on transitions of
-the id, never on a frame that repeats it:
+The policy lives in `helix::ams::TagSpoolLinkTracker` (`include/tag_spool_link.h`),
+a pure per-lane tracker driven by `AmsState::sync_tag_spool_link` on every
+primary-backend sync. It acts on transitions of the id, never on a frame that
+repeats it:
 
 | Frame | Effect |
 |---|---|
@@ -514,252 +398,128 @@ the id, never on a frame that repeats it:
 | same id as last seen | nothing, so a spool picked while that tag stays seated is kept |
 | a different id, or an id after empty | link the lane to it |
 
-A wanted link waits across frames while Spoolman is unreachable and is dropped when the
-tag changes or the lane empties. When Spoolman is available AmsState looks the spool up
-(`get_spoolman_spool`, completion deferred to the main thread through `async_lifetime_`),
-re-checks that the lane still wants it, and links through `AmsState::link_spool_to_slot`,
-the same commit a QR scan uses: `apply_spool_to_slot()` over the slot, then
-`commit_slot_edit()`, so the identity cache, the active spool on a loaded lane, the
-backend write and persistence all behave as for a pick. A spool Spoolman does not have
-gets one warning toast. A lookup that gets no answer is logged and offered again after
-`TagSpoolLinkTracker::kLookupRetryFrames` frames, so a slow Spoolman is retried without a
-lookup per status frame. The
-per-printer setting `ams/tag_links_spoolman` (default on) settles every want without a
-lookup, so turning it on never links a spool already seated.
+A wanted link waits across frames while Spoolman is unreachable and is dropped
+when the tag changes or the lane empties. When Spoolman is available AmsState
+looks the spool up (`get_spoolman_spool`, completion deferred to the main thread
+through `async_lifetime_`), re-checks that the lane still wants it, and links
+through `AmsState::link_spool_to_slot`, the same commit a QR scan uses. A spool
+Spoolman does not have gets one warning toast. A lookup that gets no answer is
+retried after `TagSpoolLinkTracker::kLookupRetryFrames` frames. The per-printer
+setting `ams/tag_links_spoolman` (default on) settles every want without a lookup,
+so turning it on never links a spool already seated.
 
-The tracker lives for the session. The last id a lane showed is not persisted, so a
-restart cannot tell a spool that sat in the lane from one put in while HelixScreen was off,
-and the first frame only links a lane linked to nothing. That has two visible effects: a
-lane a person unlinked by hand while its tag stayed seated is linked again after a restart,
-and turning the setting on and restarting links spools already seated in unlinked lanes.
-Persisting the id would need a new field in the slot override record, which exists only for
-a lane with an edit (an unlinked lane and a lane whose tag names a missing spool usually have
-none), plus its own wire key and load path in every backend that binds the store; the
-session-only rule is the smaller cost. A lane whose tag names a spool Spoolman lacks warns
-only on an insert this session, so a restart does not repeat the toast.
-
-A lane in an absent unit (`AmsSystemInfo::slot_absent()`) is skipped: its bays are
-placeholders that read empty, and a box dropping off the bus is not a removal. A lookup's
-answer is dropped when the lane's link changed while it ran, which is a pick that stands.
-
-This is deliberately not `classify_binding()`'s Rule 1. Rule 1 compares firmware's id
-against the lane's declaration on every frame, so a tag id fed to it would undo a pick made
-while the tag stays seated.
+The tracker lives for the session, so a restart cannot tell a spool that sat in
+the lane from one put in while HelixScreen was off, and the first frame only links
+a lane linked to nothing. A lane in an absent unit (`AmsSystemInfo::slot_absent()`)
+is skipped: a box dropping off the bus is not a removal.
 
 ---
 
-## 6. Clear semantics
+## 8. Clear semantics
 
-Clear Spool erases everything HelixScreen and the printer's firmware remember
-about that slot; what's left afterwards is only what the hardware can
-physically read right now. How close each backend gets to that bar is set by
-what its firmware can be told to forget:
+Clear Spool erases what HelixScreen and the printer's firmware remember about that
+slot; what is left afterwards is what the hardware can read right now. How close
+each backend gets is set by what its firmware can be told to forget:
 
-- **AD5X IFS, AFC, CFS on Kalico, Tool Changer and Happy Hare** reach it:
-  the first four through write paths that cover the firmware-held fields (and
-  the tool changer's store is the only record there is, so dropping it erases
-  everything), Happy Hare through one
-  `MMU_GATE_MAP GATE=n MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1` that empties
-  the firmware gate map. In Spoolman pull mode the gate map is Spoolman's, so
-  Happy Hare refuses the write honestly (a partial failure naming Spoolman
-  as the owner) instead of pretending.
-- **QIDI Box reaches it too**: the box's `SAVE_VARIABLE`s are the record,
-  and the clear writes `VALUE=0` to `filament_slot{n}` / `color_slot{n}` /
-  `vendor_slot{n}` (row ids start at 1, so 0 reads as no identity, and vendor
-  0 is Generic), mid-print too because `SAVE_VARIABLE` moves nothing. A
-  tagged spool re-populates
-  its ids on the next insert, boot or RFID read (the hardware reading what
-  is physically there).
-- **ACE, Snapmaker and stock CFS cannot** (read-only API, no empty spelling
-  for a slot value, and the tag is re-read on the next probe), so their
-  tag-derived and firmware-held values survive a clear.
+- **AD5X IFS, AFC, CFS on Kalico, Tool Changer and Happy Hare** reach it: the
+  first four through write paths that cover the firmware-held fields (the tool
+  changer's record is the only record there is), Happy Hare through one
+  `MMU_GATE_MAP GATE=n MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1` that empties the
+  gate map. In Spoolman pull mode the gate map is Spoolman's, so Happy Hare refuses
+  the write (a partial failure naming Spoolman as the owner).
+- **QIDI Box** writes `VALUE=0` to `filament_slot{n}` / `color_slot{n}` /
+  `vendor_slot{n}` (row ids start at 1, so 0 reads as no identity), mid-print too,
+  because `SAVE_VARIABLE` moves nothing. A tagged spool re-populates its ids on the
+  next insert, boot or RFID read.
+- **ACE, Snapmaker and stock CFS cannot** (read-only API, no empty spelling for a
+  slot value, and the tag is re-read on the next probe), so their tag-derived and
+  firmware-held values survive a clear.
 
-The gesture also refuses while its lane feeds an active print
-(`clear_spool_blocked_by_print()` in `include/filament_op_slot_resolver.h`):
-the job holds the machine (`job_holds_machine()`) and the lane is the one at
-the toolhead (`AmsBackend::slot_is_actively_loaded()`), so the material and
-colour the print's own surfaces are displaying survive until the job ends.
-The context menu greys the button with the reason (`ams_slot_can_clear` /
-`ams_slot_clear_hint`); the dispatch guard in `ams_dispatch_backend_action()`
-is the authority for a caller holding a menu rendered before the print
-started. Other lanes stay clearable mid-print, and a free machine clears any
-lane, loaded or not.
+The gesture refuses while its lane feeds an active print
+(`clear_spool_blocked_by_print()` in `include/filament_op_slot_resolver.h`): the
+job holds the machine and the lane is the one at the toolhead. The context menu
+greys the button with the reason (`ams_slot_can_clear` / `ams_slot_clear_hint`);
+the dispatch guard in `ams_dispatch_backend_action()` is the authority for a menu
+rendered before the print started.
 
-Four distinct clear paths, handled separately:
+The paths that clear:
 
-- **User-initiated clear.** The AMS context menu's "Clear Spool" gesture
-  (`MenuAction::CLEAR_SPOOL` in `src/ui/ui_ams_detail.cpp`) is a commit first
-  and a clear second, and the order is load-bearing. `AmsState::commit_slot_edit()`
-  carries the arms a backend clear has no way to reach: the Spoolman server
-  active-spool unlink, the identity-cache invalidation and the ToolState clear
-  (bundle F2LNLQCC: clearing only the backend left the server asserting the
-  spool again after a restart). The commit hands the backend a slot with
-  nothing on it, and Happy Hare's backend recognizes exactly that shape
-  (`is_full_clear()`), answering with one gate-map wipe
-  (`MMU_GATE_MAP GATE=n MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1`;
-  see [the Happy Hare backend doc](FILAMENT_BACKEND_HAPPY_HARE.md#clear-spool));
-  in Spoolman pull mode it refuses that write honestly, reporting partial
-  failure with Spoolman named as the owner, and a print running on the gate
-  gets a backend-level refusal there for the same reason the dispatch guard
-  above refuses. Only on the commit's success does the gesture call
-  `AmsBackend::clear_slot_override(slot_index)`, which drops the lane's
-  standing user declarations and the persisted override record: the half an
-  edit statement cannot express, because on an unlinked lane a colour pick, a
-  typed weight and a colour name never engage as clears
-  (prestonbrown/helixscreen#1661). The tool changer clears its store and
-  nothing else; that store is the only record there is, so its clear has no
-  firmware half.
-- **Hardware-event clear.** Each backend watches its own signal (see the
-  integration table) and auto-clears when the signal transitions to
-  "different spool". The baseline is recorded on first observation after
-  startup and NEVER triggers a clear on its own — otherwise every app launch
-  would wipe overrides. Backends on the shared fingerprint tracker seed that
-  baseline from the record's persisted fingerprint instead ("Swap
-  fingerprints" below), so a swap that happened while HelixScreen was off is
-  caught on the first frame after start.
-- **Binding-rule clears (re-bind / eject).** The two cross-field rules
-  `classify_binding()` decides (§5) drop the lane's declaring sources and the
-  backend's persisted record with them: an external re-bind (firmware reports a
-  different positive spool id), or, only where `printer_reports_spool_ids()` is
-  true and the setting is off, a firmware eject signal.
-- **Self-wipe prevention.** When the user edits the color on IFS, the IFS
-  backend pre-updates `last_firmware_color_` to the user's new RGB before
-  pushing the override. Without this, the next `Adventurer5M.json` read
-  would see a "color change" (because firmware still reports the original
-  color briefly) and clear the override the user just saved. Snapmaker and
-  CFS don't need this pre-update: `CARD_UID` and the composite fingerprint
-  aren't user-editable.
+- **User-initiated clear.** The context menu's Clear Spool
+  (`MenuAction::CLEAR_SPOOL` in `src/ui/ui_ams_detail.cpp`) is a commit first and a
+  clear second. `AmsState::commit_slot_edit()` carries the Spoolman active-spool
+  unlink, the identity-cache invalidation and the ToolState clear, and hands the
+  backend a slot with nothing on it; Happy Hare recognizes that shape
+  (`is_full_clear()`) and answers with the gate-map wipe above. Only on the commit's
+  success does the gesture call `AmsBackend::clear_slot_override(slot)`, which resets
+  the lane to machine readings (`reset_lane_to_machine_readings()`: drops `Record`,
+  `Pending`, `Spoolman` and `Metered`), erases the slot's record and fires
+  `clear_async`. Colour and material are left to the parse, except on the tool
+  changer, whose clear blanks the whole slot. AFC also empties them in firmware
+  (`SET_MATERIAL LANE=x MATERIAL=`, `SET_COLOR LANE=x COLOR=`, `SET_WEIGHT LANE=x WEIGHT=0`).
+- **Hardware-event clear.** Each backend watches its own signal (§6) and clears
+  when it transitions to a different spool. The baseline is recorded on first
+  observation after startup and never triggers a clear on its own. Backends on the
+  fingerprint tracker seed that baseline from the record (below), so a swap made
+  while HelixScreen was off is caught on the first frame after start.
+- **Spoolman link moved by firmware.** On AFC and Happy Hare the firmware states
+  the spool id, filed as `Firmware`, so the lane's link is whatever firmware says
+  now; Spoolman's details count only for that id (`linked_spool_id()`,
+  `src/printer/lane_resolver.cpp#linked_spool_id`), and `SpoolmanManager` drops a
+  fetched record for any other id.
 
-### Swap fingerprints: persistence across restarts
+### Swap fingerprints across restarts
 
-CFS (stock and flat schema), Snapmaker and QIDI Box run their hardware-event
-clear through the shared `SlotFingerprintTracker`
-(`include/filament_slot_override_store.h`). Each observed identity string
-(stock CFS material-code|color composite, the flat schema's
-material/brand/name/color composite, Snapmaker's `CARD_UID`, QIDI Box's
-filament|color|vendor row-id composite) classifies as
-`NoSignal`, `Baseline`, `Unchanged`, `OwnWriteEcho` or `Changed`, and only
-`Changed` clears the override. Before pushing a user edit the backend arms
-`expect_any_of()` with the values the write should echo back. Expectations
-accumulate per slot, so two edits inside one poll window each match their own
-echo, while a change no write asked for consumes every pending expectation
-and still reports `Changed`. A failed dispatch drops them
-(`forget_expected()`): a write that never reached the firmware cannot blind
-the slot.
+CFS (stock and flat schema), Snapmaker and QIDI Box run their hardware-event clear
+through `SlotFingerprintTracker` (`include/filament_slot_override_store.h#SlotFingerprintTracker`).
+Each observed identity string classifies as `NoSignal`, `Baseline`, `Unchanged`,
+`OwnWriteEcho` or `Changed`, and only `Changed` clears the record. Before pushing a
+user edit the backend arms `expect_any_of()` with the values the write should echo
+back; a failed dispatch drops them (`forget_expected()`).
 
-A baseline that lives only in memory misses a swap made while HelixScreen was
-off, so `bind_fingerprint_persistence()` — each of those backends calls it
-right after the store loads — ties the tracker to the records:
+`bind_fingerprint_persistence()` ties the tracker to the records, called from each
+of those backends' `on_lane_records_read_locked()`:
 
-- **Seeding.** Every loaded record with a non-empty `fingerprint` seeds the
-  baseline, so the first observation after start compares against the last
-  fingerprint seen before shutdown: different means `Changed` (clears, same
-  as a live swap), same means `Unchanged` (the override survives the
-  restart).
-- **Recording.** The baseline sink writes the current fingerprint onto the
-  record on `Baseline`, `Unchanged` and `OwnWriteEcho`, never `Changed`. A
-  change clears the record, so the new spool's fingerprint is picked up by
-  the first stable observation of the override that follows it.
-- **On-disk key.** The fingerprint rides the record as `helix_fingerprint`
-  in the shared `lane_data` namespace and as bare `fingerprint` in the local
-  cache (§4); the wire format is
-  [`../specs/filament_slots.md`](../specs/filament_slots.md). Records
-  without the key seed nothing and behave as before: first observation is
-  `Baseline`, no clear.
+- **Seeding.** Every record with a `helix_fingerprint` seeds the baseline, so the
+  first observation after start compares against the last fingerprint seen before
+  shutdown.
+- **Recording.** The baseline sink writes the current fingerprint onto the record
+  on `Baseline`, `Unchanged` and `OwnWriteEcho`, never `Changed`.
+- Records without the key seed nothing: first observation is `Baseline`, no clear.
 
 ---
 
-## 7. Testing patterns
+## 9. Testing patterns
 
-Tests live in `tests/unit/test_filament_slot_override*.cpp` and in the
-per-backend `test_ams_backend_*.cpp` files. Shared patterns:
+Tests live in `tests/unit/test_filament_slot_override_store.cpp`,
+`tests/unit/test_lane_record_refresh.cpp`, `tests/unit/test_lane_pending.cpp` and
+the per-backend `test_ams_backend_*.cpp` files.
 
-- **Friend-class test access** (per lesson L065): `Ad5xIfsTestAccess`,
-  `SnapmakerTestAccess`, `AceTestAccess`, `CfsTestAccess`. These friend the
-  production class and expose private hooks for seeding overrides, injecting
-  a store, or driving the parse path without going through a live MR API.
-- **`TmpCacheDir` RAII helper**. Overrides `HELIX_USER_CONFIG_DIR` to a
-  temp directory for the test's lifetime and rm's it on teardown. Keeps
-  cache writes from touching the developer's real `~/.helixscreen/`.
-- **Mock hooks for MR DB** (on `MoonrakerClientMock`, which serves
-  `server.database.*`): `mock_db_set`, `mock_db_get`, and the generic
-  per-method `fail_next`, `defer_next` + `fire_deferred` /
-  `fire_deferred_error`, and `call_count`. The deferred hooks are how we exercise the "callback fires after the store is
-  destroyed" lifetime regression — seed a deferred call, destroy the store,
-  fire the callback, assert nothing crashes.
-- **Tags**:
-  - `[slow]` on any test that uses `MoonrakerAPIMock` (L052 — prevents
-    parallel shard hangs when LVGL-backed subjects get torn down out of
-    order).
-  - `[filament_slot_override]` covers every store-related test across
-    files for easy targeted runs.
+- **Friend-class test access**: `Ad5xIfsTestAccess`, `SnapmakerTestAccess`,
+  `AceTestAccess`, `CfsTestAccess`, `ToolChangerTestAccess` and
+  `FilamentSlotOverrideStoreTestAccess` reach private hooks (`call_on_started`,
+  `refresh_lane_records`) without a live Moonraker. Their `call_on_started` drains
+  `UpdateQueue`, so the first read has landed when it returns.
+- **Mock hooks for the database** on `MoonrakerClientMock`: `mock_db_set`,
+  `mock_db_get`, and the generic `fail_next`, `defer_next` + `fire_deferred` /
+  `fire_deferred_error`, and `call_count`. `fail_next("server.database.get_item")`
+  fails a read; `fail_next("server.database.post_item")` fails a write.
+- **Drain until quiet.** A write's success queues a read and the read's answer
+  queues its filing, so a case drains `UpdateQueue` several times before asserting
+  (`settle()` in `test_lane_record_refresh.cpp`).
+- **Tags**: `[filament_slot_override]` covers the store; `[refresh]`, `[pending]`
+  and `[ready]` the read path, the Pending overlay and the editing gate.
 
 ---
 
-## 8. Migration
+## 10. References
 
-One-shot migration from the pre-spec legacy namespaces
-`helix-screen:ace_slot_overrides` and `helix-screen:cfs_slot_overrides`
-into `lane_data/laneN` entries. Lives in `try_migrate_legacy` in
-`src/printer/filament_slot_override_store.cpp`.
-
-Trigger conditions (all must hold):
-
-- `lane_data` namespace for this backend is empty
-- Legacy namespace for this backend has data
-- Backend is ACE or CFS (IFS and Snapmaker never used the legacy namespaces,
-  so their migration path short-circuits)
-
-The migration is idempotent: once records exist under `lane_data`, the
-"`lane_data` empty" guard fails and the legacy path is skipped. After a
-successful migration, the legacy MR DB entry is best-effort deleted via
-`database_delete_item`, and the pre-Task-6 per-backend JSON cache file
-(ace_slot_overrides.json / cfs_slot_overrides.json) is also removed from
-the user config dir. Delete failures are logged at warn but do not break the
-migrated result — a lingering legacy blob is harmless because the idempotence
-guard would short-circuit on the next startup anyway. Migration also deletes
-the legacy entry in the all-malformed-entries case so subsequent startups
-don't re-scan unsalvageable data on every boot.
-
-Migration runs inline inside `load_blocking`, before the method returns, so
-the backend sees the migrated records immediately without a second round-trip.
-
-### Material heal
-
-Records written before the two-string split (see § 1) carry a `material` that
-may not be slicer-matchable and no `helix_material`. `load_blocking` runs a
-one-shot heal over the fetched `lane_data` to repair them without the user
-re-editing every slot:
-
-- **Only HelixScreen-authored records** are touched, proven by a `helix_locked_*`
-  key. AFC, Happy Hare, and Mainsail share this namespace; their records are not
-  ours to rewrite (same ownership rule the anomaly scanner follows).
-- The record is **mutated in place** — `helix_material` set to the precise
-  identity, `material` set to `orca_match_type()` of it (or erased if nothing
-  matches) — so `scan_time` and any co-author's fields survive. The POST targets
-  the **same key it read**, so on a `T<n>` tool-changer backend the stale `laneN`
-  record is healed before the key migration moves it, and the migration carries
-  the healed body.
-- **Gated on `orca_tables_available()`.** A missing or stale
-  `assets/filaments.json` would make `orca_match_type()` return empty for every
-  input and strip `material` from every lane in one pass, so the heal skips
-  entirely rather than heal against an empty table.
-- **Re-runs on drift.** The gate is "resolves to a different match string than it
-  carries," not "already has `helix_material`", so a later library regeneration
-  that drops a type we previously matched is repaired on the next boot. It
-  converges because `orca_match_type(material) == material` is a fixed point on
-  its own output.
-
----
-
-## 9. References
-
-- **Public spec**: [`../specs/filament_slots.md`](../specs/filament_slots.md) — wire format, field semantics, third-party adoption guidance.
-- **Related dev doc**: [`FILAMENT_MANAGEMENT.md`](FILAMENT_MANAGEMENT.md) — backend architecture, UI panels, per-backend implementation details.
+- **Public spec**: [`../specs/filament_slots.md`](../specs/filament_slots.md): wire format, field semantics, third-party adoption guidance.
+- **Related dev doc**: [`FILAMENT_MANAGEMENT.md`](FILAMENT_MANAGEMENT.md): backend architecture, UI panels, per-backend details.
+- **Lane model**: [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source".
 - **Source anchors**:
-  - Struct: `include/filament_slot_override.h` (`FilamentSlotOverride`)
-  - Store: `include/filament_slot_override_store.h` + `src/printer/filament_slot_override_store.cpp` — `load_blocking` (line 565), `save_async` (line 663), `clear_async` (line 717), `cache_path` (line 345), `try_migrate_legacy` (line 385), `read_cache` (line 243), `write_cache_slot` (line 150)
-  - Record to lane sources: `src/printer/lane_translation.cpp` (`sources_from_record`), `src/printer/lane_legacy_migration.cpp` (`ingest_legacy_records`)
-  - Lane sources to `SlotInfo`: `src/printer/lane_resolver.cpp` (`resolve`), `src/printer/lane_apply.cpp` (`apply_resolved`), `src/printer/ams_backend.cpp` (`AmsBackend::apply_resolved_lane`)
-  - Binding rules: `src/printer/lane_binding.cpp` (`classify_binding`, `reconcile_binding`)
-  - Tag-declared Spoolman links: `src/printer/tag_spool_link.cpp` (`TagSpoolLinkTracker`), driven by `src/printer/ams_state.cpp#sync_tag_spool_link`
+  - Record: `include/filament_slot_override.h#FilamentSlotOverride`
+  - Store: `src/printer/filament_slot_override_store.cpp#to_lane_data_record`, `src/printer/filament_slot_override_store.cpp#from_lane_data_record`, `src/printer/filament_slot_override_store.cpp#extras_only`
+  - Read path: `src/printer/ams_subscription_backend.cpp#refresh_lane_records`, `src/printer/ams_subscription_backend.cpp#adopt_lane_records`
+  - Pending: `include/lane_source_store.h#file_pending`, `include/lane_source_store.h#strip_echoed_fields`, `include/lane_source_store.h#expire_pending`
+  - Lane sources to `SlotInfo`: `src/printer/lane_resolver.cpp#resolve`, `include/ams_backend.h#AmsBackend/apply_resolved_lane`
+  - Tag-declared Spoolman links: `src/printer/tag_spool_link.cpp`, driven by `src/printer/ams_state.cpp#sync_tag_spool_link`

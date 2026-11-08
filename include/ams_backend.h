@@ -21,6 +21,7 @@
 #include "ams_types.h"
 #include "display_numbering.h"
 #include "error_event.h"
+#include "filament_slot_override.h"
 #include "firmware_routing.h"
 #include "lane_binding.h"
 #include "lane_source_store.h"
@@ -98,7 +99,6 @@ struct BackendTraits {
     bool requires_preprint_send = false;
     bool supports_auto_heat_on_load = false;
     bool supports_auto_heat_on_unload = false;
-    bool has_firmware_spool_persistence = false;
     bool printer_reports_spool_ids = false;
     bool recovers_filament_on_resume = false;
     bool has_environment_sensors = false;
@@ -1070,6 +1070,16 @@ class AmsBackend {
      */
     [[nodiscard]] bool has_per_slot_loaded_authority() const {
         return traits().has_per_slot_loaded_authority;
+    }
+
+    /**
+     * @brief Why Clear Spool is not this app's to do on @p slot_index, or empty
+     *
+     * A backend whose spool link another program owns names that program
+     * here; the menu greys Clear with the reason and the dispatch refuses it.
+     */
+    [[nodiscard]] virtual std::string clear_spool_refusal(int /*slot_index*/) const {
+        return {};
     }
 
     /**
@@ -2196,6 +2206,18 @@ class AmsBackend {
         return true;
     }
 
+    /**
+     * @brief Whether this backend's lane records have been read since its
+     *        record store opened
+     *
+     * An edit before the first read would be written over records nobody has
+     * seen, so lane editing waits for it. A backend with no record store is
+     * always ready. Main thread.
+     */
+    [[nodiscard]] virtual bool lane_records_ready() const {
+        return true;
+    }
+
     // ========================================================================
     // Resume Preparation
     // ========================================================================
@@ -2270,74 +2292,22 @@ class AmsBackend {
      * the backend's own commands (e.g., SET_COLOR, SET_MATERIAL, SET_SPOOL_ID
      * for AFC) so it survives a reboot.
      *
-     * The stored record's authorship comes from @p declared and nowhere else.
-     * commit_user_edit() answers it once from the editor's own snapshot and
-     * files that same answer on the lane. The backend's own read of the slot
-     * can be newer than that snapshot, so a diff against it would claim a
-     * field a firmware frame moved while the editor was open.
-     *
-     * @param slot_index Slot to update (0-based)
-     * @param info New slot information (only filament fields used)
-     * @param declared What the user declared in this edit
-     * @return AmsError indicating if update succeeded
-     */
-    virtual AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                                     const helix::ams::Observation& declared) = 0;
-
-    /**
-     * @brief The stamp of the slot's current echo staging, 0 when it has none.
-     *
-     * commit_user_edit() captures this ahead of apply_user_edit() so a refusal
-     * can name the staging it must cancel instead of dropping whatever the
-     * slot holds. The default names nothing; AmsSubscriptionBackend answers
-     * from its own_write_echoes().
-     *
-     * @param slot_index Slot whose staging stamp to read (0-based, global)
-     */
-    virtual std::uint64_t own_write_echo_sequence(int slot_index) {
-        (void)slot_index;
-        return 0;
-    }
-
-    /**
-     * @brief Cancel the echo staging a refused dispatch left behind.
-     *
-     * commit_user_edit() calls this when apply_user_edit() refuses an edit
-     * outright: a write that never went out has no echo, and a guard left
-     * standing would withhold the next genuine firmware reading until its
-     * boundary moved. The matched @p staged_sequence drops only the staging
-     * this refusal created and restores the armed predecessor it suspended:
-     * an earlier edit's write did go out, and firmware is still repeating
-     * it. The default does nothing, for a backend that writes no identity
-     * back to firmware; AmsSubscriptionBackend cancels the staging its
-     * own_write_echoes() holds under that stamp.
-     *
-     * @param slot_index Slot whose staging to cancel (0-based, global)
-     * @param staged_sequence own_write_echo_sequence() of the staging to cancel
-     */
-    virtual void abandon_own_write_echoes(int slot_index, std::uint64_t staged_sequence) {
-        (void)slot_index;
-        (void)staged_sequence;
-    }
-
-    /**
-     * @brief Put filament information that arrived from outside on a slot.
-     *
-     * For values nobody chose here, such as a tool changer's per-tool spool
-     * assignment or a metered weight. Only in-memory state changes, along with
-     * whatever slot-changed event the backend emits for it: no firmware
-     * command, no store write, no authorship.
-     *
-     * Routing these through apply_user_edit() instead starts a feedback loop:
-     * G-code → firmware status update → sync_from_backend → the same values
-     * written again → ∞. On AFC with 4 lanes this loop fires 16+ G-code
-     * commands per cycle and saturates the CPU.
+     * commit_user_edit() has already filed the edit as Pending on the lane; a
+     * backend reports a refusal by returning an error, which withdraws it.
      *
      * @param slot_index Slot to update (0-based)
      * @param info New slot information (only filament fields used)
      * @return AmsError indicating if update succeeded
      */
-    virtual AmsError sync_external_identity(int slot_index, const SlotInfo& info) = 0;
+    virtual AmsError apply_user_edit(int slot_index, const SlotInfo& info) = 0;
+
+    /// True while @p slot_index's last apply_user_edit() waits on the
+    /// firmware's answer, so the edit is not yet written. Takes the backend's
+    /// own lock; never called with it held.
+    [[nodiscard]] virtual bool firmware_edit_out(int slot_index) {
+        (void)slot_index;
+        return false;
+    }
 
     /**
      * @brief Repaint a slot from the lane model once its lane was written from outside.
@@ -2359,18 +2329,6 @@ class AmsBackend {
     }
 
     /**
-     * @brief Whether this slot's colour and material live in firmware the backend
-     *        writes through to.
-     *
-     * A user edit then declares neither: the firmware's echo is the only record,
-     * so a change made on the printer is never masked by an older edit here.
-     */
-    [[nodiscard]] virtual bool firmware_stores_color_and_material(int slot_index) const {
-        (void)slot_index;
-        return false;
-    }
-
-    /**
      * @brief Apply a person's edit to a slot and record it on the slot's lane.
      *
      * The backend and lane half of AmsState::commit_slot_edit, which wraps it
@@ -2378,24 +2336,18 @@ class AmsBackend {
      * sync. One method, so a test that edits a slot the way the application
      * does runs this code rather than a copy of it.
      *
-     * The user's declaration is user_edit_observation(@p original, @p info),
-     * answered once: apply_user_edit() records the stored record's authorship
-     * from it, and the lane files it. A refused edit stops at apply_user_edit()
-     * with nothing filed; one marked AmsError::partially_applied carries on,
-     * because what reached firmware is applied.
-     *
-     * A binding change leaves the lane resolving what reloading the stored
-     * record resolves, the contract user_edit_observation() states: the
-     * records describing the previous spool are dropped, a different spool
-     * takes the catalog pick off the slot, and an unlink that kept the slot's
-     * identity files it back at the rungs the stored record reloads it on.
-     * Once filed, the slot is repainted from the lane.
+     * The edit is filed on the lane as Pending (user_edit_observation()) before
+     * apply_user_edit() writes it, so the lane shows it at once; the write's
+     * echo, a failure or kPendingWriteTimeout withdraws it. A refused edit
+     * withdraws it at once; one marked AmsError::partially_applied carries on,
+     * because what reached firmware is applied. A different spool takes the
+     * catalog pick off the slot.
      *
      * An edit that keeps a spool applies keep_spool_owned_identity(): the
      * spool's material, brand, spool name and vendor id, read from the lane's
      * Spoolman record, stand in for the edit's. When the edit had moved one of
-     * them, the rest of the edit is still applied and filed, and the result is
-     * an AmsResult::WRONG_STATE error marked partially_applied, so the caller
+     * them, the rest of the edit is still applied, and the result is an
+     * AmsResult::WRONG_STATE error marked partially_applied, so the caller
      * tells the user what was kept.
      *
      * @warning Call without holding mutex_: apply_user_edit() takes it, and so
@@ -2438,23 +2390,17 @@ class AmsBackend {
     /**
      * @brief The backend half of update_slot_weight().
      *
-     * Reached only through that wrapper, which files the meter reading before
-     * returning. The default puts the weight on the live slot through
-     * sync_external_identity(), which writes memory alone, and hands a persist
-     * to persist_slot_weight(). A persist never goes through apply_user_edit():
-     * that is the edit path, which records authorship and restates identity to
-     * firmware, and a meter states neither. A backend whose
-     * sync_external_identity() does more than write the live slot overrides
-     * this (see AmsBackendAd5xIfs).
+     * Reached only through that wrapper, which files the meter reading on the
+     * lane before calling it. The default repaints the slot from the lane, so
+     * the reading shows wherever no stronger source states a weight, and hands
+     * a persist to persist_slot_weight(). A persist never goes through
+     * apply_user_edit(): that is the edit path, which restates identity to
+     * firmware, and a meter states none.
      */
     virtual void update_slot_weight_impl(int slot_index, float remaining_weight_g,
                                          float total_weight_g, bool persist) {
-        SlotInfo info = get_slot_info(slot_index);
-        info.remaining_weight_g = remaining_weight_g;
-        if (total_weight_g >= 0.0f)
-            info.total_weight_g = total_weight_g;
-        const AmsError stored = sync_external_identity(slot_index, info);
-        if (persist && stored.success()) {
+        repaint_slot_from_lane(slot_index);
+        if (persist) {
             persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
         }
     }
@@ -2465,7 +2411,7 @@ class AmsBackend {
      * The persist half of the default update_slot_weight_impl(), reached once the
      * live slot already holds the weight. The default writes nothing, for a
      * backend with no durable home for a weight. An override amends the weights
-     * onto the slot's stored record, whose identity and authorship stand, and
+     * onto the slot's stored record, whose identity stands, and
      * writes any weight store firmware keeps; it restates no identity.
      *
      * @param slot_index Slot to update (0-based)
@@ -2622,28 +2568,24 @@ class AmsBackend {
         return false;
     }
 
-    /**
-     * @brief Publish the external (bypass) spool into the backend's lane_data
-     *        mirror, or clear it.
-     *
-     * Capability question, not vendor dispatch: "can this filament system's
-     * external spool appear as an extra lane in the shared lane_data namespace
-     * (so slicers like OrcaSlicer can select it)?" Default no-op — backends
-     * whose firmware publishes lane_data itself (AFC, Happy Hare) or that have
-     * no bypass never publish. A backend that owns its lane_data mirror and
-     * supports bypass (CFS) publishes the spool as the lane one past its last
-     * physical slot.
-     *
-     * Called by AmsState when bypass engages and whenever the external spool's
-     * identity changes. Not called on bypass disengage — the lane mirrors the
-     * spool record, not the feed state, so a slicer mapping survives a
-     * bypass-off period.
-     *
-     * @param spool external spool info; nullptr (or an identity-less record)
-     *              clears the published lane
-     */
-    virtual void publish_external_spool_lane(const SlotInfo* spool) {
-        (void)spool;
+    /// Whether this backend keeps the printer's bypass spool record among its
+    /// own lane records. AmsState asks the primary backend; with no backend
+    /// that answers, AmsState keeps the record in lane_data itself.
+    [[nodiscard]] virtual bool holds_bypass_record() const {
+        return false;
+    }
+
+    /// The bypass spool's record as the last read of this backend's lane
+    /// records found it; nullopt when there is none.
+    [[nodiscard]] virtual std::optional<helix::ams::FilamentSlotOverride> bypass_record() const {
+        return std::nullopt;
+    }
+
+    /// Write @p record as the bypass spool's lane record, or delete it when
+    /// @p record is null. A failed write withdraws the bypass lane's pending
+    /// edit; the read that follows a write files the echo.
+    virtual void publish_external_spool_lane(const helix::ams::FilamentSlotOverride* record) {
+        (void)record;
     }
 
     // ========================================================================
@@ -3744,31 +3686,9 @@ class AmsBackend {
         return traits().unloads_stand_alone;
     }
 
-    /**
-     * @brief Whether this backend persists spool assignments via firmware
-     *
-     * Backends like Happy Hare (MMU_GATE_MAP/SPOOLID) and AFC (SET_SPOOL_ID)
-     * store spool-to-slot mappings in firmware gcode. For these, ToolState
-     * mirrors firmware state but doesn't need to persist separately.
-     *
-     * Backends without firmware persistence (tool changers, ACE) rely on
-     * ToolState's own persistence (Moonraker DB + local JSON).
-     *
-     * @return true if firmware handles spool persistence, false if ToolState should
-     */
-    [[nodiscard]] bool has_firmware_spool_persistence() const {
-        return traits().has_firmware_spool_persistence;
-    }
-
     /// Whether this backend's firmware reports a Spoolman spool id per slot
     /// while a spool is loaded (AFC and Happy Hare publish spool_id in their
-    /// status). classify_binding() uses this to arm ONLY the eject verdict:
-    /// just there a firmware id of 0/null means "ejected", while elsewhere 0
-    /// is the everyday reading and must not clear. The re-bind verdict is NOT
-    /// gated by this capability: it can fire on ANY backend whose firmware
-    /// reports a positive spool id that disagrees with the declared one (AFC,
-    /// Happy Hare, and flat-schema CFS, whose per-slot spoolman_id parse
-    /// feeds it today).
+    /// status).
     [[nodiscard]] bool printer_reports_spool_ids() const {
         return traits().printer_reports_spool_ids;
     }
@@ -3788,6 +3708,22 @@ class AmsBackend {
     /// set_firmware_spool_retention().
     [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
         return false;
+    }
+
+    /// Whether HelixScreen's lane record is the only identity a lane has: the
+    /// firmware holds no spool for it, so "Keep Spool Info on Eject" decides
+    /// whether the record keeps its identity when the lane empties (its
+    /// `loaded` turns false either way), and the setting is shown.
+    [[nodiscard]] virtual bool lane_record_is_only_identity() const {
+        return false;
+    }
+
+    /// The lane record's half of a lane emptying, on a backend whose record is
+    /// the lane's only identity: `loaded` turns false, and the identity stays
+    /// when @p keep_identity, else goes. Default does nothing.
+    virtual void lane_emptied(int slot_index, bool keep_identity) {
+        (void)slot_index;
+        (void)keep_identity;
     }
 
     /// Write the firmware's own spool-retention setting on every lane.
@@ -3816,80 +3752,6 @@ class AmsBackend {
      */
     virtual AmsError set_tool_mapping_impl(int tool_number, int slot_index) = 0;
 
-    /// @name Own-write spool-id expectations (re-bind echo-race suppression)
-    ///
-    /// When HelixScreen itself writes a spool id to firmware (AFC's
-    /// SET_SPOOL_ID, Happy Hare's MMU_GATE_MAP SPOOLID, the CFS fork's
-    /// _BOX_SLOT_SET SPOOLMAN_ID), the write is asynchronous: for an
-    /// unknown number of polls firmware keeps reporting the OLD id while
-    /// the lane's own sources already declare the NEW one. classify_binding()
-    /// would read that stale frame as another writer's statement, and
-    /// reconcile_binding() drops Spoolman, LocalUser and Remembered on that
-    /// verdict, destroying the declaration the edit just filed. Ranking cannot
-    /// stand in for this: the drop happens before ranking decides what paints.
-    /// Backends that write firmware ids call record_own_spool_write() at the
-    /// write site, and reconcile_lane_binding() consults
-    /// own_write_expectation() to fill BindingReading's own-write pair.
-    ///
-    /// @warning **The caller must already hold the backend's own mutex_.**
-    ///          Both methods touch shared state with no internal lock; every
-    ///          call site runs inside the backend's mutex_ scope
-    ///          (apply_user_edit's lock block, reconcile_lane_binding's
-    ///          documented lock-held precondition). The mutexes are plain
-    ///          std::mutex, not recursive: taking the lock again from inside
-    ///          deadlocks.
-    ///@{
-
-    /// Record that WE just wrote @p new_id to firmware for this slot.
-    /// @p previous_firmware_id is the id firmware reported before the write
-    /// (captured before the optimistic mirror update). A second write
-    /// before the first echo landed keeps the ORIGINAL previous id (a
-    /// chained re-link 42->169 then 169->180 suppresses stale 42 frames,
-    /// not just 169). @p new_id <= 0 is an unlink: the pending expectation
-    /// is dropped, since nothing will echo but an id the re-bind arm of
-    /// classify_binding() ignores.
-    void record_own_spool_write(int slot_index, int new_id, int previous_firmware_id);
-
-    /// Consult (and possibly consume) the pending expectation for a slot
-    /// given the id firmware reports in THIS frame. Returns the {old, new}
-    /// pair to feed BindingReading::own_write_{old,new}_id; {0, 0} when
-    /// nothing should be suppressed. Consumption mirrors the fingerprint
-    /// tracker's single-shot semantics:
-    ///   - firmware_id == the written id: the echo landed, so the entry is
-    ///     erased (firmware and the declaration now agree).
-    ///   - firmware_id is any OTHER positive id: a genuine external change
-    ///     ends the expectation, erased, nothing suppressed.
-    ///   - firmware_id == the old id (stale pre-echo frame): returned as the
-    ///     suppression pair; the entry survives for the next poll.
-    ///   - firmware_id <= 0: no signal, since the re-bind arm never fires on
-    ///     0; the entry survives because the echo may still be in flight.
-    ///
-    /// This is the ONE reader that may consume, and it must be the one that
-    /// sees FIRMWARE's own spool id. Consuming on a SlotInfo field would end
-    /// the expectation an id early and leave the next frame reading our own
-    /// in-flight write as somebody else's re-bind.
-    std::pair<int, int> own_write_expectation(int slot_index, int firmware_id);
-
-    /// Check this lane's declared binding against the spool id firmware just
-    /// stated, dropping the declaring records when it no longer holds.
-    ///
-    /// @p firmware_spool_id must be firmware's OWN standing word for the lane
-    /// and never a SlotInfo field, which carries the stored record's id back
-    /// once the lane's resolved identity is laid onto it; 0 means firmware
-    /// names no spool. The backend's
-    /// capability and the retention setting are read here, and the own-write
-    /// expectation is consulted here, so a frame that is our own write coming
-    /// back suppresses the re-bind verdict rather than acting on it.
-    ///
-    /// @warning **The caller must already hold the backend's own mutex_**, the
-    ///          same precondition own_write_expectation() carries: this calls
-    ///          it. The mutexes are not recursive.
-    ///
-    /// Returns the verdict so a caller holding a persisted copy of the same
-    /// record can clear that too; the lane sources alone do not outlive a
-    /// restart.
-    helix::ams::BindingVerdict reconcile_lane_binding(int slot_index, int firmware_spool_id);
-
     /// Lay this lane's resolved identity, presence and weights onto @p slot.
     ///
     /// The lane source model is the authority on what a lane shows, so this is
@@ -3907,12 +3769,6 @@ class AmsBackend {
     ///          inversion is not reachable through it; the precondition is the
     ///          one that guards the SlotInfo being written.
     void apply_resolved_lane(SlotInfo& slot, int slot_index);
-
-    /// Pending per-slot own-write expectation: {id firmware reported before
-    /// the write, id we wrote}. Guarded by the subclass's mutex_ (above).
-    std::unordered_map<int, std::pair<int, int>> own_write_expectations_;
-
-    ///@}
 
   public:
     /**

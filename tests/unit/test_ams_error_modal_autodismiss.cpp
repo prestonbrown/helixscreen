@@ -31,6 +31,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_printer_discovery.h"
 #include "ams_backend_mock.h"
@@ -404,7 +405,7 @@ AmsBackendMock* install_linked_backend() {
     for (int slot : {0, 1}) {
         SlotInfo info = mock->get_slot_info(slot);
         info.spoolman_id = 42 + slot;
-        mock->sync_external_identity(slot, info);
+        helix::test::apply_edit(*mock, slot, info);
     }
     auto* raw = mock.get();
     AmsState::instance().set_backend(std::move(mock));

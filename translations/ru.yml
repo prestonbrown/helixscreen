@@ -753,6 +753,7 @@ translations:
   Change heater control?: Изменить управление нагревателем?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Изменяет настройки принтера через Moonraker, включая загрузку, перезапись и удаление файлов в папке конфигурации принтера.'
+  Change the name or the linked spool in Spoolman.: "Меняйте название или привязанную катушку в Spoolman."
   Change tool: Сменить инструмент
   Changes apply immediately. Adjust during print for tuning.: Изменения применяются
     немедленно. Корректируйте во время печати.
@@ -2285,6 +2286,8 @@ translations:
   Loading filament...: Загрузка филамента...
   Loading filaments...: Загрузка филаментов...
   Loading history...: Загрузка истории...
+  Loading lane details. Try again in a moment.: Загрузка сведений о канале. Повторите попытку через минуту.
+  Loading lane details…: Загрузка сведений о канале…
   Loading photo: 'Загрузка фото'
   Loading spools...: Загрузка катушек...
   Loading vendors...: Загрузка производителей...
@@ -2372,6 +2375,7 @@ translations:
   Main LED Strip: Основная LED-лента
   Maintaining: Поддержание
   Maintenance: 'Обслуживание'
+  Make color, material and spool changes in Spoolman.: "Меняйте цвет, материал и катушку в Spoolman."
   Make sure every nozzle is clean.: Убедитесь, что все сопла чистые.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол.'
 
@@ -2718,6 +2722,7 @@ translations:
   Not in your spools? Set it up: Нет в ваших катушках? Настроить
   Not now: Не сейчас
   Not turned: 'Не повёрнут'
+  'Not saved: {}. Try again.': "Не сохранено: {}. Попробуйте ещё раз."
   Not set: Не задана
   Not yet available on this display: 'Пока недоступно на этом дисплее'
   Not yet calibrated: Ещё не откалибровано
@@ -2820,6 +2825,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину.'
   Open the CFS unit and remove the broken filament from the slot: Откройте блок CFS и извлеките сломанный филамент из слота
   Open the slot editor when you load a new spool: 'Открывать редактор слота при установке новой катушки'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS хранит эту катушку в Spoolman, который здесь принимает только материал, цвет, бренд и вес"
+  OpenAMS manages this spool's link: "Привязкой этой катушки управляет OpenAMS"
+  AFC has no Spoolman configured: "В AFC не настроен Spoolman"
   Opened: Открыта
   Operation already in progress: Операция уже выполняется
   Operation timed out: Время ожидания операции истекло
@@ -4972,11 +4980,18 @@ translations:
   tall: высотой
   target {}%: 'цель {}%'
   target {}°: 'цель {}°'
+  the ACE needs a material and its nozzle temperature: "ACE нужен материал и его температура сопла"
+  "the CFS can't change a slot while a print is running": "CFS не может изменить слот во время печати"
+  the QIDI Box filament list has not loaded: "список филаментов QIDI Box не загружен"
+  the QIDI Box has no {} in its filament list: "в списке филаментов QIDI Box нет {}"
   the extruder: экструдер
   the left belt: "левый ремень"
   the lower belt: "нижний ремень"
+  the printer did not confirm it: "принтер не подтвердил"
+  the printer refused it: "принтер отклонил"
   the right belt: "правый ремень"
   the upper belt: "верхний ремень"
+  this printer fills its gates from Spoolman, so change the spool there: "этот принтер берёт гейты из Spoolman, меняйте катушку там"
   this week: за неделю
   too slow: слишком медленно
   tool(s): инструмент(ы)

@@ -10,6 +10,7 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -25,9 +26,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     AmsState::instance().init_subjects(true);
     SlotInfo ext;
     ext.color_rgb = 0xFF0000;
-    ext.multi_color_hexes = "#FF0000,#00FF00";
     ext.material = "PLA Silk";
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     PanelWidgetHarness<BypassWidget> h(test_screen());
     process_lvgl(30);
@@ -37,14 +37,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* disc = lv_obj_find_by_name(dot, "color_swatch_disc");
     REQUIRE(disc != nullptr);
     CHECK(ui::has_swatch_paint(disc));
-    CHECK(ui::swatch_paint_colors(disc).size() == 2);
     CHECK(ui::swatch_paint_finish(disc) == ui::SwatchFinish::Silk);
 
     // A single-colour spool replaces it: one colour, plain.
     ext.color_rgb = 0x2266AA;
-    ext.multi_color_hexes.clear();
     ext.material = "PETG";
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
     process_lvgl(30);
     const auto colors = ui::swatch_paint_colors(disc);
     REQUIRE(colors.size() == 1);

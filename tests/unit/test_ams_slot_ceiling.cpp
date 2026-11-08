@@ -198,41 +198,36 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a spool on a lane past the ceilin
     ams.set_backend(std::move(owned));
     ams.sync_from_backend();
 
-    const auto& tools = helix::ToolState::instance().tools();
-    REQUIRE(static_cast<int>(tools.size()) > tool);
-    CHECK(tools[tool].spoolman_id == 4242);
+    const auto lane = ams.lane_feeding_tool(tool);
+    REQUIRE(lane.has_value());
+    CHECK(lane->slot == kBeyond);
+    CHECK(lane->info.spoolman_id == 4242);
 
     ams.clear_backends();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AmsState: a tool changer's tool spool reaches a lane past the ceiling",
-                 "[ams][slot_ceiling][tool-state]") {
-    constexpr int kLanes = kAmsMaxSlots + 2;
-    constexpr int kBeyond = kLanes - 1;
+                 "AmsState: a tool wired to no lane is fed by the lane mapped to it",
+                 "[ams][tool-state][lane_truth]") {
+    // No topology has reached ToolState, so no tool names a backend lane: the
+    // lane whose mapped_tool names the tool feeds it.
     ScopedToolState tool_state;
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
-    auto owned = std::make_unique<AmsBackendMock>(kLanes);
-    AmsBackendMock* mock = owned.get();
-    mock->set_tool_changer_mode(true);
-    REQUIRE(mock->supports_per_tool_spool_assignment());
-    // The lane starts with no spool, so the tool's spool is what fills it.
-    SlotInfo info = mock->get_slot_info(kBeyond);
-    info.spoolman_id = 0;
-    REQUIRE(helix::test::apply_edit(*mock, kBeyond, info).success());
-    REQUIRE(mock->get_slot_info(kBeyond).spoolman_id == 0);
-    const int tool = mock->get_slot_info(kBeyond).mapped_tool;
+    auto owned = std::make_unique<AmsBackendMock>(4);
+    SlotInfo info = owned->get_slot_info(2);
+    info.spoolman_id = 5150;
+    REQUIRE(helix::test::apply_edit(*owned, 2, info).success());
+    const int tool = owned->get_slot_info(2).mapped_tool;
     REQUIRE(tool >= 0);
     ams.set_backend(std::move(owned));
-    ams.sync_from_backend();
+    REQUIRE(helix::ToolState::instance().tools().empty());
 
-    auto& ts = helix::ToolState::instance();
-    REQUIRE(static_cast<int>(ts.tools().size()) > tool);
-    ts.assign_spool(tool, 777, "Tool spool", 500.0f, 1000.0f);
-    ams.sync_from_backend();
-
-    CHECK(mock->get_slot_info(kBeyond).spoolman_id == 777);
+    const auto lane = ams.lane_feeding_tool(tool);
+    REQUIRE(lane.has_value());
+    CHECK(lane->slot == 2);
+    CHECK(lane->info.spoolman_id == 5150);
+    CHECK_FALSE(ams.lane_feeding_tool(-1).has_value());
 
     ams.clear_backends();
 }

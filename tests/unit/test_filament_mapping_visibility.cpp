@@ -25,6 +25,7 @@
 #include "ui_update_queue.h"
 
 #include "../mapping_card_render_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/mock_bypass.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -111,7 +112,7 @@ struct NoFilamentSystemCardFixture : LVGLUITestFixture {
         spool.material = material;
         spool.color_rgb = rgb;
         spool.status = helix::SlotStatus::LOADED;
-        AmsState::instance().set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
     }
 };
 

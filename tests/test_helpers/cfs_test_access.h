@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_cfs.h"
 #include "ams_error.h"
 #include "ams_types.h"
@@ -40,6 +42,8 @@ class CfsTestAccess {
     /// Runs only the startup store load: a null client skips the initial query.
     static void start_load(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// Takes a notify frame, the shape the subscription delivers.
@@ -120,6 +124,16 @@ class CfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.bypass_declared_ = declared;
         b.system_info_.supports_bypass = true;
+    }
+
+    /// What a read of the bypass declaration finding @p declared does.
+    static bool adopt_bypass_declaration(helix::printer::AmsBackendCfs& b, bool declared) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.adopt_bypass_declaration_locked(declared);
+    }
+
+    static void mark_running(helix::printer::AmsBackendCfs& b) {
+        b.running_ = true;
     }
 
     static void set_seated_bay(helix::printer::AmsBackendCfs& b, int slot) {
@@ -229,8 +243,15 @@ class CfsTestAccess {
 
     /// Run the real on_started (declaration restore + initial query; the
     /// Moonraker query itself is null-guarded in test constructions).
+    /// on_started() with the store's first read left unlanded on the queue.
+    static void call_on_started_unread(helix::printer::AmsBackendCfs& b) {
+        b.on_started();
+    }
+
     static void call_on_started(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /// The configfile query's answer, as configfile.settings.

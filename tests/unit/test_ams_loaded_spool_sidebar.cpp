@@ -18,6 +18,7 @@
 #include "ui_spool_canvas.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "ams_backend_mock.h"
@@ -195,7 +196,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS sidebar paints the loaded spool's colour a
         ext.material = "PETG";
         ext.remaining_weight_g = 600.0f;
         ext.total_weight_g = 1000.0f;
-        AmsState::instance().set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
         AmsState::instance().sync_from_backend();
         process_lvgl(20);
         CHECK(lv_subject_get_int(fill) == ext.display_fill_pct());

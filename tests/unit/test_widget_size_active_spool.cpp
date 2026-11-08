@@ -39,6 +39,7 @@
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_widget_labels.h"
 #include "ams_state.h"
@@ -74,7 +75,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ext.brand = "TestBrand";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
 
@@ -147,7 +148,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a wide ins
     ext.material = "PLA";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     ActiveSpoolWidget widget(api());
 

@@ -24,6 +24,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -73,7 +74,7 @@ struct TrackerGatingFixture : LVGLTestFixture {
             info.remaining_weight_g = 1000.0f;
             info.total_weight_g = 1000.0f;
             info.spoolman_id = 0;
-            mock->sync_external_identity(s, info);
+            helix::test::apply_edit(*mock, s, info);
         }
 
         // Zero stale subjects before tracker start — see routing fixture
@@ -112,7 +113,7 @@ TEST_CASE_METHOD(TrackerGatingFixture, "Gating: slot with spoolman_id != 0 not t
     // sink without decrementing.
     helix::SlotInfo info = mock->get_slot_info(0);
     info.spoolman_id = 42;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     auto& state = get_printer_state();
     SubjectLifetime lt;
@@ -170,7 +171,7 @@ TEST_CASE_METHOD(TrackerGatingFixture, "Mid-print edit rebaselines sink", "[trac
     // exceeds the 0.5 g rebaseline threshold).
     helix::SlotInfo info = mock->get_slot_info(0);
     info.remaining_weight_g = 800.0f;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     // Next tick: sink detects external write and rebases — no decrement on
     // this tick, weight stays at exactly the user's 800 g.
@@ -194,7 +195,7 @@ TEST_CASE_METHOD(TrackerGatingFixture,
     // snapshot cycle with the new -1 to land the sink in the inactive state.
     helix::SlotInfo info = mock->get_slot_info(0);
     info.remaining_weight_g = -1.0f;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
     FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::COMPLETE);
     FilamentConsumptionTrackerTestAccess::force_print_state(PrintJobState::PRINTING);
     helix::ui::UpdateQueue::instance().drain();
@@ -215,7 +216,7 @@ TEST_CASE_METHOD(TrackerGatingFixture,
     // simulate that by cycling print state, which re-snapshots all sinks.
     info = mock->get_slot_info(0);
     info.remaining_weight_g = 800.0f;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     // Push another delta BEFORE re-snapshot — still inactive, no write.
     lv_subject_set_int(e0, 1000);

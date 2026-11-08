@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_update_queue.h"
+
 #include "ams_backend_openams.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
@@ -25,6 +27,8 @@ class OpenAmsTestAccess {
 
     static void start(AmsBackendOpenAms& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     static void refresh_lane_records(AmsBackendOpenAms& b) {

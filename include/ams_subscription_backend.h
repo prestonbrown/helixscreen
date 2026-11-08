@@ -4,13 +4,13 @@
 #pragma once
 
 #include "ui_subscription_guard.h"
+#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
 #include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
-#include "lane_echo.h"
 
 #include <spdlog/spdlog.h>
 
@@ -51,20 +51,39 @@ class AmsSubscriptionBackend : public AmsBackend {
     void release_subscriptions() final;
     [[nodiscard]] bool is_running() const final;
 
-    /// Re-read the lane-record store a backend names in lane_record_store()
-    /// and file what it holds as vendor-cache readings.
-    ///
-    /// This refreshes the lane SOURCE MODEL and nothing else. The persisted
-    /// override map is loaded once, at init, and is not touched here.
-    /// Refreshing that map is tracked separately: a live map replaced wholesale
-    /// mid-session has to answer for an edit made or in flight since it loaded.
-    ///
-    /// Runs only where firmware_publishes_lane_identity() is false. Elsewhere
-    /// there is nothing to file, so no request is issued. A backend that
-    /// names no store cannot issue the re-read; that skip is logged at warn
-    /// on a started backend with an attached API, and is expected and silent
-    /// before start or without one.
+    /// Read this backend's lane records from Moonraker and show what they hold.
+    /// The one read path: it runs at connect, after each write of ours, and
+    /// every kLaneRecordPollPeriod (Moonraker sends no database-change
+    /// notification). One database get per poll. A read already out takes
+    /// the request with it; one more read follows when it lands. Main thread.
+    void refresh_lane_records();
+
+    /// refresh_lane_records() from the next main-loop turn, for a caller that
+    /// holds mutex_ (a parse that saw a tool rewrite a lane). Safe from any
+    /// thread.
+    void schedule_lane_refresh();
+
+    /// A user resync re-reads the lane records.
     void request_resync() override;
+
+    /// False from the store opening until its first read lands; a failed read
+    /// leaves it false and the poll retries. A backend that never opened a
+    /// store has nothing to wait for.
+    [[nodiscard]] bool lane_records_ready() const override {
+        return !lane_records_unread_;
+    }
+
+    /// The bypass spool's record lives among this backend's lane records, in
+    /// the store open_lane_record_store() built: lane_data, or the extras
+    /// namespace on a backend whose firmware owns lane_data.
+    [[nodiscard]] bool holds_bypass_record() const override {
+        return true;
+    }
+    [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const override;
+    /// Written at bypass_lane_index_locked(). A record of ours left at an
+    /// earlier index is deleted; a slot's record at the index is never
+    /// overwritten.
+    void publish_external_spool_lane(const helix::ams::FilamentSlotOverride* record) override;
 
     // --- Event system (final) ---
     void set_event_callback(EventCallback callback) final;
@@ -125,18 +144,6 @@ class AmsSubscriptionBackend : public AmsBackend {
     AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
                                 const SlotInfo& after) final;
     AmsError unload_filament_batch(const std::vector<int>& slots) final;
-
-    /// This backend's echo guard. A store other writers co-author can hold
-    /// the mirror of the backend's own write, so the resync strips from those
-    /// records any field still equal to a standing declaration. A backend
-    /// that never writes identity back to firmware never stages into it, and
-    /// an empty guard strips nothing.
-    ///
-    /// The guard stays under this backend's mutex_ discipline; the resync
-    /// takes the lock around its consult.
-    [[nodiscard]] helix::ams::OwnWriteEchoes* own_write_echoes() {
-        return &own_write_echoes_;
-    }
 
     // --- Shared utilities (public for AmsState and tests) ---
     void emit_event(const std::string& event, const std::string& data = "");
@@ -254,6 +261,14 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Exclusive upper bound for a valid slot index. Caller holds mutex_.
     [[nodiscard]] virtual int slot_index_bound_locked() const {
         return system_info_.total_slots;
+    }
+
+    /// The index the bypass spool's record is written at: one past the
+    /// backend's lanes, so a slicer reading lane_data sees it as the next
+    /// lane over. -1 while there is no index to write at (no lanes known
+    /// yet). Caller holds mutex_.
+    [[nodiscard]] virtual int bypass_lane_index_locked() const {
+        return system_info_.total_slots > 0 ? system_info_.total_slots : -1;
     }
 
     /// Drop what earlier paints left on a persistent SlotInfo, so the paint
@@ -462,111 +477,128 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// or success when it may.
     [[nodiscard]] AmsError device_action_refusal(const std::string& action_id) const;
 
-    /// Whether this backend's firmware publishes lane identity of its own,
-    /// which it files as a VendorCache reading on every status frame.
-    ///
-    /// A lane with such a producer must not also receive the persisted record.
-    /// Both are the same source and ingest() replaces a source's record whole,
-    /// so the two arrival orders say different things and both are reachable:
-    /// a resync landing after a frame overwrites a fresh firmware reading with
-    /// a stored one. Nor is there a field to be gained by accepting that risk.
-    /// Whole-record replacement means the next frame retracts whatever the
-    /// persisted record carried beyond what firmware reports, so filing it
-    /// buys a window between two frames rather than a value a lane keeps.
-    ///
-    /// Defaults to true, so a backend that forgets to answer loses a re-read
-    /// rather than gaining a race.
-    ///
-    /// @warning Answering false is what turns request_resync()'s reload path
-    ///          on, and that path refreshes the LANE only. A backend's own
-    ///          `overrides_` map keeps whatever it loaded at start. Today that
-    ///          is harmless because the backends answering false (ToolChanger,
-    ///          OpenAMS) touch `overrides_` only on the user-edit and
-    ///          persistence paths.
-    ///          A backend that reads `overrides_` to DECIDE something, as CFS
-    ///          does in three places, would start deciding from a map the
-    ///          resync did not refresh. Check that before changing this answer
-    ///          (prestonbrown/helixscreen#1629).
-    [[nodiscard]] virtual bool firmware_publishes_lane_identity() const {
+    /// Build the store for this backend's lane records (lane_data, or the
+    /// extras namespace on a backend whose firmware owns lane_data) and read
+    /// it. Every write through the store is followed by a refresh. Takes
+    /// mutex_; call without it.
+    void open_lane_record_store(std::string backend_id,
+                                std::string ns = helix::ams::kLaneDataNamespace);
+
+    /// Set up a freshly built lane record store before its first read, for a
+    /// backend whose store holds more than the default. Caller holds mutex_.
+    virtual void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) {
+        (void)store;
+    }
+
+    /// A read of the lane records landed, and overrides_ now holds it. Runs
+    /// under mutex_, before the lanes are filed and the slots repainted, for a
+    /// backend that keeps state derived from the records (a fingerprint
+    /// baseline, a seated lane).
+    virtual void on_lane_records_read_locked() {}
+
+    /// Read the lane records again and repaint every slot from the reply,
+    /// for a backend whose reading of the records changed (it learned what
+    /// they describe). Main thread.
+    void reread_lane_records();
+
+    /// False while another source states this backend's per-slot identity and
+    /// its lane records describe something else (OpenAMS with openams_spoolman,
+    /// whose lane_data is per tool): a read is then kept for the writer rule
+    /// but not filed onto the lanes.
+    [[nodiscard]] virtual bool lane_records_describe_slots() const {
         return true;
     }
 
-    /// This backend's lane_data-shaped record store, or nullptr when it has
-    /// none. request_resync() re-reads it so a lane's shared record is not
-    /// frozen at whatever it said when the backend started.
-    ///
-    /// Only a store on a namespace OTHER writers co-author belongs here. A
-    /// namespace HelixScreen alone writes has no drift for a re-read to
-    /// correct, and re-filing its records would put a second producer on the
-    /// vendor-cache slot the backend's own firmware readings occupy.
-    virtual helix::ams::FilamentSlotOverrideStore* lane_record_store() {
-        return nullptr;
+    /// Read the backend's own plain keys (FilamentSlotOverrideStore::
+    /// load_key_async()) beside the lane records, on every refresh and poll.
+    /// Main thread, without mutex_.
+    virtual void refresh_backend_keys(helix::ams::FilamentSlotOverrideStore& store) {
+        (void)store;
     }
 
-    /// File @p obs, read out of @p entry on a re-read of the lane-record store,
-    /// as another tool's edit on @p lane when it is one and newer than what
-    /// stands there (file_outside_edit_if_newer()). Returns true when it filed.
-    ///
-    /// A co-authored namespace carries the mirror of this backend's own write,
-    /// and firmware mirrors a write back with none of our authorship keys, so a
-    /// foreign-looking record can still be that echo: @p obs first loses what
-    /// the slot's standing declaration explains, and while that declaration
-    /// stands our unconfirmed write is the newer statement and nothing files.
-    /// A stored record is not a live producer, so a value that differs from the
-    /// declaration releases nothing. Takes mutex_.
-    bool file_reread_outside_edit(helix::ams::LaneId lane, int slot_index,
-                                  const helix::ams::LaneDataRecord& entry,
-                                  helix::ams::Observation& obs);
-
-    /// Re-read lane_data once a burst of firmware changes settles. A tool that
-    /// changes a slot from outside (an NFC tag reader, a spool-binding macro)
-    /// writes its lane record beside the firmware change, and nothing else
-    /// reads lane_data after start (prestonbrown/helixscreen#1632). Debounced,
-    /// so a burst issues one read. Safe under mutex_.
-    void schedule_lane_record_reread();
-
-    /// When the store's load got no answer, read until one lands, then take the
-    /// printer's records as the start of this session would have. Nothing is
-    /// written over them until then. A failed read is retried from the status
-    /// frames, no sooner than kUnreadLaneRecordsRetry. Main thread.
-    void read_unread_lane_records();
-    /// A read is out, and when the last one started. Main thread.
-    bool unread_read_in_flight_ = false;
-    std::chrono::steady_clock::time_point unread_read_started_{};
-
-    /// Remember each slot's lane_data document as the store loaded it, so the
-    /// first re-read files only what another tool changed since. Caller holds
-    /// mutex_, after installing override_store_.
-    void seed_lane_records_seen_locked();
-
-    /// read_unread_lane_records() got its answer: @p records replace what the
-    /// failed load left in overrides_, and the lanes and slots repaint.
-    void adopt_unread_lane_records(helix::ams::FilamentSlotOverrideStore* store,
-                                   std::unordered_map<int, helix::ams::LaneDataRecord> records);
-
-    /// File each record that changed since it was last read as another tool's
-    /// edit when it is one and newer (file_reread_outside_edit()), and move the
-    /// slot's override onto it: a rebinding record starts the override afresh,
-    /// anything else amends it. Main thread.
-    void
-    apply_reread_lane_records(const std::unordered_map<int, helix::ams::LaneDataRecord>& records);
-
-    /// A re-read was scheduled and has not yet run. Called under the caller's
-    /// locks, from schedule_lane_record_reread().
-    virtual void on_lane_reread_scheduled() {}
-
-    /// A re-read finished: @p taken holds the slots that took another tool's
-    /// record. A read that failed took none. Main thread; mutex_ not held.
-    virtual void on_lane_reread_finished(const std::unordered_set<int>& /*taken*/) {}
-
-    [[nodiscard]] bool lane_reread_pending() const {
-        return lane_reread_pending_.load();
+    /// Take off a lane record's reading the fields this backend's firmware
+    /// holds, so the record cannot fill a field the firmware states as unset.
+    /// The default keeps every field: one the firmware states outranks the
+    /// record anyway. Main thread.
+    virtual void drop_firmware_held_fields(helix::ams::Observation& record) const {
+        (void)record;
     }
+
+    /// Stage @p info as @p slot_index's record (stage_user_override(), with
+    /// @p material in place of info.material) and save it. Caller holds mutex_.
+    void persist_user_record_locked(int slot_index, const SlotInfo& info);
+    void persist_user_record_locked(int slot_index, const SlotInfo& info,
+                                    const std::string& material);
+
+    /// persist_user_record_locked() for a backend whose firmware holds the
+    /// lane's colour and material. Those two reach the firmware through the
+    /// edit's own command, so the record keeps the ones it already carries
+    /// (what mirror_firmware_identity_locked() last copied from the firmware)
+    /// and never states a value the firmware has not taken. Caller holds mutex_.
+    void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
+
+    /// loaded = false on @p slot_index's record, its identity cleared unless
+    /// @p keep_identity, saved. Nothing without a record. Takes mutex_.
+    void lane_emptied(int slot_index, bool keep_identity) override;
+
+    /// Copy the firmware's colour and material for @p slot_index into its
+    /// record and save it, for the lane_data readers (OrcaSlicer, another
+    /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
+    /// is copied before the first record read lands (a save then would replace
+    /// the stored record with a bare one), nor into a record another writer
+    /// owns. True when the record changed. Caller holds mutex_.
+    bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
+                                         const std::string& material);
+
+    /// An edit's pending colour and material, restated as the firmware will
+    /// store them (@p material normalized, @p color snapped), so the edit
+    /// stands until those echo rather than for the whole pending timeout. Only
+    /// a field the pending edit holds, and holds differently, is restated.
+    void restate_pending_as_stored(int slot_index, std::optional<uint32_t> color,
+                                   const std::string& material);
+    /// The two answers to a firmware write of a person's edit, for
+    /// execute_gcode(): once Klipper has run it, @p recorded is saved as
+    /// @p slot_index's lane record; if Klipper rejects it, nothing is saved,
+    /// the lane's pending edit is withdrawn with Klipper's message (the editor
+    /// reports it) and the slot is repainted. Both run on the main thread
+    /// without mutex_, as execute_gcode() delivers them.
+    ///
+    /// A Clear that arrives while such a write is out waits for it
+    /// (defer_clear_to_firmware_write()): Klipper's OK erases the record in
+    /// place of saving @p recorded, and a rejection keeps the record.
+    [[nodiscard]] helix::SharedCallback<void()> record_once_written(int slot_index,
+                                                                    SlotInfo recorded);
+    [[nodiscard]] helix::SharedCallback<void(const MoonrakerError&)>
+    withdraw_edit_if_rejected(int slot_index);
+    /// True when @p slot_index has a firmware write from record_once_written()
+    /// out: the record's erase then waits for Klipper's answer, and the caller
+    /// erases nothing now. Takes mutex_.
+    [[nodiscard]] bool defer_clear_to_firmware_write(int slot_index);
+
+  public:
+    [[nodiscard]] bool firmware_edit_out(int slot_index) override;
+
+  protected:
+    /// Save @p slot_index's staged record. A failure is reported to the user
+    /// and withdraws the lane's pending edit. Takes mutex_; call without it.
+    void persist_override(int slot_index, const char* noun = "Override");
+
+    /// The meter's reading on the live slot (the lane already holds it as
+    /// Metered), then persist_slot_weight() when @p persist. Takes mutex_.
+    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
+                                 bool persist) override;
+
+    /// The store half of persist_slot_weight() and persist_external_identity():
+    /// the slot's record takes the weight or the linked spool's details, and is
+    /// saved. A backend that also writes a weight to firmware overrides them.
+    void persist_slot_weight(int slot_index, float remaining_weight_g,
+                             float total_weight_g) override;
+    void persist_external_identity_impl(int slot_index,
+                                        const helix::ams::Observation& spoolman) override;
 
     /// Clear @p slot_index's user override from every store holding it: the
-    /// in-memory map, the lane's records, the echo guard and the persisted
-    /// record. @p slot, when non-null, also loses clear_override_fields().
-    /// Caller holds mutex_.
+    /// in-memory map, the lane's records and the persisted record. @p slot, when non-null, also
+    /// loses clear_override_fields(). Caller holds mutex_.
     void clear_override_locked(int slot_index, SlotInfo* slot);
 
     /// Blank on @p slot the fields a user override supplies and this
@@ -578,13 +610,6 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// The catalog pick is override-exclusive on every backend: no AMS
     /// firmware carries a branded product id.
     virtual void clear_override_fields(SlotInfo& slot) const;
-
-    /// commit_user_edit()'s refusal hooks: a dispatch that failed outright
-    /// wrote nothing firmware can echo, so the staging it created cancels
-    /// rather than withholding the next genuine reading, and the armed
-    /// predecessor that staging suspended stands again.
-    std::uint64_t own_write_echo_sequence(int slot_index) override;
-    void abandon_own_write_echoes(int slot_index, std::uint64_t staged_sequence) override;
 
     // --- Protected state for derived classes ---
     IMoonrakerAPI* api_;
@@ -604,10 +629,6 @@ class AmsSubscriptionBackend : public AmsBackend {
     std::unique_ptr<helix::ams::FilamentSlotOverrideStore> override_store_;
     std::unordered_map<int, helix::ams::FilamentSlotOverride> overrides_;
 
-    /// What the user's own write-back declared per slot, so firmware echoing
-    /// it is not filed as a reading. Under mutex_.
-    helix::ams::OwnWriteEchoes own_write_echoes_;
-
     /// Wakes every debounce worker the moment the backend is destroyed. Each
     /// debounce sleeps on a fast-lane worker, and a backend that is gone has
     /// nothing left for the worker to do, so it hands the lane back at once.
@@ -623,17 +644,40 @@ class AmsSubscriptionBackend : public AmsBackend {
     static bool debounce_wait(const std::shared_ptr<DebounceCancel>& cancel,
                               std::chrono::milliseconds window);
 
-    /// A debounced lane_data re-read is waiting to run.
-    std::atomic<bool> lane_reread_pending_{false};
-
-    /// Read the lane-record store now; the debounce lands here.
-    void reread_lane_records();
+  protected:
+    /// The poll: withdraw expired pending edits, then refresh. Main thread.
+    void poll_lane_records();
 
   private:
-    /// Each slot's lane_data document as last read, so a re-read files only a
-    /// record that changed since: an unchanged document says nothing new, and
-    /// an outside record carries no stamp to order it by. Under mutex_.
+    /// How often the lane records are read while the backend runs.
+    static constexpr std::chrono::seconds kLaneRecordPollPeriod{10};
+
+    /// A read of what refresh_lane_records() asked for landed: file every
+    /// record as the lane's Record source, drop it from a lane whose record is
+    /// gone, repaint, and announce a change. Main thread.
+    void adopt_lane_records(helix::ams::FilamentSlotOverrideStore* store,
+                            helix::ams::FilamentSlotOverrideStore::ReadTicket ticket,
+                            std::unordered_map<int, helix::ams::LaneDataRecord> records);
+
+    /// Each slot's record as last read, so an unchanged read announces nothing.
+    /// Main thread.
     std::unordered_map<int, nlohmann::json> lane_wire_seen_;
+    /// The store's first read has not landed yet; it repaints every slot,
+    /// since sources filed before it (a Spoolman fetch) were never painted.
+    /// Main thread.
+    bool lane_records_unread_ = false;
+    /// One firmware write from record_once_written(): whether a Clear waits on it.
+    struct FirmwareEditFate {
+        bool clear_after = false;
+    };
+    /// The latest such write per slot, alive while its callbacks are. Guarded
+    /// by mutex_.
+    std::unordered_map<int, std::weak_ptr<FirmwareEditFate>> firmware_edits_out_;
+    /// A read is out, and another was asked for while it was. Main thread.
+    bool refresh_in_flight_ = false;
+    bool refresh_again_ = false;
+    /// The poll timer; cancelled in stop() and by the guard's destructor.
+    helix::ui::LvglTimerGuard lane_record_poll_;
 
     /// The gated operations, so motion can be classified per METHOD in one
     /// place instead of per backend at every call site.

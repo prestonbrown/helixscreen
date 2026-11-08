@@ -716,6 +716,7 @@ translations:
   Change heater control?: Changer le contrôle du chauffage ?
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Modifie les paramètres de l''imprimante via Moonraker, y compris le téléversement, la réécriture et la suppression de fichiers dans le dossier de configuration de l''imprimante.'
+  Change the name or the linked spool in Spoolman.: "Modifiez le nom ou la bobine liée dans Spoolman."
   Change tool: Changer d'outil
   Changes apply immediately. Adjust during print for tuning.: Les modifications s'appliquent
     immédiatement. Ajustez pendant l'impression pour le réglage.
@@ -2258,6 +2259,8 @@ translations:
   Loading filament...: Chargement du filament...
   Loading filaments...: Chargement des filaments...
   Loading history...: Chargement de l'historique...
+  Loading lane details. Try again in a moment.: Chargement des détails de la voie. Réessayez dans un instant.
+  Loading lane details…: Chargement des détails de la voie…
   Loading photo: 'Chargement de la photo'
   Loading spools...: Chargement des bobines...
   Loading vendors...: Chargement des fournisseurs...
@@ -2345,6 +2348,7 @@ translations:
   Main LED Strip: Bandeau LED principal
   Maintaining: Maintien
   Maintenance: 'Maintenance'
+  Make color, material and spool changes in Spoolman.: "Modifiez la couleur, le matériau et la bobine dans Spoolman."
   Make sure every nozzle is clean.: Assurez-vous que toutes les buses sont propres.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': "Vérifiez qu'aucun filament n'est chargé dans la tête d'outil : il peut ramollir dans l'extrudeur pendant que le plateau chauffe."
 
@@ -2694,6 +2698,7 @@ translations:
   Not in your spools? Set it up: Pas dans vos bobines ? Configurez-la
   Not now: Pas maintenant
   Not turned: 'Pas tourné'
+  'Not saved: {}. Try again.': "Non enregistré : {}. Réessayez."
   Not set: Non défini
   Not yet available on this display: 'Pas encore disponible sur cet écran'
   Not yet calibrated: Pas encore calibré
@@ -2796,6 +2801,9 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Ouvrez le .3mf dans Fichiers d''impression pour réimprimer ce plateau.'
   Open the CFS unit and remove the broken filament from the slot: Ouvrez l'unité CFS et retirez le filament cassé du slot
   Open the slot editor when you load a new spool: 'Ouvrir l''éditeur de slot au chargement d''une nouvelle bobine'
+  OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS conserve cette bobine dans Spoolman, qui n'accepte ici que le matériau, la couleur, la marque et le poids"
+  OpenAMS manages this spool's link: "OpenAMS gère le lien de cette bobine"
+  AFC has no Spoolman configured: "AFC n'a pas de Spoolman configuré"
   Opened: Ouverte
   Operation already in progress: Opération déjà en cours
   Operation timed out: Délai dépassé pour l'opération
@@ -4966,11 +4974,18 @@ translations:
   tall: de haut
   target {}%: 'cible {}%'
   target {}°: 'cible {}°'
+  the ACE needs a material and its nozzle temperature: "l'ACE a besoin d'un matériau et de sa température de buse"
+  "the CFS can't change a slot while a print is running": "le CFS ne peut pas modifier un emplacement pendant une impression"
+  the QIDI Box filament list has not loaded: "la liste de filaments de la QIDI Box n'est pas chargée"
+  the QIDI Box has no {} in its filament list: "la QIDI Box n'a pas de {} dans sa liste de filaments"
   the extruder: l'extrudeur
   the left belt: "la courroie gauche"
   the lower belt: "la courroie du bas"
+  the printer did not confirm it: "l'imprimante ne l'a pas confirmé"
+  the printer refused it: "l'imprimante l'a refusé"
   the right belt: "la courroie droite"
   the upper belt: "la courroie du haut"
+  this printer fills its gates from Spoolman, so change the spool there: "cette imprimante remplit ses gates depuis Spoolman, changez la bobine là-bas"
   this week: cette semaine
   too slow: trop lent
   tool(s): outil(s)

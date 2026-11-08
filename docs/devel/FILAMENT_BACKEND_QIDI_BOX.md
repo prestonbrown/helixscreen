@@ -63,7 +63,7 @@ All control runs through Klipper gcode macros and `SAVE_VARIABLE` — **no dedic
 | `M603 S<temp>` + `ENABLE_ALL_SENSOR` | Unload without the controller (verified stock on Q2 1.1.1). `M603` switches the filament sensor off and nothing else turns it back on before `PRINT_START`, so the backend re-enables it (`filament_macros::restore_after`); falls back to `M109` + `EXTRUDER_UNLOAD SLOT=…` |
 | `FORCE_MOVE STEPPER="box_stepper slot<N>" VELOCITY=… DISTANCE=…` | Lane eject on Q2/Plus 4 (#1041), gated on `[force_move] enable_force_move`; distance/velocity user-tunable (defaults 878 mm / 100 mm/s) |
 | `MULTI_COLOR_BOX_UNLOAD SLOT=slot<N>` | Lane eject on the controller dialect (#1083): the multi_color_controller rejects FORCE_MOVE |
-| `SAVE_VARIABLE VARIABLE=value_t<N> VALUE="slot<M>"` | Tool remap (`RemapStrategy::Native`, the unified remap path) |
+| `SAVE_VARIABLE VARIABLE=value_t<N> VALUE='"slot<M>"'` | Tool remap (`RemapStrategy::Native`, the unified remap path). Klipper shell-splits the parameters, stripping one layer of quotes, and `SAVE_VARIABLE` literal_evals the rest, so the value goes as a quoted Python string; `VALUE="slot<M>"` arrives as `slot<M>` and is rejected |
 | `SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N>` | Persisting slot metadata back to the Box's RFID indices, and the metadata clear (`VALUE=0` x3, see Slot Metadata below) |
 | `ENABLE_BOX_DRY` / `DISABLE_BOX_DRY BOX=<n>` | Dryer start/stop when the box_extras timer is present |
 | `SET_HEATER_TEMPERATURE HEATER=heater_box<N>` | Dryer start/stop fallback |
@@ -93,13 +93,37 @@ Spools identify via MIFARE Classic RFID tags. Data lives in sector 1 block 0. Th
 The Box saves what it read off a tag as `filament_slot<N>` / `color_slot<N>` /
 `vendor_slot<N>` ids, and `tag_reading()` is those ids resolved through the Box tables
 (material, colour, brand) plus the filament profile's nozzle range. HelixScreen's own edit
-writes the same variables, so the reading is folded frame by frame
-(`helix::ams::fold_tag_frame`): fields the own-write echo guard withholds keep the tag's
-value. After a restart the saved ids are the user's and become the reading, and an id set
-from the printer's own screen cannot be told from a tag read
-(`src/printer/ams_backend_qidi.cpp#parse_save_variables`, `src/printer/ams_tag_reading.cpp#fold_tag_frame_into`).
+writes the same variables, so an id saved by an edit, by the printer's own screen or from a
+tag read all read the same way
+(`src/printer/ams_backend_qidi.cpp#parse_save_variables`, `src/printer/ams_tag_reading.cpp#keep_tag_reading`).
 
 ### Slot Metadata, Swap Detection and the Metadata Clear
+
+**An edit is written to the Box.** `apply_user_edit()` writes the material, colour and
+brand as `SAVE_VARIABLE`s, and the lane shows what the Box holds:
+
+- The material must name a `[fila<N>]` row. One with no row is refused through the
+  editor's inline error ("Not saved: the QIDI Box has no <material> in its filament
+  list"), and nothing is written; so is any material before the list has loaded. An
+  emptied material writes `filament_slot<N> = 0`, and a material that still names the row the
+  Box holds (its type or product name) writes no `filament_slot`, so a brand-only edit keeps a
+  row that is one of several of its type. A product name ("ABS Rapido") picks its
+  row; the material line then shows the row's type, what the Box holds, and the name becomes
+  the spool's name in the lane record unless the edit named one.
+- The colour is snapped to the nearest `[colordict]` row before it is saved, and that row's
+  colour is what the lane shows from the moment of the save (it is filed as the edit's
+  Pending colour) and what the lane record carries. No exact hex sits beside the palette
+  colour anywhere.
+- The brand is written as its `[vendor_list]` row, or `Generic` (row 0) for a brand the
+  table lacks. Row 0 states no brand, so the brand the lane record holds stands there.
+- The writes go as one script, and the lane record is saved once Klipper has run it; a write
+  that does not reach the printer, or that Klipper rejects, saves nothing and withdraws the
+  pending edit.
+
+The lane record (`lane_data`, `backend_id` `qidi`) carries the rest: spool, name,
+weights, temperatures, colour name, catalog pick, and a copy of the material and snapped
+colour for slicers. Reading it back, `drop_firmware_held_fields()` takes the material and
+colour off, so a record never fills a field the Box states as unset.
 
 Slot identity is the three save_variables row indices `filament_slot<N>` /
 `color_slot<N>` / `vendor_slot<N>`, resolved against the Box's own tables in
@@ -112,21 +136,20 @@ Box stating the field is unset, and the parse blanks the painted field so the
 last reading does not linger.
 
 The Box states no tag UID, so the spool fingerprint is the composite
-`fila|color|vendor` (all three ids <= 0 is the empty string, which the tracker
-reads as no signal). It runs through the shared `SlotFingerprintTracker`
+`fila|color` (both ids <= 0 is the empty string, which the tracker reads as no
+signal; the vendor id is not part of it). It runs through the shared `SlotFingerprintTracker`
 ([FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md) § Swap fingerprints):
-a change no write of ours asked for is a physical spool swap and clears the
-user's override. Each field is a separate `SAVE_VARIABLE`, so a poll can land
-between writes - `apply_user_edit()` and the clear arm every old/new
-cross-product composite as an expected echo before dispatching, and a dispatch
-that fails entirely releases only its own claims. The record's persisted
+a change the insert rule reads as a different spool clears the user's
+override. A change while the lane has an edit of ours in flight (a Pending
+record) is that edit's `SAVE_VARIABLE`s coming back, one field at a time, and
+clears nothing. The record's persisted
 fingerprint is the baseline at startup, so a swap made while HelixScreen was
 down clears the stale override on the first frame.
 
-`clear_slot_override()` clears locally (erase + `clear_async` against the
-shared `lane_data` namespace) and then erases what the firmware remembers:
-three `SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N> VALUE=0` writes,
-sent mid-print too because `SAVE_VARIABLE` moves nothing. Table row ids start
+Clear Spool's cleared edit erases what the firmware remembers, once:
+`SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N> VALUE=0` (each where the Box holds
+an id), sent mid-print too because `SAVE_VARIABLE` moves nothing. `clear_slot_override()`
+is the lane half: erase + `clear_async` against the shared `lane_data` namespace. Table row ids start
 at 1, so 0 names no row and the slot reads as no identity - the clear erases what the slot remembers,
 not what the hardware can read, and a tagged spool re-populates the ids on its
 next insert, boot or RFID read. Vendor is the one field where 0 is a real row
@@ -151,9 +174,8 @@ write HelixScreen makes stays numeric.
   previous spool's and paints nothing. The stale `vendor_slot<N>` is ignored for
   such a slot.
 - The swap fingerprint takes either form per component (`QFA90|#228332`,
-  `11|2`, `QFA90|2`), so a spool change between product ids clears an override
-  and our own numeric write over a product id echoes as our write
-  (`src/printer/ams_backend_qidi.cpp#expect_own_write_echoes_locked`). A product
+  `11|2`, `QFA90|2`), so a spool change between product ids clears an override,
+  while our own numeric write over a product id lands with its edit in flight. A product
   id decodes to the material the controller paired it with, so the same spool
   restated by product id instead of row id is still the same spool. A pairing
   is learned only from a controller update carrying both the id and the type,
