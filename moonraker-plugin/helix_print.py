@@ -71,7 +71,7 @@ PRINT_START_TOOLS_FEATURE = "print_start_tools"
 PRINT_START_TOOLS_FEATURE_VERSION = 1
 
 # Plugin version - used for API version detection by clients
-PLUGIN_VERSION = "1.4.0"
+PLUGIN_VERSION = "1.4.1"
 
 # Shape of the status reply; 2 added the `features` map
 STATUS_API = 2
