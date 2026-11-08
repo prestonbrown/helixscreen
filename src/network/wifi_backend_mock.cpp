@@ -349,7 +349,6 @@ void WifiBackendMock::connect_thread_func() {
                       connecting_ssid_); // PII_OK: mock backend, fixture SSIDs
     }
 
-    // Connection successful!
     // Generate mock IP address
     int subnet = 100 + (rng_() % 155); // 192.168.1.100-255
     const std::string ip = "192.168.1." + std::to_string(subnet);
@@ -473,8 +472,8 @@ int WifiBackendMock::set_country_calls() const {
 
 void WifiBackendMock::init_mock_networks() {
     // Frequencies model a realistic mixed-band neighbourhood. "Office-Main"
-    // deliberately appears twice — once per band, the 5GHz BSS weaker — which is
-    // the dual-band-single-SSID case that used to erase the 5GHz AP entirely
+    // deliberately appears twice — once per band, the 5GHz BSS weaker — the
+    // dual-band-single-SSID case whose merge must keep the 5GHz AP
     // (helixscreen#1189). get_scan_results() merges it back to one row.
     mock_networks_ = {
         MockWiFiNetwork("HomeNetwork-5G", 92, true, "WPA2", "12345678", 5180), // Strong, encrypted
