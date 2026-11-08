@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Restart Moonraker from Advanced** - a Restart Moonraker button sits on the Advanced page. It asks before restarting, and is unavailable while offline, during a print or while Klipper is restarting.
 - **Pick a .3mf plate on printers that print .3mf files themselves** - on Z-Mod 1.7.5 and later, Print Files offers the plates the printer lists, and the chosen plate starts straight from the .3mf with its filament mapping. Reprint starts the same plate, and print status shows that plate's picture, time and materials (#2063).
 - **BTT Eddy probes** (#1994) - Z-offset calibration runs the Eddy calibration and saves it.
 - **Join a hidden WiFi network** (#1975) - the setup wizard and Network settings both have Add Hidden Network.
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A Klipper error at startup is shown** - when Klipper is already in error or shut down as HelixScreen starts, including a config Klipper cannot load, the recovery dialog opens with Klipper's own message, also right after the setup wizard. A mainboard switched off through a Moonraker power device stays quiet.
 - **The screensaver no longer stops or loses work in progress** - heater (PID and MPC), pressure advance, Z-offset, bed mesh, input shaper and screws tilt calibrations keep running behind it and still save their results, and waking the screen shows their progress instead of a frozen screen. A calibration that finishes behind the screensaver now saves on its own, which restarts Klipper, just as it does with the screen on.
 - **Crash recovery restarts more reliably** - the crash recovery screen now runs separately from the process that restarts HelixScreen, so a failure while closing the screen can no longer stop the restart.
+- **The crash screen follows your display rotation** - the crash dialog now rotates the same way the app does, and a crash that keeps repeating opens Safe Mode after two minutes instead of leaving the screen stuck.
 - **Waking the screen keeps what was open** - the filament runout guidance, a pending print, QR scans, the spool wizard, touch calibration, unsaved macro visibility edits and the timelapse install wizard.
 - **The Creator 5 shows Preparing right away** (#2054) - a print started on Z-Mod no longer shows the previous job's result while the printer picks up its tool and heats, Stop works during that start, and no other print can start over it. The print status follows the Creator 5's own start sequence: tool pickup and docking, nozzle settling, mesh progress, the bed wait, and a purge only when the real line purge runs. Tested on Z-Mod 1.7.5.
 - **Your tool mapping reaches every Z-Mod that understands it** (#2033, #2038) - when Z-Mod advertises it, HelixScreen hands the mapping to the printer at print start whether or not its built-in AFC is on, including prints the HelixPrint plugin starts.
