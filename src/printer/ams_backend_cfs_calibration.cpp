@@ -5,16 +5,20 @@
 // AmsBackendCfs calibration commands for the K2 and the send they share with the
 // K1 cutter sweep. A K2 has none of the K1's BOX_* calibration commands; its
 // cutter and belt buttons send the printer's own CALIBRATE_CUT_POS and
-// BELT_TENSION macros, and exist only when the printer defines them (#2059).
+// BELT_TENSION macros, and exist only when the printer defines them; the belt
+// button also needs the K2's motorized tensioners (#2059).
 
 #include "ams_backend_cfs.h"
 #include "macro_param_cache.h"
 #include "moonraker_error.h"
+#include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace helix::printer {
@@ -22,7 +26,17 @@ namespace helix::printer {
 namespace {
 constexpr const char* kK2CutterMacro = "CALIBRATE_CUT_POS";
 constexpr const char* kK2BeltTensionMacro = "BELT_TENSION";
+// Klipper object prefix of the K2's motorized belt tensioners (mdlx, mdly).
+constexpr std::string_view kK2BeltMotorPrefix = "belt_mdl ";
 } // namespace
+
+void AmsBackendCfs::set_discovery(const helix::PrinterDiscovery& discovery) {
+    const auto& objects = discovery.printer_objects();
+    has_belt_motors_ = std::any_of(objects.begin(), objects.end(), [](const std::string& name) {
+        return name.rfind(kK2BeltMotorPrefix, 0) == 0;
+    });
+    spdlog::debug("[AMS CFS] Motorized belt tensioners: {}", has_belt_motors_);
+}
 
 std::string AmsBackendCfs::cutter_calibration_gcode() const {
     if (macro_variant_ == CfsMacroVariant::K1) {
@@ -39,7 +53,7 @@ bool AmsBackendCfs::cutter_calibration_takes_a_minute() const {
 }
 
 bool AmsBackendCfs::can_tension_belts() const {
-    return macro_variant_ != CfsMacroVariant::K1 &&
+    return macro_variant_ != CfsMacroVariant::K1 && has_belt_motors_ &&
            helix::MacroParamCache::instance().has_macro(kK2BeltTensionMacro);
 }
 

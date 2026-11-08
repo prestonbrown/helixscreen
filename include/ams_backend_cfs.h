@@ -159,6 +159,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     static bool owns_filament_sensor(const std::string& bare_name,
                                      const helix::PrinterDiscovery& discovery);
 
+    /// Records whether the printer publishes the K2's motorized belt tensioners.
+    void set_discovery(const helix::PrinterDiscovery& discovery) override;
+
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::CFS;
     }
@@ -866,8 +869,13 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// CALIBRATE_CUT_POS macro on a K2 that defines it, empty otherwise.
     [[nodiscard]] std::string cutter_calibration_gcode() const;
 
-    /// A K2 (stock or the Kalico port) that defines the BELT_TENSION macro.
+    /// A K2 (stock or the Kalico port) with motorized belt tensioners (its
+    /// `belt_mdl` objects) that defines the BELT_TENSION macro.
     [[nodiscard]] bool can_tension_belts() const;
+
+    /// The printer publishes `belt_mdl` objects, the K2's tensioner motors.
+    /// Set by set_discovery() before start(); read on the main thread.
+    bool has_belt_motors_ = false;
 
     /// Sends one long-running calibration command under calibration_in_flight_:
     /// refused during a print or while another calibration runs. @p on_done

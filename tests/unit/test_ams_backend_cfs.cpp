@@ -297,13 +297,19 @@ struct MacroCacheScope {
     MacroCacheScope& operator=(const MacroCacheScope&) = delete;
 };
 
-/// A K2, or with @p fork the Kalico port, whose printer defines exactly @p macros.
+/// A K2, or with @p fork the Kalico port, whose printer defines exactly @p macros
+/// and, with @p belt_motors, publishes the K2's motorized belt tensioner objects.
 class CfsK2CalibHelper : public CfsCalibHelper {
   public:
-    explicit CfsK2CalibHelper(const std::unordered_set<std::string>& macros, bool fork = false)
+    explicit CfsK2CalibHelper(const std::unordered_set<std::string>& macros, bool fork = false,
+                              bool belt_motors = true)
         : macros_(macros) {
         fork ? CfsTestAccess::set_macro_variant_fork(*this)
              : CfsTestAccess::set_macro_variant_k2(*this);
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(belt_motors ? json::array({"box", "belt_mdl mdlx", "belt_mdl mdly"})
+                                     : json::array({"box"}));
+        set_discovery(hw);
     }
 
   private:
@@ -637,6 +643,14 @@ TEST_CASE("CFS K2 calibration buttons follow the printer's macros", "[ams][cfs][
     CHECK_FALSE(find_action(cutter_only, "tension_belts").has_value());
     // Only the K1 sweep has a measured duration for the confirm to quote.
     CHECK_FALSE(cutter_only.cutter_calibration_takes_a_minute());
+
+    // A BELT_TENSION macro without the K2's tensioner motors is someone's own macro.
+    for (bool fork : {false, true}) {
+        CfsK2CalibHelper no_motors({"BELT_TENSION"}, fork, /*belt_motors=*/false);
+        CHECK_FALSE(find_action(no_motors, "tension_belts").has_value());
+        CHECK(no_motors.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
+        CHECK(no_motors.captured.empty());
+    }
 
     // A K1 macro that happens to share the name is not a motorized tensioner.
     CfsK1RemapHelper k1;
