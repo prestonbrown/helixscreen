@@ -15,6 +15,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "tap_lockout.h"
 #include "theme_manager.h"
 
 #include <optional>
@@ -488,216 +489,39 @@ TEST_CASE("inward_edge_reach: the drag interior never drops below a touch target
     }
 }
 
-TEST_CASE("selection pills: outside a widget too small to share, off its corner, inside the grid",
-          "[grid_edit][edit-chrome][halfcell]") {
-    // 36px pills overhang by 9, covering 27px of the widget, at 800x480.
-    CHECK(GridEditMode::pills_go_outside(60, 59, 27, 48));  // a half cell
-    CHECK(GridEditMode::pills_go_outside(74, 200, 27, 48)); // one px short on width
-    CHECK(GridEditMode::pills_go_outside(200, 74, 27, 48)); // one px short on height
-    CHECK_FALSE(GridEditMode::pills_go_outside(75, 75, 27, 48));
-    CHECK_FALSE(GridEditMode::pills_go_outside(120, 118, 27, 48)); // a whole cell
+TEST_CASE("release_opens_callout: a tap on the selected tile or a hold released in place",
+          "[grid_edit][edit-callout]") {
+    using Facts = GridEditMode::CalloutReleaseFacts;
+    Facts tap;
+    tap.press_on_selected = true;
+    tap.max_travel_px = 0;
+    tap.input_acts = true;
+    CHECK(GridEditMode::release_opens_callout(tap));
+    // At the threshold still a tap; a hold released in place has the same facts.
+    Facts at_threshold = tap;
+    at_threshold.max_travel_px = 12;
+    CHECK(GridEditMode::release_opens_callout(at_threshold));
 
-    using Corner = GridEditMode::PillCorner;
-    auto same = [](const lv_area_t& a, const lv_area_t& b) {
-        return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
-    };
-    const lv_area_t grid{80, 0, 799, 479}; // right of the navbar
-    // Off the corner first, then beside top-aligned, below last; never over
-    // a pill already placed or another tile.
-    struct Row {
+    struct Flip {
         const char* what;
-        lv_area_t tile, trash, cfg;
-        std::vector<lv_area_t> fixed = {}; // pills already placed, which both avoid
-        std::vector<lv_area_t> tiles = {}; // the page's other widgets
+        Facts facts;
     };
-    // A pill already placed in the grid's top-right corner.
-    const lv_area_t placed{752, 8, 791, 47};
-    const Row rows[] = {
-        {"mid-grid", {400, 200, 459, 258}, {465, 159, 500, 194}, {359, 159, 394, 194}},
-        {"top row: beside", {677, 5, 736, 63}, {742, 5, 777, 40}, {636, 5, 671, 40}},
-        {"top row, right taken: trash left",
-         {677, 5, 736, 63},
-         {636, 5, 671, 40},
-         {595, 5, 630, 40},
-         {},
-         {{742, 5, 799, 63}}},
-        {"top row, both sides taken: below",
-         {677, 5, 736, 63},
-         {742, 69, 777, 104},
-         {636, 69, 671, 104},
-         {},
-         {{742, 5, 799, 63}, {617, 5, 671, 63}}},
-        {"right edge: trash beside on the left, configure above it",
-         {740, 200, 799, 258},
-         {699, 200, 734, 235},
-         {699, 159, 734, 194}},
-        {"top-right corner: configure one pill further out",
-         {740, 0, 799, 58},
-         {699, 0, 734, 35},
-         {658, 0, 693, 35}},
-        {"beside the navbar: configure beside on the right",
-         {80, 200, 139, 258},
-         {145, 159, 180, 194},
-         {145, 200, 180, 235}},
-        {"bottom-left corner", {80, 421, 139, 479}, {145, 380, 180, 415}, {145, 421, 180, 456}},
-        {"a pill already placed: trash beside",
-         {677, 60, 736, 118},
-         {742, 60, 777, 95},
-         {636, 19, 671, 54},
-         {placed}},
-        {"a diagonal neighbour: trash beside, off its centre",
-         {400, 200, 459, 258},
-         {465, 200, 500, 235},
-         {359, 159, 394, 194},
-         {},
-         {{465, 141, 524, 199}}},
-        {"no clear spot: a sliver of a neighbour, never its centre",
-         {740, 0, 799, 58},
-         {699, 0, 734, 35},
-         {699, 64, 734, 99},
-         {},
-         {{600, 0, 701, 140}}},
-    };
-    auto overlaps = [](const lv_area_t& a, const lv_area_t& b) {
-        return !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
-    };
-    for (const auto& row : rows) {
-        CAPTURE(row.what);
-        const auto trash = GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopRight,
-                                                           row.fixed, row.tiles);
-        REQUIRE(trash.has_value());
-        CHECK(same(*trash, row.trash));
-        std::vector<lv_area_t> taken = row.fixed;
-        taken.push_back(*trash);
-        const auto cfg = GridEditMode::outside_pill_area(row.tile, 36, grid, 5, Corner::TopLeft,
-                                                         taken, row.tiles);
-        REQUIRE(cfg.has_value());
-        CHECK(same(*cfg, row.cfg));
-        for (const lv_area_t& b : row.fixed) {
-            CHECK_FALSE(overlaps(*trash, b));
-            CHECK_FALSE(overlaps(*cfg, b));
-        }
-        for (const lv_area_t& t : row.tiles) {
-            for (const lv_area_t& pill : {*trash, *cfg}) {
-                CHECK_FALSE((pill.x1 <= (t.x1 + t.x2) / 2 && (t.x1 + t.x2) / 2 <= pill.x2 &&
-                             pill.y1 <= (t.y1 + t.y2) / 2 && (t.y1 + t.y2) / 2 <= pill.y2));
-            }
-        }
-    }
-    // No safe spot outside: nullopt, and the pill keeps its corner on the tile.
-    const lv_area_t tight{0, 0, 59, 58};
-    CHECK_FALSE(GridEditMode::outside_pill_area(tight, 36, tight, 5, Corner::TopRight).has_value());
-
-    // The pills take only the corner squares two outward bands share: every
-    // edge still resizes beside them, and the widget's interior stays clear.
-    GridEditMode em;
-    const Row& mid = rows[0];
-    auto on_pill = [&](int x, int y) {
-        auto in = [&](const lv_area_t& a) {
-            return x >= a.x1 && x <= a.x2 && y >= a.y1 && y <= a.y2;
-        };
-        return in(mid.trash) || in(mid.cfg);
-    };
-    using Edge = GridEditMode::ResizeEdge;
-    struct Probe {
-        int x, y;
-        Edge edge;
-    };
-    const Probe probes[] = {
-        {429, 196, Edge::Top},    {440, 190, Edge::Top},  {420, 190, Edge::Top},
-        {429, 262, Edge::Bottom}, {396, 240, Edge::Left}, {463, 240, Edge::Right},
-    };
-    for (const auto& p : probes) {
-        CAPTURE(p.x, p.y);
-        CHECK_FALSE(on_pill(p.x, p.y));
-        CHECK(em.detect_resize_edge(p.x, p.y, mid.tile) == p.edge);
-    }
-    for (int x = mid.tile.x1; x <= mid.tile.x2; ++x) {
-        for (int y = mid.tile.y1; y <= mid.tile.y2; ++y) {
-            REQUIRE_FALSE(on_pill(x, y));
-        }
-    }
-}
-
-TEST_CASE("selection pills: on their own corner in a packed micro grid, clear of a placed pill "
-          "on a corner",
-          "[grid_edit][edit-chrome][halfcell]") {
-    using Corner = GridEditMode::PillCorner;
-    auto same = [](const lv_area_t& a, const lv_area_t& b) {
-        return a.x1 == b.x1 && a.y1 == b.y1 && a.x2 == b.x2 && a.y2 == b.y2;
-    };
-    auto covers = [](const lv_area_t& a, const lv_area_t& t) {
-        const int32_t cx = (t.x1 + t.x2) / 2;
-        const int32_t cy = (t.y1 + t.y2) / 2;
-        return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
-    };
-
-    // 480x272: 24px pills overhanging by 6, 2px gaps, every track taken. No
-    // spot outside the tile spares its neighbours, so the pills go on its own
-    // corner, out past its centre, a few px onto the neighbours.
-    const lv_area_t micro{42, 4, 471, 267};
-    struct Grid {
-        int pitch_x, pitch_y, w, h;
-        lv_area_t tile, trash, cfg;
-    };
-    const Grid grids[] = {
-        {36, 33, 34, 31, {222, 136, 255, 166}, {239, 127, 262, 150}, {214, 127, 237, 150}},
-        {72, 66, 70, 64, {186, 70, 255, 133}, {238, 64, 261, 87}, {180, 64, 203, 87}},
-    };
-    for (const auto& g : grids) {
-        CAPTURE(g.w, g.h);
-        std::vector<lv_area_t> others;
-        for (int32_t x = micro.x1; x + g.w - 1 <= micro.x2; x += g.pitch_x) {
-            for (int32_t y = micro.y1; y + g.h - 1 <= micro.y2; y += g.pitch_y) {
-                const lv_area_t t{x, y, x + g.w - 1, y + g.h - 1};
-                if (!same(t, g.tile)) {
-                    others.push_back(t);
-                }
-            }
-        }
-        CHECK_FALSE(
-            GridEditMode::outside_pill_area(g.tile, 24, micro, 2, Corner::TopRight, {}, others)
-                .has_value());
-        const lv_area_t trash =
-            GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopRight, {}, others);
-        CHECK(same(trash, g.trash));
-        CHECK(
-            same(GridEditMode::corner_pill_area(g.tile, 24, 6, 2, Corner::TopLeft, {trash}, others),
-                 g.cfg));
-    }
-
-    // On the tile's corner: 36px pills overhanging by 9, at 800x480.
-    // A pill already placed in the grid's top-right corner.
-    const lv_area_t placed{752, 8, 791, 47};
-    struct Row {
-        const char* what;
-        lv_area_t tile;
-        Corner corner;
-        std::vector<lv_area_t> blocked;
-        lv_area_t pill;
-    };
-    // A whole cell mid-grid; under the placed pill, which the trash slides
-    // below, or left along the top edge when that is taken; a tile too
-    // small for its corner, whose pills sit out past its centre.
-    constexpr Corner R = Corner::TopRight;
-    constexpr Corner L = Corner::TopLeft;
-    const Row rows[] = {
-        {"whole", {400, 200, 517, 317}, R, {placed}, {491, 191, 526, 226}},
-        {"whole cfg", {400, 200, 517, 317}, L, {placed}, {391, 191, 426, 226}},
-        {"under delete", {682, 0, 799, 117}, R, {placed}, {773, 53, 808, 88}},
-        {"below taken", {682, 0, 799, 117}, R, {placed, {760, 48, 810, 100}}, {711, -9, 746, 26}},
-        {"small", {400, 200, 430, 228}, R, {}, {416, 178, 451, 213}},
-        {"small cfg", {400, 200, 430, 228}, L, {}, {379, 178, 414, 213}},
-    };
-    for (const auto& row : rows) {
-        CAPTURE(row.what);
-        const lv_area_t pill =
-            GridEditMode::corner_pill_area(row.tile, 36, 9, 5, row.corner, row.blocked);
-        CHECK(same(pill, row.pill));
-        CHECK_FALSE(covers(pill, row.tile));
-        for (const lv_area_t& b : row.blocked) {
-            CHECK((pill.x2 < b.x1 || pill.x1 > b.x2 || pill.y2 < b.y1 || pill.y1 > b.y2));
-        }
+    std::vector<Flip> flips;
+    flips.push_back({"press not on the selected tile", tap});
+    flips.back().facts.press_on_selected = false;
+    flips.push_back({"resized", tap});
+    flips.back().facts.resized = true;
+    flips.push_back({"committed", tap});
+    flips.back().facts.committed = true;
+    flips.push_back({"travel past the threshold", tap});
+    flips.back().facts.max_travel_px = 13;
+    flips.push_back({"inert", tap});
+    flips.back().facts.inert = true;
+    flips.push_back({"grid input not acting", tap});
+    flips.back().facts.input_acts = false;
+    for (const Flip& f : flips) {
+        INFO(f.what);
+        CHECK_FALSE(GridEditMode::release_opens_callout(f.facts));
     }
 }
 
@@ -1071,6 +895,8 @@ struct UndoScene {
     std::unique_ptr<GridEditMode> em = std::make_unique<GridEditMode>();
 
     UndoScene(lv_obj_t* parent, const std::string& id, bool with_fan) : scene(parent, id) {
+        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/tile_edit_callout.xml") ==
+                LV_RESULT_OK);
         auto& entries = scene.config->page_entries_mut(GridEditScene::kPageIndex);
         entries[0].config = nlohmann::json{{"sensor", "extruder"}};
         if (with_fan) {
@@ -1092,13 +918,17 @@ struct UndoScene {
         lv_obj_delete(scene.container);
     }
 
-    /// A tap on @p widget's trash pill, past the pill lockout.
+    /// A tap on the Remove row of @p widget's callout, past the rows' lockout.
     void trash(lv_obj_t* widget) {
         em->select_widget(widget);
-        lv_obj_t* pill = lv_obj_find_by_name(scene.container, "edit_trash_pill");
-        REQUIRE(pill != nullptr);
-        lv_tick_inc(GridEditMode::kPillLockoutMs);
-        lv_obj_send_event(pill, LV_EVENT_CLICKED, nullptr);
+        em->open_tile_callout();
+        REQUIRE(em->is_callout_open());
+        lv_obj_t* row =
+            lv_obj_find_by_name(lv_obj_get_screen(scene.container), "tile_callout_remove");
+        REQUIRE(row != nullptr);
+        lv_tick_inc(helix::ui::TapLockout::kDefaultMs);
+        lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+        CHECK_FALSE(em->is_callout_open());
     }
     nlohmann::json stored() const {
         auto* cfg = Config::get_instance();

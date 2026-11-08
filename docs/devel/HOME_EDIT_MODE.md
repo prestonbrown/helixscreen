@@ -168,13 +168,30 @@ swipeable: a swipe that starts on a widget must still flip the page.
   (`finish_resize_snap()`), whose rebuild replaces the objects under it on the next tick.
 - **While the widget catalog is open, grid input takes no action** (see
   [The widget catalog](#the-widget-catalog)).
-- **A selection pill ignores a tap whose press lands within `kPillLockoutMs` (300 ms) of the
-  frame that first draws it** (`src/ui/home/grid_edit_mode.cpp#pill_release_acts`). A tap selects the
-  widget under the finger and draws its trash pill there, so a double tap's second press lands on
-  that pill. The press decides, not the lift: a second press at 240 ms that lifts at 310 ms is
-  refused. The clock starts at the pill's first `LV_EVENT_DRAW_POST`, not its creation, because a
-  slow board reads no input until that frame is out. A click with no press behind it (remote
-  control) is timed at the click.
+- **A tap on the selected tile, or a hold released in place, opens the tile callout**
+  (`src/ui/home/grid_edit_mode.cpp#release_opens_callout`). The release opens it when the press
+  landed inside the tile selected before it (or the tile a hold grabbed), no resize ran, the drop
+  committed nothing, the pointer never got more than `kDragThresholdPx` from the press, the
+  gesture was not inert, and grid input acts. It opens on the next tick, after a held widget is
+  back in its cell, and only if no press has begun since. The hold that enters edit mode opens it
+  too when it lifts where it held on a tile: that hold ends its press, so its release arrives as
+  PRESS_LOST (`src/ui/home/grid_edit_mode.cpp#handle_press_cancelled`). The first tap on an
+  unselected tile only selects it, and a drag or a resize never opens the callout.
+- **The tile callout** (`include/ui_tile_edit_callout.h`, `ui_xml/tile_edit_callout.xml`) is a
+  `ContextMenu` placed with `AnchorMode::AroundAnchor`: below the tile, else above, else right,
+  else left, else over it, clamped to the screen. A ring on its backdrop outlines the tile. Its
+  rows are Configure (only for a widget whose `has_edit_configure()` is true) and Remove, which
+  run `configure_selected_widget()` and `remove_selected_widget()` after the callout closes, and
+  only while the selection is still the tile it was raised for. The backdrop takes every press
+  while it is open, the navbar's included, and a tap on it closes the callout and does nothing
+  else. `grid_input_acts()` is false while it is open. It closes without acting on `exit()`,
+  `switch_page()`, `forget_scope()`, a selection change, a deferred rebuild and the catalog
+  opening.
+- **A callout row ignores a tap whose press lands within `TapLockout::kDefaultMs` (300 ms) of the
+  frame that first draws the card** (`include/tap_lockout.h`). The press decides, not the lift:
+  a second press at 240 ms that lifts at 310 ms is refused. The clock starts at the card's first
+  `LV_EVENT_DRAW_POST`, not its creation, because a slow board reads no input until that frame is
+  out. A click with no press behind it (remote control) is timed at the click.
 - **A click is a release that lands where its press did.** LVGL sends CLICKED after any release no
   scroll took, a drag's included. `on_home_grid_clicked` selects under the pointer only when
   `finger_drifted_since_press()` is false (`src/ui/home/ui_panel_home.cpp#on_home_grid_clicked`): a drag
@@ -351,8 +368,7 @@ void HomePanel::on_home_grid_press_cancelled(lv_event_t* e) {
 **The shield** is a full-grid, clickable, bubbling child of the scoped container, created by
 `GridEditMode::ensure_shield()`. As the topmost full-grid child it is the press target of every
 edit gesture, so no widget underneath is ever pressed. It draws the lattice dots and has no
-children. The selection's configure and remove buttons are its siblings, created after
-it, which puts them above it. The shield carries no callback: a shield that outlives the session,
+children. The shield carries no callback: a shield that outlives the session,
 because the rebuild that would delete it never runs once the session's lifetime token expired,
 holds nothing that calls into the session.
 
@@ -596,8 +612,8 @@ The catalog opens from a hold on empty grid with nothing selected, at the cell t
 - `is_catalog_open()` is true, `switch_page()` keeps the session's page, and the swipe policy is
   `Disabled`.
 - Grid input takes no action: `grid_input_acts()` is false, so no press, hold or click the grid
-  handlers pass on, no tap on the configure or remove button, and no tap on the navbar's
-  delete-page button, acts.
+  handlers pass on, no tile callout action, and no tap on the navbar's delete-page button,
+  acts. Opening the catalog closes the tile callout.
   Navigation's dismiss backdrop normally takes every press beside the catalog; the gate holds
   when that backdrop could not be created.
 - The shield and its lattice stay drawn. The catalog is a later child of the screen than the
@@ -731,7 +747,7 @@ Undo, then asks first, through the confirmation
 
 ### Undoing a removal
 
-A trash removal shows a "Widget removed" toast with Undo for the toast's default 5 s
+A removal from the tile callout's Remove row shows a "Widget removed" toast with Undo for the toast's default 5 s
 (`src/ui/home/grid_edit_mode.cpp#offer_undo`). The session holds one removal: the entry as it was
 (config, cell and span), its page's id and index, its list position, and whether the removal
 pruned the page. A second removal replaces it and restarts the same toast.

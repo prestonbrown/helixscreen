@@ -2,8 +2,8 @@
 
 #include "grid_edit_mode.h"
 
-#include "ui_fonts.h"
 #include "ui_next_tick.h"
+#include "ui_tile_edit_callout.h"
 #include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -96,58 +96,8 @@ static constexpr float kEdgeHitCellDivisor = 6.0f;
 // The touch_target_min token's value, for a theme that has not registered it.
 static constexpr int kMinDragTargetFallback = 48;
 
-/// A hold on an edit-mode button is not a tap on it: LVGL still sends CLICKED
-/// on the release that ends a long press, and an outside pill sits over cells
-/// a hold may be aimed at. Ending the press turns that release into PRESS_LOST.
-static void ignore_release_after_hold(lv_obj_t* btn) {
-    lv_obj_add_event_cb(
-        btn, [](lv_event_t* ev) { helix::ui::end_press(ev); }, LV_EVENT_LONG_PRESSED, nullptr);
-}
-
-/// Whether the press that produced @p e lifted over the object that handles it.
-/// LVGL press-locks a child, so its CLICKED fires wherever the finger lifts; a
-/// drag that happens to start on a chrome pill is not a tap on it. A click with
-/// no input device behind it (remote control, tests) counts.
-static bool released_over_target(lv_event_t* e) {
-    lv_indev_t* indev = lv_indev_active();
-    if (!indev) {
-        return true;
-    }
-    lv_point_t point;
-    lv_indev_get_point(indev, &point);
-    lv_area_t area;
-    lv_obj_get_coords(static_cast<lv_obj_t*>(lv_event_get_current_target(e)), &area);
-    return point.x >= area.x1 && point.x <= area.x2 && point.y >= area.y1 && point.y <= area.y2;
-}
-
-static bool areas_disjoint(const lv_area_t& a, const lv_area_t& b) {
-    return a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2;
-}
-
-/// Whether @p a covers the centre point of @p tile.
-static bool covers_centre(const lv_area_t& a, const lv_area_t& tile) {
-    const int32_t cx = (tile.x1 + tile.x2) / 2;
-    const int32_t cy = (tile.y1 + tile.y2) / 2;
-    return cx >= a.x1 && cx <= a.x2 && cy >= a.y1 && cy <= a.y2;
-}
-
-/// Whether a @p pill_px pill at @p a covers at most a sliver of each of
-/// @p tiles: a quarter pill deep on one axis, and never a tile's centre. A
-/// pill any deeper takes the taps that select that tile.
-static bool pill_spares_tiles(const lv_area_t& a, int pill_px,
-                              const std::vector<lv_area_t>& tiles) {
-    const int32_t sliver = pill_px / 4;
-    return std::all_of(tiles.begin(), tiles.end(), [&](const lv_area_t& t) {
-        if (areas_disjoint(a, t)) {
-            return true;
-        }
-        if (covers_centre(a, t)) {
-            return false;
-        }
-        const int32_t ow = std::min(a.x2, t.x2) - std::max(a.x1, t.x1) + 1;
-        const int32_t oh = std::min(a.y2, t.y2) - std::max(a.y1, t.y1) + 1;
-        return std::min(ow, oh) <= sliver;
-    });
+static bool point_in_area(lv_point_t p, const lv_area_t& a) {
+    return p.x >= a.x1 && p.x <= a.x2 && p.y >= a.y1 && p.y <= a.y2;
 }
 
 // disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
@@ -344,8 +294,12 @@ bool GridEditMode::enter(lv_obj_t* container, PanelWidgetConfig* config, int pag
     // grid action however long it lasts: a hold that outlasts a second long
     // press neither grabs nor opens the catalog. Its release, or the next
     // press, clears it.
-    if (lv_indev_active()) {
+    if (lv_indev_t* indev = lv_indev_active()) {
         gesture_inert_ = true;
+        gesture_entered_ = true;
+        lv_indev_get_point(indev, &gesture_start_);
+        gesture_start_known_ = true;
+        gesture_max_travel_px_ = 0;
     }
 
     attach_to_current_page(/*sync_config=*/true);
@@ -364,14 +318,10 @@ void GridEditMode::attach_to_current_page(bool sync_config) {
     // The event shield and its lattice
     ensure_shield();
 
-    // Carried chrome goes in above the shield, where its buttons take presses
-    // before the shield does (see select_widget()). A carried drag's widget
-    // and its outline stay on the top layer until the drop.
-    for (lv_obj_t* chrome :
-         {lifted_ ? nullptr : selection_overlay_.get(), remove_btn_.get(), configure_btn_.get()}) {
-        if (chrome && lv_obj_get_parent(chrome) != container_) {
-            lv_obj_set_parent(chrome, container_);
-        }
+    // Carried chrome goes in above the shield. A carried drag's widget and its
+    // outline stay on the top layer until the drop.
+    if (selection_overlay_ && !lifted_ && lv_obj_get_parent(selection_overlay_) != container_) {
+        lv_obj_set_parent(selection_overlay_, container_);
     }
 
     // Sync config grid positions from actual screen positions. Enter() needs
@@ -399,6 +349,7 @@ void GridEditMode::switch_page(lv_obj_t* container, int page_index) {
                       page_index_);
         return;
     }
+    close_tile_callout();
     // A resize snap animation in flight stops here: its completion re-seats the
     // page this session is about to leave. The stop lays the resized widget out
     // at its committed cell in place, and exit() rebuilds its content.
@@ -437,6 +388,7 @@ void GridEditMode::switch_page(lv_obj_t* container, int page_index) {
 }
 
 void GridEditMode::forget_scope() {
+    close_tile_callout();
     forget_container_children();
     container_ = nullptr;
 }
@@ -445,6 +397,7 @@ void GridEditMode::exit() {
     if (!active_) {
         return;
     }
+    close_tile_callout();
     active_ = false;
 
     // The catalog places into this session, so it does not outlive it. Its
@@ -511,6 +464,7 @@ void GridEditMode::select_widget(lv_obj_t* widget) {
     if (widget == selected_) {
         return;
     }
+    close_tile_callout();
     destroy_selection_chrome();
     selected_ = widget;
     // The lattice shows the boundaries this selection can snap to, so it is
@@ -759,229 +713,16 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         });
         lv_anim_start(&anim);
     }
-
-    // Trash removal button — positioned on the container (not the overlay) so it
-    // isn't clipped by the overlay or widget bounds. Uses FLOATING positioning
-    // relative to the container's content area.
-    // Chrome button size/icon scale responsively — a fixed 36/24 pair dominates
-    // the 480x272 micro viewport.
-    lv_subject_t* chrome_bp_subj = theme_manager_get_breakpoint_subject();
-    const UiBreakpoint chrome_bp =
-        chrome_bp_subj ? as_breakpoint(lv_subject_get_int(chrome_bp_subj)) : UiBreakpoint::Medium;
-    int BTN_SIZE = 36;
-    const lv_font_t* chrome_icon_font = &mdi_icons_24;
-    switch (chrome_bp) {
-    case UiBreakpoint::Micro:
-        BTN_SIZE = 24;
-        chrome_icon_font = &mdi_icons_16;
-        break;
-    case UiBreakpoint::Tiny:
-        BTN_SIZE = 28;
-        chrome_icon_font = &mdi_icons_16;
-        break;
-    case UiBreakpoint::Small:
-        BTN_SIZE = 32;
-        chrome_icon_font = &mdi_icons_24;
-        break;
-    case UiBreakpoint::Medium:
-        BTN_SIZE = 36;
-        chrome_icon_font = &mdi_icons_24;
-        break;
-    case UiBreakpoint::Large:
-        BTN_SIZE = 40;
-        chrome_icon_font = &mdi_icons_24;
-        break;
-    case UiBreakpoint::XLarge:
-        BTN_SIZE = 48;
-        chrome_icon_font = &mdi_icons_32;
-        break;
-    case UiBreakpoint::XXLarge:
-        BTN_SIZE = 56;
-        chrome_icon_font = &mdi_icons_32;
-        break;
-    }
-    const int kBtnOverhang = BTN_SIZE / 4; // 25% shift outside widget bounds
-    // The pills are text-colour fills at half opacity that float out over the
-    // grid container, so the icon colour is contrasted against that composite
-    // over the screen background, not against the raw fill. In the shipped
-    // themes the screen composite is the harder of the two backings the pill
-    // overlaps (screen and widget card) for the icon polarity chosen.
-    // The icons are small glyphs, so they are held to the 4.5:1 body-text
-    // bar rather than the 4:1 large-text default.
-    constexpr double kChromeIconContrast = 4.5;
-    const lv_color_t btn_bg = theme_manager_get_color("text");
-    const lv_color_t pill_backing = theme_manager_get_color("screen_bg");
-    const lv_color_t icon_color = theme_manager_get_contrast_adjusted_text(
-        theme_manager_get_color("text"), btn_bg, pill_backing, LV_OPA_50, kChromeIconContrast);
-
-    // Shared construction for the trash and configure pills: floating circle,
-    // translucent fill, centred icon. Dynamic overlay chrome uses
-    // lv_obj_add_event_cb (declarative-UI exception).
-    auto make_chrome_pill = [&](int x, int y, const char* icon) {
-        lv_obj_t* btn = lv_obj_create(container_);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_FLOATING);
-        lv_obj_set_pos(btn, x, y);
-        lv_obj_set_size(btn, BTN_SIZE, BTN_SIZE);
-        lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(btn, btn_bg, 0);
-        lv_obj_set_style_bg_opa(btn, LV_OPA_50, 0);
-        lv_obj_set_style_border_width(btn, 0, 0);
-        lv_obj_set_style_pad_all(btn, 0, 0);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
-        ignore_release_after_hold(btn);
-        // The lockout runs from the frame that shows the pill: on a slow board
-        // that frame lands well after the pill is created, and input waits
-        // for it.
-        lv_obj_add_event_cb(
-            btn,
-            [](lv_event_t* ev) {
-                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-                if (!self->pills_shown_) {
-                    self->pills_shown_ = true;
-                    self->pills_drawn_tick_ = lv_tick_get();
-                }
-            },
-            LV_EVENT_DRAW_POST, this);
-        // Whether a tap acts is decided by when its press landed: a double
-        // tap's second press can fall inside the lockout and lift after it.
-        lv_obj_add_event_cb(
-            btn,
-            [](lv_event_t* ev) {
-                auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-                self->pill_press_tick_ = lv_tick_get();
-                self->pill_press_latched_ = true;
-            },
-            LV_EVENT_PRESSED, this);
-        lv_obj_add_event_cb(
-            btn,
-            [](lv_event_t* ev) {
-                static_cast<GridEditMode*>(lv_event_get_user_data(ev))->pill_press_latched_ = false;
-            },
-            LV_EVENT_PRESS_LOST, this);
-
-        lv_obj_t* label = lv_label_create(btn);
-        lv_label_set_text(label, icon);
-        lv_obj_set_style_text_font(label, chrome_icon_font, 0);
-        lv_obj_set_style_text_color(label, icon_color, 0);
-        lv_obj_center(label);
-        return btn;
-    };
-
-    // A widget too small to hold a pill and a finger-sized drag interior
-    // carries its pills just outside it, inside the grid container, so a drag
-    // aimed at the widget never lands on a pill.
-    int min_drag = static_cast<int>(theme_manager_get_spacing("touch_target_min"));
-    if (min_drag <= 0) {
-        min_drag = kMinDragTargetFallback;
-    }
-    const bool pills_outside =
-        pills_go_outside(widget_w, widget_h, BTN_SIZE - kBtnOverhang, min_drag);
-    const int pill_gap = static_cast<int>(theme_manager_get_spacing("space_xs"));
-    // Screen rect -> the FLOATING position make_chrome_pill() takes.
-    auto to_rel = [&](const lv_area_t& a) {
-        return lv_point_t{a.x1 - container_area.x1 - pad_left, a.y1 - container_area.y1 - pad_top};
-    };
-
-    // A pill floats above the shield and every widget, so one drawn over
-    // another tile would take the tap meant for it. With no safe spot
-    // outside, a pill goes on the tile's corner.
-    std::vector<lv_area_t> pill_blocked;
-    std::vector<lv_area_t> other_tiles;
-    {
-        const uint32_t n = lv_obj_get_child_count(container_);
-        for (uint32_t i = 0; i < n; ++i) {
-            lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
-            // Floating children are overlays and unnamed ones are merged card
-            // backgrounds; neither is a tile a tap selects.
-            const char* name = lv_obj_get_name(child);
-            if (child == widget || lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING) ||
-                lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) || !name || name[0] == '\0') {
-                continue;
-            }
-            lv_area_t a;
-            lv_obj_get_coords(child, &a);
-            other_tiles.push_back(a);
-        }
-    }
-    auto place_pill = [&](PillCorner corner, const char* what) {
-        std::optional<lv_area_t> a;
-        if (pills_outside) {
-            a = outside_pill_area(widget_area, BTN_SIZE, container_area, pill_gap, corner,
-                                  pill_blocked, other_tiles);
-            if (!a) {
-                spdlog::debug("[GridEditMode] No safe spot outside the tile for its {} pill; "
-                              "it goes on the tile's corner",
-                              what);
-            }
-        }
-        if (!a) {
-            a = corner_pill_area(widget_area, BTN_SIZE, kBtnOverhang, pill_gap, corner,
-                                 pill_blocked, other_tiles);
-        }
-        pill_blocked.push_back(*a);
-        return to_rel(*a);
-    };
-    const lv_point_t trash_pos = place_pill(PillCorner::TopRight, "trash");
-    pills_drawn_tick_ = lv_tick_get();
-    pills_shown_ = false;
-    pill_press_latched_ = false;
-    remove_btn_ = make_chrome_pill(trash_pos.x, trash_pos.y, ICON_TRASH);
-    // Named for remote control and tests; FLOATING keeps it out of every tile walk.
-    lv_obj_set_name(remove_btn_, "edit_trash_pill");
-    lv_obj_add_event_cb(
-        remove_btn_,
-        [](lv_event_t* ev) {
-            auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-            if (!self->pill_release_acts(ev)) {
-                return;
-            }
-            self->remove_selected_widget();
-        },
-        LV_EVENT_CLICKED, this);
-
-    // Configure button — upper-left corner, mirroring trash in upper-right.
-    // Only shown for widgets that advertise has_edit_configure().
-    {
-        auto* raw = lv_obj_get_user_data(widget);
-        auto* pw = raw ? static_cast<PanelWidget*>(raw) : nullptr;
-        if (pw && pw->has_edit_configure()) {
-            const lv_point_t configure_pos = place_pill(PillCorner::TopLeft, "configure");
-            configure_btn_ = make_chrome_pill(configure_pos.x, configure_pos.y, ICON_SETTINGS);
-            lv_obj_add_event_cb(
-                configure_btn_,
-                [](lv_event_t* ev) {
-                    auto* self = static_cast<GridEditMode*>(lv_event_get_user_data(ev));
-                    if (!self->pill_release_acts(ev)) {
-                        return;
-                    }
-                    self->configure_selected_widget();
-                },
-                LV_EVENT_CLICKED, this);
-        }
-    }
-}
-
-bool GridEditMode::pill_release_acts(lv_event_t* e) {
-    // A click with no press behind it (remote control) is timed at the click.
-    const uint32_t pressed_at = pill_press_latched_ ? pill_press_tick_ : lv_tick_get();
-    pill_press_latched_ = false;
-    // Signed: a press read before the pill's first frame stamped the clock
-    // is inside the lockout too.
-    const auto since_shown = static_cast<int32_t>(pressed_at - pills_drawn_tick_);
-    return released_over_target(e) && since_shown >= static_cast<int32_t>(kPillLockoutMs);
 }
 
 void GridEditMode::destroy_selection_chrome() {
-    if (!configure_btn_ && !remove_btn_ && !selection_overlay_) {
+    if (!selection_overlay_) {
         return;
     }
     // Reparent to lv_layer_top() + async delete.  This is called during
     // input event processing where synchronous lv_obj_delete corrupts
     // LVGL's child iteration.  Reparenting ensures lv_obj_clean(container_)
     // in a subsequent rebuild won't double-free these objects.
-    helix::ui::safe_delete_deferred(configure_btn_);
-    helix::ui::safe_delete_deferred(remove_btn_);
     helix::ui::safe_delete_deferred(selection_overlay_);
 }
 
@@ -1188,6 +929,8 @@ void GridEditMode::sync_config_from_screen() {
 }
 
 void GridEditMode::schedule_deferred_rebuild(std::function<void()> post_rebuild) {
+    // The rebuild replaces the tile the callout is anchored to.
+    close_tile_callout();
     if (!rebuild_cb_) {
         if (post_rebuild)
             post_rebuild();
@@ -1535,106 +1278,6 @@ int GridEditMode::inward_edge_reach(int band, int widget_px, int min_drag_px) {
     return std::clamp((widget_px - min_drag_px) / 2, 0, band);
 }
 
-bool GridEditMode::pills_go_outside(int widget_w, int widget_h, int pill_inside_px,
-                                    int min_drag_px) {
-    const int needed = pill_inside_px + min_drag_px;
-    return widget_w < needed || widget_h < needed;
-}
-
-std::optional<lv_area_t> GridEditMode::outside_pill_area(const lv_area_t& tile, int pill_px,
-                                                         const lv_area_t& bounds, int gap,
-                                                         PillCorner corner,
-                                                         const std::vector<lv_area_t>& blocked,
-                                                         const std::vector<lv_area_t>& tiles) {
-    const int32_t right_x = tile.x2 + 1 + gap;
-    const int32_t left_x = tile.x1 - gap - pill_px;
-    const int32_t above_y = tile.y1 - gap - pill_px;
-    const int32_t below_y = tile.y2 + 1 + gap;
-    const bool prefer_right = corner == PillCorner::TopRight;
-    const int32_t near_x = prefer_right ? right_x : left_x;
-    const int32_t far_x = prefer_right ? left_x : right_x;
-    // The second ring sits one pill further out, for when the first ring is
-    // off the container or taken.
-    const int32_t step = pill_px + gap;
-    const int32_t near_x2 = prefer_right ? right_x + step : left_x - step;
-    const int32_t far_x2 = prefer_right ? left_x - step : right_x + step;
-    const lv_point_t candidates[] = {{near_x, above_y}, {near_x, tile.y1},  {far_x, tile.y1},
-                                     {far_x, above_y},  {near_x2, above_y}, {near_x2, tile.y1},
-                                     {far_x2, tile.y1}, {far_x2, above_y},  {near_x, below_y},
-                                     {far_x, below_y},  {near_x2, below_y}, {far_x2, below_y}};
-
-    auto rect_at = [pill_px](lv_point_t p) {
-        return lv_area_t{p.x, p.y, p.x + pill_px - 1, p.y + pill_px - 1};
-    };
-    auto inside_bounds = [&bounds](const lv_area_t& a) {
-        return a.x1 >= bounds.x1 && a.y1 >= bounds.y1 && a.x2 <= bounds.x2 && a.y2 <= bounds.y2;
-    };
-    auto clear_of_blocked = [&](const lv_area_t& a) {
-        return std::all_of(blocked.begin(), blocked.end(),
-                           [&](const lv_area_t& b) { return areas_disjoint(a, b); });
-    };
-    auto clear_of_tiles = [&](const lv_area_t& a) {
-        return std::all_of(tiles.begin(), tiles.end(),
-                           [&](const lv_area_t& t) { return areas_disjoint(a, t); });
-    };
-    auto spares_tiles = [&](const lv_area_t& a) { return pill_spares_tiles(a, pill_px, tiles); };
-
-    for (const auto& p : candidates) {
-        const lv_area_t a = rect_at(p);
-        if (inside_bounds(a) && clear_of_blocked(a) && clear_of_tiles(a)) {
-            return a;
-        }
-    }
-    for (const auto& p : candidates) {
-        const lv_area_t a = rect_at(p);
-        if (inside_bounds(a) && clear_of_blocked(a) && spares_tiles(a)) {
-            return a;
-        }
-    }
-    return std::nullopt;
-}
-
-lv_area_t GridEditMode::corner_pill_area(const lv_area_t& tile, int pill_px, int overhang, int gap,
-                                         PillCorner corner, const std::vector<lv_area_t>& blocked,
-                                         const std::vector<lv_area_t>& tiles) {
-    const bool right = corner == PillCorner::TopRight;
-    const lv_point_t centre{(tile.x1 + tile.x2) / 2, (tile.y1 + tile.y2) / 2};
-    int32_t x1 = right ? tile.x2 + overhang - pill_px + 1 : tile.x1 - overhang;
-    int32_t y1 = tile.y1 - overhang;
-    // Out past the centre on both axes, away from the tile's middle.
-    x1 = right ? std::max(x1, centre.x + 1) : std::min(x1, centre.x - pill_px);
-    y1 = std::min(y1, centre.y - pill_px);
-    auto rect_at = [pill_px](int32_t x, int32_t y) {
-        return lv_area_t{x, y, x + pill_px - 1, y + pill_px - 1};
-    };
-    const lv_area_t home = rect_at(x1, y1);
-    auto usable = [&](const lv_area_t& a) {
-        return !covers_centre(a, tile) &&
-               std::all_of(blocked.begin(), blocked.end(),
-                           [&](const lv_area_t& b) { return areas_disjoint(a, b); });
-    };
-    if (usable(home)) {
-        return home;
-    }
-    std::vector<lv_area_t> slides;
-    for (const lv_area_t& b : blocked) {
-        if (!areas_disjoint(home, b)) {
-            slides.push_back(rect_at(x1, b.y2 + 1 + gap));
-        }
-    }
-    for (const lv_area_t& b : blocked) {
-        if (!areas_disjoint(home, b)) {
-            slides.push_back(rect_at(right ? b.x1 - gap - pill_px : b.x2 + 1 + gap, y1));
-        }
-    }
-    for (const lv_area_t& a : slides) {
-        if (usable(a) && pill_spares_tiles(a, pill_px, tiles)) {
-            return a;
-        }
-    }
-    return home;
-}
-
 bool GridEditMode::page_deletable() const {
     return config_ && !on_next_page_slot() &&
            static_cast<size_t>(page_index_) != config_->main_page_index() &&
@@ -1875,6 +1518,9 @@ void GridEditMode::handle_long_press(lv_event_t* e) {
         lv_indev_t* grab_indev = lv_indev_active();
         if (grab_indev) {
             lv_indev_get_point(grab_indev, &press_origin_);
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            gesture_on_selected_ = point_in_area(press_origin_, sel_area);
         }
         handle_drag_start(e);
     }
@@ -1883,6 +1529,11 @@ void GridEditMode::handle_long_press(lv_event_t* e) {
 
 void GridEditMode::handle_pressing(lv_event_t* e) {
     (void)e;
+    if (lv_indev_t* travel_indev = lv_indev_active()) {
+        lv_point_t at;
+        lv_indev_get_point(travel_indev, &at);
+        track_gesture_travel(at);
+    }
     if (!grid_input_acts() || gesture_inert_) {
         return;
     }
@@ -1934,6 +1585,13 @@ void GridEditMode::handle_pressing(lv_event_t* e) {
         }
         press_armed_ = true;
         press_origin_ = pt;
+        {
+            // The grab band reaches outside the tile; only a press inside it
+            // is a tap on the tile.
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            gesture_on_selected_ = point_in_area(pt, sel_area);
+        }
         notify_gesture_ownership();
         return;
     }
@@ -1957,15 +1615,118 @@ void GridEditMode::handle_released(lv_event_t* e) {
     if (!active_) {
         return;
     }
+    if (lv_indev_t* indev = lv_indev_active()) {
+        lv_point_t at;
+        lv_indev_get_point(indev, &at);
+        track_gesture_travel(at);
+    }
+    // Taken before the end handlers, which clear the gesture state.
+    CalloutReleaseFacts facts;
+    facts.press_on_selected = gesture_on_selected_ && selected_ != nullptr;
+    facts.resized = resizing_;
+    facts.max_travel_px = gesture_max_travel_px_;
+    facts.inert = gesture_inert_;
+    facts.input_acts = grid_input_acts();
+    last_drop_committed_ = false;
     if (resizing_) {
         handle_resize_end(e);
     } else if (dragging_) {
         handle_drag_end(e);
     }
+    facts.committed = last_drop_committed_;
     // After the end handler, which reads the drag or resize state it commits.
     // A release before the drag threshold was a tap and ends the same way.
     clear_gesture_state();
     notify_gesture_ownership();
+    if (release_opens_callout(facts)) {
+        open_tile_callout_next_tick();
+    }
+}
+
+bool GridEditMode::release_opens_callout(const CalloutReleaseFacts& f) {
+    return f.press_on_selected && !f.resized && !f.committed &&
+           f.max_travel_px <= kDragThresholdPx && !f.inert && f.input_acts;
+}
+
+void GridEditMode::track_gesture_travel(lv_point_t pt) {
+    if (!gesture_start_known_) {
+        return;
+    }
+    const int dx = pt.x - gesture_start_.x;
+    const int dy = pt.y - gesture_start_.y;
+    const int travel =
+        static_cast<int>(std::lround(std::sqrt(static_cast<double>(dx * dx + dy * dy))));
+    gesture_max_travel_px_ = std::max(gesture_max_travel_px_, travel);
+}
+
+bool GridEditMode::is_callout_open() const {
+    return callout_ && callout_->is_visible();
+}
+
+void GridEditMode::open_tile_callout() {
+    if (!grid_input_acts() || !selected_ || !container_) {
+        return;
+    }
+    lv_obj_t* screen = lv_obj_get_screen(container_);
+    if (!screen) {
+        return;
+    }
+    const std::string id = selected_widget_id();
+    auto* pw = static_cast<PanelWidget*>(lv_obj_get_user_data(selected_));
+    const PanelWidgetDef* def = id.empty() ? nullptr : find_widget_def(id);
+    const std::string title = def && def->display_name ? lv_tr(def->display_name) : id;
+    if (!callout_) {
+        callout_ = std::make_unique<helix::ui::TileEditCallout>();
+    }
+    callout_widget_id_ = id;
+    spdlog::debug("[GridEditMode] Opening the tile callout for '{}'", id);
+    callout_->show_for(screen, selected_, title,
+                       helix::ui::tile_callout_rows(pw && pw->has_edit_configure()),
+                       [this, token = lifetime_.token()](helix::ui::TileCalloutAction action) {
+                           if (token.expired()) {
+                               return;
+                           }
+                           on_callout_action(action);
+                       });
+}
+
+void GridEditMode::close_tile_callout() {
+    if (callout_) {
+        callout_->hide();
+    }
+}
+
+void GridEditMode::open_tile_callout_next_tick() {
+    const std::string id = selected_widget_id();
+    if (id.empty()) {
+        return;
+    }
+    // After the release has settled the selection: a held widget is back in
+    // its cell by then.
+    // A press since the release cancels it: that gesture decides anew.
+    const uint32_t gesture = gesture_serial_;
+    helix::ui::run_next_tick(lifetime_.token(), [this, id, gesture]() {
+        if (!active_ || !selected_ || gesture != gesture_serial_ || selected_widget_id() != id) {
+            return;
+        }
+        open_tile_callout();
+    });
+}
+
+void GridEditMode::on_callout_action(helix::ui::TileCalloutAction action) {
+    if (!active_ || !selected_ || selected_widget_id() != callout_widget_id_) {
+        spdlog::debug("[GridEditMode] Callout action for '{}' ignored: no longer the selection",
+                      callout_widget_id_);
+        return;
+    }
+    switch (action) {
+    case helix::ui::TileCalloutAction::Configure:
+        configure_selected_widget();
+        break;
+    case helix::ui::TileCalloutAction::Remove:
+        remove_selected_widget();
+        break;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2009,6 +1770,11 @@ void GridEditMode::begin_press() {
         end_gesture_uncommitted();
     }
     clear_gesture_state();
+    ++gesture_serial_;
+    if (lv_indev_t* indev = lv_indev_active()) {
+        lv_indev_get_point(indev, &gesture_start_);
+        gesture_start_known_ = true;
+    }
     // A resize still easing into its cell owes the relayout that gives the
     // widget its new span, and when the relayout falls back to a full rebuild
     // that replaces the objects this press lands on, its target among them.
@@ -2392,6 +2158,7 @@ void GridEditMode::handle_drag_end(lv_event_t* /*e*/) {
     const int origin_page = drag_orig_page_;
     const int pages_before = static_cast<int>(config_->page_count());
     const int landed_page = commit_drop(moved_id, drop);
+    last_drop_committed_ = landed_page >= 0;
     spdlog::debug("[GridEditMode] Drag end: outcome {} at ({},{}), landed on page {}",
                   static_cast<int>(drop.outcome), drop.col, drop.row, landed_page);
 
@@ -2939,6 +2706,10 @@ void GridEditMode::clear_gesture_state() {
     gesture_press_seen_ = false;
     gesture_can_arm_ = false;
     gesture_inert_ = false;
+    gesture_entered_ = false;
+    gesture_on_selected_ = false;
+    gesture_start_known_ = false;
+    gesture_max_travel_px_ = 0;
     // A stale zone would make the next drag's zone entry look like a
     // continuation, and a gesture that ended past the border must not leave
     // the next one unable to cross.
@@ -2963,8 +2734,6 @@ void GridEditMode::forget_container_children() {
     }
     selected_ = nullptr;
     selection_overlay_ = nullptr;
-    remove_btn_ = nullptr;
-    configure_btn_ = nullptr;
     shield_ = nullptr;
     lattice_spec_ = nullptr;
     // The previews live on the top layer, so the page going away does not
@@ -3177,6 +2946,23 @@ void GridEditMode::handle_press_cancelled(lv_event_t* e) {
     // (lib/lvgl/src/indev/lv_indev.c#indev_reset_core).
     // PRESS_LOST: the release that follows lv_indev_wait_release sends this in
     // place of RELEASED (lib/lvgl/src/indev/lv_indev.c#indev_proc_release).
+    if (active_ && gesture_entered_ && lv_event_get_code(e) == LV_EVENT_PRESS_LOST) {
+        // The hold that entered edit mode ended its press, so its release
+        // arrives as this. Released where it held, on the tile it selected, it
+        // opens that tile's callout like any hold released in place.
+        if (lv_indev_t* indev = lv_indev_active()) {
+            lv_point_t at;
+            lv_indev_get_point(indev, &at);
+            track_gesture_travel(at);
+        }
+        const bool opens =
+            selected_ != nullptr && gesture_max_travel_px_ <= kDragThresholdPx && grid_input_acts();
+        clear_gesture_state();
+        if (opens) {
+            open_tile_callout_next_tick();
+        }
+        return;
+    }
     if (!active_ || !owns_gesture()) {
         return;
     }
@@ -3333,6 +3119,7 @@ void GridEditMode::open_widget_catalog(lv_obj_t* screen) {
     spdlog::info("[GridEditMode] Opening widget catalog (origin cell: {}, {})", catalog_origin_col_,
                  catalog_origin_row_);
 
+    close_tile_callout();
     // The catalog places, resets and copies layouts: an Undo over it would
     // restore into a layout it has since changed.
     withdraw_undo();

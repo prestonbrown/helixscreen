@@ -140,3 +140,87 @@ TEST_CASE("compute_card_pos: an oversized click-anchored card clamps the same wa
     CHECK(pos.x == kMargin);
     CHECK(pos.y == kMargin);
 }
+
+// ============================================================================
+// AroundAnchor
+// ============================================================================
+
+namespace {
+
+using AnchorSide = ContextMenu::AnchorSide;
+
+struct Placed {
+    lv_point_t pos;
+    AnchorSide side;
+};
+
+Placed around(lv_point_t card, lv_area_t anchor, lv_point_t bounds, int32_t margin, int32_t gap) {
+    AnchorSide side = AnchorSide::Over;
+    const lv_point_t pos = ContextMenu::compute_card_pos(
+        card, anchor, bounds, margin, gap, AnchorMode::AroundAnchor, AnchorAlign::Center, &side);
+    return {pos, side};
+}
+
+/// A tile at (x, y), w by h, as inclusive LVGL coordinates.
+lv_area_t tile(int32_t x, int32_t y, int32_t w, int32_t h) {
+    return {x, y, x + w - 1, y + h - 1};
+}
+
+// The home grid's breakpoints: Medium 800x480 (card 180x138, margin 10, gap
+// 5) and Micro 480x272 (card 120x84, margin 6, gap 2).
+constexpr lv_point_t kMedium{800, 480};
+constexpr lv_point_t kMediumCard{180, 138};
+constexpr lv_point_t kMicro{480, 272};
+constexpr lv_point_t kMicroCard{120, 84};
+
+} // namespace
+
+TEST_CASE("compute_card_pos: an around-anchored card goes below its tile when it fits",
+          "[context-menu][position]") {
+    const Placed p = around(kMediumCard, tile(560, 7, 114, 113), kMedium, 10, 5);
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.pos.x == 527);
+    CHECK(p.pos.y == 125);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card goes above when below overflows",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(46, 136, 286, 132), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Above);
+    CHECK(p.pos.x == 129);
+    CHECK(p.pos.y == 50);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card goes right, then left, top-aligned",
+          "[context-menu][position]") {
+    // A tall tile at the right edge: no room below, above or right.
+    const Placed left = around(kMediumCard, tile(560, 125, 233, 348), kMedium, 10, 5);
+    CHECK(left.side == AnchorSide::Left);
+    CHECK(left.pos.x == 375);
+    CHECK(left.pos.y == 125);
+    // The same tile mirrored to the left edge: right comes first.
+    const Placed right = around(kMediumCard, tile(7, 125, 233, 348), kMedium, 10, 5);
+    CHECK(right.side == AnchorSide::Right);
+    CHECK(right.pos.x == 245);
+    CHECK(right.pos.y == 125);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card with no side to go to sits over the tile",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(0, 0, 480, 272), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Over);
+    CHECK(p.pos.x == 240 - 60);
+    CHECK(p.pos.y == 136 - 42);
+    CHECK(p.pos.x >= 6);
+    CHECK(p.pos.y >= 6);
+    CHECK(p.pos.x + kMicroCard.x <= 480 - 6);
+    CHECK(p.pos.y + kMicroCard.y <= 272 - 6);
+}
+
+TEST_CASE("compute_card_pos: a corner tile's around-anchored card clamps along its side",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(406, 4, 70, 64), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.pos.x == 354);
+    CHECK(p.pos.y == 70);
+}

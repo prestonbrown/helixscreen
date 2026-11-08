@@ -517,6 +517,12 @@ helix-screen ctl long_press 90 145      # centre of that rect
 # 2. Open the widget catalog - click the nav bar's "+", NOT a second long press
 helix-screen ctl click nav_btn_edit_add
 helix-screen ctl ls
+
+# A tile's actions: tap the tile to select it, tap it again to open its callout,
+# then click a row (tile_callout_configure, tile_callout_remove)
+helix-screen ctl click 90 145
+helix-screen ctl click 90 145
+helix-screen ctl click tile_callout_remove
 ```
 
 The grid handlers are registered on `carousel_host`, the grid's own container
