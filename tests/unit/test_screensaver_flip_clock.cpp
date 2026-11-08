@@ -856,6 +856,13 @@ TEST_CASE("small cards flip only where their character changes",
     sim.init(frame.target, 0, state.face());
     REQUIRE(sim.layout().sub_count == 7);
 
+    // The percent stands apart from the time: a wider gap than the one the colon sits in.
+    const FlipLayout& row = sim.layout();
+    const size_t sub0 = row.card_count;
+    const int32_t colon_gap = row.cards[sub0 + 2].x1 - row.cards[sub0 + 1].x2;
+    const int32_t apart_gap = row.cards[sub0 + 4].x1 - row.cards[sub0 + 3].x2;
+    CHECK(apart_gap > colon_gap * 3 / 2);
+
     // Hold the countdown still so only the percent changes.
     in.print.progress_pct = 64;
     std::vector<DirtyRect> dirty;
