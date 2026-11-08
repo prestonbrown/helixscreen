@@ -1096,8 +1096,6 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
                  "[application][print_start]") {
     auto& ps = get_printer_state();
     lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "");
-    // Armed directly: an earlier fixture's print-state observer is released,
-    // not removed, at shutdown and would complete this collector on the edge.
     auto collector = mgr.print_start_collector();
     collector->start();
     collector->enable_fallbacks();
