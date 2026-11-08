@@ -167,6 +167,17 @@ std::optional<helix::JogButton> helix::parse_jog_button(const char* name) {
     return button;
 }
 
+const char* helix::z_direction_tag(int screen_sign, bool bed_moves) {
+    return z_gcode_sign(screen_sign, bed_moves) > 0 ? "Z+" : "Z\u2013";
+}
+
+std::string helix::z_key_label(const char* distance_label, int screen_sign, bool bed_moves) {
+    std::string label = distance_label ? distance_label : "";
+    label += "mm \u00b7 ";
+    label += z_direction_tag(screen_sign, bed_moves);
+    return label;
+}
+
 helix::JogLayoutFit helix::jog_layout_fit(MotionLayout layout, bool portrait, int box_w, int box_h,
                                           int gap, int step_h, int step_count, int min_key) {
     JogLayoutFit fit;
@@ -297,6 +308,8 @@ MotionPanel::MotionPanel()
     std::strcpy(z_down_icon_buf_, "arrow_down");
     std::strcpy(jog_outer_label_buf_, "10mm");
     std::strcpy(jog_inner_label_buf_, "1mm");
+    std::memset(z_key_label_buf_, 0, sizeof(z_key_label_buf_));
+    std::memset(z_tag_buf_, 0, sizeof(z_tag_buf_));
     std::memset(step_label_buf_, 0, sizeof(step_label_buf_));
 
     // Load persisted jog mode (default: coarse)
@@ -360,6 +373,18 @@ void MotionPanel::init_subjects() {
                               "motion_jog_outer_label", subjects_);
     UI_MANAGED_SUBJECT_STRING(jog_inner_label_subject_, jog_inner_label_buf_, jog_inner_label_buf_,
                               "motion_jog_inner_label", subjects_);
+    // [up, down][inner, outer], matching z_key_label_subject_.
+    static const char* const kZKeyLabelNames[2][2] = {
+        {"motion_z_up_inner_label", "motion_z_up_outer_label"},
+        {"motion_z_down_inner_label", "motion_z_down_outer_label"}};
+    for (int dir = 0; dir < 2; ++dir) {
+        for (int ring = 0; ring < 2; ++ring) {
+            UI_MANAGED_SUBJECT_STRING(z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring],
+                                      "", kZKeyLabelNames[dir][ring], subjects_);
+        }
+    }
+    UI_MANAGED_SUBJECT_STRING(z_tag_subject_[0], z_tag_buf_[0], "", "motion_z_up_tag", subjects_);
+    UI_MANAGED_SUBJECT_STRING(z_tag_subject_[1], z_tag_buf_[1], "", "motion_z_down_tag", subjects_);
 
     // Arrow layouts' step selector: one label and one active flag per slot;
     // the count drives how many slots the XML repeat builds.
@@ -414,6 +439,7 @@ void MotionPanel::init_subjects() {
     register_position_observers();
 
     subjects_initialized_ = true;
+    refresh_z_key_labels();
 
     refresh_step_list();
 
@@ -1045,7 +1071,7 @@ void MotionPanel::update_z_button_blocked() {
     const double z = current_z_;
     // The G-code direction the on-screen up buttons drive, after the bed_moves
     // inversion: screen-up is +Z unless the bed moves.
-    const double up_dir = bed_moves_ ? -1.0 : 1.0;
+    const double up_dir = helix::z_gcode_sign(1, bed_moves_);
     lv_subject_set_int(
         &motion_z_up_blocked_,
         z_direction_blocked(z_homed, bounds.has_z, z, bounds.z_min, bounds.z_max, up_dir) ? 1 : 0);
@@ -1074,8 +1100,10 @@ void MotionPanel::update_z_axis_label(bool bed_moves) {
     z_down_icon_buf_[sizeof(z_down_icon_buf_) - 1] = '\0';
     lv_subject_copy_string(&z_down_icon_subject_, z_down_icon_buf_);
 
-    // The inversion flips which bound each on-screen direction drives toward.
+    // The inversion flips which bound each on-screen direction drives toward,
+    // and which way each key's Z+/Z- tag reads.
     update_z_button_blocked();
+    refresh_z_key_labels();
 
     spdlog::debug("[{}] Z-axis updated: label={}, icons={}/{} (bed_moves={})", get_name(), label,
                   up_icon, down_icon, bed_moves);
@@ -1128,10 +1156,7 @@ bool MotionPanel::handle_jog_button(const char* name, bool is_repeat) {
     // For bed-moves printers (CoreXY etc), invert direction so arrows match physical motion:
     // - Up arrow = bed moves UP toward nozzle = G-code Z- (bed rises, gap decreases)
     // - Down arrow = bed moves DOWN away from nozzle = G-code Z+ (bed lowers, gap increases)
-    if (bed_moves_) {
-        distance = -distance;
-        spdlog::debug("[{}] Bed-moves printer: inverted Z direction for bed movement", get_name());
-    }
+    distance = std::abs(distance) * helix::z_gcode_sign(button->sign, bed_moves_);
 
     // Bounds are in gcode space, so this must follow the inversion above.
     const auto bounds = helix::move_clamp_bounds(get_printer_state());
@@ -1860,6 +1885,28 @@ void MotionPanel::update_jog_distance_labels() {
 
     snprintf(jog_inner_label_buf_, sizeof(jog_inner_label_buf_), "%smm", mode_dist.inner_label);
     lv_subject_copy_string(&jog_inner_label_subject_, jog_inner_label_buf_);
+    refresh_z_key_labels();
+}
+
+void MotionPanel::refresh_z_key_labels() {
+    if (!subjects_initialized_)
+        return;
+
+    const auto& mode_dist = get_jog_mode_distances(current_mode_);
+    const char* const ring_label[2] = {mode_dist.inner_label, mode_dist.outer_label};
+    const int screen_sign[2] = {1, -1};
+    for (int dir = 0; dir < 2; ++dir) {
+        std::snprintf(z_tag_buf_[dir], sizeof(z_tag_buf_[dir]), "%s",
+                      helix::z_direction_tag(screen_sign[dir], bed_moves_));
+        lv_subject_copy_string(&z_tag_subject_[dir], z_tag_buf_[dir]);
+        for (int ring = 0; ring < 2; ++ring) {
+            const std::string label =
+                helix::z_key_label(ring_label[ring], screen_sign[dir], bed_moves_);
+            std::snprintf(z_key_label_buf_[dir][ring], sizeof(z_key_label_buf_[dir][ring]), "%s",
+                          label.c_str());
+            lv_subject_copy_string(&z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring]);
+        }
+    }
 }
 
 // ============================================================================

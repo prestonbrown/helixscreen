@@ -14,6 +14,7 @@
  * distance as a step (prestonbrown/helixscreen#865).
  */
 
+#include "ui_button.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
 #include "ui_settings_motion.h"
@@ -30,9 +31,11 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -137,6 +140,22 @@ TEST_CASE_METHOD(HelixTestFixture, "motion layout setting defaults to the pad an
 }
 
 // ============================================================================
+TEST_CASE("Z keys: the direction tag follows the G-code direction", "[motion-layout]") {
+    // Screen up drives +Z unless the bed moves, when it raises the bed (-Z).
+    CHECK(helix::z_gcode_sign(1, false) == 1);
+    CHECK(helix::z_gcode_sign(-1, false) == -1);
+    CHECK(helix::z_gcode_sign(1, true) == -1);
+    CHECK(helix::z_gcode_sign(-1, true) == 1);
+
+    CHECK(std::string(helix::z_direction_tag(1, false)) == "Z+");
+    CHECK(std::string(helix::z_direction_tag(-1, false)) == "Z–");
+    CHECK(std::string(helix::z_direction_tag(1, true)) == "Z–");
+    CHECK(std::string(helix::z_direction_tag(-1, true)) == "Z+");
+
+    CHECK(helix::z_key_label("10", 1, false) == "10mm · Z+");
+    CHECK(helix::z_key_label("0.1", 1, true) == "0.1mm · Z–");
+}
+
 // Panel
 // ============================================================================
 
@@ -358,6 +377,63 @@ TEST_CASE_METHOD(LayoutFixture, "motion layout: Z arrows follow the bed_moves in
     CHECK(motion().moves[0].dz == Catch::Approx(1.0));
     // Up on a bed-moves printer raises the bed: G-code Z goes down.
     CHECK(motion().moves[1].dz == Catch::Approx(-1.0));
+}
+
+TEST_CASE_METHOD(LayoutFixture, "motion layout: each Z key's tag matches the move it sends",
+                 "[motion-layout][xml]") {
+    const auto layout = GENERATE(MotionLayout::Pad, MotionLayout::AxisRows, MotionLayout::Arrows,
+                                 MotionLayout::ArrowsHome);
+    const int bed_moves = GENERATE(0, 1);
+    CAPTURE(static_cast<int>(layout), bed_moves);
+    show_with(layout);
+    get_global_motion_panel().set_jog_mode(helix::JogMode::Coarse);
+    lv_subject_set_int(
+        get_printer_state().capabilities_state().subject(helix::Capability::BedMoves), bed_moves);
+    drain();
+
+    // Keys with a ring distance label it before the tag; the arrow layouts'
+    // keys move the selected step and carry the tag alone.
+    std::vector<std::pair<const char*, const char*>> keys; // name, distance prefix
+    switch (layout) {
+    case MotionLayout::Pad:
+        keys = {{"z_up_large", "10mm"},
+                {"z_up_small", "1mm"},
+                {"z_down_small", "1mm"},
+                {"z_down_large", "10mm"}};
+        break;
+    case MotionLayout::AxisRows:
+        keys = {{"rows_z_up_large", "10mm"},
+                {"rows_z_up_small", "1mm"},
+                {"rows_z_down_small", "1mm"},
+                {"rows_z_down_large", "10mm"}};
+        break;
+    case MotionLayout::Arrows:
+        keys = {{"arrows_z_up", ""}, {"arrows_z_down", ""}};
+        break;
+    case MotionLayout::ArrowsHome:
+        keys = {{"cross_z_up", ""}, {"cross_z_down", ""}};
+        break;
+    }
+    for (const auto& [key, distance] : keys) {
+        CAPTURE(key);
+        lv_obj_t* label = ui_button_get_label(find(key));
+        REQUIRE(label != nullptr);
+        const std::string text = lv_label_get_text(label);
+        CAPTURE(text);
+        if (distance[0] != '\0') {
+            CHECK(text.rfind(std::string(distance) + " · Z", 0) == 0);
+        } else {
+            CHECK((text == "Z+" || text == "Z–"));
+        }
+        const bool tag_plus = text.size() >= 2 && text.compare(text.size() - 2, 2, "Z+") == 0;
+
+        const size_t before = motion().moves.size();
+        click(key);
+        REQUIRE(motion().moves.size() == before + 1);
+        const double dz = motion().moves.back().dz;
+        CHECK(dz != 0.0);
+        CHECK((dz > 0) == tag_plus);
+    }
 }
 
 TEST_CASE_METHOD(LayoutFixture, "motion layout: axis rows move the jog mode's distances",
