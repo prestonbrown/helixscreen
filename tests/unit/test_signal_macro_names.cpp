@@ -6,7 +6,9 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/scoped_env.h"
 #include "core/update_queue.h"
+#include "helix_plugin_features.h"
 #include "macro_manager.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -455,4 +457,30 @@ TEST_CASE("discovery records which signal names the config calls", "[signal_macr
     REQUIRE(scan.has_value());
     const SignalCaller expected{"gcode_macro my_start", "gcode", "HELIX_READY"};
     CHECK(std::find(scan->callers.begin(), scan->callers.end(), expected) != scan->callers.end());
+}
+
+TEST_CASE("the mock plugin reports the signal macro migration and its report", "[signal_macros]") {
+    helix::ScopedEnv plugin{"HELIX_MOCK_HELIX_PLUGIN", "1"};
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    json status;
+    json report;
+    client.send_jsonrpc(
+        "server.helix.status", json::object(),
+        [&](const json& r) { status = r.value("result", json()); }, [](const MoonrakerError&) {});
+    client.send_jsonrpc(
+        "server.helix.signal_migration", json::object(),
+        [&](const json& r) { report = r.value("result", json()); }, [](const MoonrakerError&) {});
+
+    const json& entry = status.at("features").at("signal_macro_migration");
+    CHECK(entry.at("available") == true);
+    CHECK(entry.at("enabled") == true);
+    CHECK(report.at("state") == "nothing");
+
+    // The overview names it rather than showing its key.
+    helix::PluginFeatureEntry parsed;
+    parsed.version = 1;
+    parsed.available = true;
+    const auto lines = helix::plugin_feature_lines({{"signal_macro_migration", parsed}});
+    REQUIRE(lines.size() == 1);
+    CHECK(lines[0].label != lines[0].name);
 }

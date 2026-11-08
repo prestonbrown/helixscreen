@@ -194,6 +194,8 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
      kIfsAbsentReasons},
     {"vendor_ace", TR_NOOP("ACE updates without polling"), "sync", PluginFeatureHome::None,
      kAceAbsentReasons},
+    {"signal_macro_migration", TR_NOOP("Signal macro renaming"), "eye_off",
+     PluginFeatureHome::None},
 };
 
 /// What a reason code the plugin reports means, for the overview. Text is

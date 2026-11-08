@@ -1271,8 +1271,9 @@ strip's (`safe_replace_file`). The report is stored in the `helix_print` namespa
 be renamed there is open in #2006.
 
 **Endpoint.** `server.helix.signal_migration`: README § Signal Macro Migration has the shape.
-The Lua allowlist entry, the mock and the app's use of the report are phase 4 of
-`docs/devel/plans/2026-11-07-hidden-signal-macro-migration.md`.
+It is on the Lua read-only allowlist. The app names the feature in the overview
+(`kKnownPluginFeatures`, `PluginFeatureHome::None`: it has no switch on the screen); the mock
+reports it ready and answers `state: "nothing"`.
 
 **Testing.** `pytest moonraker-plugin/tests/test_strip_phase_tracking.py
 moonraker-plugin/tests/test_helix_signal_migration.py`.
