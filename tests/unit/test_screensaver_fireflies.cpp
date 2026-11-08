@@ -20,26 +20,10 @@
 #include <random>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-namespace helix::ui {
-
-/// Frees the buffers a print's gather writes.
-class FirefliesSimTestAccess {
-  public:
-    /// The bytes freed.
-    static size_t release_gather_buffers(FirefliesSim& sim) {
-        const size_t bytes = sim.fly_target_.capacity() * sizeof(SaverVec3) +
-                             sim.text_cells_.capacity() * sizeof(uint16_t);
-        std::vector<SaverVec3>().swap(sim.fly_target_);
-        std::vector<uint16_t>().swap(sim.text_cells_);
-        return bytes;
-    }
-};
-
-} // namespace helix::ui
 
 using helix::test::diff_against;
 using helix::test::FrameDiff;
@@ -54,7 +38,6 @@ using helix::ui::ClockReading;
 using helix::ui::DirtyRect;
 using helix::ui::FirefliesScreensaver;
 using helix::ui::FirefliesSim;
-using helix::ui::FirefliesSimTestAccess;
 using helix::ui::FrameTarget;
 using helix::ui::kFirefliesLevelCount;
 using helix::ui::kFirefliesLevels;
@@ -167,10 +150,27 @@ TEST_CASE("a fireflies population has 2 to 5 baits and 100 to 175 flies, each ch
 TEST_CASE("a cleared fireflies sim holds nothing", "[screensaver][fireflies_sim]") {
     Swarm s(3);
     CHECK(s.sim.heap_bytes() > 0);
-    const size_t held = s.sim.heap_bytes();
-    const size_t gather = FirefliesSimTestAccess::release_gather_buffers(s.sim);
-    REQUIRE(gather > 0);
-    CHECK(s.sim.heap_bytes() == held - gather);
+    // Two swarms of different sizes give the bytes each fly costs, its gather place included;
+    // what no fly accounts for holds the baits, the tiles and a glyph grid per text character.
+    uint32_t seed = 4;
+    while (Swarm(seed).sim.flies().size() == s.sim.flies().size()) {
+        seed++;
+    }
+    Swarm other(seed);
+    const auto fly_count = static_cast<int64_t>(s.sim.flies().size());
+    const auto per_fly =
+        (static_cast<int64_t>(s.sim.heap_bytes()) - static_cast<int64_t>(other.sim.heap_bytes())) /
+        (fly_count - static_cast<int64_t>(other.sim.flies().size()));
+    using Fly = std::decay_t<decltype(s.sim.flies()[0])>;
+    CHECK(per_fly == static_cast<int64_t>(sizeof(Fly) + sizeof(SaverVec3) +
+                                          helix::ui::kFirefliesTailPoints * 3 * sizeof(int16_t)));
+    const int64_t tile = helix::ui::kFirefliesTilePx;
+    const int64_t tiles = (kMotionW + tile - 1) / tile * ((kMotionH + tile - 1) / tile);
+    using Bait = std::decay_t<decltype(s.sim.baits()[0])>;
+    const int64_t unaccounted = static_cast<int64_t>(s.sim.heap_bytes()) - fly_count * per_fly -
+                                static_cast<int64_t>(kFirefliesMaxBaits * sizeof(Bait)) - 2 * tiles;
+    CHECK(unaccounted >=
+          static_cast<int64_t>(helix::ui::kFirefliesTextMaxChars * 16 * 16 * sizeof(uint16_t)));
     CHECK(s.sim.baits().size() == kFirefliesMaxBaits);
     s.sim.clear();
     CHECK(s.sim.heap_bytes() == 0);
