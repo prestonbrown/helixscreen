@@ -645,6 +645,7 @@ translations:
   Cannot park while a print is active: Cannot park while a print is active
   Cannot perform this action now: Cannot perform this action now
   'Cannot reprint: not connected to printer': 'Cannot reprint: not connected to printer'
+  Cannot restart Moonraker while printing: Cannot restart Moonraker while printing
   Cannot restart — no filename: Cannot restart — no filename
   Cannot run filament operation while printing: Cannot run filament operation while printing
   'Cannot schedule a pause: printer not connected': 'Cannot schedule a pause: printer not connected'
@@ -3332,6 +3333,7 @@ translations:
   Restart Klipper?: Restart Klipper?
   Restart Moonraker: Restart Moonraker
   Restart Moonraker to finish the plugin change: Restart Moonraker to finish the plugin change
+  Restart Moonraker?: Restart Moonraker?
   Restart Now: Restart Now
   Restart Required: Restart Required
   'Restart failed: not connected': 'Restart failed: not connected'
@@ -4175,6 +4177,7 @@ translations:
   The runout sensor indicates no filament is loaded. Start print anyway?: The runout
     sensor indicates no filament is loaded. Start print anyway?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: The saved position is kept. Reconnect or restart the screen to be offered the resume again.
+  The screen will lose its connection to the printer for a few seconds.: The screen will lose its connection to the printer for a few seconds.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service
   The speed of one fan you choose: The speed of one fan you choose
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.

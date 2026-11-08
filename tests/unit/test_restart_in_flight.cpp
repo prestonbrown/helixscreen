@@ -11,7 +11,11 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/emergency_stop_test_access.h"
+#include "../test_helpers/modal_answer.h"
+#include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_error.h"
@@ -28,6 +32,14 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
+void tap_restart_moonraker() {
+    EmergencyStopOverlayTestAccess::advanced_restart_moonraker_clicked();
+}
+
+void restart_klipper(EmergencyStopOverlay& estop) {
+    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+}
+
 /// Counts the restart RPCs instead of sending them. The firmware restart fails
 /// over to a services restart that succeeds, so PrinterRecoveryService's chain
 /// ends and the next test can start a recovery of its own.
@@ -37,6 +49,8 @@ class CountingRestartApi : public MoonrakerAPIMock {
 
     int klipper_restarts = 0;
     int firmware_restarts = 0;
+    int moonraker_restarts = 0;
+    bool connected = true;
     /// When set, every restart the API is asked for fails with this error.
     std::optional<MoonrakerError> fail_with;
 
@@ -47,6 +61,17 @@ class CountingRestartApi : public MoonrakerAPIMock {
             return;
         }
         on_success();
+    }
+    void restart_moonraker(SuccessCallback on_success, ErrorCallback on_error) override {
+        ++moonraker_restarts;
+        if (fail_with) {
+            on_error(*fail_with);
+            return;
+        }
+        on_success();
+    }
+    [[nodiscard]] bool is_connected() const override {
+        return connected;
     }
     void restart_firmware(SuccessCallback /*on_success*/, ErrorCallback on_error) override {
         ++firmware_restarts;
@@ -78,6 +103,7 @@ class RestartInFlightFixture : public XMLTestFixture {
         estop.init(state(), &counting_api);
         estop.init_subjects();
         estop.create(); // subscribes the klippy_state observer
+        set_moonraker_api(&counting_api);
 
         // Burn the observer's initial-fire guard on a suppressed SHUTDOWN, so
         // the READY below is a real transition and no recovery dialog exists.
@@ -93,6 +119,7 @@ class RestartInFlightFixture : public XMLTestFixture {
 
     ~RestartInFlightFixture() override {
         helix::ui::set_test_toast_hook(nullptr);
+        set_moonraker_api(nullptr);
         auto& estop = EmergencyStopOverlay::instance();
         EmergencyStopOverlayTestAccess::reset_suppression(estop);
         EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, false);
@@ -126,7 +153,7 @@ TEST_CASE_METHOD(RestartInFlightFixture, "A restart in flight refuses a second r
     REQUIRE(counting_api.firmware_restarts == 1);
 
     SECTION("Restart Klipper while a firmware restart is in flight") {
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
+        restart_klipper(estop);
         settle();
         CHECK(counting_api.klipper_restarts == 0);
     }
@@ -142,14 +169,14 @@ TEST_CASE_METHOD(RestartInFlightFixture, "A restart is accepted again once klipp
                  "[recovery][restart_in_flight]") {
     auto& estop = EmergencyStopOverlay::instance();
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     REQUIRE(counting_api.klipper_restarts == 1);
 
     state().set_klippy_state_sync(KlippyState::READY);
     settle();
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     CHECK(counting_api.klipper_restarts == 2);
     CHECK_FALSE(toasted("A restart is already in progress"));
@@ -159,13 +186,13 @@ TEST_CASE_METHOD(RestartInFlightFixture, "A restart that never reports READY sto
                  "[recovery][restart_in_flight]") {
     auto& estop = EmergencyStopOverlay::instance();
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     REQUIRE(counting_api.klipper_restarts == 1);
 
     lv_tick_inc(recovery_suppression::kRestartFlagTimeout + 1000);
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     CHECK(counting_api.klipper_restarts == 2);
 }
@@ -177,9 +204,9 @@ TEST_CASE_METHOD(RestartInFlightFixture, "A restart that failed to send refuses 
     counting_api.fail_with = MoonrakerError::json_rpc_error("printer.restart", "refused");
 
     SECTION("Restart Klipper") {
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
+        restart_klipper(estop);
         settle();
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
+        restart_klipper(estop);
         settle();
         CHECK(counting_api.klipper_restarts == 2);
     }
@@ -200,7 +227,7 @@ TEST_CASE_METHOD(RestartInFlightFixture,
     state().set_klippy_state_sync(KlippyState::READY);
     settle();
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     REQUIRE(counting_api.klipper_restarts == 1);
 
@@ -231,9 +258,9 @@ TEST_CASE_METHOD(RestartInFlightFixture,
     counting_api.fail_with = MoonrakerError::connection_lost("printer.restart");
 
     SECTION("Restart Klipper") {
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
+        restart_klipper(estop);
         settle();
-        EmergencyStopOverlayTestAccess::restart_klipper(estop);
+        restart_klipper(estop);
         settle();
         CHECK(counting_api.klipper_restarts == 1);
     }
@@ -255,13 +282,13 @@ TEST_CASE_METHOD(RestartInFlightFixture,
     settle();
 
     // The first restart starts up, then runs out its backstop with no READY.
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     state().set_klippy_state_sync(KlippyState::STARTUP);
     settle();
     lv_tick_inc(recovery_suppression::kRestartFlagTimeout + 1000);
 
-    EmergencyStopOverlayTestAccess::restart_klipper(estop);
+    restart_klipper(estop);
     settle();
     REQUIRE(counting_api.klipper_restarts == 2);
 
@@ -271,4 +298,105 @@ TEST_CASE_METHOD(RestartInFlightFixture,
     EmergencyStopOverlayTestAccess::firmware_restart(estop);
     settle();
     CHECK(counting_api.firmware_restarts == 0);
+}
+
+TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker asks first and then sends the restart",
+                 "[recovery][restart_moonraker]") {
+    REQUIRE(lv_xml_get_event_cb(nullptr, "advanced_restart_moonraker_clicked") != nullptr);
+
+    tap_restart_moonraker();
+    settle();
+    CHECK(counting_api.moonraker_restarts == 0);
+    REQUIRE(helix::test::top_modal_text().find("Restart Moonraker?") != std::string::npos);
+
+    SECTION("Confirm sends exactly one restart and no other") {
+        helix::test::answer_top_modal("btn_primary");
+        settle();
+        CHECK(counting_api.moonraker_restarts == 1);
+        CHECK(counting_api.klipper_restarts == 0);
+        CHECK(counting_api.firmware_restarts == 0);
+        CHECK(counting_api.suppress_disconnect_modal_calls() == 1);
+        CHECK(toasted("Restarting Moonraker..."));
+    }
+    SECTION("Cancel sends nothing") {
+        helix::test::answer_top_modal("btn_secondary");
+        settle();
+        CHECK(counting_api.moonraker_restarts == 0);
+    }
+}
+
+TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker is refused without opening a dialog",
+                 "[recovery][restart_moonraker]") {
+    const std::string expected =
+        GENERATE(as<std::string>{}, "printing", "paused", "offline", "klipper restarting");
+    std::string toast;
+    auto& estop = EmergencyStopOverlay::instance();
+    if (expected == "printing" || expected == "paused") {
+        helix::test::set_wire_state(state(), expected == "printing" ? helix::PrintJobState::PRINTING
+                                                                    : helix::PrintJobState::PAUSED);
+        toast = "Cannot restart Moonraker while printing";
+    } else if (expected == "offline") {
+        counting_api.connected = false;
+        toast = "Restart failed: not connected";
+    } else {
+        restart_klipper(estop);
+        toast = "A restart is already in progress";
+    }
+    settle();
+
+    tap_restart_moonraker();
+    settle();
+
+    CHECK(helix::test::top_modal_text().empty());
+    CHECK(counting_api.moonraker_restarts == 0);
+    CHECK(toasted(toast));
+    helix::test::set_wire_state(state(), helix::PrintJobState::STANDBY);
+    settle();
+}
+
+TEST_CASE_METHOD(RestartInFlightFixture,
+                 "A print that starts behind the Restart Moonraker dialog cancels the restart",
+                 "[recovery][restart_moonraker]") {
+    tap_restart_moonraker();
+    settle();
+    helix::test::set_wire_state(state(), helix::PrintJobState::PRINTING);
+    settle();
+
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+
+    CHECK(counting_api.moonraker_restarts == 0);
+    CHECK(toasted("Cannot restart Moonraker while printing"));
+    helix::test::set_wire_state(state(), helix::PrintJobState::STANDBY);
+    settle();
+}
+
+TEST_CASE_METHOD(RestartInFlightFixture, "Restart Moonraker toasts only a real failure",
+                 "[recovery][restart_moonraker]") {
+    const std::string failure_toast = "Restart failed: ";
+    const auto failure_shown = [&] {
+        for (const auto& s : shown) {
+            if (s.severity == ToastSeverity::ERROR && s.message.rfind(failure_toast, 0) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    bool expect_toast = false;
+    SECTION("The socket closing on the restart's own reply is the expected outcome") {
+        counting_api.fail_with = MoonrakerError::connection_lost("server.restart");
+    }
+    SECTION("Moonraker refusing the request is a failure") {
+        counting_api.fail_with = MoonrakerError::json_rpc_error("server.restart", "refused");
+        expect_toast = true;
+    }
+
+    tap_restart_moonraker();
+    settle();
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+
+    REQUIRE(counting_api.moonraker_restarts == 1);
+    CHECK(failure_shown() == expect_toast);
 }

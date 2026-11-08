@@ -609,6 +609,7 @@
   <translation tag="Cannot park while a print is active" it="Impossibile parcheggiare durante una stampa in corso"/>
   <translation tag="Cannot perform this action now" it="Impossibile eseguire questa azione ora"/>
   <translation tag="Cannot reprint: not connected to printer" it="Impossibile ristampare: non connesso alla stampante"/>
+  <translation tag="Cannot restart Moonraker while printing" it="Impossibile riavviare Moonraker durante la stampa"/>
   <translation tag="Cannot restart — no filename" it="Impossibile riavviare — nessun nome file"/>
   <translation tag="Cannot run filament operation while printing" it="Impossibile eseguire operazioni sul filamento durante la stampa"/>
   <translation tag="Cannot save offsets while printing" it="Impossibile salvare gli offset durante la stampa"/>
@@ -3132,6 +3133,7 @@
   <translation tag="Restart Klipper?" it="Riavviare Klipper?"/>
   <translation tag="Restart Moonraker" it="Riavvia Moonraker"/>
   <translation tag="Restart Moonraker to finish the plugin change" it="Riavvia Moonraker per completare la modifica del plugin"/>
+  <translation tag="Restart Moonraker?" it="Riavviare Moonraker?"/>
   <translation tag="Restart Now" it="Riavvia ora"/>
   <translation tag="Restart Required" it="Riavvio richiesto"/>
   <translation tag="Restart failed: not connected" it="Riavvio fallito: non connesso"/>
@@ -3898,6 +3900,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" it="Il lettore RFID destro di questa unità CFS potrebbe richiedere assistenza"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" it="Il sensore di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." it="La posizione salvata viene mantenuta. Riconnetti o riavvia lo schermo per vederti proporre di nuovo la ripresa."/>
+  <translation tag="The screen will lose its connection to the printer for a few seconds." it="Lo schermo perderà la connessione alla stampante per alcuni secondi."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" it="Il sensore di questa unità CFS non può essere letto. Controllare il collegamento, altrimenti l&apos;unità richiede assistenza"/>
   <translation tag="The speed of one fan you choose" it="La velocità di una ventola a scelta"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." it="La subnet mask non è valida. Usa una forma come 255.255.255.0 o 24."/>
