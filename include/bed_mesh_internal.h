@@ -93,7 +93,7 @@ struct bed_mesh_renderer {
     std::vector<std::vector<int>> projected_screen_x; // [row][col] → screen X coordinate
     std::vector<std::vector<int>> projected_screen_y; // [row][col] → screen Y coordinate
 
-    // ===== Adaptive Render Mode (Phase 4) =====
+    // ===== Adaptive Render Mode =====
 
     // Render mode control
     helix::BedMeshRenderMode render_mode = helix::BedMeshRenderMode::Auto;

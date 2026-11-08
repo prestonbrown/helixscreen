@@ -25,7 +25,6 @@
 namespace helix {
 namespace gcode {
 
-// Forward declaration
 class GCodeStreamingController;
 
 /**
@@ -60,7 +59,6 @@ class BackgroundGhostBuilder {
     BackgroundGhostBuilder() = default;
     ~BackgroundGhostBuilder();
 
-    // Non-copyable, non-moveable
     BackgroundGhostBuilder(const BackgroundGhostBuilder&) = delete;
     BackgroundGhostBuilder& operator=(const BackgroundGhostBuilder&) = delete;
     BackgroundGhostBuilder(BackgroundGhostBuilder&&) = delete;
@@ -190,7 +188,6 @@ class GCodeStreamingController {
 
     ~GCodeStreamingController();
 
-    // Non-copyable, non-moveable
     GCodeStreamingController(const GCodeStreamingController&) = delete;
     GCodeStreamingController& operator=(const GCodeStreamingController&) = delete;
     GCodeStreamingController(GCodeStreamingController&&) = delete;
@@ -586,9 +583,9 @@ class GCodeStreamingController {
      */
     void stop_prefetch_worker(bool permanent = false);
 
-    // Background prefetch. get_layer_segments() used to run the prefetch loop
-    // inline, so a single main-thread call did up to 2*radius+1 seek-and-parses
-    // inside an LVGL draw or touch callback. The worker moves that off the main
+    // Background prefetch. Run inline, the prefetch loop would make one
+    // main-thread get_layer_segments() call do up to 2*radius+1 seek-and-parses
+    // inside an LVGL draw or touch callback. The worker keeps that off the main
     // thread; the cache's in-flight tracking dedups against foreground loads.
     std::thread prefetch_thread_;
     std::mutex prefetch_mutex_;

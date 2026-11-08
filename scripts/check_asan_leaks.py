@@ -139,7 +139,7 @@ LEAK_BLOCK_RE = re.compile(
 # part is LAZY and the column is a separate optional group because clang prints
 # file:line:col while gcc prints file:line — with a greedy file, `a.cpp:562:26`
 # parses as file "a.cpp:562", line 26, and the line number glues itself onto
-# every key (the 2026-08-16 nightly: all 23 origins "new" for this alone).
+# every key, so every origin reads as "new".
 # Frames with no source info ("in _start (/path/to/bin+0x446d2e4) (BuildId:
 # ...)") match the frame prefix but yield no file, and are treated as
 # unattributable.

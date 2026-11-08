@@ -213,12 +213,10 @@ bool is_movement_command(const char* line, size_t len) {
     return false;
 }
 
-// NOTE: a has_positive_extrusion() text heuristic used to live here and drive
-// the extrusion/travel stats. It scanned for an 'E' followed by a digit or '+',
-// which missed OrcaSlicer's leading-dot form (E.05482 — so every Orca file was
-// counted as ~100% travel) and could not distinguish a retraction from an
-// extrusion. build_from_file() now tracks M82/M83 and the running E value and
-// computes a real delta, which is both correct and what the XY bounds depend on.
+// Extrusion/travel stats come from build_from_file(), which tracks M82/M83 and the
+// running E value and computes a real delta. A text test for 'E' followed by a digit
+// misses OrcaSlicer's leading-dot form (E.05482) and cannot tell a retraction from
+// an extrusion; the XY bounds depend on the real delta too.
 
 // Extract filament/extruder color from metadata comment
 // Thin wrapper over helix::gcode::parse_filament_color_palette() that also
@@ -390,7 +388,6 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
                                       const std::function<bool(float)>& on_progress) {
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // Clear any previous data
     entries_.clear();
     stats_ = LayerIndexStats{};
     source_path_ = filepath;
@@ -402,7 +399,6 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
         return false;
     }
 
-    // Get file size
     stats_.total_bytes = static_cast<size_t>(file.tellg());
     file.seekg(0, std::ios::beg);
 
@@ -411,7 +407,6 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
     // Reserve estimated capacity (assume ~100 layers for now)
     entries_.reserve(100);
 
-    // Read line by line
     std::string line;
     line.reserve(256);
 
@@ -484,7 +479,6 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
         pause_scan.feed_line(line, current_offset,
                              entries_.empty() ? -1 : static_cast<int32_t>(entries_.size() - 1));
 
-        // Check for layer marker
         if (is_layer_marker(line.c_str(), line_len)) {
             if (!use_layer_markers) {
                 // First marker in the file. Marker mode cannot be known until
@@ -569,7 +563,6 @@ bool GCodeLayerIndex::build_from_file(const std::string& filepath,
             }
         }
 
-        // Check for movement commands
         if (is_movement_command(line.c_str(), line_len)) {
             float z;
             if (extract_axis_param_in_code(line.c_str(), code_len, 'Z', z)) {
@@ -967,8 +960,7 @@ StreamingLayerEntry GCodeLayerIndex::get_entry(size_t layer_index) const {
     // line that opens a layer is itself counted, so consecutive layer starts
     // still bracket at least one line), and is_valid() tests exactly that field.
     // The zeroed start_x/y/z here are NOT a usable seed — a caller that skipped
-    // is_valid() would draw the layer's first move from the origin, which is the
-    // stray-lines bug those fields were added to prevent.
+    // is_valid() would draw the layer's first move from the origin as a stray line.
     return StreamingLayerEntry{0, 0, 0.0f, 0, 0};
 }
 
@@ -977,7 +969,6 @@ int GCodeLayerIndex::find_layer_at_z(float z) const {
         return -1;
     }
 
-    // Binary search for closest layer
     auto it = std::lower_bound(
         entries_.begin(), entries_.end(), z,
         [](const StreamingLayerEntry& entry, float target_z) { return entry.z_height < target_z; });

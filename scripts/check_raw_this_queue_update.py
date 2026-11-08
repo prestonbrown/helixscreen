@@ -77,6 +77,8 @@ from pathlib import Path
 
 from staged_content import read_index_blobs, staged_paths
 
+from source_strip import blank_cxx
+
 SCAN_DIRS = ('src',)
 SCAN_EXTS = ('.cpp', '.cc', '.h', '.hpp')
 
@@ -105,48 +107,6 @@ WHY = {
 
 FIX = ('lifetime_.bg_cb("Class::method", fn) or tok.defer("Class::method", fn) '
        '— see docs/devel/THREADING.md §2')
-
-
-def _blank_noise(src: str) -> str:
-    """Blank out comments and string/char literals, preserving every offset and
-    newline so line numbers still map back to the original source."""
-    out = list(src)
-    n = len(src)
-    i = 0
-    while i < n:
-        c = src[i]
-        if c == '/' and i + 1 < n and src[i + 1] == '/':
-            j = src.find('\n', i)
-            j = n if j < 0 else j
-            for k in range(i, j):
-                out[k] = ' '
-            i = j
-            continue
-        if c == '/' and i + 1 < n and src[i + 1] == '*':
-            j = src.find('*/', i + 2)
-            j = n if j < 0 else j + 2
-            for k in range(i, j):
-                if out[k] != '\n':
-                    out[k] = ' '
-            i = j
-            continue
-        if c in '"\'':
-            j = i + 1
-            while j < n:
-                if src[j] == '\\':
-                    j += 2
-                    continue
-                if src[j] == c or src[j] == '\n':
-                    j += 1
-                    break
-                j += 1
-            for k in range(i, min(j, n)):
-                if out[k] != '\n':
-                    out[k] = ' '
-            i = j
-            continue
-        i += 1
-    return ''.join(out)
 
 
 def _match_bracket(s: str, start: int) -> int:
@@ -278,7 +238,7 @@ def scan_source(path: str, src: str) -> list[tuple[str, int, str, str]]:
     if 'queue_update' not in src:
         return []
 
-    clean = _blank_noise(src)
+    clean = blank_cxx(src)
     lines = src.splitlines()
     starts = [0]
     for i, ch in enumerate(src):

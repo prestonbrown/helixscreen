@@ -84,7 +84,6 @@ void PrintLightTimelapseControls::init_subjects() {
     language_observer_ = helix::ui::observe_language_change(
         this, [](PrintLightTimelapseControls* self) { self->refresh_timelapse_display(); });
 
-    // Register XML event callbacks
     register_xml_callbacks({
         {"on_print_status_light",
          [](lv_event_t*) { get_global_light_timelapse_controls().handle_light_button(); }},

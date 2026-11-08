@@ -22,7 +22,7 @@
 #include "theme_loader.h"
 
 // ============================================================================
-// Table-Driven Style System Types (ThemeManager refactor Phase 1)
+// Table-Driven Style System Types
 // ============================================================================
 
 /// Style roles - each represents a semantic style in the theme system.
@@ -332,9 +332,8 @@ class ThemeManager {
 //   space_xxs, space_xs, space_sm, space_md, space_lg, space_xl
 //
 // The values are NOT listed here on purpose. They live in ui_xml/globals.xml as
-// <px name="space_*_<tier>"> and a copy in this header drifts silently: the list
-// that used to sit here named three tiers of the seven that exist, so the value
-// it gave for a 480x272 screen was wrong by more than half.
+// <px name="space_*_<tier>"> and a copy in this header drifts silently, giving
+// wrong values for whichever tiers it misses.
 //
 // Tiers come from breakpoint_for() in include/ui_breakpoint.h - micro, tiny,
 // small, medium, large, xlarge, xxlarge - keyed on the SMALLER screen dimension,

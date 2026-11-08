@@ -342,6 +342,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: Si è verificato
     un errore all'avvio dell'app. Alcune funzioni potrebbero non essere disponibili.
   Appearance: Aspetto
+  Appearance & Region: "Aspetto e regione"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Applicato a {}. Klipper lo dimentica al riavvio: inserisci {} come Pressure Advance nel profilo filamento dello slicer, oppure salvalo sulla bobina.'
   Applies to: Si applica a
@@ -468,6 +469,9 @@ translations:
   Belt Tension: Tensione cinghia
   Belt Tension Check: Controllo tensione cinghia
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tensione cinghia richiede una stampante CoreXY. Questa è {}.'
+  Belt tension and cutter calibration: "Tensione cinghie e calibrazione taglierina"
+  Belt tensioning completed: "Tensionamento cinghie completato"
+  'Belt tensioning failed: {}': "Tensionamento cinghie non riuscito: {}"
   Belts already match: "Le cinghie sono già allineate"
   Beta: Beta
   'Beta features: OFF': 'Funzioni Beta: OFF'
@@ -835,6 +839,7 @@ translations:
   Color: Colore
   Color Mismatch: Colore non corrispondente
   Color Sensors: Sensori di colore
+  Colors for every screen: "Colori di tutte le schermate"
   Command Failed: 'Comando non riuscito'
   Command failed: Comando non riuscito
   Communication Test: 'Test di comunicazione'
@@ -1801,8 +1806,8 @@ translations:
     il piano prima di calibrare per un offset preciso con espansione termica.
   Heat nozzle: Riscalda ugello
   Heat soak: Preriscaldamento
-  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it.
-  : 'L''heat soak lascia scaldare la camera prima di una stampa. È elencato perché la stampante ha una macro di heat soak o è stato attivato nelle impostazioni; HelixScreen non lo esegue.'
+  ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  : 'L''heat soak lascia scaldare la camera prima di una stampa. È elencato perché la stampante ha una macro di heat soak o è stato attivato nelle impostazioni; HelixScreen offre la macro nelle opzioni pre-stampa.'
   Heat the bed to {}°C: Riscalda il piano a {}°C
   Heat the chamber too: Riscalda anche la camera
   Heat the extruder to at least {}°C before loading filament: Riscalda l'estrusore ad almeno {}°C prima di caricare il filamento
@@ -2721,6 +2726,7 @@ translations:
   Nothing to remap: Niente da rimappare
   Nothing to tune here: "Niente da regolare qui"
   'Nothing to unload: no filament at the nozzle': 'Niente da scaricare: nessun filamento all''ugello'
+  Whether the Z arrows follow the bed or the Z value: "Se le frecce Z seguono il piano o il valore Z"
   Which belt is each path?: "Quale cinghia corrisponde a ogni percorso?"
   Which belt is which?: "Quale cinghia è quale?"
   'Which lane is in the toolhead?': 'Quale corsia è nella testina?'
@@ -3715,6 +3721,8 @@ translations:
   Set logging verbosity for troubleshooting: Imposta il livello di dettaglio del log
     per la risoluzione dei problemi
   Set temperature between {}°C and {}°C: 'Imposta una temperatura tra {}°C e {}°C'
+  Set the X and Y belts with the motorized tensioners: "Regola le cinghie X e Y con i tenditori motorizzati"
+  Set the clock, theme and units. You can change any of these later in Settings.: "Imposta orologio, tema e unità. Puoi cambiarli in seguito nelle Impostazioni."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Impostare a mano tipo e colore del filamento per questo slot. Se il tag dovrebbe essere leggibile, reinserire la bobina con l'etichetta rivolta verso il lettore quando la box è inattiva
   Set up: Configura
@@ -3749,6 +3757,7 @@ translations:
     quando si tocca una macro
   Show instead of dimming: Mostra invece di attenuare
   Show light controls for a light connected to this printer: 'Mostra i controlli di una luce collegata a questa stampante'
+  Show print speed and flow as mm/s and mm³/s instead of percent: "Mostra velocità e flusso in mm/s e mm³/s invece che in percentuale"
   Show printer icon in navigation bar: Mostra icona stampante nella barra di navigazione
   Show sliced colors: Mostra colori sezionati
   Show temp for: Mostra temperatura per
@@ -3825,6 +3834,7 @@ translations:
   Spaghetti detected (%d%%): Spaghetti rilevati (%d%%)
   Speaker: Altoparlante
   Speed: Velocità
+  Speed & Flow in mm/s: "Velocità e flusso in mm/s"
   Speed / Flow: 'Velocità / Flusso'
   Speed Settings: 'Impostazioni di velocità'
   Speed and flow overrides, with a tap to tune: 'Velocità e flusso; tocca per regolare'
@@ -4072,7 +4082,9 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Regolazione
     temporanea per questa stampa, salvo salvataggio nel pannello Controlli
   Temporary for this print; a tool change resets it: "Temporanea per questa stampa; un cambio utensile la azzera"
+  Tension Belts: "Tendi cinghie"
   'Tensioner: {}': "Tenditore: {}"
+  Tensioning belts...: "Tensionamento cinghie..."
   Tertiary: Terziario
   Test All Lanes: 'Prova tutte le corsie'
   Test Connection: Test connessione
@@ -4238,6 +4250,7 @@ translations:
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'La stampante riscalda l''ugello, fa alcuni brevi movimenti di prova in un angolo del piano e li misura da sola. Ripete finché le letture concordano, poi riporta un unico numero.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: La stampante si azzera e fa scorrevolare la taglierina (circa 1 minuto). Mantenere libero il percorso del filamento.
+  The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: "La stampante si azzera se serve, poi individua la posizione della taglierina. Mantenere libero il percorso del filamento."
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
 
   : La stampante esegue l'homing, poi allontana il piano dall'ugello il più possibile. Alcune bobine non resistono abbastanza al calore e possono deformarsi. Da questa schermata non si muove nulla finché non confermi che le bobine non sono più sul piano; Mainsail, le macro e le stampe inviate da uno slicer non vengono bloccati.
@@ -4255,6 +4268,8 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: La stampante ha
     perso l'alimentazione durante la stampa di {}. Riprendere da dove si è interrotta?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La stampante ha perso l'alimentazione durante la stampa di {}. Il layer ripreso potrebbe non allinearsi perfettamente.
+  ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
+  : "La stampante può eseguire l'homing e muovere la testina, poi i tenditori motorizzati regolano le cinghie X e Y. Tieni liberi il piano e il portale."
   The printer moves the toolhead and measures its motors.: 'La stampante muove la testina e misura i suoi motori.'
   The printer no longer has a print to resume.: La stampante non ha più una stampa da riprendere.
   The printer reads the file up to the last saved position. A large file can take a minute.: La stampante legge il file fino all'ultima posizione salvata. Un file grande può richiedere un minuto.
@@ -4375,6 +4390,7 @@ translations:
   This printer has no IFS.: "Questa stampante non ha l'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Questa stampante non ha la macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano.
+  This printer has no timezone, so its clock reads UTC. Pick yours.: "Questa stampante non ha un fuso orario, quindi l'orologio segna UTC. Scegli il tuo."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Questa stampante non ha il comando {}, quindi l''offset Z non può essere salvato.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati.
@@ -4859,6 +4875,7 @@ translations:
   ? Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide.
   : La riga {} passa impostazioni per strumento che la mappatura filamento non modifica ({}). Uno strumento su cui mappi il filamento potrebbe non essere riscaldato. Vedi "Filament Mapping" nella guida utente.
   Z: Z
+  Z Buttons Move: "I tasti Z muovono"
   Z Calibration: Calibrazione Z
   Z Movement: Movimento Z
   Z Offset: Z Offset

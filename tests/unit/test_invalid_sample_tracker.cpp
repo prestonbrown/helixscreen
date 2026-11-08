@@ -5,14 +5,14 @@
  * @file test_invalid_sample_tracker.cpp
  * @brief Log-volume policy for permanently-rejected samples (#1348)
  *
- * TemperatureHistoryManager::add_sample_internal() used to log every rejected
- * sample. The reject predicate is permanent for an open or unmounted
- * thermistor, so on a six-tool machine with no tools mounted that came to
+ * Logging every sample TemperatureHistoryManager::add_sample_internal() rejects
+ * is too much. The reject predicate is permanent for an open or unmounted
+ * thermistor, so on a six-tool machine with no tools mounted that comes to
  * ~19 lines/sec forever: one field bundle was 95.5% this single message, which
  * evicted everything else from the 20,000-line crash ring and cut the bundle's
  * coverage to 16 minutes out of a 7.7 hour uptime.
  *
- * InvalidSampleTracker is the pure policy that fixes it: report the two ends of
+ * InvalidSampleTracker is the pure policy for it: report the two ends of
  * a run of rejections plus a heartbeat on a doubling interval in between, so
  * log volume is O(log uptime) instead of O(uptime) while a maintainer can still
  * see which key was bad, what it was reading, for how long, and how many samples
@@ -136,7 +136,7 @@ TEST_CASE("InvalidSampleTracker reports the opening transition with the offendin
     CHECK(first.duration_ms == 0);
     CHECK(first.first_temp_deci == -640);
 
-    // The very next sample is silent - that is the fix.
+    // The very next sample is silent.
     const InvalidSampleReport second = tracker.record("heater_bed", false, -641, 6000);
     CHECK(second.what == InvalidSampleLog::Nothing);
     CHECK_FALSE(second.loggable());

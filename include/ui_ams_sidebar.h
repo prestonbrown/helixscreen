@@ -7,6 +7,7 @@
 #include "ui_bypass_toggle_controller.h"
 #include "ui_clog_meter.h"
 #include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "ams_backend.h"
 #include "ams_step_model.h"
@@ -53,8 +54,7 @@ std::string preheat_status_text(bool step_list_shows_temp, int current_c, int ta
  * Contains: current loaded card, status display, step progress stepper,
  * action buttons (unload/reset/settings/bypass), and dryer card.
  *
- * Uses user_data callback routing pattern (same as AmsDryerCard).
- * Static callbacks traverse parent chain to find the AmsOperationSidebar instance.
+ * Static callbacks find their sidebar by the panel the firing widget sits in.
  */
 class AmsOperationSidebar {
   public:
@@ -69,8 +69,15 @@ class AmsOperationSidebar {
     AmsOperationSidebar(const AmsOperationSidebar&) = delete;
     AmsOperationSidebar& operator=(const AmsOperationSidebar&) = delete;
 
+    /// The panel the sidebar was set up on, for OpenInstances::owner_of(). Its
+    /// strip and status line move between the sidebar and the panel's portrait
+    /// slot, so the panel is the one root that holds every sidebar widget.
+    lv_obj_t* root() const {
+        return panel_;
+    }
+
     /**
-     * @brief Find sidebar widget in panel, set user_data, setup dryer card
+     * @brief Find sidebar widget in panel, register for callback routing, setup dryer card
      * @param panel Root panel object containing the ams_sidebar component
      * @return true if sidebar found and initialized
      */
@@ -192,6 +199,7 @@ class AmsOperationSidebar {
     helix::AsyncLifetimeGuard lifetime_;
 
     // Widget references
+    helix::ui::WidgetRef panel_;
     lv_obj_t* sidebar_root_ = nullptr;
     // The loaded strip and status line: in the sidebar in landscape, moved into
     // the panel's portrait_summary_slot (above the diagram) in portrait.
@@ -433,7 +441,7 @@ class AmsOperationSidebar {
     void update_action_display(AmsAction action);
 
     // Static callback routing
-    static AmsOperationSidebar* get_instance_from_event(lv_event_t* e);
+    static AmsOperationSidebar* from_event(lv_event_t* e);
 
     // Static XML callbacks
     static void on_settings_clicked_cb(lv_event_t* e);

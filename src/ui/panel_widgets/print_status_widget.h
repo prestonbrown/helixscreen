@@ -21,6 +21,7 @@
 #include "printer_temperature_state.h"
 #include "subject_managed_panel.h"
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -167,6 +168,12 @@ class PrintStatusWidget : public PanelWidget {
     }
     const nlohmann::json& config_for_test() const {
         return config_;
+    }
+    /// The five show_* options, in config order: title, print files, reprint
+    /// last, recent prints, job queue.
+    std::array<bool, 5> show_options_for_test() const {
+        return {show_title_, show_print_files_, show_reprint_last_, show_recent_prints_,
+                show_job_queue_};
     }
     static lv_subject_t* layout_effective_subject_for_test() {
         return &layout_effective_subject_;
@@ -326,6 +333,7 @@ class PrintStatusWidget : public PanelWidget {
     // Cached widget references (looked up after XML creation)
     helix::ui::WidgetRef print_card_thumb_;          // Idle state thumbnail
     helix::ui::WidgetRef print_card_active_thumb_;   // Active print thumbnail
+    helix::ui::WidgetRef detailed_thumb_;            // Detailed layout thumbnail (binds the path)
     helix::ui::WidgetRef print_card_layout_;         // Row/column layout container
     helix::ui::WidgetRef print_card_thumb_wrap_;     // Thumbnail wrapper
     helix::ui::WidgetRef print_card_info_;           // Info section (filename/progress)

@@ -650,7 +650,7 @@ void WifiBackendWpaSupplicant::stop() {
     // with synchronization to ensure cleanup completes before stop() returns.
     //
     // The promise is held in a shared_ptr captured BY VALUE into the lambda. This
-    // closes a use-after-free race (bundle WWZE4K9T, v0.99.96/pi32) where stop()'s
+    // closes a use-after-free race where stop()'s
     // 2s wait_for times out — typically because the event loop is still inside a
     // prior init_wpa() blocked on wpa_ctrl_attach() for 5+ seconds — and the local
     // promise is destroyed before the queued cleanup lambda runs. The lambda would
@@ -796,10 +796,9 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     // Check for common WiFi interface patterns in /sys/class/net
     //
     // Collect them all rather than breaking on the first hit. directory_iterator
-    // order is filesystem order, so on a two-adapter device the old code logged
-    // whichever name the kernel happened to hand back first — the AD5X bundles
-    // report "interface present: wlan1" for a session that managed wlan0
-    // throughout, which reads as a mismatch that is not one. The managed
+    // order is filesystem order, so on a two-adapter device logging only the
+    // first hit names whichever adapter the kernel hands back first (wlan1 on
+    // an AD5X that manages wlan0), which reads as a mismatch that is not one. The managed
     // interface is resolve_and_store_interface()'s call; this check only decides
     // whether any wireless hardware exists at all.
     std::vector<std::string> wifi_ifaces;
@@ -1163,8 +1162,7 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
         spdlog::debug("[WifiBackend] radio_enabled_ seeded from hardware: {}", hw_radio_enabled);
     }
 
-    // The reporter's AD5X is unreachable for the duration, and the bundles
-    // carry no process list — so log enough for the NEXT bundle to decide
+    // Debug bundles carry no process list, so log enough for a bundle to show
     // whether a second wpa_supplicant was the reason SAVE_CONFIG "failed".
     // Interface names and paths are not secrets; SSIDs and PSKs never appear.
     for (const auto& d : helix::wifi::detail::list_wpa_daemons(roots.proc)) {
@@ -1660,18 +1658,15 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     spdlog::info("[WifiBackend] Connecting to network '{}'", helix::redact::ssid(clean_ssid));
 
     // Step 1: Reuse an existing saved entry for this SSID when one exists,
-    // otherwise add a new one. Every connect used to ADD_NETWORK
-    // unconditionally — a real user's wpa_supplicant had reached network id 7
-    // for a handful of networks, and duplicate all-enabled entries give
-    // wpa_supplicant more candidates to roam between after a reboot (a
-    // plausible contributor to an unwanted 5GHz reassociation after the user
-    // had explicitly forgotten that network).
+    // otherwise add a new one. An unconditional ADD_NETWORK on every connect
+    // piles up duplicate all-enabled entries, which give wpa_supplicant more
+    // candidates to roam between after a reboot (including back onto a
+    // network the user explicitly forgot).
     //
     // reused_existing tracks whether network_id was newly ADD_NETWORK'd by
     // THIS call. The failure-cleanup REMOVE_NETWORK calls below must only
     // fire when it was — removing a reused id would delete a network the
-    // user already had saved, which is worse than the duplicate-entry bug
-    // this reuse is fixing.
+    // user already had saved, which is worse than a duplicate entry.
     std::string network_id =
         helix::wifi::detail::find_network_id(send_command("LIST_NETWORKS"), clean_ssid);
     const bool reused_existing = !network_id.empty();

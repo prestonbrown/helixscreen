@@ -14,8 +14,8 @@ class PrinterDiscovery;
 /// Which Power-Loss-Recovery mechanism the connected printer exposes. The three
 /// firmware backends are SELF-GATING: each is chosen by markers only that
 /// firmware ever carries, so no printer-model or AMS-backend gate is needed
-/// (and none should be added — see tests/unit/test_plr_offer.cpp for the
-/// AFC-modded-U1 regression). GENERIC is the HelixPrint plugin's recovery,
+/// (and none should be added: tests/unit/test_plr_offer.cpp pins the
+/// AFC-modded U1 such a gate gets wrong). GENERIC is the HelixPrint plugin's recovery,
 /// gated on the plugin's `plr` feature.
 ///
 /// Full mechanism writeup: docs/devel/POWER_LOSS_RECOVERY.md

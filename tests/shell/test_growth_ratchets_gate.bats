@@ -261,6 +261,32 @@ rebase_here() {
     contains "get_printer_state() inside a class that receives PrinterState grew 0 -> 1" "$output"
 }
 
+@test "a class that inherits a receiving base receives the dependency too, at any depth" {
+    cat > "$REPO/include/derived.h" <<'EOF'
+class Detail : public Panel {
+  public:
+    void show();
+};
+class Leaf final : public helix::Detail {
+  public:
+    void poke();
+};
+class Unrelated : public Plain {
+  public:
+    void poke();
+};
+EOF
+    printf 'void Detail::show() {\n}\nvoid Leaf::poke() {\n}\nvoid Unrelated::poke() {\n}\n' > "$REPO/src/ui/derived.cpp"
+    rebase_here "subclasses"
+    sed -i.bak 's/^\(void [A-Za-z]*::[a-z]*() {\)$/\1\n    get_printer_state().touch();/' "$REPO/src/ui/derived.cpp"
+    rm "$REPO/src/ui/derived.cpp.bak"
+    [ "$(grep -c get_printer_state "$REPO/src/ui/derived.cpp")" -eq 3 ]
+    commit_all "subclasses reach for the global"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/derived.cpp: get_printer_state() inside a class that receives PrinterState grew 0 -> 2" "$output"
+}
+
 @test "a class that starts receiving the dependency on this branch is not judged by it yet" {
     inject "void Plain::refresh()" "get_printer_state().touch(); get_printer_state().poke();"
     rebase_here "plain uses the global"
@@ -334,6 +360,17 @@ EOF
     contains "grew by 4" "$output"
 }
 
+@test "ACTIVE_INSTANCE_OK opts one declaration out and leaves its neighbour counted" {
+    cat > "$REPO/src/ui/statics.cpp" <<'EOF'
+static Hook* s_active = nullptr; // ACTIVE_INSTANCE_OK: platform callback context
+static Panel* s_active_panel = nullptr;
+EOF
+    commit_all "one exempt static"
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "grew by 1 (src/ui/statics.cpp: s_active_panel)" "$output"
+}
+
 @test "an out-of-line definition, an accessor, a local, a singleton slot and a test file are not counted" {
     cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
 Panel* Panel::active_instance_ = nullptr;
@@ -347,6 +384,19 @@ void f() {
 EOF
     printf 'static Panel* s_active_ = nullptr;\n' > "$REPO/tests/unit/test_panel.cpp"
     commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+    contains "active-instance pointers +0" "$output"
+}
+
+@test "a name that says inactive is not an active-instance pointer" {
+    cat > "$REPO/src/ui/inactive.cpp" <<'EOF'
+static Panel* s_inactive_panel = nullptr;
+class Pool {
+    static Panel* inactive_head_;
+};
+EOF
+    commit_all "inactive names"
     ratchets
     [ "$status" -eq 0 ]
     contains "active-instance pointers +0" "$output"
@@ -397,6 +447,39 @@ bool my_lv_obj_is_valid(lv_obj_t* o);
 EOF
     mkdir -p "$REPO/lib/lvgl"
     printf 'bool c(lv_obj_t* o) { return lv_obj_is_valid(o); }\n' > "$REPO/lib/lvgl/l.cpp"
+    commit_all "quiet shapes"
+    ratchets
+    [ "$status" -eq 0 ]
+}
+
+# --- bare modal factory ban ---------------------------------------------------
+
+@test "the bare Modal::show factory fails in app code, in every spelling, even with no branch work" {
+    cat > "$REPO/src/ui/m.cpp" <<'EOF2'
+void a() { Modal::show("a_modal"); }
+void b(const std::string& n) { Modal::show(n.c_str()); }
+void c(const char* name) { helix::ui::modal_show(name, attrs); }
+EOF2
+    printf 'inline void d() { Modal::show( "d_modal"); }\n' > "$REPO/include/m.h"
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "calls already there"
+    BASE=$(git -C "$REPO" rev-parse HEAD)
+    ratchets
+    [ "$status" -eq 1 ]
+    contains "src/ui/m.cpp:1:" "$output"
+    contains "src/ui/m.cpp:2:" "$output"
+    contains "src/ui/m.cpp:3:" "$output"
+    contains "include/m.h:1:" "$output"
+}
+
+@test "an instance show, an owned show, a comment, a string and a test file pass the factory ban" {
+    cat > "$REPO/src/ui/quiet_modal.cpp" <<'EOF2'
+// Modal::show("x") has no owner
+const char* s = "Modal::show(\"y\")";
+bool MyModal::open(lv_obj_t* parent) { return Modal::show(parent, attrs.data()); }
+lv_obj_t* d = helix::ui::ComponentModal::show_owned("z_modal");
+EOF2
+    printf 'void t() { Modal::show("t_modal"); }\n' > "$REPO/tests/unit/m.cpp"
     commit_all "quiet shapes"
     ratchets
     [ "$status" -eq 0 ]

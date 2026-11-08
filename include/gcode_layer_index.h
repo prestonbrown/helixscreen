@@ -63,12 +63,12 @@ struct StreamingLayerEntry {
     /// layer's byte range, so a per-layer parse never sees it and tags every
     /// segment with the file's first tool instead. On a true tool changer
     /// (Snapmaker U1, which always streams) that painted the whole model in T0's
-    /// filament colour. Fits in what was start_feature_type's trailing padding —
-    /// the struct is still 40 bytes (see the static_assert below).
+    /// filament colour. Fits in start_feature_type's trailing padding; the struct
+    /// is still 40 bytes (see the static_assert below).
     int16_t start_tool{-1};
     /// Running E value at this layer's byte offset. Only meaningful when
     /// FLAG_ABSOLUTE_EXTRUSION is set; relative-mode deltas do not depend on it.
-    /// Occupies what was previously tail padding — the struct is still 40 bytes.
+    /// Occupies tail padding: the struct is still 40 bytes.
     float start_e{0.0f};
 
     /// Check if this entry is valid (has been populated)
@@ -103,12 +103,10 @@ struct LayerIndexStats {
     /// and filtered by is_auxiliary_geometry() exactly like the full-file
     /// parser's global_bounding_box. Empty (min > max) if no extrusion was seen.
     ///
-    /// Before this existed, GCodeLayerRenderer::auto_fit() estimated XY bounds by
-    /// loading three layers (first/middle/last) and unioning their segments — a
-    /// guess that framed spiral-vase prints against a 3-point hull (#1127) and
-    /// mis-framed any model whose widest cross-section wasn't one of the three.
-    /// The scan already visits every line, so this costs nothing extra and lets
-    /// auto_fit avoid loading layers altogether.
+    /// GCodeLayerRenderer::auto_fit() frames the model from these instead of
+    /// sampling layers: a few sampled layers frame spiral-vase prints against a
+    /// 3-point hull (#1127) and miss any widest cross-section they skip. The scan
+    /// already visits every line, so this costs nothing extra.
     float min_x{std::numeric_limits<float>::max()};
     float max_x{std::numeric_limits<float>::lowest()};
     float min_y{std::numeric_limits<float>::max()};
@@ -184,7 +182,6 @@ class GCodeLayerIndex {
     GCodeLayerIndex() = default;
     ~GCodeLayerIndex() = default;
 
-    // Non-copyable but moveable
     GCodeLayerIndex(const GCodeLayerIndex&) = delete;
     GCodeLayerIndex& operator=(const GCodeLayerIndex&) = delete;
     GCodeLayerIndex(GCodeLayerIndex&&) = default;

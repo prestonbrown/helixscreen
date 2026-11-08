@@ -45,9 +45,8 @@ bool print_start_nav_should_navigate(PrintJobState prev, PrintJobState current) 
 // every inactive→active transition, including the completion→retry cycle
 // (finished print → error/standby → new print) where the user may still be
 // viewing print status from the previous job. Without this guard, every
-// retry produced a "[NavigationManager] Overlay ... already in stack"
-// warning (bundle J3WD5GQJ saw 9 of these in 11 hours). The
-// is_panel_in_stack() check has to run on the UI thread, so it lives
+// retry logs a "[NavigationManager] Overlay ... already in stack" warning.
+// The is_panel_in_stack() check has to run on the UI thread, so it lives
 // inside the queue_update lambda.
 static void queue_push_print_status_overlay() {
     helix::ui::queue_update("print_start_navigation::queue_push_print_status_overlay", []() {
@@ -69,9 +68,9 @@ static void queue_push_print_status_overlay() {
 //
 // This observer fires synchronously from lv_subject_set_int which may be called on
 // the WebSocket background thread. All LVGL widget creation MUST happen on the UI
-// thread, so we defer push_overlay via queue_update. This fixes the thumbnail race
-// condition (#450) where widgets created on the background thread were in an
-// inconsistent state when deferred observer callbacks tried to update them.
+// thread, so we defer push_overlay via queue_update: widgets created on the
+// background thread are in an inconsistent state when deferred observer callbacks
+// try to update them (#450).
 static void on_print_state_changed_for_navigation(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
     // PRINT_STATE_CAST_OK: `subject` IS print_state_enum, and this file is a

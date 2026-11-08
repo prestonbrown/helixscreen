@@ -82,7 +82,6 @@ void LockScreenOverlay::create_overlay() {
     // Instantiate the lock_screen XML component (defines background, card, keypad)
     lv_xml_create(overlay_, "lock_screen", nullptr);
 
-    // Reset digit state
     clear_digits();
 
     spdlog::debug("[LockScreen] Overlay created on lv_layer_top()");

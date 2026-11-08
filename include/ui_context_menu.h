@@ -150,11 +150,9 @@ class ContextMenu {
      */
     static void register_shared_callbacks();
 
-    // Non-copyable
     ContextMenu(const ContextMenu&) = delete;
     ContextMenu& operator=(const ContextMenu&) = delete;
 
-    // Movable
     ContextMenu(ContextMenu&& other) noexcept;
     ContextMenu& operator=(ContextMenu&& other) noexcept;
 
@@ -342,7 +340,8 @@ class ContextMenu {
     ActionCallback action_callback_;
 
     /** @brief The menu currently on screen — see active() */
-    static inline ContextMenu* s_active_ = nullptr;
+    static inline ContextMenu* s_active_ =
+        nullptr; // ACTIVE_INSTANCE_OK: registry behind active_as<T>()
 
     /** @brief Shared body behind show_near_widget() and show_below_widget() */
     bool show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,

@@ -75,10 +75,8 @@ void NetworkTester::start_test(Callback callback) {
     running_ = true;
     cancelled_ = false;
 
-    // Clear previous results
     result_ = TestResult{};
 
-    // Spawn worker thread
     worker_thread_ = helix::make_thread(&NetworkTester::run_test, this);
 }
 
@@ -90,7 +88,6 @@ void NetworkTester::cancel() {
     spdlog::debug("[NetworkTester] Cancelling test");
     cancelled_ = true;
 
-    // Wait for thread to exit
     if (worker_thread_.joinable()) {
         worker_thread_.join();
     }
@@ -170,7 +167,6 @@ void NetworkTester::run_test() {
         spdlog::info("[NetworkTester] Network connectivity test passed");
     }
 
-    // Report final state
     report_state(result_.internet_ok ? TestState::COMPLETED : TestState::FAILED);
     running_ = false;
 

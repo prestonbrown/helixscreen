@@ -66,7 +66,6 @@ static constexpr size_t kNumShaperColors =
 // State subject (0=IDLE, 1=MEASURING, 2=RESULTS, 3=ERROR)
 static lv_subject_t s_input_shaper_state;
 
-// Forward declarations
 static void on_input_shaper_row_clicked(lv_event_t* e);
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();

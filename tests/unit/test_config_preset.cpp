@@ -355,20 +355,13 @@ TEST_CASE_METHOD(PresetConfigFixture,
     TearDown();
 }
 
-TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file returns false for missing file",
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file refuses a missing or unparsable preset untouched",
                  "[config][preset]") {
     SetUp();
 
     REQUIRE(config.apply_preset_file("nonexistent_preset") == false);
     REQUIRE(printer_data()["fans"].size() == 2);
-
-    TearDown();
-}
-
-TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file refuses a preset it cannot parse",
-                 "[config][preset]") {
-    SetUp();
-
     std::ofstream(temp_dir + "/presets/broken.json") << "{not json";
     REQUIRE(config.apply_preset_file("broken") == false);
     REQUIRE(printer_data()["fans"].size() == 2);

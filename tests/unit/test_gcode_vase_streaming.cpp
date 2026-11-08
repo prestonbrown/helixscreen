@@ -175,8 +175,8 @@ TEST_CASE("#1127 spiral-vase: streaming layers keep their extrusion flags",
     REQUIRE(ctl.open_file(vase.path()));
     REQUIRE(ctl.get_layer_count() >= static_cast<size_t>(kLayers));
 
-    // Middle layer: pure spiral wall, every move extrudes. Before the fix this
-    // reported a handful of extrusions out of 64 because each E delta was zero.
+    // Middle layer: pure spiral wall, every move extrudes. A zero E delta per
+    // move would report only a handful of extrusions out of 64.
     LayerProbe mid = probe_layer(ctl, ctl.get_layer_count() / 2);
     INFO("mid layer: " << mid.extrusion << "/" << mid.total << " flagged as extrusion");
     REQUIRE(mid.total >= static_cast<size_t>(kSteps));

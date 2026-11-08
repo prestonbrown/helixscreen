@@ -62,12 +62,17 @@ class CountingMock : public AmsBackendMock, public ICfsCalibration {
   public:
     using AmsBackendMock::AmsBackendMock;
     int cutter_calibrations = 0;
+    int belt_tensionings = 0;
     void* capability(helix::TypeTag tag) override {
         return tag == helix::type_tag<ICfsCalibration>() ? static_cast<ICfsCalibration*>(this)
                                                          : AmsBackendMock::capability(tag);
     }
     AmsError calibrate_cutter(std::function<void(bool, const std::string&)>) override {
         ++cutter_calibrations;
+        return AmsErrorHelper::success();
+    }
+    AmsError tension_belts(std::function<void(bool, const std::string&)>) override {
+        ++belt_tensionings;
         return AmsErrorHelper::success();
     }
     AmsError start_chute_calibration(std::function<void()>, std::function<void(const std::string&)>,
@@ -112,7 +117,7 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     ~GuidedFlowFixture() override {
-        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute"}) {
+        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"}) {
             helix::ui::unregister_guided_device_flow(id);
         }
         NavigationManager::instance().go_back();
@@ -228,6 +233,32 @@ TEST_CASE_METHOD(GuidedFlowFixture, "an unregistered guided flow never executes 
 #endif
 }
 
+#if HELIX_HAS_CFS
+TEST_CASE_METHOD(GuidedFlowFixture, "CFS belt tensioning confirms first and shares the status line",
+                 "[ams][guided-flow][k2cal]") {
+    helix::ui::register_cfs_device_flows();
+    lv_obj_t* btn = open_section_and_find(
+        {button("tension_belts", "cfs_belt_tension"), button("calibrate_cutter", "cfs_cutter")},
+        "tension_belts");
+    // Both flows attach the status line; the section shows it once.
+    lv_obj_t* actions = lv_obj_find_by_name(get_ams_device_section_detail_overlay().get_root(),
+                                            "section_actions_container");
+    REQUIRE(actions != nullptr);
+    uint32_t lines = 0;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(actions); ++i) {
+        lines += lv_obj_find_by_name(lv_obj_get_child(actions, static_cast<int32_t>(i)),
+                                     "cfs_cutter_status_line") != nullptr;
+    }
+    CHECK(lines == 1);
+
+    click(btn);
+    CHECK(backend->belt_tensionings == 0);
+    click(lv_obj_find_by_name(lv_screen_active(), "btn_primary"));
+    CHECK(backend->belt_tensionings == 1);
+    CHECK(backend->cutter_calibrations == 0);
+}
+#endif
+
 TEST_CASE_METHOD(GuidedFlowFixture, "a flow's status attach runs once per section build",
                  "[ams][guided-flow]") {
     int attaches = 0;
@@ -284,13 +315,18 @@ TEST_CASE_METHOD(GuidedFlowFixture, "section action buttons take the standard bu
 // Controls come from the setting_*_row components and carry every field
 // ============================================================================
 
-TEST_CASE_METHOD(GuidedFlowFixture, "a disabled toggle is locked and says why",
+TEST_CASE_METHOD(GuidedFlowFixture, "a disabled control is locked, and a toggle says why",
                  "[ams][device-section]") {
     DeviceAction soft = DeviceAction::toggle("unload_t0", "Unload at end", "prefs", false, "",
                                              "Unload this head when a print ends");
     soft.enabled = false;
     soft.disable_reason = "Soft filament is never unloaded";
-    lv_obj_t* root = open_prefs({soft});
+    DeviceAction slider = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
+    slider.enabled = false;
+    DeviceAction dropdown =
+        DeviceAction::dropdown("mode", "Mode", "prefs", {"Off", "Auto"}, std::string("Auto"));
+    dropdown.enabled = false;
+    lv_obj_t* root = open_prefs({soft, slider, dropdown});
 
     lv_obj_t* row = lv_obj_find_by_name(root, "unload_t0");
     REQUIRE(row != nullptr);
@@ -298,6 +334,13 @@ TEST_CASE_METHOD(GuidedFlowFixture, "a disabled toggle is locked and says why",
     REQUIRE(sw != nullptr);
     CHECK(lv_obj_has_state(sw, LV_STATE_DISABLED));
     CHECK(text_of(row, "description") == "Soft filament is never unloaded");
+    lv_obj_t* s = helix::test::find_device_action_slider(root, "len");
+    REQUIRE(s != nullptr);
+    CHECK(lv_obj_has_state(s, LV_STATE_DISABLED));
+    lv_obj_t* d = helix::test::find_device_action_control(root, "mode", &lv_dropdown_class);
+    REQUIRE(d != nullptr);
+    CHECK(lv_obj_has_state(d, LV_STATE_DISABLED));
+    CHECK(lv_dropdown_get_selected(d) == 1);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture,
@@ -396,24 +439,6 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     REQUIRE(sent.has_value());
     CHECK(*sent == Catch::Approx(1.5));
     CHECK(text_of(row, "value") == "1.50 x");
-}
-
-TEST_CASE_METHOD(GuidedFlowFixture, "a disabled slider and dropdown are locked",
-                 "[ams][device-section]") {
-    DeviceAction slider = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
-    slider.enabled = false;
-    DeviceAction dropdown =
-        DeviceAction::dropdown("mode", "Mode", "prefs", {"Off", "Auto"}, std::string("Auto"));
-    dropdown.enabled = false;
-    lv_obj_t* root = open_prefs({slider, dropdown});
-
-    lv_obj_t* s = helix::test::find_device_action_slider(root, "len");
-    REQUIRE(s != nullptr);
-    CHECK(lv_obj_has_state(s, LV_STATE_DISABLED));
-    lv_obj_t* d = helix::test::find_device_action_control(root, "mode", &lv_dropdown_class);
-    REQUIRE(d != nullptr);
-    CHECK(lv_obj_has_state(d, LV_STATE_DISABLED));
-    CHECK(lv_dropdown_get_selected(d) == 1);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture, "a machine-motion action greys while a print holds the printer",
@@ -531,35 +556,25 @@ TEST_CASE_METHOD(GuidedFlowFixture,
     CHECK(last_executed().empty());
 }
 
-TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value for an action disabled meanwhile sends nothing",
+TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value is sent only while its action is available",
                  "[ams][device-section]") {
     using helix::ui::AmsDeviceSectionDetailOverlayTestAccess;
     DeviceAction len = DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm");
     open_prefs({len});
     auto& overlay = get_ams_device_section_detail_overlay();
     AmsDeviceSectionDetailOverlayTestAccess::open_keypad_for(overlay, "len");
-
-    // While the keypad is up the backend disables it, and the section rebuilds.
-    len.enabled = false;
-    len.disable_reason = "Loading configuration...";
-    backend->set_device_actions({len});
-    overlay.refresh();
-    settle();
-
+    std::string expected = "len";
+    SECTION("disabled while the keypad is up: the section rebuilds and nothing is sent") {
+        len.enabled = false;
+        len.disable_reason = "Loading configuration...";
+        backend->set_device_actions({len});
+        overlay.refresh();
+        settle();
+        expected.clear();
+    }
     AmsDeviceSectionDetailOverlayTestAccess::keypad_value(42.0f);
     settle();
-    CHECK(last_executed().empty());
-}
-
-TEST_CASE_METHOD(GuidedFlowFixture, "a keypad value for an available action is sent",
-                 "[ams][device-section]") {
-    using helix::ui::AmsDeviceSectionDetailOverlayTestAccess;
-    open_prefs({DeviceAction::slider("len", "Length", "prefs", 50.0f, 0.0f, 100.0f, "mm")});
-    AmsDeviceSectionDetailOverlayTestAccess::open_keypad_for(
-        get_ams_device_section_detail_overlay(), "len");
-    AmsDeviceSectionDetailOverlayTestAccess::keypad_value(42.0f);
-    settle();
-    CHECK(last_executed() == "len");
+    CHECK(last_executed() == expected);
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture, "the device button disable expressions parse and evaluate",
@@ -733,7 +748,7 @@ TEST_CASE("the built-in registrar registers every vendor's flows", "[ams][guided
     std::vector<std::string> expected = {helix::indx::kSeatByHandFlowId, "indx_cycle_all",
                                          "indx_heater_calibration", "indx_fan_calibration"};
 #if HELIX_HAS_CFS
-    expected.insert(expected.end(), {"cfs_purge_chute", "cfs_cutter"});
+    expected.insert(expected.end(), {"cfs_purge_chute", "cfs_cutter", "cfs_belt_tension"});
 #endif
 #if HELIX_HAS_SNAPMAKER
     expected.push_back(helix::snapmaker::nozzle_offset::kGuidedFlowId);

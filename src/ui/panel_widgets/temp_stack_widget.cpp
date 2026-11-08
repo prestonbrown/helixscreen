@@ -150,7 +150,6 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
     auto create_temp_page = [&](const char* icon_src, const char* icon_name,
                                 const char* bind_current, const char* bind_target,
                                 const char* page_name) -> lv_obj_t* {
-        // Create page container
         lv_obj_t* page = lv_obj_create(page_parent); // reparented by ui_carousel_add_item
         lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(page, 0, 0);
@@ -223,8 +222,8 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
 
     // Chamber page (only if sensor present). Target is the effective target
     // subject (heater target while heating, cooling-fan ceiling while
-    // maintaining) — previously this bound "chamber_temp" as both current AND
-    // target, so the displayed target never reflected the real setpoint.
+    // maintaining), never "chamber_temp", so the displayed target reflects the
+    // real setpoint.
     lv_subject_t* chamber_gate = lv_xml_get_subject(nullptr, "printer_has_chamber");
     if (chamber_gate && lv_subject_get_int(chamber_gate) != 0) {
         lv_obj_t* chamber_page =

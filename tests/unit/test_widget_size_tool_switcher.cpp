@@ -502,11 +502,12 @@ TEST_CASE_METHOD(ToolSwitcherFixture,
 // The face and the picker
 // ============================================================================
 
-TEST_CASE_METHOD(ToolSwitcherFixture, "tool_switcher: the face marks an unknown mounted head",
-                 "[widget_size][tool_switcher]") {
-    // Klipper's toolchanger.tool_number is taken as reported, so a printer that
-    // names a tool the discovery never listed leaves active_tool_index() past
-    // the end of the tool list.
+TEST_CASE_METHOD(ToolSwitcherFixture,
+                 "tool_switcher: a tool number no listed tool carries names no head",
+                 "[widget_size][tool_switcher][tool-number]") {
+    // Klipper's toolchanger.tool_number naming a tool discovery never listed
+    // mounts no head the list holds, so the face asks for one rather than
+    // naming the last head mounted.
     configure_named_tools({"T0", "T1", "T2"});
     ToolState& ts = ToolState::instance();
 
@@ -518,8 +519,9 @@ TEST_CASE_METHOD(ToolSwitcherFixture, "tool_switcher: the face marks an unknown 
 
     ts.update_from_status(nlohmann::json{{"toolchanger", {{"tool_number", 7}}}});
     process_lvgl(30);
-    REQUIRE(ts.active_tool_index() == 7);
-    CHECK(subject_string("tool_switcher_face_label") == "?");
+    REQUIRE(ts.active_tool_index() == -1);
+    const std::string face = subject_string("tool_switcher_face_label");
+    CHECK((face == "Choose head" || face == "None"));
 }
 
 // ============================================================================

@@ -216,6 +216,12 @@ int32_t planet_radius_at(int32_t pct) {
 
 } // namespace
 
+/// The radius a finished print's planet arrives at on the test frame.
+int32_t done_radius() {
+    return static_cast<int32_t>(std::lround(helix::ui::kStarfieldDoneShare *
+                                            static_cast<float>(std::min(kFrameW, kFrameH))));
+}
+
 TEST_CASE("the planet grows with the print", "[screensaver][starfield_sim]") {
     SECTION("no print, no planet") {
         Sky sky(kNoPrint);
@@ -317,20 +323,22 @@ TEST_CASE("stars never punch holes in the planet", "[screensaver][starfield_sim]
 
 TEST_CASE("a finished print arrives at the planet", "[screensaver][starfield_sim]") {
     const size_t all = static_cast<size_t>(kFrameW) * kFrameH;
-    SECTION("it grows to fill the view over four seconds and holds") {
+    SECTION("it looms over four seconds and holds while the stars keep drifting") {
         Sky sky(print_at(ClockMode::COUNTDOWN, 90));
         sky.step();
         const int32_t from = sky.sim.planet().r;
         sky.reading = print_at(ClockMode::DONE, 100);
         sky.fly(2000);
         CHECK(sky.sim.planet().r > from);
-        CHECK(helix::test::lit_pixels(sky.frame.target) < all);
+        CHECK(sky.sim.planet().r < done_radius());
         sky.fly(2200);
-        CHECK(helix::test::lit_pixels(sky.frame.target) == all);
+        CHECK(sky.sim.planet().r == done_radius());
+        CHECK(helix::test::lit_pixels(sky.frame.target) < all);
         const StarfieldPlanet arrived = sky.sim.planet();
+        const std::vector<uint8_t> before = sky.frame.snapshot();
         sky.fly(3000);
         CHECK(sky.sim.planet() == arrived);
-        CHECK(sky.dirty.empty());
+        CHECK(helix::test::bytes_differing(before, sky.frame.bytes) > 0);
         CHECK(sky.uncovered == 0);
     }
     SECTION("a disc larger than a running print's repaints at most every 100 ms") {
@@ -359,7 +367,7 @@ TEST_CASE("a finished print arrives at the planet", "[screensaver][starfield_sim
             CHECK(large_repaints >= 3);
             CHECK(sky.uncovered == 0);
             if (arriving) {
-                CHECK(helix::test::lit_pixels(sky.frame.target) == all);
+                CHECK(sky.sim.planet().r == done_radius());
             } else {
                 CHECK(sky.sim.planet().r == planet_radius_at(0));
             }
@@ -368,7 +376,7 @@ TEST_CASE("a finished print arrives at the planet", "[screensaver][starfield_sim
     SECTION("a sky started after the print finished opens on the planet") {
         Sky sky(print_at(ClockMode::DONE, 100));
         sky.step();
-        CHECK(helix::test::lit_pixels(sky.frame.target) == all);
+        CHECK(sky.sim.planet().r == done_radius());
     }
 }
 

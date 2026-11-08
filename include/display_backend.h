@@ -872,7 +872,8 @@ class DisplayBackend {
     }
 
   private:
-    inline static DisplayBackend* s_active = nullptr;
+    inline static DisplayBackend* s_active =
+        nullptr; // ACTIVE_INSTANCE_OK: display callback context
 };
 
 /**

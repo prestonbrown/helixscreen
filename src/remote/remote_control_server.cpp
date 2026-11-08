@@ -24,6 +24,7 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "moonraker_client_mock.h"
 #endif
+#include "ui_perf_report.h"
 #include "ui_utils.h"
 
 #include "panel_factory.h"
@@ -329,6 +330,7 @@ void RemoteControlServer::register_builtin_handlers() {
     handlers_["resolve"] = [this](const nlohmann::json& p) { return handle_resolve(p); };
     handlers_["screenshot"] = [this](const nlohmann::json& p) { return handle_screenshot(p); };
     handlers_["status"] = [this](const nlohmann::json& p) { return handle_status(p); };
+    handlers_["perf"] = [this](const nlohmann::json& p) { return handle_perf(p); };
     handlers_["demo"] = [this](const nlohmann::json& p) { return handle_demo(p); };
 
     // Phase 2: Subject get/set/list/wait_for
@@ -631,6 +633,12 @@ nlohmann::json RemoteControlServer::handle_list_components(const nlohmann::json&
             arr.push_back(n);
         }
         return {{"components", arr}};
+    });
+}
+
+nlohmann::json RemoteControlServer::handle_perf(const nlohmann::json& /*params*/) {
+    return execute_on_ui_thread([]() -> nlohmann::json {
+        return helix::ui_perf_to_json(helix::capture_ui_perf(lv_display_get_default()));
     });
 }
 

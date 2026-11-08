@@ -253,9 +253,7 @@ TEMPLATE_TEST_CASE("during a print and after it ends, a sim run still replays fr
                    "[screensaver][screensaver_sim_contract]", HELIX_EVERY_PRINT_SIM) {
     const ClockMode mode = GENERATE(ClockMode::COUNTDOWN, ClockMode::DONE, ClockMode::FAILED);
     CAPTURE(static_cast<int>(mode));
-    // A finished print's planet fills the starfield's view, covering every star.
-    check_replays_by_seed<TestType>(
-        mode, !(std::is_same_v<TestType, StarfieldSim> && mode == ClockMode::DONE));
+    check_replays_by_seed<TestType>(mode, true);
 }
 
 TEMPLATE_TEST_CASE("during a print and after it ends, a sim still holds no more than init sized "

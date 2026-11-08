@@ -5,7 +5,7 @@
  * @file test_moonraker_local_probe.cpp
  * @brief Local /proc evidence about Moonraker, for when Moonraker cannot answer.
  *
- * AD5X bundles TAU4PW4H / 865DXBQ7 (v0.99.107): the WebSocket to
+ * Two AD5X debug bundles (v0.99.107): the WebSocket to
  * 127.0.0.1:7125 was refused instantly across two boots. Every Moonraker-derived
  * section of the bundle is fetched THROUGH Moonraker, so all five carried
  * `{"error": "No response from ..."}` and the bundle could not distinguish:

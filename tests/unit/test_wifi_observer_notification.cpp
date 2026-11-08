@@ -56,9 +56,9 @@ struct ObserverNotificationFixture : LVGLTestFixture {
 TEST_CASE("WiFiManager: observer callback ordering — CONNECTED before DISCONNECTED",
           "[wifi][unit][1059][observers]") {
     // Verify that when the NetworkWidget observer pattern is used, a DISCONNECTED
-    // event that arrives after CONNECTED is correctly delivered — this was broken
-    // before the fix because detect_network_type()'s condition skipped the WiFi
-    // re-check when current_network_ was already Wifi.
+    // event that arrives after CONNECTED is correctly delivered, even though
+    // current_network_ is already Wifi: detect_network_type() must not skip
+    // the WiFi re-check then.
     ObserverNotificationFixture fx;
     auto wm = fx.make_manager();
 

@@ -116,28 +116,18 @@ void SpoolmanListView::reset() {
 // Pool Initialization
 // ============================================================================
 
-void SpoolmanListView::init_pool() {
-    if (!container_ || !pool_.empty()) {
-        return;
+bool SpoolmanListView::add_pool_row() {
+    if (!container_) {
+        return false;
     }
-
-    spdlog::debug("[SpoolmanListView] Creating {} row widgets", kPoolSize);
-
-    pool_.reserve(kPoolSize);
-    pool_indices_.resize(kPoolSize, -1);
-
-    for (int i = 0; i < kPoolSize; i++) {
-        lv_obj_t* row =
-            static_cast<lv_obj_t*>(lv_xml_create(container_, "spoolman_spool_row", nullptr));
-
-        if (row) {
-            lv_obj_add_flag(
-                row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, built once with its list
-            pool_.push_back(cache_row_widgets(row));
-        }
+    lv_obj_t* row =
+        static_cast<lv_obj_t*>(lv_xml_create(container_, "spoolman_spool_row", nullptr));
+    if (!row) {
+        return false;
     }
-
-    spdlog::debug("[SpoolmanListView] Pool initialized with {} rows", pool_.size());
+    lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, shown by show_window
+    pool_.push_back(cache_row_widgets(row));
+    return true;
 }
 
 void SpoolmanListView::create_spacers() {
@@ -256,9 +246,9 @@ void SpoolmanListView::populate(const std::vector<SpoolInfo>& spools, int active
     spdlog::debug("[SpoolmanListView] Populating with {} spools (preserve_scroll={})",
                   spools.size(), preserve_scroll);
 
-    // Initialize pool on first call
-    if (pool_.empty()) {
-        init_pool();
+    // One row up front to measure; the rest are sized from the viewport below
+    if (pool_.empty() && add_pool_row()) {
+        pool_indices_.push_back(-1);
     }
 
     // Create spacers if needed
@@ -289,7 +279,13 @@ void SpoolmanListView::populate(const std::vector<SpoolInfo>& spools, int active
         lv_obj_scroll_to_y(container_, 0, LV_ANIM_OFF);
     }
 
-    // Update visible rows
+    // The viewport is read from the laid-out container; one that was just unhidden has none yet
+    lv_obj_update_layout(container_);
+    const int row_stride = (cached_row_height_ > 0 ? cached_row_height_ : 56) + cached_row_gap_;
+    grow_pool_to(pool_rows_for_viewport(lv_obj_get_height(container_), row_stride,
+                                        static_cast<int>(spools.size()), kBufferRows,
+                                        static_cast<size_t>(kPoolSize)),
+                 pool_indices_, [this] { return add_pool_row(); });
     update_visible(spools, active_spool_id);
 
     spdlog::debug("[SpoolmanListView] Populated: {} spools, pool size {}", spools.size(),

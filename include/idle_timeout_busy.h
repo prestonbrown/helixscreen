@@ -56,10 +56,10 @@ class BusyClock {
  *
  * idle_timeout.state reads "Printing" while ANY gcode executes, not only during
  * a blocking operation. A printer with housekeeping delayed_gcode loops
- * therefore reports it in short bursts forever while sitting idle: debug bundle
- * L53W5PKG (Voron Trident with bedfanloop, _AIR_FILTER_TIMER and AFC PREP)
- * logged 632 transitions, the flag high for ~0.7 s out of every 10 s. Each of
- * those windows made the discretionary-gcode guard refuse jogs with "Printer is
+ * therefore reports it in short bursts forever while sitting idle: a Voron
+ * Trident with bedfanloop, _AIR_FILTER_TIMER and AFC PREP logs 632 transitions,
+ * the flag high for ~0.7 s out of every 10 s. Read as busy, each of those
+ * windows would make the discretionary-gcode guard refuse jogs with "Printer is
  * busy — try again in a moment" on an idle printer.
  *
  * Duration is the discriminator: the operations the guard exists for (G28,

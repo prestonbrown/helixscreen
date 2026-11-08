@@ -44,8 +44,8 @@ void register_builtin_guided_device_flows();
 // The per-vendor registrars register_builtin_guided_device_flows() runs. Each is
 // idempotent, since a registration replaces an earlier one under the same id.
 
-/// Registers the Creality CFS calibration flows (`cfs_purge_chute`, `cfs_cutter`). Does
-/// nothing in a build without CFS support.
+/// Registers the Creality CFS calibration flows (`cfs_purge_chute`, `cfs_cutter`,
+/// `cfs_belt_tension`). Does nothing in a build without CFS support.
 void register_cfs_device_flows();
 
 /// Registers the Snapmaker U1 flows (`snapmaker_nozzle_offset`). Does nothing in a

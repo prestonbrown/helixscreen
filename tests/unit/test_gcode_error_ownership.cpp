@@ -122,8 +122,8 @@ TEST_CASE_METHOD(OwnershipFixture,
 
     // A real caller-supplied handler is presumed to raise its own UI, so the
     // `!!` broadcast of the same rejection must dedup against it rather than
-    // double-report. This is the other half of the contract: the fix must not
-    // simply hardcode false.
+    // double-report. This is the other half of the contract: intent must not
+    // simply be hardcoded false.
     CHECK(client.current_send_intent().surfaces_errors);
     CHECK(helix::rpc_error_correlation::was_recently_handled(kG28Rejection));
 

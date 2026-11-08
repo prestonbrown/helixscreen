@@ -159,7 +159,6 @@ static void clear_btn_clicked_cb(lv_event_t* e) {
         return;
     }
 
-    // Clear the text
     lv_textarea_set_text(textarea, "");
 
     // Hide the clear button

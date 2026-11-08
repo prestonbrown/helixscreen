@@ -34,6 +34,7 @@
 #include "helix_fs.h"
 #include "i_moonraker_client.h"
 #include "job_queue_state.h"
+#include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
@@ -500,6 +501,7 @@ void PrintStatusWidget::detach() {
     // Clear widget references
     print_card_thumb_ = nullptr;
     print_card_active_thumb_ = nullptr;
+    detailed_thumb_ = nullptr;
     print_card_layout_ = nullptr;
     print_card_thumb_wrap_ = nullptr;
     print_card_info_ = nullptr;
@@ -717,6 +719,7 @@ void PrintStatusWidget::update_view_subject() {
 
 void PrintStatusWidget::bind_active_branch() {
     print_card_active_thumb_ = nullptr;
+    detailed_thumb_ = nullptr;
     print_card_layout_ = nullptr;
     print_card_thumb_wrap_ = nullptr;
     print_card_info_ = nullptr;
@@ -729,6 +732,7 @@ void PrintStatusWidget::bind_active_branch() {
     }
     // Present only while the active branch is built (print_status_view 3 or 4).
     print_card_active_thumb_ = lv_obj_find_by_name(widget_obj_, "print_card_active_thumb");
+    detailed_thumb_ = lv_obj_find_by_name(widget_obj_, "detailed_thumb");
     print_card_layout_ = lv_obj_find_by_name(widget_obj_, "print_card_layout");
     print_card_thumb_wrap_ = lv_obj_find_by_name(widget_obj_, "print_card_thumb_wrap");
     print_card_info_ = lv_obj_find_by_name(widget_obj_, "print_card_info");
@@ -922,12 +926,16 @@ void PrintStatusWidget::apply_esp_psram_thumbnail() {
         unpoint_thumbs_from(previous->dsc());
     }
     lv_image_set_src(print_card_active_thumb_, esp_thumbnail_->dsc());
+    // The detailed layout binds the path, which here is always the placeholder.
+    if (detailed_thumb_) {
+        lv_image_set_src(detailed_thumb_, esp_thumbnail_->dsc());
+    }
     spdlog::info("[PrintStatusWidget] Active print PSRAM thumbnail applied");
 }
 
 void PrintStatusWidget::unpoint_thumbs_from(const void* dsc) {
-    lv_obj_t* thumbs[] = {print_card_active_thumb_, print_card_thumb_, print_card_thumb_compact_,
-                          idle_hero_thumb()};
+    lv_obj_t* thumbs[] = {print_card_active_thumb_, detailed_thumb_, print_card_thumb_,
+                          print_card_thumb_compact_, idle_hero_thumb()};
     for (auto* img : thumbs) {
         if (img && lv_image_get_src(img) == dsc) {
             lv_image_set_src(img, helix::PrinterPrintState::no_thumbnail_placeholder());
@@ -1400,29 +1408,29 @@ void PrintStatusWidget::dispatch_load() {
 
 void PrintStatusWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config.contains("layout_style") && config["layout_style"].is_string()) {
-        std::string ls = config["layout_style"].get<std::string>();
-        if (ls == "library" || ls == "detailed") {
-            layout_style_ = std::move(ls);
+    using json_util::read_field;
+    if (auto ls = read_field<std::string>(config, "layout_style")) {
+        if (*ls == "library" || *ls == "detailed") {
+            layout_style_ = std::move(*ls);
         }
     }
-    if (config.contains("nozzle_tool_override") && config["nozzle_tool_override"].is_string()) {
-        nozzle_tool_override_ = config["nozzle_tool_override"].get<std::string>();
+    if (auto override_name = read_field<std::string>(config, "nozzle_tool_override")) {
+        nozzle_tool_override_ = std::move(*override_name);
     }
-    if (config.contains("show_title") && config["show_title"].is_boolean()) {
-        show_title_ = config["show_title"].get<bool>();
+    if (auto v = read_field<bool>(config, "show_title")) {
+        show_title_ = *v;
     }
-    if (config.contains("show_print_files") && config["show_print_files"].is_boolean()) {
-        show_print_files_ = config["show_print_files"].get<bool>();
+    if (auto v = read_field<bool>(config, "show_print_files")) {
+        show_print_files_ = *v;
     }
-    if (config.contains("show_reprint_last") && config["show_reprint_last"].is_boolean()) {
-        show_reprint_last_ = config["show_reprint_last"].get<bool>();
+    if (auto v = read_field<bool>(config, "show_reprint_last")) {
+        show_reprint_last_ = *v;
     }
-    if (config.contains("show_recent_prints") && config["show_recent_prints"].is_boolean()) {
-        show_recent_prints_ = config["show_recent_prints"].get<bool>();
+    if (auto v = read_field<bool>(config, "show_recent_prints")) {
+        show_recent_prints_ = *v;
     }
-    if (config.contains("show_job_queue") && config["show_job_queue"].is_boolean()) {
-        show_job_queue_ = config["show_job_queue"].get<bool>();
+    if (auto v = read_field<bool>(config, "show_job_queue")) {
+        show_job_queue_ = *v;
     }
     if (s_formatter_ && !s_formatter_->set_nozzle_tool_override(nozzle_tool_override_)) {
         nozzle_tool_override_ = "auto";

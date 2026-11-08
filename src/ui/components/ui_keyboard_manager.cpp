@@ -136,7 +136,7 @@ const KeyboardManager::AltCharMapping KeyboardManager::alt_char_map_[] = {
     // Bottom-row punctuation. Unlike the letters these carry a multi-character set:
     // hold for the first, slide onto the popover for the rest. Every character here
     // is otherwise unreachable from the alpha layer entirely — '=' in particular is
-    // constant in Klipper macros (PROFILE=default, Z=0.1) and previously needed two
+    // constant in Klipper macros (PROFILE=default, Z=0.1) and otherwise needs two
     // layer switches (?123 then #+=) to reach.
     //
     // Order is the initial default only; promote_alternative() reorders it in place
@@ -927,14 +927,12 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
             if (alternatives && alternatives[0]) {
                 // Ask the widget where it actually drew this key.
                 //
-                // This previously re-derived the geometry by hand: unit_width =
-                // kb_width/40 and row_height = kb_height/4, plus a width table that
-                // only knew 2-, 4- and 6-unit keys. That disagreed with LVGL's real
-                // layout in three ways — integer truncation compounding across a row,
-                // padding/row-gap/border ignored, and no entry for the 3- and 12-unit
-                // keys in row 4 or the 4-unit backspace on the #+= layer. The error
-                // scaled with resolution, so hints drifted off their keys at some
-                // breakpoints and onto neighbours at others.
+                // Re-deriving the geometry by hand (unit_width = kb_width/40, a
+                // per-unit width table) disagrees with LVGL's real layout: integer
+                // truncation compounds across a row, padding/row-gap/border are
+                // ignored, and every key width needs its own entry. The error scales
+                // with resolution, so hints drift off their keys at some breakpoints
+                // and onto neighbours at others.
                 lv_area_t btn_area;
                 if (!buttonmatrix_button_area(keyboard, this_btn, &btn_area)) {
                     continue;
@@ -1373,9 +1371,8 @@ void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password)
 
     // Assert the masking rather than merely recording it. is_password_context()
     // reads the widget's live state, so a caller declaring a password field this
-    // way is guaranteed to get log redaction — previously this flag was logged
-    // and then dropped, which made the whole overload look protective when it
-    // did nothing at all.
+    // way is guaranteed to get log redaction; a flag that were only logged would
+    // make the whole overload look protective while doing nothing at all.
     if (is_password) {
         lv_textarea_set_password_mode(textarea, true);
     }

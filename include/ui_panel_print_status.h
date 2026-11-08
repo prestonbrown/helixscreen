@@ -23,7 +23,6 @@
 #include "subject_managed_panel.h"
 #include "ui/temperature_observer_bundle.h"
 
-// Forward declaration
 namespace helix {
 class IMoonrakerAPI;
 namespace ui {
@@ -46,7 +45,6 @@ struct MemoryInfo;
 #include <string>
 #include <vector>
 
-// Forward declarations
 class TemperatureService;
 class PrintStatusPanel;
 struct FileMetadata;
@@ -517,7 +515,7 @@ class PrintStatusPanel : public OverlayBase {
 
     TemperatureService* temp_control_panel_ = nullptr;
 
-    // Light/timelapse controls (extracted Phase 2 functionality)
+    // Light/timelapse controls
     PrintLightTimelapseControls light_timelapse_controls_;
     helix::ui::PrintLayerPauseControls layer_pause_controls_;
 

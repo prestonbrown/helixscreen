@@ -159,7 +159,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
 // LV_SIZE_CONTENT) on every perf_mcu_names notification was both wasteful and
 // crash-prone: a freshly-created row carries the unresolved LV_COORD_MAX
 // sentinel until the next layout pass, and a render that blits it in that
-// window overflows int32 fill arithmetic → SIGSEGV. The fix gates rebuilds on
+// window overflows int32 fill arithmetic → SIGSEGV. The overlay gates rebuilds on
 // an actual change to the names string and forces a synchronous layout pass so
 // rows never linger with unresolved coordinates. See (prestonbrown/helixscreen#1061).
 // ============================================================================
@@ -315,7 +315,7 @@ TEST_CASE_METHOD(PerfOverlayFixture,
 // stack without register_overlay_instance(). NavigationManager resolved no
 // lifecycle for it, so every open was filed as "unreg" in panel telemetry and in
 // the crash breadcrumb ring — and a genuine missing registration elsewhere became
-// indistinguishable from this known-benign one in user logs. Bundle 3Q2GB74K
+// indistinguishable from this known-benign one in user logs. One debug bundle
 // carried the resulting warning pair from a live printer.
 //
 // UiOverlayPerformance implements no IPanelLifecycle, so a null lifecycle is the

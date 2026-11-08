@@ -199,8 +199,8 @@ static json build_mock_file_list_response(const std::string& root, const std::st
             result_array.push_back(file_entry);
         }
 
-        // Note: We only return real files from TEST_GCODE_DIR and the planted overlay
-        // Fake subdirectory entries were removed to prevent thumbnail extraction warnings
+        // Only real files from TEST_GCODE_DIR and the planted overlay: fake
+        // subdirectory entries trigger thumbnail extraction warnings
     } else {
         // A subdirectory of the gcodes root: scan it like the root, the way
         // Moonraker lists any directory it is asked for. A nonexistent
@@ -274,7 +274,6 @@ static json build_mock_file_metadata_response(const std::string& filename) {
     }
     std::string full_path = helix::mock::gcode_disk_path(clean_filename);
 
-    // Get file info from filesystem
     struct stat file_stat;
     uint64_t size = 0;
     double modified = 0.0;

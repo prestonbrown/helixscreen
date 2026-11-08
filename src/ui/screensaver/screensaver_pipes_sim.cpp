@@ -1023,14 +1023,18 @@ void PipesSim::start_screen(const FrameTarget& frame, std::minstd_rand& rng,
     teapot_reserved_ = false;
     catching_up_ = false;
     fill_ = 0.0f;
+    done_held_ms_ = 0;
     if (!print_screen_) {
+        regrowing_done_ = false;
         return;
     }
     screen_.fill_grid();
     reserve_teapot_node(frame);
     // A screen begun on a paused or ended print catches up to it over the next frames instead
     // of growing from empty at the running rate.
-    catching_up_ = print.mode == ClockMode::PAUSED || clock_mode_is_end(print.mode);
+    regrowing_done_ = regrowing_done_ && print.mode == ClockMode::DONE;
+    catching_up_ =
+        !regrowing_done_ && (print.mode == ClockMode::PAUSED || clock_mode_is_end(print.mode));
 }
 
 void PipesSim::reserve_teapot_node(const FrameTarget& frame) {
@@ -1123,7 +1127,10 @@ bool PipesSim::needs_new_screen(const ClockReading& print) const {
 
 void PipesSim::step_print(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& rng,
                           const ClockReading& print, std::vector<DirtyRect>& dirty) {
-    const uint32_t steps = catching_up_ ? kPipesFastForwardSteps : kPipesMaxStepsPerTick;
+    uint32_t steps = catching_up_ ? kPipesFastForwardSteps : kPipesMaxStepsPerTick;
+    if (regrowing_done_) {
+        steps = steps_.steps_due(dt_ms, kPipesStepMs, kPipesMaxStepsPerTick);
+    }
     if (end_ != PipesEnd::NONE || clock_mode_is_end(print.mode)) {
         // Catching up to a print that stopped short, the screen grows to where it stopped
         // before it greys.
@@ -1164,6 +1171,14 @@ void PipesSim::step(uint32_t dt_ms, const FrameTarget& frame, std::minstd_rand& 
         }
         if (print_screen_) {
             step_print(dt_ms, frame, rng, print, dirty);
+            if (end_ == PipesEnd::DONE && end_drawn_) {
+                done_held_ms_ += dt_ms;
+                if (done_held_ms_ >= kPipesDoneHoldMs) {
+                    regrowing_done_ = true;
+                    dissolve_.begin(rng);
+                    phase_ = PipesPhase::DISSOLVING;
+                }
+            }
             return;
         }
         const uint32_t due = steps_.steps_due(dt_ms, kPipesStepMs, kPipesMaxStepsPerTick);
@@ -1212,6 +1227,8 @@ void PipesSim::clear() {
     end_ = PipesEnd::NONE;
     end_drawn_ = false;
     teapot_reserved_ = false;
+    regrowing_done_ = false;
+    done_held_ms_ = 0;
 }
 
 size_t PipesSim::heap_bytes() const {

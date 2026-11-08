@@ -19,7 +19,7 @@ namespace {
  * when the observer has been destroyed between queueing and execution.
  * Without this, the owner pointer bound into the handler becomes dangling if
  * the owner is destroyed during a widget rebuild.
- * See issue #174: SEGV in LedWidget::update_light_icon() via stale pointer.
+ * (#174)
  */
 template <typename V> struct LambdaObserverContext {
     std::shared_ptr<const helix::Callback<void(V)>> fn;
@@ -36,10 +36,9 @@ template <typename Context> Context* context_of(lv_observer_t* obs) {
 // LOAD-BEARING INVARIANT: the synchronous bodies below have NO defense
 // against a freed context. Reading c->fn / c->alive on freed-but-not-yet-reused
 // heap copies a plausible shared_ptr (a refcount bump) on freed memory →
-// SIGSEGV in __aarch64_ldadd4 (the crash in bundles 449TVQ82/X3RA4252). The
-// weak alive and lifetime guards protect only the DEFERRED lambda, not these
-// copies. Safety therefore depends entirely on ObserverGuard::reset()
-// removing the observer from the subject BEFORE freeing the context (its
+// SIGSEGV in __aarch64_ldadd4. The weak alive and lifetime guards protect
+// only the DEFERRED lambda, not these copies. Safety therefore depends entirely on
+// ObserverGuard::reset() removing the observer from the subject BEFORE freeing the context (its
 // `delete ctx` cleanup). reset() guarantees that ordering for any observer on
 // a live subject; the per-creation invalidation epoch (ui_observer_guard.h)
 // ensures an observer created during a printer-state reinit window is still

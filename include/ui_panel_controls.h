@@ -27,7 +27,6 @@
 #include <optional>
 #include <string>
 
-// Forward declaration
 class TemperatureService;
 namespace helix {
 class TemperatureController;

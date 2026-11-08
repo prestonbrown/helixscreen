@@ -829,7 +829,6 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
 // ==============================================
 
 lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
-    // Create base object
     lv_obj_t* obj = lv_obj_create(parent);
     if (!obj) {
         return nullptr;
@@ -857,7 +856,6 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, gcode_viewer_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, gcode_viewer_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
     install_input_handlers(obj);

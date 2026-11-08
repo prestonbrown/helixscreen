@@ -5,11 +5,10 @@
  * @file test_print_select_refresh_self_heal.cpp
  * @brief Lock in PrintSelectPanel's directory-error self-heal behavior.
  *
- * The stuck-refresh self-heal decision that used to live here as the
- * refresh_should_skip() predicate (#911) has been extracted into
- * helix::InFlightGuard — see test_in_flight_guard.cpp ([inflight]) for that
- * coverage. What remains here is dir_error_should_reset_to_root(), the
- * phantom-directory fallback that is still a pure predicate on the panel.
+ * The stuck-refresh self-heal decision (#911) is helix::InFlightGuard; see
+ * test_in_flight_guard.cpp ([inflight]) for that coverage. This file covers
+ * dir_error_should_reset_to_root(), the phantom-directory fallback, a pure
+ * predicate on the panel.
  */
 
 #include "ui_panel_print_select.h"
@@ -25,7 +24,7 @@ using namespace std::chrono_literals;
 //
 // FlashForge's Moonraker returned a doubled folder segment
 // ("Feinkost/Feinkost/Gridfinity") that the server reports as missing; the panel
-// retried it every refresh forever (debug bundle TJVQDCZ6). When get_directory
+// retried it every refresh forever. When get_directory
 // fails because the directory is gone, the panel should fall back to root rather
 // than loop. Resetting only when NOT already at root prevents an infinite
 // reset->refresh->fail cycle if root itself ever errors.

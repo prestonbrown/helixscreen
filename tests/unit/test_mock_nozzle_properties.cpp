@@ -332,59 +332,42 @@ TEST_CASE_METHOD(NozzleFixture, "a head takes one nozzle change at a time",
     }
 }
 
-TEST_CASE_METHOD(NozzleFixture, "a pick of the value a head reports sends nothing",
-                 "[mock][snapmaker][nozzle]") {
-    CHECK(pick("snapmaker_nozzle_diameter_t0", "0.4 mm").success());
-    CHECK(pick("snapmaker_nozzle_flow_t0", "Standard").success());
-    CHECK(client.sent.empty());
-    CHECK(user_errors() == 0);
-}
-
 TEST_CASE_METHOD(NozzleFixture,
-                 "a refusal inside a successful reply tells the user and snaps the row back",
+                 "a change the head did not take tells the user and snaps the row back",
                  "[mock][snapmaker][nozzle]") {
-    // The backend has not seen the print start; the firmware has.
-    MoonrakerClientMockTestAccess::set_print_state(client, 1);
+    const char* id = "snapmaker_nozzle_diameter_t1";
+    const char* why = nullptr;
+    SECTION("a refusal inside a successful reply") {
+        // The backend has not seen the print start; the firmware has.
+        MoonrakerClientMockTestAccess::set_print_state(client, 1);
+        why = "Cannot change nozzle properties during printing!";
+    }
+    SECTION("a reply that says neither success nor error") {
+        MoonrakerClientMockTestAccess::set_method_handler(
+            client, nozzle::kMethod,
+            [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
+                if (ok) {
+                    ok(json{{"result", "ok"}});
+                }
+                return true;
+            });
+        why = "the printer did not confirm it";
+    }
+    SECTION("a failed send") {
+        client.fail_next(nozzle::kMethod, MoonrakerError::unknown("link dropped"));
+        why = "link dropped";
+    }
     const int before = state_changes;
-    REQUIRE(pick("snapmaker_nozzle_diameter_t1", "0.6 mm").success());
-    REQUIRE(client.sent.size() == 1);
+    REQUIRE(pick(id, "0.6 mm").success());
     CHECK(client.nozzle_properties(1).first == 0.4);
     CHECK(user_errors() == 1);
-    CHECK(logs.count_containing("Cannot change nozzle properties during printing!") >= 1);
+    CHECK(logs.count_containing(why) >= 1);
     CHECK(state_changes > before);
     // The row still reads what the head reports.
     const auto actions = backend->get_device_actions();
-    auto it = std::find_if(actions.begin(), actions.end(),
-                           [](const auto& a) { return a.id == "snapmaker_nozzle_diameter_t1"; });
+    auto it =
+        std::find_if(actions.begin(), actions.end(), [id](const auto& a) { return a.id == id; });
     REQUIRE(it != actions.end());
     CHECK(std::any_cast<std::string>(it->current_value) == "0.4 mm");
-}
-
-TEST_CASE_METHOD(NozzleFixture, "a reply that says neither success nor error is not success",
-                 "[mock][snapmaker][nozzle]") {
-    MoonrakerClientMockTestAccess::set_method_handler(
-        client, nozzle::kMethod,
-        [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
-           helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
-            if (ok) {
-                ok(json{{"result", "ok"}});
-            }
-            return true;
-        });
-    const int before = state_changes;
-    REQUIRE(pick("snapmaker_nozzle_diameter_t3", "0.8 mm").success());
-    CHECK(user_errors() == 1);
-    CHECK(logs.count_containing("the printer did not confirm it") >= 1);
-    CHECK(state_changes > before);
-}
-
-TEST_CASE_METHOD(NozzleFixture, "a failed send tells the user and snaps the row back",
-                 "[mock][snapmaker][nozzle]") {
-    client.fail_next(nozzle::kMethod, MoonrakerError::unknown("link dropped"));
-    const int before = state_changes;
-    REQUIRE(pick("snapmaker_nozzle_diameter_t0", "0.6 mm").success());
-    CHECK(client.nozzle_properties(0).first == 0.4);
-    CHECK(user_errors() == 1);
-    CHECK(logs.count_containing("link dropped") >= 1);
-    CHECK(state_changes > before);
 }

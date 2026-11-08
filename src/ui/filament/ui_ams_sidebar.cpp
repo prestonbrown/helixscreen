@@ -11,6 +11,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_manual_pull_prompt.h"
+#include "ui_open_instances.h"
 #include "ui_spool_canvas.h"
 #include "ui_step_progress.h"
 #include "ui_temperature_utils.h"
@@ -54,6 +55,13 @@
 namespace helix::ui {
 
 namespace {
+
+/// Every set-up sidebar, for from_event(). Never freed: a sidebar destroyed on the
+/// static-destruction path still removes itself here.
+OpenInstances<AmsOperationSidebar>& open_sidebars() {
+    static auto* sidebars = new OpenInstances<AmsOperationSidebar>();
+    return *sidebars;
+}
 
 /// How long a held optimistic action outlives backend silence once the backend
 /// has accepted the operation: the gap before its first frame, which can
@@ -338,25 +346,25 @@ void AmsOperationSidebar::register_callbacks_static() {
     register_xml_callbacks({
         {"ams_sidebar_bypass_toggled",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->handle_bypass_toggle();
              }
          }},
         {"ams_sidebar_unload_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->handle_unload();
              }
          }},
         {"ams_sidebar_reset_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->handle_reset();
              }
          }},
         {"ams_sidebar_check_gates_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->handle_check_gates();
              }
          }},
@@ -364,19 +372,19 @@ void AmsOperationSidebar::register_callbacks_static() {
         {"ams_sidebar_cancel_clicked", [](lv_event_t*) { helix::ui::abort_ams_operation(); }},
         {"ams_sidebar_load_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->handle_load();
              }
          }},
         {"ams_sidebar_mount_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  self->open_head_picker(HeadPickOp::Mount);
              }
          }},
         {"ams_sidebar_park_clicked",
          [](lv_event_t* e) {
-             if (auto* self = get_instance_from_event(e)) {
+             if (auto* self = from_event(e)) {
                  helix::ui::request_tool_park(self->printer_state_);
              }
          }},
@@ -398,31 +406,15 @@ void AmsOperationSidebar::place_summary(bool portrait) {
 }
 
 // ============================================================================
-// Static Callback Routing (parent chain traversal)
+// Static Callback Routing
 // ============================================================================
 
-AmsOperationSidebar* AmsOperationSidebar::get_instance_from_event(lv_event_t* e) {
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    // Find the ams_sidebar component root by name (or the portrait slot the strip and
-    // status line move into), then get our instance from its user_data.
-    // Cannot walk parents checking any user_data — ui_button and other widgets set their own
-    // user_data, which would be miscast as AmsOperationSidebar* (L069).
-    lv_obj_t* obj = target;
-    while (obj) {
-        const char* name = lv_obj_get_name(obj);
-        if (name && (strcmp(name, "ams_operation_sidebar") == 0 ||
-                     strcmp(name, "portrait_summary_slot") == 0)) {
-            void* user_data = lv_obj_get_user_data(obj);
-            if (user_data) {
-                return static_cast<AmsOperationSidebar*>(user_data);
-            }
-        }
-        obj = lv_obj_get_parent(obj);
+AmsOperationSidebar* AmsOperationSidebar::from_event(lv_event_t* e) {
+    AmsOperationSidebar* self = open_sidebars().owner_of(lv_event_get_current_target_obj(e));
+    if (!self) {
+        spdlog::warn("[AmsSidebar] Could not find instance from event target");
     }
-
-    spdlog::warn("[AmsSidebar] Could not find instance from event target");
-    return nullptr;
+    return self;
 }
 
 // ============================================================================
@@ -458,16 +450,14 @@ bool AmsOperationSidebar::setup(lv_obj_t* panel) {
         return false;
     }
 
-    // Store this pointer for static callback routing
-    lv_obj_set_user_data(sidebar_root_, this);
+    panel_ = panel;
+    open_sidebars().add(this);
 
     // In portrait the strip and status stand above the diagram, in the panel's
     // summary slot; they follow the orientation live.
     loaded_card_ = lv_obj_find_by_name(sidebar_root_, "current_loaded_card");
     status_section_ = lv_obj_find_by_name(sidebar_root_, "status_section");
     summary_slot_ = lv_obj_find_by_name(panel, "portrait_summary_slot");
-    if (summary_slot_)
-        lv_obj_set_user_data(summary_slot_, this);
     if (lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait")) {
         portrait_observer_ = observe<int>(
             portrait, this,
@@ -742,12 +732,9 @@ void AmsOperationSidebar::cleanup() {
     // Nullify widget refs BEFORE resetting observers — any cascading observer
     // callbacks that slip through the active_ guard will see null pointers and
     // bail out, preventing use-after-free on deleted LVGL objects.
-    if (sidebar_root_) {
-        lv_obj_set_user_data(sidebar_root_, nullptr);
-    }
+    open_sidebars().remove(this);
+    panel_ = nullptr;
     portrait_observer_.reset();
-    if (summary_slot_)
-        lv_obj_set_user_data(summary_slot_, nullptr);
     sidebar_root_ = nullptr;
     loaded_card_ = nullptr;
     status_section_ = nullptr;

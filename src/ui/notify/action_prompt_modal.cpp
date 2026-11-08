@@ -288,10 +288,8 @@ void ActionPromptModal::populate_content() {
         }
     }
 
-    // Create text lines
     create_text_lines();
 
-    // Create buttons
     create_buttons();
 }
 

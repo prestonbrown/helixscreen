@@ -9,6 +9,7 @@
  * commands and macros. HelixScreen parses this into a string subject for UI display.
  */
 
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -25,13 +26,8 @@ using json = nlohmann::json;
 // Basic Message Parsing
 // ============================================================================
 
-TEST_CASE("Display message: parses string message from display_status",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: parses string message from display_status",
+                 "[print][display_message]") {
     SECTION("sets message from display_status.message string") {
         json status = {{"display_status", {{"progress", 0.0}, {"message", "Heating bed..."}}}};
         state.update_from_status(status);
@@ -77,12 +73,8 @@ TEST_CASE("Display message: parses string message from display_status",
 // Clearing Semantics
 // ============================================================================
 
-TEST_CASE("Display message: survives the transition into PRINTING", "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: survives the transition into PRINTING",
+                 "[print][display_message]") {
     // Regression for the delta-clobber bug. A PRINT_START macro emits M117
     // before print_stats.state flips to "printing", so the message arrives in
     // an EARLIER notification. Moonraker sends deltas, so Klipper will never
@@ -137,13 +129,8 @@ TEST_CASE("Display message: cleared at print end", "[print][display_message]") {
     }
 }
 
-TEST_CASE("Display message: END_PRINT M117 survives the print-end clear",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: END_PRINT M117 survives the print-end clear",
+                 "[print][display_message]") {
     json printing = {{"print_stats", {{"state", "printing"}}}};
     state.update_from_status(printing);
 
@@ -207,14 +194,10 @@ TEST_CASE("Display message: cleared on abnormal exit to standby (no terminal sta
     }
 }
 
-TEST_CASE("Display message: normal end-of-print sequence leaves the END_PRINT "
-          "farewell message intact through the complete->standby transition",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Display message: normal end-of-print sequence leaves the END_PRINT "
+                 "farewell message intact through the complete->standby transition",
+                 "[print][display_message]") {
     // This is the negative case for the abnormal-exit clear above: the normal
     // path is printing -> complete -> standby, and an END_PRINT macro's M117
     // lands between the complete and standby transitions. If STANDBY cleared
@@ -312,13 +295,9 @@ TEST_CASE("Display message: a subscription response for an ended job does not sh
     }
 }
 
-TEST_CASE("Display message: a subscription refresh after connect keeps the leftover hidden",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Display message: a subscription refresh after connect keeps the leftover hidden",
+                 "[print][display_message]") {
     apply_subscription(state, ended_frame("cancelled", "Print starting..."),
                        Subscription::DiscoveryReplay);
     REQUIRE(shown_message(state).empty());
@@ -332,13 +311,9 @@ TEST_CASE("Display message: a subscription refresh after connect keeps the lefto
     REQUIRE(message_visible(state) == 0);
 }
 
-TEST_CASE("Display message: a reconnect replay keeps the message shown live",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Display message: a reconnect replay keeps the message shown live",
+                 "[print][display_message]") {
     state.update_from_status({{"print_stats", {{"state", "printing"}}}});
     state.update_from_status({{"print_stats", {{"state", "cancelled"}}}});
     state.update_from_status({{"display_status", {{"message", "Print cancelled"}}}});
@@ -357,13 +332,9 @@ TEST_CASE("Display message: a reconnect replay keeps the message shown live",
     REQUIRE(message_visible(state) == 1);
 }
 
-TEST_CASE("Display message: the subscription rule is limited to ended jobs",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Display message: the subscription rule is limited to ended jobs",
+                 "[print][display_message]") {
     SECTION("live frame ending the job together with a farewell M117") {
         state.update_from_status({{"print_stats", {{"state", "printing"}}}});
         state.update_from_status(ended_frame("cancelled", "Print cancelled"));
@@ -392,12 +363,8 @@ TEST_CASE("Display message: the subscription rule is limited to ended jobs",
 // Initial State
 // ============================================================================
 
-TEST_CASE("Display message: initializes empty", "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: initializes empty",
+                 "[print][display_message]") {
     const char* msg = lv_subject_get_string(state.print_state().get_display_message_subject());
     REQUIRE(std::string(msg) == "");
 }
@@ -406,13 +373,8 @@ TEST_CASE("Display message: initializes empty", "[print][display_message]") {
 // Visibility Subject
 // ============================================================================
 
-TEST_CASE("Display message: visibility subject tracks non-empty state",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: visibility subject tracks non-empty state",
+                 "[print][display_message]") {
     SECTION("visible=0 initially") {
         REQUIRE(lv_subject_get_int(state.print_state().get_display_message_visible_subject()) == 0);
     }
@@ -472,12 +434,8 @@ TEST_CASE("Display message: visibility subject tracks non-empty state",
 // Long Message Handling
 // ============================================================================
 
-TEST_CASE("Display message: truncates long messages safely", "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Display message: truncates long messages safely",
+                 "[print][display_message]") {
     // Send a message longer than the 128-byte buffer
     std::string long_msg(200, 'A');
     json status = {{"display_status", {{"message", long_msg}}}};
@@ -493,13 +451,8 @@ TEST_CASE("Display message: truncates long messages safely", "[print][display_me
 // print_active parity (guards the declarative visibility binding)
 // ============================================================================
 
-TEST_CASE("print_active tracks PrintJobState across a full job lifecycle",
-          "[print][display_message]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "print_active tracks PrintJobState across a full job lifecycle",
+                 "[print][display_message]") {
     struct Step {
         const char* moonraker_state;
         int expected_active;

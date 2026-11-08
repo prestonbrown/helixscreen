@@ -633,17 +633,17 @@ compile_commands_full:
 #   $(OBJ_DIR)/lvgl/*/*.d   - LVGL sources (one level deep)
 #   $(OBJ_DIR)/lvgl/*/*/*.d - LVGL sources (two levels deep - libs/thorvg/*)
 #   $(OBJ_DIR)/lvgl/*/*/*/*.d - LVGL sources (three levels deep)
--include $(wildcard $(OBJ_DIR)/*.d)
--include $(wildcard $(OBJ_DIR)/*/*.d)
--include $(wildcard $(OBJ_DIR)/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*/*.d)
 # helix-xml is edited in place (our own submodule), so its .d files ARE
 # tracked, unlike LVGL/lv_markdown/quirc below. Paths are 3-4 levels deep:
 #   $(OBJ_DIR)/helix-xml/src/xml/*.d           - e.g. lv_xml.c, lv_xml_component.c
 #   $(OBJ_DIR)/helix-xml/src/xml/parsers/*.d   - per-widget XML parsers
 #   $(OBJ_DIR)/helix-xml/src/libs/expat/*.d    - vendored expat (same tree)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*/*.d)
 # NOTE: LVGL .d files intentionally NOT included - they add 150k+ lines of deps
 # that slow make startup by 4+ seconds. LVGL rarely changes; do clean build if needed.

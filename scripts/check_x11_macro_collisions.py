@@ -10,15 +10,14 @@
 # `InvalidationScope::0L` and the compiler reports something that looks nothing
 # like the cause.
 #
-# That shipped. v0.99.118 tagged, then failed to build on x86_64 Debian, Raspberry
-# Pi and Raspberry Pi 32-bit because include/gcode_selection_state.h declared
-#   enum class InvalidationScope { None, SolidCache, SolidAndGhost };
-# and src/rendering/gcode_gles_renderer.cpp includes <SDL.h>, whose Linux include
-# chain reaches <X11/X.h>. Every printer target built clean -- none of them link
-# X11 -- and no local build reproduces it either, because our SDL is built without
-# X11 (no .d file under build/obj mentions X11/X.h). Nothing saw it until the
-# release job ran, after the tag was cut. Fixed by renaming the enumerator to
-# `Nothing` (3ec0c17be).
+# Only the x86_64 Debian and Raspberry Pi (64- and 32-bit) release builds see
+# it. An enumerator such as `InvalidationScope::None`, in a header that
+# src/rendering/gcode_gles_renderer.cpp includes, breaks there because that
+# file includes <SDL.h>, whose Linux include chain reaches <X11/X.h>. Every printer target builds
+# clean -- none of them link X11 -- and no local build reproduces it either,
+# because our SDL is built without X11 (no .d file under build/obj mentions
+# X11/X.h). Without this gate the release job, after the tag is cut, is the
+# first build to fail. The fix is a rename (that enumerator is `Nothing`).
 #
 # WHAT IS FLAGGED -- every hit is fatal, there is no advisory class
 #   A colliding identifier used in one of the two shapes the preprocessor rewrites:
@@ -128,6 +127,8 @@ import argparse
 import os
 import re
 import sys
+
+from source_strip import blank_cxx
 
 SCAN_DIRS = ['src', 'include']
 SCAN_EXTS = ('.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.hxx')
@@ -249,52 +250,6 @@ def qualified_re(names):
 # `enum`, optional class/struct, optional name, optional `: underlying`, then a body.
 ENUM_HEAD_RE = re.compile(r'\benum\b(?:\s+(?:class|struct))?(?:\s+[\w:]+)?'
                           r'(?:\s*:\s*[\w:\s<>,]+?)?\s*\{')
-
-
-def blank_comments_and_strings(src):
-    """Replace every comment / string / char literal with spaces, preserving length
-    and newlines so offsets and line numbers stay exact."""
-    out = list(src)
-    i, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == '/' and i + 1 < n and src[i + 1] == '/':
-            while i < n and src[i] != '\n':
-                out[i] = ' '
-                i += 1
-        elif c == '/' and i + 1 < n and src[i + 1] == '*':
-            out[i] = out[i + 1] = ' '
-            i += 2
-            while i < n and not (src[i] == '*' and i + 1 < n and src[i + 1] == '/'):
-                if src[i] != '\n':
-                    out[i] = ' '
-                i += 1
-            if i + 1 < n:
-                out[i] = out[i + 1] = ' '
-                i += 2
-        elif c in '"\'':
-            quote = c
-            out[i] = ' '
-            i += 1
-            while i < n and src[i] != quote:
-                if src[i] == '\\' and i + 1 < n:
-                    if src[i] != '\n':
-                        out[i] = ' '
-                    i += 1
-                    if i < n and src[i] != '\n':
-                        out[i] = ' '
-                    i += 1
-                    continue
-                if src[i] != '\n':
-                    out[i] = ' '
-                i += 1
-            if i < n:
-                out[i] = ' '
-                i += 1
-        else:
-            i += 1
-    assert len(out) == n
-    return ''.join(out)
 
 
 def enum_bodies(code):
@@ -441,7 +396,7 @@ def taint_lines(directives):
 
 
 def scan_file(path, src, macros, taint_from):
-    code = blank_comments_and_strings(src)
+    code = blank_cxx(src)
     lines = src.split('\n')
     hits = []
 

@@ -475,6 +475,34 @@ return `AmsResult::COMMAND_FAILED` naming the material. The user keeps the color
 weight and Spoolman link and is told which part did not land; returning success
 for a write that never happened is what made this invisible for so long.
 
+### CFS: telling Creality's daemon about an edit
+
+On Creality OS a daemon serves a WebSocket on `127.0.0.1:9999` that Creality Print and the
+Creality Cloud app read slot state from. It does not watch Klipper's `tn_data`, so a slot written
+with `BOX_MODIFY_TN_DATA` stays stale in both apps until the daemon is told (#2048, protocol and
+captures from a K1C by firestorm986). After Klipper acknowledges the write, `AmsBackendCfs` sends
+the frame Creality Print itself sends for an edit:
+
+```json
+{"method":"set","params":{"modifyMaterial":{"boxId":1,"id":0,"rfid":"00003","type":"PETG",
+ "vendor":"Generic","name":"PETG","color":"#0ff0000","minTemp":220.0,"maxTemp":270.0,
+ "pressure":"0.04"}}}
+```
+
+| Field | Source |
+|-------|--------|
+| `boxId`, `id` | unit T1..T4 = 1..4 (0 = external spool holder), bay A..D = 0..3 |
+| `color` | `'#'` + the same `0RRGGBB` written to `color_value`; the `boxsInfo` capture reports every color that way |
+| `rfid` | the 5-char catalog code of the `material_type` written, `""` for a color-only write |
+| `type`, `vendor`, `name` | the edit, then the catalog product of that code |
+| `minTemp`, `maxTemp` | the slot's temps, else that catalog product's |
+| `pressure` | always `"0.04"`, the value in the capture: HelixScreen keeps no per-slot pressure advance |
+
+The send is strictly best effort (`include/cfs_daemon_sync.h`): one connection per edit on an
+`HttpExecutor::fast()` worker, a 150 ms connect timeout and a 750 ms budget end to end, no reply
+read, every failure a debug line. A write Klipper rejects sends nothing. The ESP32 firmware has
+no transport for it and sends nothing.
+
 ### Gcode Tool Remapper
 
 `helix::GcodeToolRemapper` (`src/rendering/gcode_tool_remapper.cpp`, `include/gcode_tool_remapper.h`) rewrites the tool numbers inside a sliced G-code file when a logical tool must print from a different physical head. It stays generic: pure text in, changed lines out, no `AmsBackend`, Moonraker, or LVGL dependency, because the problem lives at the file level, not the backend level. A slicer bakes tool numbers into several command families, and a remap that moves one but not the others runs the right filament at the wrong temperature, or from a head nothing heated.
@@ -1054,11 +1082,13 @@ types already in its own library).
 ### Regenerating the catalog
 
 ```bash
-make regen-filaments ORCA_TAG=v2.4.1     # ORCA_TAG defaults to a pinned tag in mk/filaments.mk
+make regen-filaments                     # ORCA_TAG and ORCA_ID_TAG default to pinned tags in mk/filaments.mk
+make regen-filaments ORCA_TAG=v2.4.1 ORCA_ID_TAG=v2.5.0-beta
 ```
 
-This shallow-clones OrcaSlicer's `resources/profiles` at the pinned tag into
-`build/orca-profiles` (sparse checkout, blob-filtered), runs
+This shallow-clones OrcaSlicer's `resources/profiles` at `ORCA_TAG` into
+`build/orca-profiles` and at `ORCA_ID_TAG` into `build/orca-id-profiles` (sparse
+checkouts, blob-filtered), runs
 `scripts/import_orca_filaments.py` to resolve `inherits` chains, extract
 facts, and union them with the preserved CFS-code seed
 (`scripts/fixtures/filament_seed.json`), carries the hand-maintained `types` table
@@ -1080,8 +1110,18 @@ inherits from a template when no other product inherits that same id. A
 template shared by several products (Elegoo's `PLA @base` under fourteen PLA
 variants) names none of them, so those products carry no `orca_id` and Orca
 matches them by material type. The shipped catalog takes its temps from v2.4.1
-and its `orca_id`s from v2.5.0-beta (`_attribution` says so); a single-tag
-`make regen-filaments` does not reproduce that split.
+and its `orca_id`s from v2.5.0-beta (`_attribution` says so): `ORCA_TAG` gives
+the products and temps, and `ORCA_ID_TAG` replaces every product's `orca_id` with
+the one the same (brand, name) carries at that tag
+(`scripts/import_orca_filaments.py#overlay_orca_ids`). A product the ids tag has
+no id for carries none. The importer refuses to overwrite a catalog whose
+`_attribution` names a different ids tag than the one passed; moving to a new ids
+tag is `make regen-filaments ORCA_ID_TAG=<tag> ALLOW_ID_TAG_CHANGE=1`.
+
+Products that Orca does not profile live in `scripts/fixtures/filament_seed.json`
+(`source` `cfs-seed`, `helix-seed`, `vendor-spec`), never only in
+`assets/filaments.json`: a regen rebuilds every row from Orca plus the seed, so a
+row added to the catalog by hand is gone after the next one.
 
 `assets/filaments.json` is **generated but committed** (same pattern as fonts
 and translations) — cross-compiled targets need the file present without
@@ -3331,7 +3371,7 @@ The section overlay (`src/ui/filament/ui_ams_device_section_detail_overlay.cpp`)
 registry. It never names a vendor, and a flow id with no registration is refused with a
 warning rather than executed, because the flow is what asks before moving the machine.
 
-The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
+The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`, `cfs_belt_tension`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
 and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
 `register_builtin_guided_device_flows()` (`src/ui/filament/ui_guided_device_flow.cpp`). Startup calls
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32

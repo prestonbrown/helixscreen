@@ -15,7 +15,7 @@
  *   - a -100°C lower bound in is_safe_temperature(), so negative heater targets
  *     passed validation and were sent to the printer.
  *
- * The fix clamps both floors at 0 where the value is adopted, on the type
+ * Both floors clamp at 0 where the value is adopted, on the type
  * itself (SafetyLimits::clamp_temperature_floors), so every reader inherits it.
  *
  * NOT in scope, deliberately: cold extrusion being permitted at all. A low
@@ -54,7 +54,7 @@ using namespace helix;
 
 namespace {
 
-/// The reporter's configuration (bundle 6QWNVZY5): every extruder carries
+/// The reporter's configuration: every extruder carries
 /// min_temp: -100 so Klipper tolerates the open thermistor on an empty dock.
 constexpr double kReportedMinTemp = -100.0;
 
@@ -209,7 +209,7 @@ TEST_CASE_METHOD(NegativeMinTempFixture,
     // read 0 simply because nothing was parsed.
     REQUIRE(limits.max_temperature_celsius == Catch::Approx(kProbeExtruderMaxTemp));
 
-    // The regression. Before the fix these were -100.
+    // A negative Klipper minimum must not come through as -100.
     CHECK(limits.min_temperature_celsius == Catch::Approx(0.0));
     CHECK(limits.min_extrude_temp_celsius == Catch::Approx(0.0));
 }
@@ -305,7 +305,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const std::string text = h.safety_text();
     REQUIRE_FALSE(text.empty());
 
-    // Before the fix this read "Heat to at least -100°C for filament operations".
+    // It must never read "Heat to at least -100°C for filament operations".
     // Assert on the sign rather than the whole sentence so a reworded or
     // translated string does not fail this test for the wrong reason.
     CHECK(text.find("-100") == std::string::npos);

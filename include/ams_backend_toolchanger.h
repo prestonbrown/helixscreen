@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -95,6 +96,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      * @param tool_names Vector of tool names
      */
     void set_discovered_tools(std::vector<std::string> tool_names);
+
+    /// Each tool's configured number, keyed by lowercased tool name (from
+    /// PrinterDiscovery::configured_tool_numbers()). A mapping reset returns
+    /// every tool to it.
+    void set_configured_tool_numbers(std::unordered_map<std::string, int> numbers);
 
     /// Tool names plus the feeder, tool sensor, swap commands and material
     /// source resolved from discovery.
@@ -1085,6 +1091,37 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
      */
     [[nodiscard]] int find_slot_for_tool(const std::string& tool_name) const;
 
+    /**
+     * @brief The slot holding the tool klipper-toolchanger numbers `tool_number`
+     *
+     * Tool numbers can be gapped (T0, T2, T3), so a number is not a slot index.
+     * Once toolchanger.tool_numbers/tool_names have arrived they are the answer,
+     * remaps included, and a number they do not list seats no slot. Before
+     * that, the forward tool map, then the number itself.
+     *
+     * @note Must be called while holding mutex_.
+     */
+    [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
+
+    /// The G-code number the printer's listing gives slot @p slot_index's
+    /// tool, -1 when the listing names no number for it. Caller holds mutex_.
+    [[nodiscard]] int listed_number_for_slot_locked(int slot_index) const;
+
+    /// Restate the tool map (badges and op-button lanes) from the printer's
+    /// listing, so each slot is badged with its tool's G-code number. False,
+    /// and the map untouched, when no complete listing has arrived. Caller
+    /// holds mutex_.
+    bool apply_listing_to_tool_map_locked();
+
+    /// Forget the tool listing and the home numbers taken from it, for a
+    /// connection or Klipper that may come back numbered differently. Caller
+    /// holds mutex_.
+    void clear_tool_listing_locked();
+
+    /// Seat current_tool/current_slot/filament_loaded from toolchanger.tool_number.
+    /// @note Must be called while holding mutex_.
+    void seat_tool_number_locked(int tool_number);
+
     // === Optimistic dispatch + macro-ack resolution =========================
     //
     // The only thing that can move the action off the value a dispatch sets is
@@ -1122,6 +1159,17 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+    /// klipper-toolchanger's listing, parallel arrays: listed_tool_names_[i]
+    /// ("tool T2") answers to listed_tool_numbers_[i]. Cached separately because
+    /// Moonraker sends only the one that changed.
+    std::vector<int> listed_tool_numbers_;
+    std::vector<std::string> listed_tool_names_;
+    /// Each tool's number in the first complete listing that named it, which
+    /// reset_tool_mappings() falls back to for a tool with no configured number.
+    std::map<std::string, int> home_tool_numbers_;
+    /// Configured numbers from [tool <name>] sections, lowercased names. They
+    /// outrank home_tool_numbers_, which a remap made before connecting skews.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?

@@ -124,7 +124,7 @@ void WizardTouchCalibrationStep::init_subjects() {
 
     spdlog::debug("[{}] Initializing subjects", get_name());
 
-    // Note: instruction text now uses wizard_subtitle (in header) instead of local subject
+    // Instruction text uses wizard_subtitle (in the header), not a local subject.
     UI_SUBJECT_INIT_AND_REGISTER_INT(current_step_, 0, "touch_cal_current_step");
     UI_SUBJECT_INIT_AND_REGISTER_INT(calibration_valid_, 0, "touch_cal_valid");
 

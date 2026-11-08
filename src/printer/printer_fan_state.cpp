@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_fan_state.cpp
- * @brief Fan state management extracted from PrinterState
+ * @brief Fan state management (a PrinterState sub-state)
  *
  * Manages fan subjects including main part-cooling fan speed, multi-fan
  * tracking with per-fan subjects, and fan metadata for UI display.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_fan_state.h"
@@ -301,7 +300,7 @@ PrimaryFanSlots PrinterFanState::possible_primary_fan_slots() const {
 std::string PrinterFanState::resolve_part_fan(const std::string& configured) const {
     // The bare [fan] is Klipper's canonical part cooling object, but some printers
     // leave it a stale 0% stub and drive a manually-commandable named fan instead
-    // (output_pin fanN / fan_generic; user Discord report, e3f92c3f4). Auto-controlled
+    // (output_pin fanN / fan_generic). Auto-controlled
     // fans (heater/controller/temperature) can never be the M106 part fan, so they are
     // never candidates — promoting an idle controller_fan/temperature_fan over the
     // live [fan] is what stuck the Sovol SV08 part fan at 0% (#1124).
@@ -689,7 +688,6 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
 }
 
 void PrinterFanState::rename_fan(const std::string& object_name, const std::string& new_name) {
-    // Save to config
     auto* config = Config::get_instance();
     std::string key = config->df() + "fans/names/" + object_name;
     config->set<std::string>(key, new_name);
@@ -701,7 +699,6 @@ void PrinterFanState::rename_fan(const std::string& object_name, const std::stri
                       object_name);
     }
 
-    // Update in-memory display name
     bool matched = false;
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {

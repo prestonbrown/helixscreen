@@ -207,9 +207,9 @@ done
 #   - crash_report : a pretty-printed report that may describe an OLDER, already
 #                    triaged crash with a different signature. Resolving the
 #                    bundle's crash_report when crash_txt differs sends you
-#                    chasing a stale, possibly-fixed bug (this cost real time on
-#                    bundle YZQ47HQ6 — crash_report was a fixed shutdown SIGSEGV
-#                    while crash_txt was a live gcode-streaming SIGBUS).
+#                    chasing a stale, possibly-fixed bug (e.g. crash_report holds
+#                    a fixed shutdown SIGSEGV while crash_txt holds a live
+#                    gcode-streaming SIGBUS).
 # This mode extracts crash_txt and loudly flags when crash_report disagrees.
 if [[ -n "$BUNDLE_FILE" ]]; then
     if [[ ! -f "$BUNDLE_FILE" ]]; then
@@ -1164,8 +1164,7 @@ fi
 # are misleading. Those fields record the LAST LVGL event on the MAIN thread —
 # ambient context, NOT the crash locus — so a background-thread crash (libhv WS
 # loop, HTTP worker) sends analysis down a phantom "LVGL widget UAF" rabbit hole.
-# (Added after bundle UK9QCFY3: a libhv onclose UAF masqueraded as an lv_label /
-# event_code 53 crash for most of an investigation.)
+# (A libhv onclose UAF, for one, reads as an lv_label / event_code 53 crash.)
 _bg_ws_re='EventLoopThread::loop_thread|hloop_run|hloop_process_events|hio_handle_events|hio_handle_read|hio_close|eventfd_read_cb|websocket_parser_execute|onCustomEvent'
 _bg_http_re='HttpExecutor|http::HttpExecutor|curl_easy|curl_multi'
 _bg_thread_re='std::thread|std::__thread|BusThread|camera_stream'

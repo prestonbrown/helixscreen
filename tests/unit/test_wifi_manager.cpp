@@ -914,12 +914,12 @@ TEST_CASE_METHOD(WiFiManagerTestFixture,
 #endif
 }
 
-// helixscreen: set_enabled(false) used to call backend_->stop(), which tore
-// down the control connection to wpa_supplicant entirely — the radio stayed
-// associated and routed (UI reported "off" while the printer was still on
-// WiFi), and every later STATUS logged "send_command called but not
-// connected to wpa_supplicant" because there was nothing left to query.
-// set_enabled must now drive the radio directly and leave the backend
+// helixscreen: set_enabled(false) must not call backend_->stop(), which tears
+// down the control connection to wpa_supplicant entirely: the radio stays
+// associated and routed (UI reports "off" while the printer is still on
+// WiFi), and every later STATUS logs "send_command called but not
+// connected to wpa_supplicant" because there is nothing left to query.
+// set_enabled must drive the radio directly and leave the backend
 // running so the connection survives a toggle.
 // init_self_reference() exists so async callbacks can check whether the
 // manager is still alive - ScanCallbackData and ConnectCallbackData both hold
@@ -1110,13 +1110,11 @@ TEST_CASE("READY refuses to disable the radio when interface resolution is incon
     WiFiManagerTestAccess::reset_sys_root();
 }
 
-// The mirror-image gap this task closes: a device whose stored preference is
-// WiFi ON but whose radio carries a stale soft rfkill block (e.g. one this
-// app itself applied before commit 8aaac4e78 made a soft block non-fatal at
-// startup) previously stayed radio-dead until a human tapped the touchscreen
-// to toggle it back on. CC1 was stranded exactly this way for days. The READY
-// reassert must now clear a stale soft block automatically so the device
-// heals itself on its next launch, with no tap required.
+// A device whose stored preference is WiFi ON but whose radio carries a stale
+// soft rfkill block (an older build of this app could apply one at startup)
+// stays radio-dead until a human taps the touchscreen to toggle it back on. The
+// READY reassert clears a stale soft block automatically so the device heals
+// itself on its next launch, with no tap required.
 TEST_CASE("READY clears a stale soft radio block when the stored setting is WiFi on",
           "[wifi][manager][radio][persistence]") {
     Config::get_instance();
@@ -1221,7 +1219,7 @@ TEST_CASE("READY leaves an admin's radio block alone when WiFi was never configu
 
 // The Task-15 refusal path (stored off, no wired fallback) corrects the
 // stored setting back to on — but a device that had already accumulated a
-// stale soft block before this fix would end up with wifi_enabled=true while
+// stale soft block would end up with wifi_enabled=true while
 // the radio itself stayed off, the same class of state lie the correction
 // exists to eliminate. The refusal path must also clear the block so the
 // radio is actually on, not merely recorded as on.

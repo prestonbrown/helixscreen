@@ -23,8 +23,8 @@ static struct MockQueueState {
     };
     std::vector<Job> jobs;
     std::string queue_state;
-    // Monotonic ID counter — never collides with existing or deleted IDs,
-    // unlike the old `size()+1` scheme which reused IDs after deletion.
+    // Monotonic ID counter: never collides with existing or deleted IDs, which
+    // `size()+1` would after a deletion.
     int next_id = 1;
 
     void reset() {

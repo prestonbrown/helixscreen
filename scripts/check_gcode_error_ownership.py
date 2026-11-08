@@ -29,6 +29,8 @@ import re
 import sys
 from pathlib import Path
 
+from source_strip import blank_cxx
+
 DEFAULT_SRC_ROOT = Path("src")
 
 # Sends that reach printer.gcode.script, i.e. the ones Klipper mirrors as `!!`.
@@ -65,54 +67,6 @@ UI_MARKERS = (
 
 LOG_CALL = re.compile(r"\bspdlog::\w+")
 ERROR_LAMBDA = re.compile(r"\[[^\]]*\]\s*\(\s*const\s+MoonrakerError\s*&")
-
-
-def strip_comments_and_strings(text: str) -> str:
-    """Blank out string literals and comments so braces inside them don't count.
-
-    MUST be length-preserving: every offset found in the returned text is used to
-    slice the ORIGINAL source. An earlier version emitted one space for a
-    two-character escape sequence, which shifted every subsequent offset and made
-    the scanner read the wrong span -- reporting a site that already carried
-    `caller_surfaces_errors` as if it did not. The assertion at the end is the
-    guard: drift must fail loudly, not produce a plausible wrong answer.
-    """
-    out = []
-    i, n = 0, len(text)
-    while i < n:
-        c = text[i]
-        if c == '"':
-            out.append(" ")
-            i += 1
-            while i < n and text[i] != '"':
-                if text[i] == "\\" and i + 1 < n:
-                    out.append("  ")  # two chars consumed, two blanks emitted
-                    i += 2
-                else:
-                    out.append(" ")
-                    i += 1
-            if i < n:  # closing quote (absent only on malformed input)
-                out.append(" ")
-                i += 1
-        elif c == "/" and i + 1 < n and text[i + 1] == "/":
-            while i < n and text[i] != "\n":
-                out.append(" ")
-                i += 1
-        elif c == "/" and i + 1 < n and text[i + 1] == "*":
-            end = text.find("*/", i + 2)
-            end = n if end == -1 else end + 2
-            out.append(" " * (end - i))
-            i = end
-        else:
-            out.append(c)
-            i += 1
-    blanked = "".join(out)
-    if len(blanked) != len(text):
-        raise AssertionError(
-            f"blanking changed length ({len(text)} -> {len(blanked)}); "
-            "offsets would no longer map onto the source"
-        )
-    return blanked
 
 
 def match_delim(blanked: str, start: int, open_ch: str, close_ch: str) -> int:
@@ -153,7 +107,7 @@ def scan_file(path: Path) -> list[tuple[int, str, str]]:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-    blanked = strip_comments_and_strings(text)
+    blanked = blank_cxx(text)
     hits: list[tuple[int, str, str]] = []
 
     for call in SEND_CALLS:

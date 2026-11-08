@@ -69,7 +69,7 @@ struct ExtruderInfo {
 /**
  * @brief Manages temperature-related subjects for printer state
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  * All temperatures stored in decidegrees (value * 10 for 0.1C precision).
  *
  * Supports multiple extruders via a dynamic ExtruderInfo map. The "active extruder"
@@ -82,7 +82,6 @@ class PrinterTemperatureState {
     PrinterTemperatureState() = default;
     ~PrinterTemperatureState() = default;
 
-    // Non-copyable
     PrinterTemperatureState(const PrinterTemperatureState&) = delete;
     PrinterTemperatureState& operator=(const PrinterTemperatureState&) = delete;
 

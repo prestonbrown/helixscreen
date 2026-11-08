@@ -345,7 +345,7 @@ TEST_CASE_METHOD(XMLTestFixture, "preselect_first checks the first product but k
 
 // preselect_first() can only ever pick ordered_products_for().front(), which for
 // SUNLU PLA is "PLA+". Seeding by the stored catalog id is the only thing that
-// can land on any other row, such as a saved "PLA+ 2.0" (bundle TDQCCQB3).
+// can land on any other row, such as a saved "PLA+ 2.0".
 TEST_CASE_METHOD(XMLTestFixture, "preselect_product_id lands on the exact product, not the first",
                  "[filament_picker][catalog_selector][preselect]") {
     lv_obj_t* root = make_fragment();

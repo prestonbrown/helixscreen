@@ -66,7 +66,6 @@ bool CrashReportModal::show_modal(lv_obj_t* parent) {
     lv_subject_copy_string(&status_subject_,
                            lv_tr("Send this crash report to help improve HelixScreen."));
 
-    // Call base class show
     return show(parent);
 }
 

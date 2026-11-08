@@ -84,7 +84,6 @@ class TemperatureHistoryManager {
      */
     ~TemperatureHistoryManager();
 
-    // Non-copyable
     TemperatureHistoryManager(const TemperatureHistoryManager&) = delete;
     TemperatureHistoryManager& operator=(const TemperatureHistoryManager&) = delete;
 
@@ -204,8 +203,8 @@ class TemperatureHistoryManager {
      * The store is authoritative inside its own window: local samples older than
      * the oldest store sample are kept as a prefix, and anything the window
      * covers is superseded. That keeps history a restarted Klipper no longer has
-     * while still discarding the near-duplicate pairs a plain merge produced
-     * (a live wall-clock sample next to the synthetic 1 Hz grid). Store values
+     * while still discarding the near-duplicate pairs a plain merge would
+     * produce (a live wall-clock sample next to the synthetic 1 Hz grid). Store values
      * pass the same sanity filter as live samples, and the newest kHistorySize
      * are kept. This bypasses the kSampleIntervalMs write throttle and is
      * race-safe against a live sample that may already have been appended before

@@ -3,13 +3,13 @@
 
 // Oracle tests for backend-owned filament-sensor ownership (#1054).
 //
-// PrinterHardware::is_ams_sensor() used to switch on AmsType to recognize each
-// backend's conventionally-named filament sensors (the ones that do NOT carry
-// an AMS keyword in their name, e.g. Happy Hare's bare "extruder"/"toolhead").
-// That switch was a coupling leak: a new backend had to edit printer_hardware.
+// Each backend recognizes its own conventionally-named filament sensors (the
+// ones that do NOT carry an AMS keyword in their name, e.g. Happy Hare's bare
+// "extruder"/"toolhead"), so PrinterHardware::is_ams_sensor() needs no switch
+// on AmsType and a new backend never edits printer_hardware.
 //
 // These tests pin the EXACT set of bare sensor names each backend recognizes so
-// the per-backend predicate that replaces the switch cannot silently regress
+// the per-backend predicate cannot silently regress
 // runout/error detection. The substring fallback (keyword-bearing names) is the
 // type-independent path and is exercised separately.
 

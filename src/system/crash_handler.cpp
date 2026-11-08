@@ -98,13 +98,11 @@ namespace fs = std::filesystem;
 // All data must be pre-allocated -- NO heap in the signal handler.
 // =============================================================================
 
-/// Maximum path length for the crash file
 static constexpr size_t MAX_PATH_LEN = 512;
 
 /// Pre-allocated buffer for the crash file path (copied at install time)
 static char s_crash_path[MAX_PATH_LEN] = {};
 
-/// Whether the crash handler is installed
 static volatile sig_atomic_t s_installed = 0;
 
 #ifdef __linux__
@@ -129,10 +127,9 @@ static volatile sig_atomic_t s_crash_file_written = 0;
 /// Application start time, low 32 bits of CLOCK_MONOTONIC ms, captured at
 /// install(). MUST NOT be wall-clock: RTC-less devices (every Pi, the AD5M,
 /// the CC1) boot with a stale fake-hwclock time and NTP steps the clock
-/// forward minutes later, so a wall-clock delta reports whatever the step was.
-/// Bundle VP623KVU claimed `uptime:5035` for a process that had been alive
-/// ~128 seconds — an 82-minute NTP correction, not an 84-minute session. That
-/// sends triage looking for a slow leak when the real crash was 2 minutes in.
+/// forward minutes later, so a wall-clock delta reports whatever the step was:
+/// an 82-minute NTP correction reads as an 84-minute session and sends triage
+/// looking for a slow leak when the real crash was 2 minutes in.
 static uint32_t s_start_mono_ms = 0;
 
 /// Async-signal-safe monotonic milliseconds (low 32 bits, wraps ~49.7 days).
@@ -294,11 +291,8 @@ static struct sigaction s_old_actions[kCrashSignalCount] = {};
 /// The text therefore starts at `offsetof(msg)`, not at the pointer itself.
 /// Reading `__abort_msg` as a plain `char*` lands on `size` — which is the mmap
 /// length rounded up to a page, so its low byte is always 0x00 on little-endian
-/// — and every real abort reason reads back as an empty string. That shipped
-/// from v0.99.71 through v0.99.104: bundle VP623KVU (v0.99.100) was a glibc
-/// heap-corruption SIGABRT whose reason existed in memory and was reported as
-/// `abort_msg_state:empty`, leaving issue #960 with the exact diagnostic it had
-/// been closed waiting for.
+/// — and every real abort reason reads back as an empty string, reported as
+/// `abort_msg_state:empty` while the reason sits in memory (#960).
 struct GlibcAbortMsg {
     unsigned int size; ///< mmap length, page-rounded (NOT a string length)
     char msg[1];       ///< NUL-terminated reason; real allocation is `size` bytes
@@ -383,7 +377,6 @@ static char* int_to_str(char* buf, size_t buf_size, long value) {
     if (buf_size == 0)
         return buf;
 
-    // Handle negative
     bool negative = (value < 0);
     unsigned long uval =
         negative ? static_cast<unsigned long>(-value) : static_cast<unsigned long>(value);
@@ -435,7 +428,6 @@ static char* ptr_to_hex(char* buf, size_t buf_size, uintptr_t value) {
         }
     }
 
-    // Prefix with 0x
     --p;
     *p = 'x';
     --p;
@@ -707,17 +699,14 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
     char num_buf[32];
 
-    // Write signal number
     safe_write(fd, "signal:");
     safe_write(fd, int_to_str(num_buf, sizeof(num_buf), sig));
     safe_write(fd, "\n");
 
-    // Write signal name
     safe_write(fd, "name:");
     safe_write(fd, helix::crash_record::signal_name(sig));
     safe_write(fd, "\n");
 
-    // Write version
     safe_write(fd, helix::crash_record::kCrashVersionLines);
 
     // Write timestamp (time() is async-signal-safe per POSIX)
@@ -752,12 +741,12 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
     // SIGABRT-only: glibc abort reason from __abort_msg (resolved at install).
     // Distinguishes "free(): invalid pointer" / "double free or corruption" /
-    // "munmap_chunk(): invalid pointer" / assertion failures — without this
-    // every SIGABRT looked identical from the issue body (see issue #960).
+    // "munmap_chunk(): invalid pointer" / assertion failures, which otherwise
+    // look identical in a crash report (#960).
     //
     // Always emit `abort_msg_state` for SIGABRT (issue #987) so a missing reason
-    // is never ambiguous. A blank `abort_msg` previously had three indistinct
-    // causes; the state tells them apart:
+    // is never ambiguous. A blank `abort_msg` has three indistinct causes; the
+    // state tells them apart:
     //   unresolved — dlsym couldn't find __abort_msg (non-glibc, or stripped).
     //   empty      — glibc stored no message: a bare abort()/raise(SIGABRT) or a
     //                std::terminate fall-through, NOT a malloc/assert/fortify
@@ -1050,16 +1039,13 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // Acquire pairs with the release-store of ts_ms in refresh_heap_snapshot().
     if (__atomic_load_n(&s_heap_snapshot.ts_ms, __ATOMIC_ACQUIRE) != 0) {
         const HeapSnapshot& h = s_heap_snapshot;
-        // AGE, not the raw capture timestamp. Emitting ts_ms here meant a
-        // snapshot taken 17ms before the crash was reported as "snapshot age
-        // 144712ms" (bundle VP623KVU) — it was the monotonic-since-boot stamp,
-        // and every consumer (crash_reporter's `age_ms`, the issue body, the
-        // text summary) renders it as an age.
+        // AGE, not the raw capture timestamp: ts_ms is a monotonic-since-boot
+        // stamp, and every consumer (crash_reporter's `age_ms`, the issue body,
+        // the text summary) renders this value as an age.
         //
         // Both raw stamps go out alongside the derived age, because the age
-        // alone cannot be diagnosed when it comes out wrong: bundle ED2YC336
-        // reported 120036989ms (33h) against a 9.8h uptime, which is impossible
-        // — the snapshot cannot predate the process. Two causes produce that,
+        // alone cannot be diagnosed when it comes out wrong, e.g. an age longer
+        // than the process uptime, which is impossible. Two causes produce that,
         // and only the raw pair distinguishes them: ts > now means the 32-bit
         // monotonic counter folded (49.7 days of uptime), ts << now means the
         // 10s refresh from the main loop genuinely stalled.
@@ -1113,9 +1099,9 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
             }
             write_kv_long(fd, "event_code:", static_cast<long>(s_current_event_code), num_buf,
                           sizeof(num_buf));
-            // Widget identity (paired hook from patched event_send_core).
-            // Bundle 3XNZQB2R: bare hex pointer wasn't enough to ID the click;
-            // these two lines turn "0x23042e0" into "lv_button (recovery_dismiss_btn)".
+            // Widget identity (paired hook from patched event_send_core). A bare
+            // hex pointer cannot identify the click; these two lines turn
+            // "0x23042e0" into "lv_button (recovery_dismiss_btn)".
             const char* cls = const_cast<const char*>(s_current_event_target_class);
             if (cls != nullptr) {
                 safe_write(fd, "event_target_class:");
@@ -1312,7 +1298,6 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
             ssize_t n;
             while ((n = read(maps_fd, maps_buf, sizeof(maps_buf) - 1)) > 0) {
                 maps_buf[n] = '\0';
-                // Write each line prefixed with "map:"
                 char* line_start = maps_buf;
                 for (ssize_t i = 0; i < n; ++i) {
                     if (maps_buf[i] == '\n') {
@@ -1323,7 +1308,6 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
                         line_start = maps_buf + i + 1;
                     }
                 }
-                // Handle trailing partial line
                 if (line_start < maps_buf + n) {
                     safe_write(fd, "map:");
                     safe_write(fd, line_start);
@@ -1336,8 +1320,8 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 #endif
 
     // backtrace() runs LAST because libgcc's DWARF unwinder can itself crash
-    // when the heap is corrupted (we've seen signal handlers truncated at this
-    // point on Pi v0.99.36 — bundle 7FYYQLVM / #827). Stack dump, maps, and
+    // when the heap is corrupted, truncating the handler at this point (#827).
+    // Stack dump, maps, and
     // FP-walk frames above are written first so a nested crash here doesn't
     // lose them. Frames here may duplicate the FP-walk entries, which is fine —
     // downstream symbolization deduplicates.
@@ -1463,12 +1447,10 @@ extern "C" int helix_get_text_bounds(unsigned long* lo, unsigned long* hi) {
 // C-ABI bridges for LVGL — see include/system/crash_handler.h.
 //
 // Subject is "<class>:<name>" when the widget has an XML name, else just the
-// class; detail is the pointer. The bare class name was not enough to act on:
-// bundle 6F3QJLFG's final crumb before a heap abort was `async_d lv_obj
-// 57241184`, and "some plain container was being deleted" does not identify a
-// site — nearly every teardown crumb in that trace read the same. The name is
-// what the XML author wrote, so it points straight at a file
-// (prestonbrown/helixscreen#960).
+// class; detail is the pointer. A bare class name is not enough to act on: a
+// crumb like `async_d lv_obj 57241184` says only that some plain container was
+// deleted, and nearly every teardown crumb reads the same. The name is what the
+// XML author wrote, so it points straight at a file (#960).
 //
 // Read here rather than passed in from the patch: four patches already touch
 // lv_obj_tree.c, so widening that hook means the pristine-file regeneration
@@ -1792,7 +1774,6 @@ void crash_handler::uninstall() {
         return;
     }
 
-    // Restore previous handlers
     for (size_t i = 0; i < kCrashSignalCount; ++i) {
         sigaction(kCrashSignals[i], &s_old_actions[i], nullptr);
     }
@@ -1908,7 +1889,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 result["lvgl_version"] = value;
             } else if (key == "timestamp") {
                 try {
-                    // Convert unix timestamp to ISO 8601
                     time_t ts = static_cast<time_t>(std::stol(value));
                     struct tm utc_tm;
 #ifdef _WIN32
@@ -1996,7 +1976,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             } else if (key == "bt") {
                 backtrace_arr.push_back(value);
             } else if (key == "map") {
-                // Memory map lines from /proc/self/maps
                 if (!result.contains("memory_map")) {
                     result["memory_map"] = json::array();
                 }
@@ -2004,7 +1983,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             } else if (key == "stack_base") {
                 result["stack_base"] = value;
             } else if (key == "stk") {
-                // Stack memory dump words
                 if (!result.contains("stack_dump")) {
                     result["stack_dump"] = json::array();
                 }
@@ -2027,7 +2005,6 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
             result["backtrace"] = backtrace_arr;
         }
 
-        // Validate minimum required fields
         if (!result.contains("signal") || !result.contains("signal_name")) {
             spdlog::warn("[CrashHandler] Crash file missing required fields");
             return nullptr;

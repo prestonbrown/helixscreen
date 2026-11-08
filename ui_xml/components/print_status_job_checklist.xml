@@ -21,10 +21,14 @@
         style_radius="#border_radius" style_clip_corner="true" style_pad_all="#space_sm" scrollable="false"
         clickable="false">
     <!-- The thumbnail, large and dim on the right so the list reads over it,
-         and the fade that runs it out under the list from the left. -->
+         and the fade that runs it out under the list from the left. A print
+         without a thumbnail of its own shows no picture rather than the
+         stand-in, which is a different model. -->
     <lv_image name="ps_checklist_thumbnail"
               width="65%" height="100%" ignore_layout="true" align="right_mid" bind_src="print_thumbnail_path"
-              inner_align="contain" style_image_opa="80" clickable="false"/>
+              inner_align="contain" style_image_opa="80" clickable="false">
+      <bind_flag_if_eq subject="print_has_thumbnail" flag="hidden" ref_value="0"/>
+    </lv_image>
     <lv_obj name="ps_checklist_fade"
             width="75%" height="100%" ignore_layout="true" align="left_mid" style_bg_color="#card_bg"
             style_bg_grad_color="#card_bg" style_bg_grad_dir="hor" style_bg_main_opa="255" style_bg_grad_opa="0"

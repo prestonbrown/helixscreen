@@ -165,7 +165,6 @@ void HyperspaceSim::init(const FrameTarget& frame, std::minstd_rand& rng, size_t
     build_tables();
 
     mode_ = reading.mode;
-    still_drawn_ = false;
     follow_print(reading, 0, true);
     shown_tunnel_ = 0;
 }
@@ -180,7 +179,7 @@ void HyperspaceSim::follow_print(const ClockReading& reading, uint32_t dt_ms, bo
     if (m == ClockMode::PAUSED) {
         speed = kHyperspacePausedSpeed;
     } else if (m == ClockMode::DONE) {
-        speed = 0.0f;
+        speed = kHyperspaceDoneDriftSpeed;
     }
     const float speed_rate = m == ClockMode::DONE ? kDropOutPerMs : kSpeedEasePerMs;
     speed_scale_ = snap ? speed : approach(speed_scale_, speed, speed_rate * ms);
@@ -196,11 +195,6 @@ void HyperspaceSim::follow_print(const ClockReading& reading, uint32_t dt_ms, bo
         light_progress_ =
             snap ? p : light_progress_ + (p - light_progress_) * ms / (ms + kLightEaseMs);
     }
-}
-
-bool HyperspaceSim::standing_still() const {
-    return mode_ == ClockMode::DONE && speed_scale_ == 0.0f && shown_tunnel_ == 0 &&
-           burst_flares_alive() == 0;
 }
 
 float HyperspaceSim::light_radius() const {
@@ -689,15 +683,10 @@ void HyperspaceSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& r
             kHyperspaceLevels[pending_level_].block != kHyperspaceLevels[level_].block;
         level_ = pending_level_;
         tables_stale_ = tables_stale_ || new_block;
-        still_drawn_ = false;
     }
     // A long stall advances the flight a bounded step, so nothing jumps across the screen.
     const uint32_t flown_ms = std::min<uint32_t>(dt_ms, 250);
     follow_print(reading, flown_ms, false);
-    if (standing_still() && still_drawn_) {
-        dirty.clear();
-        return;
-    }
     advance(flown_ms, rng);
     shown_tunnel_ = static_cast<uint8_t>(static_cast<float>(tunnel_amount_) * tunnel_fade_ + 0.5f);
     if (tables_stale_) {
@@ -731,7 +720,6 @@ void HyperspaceSim::step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& r
         }
     };
     with_pixel_type(format_, draw);
-    still_drawn_ = standing_still();
 
     dirty.clear();
     dirty.push_back(DirtyRect::whole(w_, h_));

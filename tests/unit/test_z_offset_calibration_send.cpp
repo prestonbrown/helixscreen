@@ -258,22 +258,13 @@ std::string abort_sends_for(DeactivateReason reason) {
 
 } // namespace
 
-TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: navigating away cancels a live run",
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration abort: only navigating away cancels a live run",
                  "[ui_integration][zoffset][1516]") {
+    // At shutdown or a hot-reload rebuild the printer keeps executing the probe
+    // under a UI that is going away; aborting would cancel a run nobody stopped.
     CHECK(abort_sends_for(DeactivateReason::NavigateAway) == "G90\nG1 Z5 F1000");
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: app shutdown leaves the run alone",
-                 "[ui_integration][zoffset][1516]") {
-    // The printer keeps executing the probe after the UI is gone. Aborting here
-    // would cancel a calibration nobody asked to stop.
     CHECK(abort_sends_for(DeactivateReason::Shutdown).empty());
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture, "Calibration abort: a hot-reload rebuild leaves it alone",
-                 "[ui_integration][zoffset][1516]") {
-    // Same reasoning as shutdown: the widget tree is being swapped underneath a
-    // run the printer is still executing.
     CHECK(abort_sends_for(DeactivateReason::Rebuild).empty());
 }
 
@@ -347,35 +338,23 @@ class ManualProbeActive {
 
 } // namespace
 
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration failure: an open manual probe session is aborted, the error stays",
-                 "[ui_integration][zoffset]") {
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state());
-    ZOffsetCalibrationPanel panel;
-    panel.set_api(&api);
-    ManualProbeActive session(true);
-
-    panel.on_calibration_result(false, "test failure");
-
-    CHECK(client.last_send_script() == "ABORT");
-    // The user still has to read why the run failed.
-    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration failure: no session open means no ABORT on the wire",
-                 "[ui_integration][zoffset]") {
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerAPI api(client, state());
-    ZOffsetCalibrationPanel panel;
-    panel.set_api(&api);
-    ManualProbeActive session(false);
-
+TEST_CASE_METHOD(
+    CalibrationSendFixture,
+    "Calibration failure: only an open manual probe session is aborted, the error stays",
+    "[ui_integration][zoffset]") {
     // Klipper registers ABORT only during a session, so a stray one logs Unknown command.
+    const bool open = GENERATE(true, false);
+    CAPTURE(open);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.set_api(&api);
+    ManualProbeActive session(open);
+
     panel.on_calibration_result(false, "test failure");
 
-    CHECK(client.last_send_script().empty());
+    CHECK(client.last_send_script() == (open ? "ABORT" : ""));
+    // The user still has to read why the run failed.
     CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::ERROR);
 }
 
@@ -468,24 +447,16 @@ std::string start_script(ZOffsetCalibrationStrategy strategy, const std::string&
 } // namespace
 
 TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration start: a homed printer moves to the centre before probing",
+                 "Calibration start: every strategy moves a homed printer to the centre first",
                  "[ui_integration][zoffset][zoffset_center]") {
+    const std::string centre = "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\n";
     CHECK(start_script(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, "PROBE_CALIBRATE") ==
-          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nPROBE_CALIBRATE");
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration start: the endstop calibration starts over the centre",
-                 "[ui_integration][zoffset][zoffset_center]") {
+          centre + "PROBE_CALIBRATE");
     CHECK(start_script(ZOffsetCalibrationStrategy::ENDSTOP, "Z_ENDSTOP_CALIBRATE") ==
-          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nZ_ENDSTOP_CALIBRATE");
-}
-
-TEST_CASE_METHOD(CalibrationSendFixture,
-                 "Calibration start: the manual gcode offset lowers over the plate centre",
-                 "[ui_integration][zoffset][zoffset_center]") {
+          centre + "Z_ENDSTOP_CALIBRATE");
+    // The manual gcode offset lowers over the plate centre.
     CHECK(start_script(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, "G1 Z0.1") ==
-          "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nG1 Z0.1 F300");
+          centre + "G1 Z0.1 F300");
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,
