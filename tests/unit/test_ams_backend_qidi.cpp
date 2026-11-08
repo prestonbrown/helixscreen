@@ -364,18 +364,30 @@ TEST_CASE("QIDI Box last_load_slot promotes a single slot to LOADED", "[ams][qid
     REQUIRE(info.units[0].slots[1].status == SlotStatus::AVAILABLE);
     REQUIRE(info.units[0].slots[2].status == SlotStatus::LOADED);
     REQUIRE(info.units[0].slots[3].status == SlotStatus::AVAILABLE);
+    REQUIRE(backend.get_current_slot() == 2);
+    // Default tool=slot mapping, so current_tool == current_slot.
+    REQUIRE(backend.get_current_tool() == 2);
+    REQUIRE(backend.is_filament_loaded());
 }
 
 TEST_CASE("QIDI Box last_load_slot=slot-1 means nothing is in the extruder", "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
 
-    // Seed slot2 as loaded, then explicitly clear via last_load_slot
+    // Seat slot1 in its own frame so the clear has a current slot to reset.
+    fire_vars(backend, json{{"slot1", 2}, {"last_load_slot", "slot1"}});
+    REQUIRE(backend.is_filament_loaded());
+    REQUIRE(backend.get_current_slot() == 1);
+
+    // slot2 claims LOADED in the same frame that clears the extruder.
     fire_vars(backend, json{
-                           {"slot2", 2}, // claims LOADED
+                           {"slot2", 2},
                            {"last_load_slot", "slot-1"},
                        });
 
     REQUIRE(backend.get_system_info().units[0].slots[2].status == SlotStatus::AVAILABLE);
+    REQUIRE_FALSE(backend.is_filament_loaded());
+    REQUIRE(backend.get_current_slot() == -1);
+    REQUIRE(backend.get_current_tool() == -1);
 }
 
 // ============================================================================
@@ -474,18 +486,6 @@ TEST_CASE("QIDI Box moves the LOADED stamp on a tool change", "[ams][qidi_box][1
 // temperature + target, aht20_f heater_box<N> provides humidity. Each physical
 // box is modeled as its own AmsUnit so the UI can show the matching env data.
 
-TEST_CASE("QIDI Box heater_generic heater_box1 populates unit environment", "[ams][qidi_box]") {
-    helix::test::StartedBackend<AmsBackendQidi> backend;
-    REQUIRE_FALSE(backend.get_system_info().units[0].environment.has_value());
-
-    backend.fire_status(
-        json{{"heater_generic heater_box1", json{{"temperature", 45.5}, {"target", 50.0}}}});
-
-    auto info = backend.get_system_info();
-    REQUIRE(info.units[0].environment.has_value());
-    REQUIRE(info.units[0].environment->temperature_c == Catch::Approx(45.5).epsilon(0.01));
-}
-
 TEST_CASE("QIDI Box aht20_f heater_box1 populates humidity", "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
 
@@ -501,6 +501,7 @@ TEST_CASE("QIDI Box aht20_f heater_box1 populates humidity", "[ams][qidi_box]") 
 TEST_CASE("QIDI Box multiple heater_box readings populate matching units", "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
     fire_vars(backend, json{{"box_count", 2}});
+    REQUIRE_FALSE(backend.get_system_info().units[0].environment.has_value());
 
     backend.fire_status(json{
         {"heater_generic heater_box1", json{{"temperature", 50.0}}},
@@ -832,42 +833,32 @@ TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box
 // (prestonbrown/helixscreen#1083)
 // ---------------------------------------------------------------------------
 
-TEST_CASE("QIDI Box multi_color_controller dialect loads through the controller",
+TEST_CASE("QIDI Box multi_color_controller dialect loads and unloads through the controller",
           "[ams][qidi_box][write_path][max4]") {
     helix::test::StartedBackend<RecordingQidiBackend> backend;
     QidiBoxTestAccess::apply_config_settings(backend,
                                              json{{"multi_color_controller", json::object()}});
-
-    SECTION("an empty extruder") {
+    std::string expected;
+    SECTION("a load into an empty extruder") {
         REQUIRE(backend.load_filament(2).success());
-        REQUIRE(backend.sent.size() == 1);
-        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+        expected = "MULTI_COLOR_LOAD SLOT=slot2";
     }
-    SECTION("another slot loaded: the controller swaps it, so no unload goes first") {
+    SECTION("a load over another slot: the controller swaps it, so no unload goes first") {
         fire_vars(backend, json{{"last_load_slot", "slot0"}});
         REQUIRE(backend.load_filament(2).success());
-        REQUIRE(backend.sent.size() == 1);
-        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+        expected = "MULTI_COLOR_LOAD SLOT=slot2";
     }
-}
-
-TEST_CASE("QIDI Box multi_color_controller dialect unloads through the controller",
-          "[ams][qidi_box][write_path][max4]") {
-    helix::test::StartedBackend<RecordingQidiBackend> backend;
-    QidiBoxTestAccess::apply_config_settings(backend,
-                                             json{{"multi_color_controller", json::object()}});
-
-    SECTION("a named slot") {
+    SECTION("an unload of a named slot") {
         REQUIRE(backend.unload_filament(1).success());
-        REQUIRE(backend.sent.size() == 1);
-        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot1");
+        expected = "MULTI_COLOR_UNLOAD SLOT=slot1";
     }
-    SECTION("the active slot") {
+    SECTION("an unload of the active slot") {
         fire_vars(backend, json{{"last_load_slot", "slot3"}});
         REQUIRE(backend.unload_filament(-1).success());
-        REQUIRE(backend.sent.size() == 1);
-        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot3");
+        expected = "MULTI_COLOR_UNLOAD SLOT=slot3";
     }
+    REQUIRE(backend.sent.size() == 1);
+    CHECK(backend.sent[0] == expected);
 }
 
 TEST_CASE("QIDI Box Max 4 dialect ejects via MULTI_COLOR_BOX_UNLOAD",
@@ -991,33 +982,6 @@ TEST_CASE("QIDI Box write-path rejects out-of-range slot/tool indices",
 // system_info_. Mirroring last_load_slot onto slot.status alone left the
 // rest of the system at -1 / false even when something was clearly loaded.
 
-TEST_CASE("QIDI Box last_load_slot populates current_slot/current_tool", "[ams][qidi_box]") {
-    helix::test::StartedBackend<AmsBackendQidi> backend;
-
-    fire_vars(backend, json{
-                           {"slot2", 2},
-                           {"last_load_slot", "slot2"},
-                       });
-
-    REQUIRE(backend.get_current_slot() == 2);
-    // Default tool=slot mapping, so current_tool == current_slot.
-    REQUIRE(backend.get_current_tool() == 2);
-    REQUIRE(backend.is_filament_loaded());
-}
-
-TEST_CASE("QIDI Box last_load_slot=slot-1 clears current_*", "[ams][qidi_box]") {
-    helix::test::StartedBackend<AmsBackendQidi> backend;
-    // Seed loaded first.
-    fire_vars(backend, json{{"last_load_slot", "slot1"}});
-    REQUIRE(backend.is_filament_loaded());
-
-    fire_vars(backend, json{{"last_load_slot", "slot-1"}});
-
-    REQUIRE_FALSE(backend.is_filament_loaded());
-    REQUIRE(backend.get_current_slot() == -1);
-    REQUIRE(backend.get_current_tool() == -1);
-}
-
 TEST_CASE("QIDI Box current_tool follows value_t mapping", "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
     // Map slot 3 to tool 0, then load it.
@@ -1037,15 +1001,6 @@ TEST_CASE("QIDI Box current_tool follows value_t mapping", "[ams][qidi_box]") {
 // _BOX_CHANGE_FILAMENT is running, clears it on completion. Map this
 // onto AmsAction so the UI shows an in-flight indicator.
 
-TEST_CASE("QIDI Box is_tool_change=1 sets action to LOADING", "[ams][qidi_box]") {
-    helix::test::StartedBackend<AmsBackendQidi> backend;
-    REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
-
-    fire_vars(backend, json{{"is_tool_change", 1}});
-
-    REQUIRE(backend.get_system_info().action == AmsAction::LOADING);
-}
-
 TEST_CASE("QIDI Box get_slot_info returns valid SlotInfo for expanded slots (box_count>1)",
           "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
@@ -1062,8 +1017,10 @@ TEST_CASE("QIDI Box get_slot_info returns valid SlotInfo for expanded slots (box
     REQUIRE(backend.get_slot_info(99).slot_index == -1);
 }
 
-TEST_CASE("QIDI Box is_tool_change=0 returns action to IDLE", "[ams][qidi_box]") {
+TEST_CASE("QIDI Box is_tool_change shows LOADING while set and IDLE once cleared",
+          "[ams][qidi_box]") {
     helix::test::StartedBackend<AmsBackendQidi> backend;
+    REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
     fire_vars(backend, json{{"is_tool_change", 1}});
     REQUIRE(backend.get_system_info().action == AmsAction::LOADING);
 
@@ -1112,39 +1069,27 @@ TEST_CASE("QIDI Box heater status populates dryer current/target temp", "[ams][q
     REQUIRE(d.target_temp_c == Catch::Approx(55.0f).epsilon(0.01));
 }
 
-TEST_CASE("QIDI Box drying_state end_time drives remaining minutes", "[ams][qidi_box][dryer]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::set_clock(backend, [] { return std::time_t{1000}; });
-    QidiBoxTestAccess::apply_box_extras(
-        backend,
-        json{{"box_drying_state", json{{"box1", json{{"dry_state", 1}, {"end_time", 2800}}}}}});
-    DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
-    REQUIRE(d.active);
-    REQUIRE(d.remaining_min == 30);
-}
-
-TEST_CASE("QIDI Box drying_state past end_time means not drying", "[ams][qidi_box][dryer]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::set_clock(backend, [] { return std::time_t{5000}; });
-    QidiBoxTestAccess::apply_box_extras(
-        backend,
-        json{{"box_drying_state", json{{"box1", json{{"dry_state", 0}, {"end_time", 2800}}}}}});
-    DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
-    REQUIRE_FALSE(d.active);
-    REQUIRE(d.remaining_min == 0);
-}
-
-TEST_CASE("QIDI Box derives duration for externally-started drying (progress ring)",
+TEST_CASE("QIDI Box drying_state end_time drives the remaining and derived total minutes",
           "[ams][qidi_box][dryer]") {
-    AmsBackendQidi backend(nullptr, nullptr);
-    QidiBoxTestAccess::set_clock(backend, [] { return std::time_t{1000}; });
-    // 60 min remaining, started outside HelixScreen (no commanded duration).
-    QidiBoxTestAccess::apply_box_extras(
-        backend,
-        json{{"box_drying_state", json{{"box1", json{{"dry_state", 1}, {"end_time", 4600}}}}}});
-    DryerInfo d = QidiBoxTestAccess::get_dryer(backend);
-    REQUIRE(d.duration_min == 60);
-    REQUIRE(d.get_progress_pct() == 0); // just started: 60/60 remaining
+    const auto dryer_at = [](std::time_t now, int dry_state, int end_time) {
+        AmsBackendQidi backend(nullptr, nullptr);
+        QidiBoxTestAccess::set_clock(backend, [now] { return now; });
+        QidiBoxTestAccess::apply_box_extras(
+            backend,
+            json{{"box_drying_state",
+                  json{{"box1", json{{"dry_state", dry_state}, {"end_time", end_time}}}}}});
+        return QidiBoxTestAccess::get_dryer(backend);
+    };
+    const DryerInfo running = dryer_at(1000, 1, 2800);
+    CHECK(running.active);
+    CHECK(running.remaining_min == 30);
+    const DryerInfo past = dryer_at(5000, 0, 2800);
+    CHECK_FALSE(past.active);
+    CHECK(past.remaining_min == 0);
+    // Started outside HelixScreen, with no commanded duration: the ring starts full.
+    const DryerInfo external = dryer_at(1000, 1, 4600);
+    CHECK(external.duration_min == 60);
+    CHECK(external.get_progress_pct() == 0);
 }
 
 TEST_CASE("QIDI Box per-unit dryer: box1 drying, box2 idle -> distinct DryerInfo",

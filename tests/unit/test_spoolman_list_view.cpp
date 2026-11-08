@@ -87,8 +87,11 @@ static std::vector<SpoolInfo> make_test_spools(int count) {
     return spools;
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate creates pool rows",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "SpoolmanListView - the pool builds only the rows the visible window needs",
                  "[spoolman_list_view][ui_integration]") {
+    const int count = GENERATE(5, 50);
+    CAPTURE(count);
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 400, 600);
@@ -96,28 +99,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate creates pool ro
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container);
 
-    auto spools = make_test_spools(5);
+    auto spools = make_test_spools(count);
     view.populate(spools, 1);
     process_lvgl(50);
 
-    REQUIRE(view.is_initialized() == true);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate with many spools",
-                 "[spoolman_list_view][ui_integration]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    view.setup(container);
-
-    auto spools = make_test_spools(50);
-    view.populate(spools, 1);
-    process_lvgl(50);
-
-    REQUIRE(view.is_initialized() == true);
-    // Only kPoolSize rows should be created (not 50)
+    REQUIRE(view.is_initialized());
+    // Five spools fit the viewport: one row each. Fifty need a viewport's worth plus the
+    // buffer rows below it, well short of the pool's ceiling.
+    if (count == 5) {
+        REQUIRE(view.pool_size() == 5);
+    } else {
+        REQUIRE(view.pool_size() > 5);
+        REQUIRE(view.pool_size() < static_cast<size_t>(SpoolmanListView::kPoolSize));
+    }
 }
 
 /// Find the visible pool row currently showing @p spool_id.

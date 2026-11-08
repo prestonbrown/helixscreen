@@ -473,7 +473,7 @@ If you are running Kalico firmware, a **Method** selector appears with MPC and P
 ## See Also
 
 - [Motion & Positioning](motion.md) — Jog controls used during manual calibration
-- [Settings: Printing](settings/printing.md) — Machine limits and Z movement configuration
+- [Settings: Printing](settings/printing.md) — Machine limits, and which way the Z buttons move (under Motion)
 - [Printing](printing.md) — Z-offset fine-tuning during active prints
 
 ---

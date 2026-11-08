@@ -513,7 +513,7 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
         // LVGL, so the 1px rule under the heading otherwise counts as an action and
         // keeps an empty column alive. The rules are also marked clickable="false" —
         // this is the belt to that pair of braces, so an unmarked divider added later
-        // cannot quietly resurrect the bug.
+        // cannot quietly keep an empty column alive.
         bool has_action = false;
         uint32_t row_cnt = lv_obj_get_child_count(col);
         for (uint32_t r = 0; r < row_cnt && !has_action; r++) {

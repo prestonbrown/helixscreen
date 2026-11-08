@@ -95,6 +95,8 @@ from pathlib import Path
 
 from staged_content import catfile_batch
 
+from source_strip import blank_xml_comments
+
 XML_DIRS = ("ui_xml",)
 CPP_DIRS = ("src",)
 CPP_EXTS = (".cpp", ".cc")
@@ -231,21 +233,9 @@ def root_is_self_bounding(text: str) -> bool:
     return bool(h and h.group(1).strip().endswith("%"))
 
 
-def blank_comments(text: str) -> str:
-    """Replace XML comment bodies with spaces, preserving length and newlines.
-
-    A comment that explains a fix by quoting the old attribute -- and the good
-    ones here do exactly that -- is documentation, not a violation. Offsets and
-    line numbers are preserved so annotation lookup still reads the real lines.
-    """
-    def blank(m: re.Match) -> str:
-        return "".join(ch if ch == "\n" else " " for ch in m.group(0))
-    return re.sub(r"<!--.*?-->", blank, text, flags=re.S)
-
-
 def scan_xml(text: str, rel: str, tokens: dict[int, list[str]]) -> list[tuple]:
     lines = text.split("\n")
-    scan = blank_comments(text)
+    scan = blank_xml_comments(text)
     hits = []
 
     # A min/max height literal taller than the MICRO dialog budget cannot be

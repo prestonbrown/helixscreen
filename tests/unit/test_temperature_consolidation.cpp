@@ -347,8 +347,8 @@ TEST_CASE("classify_heat_state: off when target is zero", "[temperature][heat_st
 }
 
 TEST_CASE("classify_heat_state: off when target is negative", "[temperature][heat_state]") {
-    // Previously get_heating_state_color() treated a negative target as "cooling"
-    // (blue) while get_heating_state_variant() treated it as off (muted).
+    // A negative target is off (muted), never "cooling" (blue): color and
+    // variant both come from classify_heat_state().
     REQUIRE(classify_heat_state(25, -5) == HeatState::Off);
 }
 

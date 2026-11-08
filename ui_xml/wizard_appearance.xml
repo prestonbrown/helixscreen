@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- First-Run Wizard: how HelixScreen looks and reads. Every row shares its subject and
+       callback with the settings overlay that owns the same setting. -->
+  <consts>
+    <str name="step_title" value="Appearance &amp; Region" value_tag="Appearance &amp; Region"/>
+    <str name="step_subtitle"
+         value="Set the clock, theme and units. You can change any of these later in Settings."
+         value_tag="Set the clock, theme and units. You can change any of these later in Settings."/>
+  </consts>
+  <view name="wizard_appearance_root"
+        extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
+    <ui_card width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="true">
+      <!-- Options are the offered zones, filled in C++ -->
+      <setting_dropdown_row name="row_timezone"
+                            label="Timezone" icon="clock" description="Set local timezone for time display" options=""
+                            callback="on_timezone_changed"/>
+      <!-- Shown while the zone follows a host that has none, so the clock is on UTC by accident -->
+      <lv_obj name="timezone_attention"
+              width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg"
+              style_pad_right="#space_lg" style_pad_bottom="#space_sm" style_pad_top="0" flex_flow="row"
+              style_flex_cross_place="center" style_pad_column="#space_sm" scrollable="false">
+        <bind_flag_if cond="wizard_appearance_tz_attention eq 0 or settings_timezone ne 0" flag="hidden"/>
+        <icon src="alert_circle" size="xs" variant="warning"/>
+        <text_small name="timezone_attention_text"
+                    flex_grow="1" long_mode="wrap" style_text_color="#warning"
+                    text="This printer has no timezone, so its clock reads UTC. Pick yours."/>
+      </lv_obj>
+      <setting_dropdown_row name="row_time_format"
+                            label="Time Format" icon="clock" description="Choose 12-hour or 24-hour time display"
+                            options="12 Hour&#10;24 Hour" options_tag="12 Hour&#10;24 Hour"
+                            bind_selected="settings_time_format" callback="on_time_format_changed"/>
+      <!-- Options are the discovered themes, filled in C++ -->
+      <setting_dropdown_row name="row_theme"
+                            label="Theme" icon="palette" description="Colors for every screen" options=""
+                            callback="on_wizard_theme_changed"/>
+      <setting_toggle_row name="row_dark_mode"
+                          label="Dark Mode" icon="light_off" description="Switch between light and dark themes"
+                          subject="settings_dark_mode" callback="on_dark_mode_changed">
+        <bind_state_if_eq subject="settings_dark_mode_available" state="disabled" ref_value="0"/>
+      </setting_toggle_row>
+      <setting_toggle_row name="row_speed_flow_units"
+                          label="Speed &amp; Flow in mm/s" icon="speed"
+                          description="Show print speed and flow as mm/s and mm³/s instead of percent"
+                          subject="settings_speed_flow_physical_units" callback="on_speed_flow_units_changed"/>
+    </ui_card>
+  </view>
+</component>

@@ -33,16 +33,15 @@ static bool try_create_dir(const std::string& path) {
 
 /// Is this candidate usable, WITHOUT creating anything to find out?
 ///
-/// The cascade used to answer this by calling ensure_dir() and reading success
-/// as the verdict, which meant asking where the cache lives MADE it live there.
-/// Any caller that only wanted the path — a sweep deciding which stale
-/// directories are safe to delete, a diagnostic printing the resolved location
-/// — materialized a directory tree as a side effect of the question, and on a
-/// device where a lower tier had been the real cache that silently split the
-/// cache across two locations.
+/// Answering by calling ensure_dir() would make asking where the cache lives
+/// MAKE it live there. A caller that only wants the path (a sweep deciding which
+/// stale directories are safe to delete, a diagnostic printing the resolved
+/// location) would materialize a directory tree as a side effect, and on a
+/// device where a lower tier is the real cache that splits the cache across two
+/// locations.
 ///
 /// get_helix_cache_dir() still falls through when the real creation fails, so
-/// races, quotas and ENOSPC keep their old behavior.
+/// races, quotas and ENOSPC are handled there.
 static bool cache_candidate_viable(const std::string& path) {
     return helix::paths::can_create_dir(path);
 }

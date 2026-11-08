@@ -9,6 +9,7 @@
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "display_wake_request.h"
 #include "gcode_response_routing.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -646,6 +647,29 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A Klipper action:prompt macro keeps th
     CHECK(ModalStack::instance().dialog_for_component("action_prompt_modal") != nullptr);
     CHECK(fault_dialog() == nullptr);
 
+    routing.detach_handlers(&mock_client_);
+    routing.release_routers();
+    helix::ActionPromptManager::set_instance(nullptr);
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(RecoveryPreheatFixture, "An action prompt wakes the display",
+                 "[recovery-presenter][action_prompt][2037]") {
+    int wakes = 0;
+    helix::set_display_wake_handler([&wakes] { ++wakes; });
+    helix::GcodeResponseRouting routing;
+    routing.attach(&mock_client_, &api_);
+    helix::ActionPromptManager* prompts = routing.action_prompt_manager();
+    REQUIRE(prompts != nullptr);
+
+    prompts->process_line("// action:prompt_begin Purge done?");
+    prompts->process_line("// action:prompt_button Yes|RESPOND|primary");
+    CHECK(wakes == 0);
+    prompts->process_line("// action:prompt_show");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(wakes == 1);
+
+    helix::set_display_wake_handler(nullptr);
     routing.detach_handlers(&mock_client_);
     routing.release_routers();
     helix::ActionPromptManager::set_instance(nullptr);

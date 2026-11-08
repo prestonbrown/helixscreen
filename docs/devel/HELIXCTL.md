@@ -325,6 +325,7 @@ live breadcrumb of the navigation stack, e.g. `controls / motion_panel_0 > `.
 | `current`, `pwd` | Show the panel, overlay stack, and working directory |
 | `resolve <target>` | Print the absolute locator a target resolves to |
 | `list_panels` | List the registered base panels (the fixed `PanelId` set) |
+| `perf` | What the UI has cost since start: `frames` (drawn, `render_ms_mean`, `slow` over `slow_over_ms`, `flushed_screens`), `rss_kb`, `peak_rss_kb`, and `overlays`, slowest last open first, each with `opens`, `builds` (opens that built the widget tree), `last_ms`, `max_ms`, `mean_ms`. An open is timed from `OverlayBase::show()` to the end of the first frame drawn after its queued push. The debug bundle carries the same object as `ui_perf` |
 | `wake`, `screensaver off` | Reset the idle timer / dismiss the screensaver |
 | `screensaver <name>` | Preview a saver by its stable registry name (`maze`, `flipclock`, `aqua`, `highfly`, ...) the way Test Screensaver does. The reply names what `runs` (a saver too heavy for the board runs its fallback), or says `started: false` when a saver is already up. `screensaver off`, in any case, is `wake` |
 

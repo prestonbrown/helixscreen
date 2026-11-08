@@ -52,10 +52,7 @@ inline constexpr int kMaxThickLineOffsets = 32;
 /// Shorter than this and `dx/len` is noise, so the segment degenerates to a
 /// single thin line.
 ///
-/// This used to be declared once at 0.001f and then shadowed by a local 0.5f
-/// inside the AA thick-line variant, so only the AA path applied the coarser
-/// cutoff. The shadow was accidental; 0.001f is the declared intent and is what
-/// both paths use now.
+/// Both the plain and AA thick-line paths use this one cutoff.
 inline constexpr float kMinLineLength = 0.001f;
 
 /// Perpendicular offsets, in pixels, for the parallel lines making up a thick

@@ -17,11 +17,11 @@ using namespace helix;
 
 TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after init",
                  "[safety_settings]") {
-    // ERASE the sections rather than pre-seed them. This block used to write
-    // every key with the value the SECTIONs then asserted, so init_subjects()
-    // read those literals straight back and the compiled-in fallbacks
-    // (src/system/safety_settings_manager.cpp:38, :43, :49, :64, :69, :74)
-    // never ran — flipping any of them left the test green. Erasing is also
+    // ERASE the sections rather than pre-seed them. Writing every key with the
+    // value the SECTIONs then assert would make init_subjects() read those
+    // literals straight back, so the compiled-in fallbacks in
+    // src/system/safety_settings_manager.cpp would never run and flipping any
+    // of them would leave the test green. Erasing is also
     // what makes the test independent of the set/get cases below, which persist
     // into the same Config singleton.
     auto& config_data = ConfigTestAccess::data(*Config::get_instance());

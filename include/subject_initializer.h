@@ -11,7 +11,6 @@
 #include <memory>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -46,7 +45,7 @@ class ChamberStallPrompt;
  * 2. init_panels(api) - Panel subjects with API injected at construction
  * 3. init_post() - Observers and utility subjects
  *
- * Usage (preferred - proper DI):
+ * Usage:
  *   SubjectInitializer subjects;
  *   subjects.init_core_and_state();
  *   // ... initialize MoonrakerManager to get API ...

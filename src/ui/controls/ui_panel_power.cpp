@@ -104,7 +104,6 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Use standard overlay panel setup (wires header, back button, handles responsive padding)
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overlay_content");
 
-    // Find widget references
     lv_obj_t* overlay_content = helix::ui::find_required(panel_, "overlay_content", get_name());
     if (overlay_content) {
         device_list_container_ =
@@ -120,7 +119,6 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
-    // Fetch devices from Moonraker
     fetch_devices();
 
     spdlog::info("[{}] Setup complete!", get_name());

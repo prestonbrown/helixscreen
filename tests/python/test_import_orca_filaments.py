@@ -504,7 +504,7 @@ def test_main_carries_the_types_table_through_a_regen(tmp_path, monkeypatch):
     seed.write_text("[]")
     seen = {}
 
-    def fake_build(orca, seed, type_ranges, library_marker="x"):
+    def fake_build(orca, seed, type_ranges, library_marker="x", id_products=None):
         seen["ranges"] = type_ranges
         return [], []
 
@@ -526,3 +526,104 @@ def test_main_refuses_an_output_without_a_types_table(tmp_path):
     else:
         raise AssertionError("main wrote an output with no types table")
     assert json.loads(out.read_text()) == {"filaments": []}
+
+
+# --- Ids from a second Orca tag, and the refusal to change it silently (#2026) ---
+
+def _orca_tree(root, profiles):
+    """A minimal resources/profiles root: one library profile per (name, id) pair."""
+    lib = root / "OrcaFilamentLibrary" / "filament"
+    lib.mkdir(parents=True)
+    for name, filament_id in profiles:
+        profile = {
+            "type": "filament", "name": f"{name} @System", "instantiation": "true",
+            "filament_vendor": ["Acme"], "filament_type": ["PLA"],
+            "nozzle_temperature": ["210"],
+        }
+        if filament_id:
+            profile["filament_id"] = filament_id
+        (lib / f"{name}.json").write_text(json.dumps(profile))
+    return str(root)
+
+
+ID_TAG_ATTRIBUTION = imp.attribution("v1", "v2")
+TYPES = [{"name": "PLA", "nozzle_min": 190, "nozzle_max": 230, "bed": 60}]
+
+
+def _regen_inputs(tmp_path, attribution=ID_TAG_ATTRIBUTION):
+    old = _orca_tree(tmp_path / "v1", [("Acme Red", "OLD1"), ("Acme Blue", "OLD2"),
+                                       ("Acme Gone", "OLD3")])
+    new = _orca_tree(tmp_path / "v2", [("Acme Red", "NEW1"), ("Acme Blue", None)])
+    seed = tmp_path / "seed.json"
+    seed.write_text(json.dumps([{
+        "id": "acme-hand-added", "brand": "Acme", "name": "Hand Added", "type": "PLA",
+        "nozzle": 215, "source": "vendor-spec",
+    }]))
+    out = tmp_path / "filaments.json"
+    out.write_text(json.dumps({"_attribution": attribution, "types": TYPES, "filaments": []}))
+    return old, new, str(seed), out
+
+
+def test_attributed_id_tag_reads_back_what_attribution_writes():
+    assert imp.attributed_id_tag({"_attribution": imp.attribution("v2.4.1", "v2.5.0-beta")}) \
+        == "v2.5.0-beta"
+    assert imp.attributed_id_tag({"_attribution": imp.attribution("v2.4.1")}) is None
+    assert imp.attributed_id_tag({}) is None
+
+
+def test_main_refuses_to_drop_the_catalogs_ids_tag(tmp_path):
+    old, _new, seed, out = _regen_inputs(tmp_path)
+    before = out.read_text()
+    try:
+        imp.main(["--orca", old, "--seed", seed, "--orca-tag", "v1", "--out", str(out)])
+    except SystemExit as e:
+        assert "v2" in str(e.code)
+    else:
+        raise AssertionError("a single-tag regen overwrote a catalog with an ids tag")
+    assert out.read_text() == before
+
+
+def test_main_refuses_a_different_ids_tag_unless_allowed(tmp_path):
+    old, new, seed, out = _regen_inputs(tmp_path)
+    before = out.read_text()
+    args = ["--orca", old, "--orca-ids", new, "--orca-id-tag", "v3", "--seed", seed,
+            "--orca-tag", "v1", "--out", str(out)]
+    try:
+        imp.main(args)
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("a regen moved the ids tag without --allow-id-tag-change")
+    assert out.read_text() == before
+    assert imp.main(args + ["--allow-id-tag-change"]) == 0
+    assert imp.attributed_id_tag(json.loads(out.read_text())) == "v3"
+
+
+def test_main_takes_ids_from_the_ids_tag_and_keeps_seed_rows(tmp_path):
+    old, new, seed, out = _regen_inputs(tmp_path)
+    assert imp.main(["--orca", old, "--orca-ids", new, "--orca-id-tag", "v2",
+                     "--seed", seed, "--orca-tag", "v1", "--out", str(out)]) == 0
+    doc = json.loads(out.read_text())
+    by_name = {p["name"]: p for p in doc["filaments"]}
+    assert by_name["Red"]["orca_id"] == "NEW1"
+    # No id at the ids tag, or absent from it: the old-scheme id must not survive.
+    assert "orca_id" not in by_name["Blue"]
+    assert "orca_id" not in by_name["Gone"]
+    assert by_name["Hand Added"]["source"] == "vendor-spec"
+    assert doc["_attribution"] == ID_TAG_ATTRIBUTION
+
+
+def test_main_without_an_ids_tag_regens_a_catalog_that_never_had_one(tmp_path):
+    old, _new, seed, out = _regen_inputs(tmp_path, attribution=imp.attribution("v1"))
+    assert imp.main(["--orca", old, "--seed", seed, "--orca-tag", "v1", "--out", str(out)]) == 0
+    by_name = {p["name"]: p for p in json.loads(out.read_text())["filaments"]}
+    assert by_name["Red"]["orca_id"] == "OLD1"
+
+
+def test_main_wants_ids_root_and_ids_tag_together(tmp_path):
+    old, new, seed, out = _regen_inputs(tmp_path)
+    try:
+        imp.main(["--orca", old, "--orca-ids", new, "--seed", seed, "--out", str(out)])
+    except SystemExit:
+        return
+    raise AssertionError("--orca-ids without --orca-id-tag was accepted")

@@ -56,7 +56,7 @@ inline constexpr const char* kMinMoonrakerVersion = "0.9.0";
  * Tracks Klipper and Moonraker version strings for display in the Settings
  * panel About section. Both subjects are string subjects with 64-byte buffers.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * Default value for both subjects is "—" (em dash, U+2014) to indicate
  * version information has not yet been received from Moonraker.
@@ -66,7 +66,6 @@ class PrinterVersionsState {
     PrinterVersionsState() = default;
     ~PrinterVersionsState() = default;
 
-    // Non-copyable
     PrinterVersionsState(const PrinterVersionsState&) = delete;
     PrinterVersionsState& operator=(const PrinterVersionsState&) = delete;
 
@@ -125,10 +124,6 @@ class PrinterVersionsState {
     // Subject accessors
     // ========================================================================
 
-    /**
-     * @brief Get Klipper version subject for XML binding
-     * @return Pointer to string subject
-     */
     lv_subject_t* get_klipper_version_subject() {
         return &klipper_version_;
     }
@@ -163,10 +158,6 @@ class PrinterVersionsState {
         return &moonraker_version_;
     }
 
-    /**
-     * @brief Get OS version subject for XML binding
-     * @return Pointer to string subject
-     */
     lv_subject_t* get_os_version_subject() {
         return &os_version_;
     }

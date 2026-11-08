@@ -52,8 +52,7 @@ class ConfigStorage {
 /// once: compact JSON, about a third of the size, and no .pre-migration copy.
 enum class ConfigFootprint { Standard, Small };
 
-/// Atomic-rename file implementation; behavior extracted verbatim from the
-/// pre-seam Config::save() / Config::init().
+/// Atomic-rename file implementation behind Config::save() / Config::init().
 std::unique_ptr<ConfigStorage>
 make_file_config_storage(const std::string& path,
                          ConfigFootprint footprint = ConfigFootprint::Standard);

@@ -13,9 +13,8 @@
  * @brief Reusable EMA-based thermal heating rate model
  *
  * Tracks temperature samples over time and computes a smoothed heating rate
- * (seconds per degree) using exponential moving average. Extracted from
- * PidProgressTracker so both PID calibration and pre-print timing can share
- * the same algorithm.
+ * (seconds per degree) using exponential moving average. PID calibration
+ * (PidProgressTracker) and pre-print timing share this one algorithm.
  *
  * Units: rate is always in seconds per degree Celsius (s/°C).
  * Higher rate = slower heating.

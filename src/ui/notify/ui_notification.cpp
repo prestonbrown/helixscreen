@@ -31,7 +31,6 @@
 #include <string>
 #include <thread>
 
-// Forward declarations
 static void notification_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
 static void show_notification(const char* title, const char* message, ToastSeverity severity,
                               uint32_t duration_ms);

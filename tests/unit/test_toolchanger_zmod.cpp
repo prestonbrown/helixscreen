@@ -741,14 +741,20 @@ TEST_CASE("An explicit park still unmounts on Z-Mod, and Unload never does",
 // Load feeds through the afclite shim's CHANGE_TOOL.
 // ---------------------------------------------------------------------------
 
-TEST_CASE("The afclite shim's lanes give each head a feed command", "[toolchanger][zmod][feed]") {
-    const auto feed = toolchanger_addon::resolve_tool_feed(zmod_c5_afclite_discovery());
+TEST_CASE("Each head's feed command names its lane in the AFC that publishes it",
+          "[toolchanger][zmod][feed][2033]") {
+    // The afclite shim names lanes by extruder; the built-in AFC feeds head n through lane n+1.
+    const bool builtin = GENERATE(false, true);
+    CAPTURE(builtin);
+    const auto feed = toolchanger_addon::resolve_tool_feed(builtin ? zmod_c5_builtin_afc_discovery()
+                                                                   : zmod_c5_afclite_discovery());
     REQUIRE(feed.present);
     REQUIRE(feed.head_gcode.size() == 4);
     for (int head = 0; head < 4; ++head) {
         CAPTURE(head);
         CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
-              "CHANGE_TOOL LANE=E" + std::to_string(head));
+              (builtin ? "CHANGE_TOOL LANE=lane" + std::to_string(head + 1)
+                       : "CHANGE_TOOL LANE=E" + std::to_string(head)));
     }
 }
 
@@ -786,18 +792,6 @@ TEST_CASE("Load with the afclite shim sends CHANGE_TOOL for that head's lane",
         REQUIRE(tc.load_filament(head).success());
         REQUIRE(tc.sent().size() == 1);
         CHECK(tc.sent().back() == "CHANGE_TOOL LANE=E" + std::to_string(head));
-    }
-}
-
-TEST_CASE("The built-in AFC's lanes feed head n through lane n+1",
-          "[toolchanger][zmod][feed][2033]") {
-    const auto feed = toolchanger_addon::resolve_tool_feed(zmod_c5_builtin_afc_discovery());
-    REQUIRE(feed.present);
-    REQUIRE(feed.head_gcode.size() == 4);
-    for (int head = 0; head < 4; ++head) {
-        CAPTURE(head);
-        CHECK(feed.head_gcode[static_cast<size_t>(head)] ==
-              "CHANGE_TOOL LANE=lane" + std::to_string(head + 1));
     }
 }
 
@@ -873,16 +867,26 @@ TEST_CASE("An older Z-Mod Creator 5 keeps the job rewrite and is sent no map",
     }
 }
 
-TEST_CASE("A Creator 5 whose Moonraker reads tools but whose AFC is off keeps the job rewrite",
+TEST_CASE("A Creator 5 whose Moonraker reads tools takes the map with its AFC off",
           "[toolchanger][zmod][print_start_params][2033]") {
-    for (auto hw : {zmod_c5_afclite_discovery(), zmod_c5_discovery()}) {
-        hw.set_server_takes_print_start_tools(true);
-        REQUIRE(helix::print_start::takes_tool_slots(hw));
-        ToolChangerHelper tc(4);
-        tc.set_discovery(hw);
-        CHECK(tc.print_start_params({{0, 1}}).empty());
-        CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
-    }
+    PrinterDiscovery hw = zmod_c5_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE_FALSE(hw.has_zmod_afc());
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}, {1, 0}}) == helix::PrintStartParams{{"tools", "2,1"}});
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+}
+
+TEST_CASE("A Creator 5 with the afclite plugin keeps the job rewrite where Moonraker reads tools",
+          "[toolchanger][zmod][print_start_params][2033]") {
+    PrinterDiscovery hw = zmod_c5_afclite_discovery();
+    hw.set_server_takes_print_start_tools(true);
+    REQUIRE(helix::print_start::takes_tool_slots(hw));
+    ToolChangerHelper tc(4);
+    tc.set_discovery(hw);
+    CHECK(tc.print_start_params({{0, 1}}).empty());
+    CHECK(tc.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
 }
 
 TEST_CASE("A klipper-toolchanger machine starts the print with its filename alone",

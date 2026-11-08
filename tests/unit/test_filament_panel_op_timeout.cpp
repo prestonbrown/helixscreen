@@ -12,13 +12,13 @@
  * Two defects, both reproduced against a real FilamentPanel built from
  * filament_panel.xml over a recording AMS backend:
  *
- *   1. Every operation_guard_.begin() callsite used to pass a capture-nothing
- *      lambda that only raised a toast. OperationTimeoutGuard clears its own
- *      filament_operation_in_progress subject, so the buttons re-enabled at 120s,
- *      but the per-op state subject (filament_op_*_state: 0 idle / 1 busy / 2 done)
- *      stayed at 1 for the rest of the session and backend_op_active_ /
- *      op_in_flight_ stayed set. The shared handle_operation_timeout() now fails
- *      whichever op is showing busy.
+ *   1. A timeout callback that only raises a toast is not enough.
+ *      OperationTimeoutGuard clears its own filament_operation_in_progress
+ *      subject, so the buttons re-enable at 120s, but the per-op state subject
+ *      (filament_op_*_state: 0 idle / 1 busy / 2 done) would stay at 1 for the
+ *      rest of the session with backend_op_active_ / op_in_flight_ set. Every
+ *      operation_guard_.begin() callsite uses the shared
+ *      handle_operation_timeout(), which fails whichever op is showing busy.
  *
  *   2. The AMS completion observer accepted only AmsAction::IDLE. AFC's
  *      stuck-action backstop resolves a wedged operation to AmsAction::ERROR and
@@ -261,8 +261,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A timed-out backend op leaves the backend's
 TEST_CASE_METHOD(LVGLUITestFixture, "#1183: AmsAction::ERROR ends the operation and fails the op",
                  "[ui_integration][filament][regression][1183]") {
     // AmsBackendAfc::check_action_timeout()'s entire output is a flip to ERROR.
-    // Before the fix the observer accepted only IDLE, so that backstop changed
-    // nothing on this panel and the spinner ran to the 120s timeout.
+    // An observer accepting only IDLE would make that backstop change nothing
+    // on this panel, and the spinner would run to the 120s timeout.
     TimeoutHarness h(*this);
 
     TA::execute_load(*h.panel);

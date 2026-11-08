@@ -40,7 +40,6 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
     // overlay is a singleton constructed early in startup, before the display has
     // finished rotating/sizing, so constructor-time dimensions can be stale.
 
-    // Set completion callback
     controller_.panel()->set_completion_callback(
         [this](const TouchCalibration* cal) { on_calibration_complete(cal); });
 
@@ -82,7 +81,6 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
         snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
         lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
 
-        // Update instruction text
         lv_subject_copy_string(&instruction_subject_,
                                lv_tr("Calibration timed out. Please try again."));
 

@@ -208,7 +208,7 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating, n
 | Subject init order | Register components → init subjects → create XML | `src/application/subject_initializer.cpp` |
 | Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` | any panel |
 | Overlays | `NavigationManager::instance().push_overlay(root)` / `.go_back()`; pair every push with `register_overlay_instance(root, this)` or `on_deactivate()` never fires | `src/ui/settings/ui_settings_safety.cpp` |
-| Modals (simple) | `Modal::show("component_name")` / `Modal::hide(dialog)` | `src/ui/print/ui_job_queue_modal.cpp` |
+| Modals (simple) | `helix::ui::ComponentModal::show_owned("component_name")` / `Modal::hide(dialog)`; the bare `Modal::show("name")` factory is lint-refused | `src/ui/settings/ui_settings_fans.cpp` |
 | Modals (subclass) | Extend `Modal`, implement `get_name()` + `component_name()`, override `on_ok()`/`on_cancel()` | `include/ui_info_qr_modal.h` + `src/ui/components/ui_info_qr_modal.cpp` |
 | Confirmation dialog | `helix::ui::modal_confirm(title, msg, severity, btn_text, on_confirm, ConfirmOptions)`. **Pass `on_dismiss` whenever the caller holds a guard/flag/pending entry the buttons were meant to clear**: backdrop tap, ESC and hot-reload dismiss without a button. `owner_token` gates all three callbacks | `src/ui/printers/ui_change_host_modal.cpp#show_connection_failed_modal` |
 | Modal buttons (XML) | `<modal_button_row primary_text="Save" primary_callback="on_save"/>` | `ui_xml/bed_mesh_rename_modal.xml` |

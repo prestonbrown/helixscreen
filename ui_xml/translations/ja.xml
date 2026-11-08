@@ -319,6 +319,7 @@
   <translation tag="App Background" ja="アプリ背景"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." ja="アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。"/>
   <translation tag="Appearance" ja="外観"/>
+  <translation tag="Appearance &amp; Region" ja="外観と地域"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ja="{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。"/>
   <translation tag="Applies to" ja="適用対象"/>
   <translation tag="Apply" ja="適用"/>
@@ -437,6 +438,9 @@
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ja="ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。"/>
+  <translation tag="Belt tension and cutter calibration" ja="ベルトテンションとカッターのキャリブレーション"/>
+  <translation tag="Belt tensioning completed" ja="ベルトの張り調整が完了しました"/>
+  <translation tag="Belt tensioning failed: {}" ja="ベルトの張り調整に失敗しました: {}"/>
   <translation tag="Belts already match" ja="ベルトはすでに一致しています"/>
   <translation tag="Beta" ja="ベータ"/>
   <translation tag="Beta features: OFF" ja="ベータ機能: OFF"/>
@@ -767,6 +771,7 @@
   <translation tag="Color" ja="色"/>
   <translation tag="Color Mismatch" ja="色の不一致"/>
   <translation tag="Color Sensors" ja="カラーセンサー"/>
+  <translation tag="Colors for every screen" ja="すべての画面の配色"/>
   <translation tag="Command Failed" ja="コマンドに失敗しました"/>
   <translation tag="Command failed" ja="コマンドに失敗しました"/>
   <translation tag="Communication Test" ja="通信テスト"/>
@@ -1652,7 +1657,7 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." ja="熱膨張を考慮した正確なオフセットのため、キャリブレーション前にベッドを加熱してください。"/>
   <translation tag="Heat nozzle" ja="ノズルを加熱"/>
   <translation tag="Heat soak" ja="ヒートソーク"/>
-  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." ja="ヒートソークは印刷前に筐体内を温めます。プリンターにヒートソークマクロがあるか、設定で有効にされたため表示されています。HelixScreenは実行しません。"/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." ja="ヒートソークは印刷前に筐体内を温めます。プリンターにヒートソークマクロがあるか、設定で有効にされたため表示されています。HelixScreenは印刷前オプションでこのマクロを提供します。"/>
   <translation tag="Heat the bed to {}°C" ja="ベッドを {}°C に加熱"/>
   <translation tag="Heat the chamber too" ja="チャンバーも加熱"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" ja="フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください"/>
@@ -3420,6 +3425,8 @@
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
   <translation tag="Set temperature between {}°C and {}°C" ja="温度は {}〜{}°C にしてください"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
   <translation tag="Set up" ja="セットアップ"/>
   <translation tag="Set up your label printer in Settings" ja="設定でラベルプリンターをセットアップしてください"/>
@@ -3449,6 +3456,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" ja="マクロをタップした際に確認ダイアログを表示"/>
   <translation tag="Show instead of dimming" ja="暗くする代わりに表示"/>
   <translation tag="Show light controls for a light connected to this printer" ja="このプリンターに接続したライトの操作を表示"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" ja="印刷速度とフローをパーセントではなく mm/s と mm³/s で表示"/>
   <translation tag="Show printer icon in navigation bar" ja="ナビゲーションバーにプリンターアイコンを表示"/>
   <translation tag="Show sliced colors" ja="スライスした色を表示"/>
   <translation tag="Show temp for" ja="温度表示対象"/>
@@ -3516,6 +3524,7 @@
   <translation tag="Spaghetti detected (%d%%)" ja="スパゲッティを検出しました（%d%%）"/>
   <translation tag="Speaker" ja="スピーカー"/>
   <translation tag="Speed" ja="速度"/>
+  <translation tag="Speed &amp; Flow in mm/s" ja="速度とフローを mm/s で表示"/>
   <translation tag="Speed / Flow" ja="速度 / フロー"/>
   <translation tag="Speed Settings" ja="速度設定"/>
   <translation tag="Speed and flow overrides, with a tap to tune" ja="速度とフロー。タップして調整"/>
@@ -3742,7 +3751,9 @@
   <translation tag="Temporary adjustment for this print" ja="この印刷のみの一時的な調整です"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ja="コントロールパネルで保存しない限り、この印刷のみの一時的な調整です"/>
   <translation tag="Temporary for this print; a tool change resets it" ja="この印刷のみの一時的な調整です。ツール交換でリセットされます"/>
+  <translation tag="Tension Belts" ja="ベルトを張る"/>
   <translation tag="Tensioner: {}" ja="テンショナー: {}"/>
+  <translation tag="Tensioning belts..." ja="ベルトを調整中..."/>
   <translation tag="Tertiary" ja="ターシャリ"/>
   <translation tag="Test All Lanes" ja="全レーンをテスト"/>
   <translation tag="Test Both" ja="両方テスト"/>
@@ -3883,6 +3894,7 @@
   <translation tag="The printer has not reported its maximum velocity yet." ja="プリンターがまだ最大速度を報告していません。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ja="プリンターが原点復帰してカッターを走査します（約1分）。フィラメントの経路を空けてください。"/>
+  <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ja="プリンターが必要に応じて原点復帰し、カッターの位置を検出します。フィラメントの経路を空けてください。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ja="プリンターはホームに戻ってから、ベッドをノズルからできるだけ離します。耐熱性が足りずに変形するスプールもあります。スプールをベッドから取り出したことを確認するまで、この画面からは何も動きません。Mainsail、マクロ、スライサーから送られた印刷はブロックされません。"/>
   <translation tag="The printer homes, then probes each screw position." ja="プリンターは原点復帰してから各ネジ位置を測定します。"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
@@ -3894,6 +3906,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." ja="プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"/>
   <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ja="プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。"/>
@@ -3991,6 +4004,7 @@
   <translation tag="This printer has no IFS." ja="このプリンターにはIFSがありません。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ja="このプリンターにはINDXのLOAD_FILAMENTマクロがありません"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ja="このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。"/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ja="このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ja="このプリンターには {} コマンドがないため、Zオフセットを保存できません。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ja="このプリンターのINDXマクロに不足があります: {}"/>
@@ -4349,6 +4363,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." ja="有効時はマクロのみ実行されます。無効時は先に温度を設定してからマクロが実行されます。"/>
   <translation tag="Where UI sounds play" ja="UIサウンドの再生先"/>
   <translation tag="Whether filament is loaded" ja="フィラメントの装填状態"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" ja="ZボタンがベッドとZ値のどちらに従うか"/>
   <translation tag="Which belt is each path?" ja="各パスはどのベルト?"/>
   <translation tag="Which belt is which?" ja="どのベルトがどれ?"/>
   <translation tag="Which lane is in the toolhead?" ja="ツールヘッドに入っているのはどのレーンですか？"/>
@@ -4433,6 +4448,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ja="お使いの{0}には{1}があるようですが、{2}用に設定されています。"/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." ja="{} の行には、フィラメントマッピングで変更されないツールごとの設定が含まれています ({})。フィラメントをマッピングしたツールが加熱されない可能性があります。ユーザーガイドの「Filament Mapping」を参照してください。"/>
   <translation tag="Z" ja="Z"/>
+  <translation tag="Z Buttons Move" ja="Zボタンの移動対象"/>
   <translation tag="Z Calibration" ja="Z キャリブレーション"/>
   <translation tag="Z Movement" ja="Z移動"/>
   <translation tag="Z Offset" ja="Zオフセット"/>

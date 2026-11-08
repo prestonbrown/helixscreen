@@ -44,7 +44,7 @@ TEST_CASE("plr_should_offer: printer not idle => no offer", "[plr][offer]") {
 // independent of the filament/AMS backend. `pl_env_valid` is emitted only by
 // Snapmaker's forked virtual_sdcard, so it is self-gating — an earlier
 // redundant "AMS backend == SNAPMAKER" gate wrongly suppressed the offer on an
-// AFC-modded U1 (bundle UDZJQVQZ) whose backend is not the Snapmaker one, even
+// AFC-modded U1 whose backend is not the Snapmaker one, even
 // though the Snapmaker firmware PLR works and pl_env_valid goes true.
 TEST_CASE("plr_should_offer fires for a valid idle snapshot regardless of filament backend",
           "[plr][offer]") {

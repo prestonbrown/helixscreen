@@ -2439,12 +2439,15 @@ void set_spoolman_available(bool available) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a relink never carries the old spool's More fields over",
-                 "[ams_edit_overlay][more][relink]") {
+/// The UI fixture plus a mock printer and API of the case's own.
+struct MockApiUiFixture : LVGLUITestFixture {
     PrinterState state;
     MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    MoonrakerAPIMock api{client, state};
+};
 
+TEST_CASE_METHOD(MockApiUiFixture, "a relink never carries the old spool's More fields over",
+                 "[ams_edit_overlay][more][relink]") {
     SpoolInfo& a = mock_spool(client, 7);
     a.filament_id = 3;
     a.vendor = "Bambu Lab";
@@ -2495,11 +2498,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a relink never carries the old spool's More
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a late spool record never overwrites a relink or a pick",
+TEST_CASE_METHOD(MockApiUiFixture, "a late spool record never overwrites a relink or a pick",
                  "[ams_edit_overlay][more][relink]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.vendor = "Bambu Lab";
     a.material = "ASA";
@@ -2679,11 +2679,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a save in flight holds Back and the keypad 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a Spoolman save completes even if the editor was covered",
+TEST_CASE_METHOD(MockApiUiFixture, "a Spoolman save completes even if the editor was covered",
                  "[ams_edit_overlay][save][session]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.filament_id = 3;
     a.vendor = "Bambu Lab";
@@ -3155,11 +3152,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the More section opens collapsed in every s
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a cover that drops the open-time fetches re-runs them once",
+TEST_CASE_METHOD(MockApiUiFixture, "a cover that drops the open-time fetches re-runs them once",
                  "[ams_edit_overlay][more][session]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.vendor = "Bambu Lab";
     a.material = "ASA";
@@ -3596,12 +3590,9 @@ TEST_CASE("format_spool_price shows two decimals and blanks no price",
     CHECK(format_spool_price(-1).empty());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "a Spoolman save commits the slot even if the editor closed first",
                  "[ams_edit_overlay][save][session]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.filament_id = 3;
     a.vendor = "Bambu Lab";
@@ -3639,11 +3630,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record never loaded",
+TEST_CASE_METHOD(MockApiUiFixture, "Save keeps More edits whose spool record never loaded",
                  "[ams_edit_overlay][more][save]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     set_spoolman_available(true);
 
     auto& overlay = get_ams_edit_overlay();
@@ -3676,11 +3664,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record ne
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a spool record landing after Reset to tag keeps the reset",
+TEST_CASE_METHOD(MockApiUiFixture, "a spool record landing after Reset to tag keeps the reset",
                  "[ams_edit_overlay][tag][relink]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.vendor = "Bambu Lab";
     a.material = "ASA";
@@ -3739,12 +3724,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "a More-field save commits the slot's other edits even if the editor closed first",
                  "[ams_edit_overlay][save][session]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     SpoolInfo& a = mock_spool(client, 7);
     a.filament_id = 3;
     a.vendor = "Bambu Lab";
@@ -3812,12 +3794,9 @@ void settle(LVGLUITestFixture& fixture) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "a slot with a save still running does not reopen until it lands",
                  "[ams_edit_overlay][save][session]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     std::vector<AmsEditOverlay::EditResult> results;
@@ -3851,11 +3830,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a chained More PATCH that fails says so and still commits",
+TEST_CASE_METHOD(MockApiUiFixture, "a chained More PATCH that fails says so and still commits",
                  "[ams_edit_overlay][save][more]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     bool saved = false;
@@ -3891,12 +3867,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a chained More PATCH that fails says so and
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "a save that fails after its More PATCH landed says what did save",
                  "[ams_edit_overlay][save][more]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     open_linked_editor(*this, client, api, nullptr);
@@ -3925,12 +3898,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "with Spoolman offline Save commits the slot and keeps the More edits",
                  "[ams_edit_overlay][save][more]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     // A linked printer whose Spoolman is unreachable: the record never loads.
@@ -3974,7 +3944,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // ============================================================================
 
 namespace {
-
 /// Open the editor on @p slot as the AMS panels do, with the slot as the
 /// backend holds it. @p completions counts the completion callbacks and
 /// @p last_saved records the last one's verdict.
@@ -4381,12 +4350,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothin
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(MockApiUiFixture,
                  "a new spool close to an existing Spoolman filament asks before filing another",
                  "[ams_edit_overlay][spoolman][similar_filament]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
     auto& spools = client.spoolman_mock().get_mock_spools();
     spools.clear();
     client.spoolman_mock().add_vendor(2, "eSUN");

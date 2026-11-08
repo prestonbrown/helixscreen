@@ -30,7 +30,6 @@ class SafetySettingsManager {
     /// The static PersistedSetting table this manager is built from.
     static settings::TableView persisted_table();
 
-    // Non-copyable
     SafetySettingsManager(const SafetySettingsManager&) = delete;
     SafetySettingsManager& operator=(const SafetySettingsManager&) = delete;
 

@@ -183,15 +183,20 @@ void setup_four_lane_sensors_no_status(FilamentSensorManager& fsm) {
     }
 }
 
+/// A Snapmaker backend with four lanes, each with a RUNOUT motion sensor reporting.
+struct FourLaneRunout : HelixTestFixture {
+    ScopedSnapmakerBackend backend;
+    FilamentSensorManager& fsm = FilamentSensorManager::instance();
+    FourLaneRunout() {
+        setup_four_lane_sensors(fsm);
+    }
+};
+
 } // namespace
 
-TEST_CASE("has_real_runout: empty/never-loaded lane sensor=false is NOT a runout",
-          "[runout][scope]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "has_real_runout: empty/never-loaded lane sensor=false is NOT a runout",
+                 "[runout][scope]") {
     // Lane 1 is empty/never-loaded; lanes 0,2 present.
     backend.set_lane_presence({true, false, true, false});
     REQUIRE(AmsState::instance().get_backend()->get_slot_info(1).is_present() == false);
@@ -206,13 +211,9 @@ TEST_CASE("has_real_runout: empty/never-loaded lane sensor=false is NOT a runout
     CHECK_FALSE(fsm.has_real_runout());
 }
 
-TEST_CASE("has_real_runout: loaded/present lane that loses filament IS a runout",
-          "[runout][scope]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "has_real_runout: loaded/present lane that loses filament IS a runout",
+                 "[runout][scope]") {
     // Lane 0 is present (loaded for the print).
     backend.set_lane_presence({true, false, false, false});
     REQUIRE(AmsState::instance().get_backend()->get_slot_info(0).is_present());
@@ -226,12 +227,8 @@ TEST_CASE("has_real_runout: loaded/present lane that loses filament IS a runout"
     CHECK(fsm.has_real_runout());
 }
 
-TEST_CASE("has_real_runout: mixed heads 0,2 loaded + head 1 empty", "[runout][scope]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout, "has_real_runout: mixed heads 0,2 loaded + head 1 empty",
+                 "[runout][scope]") {
     // Exact bug shape: heads 0 and 2 used (present), head 1 left empty.
     backend.set_lane_presence({true, false, true, false});
 
@@ -246,11 +243,8 @@ TEST_CASE("has_real_runout: mixed heads 0,2 loaded + head 1 empty", "[runout][sc
     CHECK(fsm.has_real_runout());
 }
 
-TEST_CASE("real_runout_lane: the runout names the lane it came from", "[runout][scope]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
+TEST_CASE_METHOD(FourLaneRunout, "real_runout_lane: the runout names the lane it came from",
+                 "[runout][scope]") {
     backend.set_lane_presence({true, true, true, false});
 
     CHECK_FALSE(fsm.real_runout_lane().has_value());
@@ -435,13 +429,10 @@ TEST_CASE("has_real_runout: no AMS backend -> behaves like has_any_runout", "[ru
 // NOT the per-tool motion sensor (which reads false when staged-but-retracted).
 // ============================================================================
 
-TEST_CASE("scoped runout: required tool present in lane, toolhead sensor false -> NO warning",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(
+    FourLaneRunout,
+    "scoped runout: required tool present in lane, toolhead sensor false -> NO warning",
+    "[runout][scope][print-start]") {
     // Head 0 filament IS staged in the lane (present), but retracted from the
     // toolhead so the per-tool motion sensor reads false. This is the exact
     // false-positive case the fix must NOT warn on.
@@ -461,13 +452,9 @@ TEST_CASE("scoped runout: required tool present in lane, toolhead sensor false -
     CHECK(fsm.compute_scoped_runout_value(tools_used, identity) == 1);
 }
 
-TEST_CASE("scoped runout: required tool lane genuinely empty -> warning names tool+lane",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout: required tool lane genuinely empty -> warning names tool+lane",
+                 "[runout][scope][print-start]") {
     // The print needs tool 0, but lane 0 is genuinely empty.
     backend.set_lane_presence({false, true, true, true});
     fsm.update_from_status(make_sensor_status(0, false));
@@ -487,13 +474,8 @@ TEST_CASE("scoped runout: required tool lane genuinely empty -> warning names to
     CHECK(fsm.compute_scoped_runout_value(tools_used, identity) == 0);
 }
 
-TEST_CASE("scoped runout: unused empty head is ignored -> NO warning",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout, "scoped runout: unused empty head is ignored -> NO warning",
+                 "[runout][scope][print-start]") {
     // Print uses only head 0 (present). Heads 1,2,3 are empty but UNUSED.
     backend.set_lane_presence({true, false, false, false});
     fsm.update_from_status(make_sensor_status(0, true));
@@ -511,13 +493,9 @@ TEST_CASE("scoped runout: unused empty head is ignored -> NO warning",
     CHECK(fsm.compute_scoped_runout_value(tools_used, identity) == 1);
 }
 
-TEST_CASE("scoped runout: multi-tool print, one required lane empty -> only that tool named",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout: multi-tool print, one required lane empty -> only that tool named",
+                 "[runout][scope][print-start]") {
     // Print uses heads 0 and 2. Head 0 present, head 2 EMPTY. Head 1 (unused) also empty.
     backend.set_lane_presence({true, false, false, false});
     drain();
@@ -532,13 +510,9 @@ TEST_CASE("scoped runout: multi-tool print, one required lane empty -> only that
     CHECK(fsm.compute_scoped_runout_value(tools_used, identity) == 0);
 }
 
-TEST_CASE("scoped runout: remap routes a tool to a different (present) lane -> NO warning",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout: remap routes a tool to a different (present) lane -> NO warning",
+                 "[runout][scope][print-start]") {
     // Tool 0's identity lane (0) is EMPTY, but the user remapped tool 0 -> lane 2,
     // which is present. Lane truth must follow the remap, not the identity head.
     backend.set_lane_presence({false, false, true, false});
@@ -557,12 +531,8 @@ TEST_CASE("scoped runout: remap routes a tool to a different (present) lane -> N
     CHECK(empty_identity[0].second == 0);
 }
 
-TEST_CASE("scoped runout: no used tools -> no opinion (badge hidden)",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
+TEST_CASE_METHOD(FourLaneRunout, "scoped runout: no used tools -> no opinion (badge hidden)",
+                 "[runout][scope][print-start]") {
     backend.set_lane_presence({false, false, false, false});
     drain();
 
@@ -571,12 +541,8 @@ TEST_CASE("scoped runout: no used tools -> no opinion (badge hidden)",
     CHECK(fsm.compute_scoped_runout_value({}, {}) == -1);
 }
 
-TEST_CASE("scoped runout: master disabled -> badge muted (2), no warning",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
+TEST_CASE_METHOD(FourLaneRunout, "scoped runout: master disabled -> badge muted (2), no warning",
+                 "[runout][scope][print-start]") {
     backend.set_lane_presence({false, false, false, false});
     fsm.set_master_enabled(false);
     drain();
@@ -622,13 +588,9 @@ TEST_CASE("scoped runout: no AMS backend -> falls back to aggregate runout (unch
 // Review fixes — issues 6, 8, 5/7 (remap consistency, multi-backend scope)
 // ============================================================================
 
-TEST_CASE("scoped runout (issue 6): unresolvable/UNKNOWN slot is NOT flagged empty",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout (issue 6): unresolvable/UNKNOWN slot is NOT flagged empty",
+                 "[runout][scope][print-start]") {
     // Lanes 0-3 all present. Tool 0 is remapped to slot 99 (no such slot ->
     // get_slot_info returns slot_index=-1, status=UNKNOWN). An UNKNOWN slot must
     // NOT be treated as a genuinely-empty lane.
@@ -643,14 +605,10 @@ TEST_CASE("scoped runout (issue 6): unresolvable/UNKNOWN slot is NOT flagged emp
     CHECK(fsm.compute_scoped_runout_value({0}, remap) == 1);
 }
 
-TEST_CASE(
+TEST_CASE_METHOD(
+    FourLaneRunout,
     "scoped runout (issue 6): out-of-range tool default head resolves, real empty still flags",
     "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
     // Lane 0 empty, others present. Tool 9 has no identity head (clamps to head
     // 0), which IS a resolvable, genuinely-empty lane -> flagged.
     backend.set_lane_presence({false, true, true, true});
@@ -688,13 +646,9 @@ TEST_CASE("scoped runout (issue 8): no fresh status -> no warning, badge hidden"
     CHECK(fsm.compute_scoped_runout_value({0}, {}) == 0);
 }
 
-TEST_CASE("scoped runout (issue 5): badge and warning agree under an applied remap",
-          "[runout][scope][print-start]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout (issue 5): badge and warning agree under an applied remap",
+                 "[runout][scope][print-start]") {
     // Tool 0's identity lane (0) is EMPTY; lane 3 is present. The applied map
     // routes tool 0 -> slot 3. Both the warning path (find_empty_required_lanes)
     // and the badge path (compute_scoped_runout_value) must use the SAME map and
@@ -714,13 +668,9 @@ TEST_CASE("scoped runout (issue 5): badge and warning agree under an applied rem
     CHECK(fsm.compute_scoped_runout_value({0}, {}) == 0);
 }
 
-TEST_CASE("scoped runout (issue 2): badge VALUE reacts to AMS lane-presence change",
-          "[runout][scope][print-status]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout (issue 2): badge VALUE reacts to AMS lane-presence change",
+                 "[runout][scope][print-status]") {
     std::set<int> tools_used{0};
 
     // Lane 0 present -> badge "loaded" (1). No motion-sensor edge happens here;
@@ -762,13 +712,9 @@ int scoped_runout_for_state(FilamentSensorManager& fsm, PrintJobState state,
 }
 } // namespace
 
-TEST_CASE("scoped runout (issue 9): print-end forces badge hidden even with empty lane",
-          "[runout][scope][print-status]") {
-    HelixTestFixture fx;
-    ScopedSnapmakerBackend backend;
-    auto& fsm = FilamentSensorManager::instance();
-    setup_four_lane_sensors(fsm);
-
+TEST_CASE_METHOD(FourLaneRunout,
+                 "scoped runout (issue 9): print-end forces badge hidden even with empty lane",
+                 "[runout][scope][print-status]") {
     std::set<int> tools_used{0};
     backend.set_lane_presence({false, true, true, true}); // lane 0 empty
     drain();

@@ -7,8 +7,8 @@
  *
  * The vertical connector lines between step circles are absolutely-positioned
  * IGNORE_LAYOUT rects sized from a layout pass. When the widget is created while
- * an ancestor is hidden, the layout is degenerate (0-size) and the connectors
- * used to be skipped permanently. These tests pin the two contracts:
+ * an ancestor is hidden, the layout is degenerate (0-size), and the connectors
+ * must not be skipped permanently. These tests pin the two contracts:
  *   1. connectors exist with a positive extent when created while visible, and
  *   2. connectors are (re)created + sized once the widget becomes visible, even
  *      if it was built while hidden — driven by an LV_EVENT_SIZE_CHANGED reflow.

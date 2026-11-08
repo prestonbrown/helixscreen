@@ -2119,3 +2119,152 @@ TEST_CASE_METHOD(LVGLTestFixture,
     AmsState::instance().set_backend(nullptr);
     set_connection(ConnectionState::CONNECTED);
 }
+
+TEST_CASE("mount-to-feed: a tool number that skips seats the tool Klipper numbers it",
+          "[toolchanger][mount_feed][tool-number]") {
+    // Tools T0, T2 and T3: Klipper's tool 2 is the second head, slot 1.
+    AckingChanger tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 2}}}});
+
+    REQUIRE(tc.get_system_info().current_slot == 1);
+
+    // Unloading the mounted head works T2's head, never T3's.
+    REQUIRE(tc.unload_filament(-1).success());
+    for (int i = 0; i < 4; ++i) {
+        const size_t sent = tc.sent_.size();
+        tc.ack();
+        if (tc.sent_.size() == sent)
+            break;
+    }
+    INFO("sent: " << [&] {
+        std::string all;
+        for (const auto& g : tc.sent_)
+            all += "[" + g + "] ";
+        return all;
+    }());
+    const auto names = [&](const std::string& needle) {
+        return std::any_of(tc.sent_.begin(), tc.sent_.end(), [&](const std::string& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+    CHECK(names("HEATER=extruder1 "));
+    CHECK_FALSE(names("extruder2"));
+    CHECK_FALSE(names("tool T3"));
+
+    SECTION("a number no tool carries seats none") {
+        tc.feed(json{{"toolchanger", {{"tool_number", 1}}}});
+        CHECK(tc.get_system_info().current_slot == -1);
+    }
+}
+
+TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carriage tool",
+          "[toolchanger][tool-number]") {
+    // Moonraker sends only changed fields: tool_numbers, tool_names each alone.
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 2, 3})}}}});
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T2", "tool T3"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+    CHECK(tc.get_system_info().current_tool == 2);
+
+    // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+}
+
+TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 0}}}});
+
+    REQUIRE(tc.change_tool(2).success());
+    REQUIRE_FALSE(tc.sent_.empty());
+    CHECK(tc.sent_.back() == "SELECT_TOOL TOOL=\"tool T3\"");
+}
+
+TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps and resets",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    const auto listing = [&](json numbers, json names) {
+        tc.feed(json{{"toolchanger", {{"tool_numbers", numbers}, {"tool_names", names}}}});
+    };
+    const json in_order = {"tool T0", "tool T2", "tool T3"};
+    const json rotated = {"tool T3", "tool T0", "tool T2"};
+    const std::vector<std::string> homes{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                         "ASSIGN_TOOL TOOL=\"tool T2\" N=2",
+                                         "ASSIGN_TOOL TOOL=\"tool T3\" N=3"};
+
+    SECTION("each head is badged with its tool's number, and a remap moves it") {
+        listing({0, 2, 3}, in_order);
+        CHECK(tc.get_slot_info(1).mapped_tool == 2);
+        CHECK(tc.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
+        listing({0, 2, 3}, rotated);
+        CHECK(tc.get_slot_info(2).mapped_tool == 0);
+    }
+    SECTION("a listed number past the tool count can be remapped") {
+        listing({0, 2, 3}, in_order);
+        REQUIRE(tc.set_tool_mapping(3, 0).success());
+        CHECK(tc.sent_.back() == "ASSIGN_TOOL TOOL=\"tool T0\" N=3");
+        CHECK_FALSE(tc.can_set_tool_mapping(7, 0).success());
+    }
+    SECTION("a reset returns each tool to its own number, gaps included") {
+        listing({0, 2, 3}, in_order);
+        listing({0, 2, 3}, rotated);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == homes);
+    }
+    SECTION("set_discovery's configured numbers outrank a first listing already remapped") {
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T2", "tool T3"}));
+        hw.parse_configured_tool_numbers({{"tool t0", {{"tool_number", 0}}},
+                                          {"tool t2", {{"tool_number", 2}}},
+                                          {"tool t3", {{"tool_number", 3}}},
+                                          {"extruder", {{"tool_number", 7}}}});
+        CHECK(hw.configured_tool_numbers().size() == 3);
+        tc.set_discovery(hw);
+        listing({0, 2, 3}, rotated);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == homes);
+    }
+    SECTION("a Klipper restart forgets the old config's home numbers") {
+        listing({0, 2, 3}, in_order);
+        tc.on_klipper_restarted();
+        listing({0, 1, 2}, in_order);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_.empty());
+    }
+    SECTION("a reset on a machine with no ASSIGN_TOOL fails and keeps the listed badges") {
+        tc.set_tool_commands(toolchanger_addon::ToolCommands{true, "test", "T", "", false});
+        listing({0, 2, 3}, in_order);
+        listing({0, 2}, json{"tool T2", "tool T0"});
+        REQUIRE(tc.get_slot_info(2).mapped_tool == -1);
+        CHECK_FALSE(tc.reset_tool_mappings().success());
+        CHECK(tc.get_slot_info(2).mapped_tool == -1);
+        CHECK(tc.sent_.empty());
+    }
+}
+
+TEST_CASE("toolchanger: a listed reset of a contiguous swap sends exactly two ASSIGN_TOOLs",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.feed(
+        json{{"toolchanger",
+              {{"tool_numbers", {0, 1, 2}}, {"tool_names", {"tool T0", "tool T1", "tool T2"}}}}});
+    tc.feed(json{{"toolchanger", {{"tool_names", {"tool T1", "tool T0", "tool T2"}}}}});
+    REQUIRE(tc.reset_tool_mappings().success());
+    CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                               "ASSIGN_TOOL TOOL=\"tool T1\" N=1"});
+}

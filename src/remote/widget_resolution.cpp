@@ -93,11 +93,11 @@ void collect_value_controls(lv_obj_t* parent, std::vector<lv_obj_t*>& out) {
 
 } // namespace
 
-// `click row_foo` on a composite settings row used to send CLICKED to the row
-// container — which does nothing, because the control the user meant is the
-// switch nested inside it. Prefer a value-control descendant when the target
-// itself isn't one; fall back to the literal target (a category row that opens
-// an overlay is clickable and has no value-control, and must stay that way).
+// `click row_foo` on a composite settings row means the switch nested inside
+// it: CLICKED sent to the row container does nothing. Prefer a value-control
+// descendant when the target itself isn't one; fall back to the literal target
+// (a category row that opens an overlay is clickable and has no value-control,
+// and must stay that way).
 //
 // Descent is only ever a repair for a target that does nothing on its own. A
 // target with its own click handler is already the thing the caller addressed,

@@ -191,6 +191,15 @@ void apply_system() {
     ::tzset();
 }
 
+bool system_zone_known() {
+#ifdef ESP_PLATFORM
+    return false;
+#else
+    record_startup_tz();
+    return (startup_tz_set_ && !startup_tz_.empty()) || ::access("/etc/localtime", F_OK) == 0;
+#endif
+}
+
 void apply(const char* iana_id, const char* posix_tz) {
     record_startup_tz();
 #ifdef ESP_PLATFORM

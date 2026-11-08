@@ -5,7 +5,7 @@
  * @file test_moonraker_api_disconnected_gcode.cpp
  * @brief The klippy-halted gate must not speak for a printer we never reached.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the WebSocket to
+ * Context (K2 Plus, v0.99.98): the WebSocket to
  * Moonraker never opened once for the whole session. klippy_state therefore
  * still held its startup default of SHUTDOWN (printer_network_state.cpp,
  * "default to SHUTDOWN until confirmed ready") — there is no UNKNOWN value to
@@ -90,8 +90,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     REQUIRE(error_fired->load());
 
-    // The whole point: transport failure, not a firmware halt. Before the fix
-    // this was NOT_READY / "Klipper is halted — restart firmware to continue".
+    // The whole point: transport failure, not a firmware halt, so never
+    // NOT_READY / "Klipper is halted — restart firmware to continue".
     CHECK(*error_type == MoonrakerErrorType::CONNECTION_LOST);
     CHECK(error_message->find("halted") == std::string::npos);
     CHECK(error_message->find("restart firmware") == std::string::npos);

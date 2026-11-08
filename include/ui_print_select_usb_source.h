@@ -14,7 +14,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 struct PrintFileData;
 class UsbManager;
 

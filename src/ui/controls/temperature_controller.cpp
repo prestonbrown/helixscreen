@@ -11,6 +11,7 @@
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "printer_state.h"
@@ -49,7 +50,7 @@ TemperatureController::TemperatureController(PrinterState& state, IMoonrakerAPI*
  * PLA=0, PETG=0, TPU=0, and only ABS=50. Deriving chamber presets from the
  * slot's material would therefore render Off / Off / 50 / Off and collapse
  * three of the four buttons into duplicates of "Off" on every enclosed printer.
- * That is a functional regression, so chamber deliberately keeps its own
+ * So chamber deliberately keeps its own
  * generic low → high ladder that is independent of which material occupies the
  * slot. Slot N simply gets the Nth rung.
  *
@@ -337,17 +338,14 @@ ChamberRouteReply parse_chamber_route_reply(const nlohmann::json& resp) {
     if (!result.is_object()) {
         return {ChamberRouteOutcome::Accepted, {}};
     }
-    std::string reason;
-    if (result.contains("reason") && result["reason"].is_string()) {
-        reason = result["reason"].get<std::string>();
-    }
+    std::string reason = helix::json_util::safe_string(result, "reason");
     if (reason == "superseded") {
         return {ChamberRouteOutcome::Superseded, reason};
     }
     if (reason == "klipper_shutdown") {
         return {ChamberRouteOutcome::PrinterShutdown, reason};
     }
-    const nlohmann::json* accepted = result.contains("accepted") ? &result["accepted"] : nullptr;
+    const nlohmann::json* accepted = helix::json_util::find_member(result, "accepted");
     if (accepted && accepted->is_boolean()) {
         return {accepted->get<bool>() ? ChamberRouteOutcome::Accepted
                                       : ChamberRouteOutcome::Refused,
@@ -355,8 +353,7 @@ ChamberRouteReply parse_chamber_route_reply(const nlohmann::json& resp) {
     }
     // accepted null: the route stopped waiting on the device, which may yet
     // take the target. The status frames carry what it does.
-    if (accepted || (result.contains("pending") && result["pending"].is_boolean() &&
-                     result["pending"].get<bool>())) {
+    if (accepted || helix::json_util::read_field<bool>(result, "pending").value_or(false)) {
         return {ChamberRouteOutcome::Pending, reason};
     }
     return {ChamberRouteOutcome::Accepted, reason};

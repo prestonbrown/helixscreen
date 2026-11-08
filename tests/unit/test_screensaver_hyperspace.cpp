@@ -30,6 +30,7 @@ using helix::ui::DirtyRect;
 using helix::ui::FrameTarget;
 using helix::ui::HyperspaceScreensaver;
 using helix::ui::HyperspaceSim;
+using helix::ui::kHyperspaceDoneDriftSpeed;
 using helix::ui::kHyperspaceLevelCount;
 using helix::ui::kHyperspaceLevels;
 using helix::ui::kHyperspaceMaxRoll;
@@ -510,27 +511,28 @@ TEST_CASE("a paused print slows the flight to a quarter", "[screensaver][hypersp
     CHECK(paused.sim.camera().speed == Catch::Approx(flying.sim.camera().speed * 0.25f));
 }
 
-TEST_CASE("a finished print drops out into still stars", "[screensaver][hyperspace_sim]") {
-    SECTION("from the tunnel, the flight stops and the frames stop changing") {
+TEST_CASE("a finished print drops out into drifting stars", "[screensaver][hyperspace_sim]") {
+    SECTION("from the tunnel, the flight slows to a drift that keeps moving") {
         Flight flight = print_flight(61, 0, print_at(ClockMode::COUNTDOWN, 70));
         REQUIRE(flight.run_to_tunnel());
+        const float cruising = flight.sim.camera().speed;
         flight.reading = print_at(ClockMode::DONE, 100);
         const uint32_t bursts = flight.sim.bursts_started();
-        const bool still = flight.run_until([&flight] { return flight.dirty.empty(); }, 20000);
-        REQUIRE(still);
-        CHECK(flight.sim.camera().speed == 0.0f);
+        const bool slowed = flight.run_until(
+            [&flight] { return flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed; }, 20000);
+        REQUIRE(slowed);
+        CHECK(flight.sim.camera().speed > 0.0f);
+        CHECK(flight.sim.camera().speed < cruising);
         CHECK(flight.sim.tunnel_amount() == 0);
         CHECK(flight.sim.bursts_started() == bursts);
         CHECK(flight.sim.light_radius() > 0.0f);
 
-        const std::vector<uint8_t> held = flight.frame.snapshot();
-        size_t redrawn = 0;
+        const std::vector<uint8_t> earlier = flight.frame.snapshot();
         for (int i = 0; i < 300; i++) {
             flight.step();
-            redrawn += flight.dirty.size();
+            CHECK(flight.dirty.size() == 1);
         }
-        CHECK(redrawn == 0);
-        CHECK(helix::test::bytes_differing(held, flight.frame.bytes) == 0);
+        CHECK(helix::test::bytes_differing(earlier, flight.frame.bytes) > 0);
         CHECK(flight.sim.bursts_started() == bursts);
     }
     SECTION("a starburst due just after the print finishes never comes") {
@@ -552,24 +554,23 @@ TEST_CASE("a finished print drops out into still stars", "[screensaver][hyperspa
             flight.step();
         }
         CHECK(flight.sim.bursts_started() == 1);
-        CHECK(flight.dirty.empty());
     }
-    SECTION("a flight started after the print finished opens still, at every level") {
+    SECTION("a flight started after the print finished opens drifting, at every level") {
         for (size_t level = 0; level < kHyperspaceLevelCount; level++) {
             CAPTURE(level);
             Flight flight = print_flight(67, level, print_at(ClockMode::DONE, 100));
             flight.step();
             REQUIRE(flight.dirty.size() == 1);
             CHECK(flight.sim.tunnel_amount() == 0);
+            CHECK(flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed);
             flight.step();
-            CHECK(flight.dirty.empty());
+            CHECK(flight.dirty.size() == 1);
         }
     }
     SECTION("a new print takes off again") {
         Flight flight = print_flight(71, 0, print_at(ClockMode::DONE, 100));
         flight.step();
-        flight.step();
-        REQUIRE(flight.dirty.empty());
+        REQUIRE(flight.sim.speed_scale() == kHyperspaceDoneDriftSpeed);
         flight.reading = print_at(ClockMode::PROGRESS, 0);
         flight.step();
         CHECK(flight.dirty.size() == 1);

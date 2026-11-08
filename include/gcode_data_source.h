@@ -133,11 +133,9 @@ class FileDataSource : public GCodeDataSource {
 
     ~FileDataSource() override;
 
-    // Non-copyable
     FileDataSource(const FileDataSource&) = delete;
     FileDataSource& operator=(const FileDataSource&) = delete;
 
-    // Moveable
     FileDataSource(FileDataSource&& other) noexcept;
     FileDataSource& operator=(FileDataSource&& other) noexcept;
 

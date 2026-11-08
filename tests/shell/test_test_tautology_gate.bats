@@ -26,7 +26,7 @@ setup() {
     REPO_ROOT="$PWD"
     WORK="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
     rm -rf "$WORK"; mkdir -p "$WORK/scripts" "$WORK/include" "$WORK/src" "$WORK/tests/unit"
-    cp "$REPO_ROOT/$TAUT" "$REPO_ROOT/$MIRROR" "$WORK/scripts/"
+    cp "$REPO_ROOT/$TAUT" "$REPO_ROOT/$MIRROR" "$REPO_ROOT/scripts/source_strip.py" "$WORK/scripts/"
     mkdir -p "$WORK/mk"
     cat > "$WORK/mk/tests.mk" <<'EOF'
 TEST_APP_OBJS := $(filter-out \

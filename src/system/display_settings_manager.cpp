@@ -172,7 +172,6 @@ static int find_timezone_entry(const std::string& iana_id) {
 template <size_t N>
 static int validate_timeout_option(int value, const int (&options)[N], int default_value,
                                    const char* setting_name) {
-    // Check if value is exactly one of the valid options
     for (size_t i = 0; i < N; ++i) {
         if (options[i] == value) {
             return value; // Valid
@@ -415,10 +414,10 @@ void DisplaySettingsManager::init_subjects() {
 
     // Cross-validate: sleep must be >= dim when the device dims OR a screensaver
     // provides the dim-stage visual (#1049). This runs AFTER screensaver_type is
-    // initialized so should_couple_sleep_to_dim() sees it. Critical for the field
-    // config in bundle 3VDWMLYQ (no backlight, screensaver on, persisted
-    // sleep=60 < dim=600) — it self-corrects on next launch instead of starving
-    // the screensaver. Config can also be inconsistent from manual edits.
+    // initialized so should_couple_sleep_to_dim() sees it. A config with no
+    // backlight, the screensaver on and sleep=60 < dim=600 self-corrects on next
+    // launch instead of starving the screensaver. Config can also be
+    // inconsistent from manual edits.
     if (should_couple_sleep_to_dim() && dim_sec > 0 && sleep_sec > 0 && sleep_sec < dim_sec) {
         spdlog::warn("[DisplaySettingsManager] Config inconsistency: sleep {}s < dim {}s, "
                      "clamping sleep to dim",

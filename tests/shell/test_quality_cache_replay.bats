@@ -117,3 +117,35 @@ with_stamp_helpers() {
   [ -n "$(hash_with 1)" ]
   [ "$(hash_with 1)" != "$(hash_with 0)" ]
 }
+
+# The collect loop and the final verdict from the real driver, over gates whose
+# rc files $1 writes into QC_TMP (gate:rc pairs).
+with_gate_results() {
+  bash -c '
+    QC_TMP="$1"; shift
+    QC_ALL=""
+    for pair in "$@"; do
+      QC_ALL="$QC_ALL ${pair%%:*}"
+      echo "${pair#*:}" > "$QC_TMP/${pair%%:*}.rc"
+    done
+    qc_keep_gate_log() { :; }
+    EXIT_CODE=0; FAILED_GATES=""; SCRIPT_START=$(date +%s); QC_STAMP=""
+    eval "$(sed -n "/^for fn in \$QC_ALL; do/,/^done/p; /^if \[ \$EXIT_CODE -eq 0 \]; then/,/^fi/p" scripts/quality-checks.sh)"
+  ' _ "$BATS_TEST_TMPDIR" "$@"
+}
+
+@test "a failed run names every gate that failed, and only those" {
+  run with_gate_results qc_alpha:0 qc_beta:1 qc_gamma:0 qc_delta:2
+  [ "$status" -eq 1 ] || fail "$output"
+  contains "Quality checks failed!" "$output"
+  contains "   Failed gates: qc_beta qc_delta" "$output"
+  lacks "qc_alpha" "$output"
+  lacks "qc_gamma" "$output"
+}
+
+@test "a passing run prints no failed-gates line" {
+  run with_gate_results qc_alpha:0 qc_beta:0
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "Quality checks passed!" "$output"
+  lacks "Failed gates" "$output"
+}

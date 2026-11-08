@@ -27,6 +27,7 @@
 
 #include "backlight_backend.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h" // flush_cb access for the #1049 swap assertion
 #include "display_backend.h"
 #include "display_manager.h"
@@ -547,32 +548,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     DisplayManagerTestAccess::set_display(mgr, nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "hardware-blank path keeps the flush live (AD5M/Allwinner)",
-                 "[application][display][sleep][poweroff][1049]") {
-    // Hardware-blank devices blank the panel at the controller; LVGL keeps
-    // rendering normally. The flush must not be suppressed there.
-    DisplayManager mgr;
-    auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/true);
-    FakePowerOffBackend* raw = backend.get();
-    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
-    DisplayManagerTestAccess::set_use_hardware_blank(mgr, true);
-
-    lv_display_t* disp = lv_display_get_default();
-    DisplayManagerTestAccess::set_display(mgr, disp);
-    lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
-    lv_display_flush_cb_t real_cb = disp->flush_cb;
-
-    DisplayManagerTestAccess::enter_sleep(mgr, 60);
-
-    REQUIRE(raw->blank_calls == 1);
-    REQUIRE(raw->power_off_calls == 0);
-    REQUIRE_FALSE(DisplayManagerTestAccess::is_flush_suppressed(mgr));
-    REQUIRE(disp->flush_cb == real_cb);
-
-    DisplayManagerTestAccess::restore_display_output(mgr);
-    DisplayManagerTestAccess::set_display(mgr, nullptr);
-}
-
 // ============================================================================
 // The software sleep overlay hides the screen beneath it
 // ============================================================================
@@ -611,6 +586,70 @@ TEST_CASE_METHOD(LVGLTestFixture, "software sleep overlay hides the screen until
     }
 
     CHECK_FALSE(helix::active_screen_hide_hold().is_held());
+}
+
+namespace {
+/// Records whether the active screen was hidden when a refresh pass started.
+struct RefreshProbe {
+    int refreshes = 0;
+    bool screen_hidden_at_first = false;
+
+    static void on_refr_start(lv_event_t* e) {
+        auto* probe = static_cast<RefreshProbe*>(lv_event_get_user_data(e));
+        if (probe->refreshes++ == 0) {
+            probe->screen_hidden_at_first = lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "every sleep mechanism hides the screen and shows it before the wake frame",
+                 "[application][display][sleep][screen_hide][2037]") {
+    struct Case {
+        const char* name;
+        bool hardware_blank;
+        bool power_off;
+        helix::SleepMechanism expected;
+    };
+    const Case cases[] = {
+        {"hardware blank", true, true, helix::SleepMechanism::HardwareBlank},
+        {"panel power-off", false, true, helix::SleepMechanism::PanelPowerOff},
+        {"software overlay", false, false, helix::SleepMechanism::SoftwareOverlay},
+    };
+    for (const Case& c : cases) {
+        INFO(c.name);
+        DisplayManager mgr;
+        auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/c.power_off);
+        FakePowerOffBackend* raw = backend.get();
+        DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+        DisplayManagerTestAccess::set_use_hardware_blank(mgr, c.hardware_blank);
+        DisplayManagerTestAccess::set_use_power_off(mgr, c.power_off);
+        lv_display_t* disp = lv_display_get_default();
+        DisplayManagerTestAccess::set_display(mgr, disp);
+        lv_display_set_flush_cb(disp, test_sentinel_flush_cb);
+        lv_obj_t* screen = lv_screen_active();
+
+        DisplayManagerTestAccess::enter_sleep(mgr, 60);
+        REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) == c.expected);
+        CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+        CHECK(helix::active_screen_hide_hold().is_held());
+        if (c.hardware_blank) {
+            // The controller blanks the panel and outranks power-off; the flush stays live.
+            CHECK(raw->blank_calls == 1);
+            CHECK(raw->power_off_calls == 0);
+            CHECK(disp->flush_cb == test_sentinel_flush_cb);
+        }
+
+        RefreshProbe probe;
+        lv_display_add_event_cb(disp, RefreshProbe::on_refr_start, LV_EVENT_REFR_START, &probe);
+        mgr.wake_display();
+        lv_display_remove_event_cb_with_user_data(disp, RefreshProbe::on_refr_start, &probe);
+
+        CHECK(probe.refreshes >= 1);
+        CHECK_FALSE(probe.screen_hidden_at_first);
+        CHECK_FALSE(helix::active_screen_hide_hold().is_held());
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -935,7 +974,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a wake restores rendering even when the panel
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "panel power-off hides the screen until the flush is restored",
-                 "[application][display][sleep][poweroff][screen_hide]") {
+                 "[application][display][sleep][poweroff][screen_hide][wake_frame][2037]") {
     // Nothing is drawn while the panel is off, so a widget waiting on its own
     // draw must see the screen as hidden rather than stalled.
     REQUIRE_FALSE(helix::active_screen_hide_hold().is_held());
@@ -955,6 +994,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "panel power-off hides the screen until the fl
             helix::SleepMechanism::PanelPowerOff);
     REQUIRE(DisplayManagerTestAccess::is_flush_suppressed(mgr));
     CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+
+    // Two wakes in one batch (a fault dialog and a print ending) owe the first frame to
+    // the loop. The second must not restore the flush while the panel is still off, or
+    // the next refresh page-flips a stale frame onto it.
+    if (GENERATE(false, true)) {
+        helix::ui::queue_update("test::double_wake", [&mgr] {
+            mgr.wake_display();
+            mgr.wake_display();
+        });
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE_FALSE(mgr.is_display_sleeping());
+        CHECK(disp->flush_cb != test_sentinel_flush_cb);
+        CHECK(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+
+        mgr.check_display_sleep();
+        CHECK(disp->flush_cb == test_sentinel_flush_cb);
+        CHECK_FALSE(lv_obj_has_flag(screen, LV_OBJ_FLAG_HIDDEN));
+    }
 
     DisplayManagerTestAccess::restore_display_output(mgr);
     CHECK_FALSE(DisplayManagerTestAccess::is_flush_suppressed(mgr));

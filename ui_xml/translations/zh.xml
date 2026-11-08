@@ -319,6 +319,7 @@
   <translation tag="App Background" zh="应用背景"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." zh="应用程序启动时遇到错误。某些功能可能不可用。"/>
   <translation tag="Appearance" zh="外观"/>
+  <translation tag="Appearance &amp; Region" zh="外观与区域"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." zh="已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。"/>
   <translation tag="Applies to" zh="适用于"/>
   <translation tag="Apply" zh="应用"/>
@@ -437,6 +438,9 @@
   <translation tag="Belt Tension" zh="皮带张力"/>
   <translation tag="Belt Tension Check" zh="皮带张力检查"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." zh="皮带张力需要 CoreXY 打印机。此打印机为{}。"/>
+  <translation tag="Belt tension and cutter calibration" zh="皮带张紧与切刀校准"/>
+  <translation tag="Belt tensioning completed" zh="皮带张紧完成"/>
+  <translation tag="Belt tensioning failed: {}" zh="皮带张紧失败：{}"/>
   <translation tag="Belts already match" zh="皮带已经匹配"/>
   <translation tag="Beta" zh="测试版"/>
   <translation tag="Beta features: OFF" zh="测试版功能: 关"/>
@@ -767,6 +771,7 @@
   <translation tag="Color" zh="颜色"/>
   <translation tag="Color Mismatch" zh="颜色不匹配"/>
   <translation tag="Color Sensors" zh="颜色传感器"/>
+  <translation tag="Colors for every screen" zh="所有屏幕的配色"/>
   <translation tag="Command Failed" zh="命令失败"/>
   <translation tag="Command failed" zh="命令失败"/>
   <translation tag="Communication Test" zh="通信测试"/>
@@ -1652,7 +1657,7 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." zh="校准前加热热床，以获得考虑热膨胀的精确偏移。"/>
   <translation tag="Heat nozzle" zh="加热喷嘴"/>
   <translation tag="Heat soak" zh="预热浸泡"/>
-  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." zh="热浸让腔体在打印前升温。显示此项是因为打印机有热浸宏，或已在设置中开启；HelixScreen 不会运行它。"/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." zh="热浸让腔体在打印前升温。显示此项是因为打印机有热浸宏，或已在设置中开启；HelixScreen 会在打印前选项中提供该宏。"/>
   <translation tag="Heat the bed to {}°C" zh="将热床加热到 {}°C"/>
   <translation tag="Heat the chamber too" zh="同时加热腔体"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" zh="装载耗材前请将挤出机加热至至少 {}°C"/>
@@ -3420,6 +3425,8 @@
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
   <translation tag="Set temperature between {}°C and {}°C" zh="请设置 {}°C 到 {}°C 之间的温度"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" zh="用电动张紧器调整X和Y皮带"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." zh="设置时钟、主题和单位。之后可以随时在设置中更改。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" zh="请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入"/>
   <translation tag="Set up" zh="设置"/>
   <translation tag="Set up your label printer in Settings" zh="在设置中配置标签打印机"/>
@@ -3449,6 +3456,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" zh="点击宏时显示确认对话框"/>
   <translation tag="Show instead of dimming" zh="显示而非变暗"/>
   <translation tag="Show light controls for a light connected to this printer" zh="显示连接到此打印机的灯的控制"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" zh="以 mm/s 和 mm³/s 而非 % 显示打印速度和流量"/>
   <translation tag="Show printer icon in navigation bar" zh="在导航栏中显示打印机图标"/>
   <translation tag="Show sliced colors" zh="显示切片颜色"/>
   <translation tag="Show temp for" zh="显示温度"/>
@@ -3516,6 +3524,7 @@
   <translation tag="Spaghetti detected (%d%%)" zh="检测到拉丝故障（%d%%）"/>
   <translation tag="Speaker" zh="扬声器"/>
   <translation tag="Speed" zh="速度"/>
+  <translation tag="Speed &amp; Flow in mm/s" zh="速度和流量以 mm/s 显示"/>
   <translation tag="Speed / Flow" zh="速度 / 流量"/>
   <translation tag="Speed Settings" zh="速度设置"/>
   <translation tag="Speed and flow overrides, with a tap to tune" zh="速度与流量,点按即可调整"/>
@@ -3742,7 +3751,9 @@
   <translation tag="Temporary adjustment for this print" zh="此打印的临时调整"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" zh="此打印的临时调整，除非在控制面板上保存"/>
   <translation tag="Temporary for this print; a tool change resets it" zh="仅限此打印的临时调整；换工具会将其重置"/>
+  <translation tag="Tension Belts" zh="张紧皮带"/>
   <translation tag="Tensioner: {}" zh="张紧器：{}"/>
+  <translation tag="Tensioning belts..." zh="正在张紧皮带..."/>
   <translation tag="Tertiary" zh="第三"/>
   <translation tag="Test All Lanes" zh="测试所有耗材通道"/>
   <translation tag="Test Both" zh="测试两者"/>
@@ -3883,6 +3894,7 @@
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." zh="打印机将归零并扫过切刀（约1分钟）。请保持料路畅通。"/>
+  <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." zh="打印机将按需归零，然后确定切刀的位置。请保持料路畅通。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." zh="打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。"/>
   <translation tag="The printer homes, then probes each screw position." zh="打印机先归位，然后探测每个螺丝位置。"/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
@@ -3894,6 +3906,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." zh="打印机在打印过程中断电。恢复后的层可能无法完全对准。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" zh="打印机在打印 {} 时断电。是否从中断处继续？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." zh="打印机在打印 {} 时断电。恢复后的层可能无法完全对准。"/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." zh="打印机可能会归零并移动工具头，然后电动张紧器调整X和Y皮带。请清空热床和龙门周围的物品。"/>
   <translation tag="The printer moves the toolhead and measures its motors." zh="打印机将移动打印头并测量电机。"/>
   <translation tag="The printer no longer has a print to resume." zh="打印机已没有可恢复的打印。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." zh="打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。"/>
@@ -3991,6 +4004,7 @@
   <translation tag="This printer has no IFS." zh="此打印机没有 IFS。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" zh="此打印机没有 INDX LOAD_FILAMENT 宏"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
@@ -4349,6 +4363,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." zh="启用时仅运行宏。禁用时先设置温度，然后运行宏。"/>
   <translation tag="Where UI sounds play" zh="界面声音的播放位置"/>
   <translation tag="Whether filament is loaded" zh="耗材是否已装载"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" zh="Z 按钮跟随热床还是 Z 值"/>
   <translation tag="Which belt is each path?" zh="每条路径是哪条皮带?"/>
   <translation tag="Which belt is which?" zh="哪条皮带是哪条?"/>
   <translation tag="Which lane is in the toolhead?" zh="哪个料道在打印头里？"/>
@@ -4433,6 +4448,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." zh="您的 {0} 似乎装有 {1}，但设置为 {2}。"/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." zh="您的 {} 行包含耗材映射不会更改的各工具设置 ({})。映射了耗材的工具可能不会被加热。请查看用户指南中的“Filament Mapping”。"/>
   <translation tag="Z" zh="Z"/>
+  <translation tag="Z Buttons Move" zh="Z 按钮移动对象"/>
   <translation tag="Z Calibration" zh="Z 轴校准"/>
   <translation tag="Z Movement" zh="Z 轴移动"/>
   <translation tag="Z Offset" zh="Z 偏移"/>

@@ -38,54 +38,31 @@ TEST_CASE("other tools: no other heads hides the chip", "[print_status_other_too
     CHECK(other_tools_budget_text({}).empty());
 }
 
-TEST_CASE("other tools: none climbing lists every head in order", "[print_status_other_tools]") {
-    const ChipContent c =
-        other_tools_chip({tool("1", 1500, 1500), tool("3", 250, 0), tool("4", 250, 0)}, always);
-    REQUIRE(c.shown);
-    CHECK(c.text == "1 150° · 3 off · 4 off");
-    CHECK(c.tone == ChipTone::Normal);
-    CHECK(c.expendable);
-    CHECK(c.progress_pct == -1);
-    CHECK_FALSE(c.glow);
-}
-
-TEST_CASE("other tools: every head off is Dim", "[print_status_other_tools]") {
-    const ChipContent c = other_tools_chip({tool("2", 250, 0), tool("3", 250, 0)}, always);
-    CHECK(c.text == "2 off · 3 off");
-    CHECK(c.tone == ChipTone::Dim);
-    CHECK(c.expendable);
-}
-
-TEST_CASE("other tools: a parked head still hot shows its reading", "[print_status_other_tools]") {
-    CHECK(other_tools_chip({tool("2", 1200, 0)}, always).text == "2 120°");
-}
-
-TEST_CASE("other tools: a climbing head leads with value, target and bar",
+TEST_CASE("other tools: with room for every head, the climbing ones lead and set the bar",
           "[print_status_other_tools]") {
-    const ChipContent c = other_tools_chip(
-        {tool("1", 1500, 1500), tool("3", 1840, 2200, 300), tool("4", 250, 0)}, always);
-    REQUIRE(c.shown);
-    CHECK(c.text == "3 184 / 220° · 1 150° · 4 off");
-    CHECK(c.tone == ChipTone::Active);
-    CHECK_FALSE(c.expendable);
-    CHECK(c.progress_pct == 81);
-}
-
-TEST_CASE("other tools: two climbing heads both lead, the first sets the bar",
-          "[print_status_other_tools]") {
-    const ChipContent c = other_tools_chip(
-        {tool("1", 250, 0), tool("2", 1100, 2000, 200), tool("3", 1840, 2200, 300)}, always);
-    CHECK(c.text == "2 110 / 200° · 3 184 / 220° · 1 off");
-    CHECK(c.progress_pct == 50);
-    CHECK(c.tone == ChipTone::Active);
-}
-
-TEST_CASE("other tools: a head cooling to its standby shows the target and does not lead",
-          "[print_status_other_tools]") {
-    const ChipContent c = other_tools_chip({tool("1", 250, 0), tool("2", 2000, 1500)}, always);
-    CHECK(c.text == "1 off · 2 200 / 150°");
-    CHECK(c.tone == ChipTone::Normal);
-    CHECK(c.expendable);
+    const auto check = [](const std::vector<OtherToolReading>& heads, const char* text,
+                          ChipTone tone, int progress_pct) {
+        CAPTURE(text);
+        const ChipContent chip = other_tools_chip(heads, always);
+        REQUIRE(chip.shown);
+        CHECK(chip.text == text);
+        CHECK(chip.tone == tone);
+        CHECK(chip.progress_pct == progress_pct);
+        // Only a pre-heat in progress keeps the chip when the row runs short.
+        CHECK(chip.expendable == (tone != ChipTone::Active));
+        CHECK_FALSE(chip.glow);
+    };
+    // clang-format off
+    check({tool("1", 1500, 1500), tool("3", 250, 0), tool("4", 250, 0)}, "1 150° · 3 off · 4 off", ChipTone::Normal, -1);
+    check({tool("2", 250, 0), tool("3", 250, 0)}, "2 off · 3 off", ChipTone::Dim, -1);
+    check({tool("2", 1200, 0)}, "2 120°", ChipTone::Normal, -1); // parked but still hot
+    check({tool("1", 1500, 1500), tool("3", 1840, 2200, 300), tool("4", 250, 0)}, "3 184 / 220° · 1 150° · 4 off", ChipTone::Active, 81);
+    // Two climbing heads both lead; the first sets the bar.
+    check({tool("1", 250, 0), tool("2", 1100, 2000, 200), tool("3", 1840, 2200, 300)}, "2 110 / 200° · 3 184 / 220° · 1 off", ChipTone::Active, 50);
+    // A head cooling to its standby shows the target and does not lead.
+    check({tool("1", 250, 0), tool("2", 2000, 1500)}, "1 off · 2 200 / 150°", ChipTone::Normal, -1);
+    check({tool("Left", 1500, 1500), tool("3", 250, 0)}, "Left 150° · 3 off", ChipTone::Normal, -1);
+    // clang-format on
 }
 
 TEST_CASE("other tools: too narrow, the heads that fit stay in order and the rest count",
@@ -101,6 +78,9 @@ TEST_CASE("other tools: too narrow, the heads that fit stay in order and the res
     CHECK(other_tools_chip(t, room(one.size())).text == one);
     // A room smaller than even that still shows the climbing head: a pre-heat is never hidden.
     CHECK(other_tools_chip(t, room(3)).text == "3 184 / 220° · +2");
+    const ChipContent lone = other_tools_chip({tool("2", 1840, 2200)}, room(1));
+    CHECK(lone.text == "2 184 / 220°");
+    CHECK(lone.tone == ChipTone::Active);
 }
 
 TEST_CASE("other tools: too narrow for two climbing heads keeps as many as fit",
@@ -136,12 +116,6 @@ TEST_CASE("other tools: the budget is one climbing head at its widest and the co
     CHECK(other_tools_chip(t, room(budget.size())).text.size() <= budget.size());
 }
 
-TEST_CASE("other tools: a configured tool name shows verbatim", "[print_status_other_tools]") {
-    CHECK(other_tool_badge("Left", 0) == "Left");
-    CHECK(other_tools_chip({tool("Left", 1500, 1500), tool("3", 250, 0)}, always).text ==
-          "Left 150° · 3 off");
-}
-
 TEST_CASE("other tools: configured names give way to numbers where they do not fit",
           "[print_status_other_tools]") {
     OtherToolReading left = tool("Left Extruder Hotend", 1500, 1500);
@@ -154,63 +128,37 @@ TEST_CASE("other tools: configured names give way to numbers where they do not f
     CHECK(other_tools_budget_text(t) == "2 999 / 999° · +1");
 }
 
-TEST_CASE("other tools: a generated tool name shows the 1-based number",
+TEST_CASE("other tools: a configured tool name is its badge, a generated one the 1-based number",
           "[print_status_other_tools]") {
+    CHECK(other_tool_badge("Left", 0) == "Left");
     CHECK(other_tool_badge("T2", 2) == "3");
     CHECK(other_tool_badge("T0", 0) == "1");
 }
 
-TEST_CASE("other heads: the active head is left out and each head is named by its tool",
+TEST_CASE("other heads: each head besides the printing one, once, named by its tool",
           "[print_status_other_tools]") {
-    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1"),
-                                         tool_on(2, "extruder2")};
-    const auto others = other_heads(physical_heads(tools), 1, false);
-    REQUIRE(others.size() == 2);
-    CHECK(others[0].tool == 0);
-    CHECK(others[0].extruder == "extruder");
-    CHECK(others[1].tool == 2);
-    CHECK(others[1].extruder == "extruder2");
-}
-
-TEST_CASE("other tools: a lone climbing head that does not fit still shows",
-          "[print_status_other_tools]") {
-    const ChipContent c = other_tools_chip({tool("2", 1840, 2200)}, room(1));
-    CHECK(c.text == "2 184 / 220°");
-    CHECK(c.tone == ChipTone::Active);
-}
-
-TEST_CASE("other heads: a one-head printer with nothing mounted lists none",
-          "[print_status_other_tools]") {
-    CHECK(other_heads(physical_heads({tool_on(0, "extruder")}), -1, false).empty());
-}
-
-TEST_CASE("other heads: nothing mounted lists every head", "[print_status_other_tools]") {
-    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1")};
-    CHECK(other_heads(physical_heads(tools), -1, false).size() == 2);
-}
-
-TEST_CASE("other heads: lanes sharing one extruder are one head", "[print_status_other_tools]") {
-    // An AFC/Happy Hare/ERCF unit: four lanes through one nozzle.
-    const std::vector<ToolInfo> lanes = {tool_on(0, "extruder"), tool_on(1, "extruder"),
-                                         tool_on(2, "extruder"), tool_on(3, "extruder")};
-    CHECK(other_heads(physical_heads(lanes), 2, false).empty());
-
-    // Two heads, one fed by a hub of three lanes: the hub head is listed once.
-    const std::vector<ToolInfo> mixed = {tool_on(0, "extruder"), tool_on(1, "extruder"),
-                                         tool_on(2, "extruder"), tool_on(3, "extruder1")};
-    const auto others = other_heads(physical_heads(mixed), 3, false);
-    REQUIRE(others.size() == 1);
-    CHECK(others[0].extruder == "extruder");
-}
-
-TEST_CASE("other heads: heads on one shared heater list none", "[print_status_other_tools]") {
-    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder")};
-    CHECK(other_heads(physical_heads(tools, true), 0, true).empty());
-}
-
-TEST_CASE("other heads: a head naming no extruder has no reading to list",
-          "[print_status_other_tools]") {
-    std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1")};
-    tools[1].extruder_name = std::nullopt;
-    CHECK(other_heads(physical_heads(tools), 0, false).empty());
+    using Heads = std::vector<std::pair<int, std::string>>;
+    const auto others = [](const std::vector<ToolInfo>& tools, int active, bool shared = false) {
+        Heads out;
+        for (const auto& h : other_heads(physical_heads(tools, shared), active, shared)) {
+            out.emplace_back(h.tool, h.extruder);
+        }
+        return out;
+    };
+    const ToolInfo t0 = tool_on(0, "extruder");
+    const ToolInfo t1 = tool_on(1, "extruder1");
+    CHECK(others({t0, t1, tool_on(2, "extruder2")}, 1) == Heads{{0, "extruder"}, {2, "extruder2"}});
+    CHECK(others({t0}, -1).empty());
+    CHECK(others({t0, t1}, -1) == Heads{{0, "extruder"}, {1, "extruder1"}});
+    // An AFC/Happy Hare/ERCF unit: four lanes through one nozzle are one head, and a
+    // hub of three lanes beside a second head is listed once.
+    std::vector<ToolInfo> lanes = {t0, tool_on(1, "extruder"), tool_on(2, "extruder"),
+                                   tool_on(3, "extruder")};
+    CHECK(others(lanes, 2).empty());
+    lanes[3].extruder_name = "extruder1";
+    CHECK(others(lanes, 3) == Heads{{0, "extruder"}});
+    CHECK(others({t0, tool_on(1, "extruder")}, 0, true).empty()); // one shared heater
+    ToolInfo no_extruder = t1;
+    no_extruder.extruder_name = std::nullopt;
+    CHECK(others({t0, no_extruder}, 0).empty()); // no reading to list
 }

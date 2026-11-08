@@ -14,7 +14,7 @@
  * "Computing calibration...", and hung there forever because accept() was never
  * called.
  *
- * The fix wires the wizard's auto-accept to the panel's verify-entry hook
+ * The wizard's auto-accept is wired to the panel's verify-entry hook
  * (set_verify_entry_callback), which fires on EVERY commit path. These tests
  * drive the wizard's own TouchCalibrationPanel through a full 3-point capture via
  * the release path and the stall path, and assert the panel reaches COMPLETE —

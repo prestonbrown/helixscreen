@@ -395,7 +395,7 @@ TEST_CASE_METHOD(AnimatedValueTestFixture,
     REQUIRE(!animated.is_animating());
     REQUIRE(lv_anim_count_running() == anims_before);
 
-    // A real change with threshold 0 must still animate — the fix is "no
+    // A real change with threshold 0 must still animate: the rule is "no
     // change", not "treat threshold 0 as infinity".
     lv_subject_set_int(&subject, 200);
     REQUIRE(animated.is_animating());

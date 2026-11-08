@@ -9,6 +9,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -73,6 +74,14 @@ class PWMSoundBackend : public SoundBackend {
     /// value is skipped with a warning. Returns false when neither names one.
     static bool resolve_channel(const std::string& setting, const char* env, int& chip,
                                 int& channel);
+
+    /// The user-named buzzer, initialized: resolve_channel() on @p setting and
+    /// @p env, then open that channel under @p base_path (exporting it if it is
+    /// not yet). nullptr when no channel is named or its pwmchip cannot drive it,
+    /// so the caller falls through to the next backend.
+    static std::shared_ptr<PWMSoundBackend>
+    open_named_channel(const std::string& setting, const char* env,
+                       const std::string& base_path = "/sys/class/pwm");
 
     /// Disable the initialized channel. Async-signal-safe (lseek + write on a
     /// cached fd), for the SIGTERM fast exit.

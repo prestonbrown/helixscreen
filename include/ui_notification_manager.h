@@ -129,7 +129,6 @@ class NotificationManager {
      */
     void animate_notification_badge();
 
-    // Private constructor for singleton
     NotificationManager() = default;
     ~NotificationManager() = default;
 

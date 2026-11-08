@@ -359,7 +359,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        // Check what objects are being queried
         if (params.contains("objects")) {
             auto& objects = params["objects"];
 
@@ -762,7 +761,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        // Check what objects are being subscribed to
         if (params.contains("objects")) {
             auto& objects = params["objects"];
 

@@ -23,6 +23,7 @@
  * Offset format: value * 1000 for microns (divide by 1000 for mm)
  */
 
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -36,14 +37,9 @@ using namespace helix;
 // Initial State Tests - Document non-obvious default initialization
 // ============================================================================
 
-TEST_CASE("Motion characterization: non-obvious initial values after init",
-          "[characterization][motion][init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: non-obvious initial values after init",
+                 "[characterization][motion][init]") {
     SECTION("speed_factor initializes to 100%") {
         REQUIRE(lv_subject_get_int(state.motion_state().get_speed_factor_subject()) == 100);
     }
@@ -57,14 +53,8 @@ TEST_CASE("Motion characterization: non-obvious initial values after init",
 // Position Update Tests - Verify toolhead position parsing
 // ============================================================================
 
-TEST_CASE("Motion characterization: position updates from JSON",
-          "[characterization][motion][position]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: position updates from JSON",
+                 "[characterization][motion][position]") {
     SECTION("positions store as centimillimeters with 0.01mm precision") {
         json status = {{"toolhead", {{"position", {150.5, 200.3, 10.7}}}}};
         state.update_from_status(status);
@@ -117,14 +107,8 @@ TEST_CASE("Motion characterization: position updates from JSON",
 // Homed Axes Update Tests - Verify homing state parsing
 // ============================================================================
 
-TEST_CASE("Motion characterization: homed_axes updates from JSON",
-          "[characterization][motion][homing]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: homed_axes updates from JSON",
+                 "[characterization][motion][homing]") {
     SECTION("empty homed_axes (nothing homed)") {
         json status = {{"toolhead", {{"homed_axes", ""}}}};
         state.update_from_status(status);
@@ -162,14 +146,8 @@ TEST_CASE("Motion characterization: homed_axes updates from JSON",
 // Speed/Flow Factor Update Tests - Verify percentage conversion
 // ============================================================================
 
-TEST_CASE("Motion characterization: speed_factor updates from JSON",
-          "[characterization][motion][speed]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: speed_factor updates from JSON",
+                 "[characterization][motion][speed]") {
     SECTION("normal speed factor (100%)") {
         json status = {{"gcode_move", {{"speed_factor", 1.0}}}};
         state.update_from_status(status);
@@ -199,14 +177,9 @@ TEST_CASE("Motion characterization: speed_factor updates from JSON",
     }
 }
 
-TEST_CASE("Motion characterization: live_velocity updates from motion_report",
-          "[characterization][motion][speed][tune_units]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: live_velocity updates from motion_report",
+                 "[characterization][motion][speed][tune_units]") {
     SECTION("rounds the measured toolhead speed to whole mm/s") {
         json status = {{"motion_report", {{"live_velocity", 148.6}}}};
         state.update_from_status(status);
@@ -223,14 +196,9 @@ TEST_CASE("Motion characterization: live_velocity updates from motion_report",
     }
 }
 
-TEST_CASE("Motion characterization: live_position updates from motion_report",
-          "[characterization][motion][position]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: live_position updates from motion_report",
+                 "[characterization][motion][position]") {
     SECTION("stores all three axes as centimillimeters") {
         json status = {{"motion_report", {{"live_position", {150.5, 200.3, 10.7}}}}};
         state.update_from_status(status);
@@ -264,14 +232,8 @@ TEST_CASE("Motion characterization: live_position updates from motion_report",
     }
 }
 
-TEST_CASE("Motion characterization: flow_factor updates from JSON",
-          "[characterization][motion][flow]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: flow_factor updates from JSON",
+                 "[characterization][motion][flow]") {
     SECTION("normal flow factor (100%)") {
         json status = {{"gcode_move", {{"extrude_factor", 1.0}}}};
         state.update_from_status(status);
@@ -298,14 +260,8 @@ TEST_CASE("Motion characterization: flow_factor updates from JSON",
 // Z-Offset Update Tests - Verify micron conversion
 // ============================================================================
 
-TEST_CASE("Motion characterization: gcode_z_offset updates from JSON",
-          "[characterization][motion][zoffset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: gcode_z_offset updates from JSON",
+                 "[characterization][motion][zoffset]") {
     SECTION("zero Z-offset") {
         json status = {{"gcode_move", {{"homing_origin", {0.0, 0.0, 0.0}}}}};
         state.update_from_status(status);
@@ -339,14 +295,8 @@ TEST_CASE("Motion characterization: gcode_z_offset updates from JSON",
 // Pending Z-Offset Delta Tests - Verify accumulation methods
 // ============================================================================
 
-TEST_CASE("Motion characterization: pending_z_offset_delta methods",
-          "[characterization][motion][pending_z]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: pending_z_offset_delta methods",
+                 "[characterization][motion][pending_z]") {
     SECTION("initial state has no pending adjustment") {
         REQUIRE(state.motion_state().get_pending_z_offset_delta() == 0);
         REQUIRE(state.motion_state().has_pending_z_offset_adjustment() == false);
@@ -394,14 +344,9 @@ TEST_CASE("Motion characterization: pending_z_offset_delta methods",
 // Observer Notification Tests - Verify observers fire on motion changes
 // ============================================================================
 
-TEST_CASE("Motion characterization: observer fires when position_x changes",
-          "[characterization][motion][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: observer fires when position_x changes",
+                 "[characterization][motion][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         int* value_ptr = count_ptr + 1;
@@ -429,14 +374,9 @@ TEST_CASE("Motion characterization: observer fires when position_x changes",
     lv_observer_remove(observer);
 }
 
-TEST_CASE("Motion characterization: observer fires when homed_axes changes",
-          "[characterization][motion][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: observer fires when homed_axes changes",
+                 "[characterization][motion][observer]") {
     int callback_count = 0;
     std::string last_value;
 
@@ -466,14 +406,9 @@ TEST_CASE("Motion characterization: observer fires when homed_axes changes",
     lv_observer_remove(observer);
 }
 
-TEST_CASE("Motion characterization: observer fires when speed_factor changes",
-          "[characterization][motion][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: observer fires when speed_factor changes",
+                 "[characterization][motion][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         int* value_ptr = count_ptr + 1;
@@ -505,14 +440,9 @@ TEST_CASE("Motion characterization: observer fires when speed_factor changes",
 // Independence Tests - Verify motion subjects are independent
 // ============================================================================
 
-TEST_CASE("Motion characterization: toolhead update does not affect gcode_move subjects",
-          "[characterization][motion][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: toolhead update does not affect gcode_move subjects",
+                 "[characterization][motion][independence]") {
     // Set initial gcode_move values
     json initial = {
         {"gcode_move",
@@ -541,14 +471,9 @@ TEST_CASE("Motion characterization: toolhead update does not affect gcode_move s
     REQUIRE(lv_subject_get_int(state.motion_state().get_gcode_z_offset_subject()) == -100);
 }
 
-TEST_CASE("Motion characterization: gcode_move update does not affect toolhead subjects",
-          "[characterization][motion][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: gcode_move update does not affect toolhead subjects",
+                 "[characterization][motion][independence]") {
     // Set initial toolhead values
     json initial = {{"toolhead", {{"position", {150.0, 200.0, 30.0}}, {"homed_axes", "xy"}}}};
     state.update_from_status(initial);
@@ -575,14 +500,8 @@ TEST_CASE("Motion characterization: gcode_move update does not affect toolhead s
             "xy");
 }
 
-TEST_CASE("Motion characterization: simultaneous updates work correctly",
-          "[characterization][motion][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: simultaneous updates work correctly",
+                 "[characterization][motion][independence]") {
     // Update all motion values in a single status message
     json status = {
         {"toolhead", {{"position", {120.5, 180.3, 25.7}}, {"homed_axes", "xyz"}}},
@@ -605,14 +524,9 @@ TEST_CASE("Motion characterization: simultaneous updates work correctly",
 // Reset Cycle Tests - Verify subjects survive reset_for_testing cycle
 // ============================================================================
 
-TEST_CASE("Motion characterization: subjects survive reset_for_testing cycle",
-          "[characterization][motion][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: subjects survive reset_for_testing cycle",
+                 "[characterization][motion][reset]") {
     // Set some motion values
     json status = {
         {"toolhead", {{"position", {100.0, 150.0, 20.0}}, {"homed_axes", "xyz"}}},
@@ -648,14 +562,9 @@ TEST_CASE("Motion characterization: subjects survive reset_for_testing cycle",
     REQUIRE(lv_subject_get_int(state.motion_state().get_position_x_subject()) == 5000); // centimm
 }
 
-TEST_CASE("Motion characterization: subject pointers remain valid after reset",
-          "[characterization][motion][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: subject pointers remain valid after reset",
+                 "[characterization][motion][reset]") {
     // Capture subject pointers
     lv_subject_t* position_x_before = state.motion_state().get_position_x_subject();
     lv_subject_t* speed_factor_before = state.motion_state().get_speed_factor_subject();
@@ -679,14 +588,9 @@ TEST_CASE("Motion characterization: subject pointers remain valid after reset",
 // Partial Update Tests - Document behavior with incomplete data
 // ============================================================================
 
-TEST_CASE("Motion characterization: partial status updates preserve other values",
-          "[characterization][motion][partial]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: partial status updates preserve other values",
+                 "[characterization][motion][partial]") {
     // Set initial values
     json initial = {
         {"toolhead", {{"position", {100.0, 200.0, 30.0}}, {"homed_axes", "xyz"}}},
@@ -713,14 +617,8 @@ TEST_CASE("Motion characterization: partial status updates preserve other values
     REQUIRE(lv_subject_get_int(state.motion_state().get_gcode_z_offset_subject()) == -100);
 }
 
-TEST_CASE("Motion characterization: empty status does not affect values",
-          "[characterization][motion][partial]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Motion characterization: empty status does not affect values",
+                 "[characterization][motion][partial]") {
     // Set initial values
     json initial = {{"toolhead", {{"position", {100.0, 200.0, 30.0}}}}};
     state.update_from_status(initial);
@@ -738,14 +636,9 @@ TEST_CASE("Motion characterization: empty status does not affect values",
 // Observer Independence Tests - Verify observer isolation
 // ============================================================================
 
-TEST_CASE("Motion characterization: observers on different subjects are independent",
-          "[characterization][motion][observer][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: observers on different subjects are independent",
+                 "[characterization][motion][observer][independence]") {
     int position_count = 0;
     int speed_count = 0;
 
@@ -789,14 +682,9 @@ TEST_CASE("Motion characterization: observers on different subjects are independ
     lv_observer_remove(speed_observer);
 }
 
-TEST_CASE("Motion characterization: multiple observers on same subject all fire",
-          "[characterization][motion][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: multiple observers on same subject all fire",
+                 "[characterization][motion][observer]") {
     int count1 = 0, count2 = 0, count3 = 0;
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t*) {
@@ -834,14 +722,9 @@ TEST_CASE("Motion characterization: multiple observers on same subject all fire"
 // gcode_move["gcode_position"] (commanded position), NOT gcode_move["position"]
 // ============================================================================
 
-TEST_CASE("Motion characterization: gcode_position updates from gcode_move.gcode_position",
-          "[characterization][motion][gcode_position]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: gcode_position updates from gcode_move.gcode_position",
+                 "[characterization][motion][gcode_position]") {
     SECTION("gcode positions store as centimillimeters from gcode_move.gcode_position") {
         // This tests that we read from gcode_position, NOT position
         json status = {{"gcode_move", {{"gcode_position", {150.5, 200.3, 10.7}}}}};
@@ -882,14 +765,9 @@ TEST_CASE("Motion characterization: gcode_position updates from gcode_move.gcode
     }
 }
 
-TEST_CASE("Motion characterization: gcode_position vs position are independent",
-          "[characterization][motion][gcode_position]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: gcode_position vs position are independent",
+                 "[characterization][motion][gcode_position]") {
     // This is the critical test: gcode_move contains BOTH position and gcode_position
     // - position: raw commanded position (before offset adjustments)
     // - gcode_position: effective commanded position (what gcode coordinates actually mean)
@@ -931,14 +809,9 @@ TEST_CASE("Motion characterization: gcode_position vs position are independent",
     }
 }
 
-TEST_CASE("Motion characterization: gcode_position observer fires on update",
-          "[characterization][motion][gcode_position][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Motion characterization: gcode_position observer fires on update",
+                 "[characterization][motion][gcode_position][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         int* value_ptr = count_ptr + 1;

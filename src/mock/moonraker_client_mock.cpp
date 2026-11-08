@@ -194,7 +194,6 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         }
     }
 
-    // Initialize idle timeout tracking
     last_activity_time_ = std::chrono::steady_clock::now();
 
     // Set speedup factor (clamped)
@@ -340,7 +339,6 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         discovery_.heaters().size(), discovery_.sensors().size(), discovery_.fans().size(),
         discovery_.leds().size());
 
-    // Generate synthetic bed mesh data
     generate_mock_bed_mesh();
 
     // Pre-populate so capabilities are available for UI tests that skip connect()
@@ -719,7 +717,7 @@ std::set<std::string> MoonrakerClientMock::get_excluded_objects() const {
     if (mock_state_) {
         return mock_state_->get_excluded_objects();
     }
-    // Fallback to local state for backward compatibility
+    // No shared state: a client used without MoonrakerAPIMock keeps its own
     std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
     return excluded_objects_;
 }
@@ -812,7 +810,6 @@ int MoonrakerClientMock::connect(const char* url, helix::SharedCallback<void()> 
     // Dispatch historical temperature data first (fills graph with 2-3 min of data)
     dispatch_historical_temperatures();
 
-    // Start live temperature simulation
     start_temperature_simulation();
 
     // Initial state for objects the printer.objects.subscribe handler does not
@@ -1169,7 +1166,6 @@ void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
     // Parse bed mesh JSON from dispatch_status_update into active_bed_mesh_
     // This mirrors the JSON format sent by real Moonraker
 
-    // Parse profile name
     if (bed_mesh.contains("profile_name")) {
         if (bed_mesh["profile_name"].is_string()) {
             active_bed_mesh_.name = bed_mesh["profile_name"].get<std::string>();
@@ -1294,7 +1290,6 @@ void MoonrakerClientMock::generate_mock_bed_mesh() {
     // Generate "adaptive" profile: dome with slight tilt, different amplitude
     stored_bed_mesh_profiles_["adaptive"] = generate_mesh("adaptive", 0.25f, 0.5f, -0.3f);
 
-    // Set profile name list
     bed_mesh_profiles_ = {"default", "adaptive"};
 
     // Load "default" as active
@@ -1518,7 +1513,6 @@ MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
         return next_mock_request_id();
     }
 
-    // Dispatch to method handler registry
     auto it = method_handlers_.find(method);
     if (it != method_handlers_.end()) {
         it->second(this, params, success_cb, error_cb);
@@ -1703,10 +1697,8 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     extruder_target_.store(nozzle_target);
     bed_target_.store(bed_target);
 
-    // Reset idle timeout when starting a print
     reset_idle_timeout();
 
-    // Set print filename
     {
         std::lock_guard<std::mutex> lock(print_mutex_);
         print_filename_ = filename;
@@ -1931,7 +1923,6 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     // Reset PRINT_START simulation phase tracking for new print
     simulated_print_start_phase_.store(static_cast<uint8_t>(SimulatedPrintStartPhase::NONE));
 
-    // Transition to PREHEAT phase
     print_phase_.store(MockPrintPhase::PREHEAT);
     print_state_.store(1); // "printing" for backward compatibility
 
@@ -1954,10 +1945,8 @@ bool MoonrakerClientMock::pause_print_internal() {
         return false;
     }
 
-    // Record pause start time
     pause_start_time_ = std::chrono::steady_clock::now();
 
-    // Transition to PAUSED
     print_phase_.store(MockPrintPhase::PAUSED);
     print_state_.store(2); // "paused" for backward compatibility
 
@@ -2014,7 +2003,6 @@ bool MoonrakerClientMock::cancel_print_internal() {
     // Reset PRINT_START simulation phase
     simulated_print_start_phase_.store(static_cast<uint8_t>(SimulatedPrintStartPhase::NONE));
 
-    // Transition to CANCELLED
     print_phase_.store(MockPrintPhase::CANCELLED);
     print_state_.store(4); // "cancelled" for backward compatibility
 
@@ -2081,7 +2069,6 @@ bool MoonrakerClientMock::toggle_filament_runout() {
         return false;
     }
 
-    // Toggle state
     bool new_state = !filament_runout_state_.load();
     filament_runout_state_.store(new_state);
 
@@ -2217,7 +2204,7 @@ void MoonrakerClientMock::dispatch_enhanced_print_status() {
                 }
             }
         } else {
-            // Fallback to local state for backward compatibility
+            // No shared state: a client used without MoonrakerAPIMock keeps its own
             std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
             for (const auto& obj : excluded_objects_) {
                 excluded_array.push_back(obj);
@@ -2268,7 +2255,6 @@ void MoonrakerClientMock::dispatch_initial_state() {
 
     const std::string homed = get_homed_axes();
 
-    // Get print state with thread safety
     std::string print_state_str = get_print_state_string();
     std::string filename;
     {
@@ -2277,7 +2263,6 @@ void MoonrakerClientMock::dispatch_initial_state() {
     }
     double progress = print_progress_.load();
 
-    // Build LED state JSON
     json led_json = json::object();
     {
         std::lock_guard<std::mutex> lock(led_mutex_);
@@ -2292,7 +2277,6 @@ void MoonrakerClientMock::dispatch_initial_state() {
         }
     }
 
-    // Get Z offset and klippy state
     double z_offset = gcode_offset_z_.load();
     KlippyState klippy = klippy_state_.load();
     std::string klippy_str = "ready";
@@ -2736,7 +2720,6 @@ void MoonrakerClientMock::dispatch_historical_temperatures() {
         json notification = {{"method", "notify_status_update"},
                              {"params", json::array({status_obj, timestamp_sec})}};
 
-        // Dispatch to all callbacks
         for (const auto& cb : callbacks_copy) {
             if (cb) {
                 cb(notification);
@@ -2800,8 +2783,8 @@ void MoonrakerClientMock::set_fan_speed_internal(const std::string& fan_name, do
         fan_speeds_[fan_name] = speed;
     }
 
-    // Also update the legacy fan_speed_ atomic for backward compatibility
-    // (only for part cooling fan "fan")
+    // The part cooling fan "fan" also drives fan_speed_, which the status
+    // snapshot reads
     if (fan_name == "fan") {
         fan_speed_.store(static_cast<int>(speed * 255.0));
     }
@@ -3255,7 +3238,6 @@ void write_mock_shaper_csv(const std::string& path, char axis) {
     };
     constexpr int num_shapers = 5;
 
-    // Write header line
     ofs << "freq,psd_x,psd_y,psd_z,psd_xyz";
     for (int i = 0; i < num_shapers; ++i) {
         ofs << "," << shapers[i].name << "(" << std::fixed << std::setprecision(1)
@@ -3824,7 +3806,6 @@ void MoonrakerClientMock::dispatch_test_resonances_response(const std::string& g
 }
 
 void MoonrakerClientMock::dispatch_measure_axes_noise_response() {
-    // Check if accelerometer is available
     if (!accelerometer_available_) {
         // Dispatch error response simulating missing accelerometer
         dispatch_gcode_response(
@@ -3883,13 +3864,11 @@ json MoonrakerClientMock::current_display_message() const {
 }
 
 void MoonrakerClientMock::advance_print_start_simulation() {
-    // Get current temperatures and targets
     double ext_temp = extruder_temp_.load();
     double ext_target = extruder_target_.load();
     double bed_temp = bed_temp_.load();
     double bed_target = bed_target_.load();
 
-    // Get current simulated phase
     uint8_t current_phase = simulated_print_start_phase_.load();
 
     // Progress through phases based on temperature state
@@ -3995,7 +3974,6 @@ void MoonrakerClientMock::advance_print_start_simulation() {
 // ============================================================================
 
 void MoonrakerClientMock::trigger_restart(bool is_firmware) {
-    // Set klippy_state to "startup"
     klippy_state_.store(KlippyState::STARTUP);
 
     // Clear any active print state
@@ -4073,12 +4051,10 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
                 elapsed_ms += kSleepIntervalMs;
             }
 
-            // Check if we were cancelled
             if (!restart_pending_.load()) {
                 return;
             }
 
-            // Return to ready state
             klippy_state_.store(KlippyState::READY);
 
             // Dispatch ready notification

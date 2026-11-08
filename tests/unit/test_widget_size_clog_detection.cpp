@@ -264,9 +264,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection re-measures when the mode ch
 TEST_CASE_METHOD(LVGLUITestFixture, "clog_detection draws the threshold over the fill",
                  "[widget_size][clog_detection][1017]") {
     // The danger shading is danger at 30% opacity and a warning fill is drawn
-    // in danger too, so a reading past the threshold used to merge the two into
-    // one red block — "how far past" was least readable exactly when it
-    // mattered most. The rule is a separate object, added after the fill so the
+    // in danger too, so a reading past the threshold can merge the two into one
+    // red block, making "how far past" least readable exactly when it matters
+    // most. The rule is a separate object, added after the fill so the
     // fill cannot paint over it.
     PanelWidgetManager::instance().init_widget_subjects();
     AmsState::instance().init_subjects(true);

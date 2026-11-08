@@ -333,12 +333,22 @@ class NavigationManager {
     /**
      * @brief Resume the previously suspended panel/overlay lifecycle
      *
-     * Calls on_activate() on whatever is currently visible. Used by DisplayManager
-     * when the screensaver stops to restart widget timers.
+     * Calls on_activate() on the view suspend_active() put to sleep, and only
+     * if it is still the one visible. Navigation keeps running while suspended:
+     * each view it brings on screen is activated by that navigation and then
+     * suspended again, so it becomes the one this wakes. A view covered or
+     * closed while asleep was deactivated as a navigation and is left alone.
+     * Used by DisplayManager when the screensaver stops to restart widget timers.
      *
      * No-op if not currently suspended.
      */
     void resume_active();
+
+    /// The view the next resume_active() wakes; null when awake or when that
+    /// view has been unregistered or destroyed since.
+    [[nodiscard]] const IPanelLifecycle* suspended_view() const {
+        return suspended_view_;
+    }
 
     /**
      * @brief Get current active panel
@@ -663,6 +673,16 @@ class NavigationManager {
     // re-entrant navigation from on_activate() can arm a fresh close cleanly.
     void activate_restored_target();
 
+    // The lifecycle on screen now: the topmost overlay's, else the active
+    // main panel's. Null when the top overlay has none.
+    IPanelLifecycle* visible_lifecycle();
+    // Called after a navigation activated `view`: while suspended, a view that
+    // came on screen is suspended again so it stops drawing, and becomes the
+    // one resume_active() wakes.
+    void keep_suspended(IPanelLifecycle* view);
+    // Drop the wake record if it names `view`, which is going away.
+    void forget_suspended_view(const IPanelLifecycle* view);
+
     // Observer handlers (used by factory-created observers)
     void handle_active_panel_change(int32_t new_active_panel);
     void handle_connection_state_change(int state);
@@ -743,6 +763,8 @@ class NavigationManager {
     lv_subject_t active_panel_subject_{};
     helix::PanelId active_panel_ = helix::PanelId::Home;
     bool suspended_ = false; // True when screensaver has suspended lifecycle
+    DeactivateReason suspend_reason_ = DeactivateReason::Suspended;
+    IPanelLifecycle* suspended_view_ = nullptr; // what resume_active() wakes
 
     // Main panel widgets, their lifecycle instances and the lazy builder
     helix::ui::PanelRegistry panels_;

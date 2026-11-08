@@ -263,15 +263,13 @@ void LedAutoState::load_config() {
     auto* cfg = Config::get_instance();
 
     // NOTE: the one-time fold of the legacy /led/auto_state/ block into the
-    // active printer lives in migrate_v19_to_v20() (config.cpp). It used to run
-    // here on every load_config(), and its get_json() probes re-created the
+    // active printer lives in migrate_v19_to_v20() (config.cpp), not here:
+    // a get_json() probe of that block on every load_config() re-creates the
     // /led orphan on every boot (#1129).
 
-    // Enabled flag
     enabled_ = cfg->get<bool>(cfg->df() + "leds/auto_state/enabled", false);
     strips_ = cfg->get_string_array(cfg->df() + kAutoStateStripsPath);
 
-    // Mappings
     mappings_.clear();
     const nlohmann::json* mappings_json = cfg->try_get_json(cfg->df() + "leds/auto_state/mappings");
     if (mappings_json != nullptr && mappings_json->is_object()) {

@@ -136,6 +136,19 @@ struct JogButton {
 /// step (the selected step). Empty for anything else.
 std::optional<JogButton> parse_jog_button(const char* name);
 
+/// The G-code Z direction (+1 or -1) a Z button with screen sign
+/// @p screen_sign drives: inverted when the bed moves, so up raises the bed.
+constexpr int z_gcode_sign(int screen_sign, bool bed_moves) {
+    return bed_moves ? -screen_sign : screen_sign;
+}
+
+/// "Z+" or "Z" plus an en dash (the text fonts carry no U+2212 minus) for
+/// what that button does to the Z value.
+const char* z_direction_tag(int screen_sign, bool bed_moves);
+
+/// A Z key's label: the step distance and its direction tag, "10mm · Z+".
+std::string z_key_label(const char* distance_label, int screen_sign, bool bed_moves);
+
 inline const char* jog_mode_name(JogMode mode) {
     static const char* names[] = {"Fine", "Coarse", "Turbo"};
     int idx = static_cast<int>(mode);
@@ -311,9 +324,15 @@ class MotionPanel : public OverlayBase {
     lv_subject_t z_down_icon_subject_{};     // "arrow_expand_down" or "arrow_down"
     lv_subject_t jog_outer_label_subject_{}; // jog mode's outer distance, "10mm"
     lv_subject_t jog_inner_label_subject_{}; // jog mode's inner distance, "1mm"
-    lv_subject_t jog_mode_fine_active_{};    // 1 when Fine mode active
-    lv_subject_t jog_mode_coarse_active_{};  // 1 when Coarse mode active
-    lv_subject_t jog_mode_turbo_active_{};   // 1 when Turbo mode active
+    // Z keys' labels, [up, down][inner, outer]: the distance plus a Z+/Z-
+    // tag from the same inversion the jog applies, "10mm · Z+".
+    lv_subject_t z_key_label_subject_[2][2]{};
+    // The arrow layouts' Z keys move the selected step, so they carry the tag
+    // alone, [up, down]: "Z+".
+    lv_subject_t z_tag_subject_[2]{};
+    lv_subject_t jog_mode_fine_active_{};   // 1 when Fine mode active
+    lv_subject_t jog_mode_coarse_active_{}; // 1 when Coarse mode active
+    lv_subject_t jog_mode_turbo_active_{};  // 1 when Turbo mode active
     // Per-axis homing state (0=unhomed, 1=homed) for declarative bind_style:
     // the coordinate readouts mute an axis whose position is not trustworthy.
     lv_subject_t motion_x_homed_{};
@@ -347,6 +366,10 @@ class MotionPanel : public OverlayBase {
     char z_down_icon_buf_[24];
     char jog_outer_label_buf_[16];
     char jog_inner_label_buf_[16];
+    char z_key_label_buf_[2][2][32];
+    char z_tag_buf_[2][8];
+    /// Format the Z key labels and tags for the current jog mode and bed_moves_.
+    void refresh_z_key_labels();
     // Arrow layouts' step selector: how many steps show, each one's label and
     // whether it is the selected one.
     lv_subject_t step_count_subject_{};

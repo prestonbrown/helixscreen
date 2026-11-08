@@ -372,9 +372,9 @@ class AmsErrorHelper {
         // runout handler pauses and prints "load it and press RESUME", so the
         // obvious next move is the Load button. Saying "while printing" there
         // reads as a bug, and "finish or cancel the print" is the opposite of
-        // what they want. Give the recovery that does work (bundle JX2FVRB9).
+        // what they want. Give the recovery that does work.
         //
-        // Reaching this branch now means the backend self-homes (AD5X IFS), so
+        // Reaching this branch means the backend self-homes (AD5X IFS), so
         // the two recoveries named have to work on THAT machine. Both do: feeding
         // filament past the toolhead sensor by hand re-triggers head_switch_sensor
         // so RESUME continues the job, and cancelling returns the printer to

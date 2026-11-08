@@ -392,8 +392,8 @@ TEST_CASE_METHOD(WledMockFixture, "WledBackend: poll_status keys state by strip 
     REQUIRE(enclosure.brightness == 128);
     REQUIRE(enclosure.active_preset == -1);
 
-    // The regression: everything used to land under the literal key "strips",
-    // which then defaulted to off/255/-1 for every real strip id.
+    // Nothing may land under the literal key "strips"; a real strip id would
+    // then default to off/255/-1.
     auto bogus = backend.get_strip_state("strips");
     REQUIRE(!bogus.is_on);
     REQUIRE(bogus.brightness == 255);

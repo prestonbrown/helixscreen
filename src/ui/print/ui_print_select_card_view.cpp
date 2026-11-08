@@ -118,7 +118,6 @@ void PrintSelectCardView::clear_cached_state() {
     cached_gradient_w_ = 0;
     cached_gradient_h_ = 0;
 
-    // Clear data structures
     card_data_pool_.clear();
     card_pool_.clear();
     card_pool_indices_.clear();
@@ -292,7 +291,6 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             // Create per-card data with subjects for declarative text binding
             auto data = std::make_unique<CardWidgetData>();
 
-            // Initialize subjects
             lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
                                    sizeof(data->filename_buf), "");
             lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
@@ -304,7 +302,6 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             // thumbnail_state: 0=real thumbnail, 1=placeholder (show icon), 2=directory
             lv_subject_init_int(&data->thumbnail_state_subject, 1);
 
-            // Bind labels to subjects
             lv_obj_t* filename_label = lv_obj_find_by_name(card, "filename_label");
             if (filename_label) {
                 data->filename_observer =
@@ -614,7 +611,6 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     // Store file index for click handler
     lv_obj_set_user_data(card, reinterpret_cast<void*>(file_index));
 
-    // Show the card
     lv_obj_remove_flag(card, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -637,10 +633,8 @@ void PrintSelectCardView::populate(const std::vector<PrintFileData>& file_list,
     // Shared pool state on first call; cards are created by update_visible()
     init_pool(dims);
 
-    // Create spacers if needed
     create_spacers();
 
-    // Update cards per row
     cards_per_row_ = dims.num_columns;
 
     // Reset visible range tracking

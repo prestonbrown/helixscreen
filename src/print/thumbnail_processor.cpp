@@ -70,7 +70,6 @@ ThumbnailProcessor::ThumbnailProcessor()
         spdlog::warn("[ThumbnailProcessor] Failed to create cache directory: {}", e.what());
     }
 
-    // Start thread pool
     thread_pool_->start(kMinWorkerThreads);
     spdlog::debug("[ThumbnailProcessor] Initialized with {} worker threads, cache: {}",
                   kMinWorkerThreads, cache_dir_);
@@ -159,9 +158,8 @@ void ThumbnailProcessor::process_file_async(const std::string& png_path,
                 // libhv's HThreadPool spawns its own workers, so each task
                 // makes sure the worker it lands on has a signal stack.
                 helix::install_thread_altstack();
-                // The read happens HERE, on the worker. Callers used to slurp the
-                // PNG on the main thread purely to hand the bytes straight back
-                // to this pool - once per file while a listing populated.
+                // The read happens HERE, on the worker, so a listing populating
+                // on the main thread never reads a PNG there once per file.
                 std::ifstream file(path_copy, std::ios::binary | std::ios::ate);
                 if (!file) {
                     deliver_result(ProcessResult{false, "", "Cannot read PNG: " + path_copy, 0, 0},
@@ -325,8 +323,8 @@ void ThumbnailProcessor::clear_cache() {
 }
 
 size_t ThumbnailProcessor::pending_tasks() const {
-    // Was an unlocked null-check followed by an unlocked dereference — the same
-    // use-after-free window as process_async(), against shutdown()'s reset
+    // An unlocked null-check followed by an unlocked dereference is the same
+    // use-after-free window as process_async() has against shutdown()'s reset
     // (#1202). All three reads are cheap, so the whole thing goes under the lock.
     std::lock_guard<std::mutex> lock(mutex_);
     if (!thread_pool_) {
@@ -344,7 +342,7 @@ size_t ThumbnailProcessor::pending_tasks() const {
 }
 
 void ThumbnailProcessor::wait_for_completion() {
-    // Same defect as pending_tasks(), but wait() BLOCKS until the queue drains,
+    // Same shutdown() race as pending_tasks(), but wait() BLOCKS until the queue drains,
     // so it must not be called with mutex_ held — shutdown() would be stuck
     // behind it. Take a strong reference under the lock instead and wait on
     // that: the pool then outlives a concurrent shutdown() reset, and wait()
@@ -399,7 +397,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
     // stb_image is fragile on malformed/truncated input: a severed stream (the
     // 100 KB gcode-header boundary, a partial download) can drive heap
     // overreads on this worker that surface later as an unrelated abort on the
-    // main thread (debug bundle 783DVYKD). Only a complete PNG or JPEG is decoded.
+    // main thread. Only a complete PNG or JPEG is decoded.
     if (!is_complete_image(png_data)) {
         result.error = "Incomplete or unsupported thumbnail data (not a complete PNG or JPEG)";
         return result;
@@ -412,10 +410,9 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
 
     helix::MemoryMonitor::log_now("thumbnail_decode_start");
 
-    // Bracket the decode so the next crash bundle shows directly whether one
-    // was in flight, instead of it having to be inferred from a post-restart
-    // log the way 6F3QJLFG's was (prestonbrown/helixscreen#960). Worker thread
-    // — breadcrumb::note() is written for concurrent producers.
+    // Bracket the decode so a crash bundle shows directly whether one was in
+    // flight (prestonbrown/helixscreen#960). Worker thread — breadcrumb::note()
+    // is written for concurrent producers.
     crash_handler::breadcrumb::note("thumb", "decode_begin", static_cast<long>(png_data.size()));
 
     // Read the dimensions from the header first: the decode allocates
@@ -493,12 +490,9 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
     // ========================================================================
     // Step 4: Convert RGBA to ARGB8888 (LVGL's expected format)
     // ========================================================================
-    // stb_image gives us RGBA (R,G,B,A order)
-    // LVGL ARGB8888 expects (B,G,R,A order) - actually BGRA in memory
-    //
-    // Wait, let's check the LVGL format more carefully...
-    // LV_COLOR_FORMAT_ARGB8888 on little-endian is stored as B,G,R,A in memory
-    // because when read as uint32_t, it's 0xAARRGGBB
+    // stb_image gives RGBA (R,G,B,A in memory). LV_COLOR_FORMAT_ARGB8888 on
+    // little-endian is stored as B,G,R,A in memory, because read as a uint32_t
+    // it is 0xAARRGGBB.
 
     for (size_t i = 0; i < resized_pixels.size(); i += 4) {
         // Swap R and B channels: RGBA -> BGRA

@@ -777,7 +777,6 @@ lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_co
 } // namespace helix
 
 lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
-    // Create base object
     lv_obj_t* obj = lv_obj_create(parent);
     if (!obj)
         return nullptr;
@@ -811,7 +810,6 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, jog_pad_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, jog_pad_press_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(obj, jog_pad_pressing_cb, LV_EVENT_PRESSING, nullptr);

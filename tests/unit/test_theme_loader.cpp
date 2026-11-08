@@ -166,8 +166,8 @@ TEST_CASE("parse_theme_json returns the built-in theme when missing palettes", "
 
 TEST_CASE("parse_theme_json fills missing/empty color keys with defaults", "[theme]") {
     // A theme that omits some keys and supplies an empty string for another.
-    // Empty palette fields used to escape the loader, flooding the log with
-    // "[Theme] Invalid hex color string:" and rendering widgets black
+    // Empty palette fields escaping the loader flood the log with
+    // "[Theme] Invalid hex color string:" and render widgets black
     // (prestonbrown/helixscreen#989). The loader must substitute the default
     // theme color so no palette field is ever empty.
     const char* json = R"({

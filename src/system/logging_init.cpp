@@ -36,7 +36,6 @@
 #include <unistd.h>
 #include <vector>
 
-// Define the global callback pointer for LVGL assert handler
 helix_assert_callback_t g_helix_assert_cpp_callback = nullptr;
 
 #ifdef __linux__
@@ -176,12 +175,11 @@ std::shared_ptr<MonotonicRingSink> g_ring_sink;
 //
 // init() ADOPTS that sink instead of building a new one, so everything logged
 // during startup Phase 2 — Config load and its corrupt/restore diagnostics — is
-// still in the buffer the debug bundle reads. Bundle XGVDYEB5 is what this
-// exists for: a user-visible "settings were corrupted, restored from backup"
-// toast, and not one line of the config trail anywhere in a 20,000-line
-// log_tail, because the early logger had no ring and init() then replaced it.
+// still in the buffer the debug bundle reads. Without it, a user-visible
+// "settings were corrupted, restored from backup" toast has no config trail
+// anywhere in the bundle's log_tail.
 //
-// Cleared on adoption, so any LATER init() rebuilds the ring exactly as before.
+// Cleared on adoption, so any LATER init() builds a fresh ring of its own.
 // Production calls init() once (Application::init_logging, helix_watchdog), so
 // nothing real re-enters; tests re-initialize the logger constantly and rely on
 // each init() handing them a clean buffer.
@@ -516,8 +514,8 @@ void init_early() {
     // kEarlyConsoleLevel, and the logger floor is the more verbose of the two
     // because spdlog gates at the logger before any sink sees a message. When
     // HELIX_BUNDLE_LOG_DEBUG=0 declines debug capture there is no configured
-    // level to fall back to yet, so the ring matches the console — which leaves
-    // the early logger behaving exactly as it did before this sink existed.
+    // level to fall back to yet, so the ring matches the console and the early
+    // logger emits nothing beyond what the console shows.
     const spdlog::level::level_enum ring_level =
         ring_captures_debug() ? spdlog::level::debug : kEarlyConsoleLevel;
     g_ring_sink = std::make_shared<MonotonicRingSink>(resolve_ring_capacity());
@@ -701,7 +699,6 @@ void init(const LogConfig& config) {
     // cache still batches the flash writes. Debug and trace stay buffered.
     logger->flush_on(spdlog::level::info);
 
-    // Set as default logger
     spdlog::set_default_logger(logger);
 
     // Enable backtrace buffer to capture recent log messages before an assertion
@@ -1021,12 +1018,10 @@ spdlog::level::level_enum resolve_log_level(int cli_verbosity, const std::string
                                             bool test_mode) {
     // Precedence: CLI verbosity > config file > defaults
 
-    // CLI verbosity takes top precedence
     if (cli_verbosity > 0) {
         return verbosity_to_level(cli_verbosity);
     }
 
-    // Config file level (if specified)
     if (!config_level_str.empty()) {
         // Use warn as fallback for invalid config strings
         return parse_level(config_level_str, spdlog::level::warn);

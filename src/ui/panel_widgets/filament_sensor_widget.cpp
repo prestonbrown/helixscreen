@@ -302,7 +302,7 @@ void FilamentSensorWidget::show_tap_modal(bool status_only) {
             // Raises a confirmation and sends nothing until it is accepted; the
             // dialog lives in dispatch_cancel_print() so this surface and the
             // runout guidance dialog cannot diverge on a destructive action.
-            // This modal stays up behind it — on_tertiary() no longer hides, so
+            // This modal stays up behind it — on_tertiary() does not hide it, so
             // declining returns here — and closes only once the cancel is real.
             helix::ui::dispatch_cancel_print(get_moonraker_api(), "[FilamentSensorWidget]",
                                              [this, token]() {

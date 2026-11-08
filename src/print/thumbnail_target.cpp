@@ -119,7 +119,6 @@ ThumbnailTarget ThumbnailProcessor::get_target_for_display(ThumbnailSize size) {
         }
     }
 
-    // Get the default display
     lv_display_t* display = lv_display_get_default();
     if (!display) {
         // Fallback if no display initialized yet (shouldn't happen in normal use)
@@ -127,7 +126,6 @@ ThumbnailTarget ThumbnailProcessor::get_target_for_display(ThumbnailSize size) {
         return get_target_for_resolution(800, 480, size);
     }
 
-    // Query display resolution
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
 

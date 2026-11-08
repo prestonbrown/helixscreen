@@ -34,7 +34,6 @@ class LabelPrinterSettingsManager {
   public:
     static LabelPrinterSettingsManager& instance();
 
-    // Non-copyable
     LabelPrinterSettingsManager(const LabelPrinterSettingsManager&) = delete;
     LabelPrinterSettingsManager& operator=(const LabelPrinterSettingsManager&) = delete;
 
@@ -91,19 +90,16 @@ class LabelPrinterSettingsManager {
     /** @brief Set label preset (persists to config) */
     void set_label_preset(int preset);
 
-    /** @brief Get USB vendor ID */
     uint16_t get_usb_vid() const;
 
     /** @brief Set USB vendor ID (updates configured subject, persists) */
     void set_usb_vid(uint16_t vid);
 
-    /** @brief Get USB product ID */
     uint16_t get_usb_pid() const;
 
     /** @brief Set USB product ID (updates configured subject, persists) */
     void set_usb_pid(uint16_t pid);
 
-    /** @brief Get USB serial number */
     std::string get_usb_serial() const;
 
     /** @brief Set USB serial number (persists to config) */
@@ -111,7 +107,6 @@ class LabelPrinterSettingsManager {
 
     // Bluetooth settings
 
-    /** @brief Get Bluetooth MAC address */
     [[nodiscard]] std::string get_bt_address() const;
 
     /** @brief Set Bluetooth MAC address (updates configured subject, persists) */

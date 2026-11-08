@@ -319,6 +319,7 @@
   <translation tag="App Background" es="Fondo de la Aplicación"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." es="El inicio de la aplicación encontró un error. Algunas funciones pueden no estar disponibles."/>
   <translation tag="Appearance" es="Apariencia"/>
+  <translation tag="Appearance &amp; Region" es="Apariencia y región"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." es="Aplicado a {}. Klipper lo olvida al reiniciar: introduce {} como Pressure Advance en el perfil de filamento de tu laminador o guárdalo en la bobina."/>
   <translation tag="Applies to" es="Se aplica a"/>
   <translation tag="Apply" es="Aplicar"/>
@@ -437,6 +438,9 @@
   <translation tag="Belt Tension" es="Tensión de correa"/>
   <translation tag="Belt Tension Check" es="Verificación de tensión de correa"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." es="La tensión de correa necesita una impresora CoreXY. Esta es {}."/>
+  <translation tag="Belt tension and cutter calibration" es="Tensión de correas y calibración del cortador"/>
+  <translation tag="Belt tensioning completed" es="Tensado de correas completado"/>
+  <translation tag="Belt tensioning failed: {}" es="Falló el tensado de correas: {}"/>
   <translation tag="Belts already match" es="Las correas ya coinciden"/>
   <translation tag="Beta" es="Beta"/>
   <translation tag="Beta features: OFF" es="Funciones Beta: OFF"/>
@@ -767,6 +771,7 @@
   <translation tag="Color" es="Color"/>
   <translation tag="Color Mismatch" es="Color No Coincide"/>
   <translation tag="Color Sensors" es="Sensores de color"/>
+  <translation tag="Colors for every screen" es="Colores de todas las pantallas"/>
   <translation tag="Command Failed" es="El comando falló"/>
   <translation tag="Command failed" es="El comando falló"/>
   <translation tag="Communication Test" es="Prueba de comunicación"/>
@@ -1652,7 +1657,7 @@
   <translation tag="Heat bed before calibrating for accurate offset with thermal expansion." es="Caliente la cama antes de calibrar para un offset preciso con expansión térmica."/>
   <translation tag="Heat nozzle" es="Calentar boquilla"/>
   <translation tag="Heat soak" es="Estabilización Térmica"/>
-  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen does not run it." es="El heat soak deja que el recinto se caliente antes de imprimir. Aparece porque la impresora tiene una macro de heat soak o se activó en los ajustes; HelixScreen no lo ejecuta."/>
+  <translation tag="Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options." es="El heat soak deja que el recinto se caliente antes de imprimir. Aparece porque la impresora tiene una macro de heat soak o se activó en los ajustes; HelixScreen ofrece la macro en las opciones previas a la impresión."/>
   <translation tag="Heat the bed to {}°C" es="Calentar la cama a {}°C"/>
   <translation tag="Heat the chamber too" es="Calentar también la cámara"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" es="Caliente el extrusor a al menos {}°C antes de cargar filamento"/>
@@ -3420,6 +3425,8 @@
   <translation tag="Set local timezone for time display" es="Establecer zona horaria local para la hora"/>
   <translation tag="Set logging verbosity for troubleshooting" es="Establecer el nivel de detalle del registro para solución de problemas"/>
   <translation tag="Set temperature between {}°C and {}°C" es="Establezca una temperatura entre {}°C y {}°C"/>
+  <translation tag="Set the X and Y belts with the motorized tensioners" es="Ajustar las correas X e Y con los tensores motorizados"/>
+  <translation tag="Set the clock, theme and units. You can change any of these later in Settings." es="Configura el reloj, el tema y las unidades. Puedes cambiarlos más tarde en Ajustes."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" es="Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva"/>
   <translation tag="Set up" es="Configurar"/>
   <translation tag="Set up your label printer in Settings" es="Configure su impresora de etiquetas en Ajustes"/>
@@ -3449,6 +3456,7 @@
   <translation tag="Show a confirmation dialog when tapping a macro" es="Mostrar un diálogo de confirmación al tocar una macro"/>
   <translation tag="Show instead of dimming" es="Mostrar en lugar de atenuar"/>
   <translation tag="Show light controls for a light connected to this printer" es="Mostrar los controles de luz de una luz conectada a esta impresora"/>
+  <translation tag="Show print speed and flow as mm/s and mm³/s instead of percent" es="Mostrar velocidad y flujo en mm/s y mm³/s en lugar de porcentaje"/>
   <translation tag="Show printer icon in navigation bar" es="Mostrar icono de impresora en la barra de navegación"/>
   <translation tag="Show sliced colors" es="Mostrar colores laminados"/>
   <translation tag="Show temp for" es="Mostrar temperatura de"/>
@@ -3516,6 +3524,7 @@
   <translation tag="Spaghetti detected (%d%%)" es="Spaghetti detectado (%d%%)"/>
   <translation tag="Speaker" es="Altavoz"/>
   <translation tag="Speed" es="Velocidad"/>
+  <translation tag="Speed &amp; Flow in mm/s" es="Velocidad y flujo en mm/s"/>
   <translation tag="Speed / Flow" es="Velocidad / Flujo"/>
   <translation tag="Speed Settings" es="Ajustes de velocidad"/>
   <translation tag="Speed and flow overrides, with a tap to tune" es="Velocidad y flujo; toca para ajustar"/>
@@ -3742,7 +3751,9 @@
   <translation tag="Temporary adjustment for this print" es="Ajuste temporal para esta impresión"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" es="Ajuste temporal para esta impresión, a menos que se guarde en el panel de Controles"/>
   <translation tag="Temporary for this print; a tool change resets it" es="Temporal para esta impresión; un cambio de herramienta lo restablece"/>
+  <translation tag="Tension Belts" es="Tensar correas"/>
   <translation tag="Tensioner: {}" es="Tensor: {}"/>
+  <translation tag="Tensioning belts..." es="Tensando correas..."/>
   <translation tag="Tertiary" es="Terciario"/>
   <translation tag="Test All Lanes" es="Probar todos los carriles"/>
   <translation tag="Test Both" es="Ambos"/>
@@ -3883,6 +3894,7 @@
   <translation tag="The printer has not reported its maximum velocity yet." es="La impresora aún no ha informado su velocidad máxima."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." es="La impresora calienta la boquilla, hace unos movimientos de prueba cortos en una esquina de la placa y los mide ella misma. Repite hasta que las lecturas coinciden y luego informa de un número."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." es="La impresora referencia y barre el cortador (unos 60 segundos). Mantenga despejada la ruta del filamento."/>
+  <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." es="La impresora referencia si hace falta y luego localiza la posición del cortador. Mantenga despejada la ruta del filamento."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." es="La impresora hace home y luego aleja la cama de la boquilla todo lo posible. Algunas bobinas no resisten suficiente calor y pueden deformarse. Nada se mueve desde esta pantalla hasta que confirmes que las bobinas no están en la cama; Mainsail, las macros y las impresiones enviadas desde un slicer no se bloquean."/>
   <translation tag="The printer homes, then probes each screw position." es="La impresora hace home y luego mide cada posición de tornillo."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." es="La impresora no está referenciada. Si continúa, se referenciarán todos los ejes y el cabezal se moverá. Asegúrese de que la cama esté despejada."/>
@@ -3894,6 +3906,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." es="La impresora perdió corriente durante una impresión. La capa reanudada puede no alinearse con exactitud."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" es="La impresora perdió corriente mientras imprimía {}. ¿Reanudar donde se quedó?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." es="La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud."/>
+  <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." es="La impresora puede hacer home y mover el cabezal; luego los tensores motorizados ajustan las correas X e Y. Mantén despejados la cama y el pórtico."/>
   <translation tag="The printer moves the toolhead and measures its motors." es="La impresora mueve el cabezal y mide sus motores."/>
   <translation tag="The printer no longer has a print to resume." es="La impresora ya no tiene una impresión para reanudar."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." es="La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto."/>
@@ -3991,6 +4004,7 @@
   <translation tag="This printer has no IFS." es="Esta impresora no tiene IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" es="Esta impresora no tiene la macro LOAD_FILAMENT de INDX"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." es="Esta impresora no tiene descarga automática. Corte el filamento en el cabezal y sáquelo a mano."/>
+  <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." es="Esta impresora no tiene zona horaria, así que su reloj marca UTC. Elige la tuya."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." es="Esta impresora no tiene el comando {}, así que no se puede guardar el Z-offset."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." es="Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" es="A las macros de INDX de esta impresora les falta: {}"/>
@@ -4349,6 +4363,7 @@
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." es="Cuando está activado, solo se ejecuta el macro. Cuando está desactivado, primero se establecen las temperaturas y luego se ejecuta el macro."/>
   <translation tag="Where UI sounds play" es="Dónde se reproducen los sonidos de la interfaz"/>
   <translation tag="Whether filament is loaded" es="Si hay filamento cargado"/>
+  <translation tag="Whether the Z arrows follow the bed or the Z value" es="Si las flechas Z siguen a la cama o al valor Z"/>
   <translation tag="Which belt is each path?" es="¿Qué correa es cada ruta?"/>
   <translation tag="Which belt is which?" es="¿Qué correa es cuál?"/>
   <translation tag="Which lane is in the toolhead?" es="¿Qué carril está en el cabezal?"/>
@@ -4433,6 +4448,7 @@
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." es="Tu {0} parece tener {1}, pero está configurada para {2}."/>
   <translation tag="Your {} line passes per-tool settings that Filament Mapping does not change ({}). A tool you map filament to may not be heated. See Filament Mapping in the user guide." es="Su línea {} pasa ajustes por herramienta que el mapeo de filamento no cambia ({}). Es posible que una herramienta a la que mapee filamento no se caliente. Consulte «Filament Mapping» en la guía del usuario."/>
   <translation tag="Z" es="Z"/>
+  <translation tag="Z Buttons Move" es="Los botones Z mueven"/>
   <translation tag="Z Calibration" es="Calibración Z"/>
   <translation tag="Z Movement" es="Movimiento Z"/>
   <translation tag="Z Offset" es="Z Offset"/>

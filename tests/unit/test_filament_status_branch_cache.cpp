@@ -19,7 +19,7 @@
  * interpolating arms are the easy ones to forget, because they return early and
  * never reach the bottom of the function.
  *
- * Reported shape (bundle TPVTQKBM, a Kalico Voron with min_extrude_temp: 10):
+ * Reported shape (a Kalico Voron with min_extrude_temp: 10):
  * that printer sits in the Ready arm permanently, so the constant arm is the
  * steady state rather than a transient — 10,103 of the 13,310 lines the bundle
  * shipped were the one warning this lookup emitted.

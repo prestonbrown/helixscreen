@@ -5,6 +5,7 @@
 
 #include "ui_nav_manager.h"
 #include "ui_open_instances.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -15,6 +16,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <string>
 #include <utility>
 
@@ -109,6 +111,7 @@ lv_obj_t* OverlayBase::create(lv_obj_t* parent) {
 }
 
 bool OverlayBase::show(lv_obj_t* parent_screen) {
+    const auto requested_at = std::chrono::steady_clock::now();
     if (parent_screen) {
         parent_screen_ = parent_screen;
     }
@@ -127,7 +130,8 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
         on_ui_destroyed();
     }
 
-    if (!overlay_root_) {
+    const bool builds_tree = !overlay_root_;
+    if (builds_tree) {
         register_callbacks(); // every create: XML callback slots are last-write-wins
         lv_obj_t* root = parent_screen_ ? create(parent_screen_) : nullptr;
         if (!root) {
@@ -157,6 +161,7 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     shown_root_ref_ = overlay_root_.get();
     before_show();
     helix::nav::register_overlay(overlay_root_, this);
+    helix::nav::overlay_open_requested(overlay_root_, get_name(), builds_tree, requested_at);
     helix::nav::push_overlay(overlay_root_);
     return true;
 }

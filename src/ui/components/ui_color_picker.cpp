@@ -433,7 +433,6 @@ void ColorPicker::handle_select() {
         color_callback_(selected_color_, color_name);
     }
 
-    // Hide the picker
     hide();
 }
 

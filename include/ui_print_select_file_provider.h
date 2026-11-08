@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 struct PrintFileData;
 namespace helix {
 class IMoonrakerAPI;

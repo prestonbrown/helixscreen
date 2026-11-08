@@ -20,19 +20,30 @@ to conflict on. A count may fall; a branch may not raise it.
                    class body or inside an out-of-line `Class::method` body, for
                    every class that has a parameter of the dependency's type
                    anywhere in the tree (its class body, or the parameter list
-                   of a `Class::method` definition). A file may not gain one.
+                   of a `Class::method` definition), and every class deriving
+                   from one at any depth. A file may not gain one.
   active instance  Static-storage pointers that hand an XML callback "the
                    current instance" (`static Foo* active_instance_;`,
                    `static Foo* s_active_`, an anonymous-namespace
                    `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
-                   definition is not a second pointer and is not counted.
+                   definition is not a second pointer and is not counted, and
+                   a name containing `inactive` is not the pattern at all. A
+                   declaration that is not a per-callback owner lookup opts out with
+                   `// ACTIVE_INSTANCE_OK: <reason>` on its line.
 
 One ban, on the whole tree at HEAD rather than the branch's change: no call to
 lv_obj_is_valid() or lv_obj_is_in_widget_tree() anywhere under src/, include/ or tests/
 (comments and strings not counted). Neither can tell a live widget from a new one at a
 freed address; hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h), and
 in a test use helix::test::widget_in_tree() (prestonbrown/helixscreen#1983).
+
+Also on the whole tree at HEAD, app code only: no call to the bare static
+Modal::show("component") factory (a string literal or a .c_str() as the component), nor
+to a helix::ui::modal_show() wrapper around it.
+Its dialog has no owner, so nothing hears it close; show it through
+helix::ui::ComponentModal::show_owned(), modal_confirm(), or a Modal subclass
+(prestonbrown/helixscreen#1958). Tests may still call it.
 
 Also on the whole tree at HEAD: inside an LV_EVENT_DELETE callback, a WidgetRef is never
 compared with the event's target. Its own hook can run first, so it already reads nullptr
@@ -52,6 +63,8 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
+
+from source_strip import blank_cxx
 
 # p97 of the tree's C++ files (median 180, p95 ~1080). Lower, and the frozen set
 # takes in hundreds of ordinary ~1000-line test files every routine fix touches.
@@ -78,13 +91,16 @@ def _param_re(type_re: str) -> re.Pattern:
     return re.compile(rf"[(,]\s*(?:const\s+)?{_QUAL}{type_re}\s*{_PTR_TAIL}")
 
 
-_ACTIVE_NAME = r"(?:s_|g_)?\w*active\w*|(?:s_|g_)\w+_instance_?"
+# "inactive" names the opposite of the pattern, so a name containing it is not one.
+_NOT_INACTIVE = r"(?!\w*inactive)"
+_ACTIVE_NAME = rf"(?:s_|g_)?{_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?"
+ACTIVE_OPT_OUT = "ACTIVE_INSTANCE_OK:"
 _KEYWORDS = {"return", "delete", "throw", "case", "goto", "else", "new"}
 ACTIVE_STATIC_RE = re.compile(
     rf"^[ \t]*(?:inline\s+)?static\s+(?:inline\s+)?(?:const\s+)?([\w:<>]+)\s*\*\s*(?:const\s+)?"
     rf"({_ACTIVE_NAME})\s*(?:=\s*nullptr\s*|\{{\s*(?:nullptr)?\s*\}}\s*)?;", re.M)
 ACTIVE_GLOBAL_RE = re.compile(
-    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_)\w*active\w*|(?:s_|g_)\w+_instance_?)"
+    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_){_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
 
 VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
@@ -120,48 +136,6 @@ def read_blobs(root: Path, rev: str, paths) -> dict[str, str]:
         blobs[p] = out[pos:pos + size].decode("utf-8", "replace")
         pos += size + 1
     return blobs
-
-
-def strip_code(text: str) -> str:
-    """Comments, string and char literals blanked to spaces; newlines kept."""
-    out, i, n = [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if text.startswith("//", i):
-            j = text.find("\n", i)
-            j = n if j < 0 else j
-            out.append(" " * (j - i))
-            i = j
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append(re.sub(r"[^\n]", " ", text[i:j]))
-            i = j
-        elif c == 'R' and text.startswith('R"', i) and (i == 0 or not text[i - 1].isalnum()):
-            m = re.match(r'R"([^(\s]*)\(', text[i:])
-            if not m:
-                out.append(c)
-                i += 1
-                continue
-            end = text.find(")" + m.group(1) + '"', i)
-            j = n if end < 0 else end + len(m.group(1)) + 2
-            out.append(re.sub(r"[^\n]", " ", text[i:j]))
-            i = j
-        elif c in "\"'":
-            if c == "'" and i > 0 and text[i - 1].isalnum():  # digit separator 1'000
-                out.append(" ")
-                i += 1
-                continue
-            j = i + 1
-            while j < n and text[j] != c and text[j] != "\n":
-                j += 2 if text[j] == "\\" else 1
-            j = min(j + 1, n)
-            out.append(" " * (j - i))
-            i = j
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
 
 
 STATIC_DECL_RE = re.compile(r"(?:^|[;{}:])\s*(?:inline\s+|constexpr\s+)*static\b[^;{}()=]*?\b(~?\w+)\s*\(")
@@ -253,7 +227,7 @@ def receivers(blobs: dict[str, str], param: re.Pattern):
     parsed = []
     statics: dict[str, set[str]] = {}
     for text in blobs.values():
-        code = strip_code(text)
+        code = blank_cxx(text)
         spans = scopes(code)
         parsed.append((code, spans))
         for owner, names in static_methods(spans, code).items():
@@ -275,7 +249,7 @@ def receivers(blobs: dict[str, str], param: re.Pattern):
 
 def accessor_calls(text: str, accessor: str, classes: set[str],
                    statics: dict[str, set[str]]) -> int:
-    code = strip_code(text)
+    code = blank_cxx(text)
     calls = [m.start() for m in re.finditer(rf"\b{accessor}\s*\(", code)]
     if not calls:
         return 0
@@ -291,7 +265,8 @@ def accessor_calls(text: str, accessor: str, classes: set[str],
 
 
 def active_instances(text: str) -> list[str]:
-    code = strip_code(text)
+    kept = (line for line in text.split("\n") if ACTIVE_OPT_OUT not in line)
+    code = blank_cxx("\n".join(kept))
     names = []
     for rx in (ACTIVE_STATIC_RE, ACTIVE_GLOBAL_RE):
         for m in rx.finditer(code):
@@ -305,9 +280,25 @@ def banned_validity_calls(root: Path) -> list[str]:
     hits = []
     for name in VALIDITY_NAMES:
         for path, text in tree_with(root, "HEAD", name, CXX_SOURCES).items():
-            code = strip_code(text)
+            code = blank_cxx(text)
             for m in re.finditer(rf"\b{name}\s*\(", code):
                 hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}: {name}()")
+    return sorted(hits)
+
+
+_FACTORY_RE = re.compile(r"\b(Modal::show|modal_show)\s*\(")
+_FACTORY_ARG_RE = re.compile(r'\s*(?:"|[\w.>\-]+\.c_str\(\s*\)\s*[,)])')
+
+
+def bare_modal_factory_calls(root: Path) -> list[str]:
+    """`path:line` for every Modal::show("component") call in app code at HEAD."""
+    hits = []
+    paths = {**tree_with(root, "HEAD", "Modal::show"), **tree_with(root, "HEAD", "modal_show")}
+    for path, text in paths.items():
+        code = blank_cxx(text)
+        for m in _FACTORY_RE.finditer(code):
+            if m.group(1) == "modal_show" or _FACTORY_ARG_RE.match(text, m.end()):
+                hits.append(f"{path}:{code.count(chr(10), 0, m.start()) + 1}")
     return sorted(hits)
 
 
@@ -335,7 +326,7 @@ def _class_table(blobs: dict[str, str]) -> dict[str, tuple[set[str], list[str]]]
     """class name -> (its own WidgetRef members, its bases)."""
     table: dict[str, tuple[set[str], list[str]]] = {}
     for text in blobs.values():
-        code = strip_code(text)
+        code = blank_cxx(text)
         for m in _CLASS_RE.finditer(code):
             members, bases = table.setdefault(m.group(1), (set(), []))
             members.update(_REF_MEMBER_RE.findall(_braced(code, m.end() - 1)))
@@ -375,7 +366,7 @@ def delete_callback_ref_compares(root: Path) -> list[str]:
     for path, text in blobs.items():
         if "LV_EVENT_DELETE" not in text:
             continue
-        code = strip_code(text)
+        code = blank_cxx(text)
         file_refs = set(_REF_MEMBER_RE.findall(code))
         bodies = []
         names = set(_DELETE_CB_RE.findall(code))
@@ -416,15 +407,36 @@ def tree_with(root: Path, rev: str, needle: str, sources=APP_SOURCES) -> dict[st
     return read_blobs(root, rev, paths)
 
 
-def receivers_at(root: Path, rev: str, type_re: str):
-    return receivers(tree_with(root, rev, type_re.replace("I?", "")), _param_re(type_re))
+def receivers_at(root: Path, rev: str, type_re: str, subclasses: bool = True):
+    """(receiving classes, static methods per class) at `rev`. `subclasses=False`
+    skips the inheritance walk for a caller that only needs the statics."""
+    classes, statics = receivers(tree_with(root, rev, type_re.replace("I?", "")),
+                                 _param_re(type_re))
+    return (with_subclasses(root, rev, classes) if subclasses else classes), statics
+
+
+def with_subclasses(root: Path, rev: str, classes: set[str]) -> set[str]:
+    """`classes` plus every class at `rev` deriving from one, at any depth: a class
+    that inherits the dependency's member receives it as surely as its base does."""
+    found, frontier = set(classes), set(classes)
+    while frontier:
+        args = [a for name in sorted(frontier) for a in ("-e", name)]
+        try:
+            hits = git(root, "grep", "-l", "-w", "-F", *args, rev, "--", *APP_SOURCES).split()
+        except subprocess.CalledProcessError:
+            break
+        table = _class_table(read_blobs(root, rev, [h.split(":", 1)[1] for h in hits]))
+        frontier = {name for name, (_, bases) in table.items()
+                    if name not in found and found.intersection(bases)}
+        found |= frontier
+    return found
 
 
 def global_access_counts(root: Path, rev: str, type_re: str, accessor: str,
                          classes: set[str] | None = None, only=None) -> Counter:
     """Accessor calls per file inside `classes` (default: the classes receiving the
     dependency at `rev`), with static members judged by `rev`'s own declarations."""
-    rev_classes, statics = receivers_at(root, rev, type_re)
+    rev_classes, statics = receivers_at(root, rev, type_re, subclasses=classes is None)
     classes = rev_classes if classes is None else classes
     blobs = tree_with(root, rev, accessor)
     counts = Counter()
@@ -484,6 +496,10 @@ def report(root: Path) -> int:
     print(f"banned widget validity calls: {len(banned)}")
     for hit in banned:
         print(f"  {hit}")
+    factory = bare_modal_factory_calls(root)
+    print(f"bare Modal::show factory calls: {len(factory)}")
+    for hit in factory:
+        print(f"  {hit}")
     return 0
 
 
@@ -502,6 +518,14 @@ def main(argv=None) -> int:
             print(f"❌ {hit}: banned, it cannot tell a live widget from a new one at a freed "
                   f"address. Hold a helix::ui::WidgetRef or WeakWidget (include/ui_widget_ref.h); "
                   f"a test uses helix::test::widget_in_tree()")
+        return 1
+    factory = bare_modal_factory_calls(root)
+    if factory:
+        for hit in factory:
+            print(f"❌ {hit}: the bare Modal::show(\"component\") factory leaves the dialog "
+                  f"with no owner, so nothing hears it close. Use "
+                  f"helix::ui::ComponentModal::show_owned(), modal_confirm() or a Modal "
+                  f"subclass (prestonbrown/helixscreen#1958)")
         return 1
     compares = delete_callback_ref_compares(root)
     if compares:

@@ -318,13 +318,13 @@
             <motion_jog_button name="z_up_large"
                                width="100%" jog="z_up_large" flex_grow="1" icon_position="top"
                                style_pad_hor="#space_xxs" icon="arrow_up" bind_icon="motion_z_up_icon"
-                               label="motion_jog_outer_label">
+                               label="motion_z_up_outer_label">
               <bind_state_if_eq subject="motion_z_up_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <motion_jog_button name="z_up_small"
                                width="100%" jog="z_up_small" flex_grow="1" icon_position="top"
                                style_pad_hor="#space_xxs" icon="arrow_up" bind_icon="motion_z_up_icon"
-                               label="motion_jog_inner_label">
+                               label="motion_z_up_inner_label">
               <bind_state_if_eq subject="motion_z_up_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <!-- Same widget and binding as the landscape column between the
@@ -333,13 +333,13 @@
             <motion_jog_button name="z_down_small"
                                width="100%" jog="z_down_small" flex_grow="1" icon_position="top"
                                style_pad_hor="#space_xxs" icon="arrow_down" bind_icon="motion_z_down_icon"
-                               label="motion_jog_inner_label">
+                               label="motion_z_down_inner_label">
               <bind_state_if_eq subject="motion_z_down_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <motion_jog_button name="z_down_large"
                                width="100%" jog="z_down_large" flex_grow="1" icon_position="top"
                                style_pad_hor="#space_xxs" icon="arrow_down" bind_icon="motion_z_down_icon"
-                               label="motion_jog_outer_label">
+                               label="motion_z_down_outer_label">
               <bind_state_if_eq subject="motion_z_down_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
           </lv_obj>
@@ -493,13 +493,13 @@
             <motion_jog_button name="z_up_large"
                                width="100%" jog="z_up_large" flex_grow="1" style_max_height="#button_height_lg"
                                stacked_subject="motion_z_keys_stacked" stacked_if_eq="1" style_pad_hor="#space_xxs"
-                               icon="arrow_up" bind_icon="motion_z_up_icon" label="motion_jog_outer_label">
+                               icon="arrow_up" bind_icon="motion_z_up_icon" label="motion_z_up_outer_label">
               <bind_state_if_eq subject="motion_z_up_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <motion_jog_button name="z_up_small"
                                width="100%" jog="z_up_small" flex_grow="1" style_max_height="#button_height_lg"
                                stacked_subject="motion_z_keys_stacked" stacked_if_eq="1" style_pad_hor="#space_xxs"
-                               icon="arrow_up" bind_icon="motion_z_up_icon" label="motion_jog_inner_label">
+                               icon="arrow_up" bind_icon="motion_z_up_icon" label="motion_z_up_inner_label">
               <bind_state_if_eq subject="motion_z_up_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <!-- Z-Axis label - shows "Bed" or "Print Head" based on kinematics -->
@@ -507,13 +507,13 @@
             <motion_jog_button name="z_down_small"
                                width="100%" jog="z_down_small" flex_grow="1" style_max_height="#button_height_lg"
                                stacked_subject="motion_z_keys_stacked" stacked_if_eq="1" style_pad_hor="#space_xxs"
-                               icon="arrow_down" bind_icon="motion_z_down_icon" label="motion_jog_inner_label">
+                               icon="arrow_down" bind_icon="motion_z_down_icon" label="motion_z_down_inner_label">
               <bind_state_if_eq subject="motion_z_down_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
             <motion_jog_button name="z_down_large"
                                width="100%" jog="z_down_large" flex_grow="1" style_max_height="#button_height_lg"
                                stacked_subject="motion_z_keys_stacked" stacked_if_eq="1" style_pad_hor="#space_xxs"
-                               icon="arrow_down" bind_icon="motion_z_down_icon" label="motion_jog_outer_label">
+                               icon="arrow_down" bind_icon="motion_z_down_icon" label="motion_z_down_outer_label">
               <bind_state_if_eq subject="motion_z_down_blocked" state="disabled" ref_value="1"/>
             </motion_jog_button>
           </lv_obj>

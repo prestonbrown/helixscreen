@@ -7,7 +7,6 @@
 #include "json_fwd.h"
 #include "sensor_manager.h"
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -48,8 +47,8 @@ enum class PrintJobState;
  * would scope the badge to the wrong file instead of hiding it.
  *
  * A free function rather than an inline guard in PrintStatusPanel because the
- * badge's terminal-state behaviour is the whole of issue 9 and needs to be
- * assertable without building a laid-out panel and a parsed gcode viewer.
+ * badge's terminal-state behaviour needs to be assertable without building a
+ * laid-out panel and a parsed gcode viewer.
  */
 [[nodiscard]] bool print_scopes_runout_badge(PrintJobState state);
 
@@ -519,7 +518,6 @@ class FilamentSensorManager : public sensors::SensorManager {
     /// refill and when the job lets go of the machine. Keyed by klipper_name.
     std::set<std::string> observed_runouts_;
 
-    // State change callback
     StateChangeCallback state_change_callback_;
 
     // Tracks whether we've received the first status update from Moonraker.

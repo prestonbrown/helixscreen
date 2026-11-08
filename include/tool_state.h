@@ -449,6 +449,14 @@ class ToolState {
     // -1 for an empty carriage, while toolhead.extruder keeps naming the last
     // extruder used. Set by init_tools() for a printer with a [toolchanger].
     bool toolchanger_reports_mount_ = false;
+
+    // klipper-toolchanger's number for each tool, by index (-1: unnumbered).
+    // Empty where Klipper gave no numbers; tool_number is then the position.
+    std::vector<int> tool_numbers_;
+
+    /// The tool index toolchanger.tool_number names, or -1 for none: an empty
+    /// carriage, or a number no listed tool carries.
+    [[nodiscard]] int index_for_tool_number(int number) const;
 };
 
 } // namespace helix

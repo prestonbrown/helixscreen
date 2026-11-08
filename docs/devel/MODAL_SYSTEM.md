@@ -25,7 +25,7 @@ Modal class (C++ RAII lifecycle, show/hide, button wiring)
 
 ### How It Works
 
-1. **C++ calls `Modal::show()` or `modal.show(parent)`**
+1. **C++ calls `modal.show(parent)`, `Modal::show_owned(...)` or `ComponentModal::show_owned("component")`**
 2. A full-screen **backdrop** is created programmatically (semi-transparent overlay)
 3. The XML component is instantiated via `lv_xml_create()` inside the backdrop
 4. The dialog gets an **entrance animation** (scale + fade)
@@ -142,20 +142,31 @@ class MyPanel {
 - `ModalSeverity::Warning` -- yellow alert icon
 - `ModalSeverity::Error` -- red octagon icon
 
-### 2. Static `Modal::show()` (no subclass, custom XML)
+### 2. `ComponentModal` (no subclass, custom XML)
 
-For modals with custom XML layout but no complex C++ logic:
+For a modal with its own XML layout whose buttons are XML event callbacks, and no C++
+hooks of its own:
 
 ```cpp
-// Show a custom XML modal
-lv_obj_t* dialog = Modal::show("my_custom_modal");
+// Show a custom XML modal; ModalStack owns the instance
+dialog_ = helix::ui::ComponentModal::show_owned("my_custom_modal");
 
-// Wire up buttons or do work with the dialog...
-lv_obj_t* btn = lv_obj_find_by_name(dialog, "btn_primary");
+// Find inputs, register keyboards...
+lv_obj_t* input = lv_obj_find_by_name(dialog_, "name_input");
 
 // Later, hide it
-Modal::hide(dialog);
+Modal::hide(dialog_);
 ```
+
+The dialog has an owner, like every other modal: `Modal::hide(dialog)` runs the instance
+teardown and `Modal::from_event()` resolves it. ESC closes it without pressing a button,
+the same as a backdrop tap. A dialog whose buttons are wired in C++ to do more than close
+it gets its own subclass instead (approach 3), with the wiring in `on_show()`:
+`TelemetryInfoModal` (`include/ui_telemetry_info_modal.h`) is the smallest one.
+
+The bare static `Modal::show("component")` factory, which leaves the dialog with no owner,
+is for tests only: `scripts/check_growth_ratchets.py` refuses it, and the
+`helix::ui::modal_show()` wrapper around it, anywhere under `src/` or `include/`.
 
 ### 3. Modal Subclass (custom XML + C++ logic)
 
@@ -263,7 +274,7 @@ This means **no XML callback attribute is needed** on the button. `modal_button_
 <modal_button_row primary_text="Save" secondary_text="Cancel"/>
 ```
 
-The generic XML callbacks (`on_modal_ok_clicked`, `on_modal_cancel_clicked`) are retained for the static `Modal::show("component")` API, which doesn't use `wire_*_button()`.
+The generic XML callbacks (`on_modal_ok_clicked`, `on_modal_cancel_clicked`) are retained for XML that names them on a dialog shown without `wire_*_button()`.
 
 If both an XML callback and `wire_*_button()` are present on the same button, the handler may fire twice — this is safe because `hide()` guards against double-execution.
 
@@ -294,7 +305,7 @@ lv_xml_register_event_cb(nullptr, "on_jq_modal_close", [](lv_event_t* e) {
 `HELIX_KIND_TAG(Self)` (`include/helix_type_tag.h`) is required: a subclass without it keeps
 `helix::kUndeclaredKind`, so `from_event<T>()` returns nullptr for every `T` and logs the
 mismatch. The untyped `Modal::from_event(e)` returns the owner without the check. A dialog
-from the static `Modal::show()` factory has no owner and resolves to nothing, as does a
+from the bare static `Modal::show()` factory (tests only) has no owner and resolves to nothing, as does a
 modal that is already closing.
 
 Overlays have the same shape: `OverlayBase::from_event<T>(e)` answers the open overlay whose
@@ -505,9 +516,9 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 
 ---
 
-## Holding a dialog handle (Static API)
+## Holding a dialog handle
 
-A `Modal::show()` or `modal_confirm()` handle you keep is a `helix::ui::WidgetRef`
+A `ComponentModal::show_owned()` or `modal_confirm()` handle you keep is a `helix::ui::WidgetRef`
 (`include/ui_widget_ref.h`), never a raw `lv_obj_t*`. The handle hooks the dialog's own
 `LV_EVENT_DELETE`, so it reads `nullptr` once the dialog is gone by any route: a button, a
 backdrop tap, ESC, a hot-reload rebuild, the screen being deleted out from under it, or
@@ -611,7 +622,7 @@ soft restart, `hide()`'s untracked-backdrop early return - leaked the C++ object
 (prestonbrown/helixscreen#1382). A modal that is reshown stays owned by its
 member or `unique_ptr` holder and uses plain `show()`.
 
-The bare static `Modal::show()` factory is the shape with no owner: it pushes with
+The bare static `Modal::show()` factory, which only tests still call, is the shape with no owner: it pushes with
 `owner = nullptr`, so there is nothing to delegate to and the static teardown is all that
 runs. It never reaches `on_hide()`, and there is no `lifetime_` to invalidate because
 there is no instance to own one. **A dialog shown that way cannot tell anyone it was
@@ -801,7 +812,7 @@ lv_obj_add_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
 **After** (Modal system):
 ```cpp
 // Showing
-lv_obj_t* dialog = helix::ui::modal_show("my_modal");
+lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("my_modal");
 
 // Hiding
 helix::ui::modal_hide(dialog);
@@ -812,7 +823,7 @@ helix::ui::modal_hide(dialog);
 **Before** (18+ lines):
 ```cpp
 const char* attrs[] = {"title", "Delete?", "message", "Cannot be undone.", nullptr};
-dialog_ = helix::ui::modal_show("modal_dialog", attrs);
+dialog_ = Modal::show("modal_dialog", attrs);
 if (!dialog_) return;
 lv_obj_t* cancel = lv_obj_find_by_name(dialog_, "btn_secondary");
 if (cancel) lv_obj_add_event_cb(cancel, on_cancel, LV_EVENT_CLICKED, this);
@@ -837,7 +848,7 @@ If your XML used `extends="ui_card"`, simply change to `extends="ui_dialog"`. Th
 
 ## Checklist: Adding a New Modal
 
-1. **Choose approach**: Helper function, static `Modal::show()`, or subclass? Pick a
+1. **Choose approach**: Helper function, `ComponentModal`, or subclass? Pick a
    subclass when a dismissal has to be observable (the caller holds a guard, flag or
    pending entry that the buttons are supposed to clear), or when the callbacks capture
    something shorter-lived than the dialog. Helper otherwise. This is a lifetime question,
@@ -846,7 +857,7 @@ If your XML used `extends="ui_card"`, simply change to `extends="ui_dialog"`. Th
 3. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code (the XML itself registers on first use; no list to edit); a callback reaches its instance with `Modal::from_event<T>(e)`, so declare `HELIX_KIND_TAG(T)` in the class
 4. **If subclass**: Create header in `include/`, implement `get_name()` and `component_name()`
 5. **Wire buttons** in `on_show()` using `wire_ok_button()` / `wire_cancel_button()`
-6. **Store the modal** as a member (subclass) or its dialog in a `helix::ui::WidgetRef` (static API)
+6. **Store the modal** as a member (subclass) or its dialog in a `helix::ui::WidgetRef` (`ComponentModal`, helpers)
 7. **Test**: a backdrop-tap dismissal leaves the handle `nullptr` and the caller's guard open
 
 ---
@@ -873,7 +884,7 @@ void MyModal::start_operation() {
 > the *caller's* token instead - `owner_token`
 > on `modal_confirm()` / `modal_alert()` - because the thing that can die early there is the
 > caller, not the modal. Only the bare static `Modal::show()` factory has no protection at
-> all, which is one reason not to reach for it.
+> all, which is why app code may not call it.
 
 `Modal::hide()` calls `lifetime_.invalidate()` before `on_hide()`, so all outstanding tokens expire automatically. Your `on_hide()` override does **not** need to manually invalidate — just handle observer cleanup and state reset.
 
@@ -899,7 +910,6 @@ removed.) All live in `include/ui_modal.h`, `namespace helix::ui`:
 
 | Free function | Underlying |
 |--------|---------|
-| `helix::ui::modal_show(name)` | `Modal::show(name)` |
 | `helix::ui::modal_hide(dialog)` | `Modal::hide(dialog)` |
 | `helix::ui::modal_get_top()` | `Modal::get_top()` |
 | `Modal::any_visible()` | (static method; no free-function wrapper) |

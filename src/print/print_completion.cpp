@@ -138,7 +138,6 @@ bool started_new_job(PrintState lifecycle) {
     return lifecycle == PrintState::Preparing || lifecycle == PrintState::Printing;
 }
 
-// Helper to show the rich print completion modal
 bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome outcome) {
     const bool is_terminal = (current == PrintState::Complete || current == PrintState::Cancelled ||
                               current == PrintState::Error);
@@ -152,8 +151,8 @@ bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome
     // A print that dies INSIDE PRINT_START never passes through Printing: a live
     // pre-print phase outranks the job state, so the lifecycle holds at Preparing
     // while print_stats already reads printing, and when the phase clears it goes
-    // straight Preparing -> terminal. Nothing reported those - not here, and not
-    // the preparing-exit observer either, because the preparing job was retired
+    // straight Preparing -> terminal. This arm is the only report of those: the
+    // preparing-exit observer stays silent, because the preparing job was retired
     // as Confirmed the moment the printer took it.
     //
     // The outcome is what makes this safe to accept. It is recorded on the
@@ -161,8 +160,7 @@ bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome
     // begin_preparing(), so during a HOST-side block - where print_stats still
     // holds the previous job's terminal state and clearing the phase would also
     // derive Preparing -> Complete - it reads NONE. Without that term this arm
-    // would announce "Print Complete!" for a print that ended minutes ago, which
-    // is the stale-badge report this whole branch started from.
+    // would announce "Print Complete!" for a print that ended minutes ago.
     return prev == PrintState::Preparing && outcome != PrintOutcome::NONE;
 }
 
@@ -299,7 +297,7 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
-    lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
 
     if (!dialog) {
         spdlog::error("[PrintComplete] Failed to create print_completion_modal");
@@ -333,9 +331,8 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                                                     lv_subject_t* subject) {
     (void)observer;
     // Both halves of the transition come from PrinterPrintState, which computes
-    // it once. This module used to keep its own previous-state variable and an
-    // arming latch; the latch is unnecessary now because the published previous
-    // value starts at Idle, so booting straight into a terminal state reads as
+    // it once. No arming latch is needed: the published previous value starts
+    // at Idle, so booting straight into a terminal state reads as
     // Idle -> Complete and correctly does not notify.
     (void)subject; // the lifecycle subject; read through the typed accessor
     const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();

@@ -81,11 +81,9 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
     /// Tear the widget tree down before the panel, so nothing observes a
     /// subject the panel's destructor is about to deinit.
     ///
-    /// Drain first, belt-and-braces. This used to be load-bearing: the deferred
-    /// chip rebuild read chip_container_ raw and nothing nulled it when the tree
-    /// died, so draining after the delete dereferenced freed memory. Fixed on
-    /// main by 13db7c92e (PowerPanel drops its cached widget pointers on tree
-    /// delete), so the ordering is now belt-and-braces rather than a workaround.
+    /// Drain first, belt-and-braces: PowerPanel drops its cached widget pointers
+    /// on tree delete, so a deferred chip rebuild drained after the delete is
+    /// safe too.
     void teardown(PowerPanel& panel, lv_obj_t* obj) {
         settle();
         process_lvgl(20);

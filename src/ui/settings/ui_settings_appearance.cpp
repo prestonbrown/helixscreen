@@ -87,6 +87,10 @@ void AppearanceSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              SettingsManager::instance().set_show_widget_labels(event_checked(e));
          }},
+        {"on_speed_flow_units_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_speed_flow_physical_units(event_checked(e));
+         }},
         {"on_bed_mesh_mode_changed",
          [](lv_event_t* e) {
              DisplaySettingsManager::instance().set_bed_mesh_render_mode(event_selected(e));
@@ -106,11 +110,6 @@ void AppearanceSettingsOverlay::register_callbacks() {
              int mode = index;
 #endif
              DisplaySettingsManager::instance().set_gcode_render_mode(mode);
-         }},
-        {"on_z_movement_style_changed",
-         [](lv_event_t* e) {
-             SettingsManager::instance().set_z_movement_style(
-                 static_cast<ZMovementStyle>(event_selected(e)));
          }},
 
         // Theme explorer

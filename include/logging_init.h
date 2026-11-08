@@ -80,8 +80,8 @@ std::string format_monotonic(double seconds);
  * Catches backward steps too, which are worse: they interleave lines out of
  * chronological order with nothing to show for it.
  *
- * Pure; unit-tested. See issue #1218 — bundle XRK8KPTF showed a fabricated
- * 14m37s "reconnect stall" that was a +874 s clock step on an RTC-less printer.
+ * Pure; unit-tested (#1218). On an RTC-less printer an unflagged +874 s step
+ * reads as a 14m37s "reconnect stall" that never happened.
  */
 bool is_clock_step(double wall_delta_s, double mono_delta_s);
 
@@ -248,8 +248,7 @@ StdoutKind classify_stdout();
  *
  *     Accepted tradeoff (production only): `helix-screen -vv > out.log` stays
  *     silent, because a plain redirect is indistinguishable from the daemon
- *     redirect. Unchanged from previous behavior, so not a regression; use
- *     `| tee out.log` instead.
+ *     redirect. Use `| tee out.log` instead.
  *   - enable_console is the master switch and vetoes every case.
  *
  * @param effective_target Target after Auto detection has been resolved

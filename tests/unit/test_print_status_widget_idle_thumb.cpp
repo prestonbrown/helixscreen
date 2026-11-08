@@ -184,7 +184,7 @@ TEST_CASE_METHOD(PrintStatusIdleThumbFixture,
 //   lv_image_set_src → update_align → lv_obj_update_layout → grid_update
 // which crashed in grid_update reading half-built track data when the parent
 // page-grid was still mid-construction (populate_page builds widgets one at a
-// time). The fix defers the initial reset via lv_async_call. This test pins
+// time). The widget defers the initial reset via lv_async_call. This test pins
 // the deferral invariant: idle_thumb_path_subject_ must NOT be touched
 // synchronously during attach().
 // =============================================================================

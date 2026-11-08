@@ -2,6 +2,7 @@
 #include "wizard_step_registry.h"
 
 #include "ui_wizard_ams_identify.h"
+#include "ui_wizard_appearance.h"
 #include "ui_wizard_connection.h"
 #include "ui_wizard_fan_select.h"
 #include "ui_wizard_filament_sensor_select.h"
@@ -34,6 +35,7 @@ std::vector<Step*> steps() {
     v.reserve(STEP_COUNT);
     v.push_back(get_wizard_touch_calibration_step());          // TouchCalibration = 0
     v.push_back(get_wizard_language_chooser_step());           // Language
+    v.push_back(helix::wizard::get_wizard_appearance_step());  // Appearance
     v.push_back(get_wizard_wifi_step());                       // Wifi
     v.push_back(get_wizard_connection_step());                 // Connection
     v.push_back(get_wizard_printer_identify_step());           // PrinterIdentify

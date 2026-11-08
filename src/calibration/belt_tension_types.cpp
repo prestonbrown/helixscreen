@@ -241,10 +241,6 @@ BeltComparison compare_belt_paths(const BeltCurve& a, const BeltCurve& b, float 
     return out;
 }
 
-// ============================================================================
-// calculate_similarity()
-// ============================================================================
-
 float calculate_similarity(const std::vector<std::pair<float, float>>& curve_a,
                            const std::vector<std::pair<float, float>>& curve_b) {
     if (curve_a.empty() || curve_b.empty()) {
@@ -321,10 +317,6 @@ float calculate_similarity(const std::vector<std::pair<float, float>>& curve_a,
     // Clamp to [0, 1] and convert to percentage
     return std::clamp(r * 100.0f, 0.0f, 100.0f);
 }
-
-// ============================================================================
-// parse_accel_csv()
-// ============================================================================
 
 std::vector<AccelSample> parse_accel_csv(const std::string& csv_data) {
     std::vector<AccelSample> samples;
@@ -465,10 +457,6 @@ void HannWindowedSignal::power(const std::array<HannWindowedSignal, 3>& axes, co
     }
 }
 
-// ============================================================================
-// compute_psd()
-// ============================================================================
-
 std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>& samples,
                                                  float sample_rate, float max_freq_hz) {
     std::vector<std::pair<float, float>> psd;
@@ -535,7 +523,6 @@ std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>&
         }
     }
 
-    // Fill in frequency values
     for (size_t k = 0; k < max_bin; ++k) {
         psd[k].first = static_cast<float>(k + 1) * freq_resolution;
     }
@@ -543,10 +530,6 @@ std::vector<std::pair<float, float>> compute_psd(const std::vector<AccelSample>&
     spdlog::debug("[BeltTension] PSD computation complete: {} frequency bins", psd.size());
     return psd;
 }
-
-// ============================================================================
-// find_peak_frequency()
-// ============================================================================
 
 PeakResult find_peak_frequency(const std::vector<std::pair<float, float>>& psd, float min_freq,
                                float max_freq) {

@@ -1223,7 +1223,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     // Reset test complete flag (disables close button)
     lv_subject_set_int(&test_complete_, 0);
 
-    test_modal_ = helix::ui::modal_show("network_test_modal");
+    test_modal_ = helix::ui::ComponentModal::show_owned("network_test_modal");
     if (!test_modal_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to show network test modal");
         return;
@@ -1538,7 +1538,7 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     const char* modal_attrs[] = {"cancel_callback", "on_network_settings_password_cancel",
                                  "connect_callback", "on_network_settings_password_connect",
                                  nullptr};
-    password_modal_ = helix::ui::modal_show("wifi_password_modal", modal_attrs);
+    password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", modal_attrs);
     if (!password_modal_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to show password modal");
         return;

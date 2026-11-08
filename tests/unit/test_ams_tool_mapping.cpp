@@ -157,9 +157,9 @@ TEST_CASE("Mock backend tool mapping - tool changer mode",
     REQUIRE(backend.start());
 
     SECTION("tool changer mode declares what the real tool changer declares") {
-        // It used to declare the opposite: RemapStrategy::None and "not
-        // supported", while AmsBackendToolChanger declares Native and remaps via
-        // ASSIGN_TOOL. Its table is identity — tools ARE slots — but identity is
+        // Not RemapStrategy::None and "not supported": AmsBackendToolChanger
+        // declares Native and remaps via ASSIGN_TOOL. Its table is identity (tools
+        // ARE slots), but identity is
         // still a real table the firmware owns and rewrites.
         CHECK(backend.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
         CHECK(helix::printer::can_remap(backend));

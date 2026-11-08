@@ -819,12 +819,11 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
 
     // Marked saved only once the save is ACKNOWLEDGED, never on send.
     //
-    // The old code cleared the flag immediately, on the theory that a later
-    // status frame carrying a different value would re-dirty the tool. That is
-    // false for klipper-toolchanger: the save re-sends the value the tool
-    // already holds, so a rejected SAVE_TOOL_PARAMETER produces no status delta
-    // to recover from — the flag stayed clear, the toast said saved, and the
-    // offset was lost on the next restart with no further signal. Leaving the
+    // A later status frame cannot be trusted to re-dirty the tool: on
+    // klipper-toolchanger the save re-sends the value the tool already holds,
+    // so a rejected SAVE_TOOL_PARAMETER produces no status delta. Clearing on
+    // send would show "saved" and lose the offset on the next restart with no
+    // further signal. Leaving the
     // tool dirty on failure keeps the button up so the user can retry.
     auto mark_saved = [dirty_tools]() {
         auto& tool_state = helix::ToolState::instance();

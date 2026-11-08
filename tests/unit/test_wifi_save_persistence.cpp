@@ -128,9 +128,7 @@ TEST_CASE("wpa_config_has_network matches whole SSID tokens", "[network][wpa][pe
 
 // wpa_string_is_valid() is the injection barrier between untrusted SSID/PSK
 // input and wpa_supplicant's quoted `SET_NETWORK <id> ssid "<value>"` command
-// protocol. It and validate_wpa_string() used to be byte-identical, separately
-// maintained rule sets with static (file-only) linkage — never reachable from
-// a test. validate_wpa_string() is now a thin wrapper over this predicate, so
+// protocol. validate_wpa_string() is a thin wrapper over this predicate, so
 // pinning the predicate here covers both.
 TEST_CASE("wpa_string_is_valid rejects command-injection characters",
           "[network][wpa][validation]") {
@@ -186,7 +184,7 @@ TEST_CASE("wpa_string_is_valid rejects command-injection characters",
 /**
  * Forget-network removal verification.
  *
- * AD5X bundles TAU4PW4H / 865DXBQ7 (v0.99.107): the app cannot read the vendor
+ * Two AD5X debug bundles (v0.99.107): the app cannot read the vendor
  * config at /usr/prog/wifi/wpa_supplicant.conf, so the post-save re-read handed
  * the old check an empty string. "SSID not in these contents" then read as a
  * confirmed removal, and the same session logged both "Removal verified on disk"
@@ -236,7 +234,7 @@ TEST_CASE("classify_removal_result separates verified absence from an unread con
 /**
  * SCAN reply classification.
  *
- * Bundle TAU4PW4H: forgetting the connected AP disassociates, the overlay
+ * On an AD5X, forgetting the connected AP disassociates, the overlay
  * restarts scanning immediately, and the user got "WiFi scan failed. Try again."
  * 48 ms after their own Forget tap. FAIL-BUSY means a scan is already running
  * and its SCAN_COMPLETE still arrives, so there is nothing to report.

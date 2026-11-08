@@ -494,9 +494,8 @@ it does idle, which the plain fingerprint lines pin; each `<saver>_print` line p
 COUNTDOWN 40%. A saver started on a latched end opens in its end state rather than animating
 toward it.
 
-The DONE end scenes of pipes, starfield and hyperspace hold still once drawn, by design: the
-display's sleep timeout is the only timeout a finished print has, and the card keeps drifting
-over the still scene.
+The DONE end scenes of pipes, starfield and hyperspace keep moving slowly until the display's
+sleep timeout, the only timeout a finished print has, with the card drifting over them.
 
 #### Pipes
 
@@ -505,7 +504,8 @@ there is no pipe limit and no dissolve, and growth runs, at most `kPipesMaxSteps
 a call, only while the grid's taken share is below the progress (carried between whole percents
 at the countdown's rate). Paused stops the carry and grows only up to the reported progress.
 Done fills the rest of the grid, then sets one teapot in `kPipesDoneTeapotMaterial` (emerald) on
-the node reserved for it, nearest the camera in the middle of the view. Failed or cancelled
+the node reserved for it, nearest the camera in the middle of the view; the full screen holds
+for `kPipesDoneHoldMs` (30 s), then dissolves and regrows at the idle pace. Failed or cancelled
 stops growing and greys the frame once. A screen begun on a paused or ended print catches up at
 `kPipesFastForwardSteps` steps a call, then shows the end, so no single frame grows the whole
 grid. A new print, or no print after an end, dissolves the screen first. A level's raster scale
@@ -528,7 +528,8 @@ with one dirty box over its old and new discs; a star never draws or erases a pl
 disc larger than a running print's, during the arrival or a new print's shrink back, repaints
 at most every `kStarfieldLargePlanetRepaintMs` (100 ms).
 Paused stars fly at `kStarfieldPausedSpeed`. Done arrives at the planet over
-`kStarfieldArriveMs` until it fills the view; failed or cancelled shrinks it and drifts it off
+`kStarfieldArriveMs`, its radius ending at `kStarfieldDoneShare` of the shorter side with the
+stars drifting past at `kStarfieldDoneSpeed`; failed or cancelled shrinks it and drifts it off
 over `kStarfieldDepartMs`. With no print there is no planet.
 
 #### Hyperspace
@@ -536,8 +537,8 @@ over `kStarfieldDepartMs`. With no print there is no planet.
 A light at the vanishing point, the end of the tunnel, grows from `kHyperspaceLightStartPx` to
 `kHyperspaceLightEndShare` of the shorter side (`kHyperspaceCheapLightEndShare` on the rung
 without a tunnel, which draws it per pixel). Paused flies at `kHyperspacePausedSpeed`. Done
-drops out over `kHyperspaceDropOutMs`: the camera eases to a stop, the tunnel fades, no
-starbursts, and once the standstill is drawn a frame leaves `dirty` empty. Failed or cancelled
+drops out over `kHyperspaceDropOutMs`: the camera eases to `kHyperspaceDoneDriftSpeed`, the
+tunnel fades and there are no starbursts. Failed or cancelled
 dims the light out and closes the tunnel.
 
 #### Fireflies

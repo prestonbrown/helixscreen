@@ -69,6 +69,9 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     bool last_chute_saved_position(double&, double&) const override {
         return false;
     }
+    std::optional<ChuteWiperLine> chute_wiper() const override {
+        return wiper;
+    }
 
     int starts = 0;
     int exits = 0;
@@ -76,6 +79,7 @@ class RecordingBackend : public AmsBackendMock, public ICfsCalibration {
     std::shared_ptr<std::atomic<bool>> token;
     std::vector<float> x_jogs;
     std::vector<float> y_jogs;
+    std::optional<ChuteWiperLine> wiper;
 };
 
 constexpr int kIdle = 0;
@@ -350,6 +354,27 @@ TEST_CASE_METHOD(ChuteOverlayFixture,
         hold_pad(kInnerRing, 0.0);
         CHECK(backend->x_jogs.size() == at_park + 1);
     }
+}
+
+TEST_CASE_METHOD(ChuteOverlayFixture, "The chute overlay stops Y short of the backend's wiper",
+                 "[ams][cfs][chute_overlay][2007]") {
+    const auto fine = get_jog_mode_distances(JogMode::Fine);
+    constexpr double kGap = 3.8;
+    constexpr double kAllowed = kGap - ChuteJogGuard::kWiperMarginMm;
+    constexpr int kTaps = 5;
+    REQUIRE(kTaps * fine.outer > kAllowed);
+    backend->wiper = ChuteWiperLine{kParkX + 1.0, kParkX + 25.0, kParkY + kGap};
+    reach_settled_park();
+    report_toolhead(kParkX + 1.0, kParkY);
+
+    for (int i = 0; i < kTaps; ++i) {
+        tap_pad(0.0, -kOuterRing);
+    }
+    double total = 0.0;
+    for (float d : backend->y_jogs) {
+        total += d;
+    }
+    CHECK(total == Catch::Approx(kAllowed));
 }
 
 #endif // HELIX_HAS_CFS

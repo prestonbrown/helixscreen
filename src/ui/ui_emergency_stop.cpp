@@ -15,6 +15,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
@@ -502,10 +503,10 @@ void EmergencyStopOverlay::show_confirmation_dialog() {
     spdlog::debug("[EmergencyStop] Showing confirmation dialog");
 
     // Create dialog via Modal system (handles backdrop, z-order, animations).
-    // The bare factory never reports a backdrop tap or ESC back here, so the
+    // A ComponentModal never reports a backdrop tap or ESC back here, so the
     // handle clears itself when the dialog is freed; a handle left set would
     // read as "already visible" and swallow every later press.
-    confirmation_dialog_ = helix::ui::modal_show("estop_confirmation_dialog");
+    confirmation_dialog_ = helix::ui::ComponentModal::show_owned("estop_confirmation_dialog");
 
     if (!confirmation_dialog_) {
         spdlog::error("[EmergencyStop] Failed to create confirmation dialog, executing directly");
@@ -541,7 +542,7 @@ void EmergencyStopOverlay::show_recovery_dialog() {
 
     // Use Modal system — backdrop is created programmatically. Cleared when freed,
     // like confirmation_dialog_, so a manual dismiss never blocks the next one.
-    recovery_dialog_ = helix::ui::modal_show("klipper_recovery_dialog");
+    recovery_dialog_ = helix::ui::ComponentModal::show_owned("klipper_recovery_dialog");
     spdlog::debug("[KlipperRecovery] Dialog created, recovery_dialog_={}",
                   static_cast<void*>(recovery_dialog_.get()));
 
@@ -674,6 +675,11 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
                      recovery_reason_str(inst.recovery_reason_));
         inst.show_recovery_dialog();
         inst.update_recovery_dialog_content();
+        // A Klipper fault needs the user to restart it. A lost connection is often a
+        // host reboot or a network blip that recovers on its own, so it does not wake.
+        if (inst.recovery_dialog_ && inst.recovery_reason_ != RecoveryReason::DISCONNECTED) {
+            helix::request_display_wake();
+        }
     });
 
     return true;

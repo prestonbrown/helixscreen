@@ -341,7 +341,7 @@ void MoonrakerPerformanceSource::on_mcu_status_update(const std::string& name,
 
     // bytes_retransmit: cumulative retransmit byte counter. Klipper publishes
     // this INSIDE last_stats (see Status_Reference.html#mcu: "last_stats.<name>")
-    // — reading it at the top level (the old path) silently never fired.
+    // — it never appears at the top level.
     if (payload.contains("last_stats") && payload["last_stats"].is_object()) {
         const auto& ls = payload["last_stats"];
         if (ls.contains("bytes_retransmit") && ls["bytes_retransmit"].is_number()) {
