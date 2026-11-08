@@ -682,6 +682,11 @@ void AmsBackendAfc::prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) 
     // Brand and filament name come back from AFC's firmware observation or the
     // extras record when either still states them; overrides_ is refilled on
     // every read, so a field only a since-deleted record stated is cleared.
+    // A backend with no lane id has no lane model to restate them from, and
+    // apply_resolved() lays nothing back, so its struct is left as parsed.
+    if (!helix::ams::is_lane_id(lane_id(slot_index))) {
+        return;
+    }
     const auto it = overrides_.find(slot_index);
     helix::ams::clear_lane_only_identity(slot, it == overrides_.end() ? nullptr : &it->second);
 }
@@ -2906,7 +2911,10 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Last, because this READS the lane model: every ingest above has to have
     // landed, the binding has to have been reconciled, and slot.status has to
     // be this frame's, or the lane paints a reading one frame stale or a
-    // binding that was just dropped.
+    // binding that was just dropped. The clear goes first because the struct
+    // persists across frames: a brand only an unlinked spool stated would
+    // otherwise outlive the link.
+    prepare_lane_repaint_locked(slot_index, slot);
     apply_resolved_lane(slot, slot_index);
 
     // Populate or clear per-slot error based on lane status
@@ -4653,6 +4661,7 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
         // decided whether an override was visible: the status path applied it,
         // the DB path silently dropped it. Must follow every firmware read above
         // so the override still wins.
+        prepare_lane_repaint_locked(i, slot);
         apply_resolved_lane(slot, i);
 
         // NO WEIGHT IS READ FROM lane_data, on any AFC version. This is deliberate.
