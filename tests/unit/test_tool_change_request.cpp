@@ -137,6 +137,21 @@ TEST_CASE("decide_tool_change: a busy filament system ignores the request",
     }
 }
 
+TEST_CASE("decide_tool_change: INDX refuses an unhomed tool change with recovery",
+          "[tool_change][decision][indx][homing]") {
+    auto in = idle_inputs();
+    in.requires_homed_toolhead = true;
+    in.toolhead_homed = false;
+
+    const auto d = decide_tool_change(in);
+    CHECK(d.verdict == ToolChangeVerdict::RefuseUnhomed);
+    CHECK(d.refusal.user_msg == "The printer must be homed before changing tools");
+    CHECK(d.refusal.suggestion == "Use Home All, then try again");
+
+    in.toolhead_homed = true;
+    CHECK(decide_tool_change(in).verdict == ToolChangeVerdict::ConfirmSetting);
+}
+
 TEST_CASE("decide_tool_change: a filament system paused for attention refuses with a reason",
           "[tool_change][decision]") {
     auto in = idle_inputs();

@@ -44,6 +44,7 @@ class AmsBackendIndx : public AmsBackendToolChanger {
         t.load_feeds_filament = true;
         t.supports_auto_heat_on_load = true;
         t.heads_share_heater = true;
+        t.tool_changes_require_homed_toolhead = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {

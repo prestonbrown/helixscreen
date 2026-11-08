@@ -32,6 +32,7 @@ enum class ToolChangeVerdict : uint8_t {
     RefuseSpoolsOnBed,    ///< Spools lie on the bed: the head must not move
     RefusePrint,          ///< A print owns the toolhead (print_blocks_filament_op)
     RefuseNeedsAttention, ///< The filament system is paused waiting on the user
+    RefuseUnhomed,        ///< This tool changer requires XYZ homed before it can move
     Busy,                 ///< The filament system is mid-operation: the tap is ignored
     ConfirmPaused,        ///< Paused job: always confirmed, the head moves into the part
     ConfirmSetting,       ///< "Confirm tool changes" is on
@@ -46,6 +47,8 @@ struct ToolChangeInputs {
     AmsAction backend_action = AmsAction::IDLE; ///< AmsSystemInfo::action; IDLE with none
     bool already_active = false;                ///< The requested tool is the mounted one
     bool confirm_enabled = true;                ///< SafetySettingsManager tool-change confirmation
+    bool requires_homed_toolhead = false;       ///< Backend cannot safely change while unhomed
+    bool toolhead_homed = false;                 ///< Live XYZ homing state
 };
 
 struct ToolChangeDecision {
@@ -73,6 +76,9 @@ struct ToolChangeDecision {
 
 /// The refusal a tool change gets while the filament system waits on the user.
 [[nodiscard]] AmsError needs_attention_refusal();
+
+/// The refusal for a tool changer that cannot move safely before XYZ is homed.
+[[nodiscard]] AmsError unhomed_tool_change_refusal();
 
 /// The verdict for @p in. Pure: no state is read.
 [[nodiscard]] ToolChangeDecision decide_tool_change(const ToolChangeInputs& in);

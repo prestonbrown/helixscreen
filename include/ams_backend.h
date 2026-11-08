@@ -79,6 +79,7 @@ struct BackendTraits {
     bool hub_on_toolhead = false;
     bool has_per_slot_loaded_authority = false;
     bool filament_ops_self_home = false;
+    bool tool_changes_require_homed_toolhead = false;
     bool supports_reset = true;
     bool reset_moves_filament = false;
     bool supports_recover_with_state = false;
@@ -1137,6 +1138,17 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool delegates_homing_to_printer() const {
         return false;
+    }
+
+    /**
+     * @brief Must XYZ already be homed before this backend may change tools?
+     *
+     * True for a tool changer whose printer-side change macro must not decide
+     * to home implicitly. The shared tool-change UI refuses the request before
+     * dispatch and tells the user to use Home All.
+     */
+    [[nodiscard]] bool tool_changes_require_homed_toolhead() const {
+        return traits().tool_changes_require_homed_toolhead;
     }
 
     /**
