@@ -317,6 +317,8 @@ void tray_back_draw_cb(lv_event_t* e) {
             fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
     edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    if (s_tray.shell)
+        stroke_cheek(layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
 
     if (simple || s_tray.lid == tray::LidMode::None)
         return;
@@ -331,6 +333,12 @@ void tray_back_draw_cb(lv_event_t* e) {
     }
     fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
     edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
+    if (s_tray.shell) {
+        for (int i = 0; i < lids; ++i) {
+            build_lid(s_tray.box, s_tray.lid_h, x0[i], x1[i], lid);
+            stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge, s_tray.opa.glass_edge);
+        }
+    }
 }
 
 /// The sheen: one diffuse band, a horizontal gradient per row.
@@ -391,7 +399,6 @@ void tray_front_draw_cb(lv_event_t* e) {
         for (const auto& ab : edges)
             edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
     } else {
-        stroke_cheek(layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
         stroke_cheek(layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
     }
 
@@ -413,8 +420,11 @@ void tray_front_draw_cb(lv_event_t* e) {
             stroke(layer, o, lid.hull, lid.hull_n, true, c.glass_edge, a.glass_edge);
         stroke(layer, o, lid.right, kCapPoints, false, c.glass_edge,
                (lv_opa_t)(a.glass_edge * 7 / 10));
-        stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge,
-               (lv_opa_t)(a.glass_edge * 3 / 10));
+        // A unit's left end stands behind its spools and is drawn with the back faces.
+        if (!s_tray.shell || simple) {
+            stroke(layer, o, lid.left, kCapPoints, false, c.glass_edge,
+                   (lv_opa_t)(a.glass_edge * 3 / 10));
+        }
     }
 }
 
