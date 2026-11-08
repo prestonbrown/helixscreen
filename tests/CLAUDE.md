@@ -632,6 +632,9 @@ Gates live in `scripts/check_*.py` and run from `scripts/quality-checks.sh`, eac
 it must catch, and the idioms it must stay quiet about. A gate that fires on legitimate code
 gets switched off, so the silent cases matter as much as the loud ones.
 
+A gate that must not match inside comments or string literals blanks them with
+`scripts/source_strip.py` (`blank_cxx`, `blank_xml_comments`), never a private copy.
+
 Verify a new gate by running it against known-good and known-bad fixtures before wiring it in.
 
 **The verdict over the real tree belongs to the gate, never the meta-test.** quality-checks.sh
