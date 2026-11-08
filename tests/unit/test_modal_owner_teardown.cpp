@@ -31,7 +31,6 @@
 #include "../ui_test_utils.h"
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
