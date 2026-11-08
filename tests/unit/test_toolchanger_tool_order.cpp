@@ -71,6 +71,17 @@ TEST_CASE("named tools follow Klipper's tool numbers, not their names",
     CHECK(names(hw) == std::vector<std::string>{"Right", "Left"});
 }
 
+TEST_CASE("each tool's configured number is read from configfile.settings",
+          "[toolchanger][tool_order]") {
+    auto hw = changer_with({"Left", "Right", "T3"});
+    hw.parse_configured_tool_numbers({{"tool left", {{"tool_number", 2}}},
+                                      {"tool right", {{"tool_number", 0}}},
+                                      {"tool t3", {{"extruder", "extruder2"}}},
+                                      {"extruder", {{"tool_number", 7}}}});
+    const std::unordered_map<std::string, int> expected{{"left", 2}, {"right", 0}};
+    CHECK(hw.configured_tool_numbers() == expected);
+}
+
 TEST_CASE("tools Klipper leaves unnumbered follow the numbered ones", "[toolchanger][tool_order]") {
     auto hw = changer_with({"A", "B", "C"});
 
