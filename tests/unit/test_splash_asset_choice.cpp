@@ -68,7 +68,7 @@ TEST_CASE("a panel with its own canvas gets it", "[splash][assets]") {
     REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
     REQUIRE(c.path == "A:" + canvas("dark", "medium"));
     REQUIRE(c.size_class == "medium");
-    REQUIRE_FALSE(c.canvas_too_tall);
+    REQUIRE_FALSE(c.canvas_does_not_fit);
 }
 
 TEST_CASE("dark and light pick different files", "[splash][assets]") {
@@ -99,7 +99,7 @@ TEST_CASE("a small panel falls back to the tiny canvas and moves its class with 
     REQUIRE(c.size_class == "tiny");
     REQUIRE(c.path == "A:" + canvas("dark", "tiny"));
     // tiny composites at 320, which fits a 400px panel - so it is NOT discarded.
-    REQUIRE_FALSE(c.canvas_too_tall);
+    REQUIRE_FALSE(c.canvas_does_not_fit);
 }
 
 TEST_CASE("the tiny fallback is only offered to a small panel", "[splash][assets]") {
@@ -119,7 +119,7 @@ TEST_CASE("a canvas taller than the panel is refused", "[splash][assets]") {
         FakeAssets fs({canvas("dark", "micro")});
         const SplashChoice c = choose_splash_asset(480, 272, true, fs.resolver());
         REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
-        REQUIRE_FALSE(c.canvas_too_tall);
+        REQUIRE_FALSE(c.canvas_does_not_fit);
     }
 
     SECTION("a panel shorter than its class refuses the canvas") {
@@ -131,9 +131,46 @@ TEST_CASE("a canvas taller than the panel is refused", "[splash][assets]") {
         FakeAssets fs({canvas("dark", "tiny"), kPng3dDark});
         const SplashChoice c = choose_splash_asset(480, 300, true, fs.resolver());
 
-        REQUIRE(c.canvas_too_tall);
+        REQUIRE(c.canvas_does_not_fit);
         REQUIRE(c.kind == SplashAssetKind::Source3DPng);
         REQUIRE(c.path == std::string("A:") + kPng3dDark);
+    }
+}
+
+TEST_CASE("a canvas wider than the panel is refused", "[splash][assets]") {
+    // Every canvas is landscape. On a portrait panel the narrow axis picks the
+    // class, so the canvas fits the height and runs past both sides (#2072).
+    struct Portrait {
+        int w, h;
+        const char* cls;
+    };
+    const Portrait panels[] = {
+        {480, 800, "medium"}, {600, 1024, "large"}, {720, 1280, "xlarge"},
+        {272, 480, "micro"},  {320, 480, "tiny"},
+    };
+
+    for (const Portrait& p : panels) {
+        INFO(p.w << "x" << p.h << " class " << p.cls);
+        REQUIRE(get_splash_3d_target_width(p.cls) > p.w);
+
+        FakeAssets fs({canvas("dark", p.cls), kPng3dDark});
+        const SplashChoice c = choose_splash_asset(p.w, p.h, true, fs.resolver());
+
+        REQUIRE(c.size_class == p.cls);
+        REQUIRE(c.canvas_does_not_fit);
+        REQUIRE(c.kind == SplashAssetKind::Source3DPng);
+        REQUIRE(c.path == std::string("A:") + kPng3dDark);
+    }
+
+    SECTION("the same panels in landscape keep their canvas") {
+        for (const Portrait& p : panels) {
+            INFO(p.h << "x" << p.w << " class " << p.cls);
+            FakeAssets fs({canvas("dark", p.cls), kPng3dDark});
+            const SplashChoice c = choose_splash_asset(p.h, p.w, true, fs.resolver());
+            REQUIRE(c.size_class == p.cls);
+            REQUIRE_FALSE(c.canvas_does_not_fit);
+            REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
+        }
     }
 }
 
@@ -144,7 +181,7 @@ TEST_CASE("a refused canvas still prefers the 3D source over the flat logo", "[s
     FakeAssets fs({canvas("dark", "tiny"), kPng3dDark, logo("tiny"), kLogoPng});
     const SplashChoice c = choose_splash_asset(480, 300, true, fs.resolver());
 
-    REQUIRE(c.canvas_too_tall);
+    REQUIRE(c.canvas_does_not_fit);
     REQUIRE(c.kind == SplashAssetKind::Source3DPng);
 }
 
@@ -196,7 +233,7 @@ TEST_CASE("the logo lookup uses the class the canvas search settled on", "[splas
         // class is equivalent code rather than a gap.
         FakeAssets fs({canvas("dark", "tiny"), logo("tiny"), kLogoPng});
         const SplashChoice c = choose_splash_asset(480, 310, true, fs.resolver());
-        REQUIRE(c.canvas_too_tall);
+        REQUIRE(c.canvas_does_not_fit);
         REQUIRE(c.size_class == "tiny");
         REQUIRE(c.kind == SplashAssetKind::LogoBin);
         REQUIRE(c.path == "A:" + logo("tiny"));
@@ -245,6 +282,6 @@ TEST_CASE("every class a real panel selects resolves to a canvas name", "[splash
         REQUIRE(c.size_class == p.cls);
         REQUIRE(c.kind == SplashAssetKind::FullScreen3DBin);
         // Every shipped panel must take its own canvas without overdraw.
-        REQUIRE_FALSE(c.canvas_too_tall);
+        REQUIRE_FALSE(c.canvas_does_not_fit);
     }
 }
