@@ -58,6 +58,13 @@ GuidedLoadStage ColdPullFlow::feed_stage() const {
     return feed_ ? feed_->stage() : GuidedLoadStage::AwaitPush;
 }
 
+ColdPullFeedMode ColdPullFlow::feed_mode() const {
+    if (!params_.toolhead_loaded) {
+        return ColdPullFeedMode::ByHand;
+    }
+    return filament_out_ ? ColdPullFeedMode::Refeed : ColdPullFeedMode::Loaded;
+}
+
 std::optional<int> ColdPullFlow::owned_target_c() const {
     return sent_target_c_;
 }
@@ -96,7 +103,7 @@ ColdPullActions ColdPullFlow::start(TimePoint now) {
         return {};
     }
     stage_started_ = now;
-    stage_ = params_.toolhead_loaded ? ColdPullStage::AwaitClearToolhead : ColdPullStage::Preparing;
+    stage_ = ColdPullStage::Preparing;
     ColdPullActions a;
     // Nothing moves an unhomed machine on its own: homing is the user's tap.
     if (params_.homed && params_.has_park_macro) {
@@ -107,9 +114,7 @@ ColdPullActions ColdPullFlow::start(TimePoint now) {
 }
 
 ColdPullActions ColdPullFlow::home_and_park(TimePoint /*now*/) {
-    const bool preparing =
-        stage_ == ColdPullStage::Preparing || stage_ == ColdPullStage::AwaitClearToolhead;
-    if (!preparing || !params_.has_park_macro || parked_) {
+    if (stage_ != ColdPullStage::Preparing || !params_.has_park_macro || parked_) {
         return {};
     }
     parked_ = true;
@@ -118,32 +123,7 @@ ColdPullActions ColdPullFlow::home_and_park(TimePoint /*now*/) {
     return a;
 }
 
-ColdPullActions ColdPullFlow::unload_lane(TimePoint /*now*/) {
-    if (stage_ != ColdPullStage::AwaitClearToolhead || busy()) {
-        return {};
-    }
-    unload_failed_ = false;
-    in_flight_ = InFlight::Unload;
-    ColdPullActions a;
-    a.unload_lane = true;
-    return a;
-}
-
-ColdPullActions ColdPullFlow::lane_unloaded(bool ok, TimePoint now) {
-    if (stage_ != ColdPullStage::AwaitClearToolhead || in_flight_ != InFlight::Unload) {
-        return {};
-    }
-    in_flight_ = InFlight::None;
-    if (!ok) {
-        unload_failed_ = true;
-        return {};
-    }
-    return enter_heating(now);
-}
-
-ColdPullActions ColdPullFlow::toolhead_clear(TimePoint now) {
-    // A seated lane leaves only through its unload: heating with the old filament
-    // in the head would pull that instead.
+ColdPullActions ColdPullFlow::toolhead_ready(TimePoint now) {
     if (stage_ != ColdPullStage::Preparing) {
         return {};
     }
@@ -225,6 +205,7 @@ ColdPullActions ColdPullFlow::fed(TimePoint now) {
         return {};
     }
     (void)feed_->done();
+    filament_out_ = false;
     return enter_cooling(now);
 }
 
@@ -256,6 +237,7 @@ ColdPullActions ColdPullFlow::pulled(TimePoint now) {
     }
     stage_ = ColdPullStage::Inspect;
     stage_started_ = now;
+    filament_out_ = true;
     // Nothing is hot while the user looks at the tip.
     ColdPullActions a;
     a.heater_target_c = 0;
@@ -341,7 +323,9 @@ ColdPullActions ColdPullFlow::temperature(int current_c, int target_c, TimePoint
             stage_ = ColdPullStage::Feed;
             stage_started_ = now;
             last_tap_ = now;
-            feed_.emplace(feed_steps(), /*waits_for_push=*/true);
+            // Filament already in the nozzle has nothing to push: only the purge is left.
+            feed_.emplace(feed_steps(),
+                          /*waits_for_push=*/feed_mode() != ColdPullFeedMode::Loaded);
         }
         return {};
     }

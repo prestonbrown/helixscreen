@@ -52,7 +52,7 @@ void drive_to(ColdPullFlow& f, ColdPullStage target) {
     if (target == ColdPullStage::Preparing) {
         return;
     }
-    (void)f.toolhead_clear(t0);
+    (void)f.toolhead_ready(t0);
     REQUIRE(f.stage() == ColdPullStage::Heating);
     if (target == ColdPullStage::Heating) {
         return;
@@ -109,7 +109,7 @@ TEST_CASE("cold pull: the happy path sends each step's commands in order", "[col
     CHECK(a.run_park);
     CHECK_FALSE(a.heater_target_c);
 
-    a = f.toolhead_clear(t0);
+    a = f.toolhead_ready(t0);
     CHECK(f.stage() == ColdPullStage::Heating);
     CHECK(a.heater_target_c == 230);
     CHECK(a.keep_previous_hot);
@@ -266,7 +266,7 @@ TEST_CASE("cold pull: a target set elsewhere stands; only the fan is restored", 
     SECTION("the swap latch raising the soak is the soak") {
         ColdPullFlow f(params());
         (void)f.start(t0);
-        (void)f.toolhead_clear(t0);
+        (void)f.toolhead_ready(t0);
         (void)f.temperature(100, 250, t0 + 1s);
         CHECK(f.stage() == ColdPullStage::Heating);
         CHECK(f.goal_c() == 250);
@@ -400,26 +400,85 @@ TEST_CASE("cold pull: no part fan, no fan command anywhere", "[cold_pull]") {
     CHECK_FALSE(g.done(t0 + 1min).fan_percent);
 }
 
-TEST_CASE("cold pull: a seated lane unloads before anything heats", "[cold_pull]") {
+/// A flow on a seated lane, driven through its first Feed.
+ColdPullFlow seated_at_feed() {
     auto p = params();
     p.toolhead_loaded = true;
     ColdPullFlow f(p);
     (void)f.start(t0);
-    CHECK(f.stage() == ColdPullStage::AwaitClearToolhead);
-    CHECK(f.toolhead_clear(t0).empty());
-    CHECK(f.stage() == ColdPullStage::AwaitClearToolhead);
+    REQUIRE(f.stage() == ColdPullStage::Preparing);
+    const auto heat = f.toolhead_ready(t0);
+    REQUIRE(f.stage() == ColdPullStage::Heating);
+    REQUIRE(heat.heater_target_c == 230);
+    (void)f.temperature(228, 230, t0 + 1s);
+    REQUIRE(f.stage() == ColdPullStage::Feed);
+    return f;
+}
 
-    CHECK(f.unload_lane(t0).unload_lane);
-    CHECK(f.unload_lane(t0).empty()); // one in flight
-    CHECK(f.lane_unloaded(false, t0 + 1s).empty());
-    CHECK(f.stage() == ColdPullStage::AwaitClearToolhead);
-    CHECK(f.unload_failed());
+/// Feed done through a hand pull, back at Inspect.
+void pull_to_inspect(ColdPullFlow& f, TP at) {
+    (void)f.fed(at);
+    (void)f.temperature(200, 90, at + 1s);
+    (void)f.temperature(92, 90, at + 2s);
+    REQUIRE(f.stage() == ColdPullStage::Pull);
+    (void)f.pulled(at + 3s);
+    REQUIRE(f.stage() == ColdPullStage::Inspect);
+}
 
-    CHECK(f.unload_lane(t0 + 2s).unload_lane);
-    CHECK_FALSE(f.unload_failed());
-    const auto a = f.lane_unloaded(true, t0 + 3s);
-    CHECK(f.stage() == ColdPullStage::Heating);
-    CHECK(a.heater_target_c == 230);
+TEST_CASE("cold pull: a seated lane's filament is purged, never pushed", "[cold_pull]") {
+    auto f = seated_at_feed();
+    CHECK(f.feed_mode() == ColdPullFeedMode::Loaded);
+    CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
+    // Already at the nozzle: the 60 mm hand-feed length would be waste.
+    CHECK(f.filament_detected(t0 + 2s).empty());
+    CHECK(f.extrude(t0 + 2s).gcode == "M83\nG1 E20 F300");
+    (void)f.command_finished(true, t0 + 3s);
+    CHECK(f.feed_stage() == GuidedLoadStage::ConfirmOutput);
+    CHECK(f.fed(t0 + 3s).heater_target_c == 90);
+    CHECK(f.stage() == ColdPullStage::Cooling);
+    CHECK_FALSE(f.lane_needs_reseat());
+}
+
+TEST_CASE("cold pull: after a hand pull the lane is owed a re-seat", "[cold_pull]") {
+    auto f = seated_at_feed();
+    pull_to_inspect(f, t0 + 2s);
+    CHECK(f.lane_needs_reseat());
+
+    SECTION("Done carries it to the end screen") {
+        (void)f.done(t0 + 1min);
+        CHECK(f.stage() == ColdPullStage::Finished);
+        CHECK(f.lane_needs_reseat());
+    }
+    SECTION("Repeat feeds by hand, and feeding it back settles the debt") {
+        (void)f.repeat(t0 + 1min);
+        (void)f.temperature(228, 230, t0 + 2min);
+        REQUIRE(f.stage() == ColdPullStage::Feed);
+        CHECK(f.feed_mode() == ColdPullFeedMode::Refeed);
+        CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush);
+        CHECK(f.lane_needs_reseat());
+        CHECK(f.extrude(t0 + 3min).gcode == "M83\nG1 E60 F300");
+        (void)f.command_finished(true, t0 + 3min + 1s);
+        (void)f.fed(t0 + 3min + 2s);
+        CHECK_FALSE(f.lane_needs_reseat());
+        CHECK(f.feed_mode() == ColdPullFeedMode::Loaded);
+    }
+    SECTION("cancelling a repeat before the feed leaves it owed") {
+        (void)f.repeat(t0 + 1min);
+        (void)f.cancel();
+        CHECK(f.stage() == ColdPullStage::Cancelled);
+        CHECK(f.lane_needs_reseat());
+    }
+}
+
+TEST_CASE("cold pull: no seated lane feeds by hand and owes nothing", "[cold_pull]") {
+    ColdPullFlow f(params());
+    drive_to(f, ColdPullStage::Feed);
+    CHECK(f.feed_mode() == ColdPullFeedMode::ByHand);
+    CHECK(f.feed_stage() == GuidedLoadStage::AwaitPush);
+    (void)f.extrude(t0 + 2s);
+    (void)f.command_finished(true, t0 + 3s);
+    pull_to_inspect(f, t0 + 4s);
+    CHECK_FALSE(f.lane_needs_reseat());
 }
 
 TEST_CASE("cold pull: the feed runs once per push and a failed feed cleans up", "[cold_pull]") {

@@ -41,7 +41,7 @@ What the flow reads, who publishes it, and which printers lack it.
 | Part cooling fan | The fan that cools the nozzle tip | `ToolInfo::fan_name` per tool (`include/tool_state.h`), else `PrinterFanState::resolve_part_fan()`; speed from `get_fan_speed_subject(name)` | Printers whose part fan is an `output_pin` the firmware drives (`output_pin_fan_is_firmware_driven()`), and printers with none configured. They cool without a fan. |
 | Toolhead filament sensor | Filament present at the extruder | `FilamentSensorManager::get_toolhead_detected_subject()`; -1 means no such sensor | Most printers. The flow then waits for a tap. |
 | Print lifecycle | Whether a job owns the machine | `job_holds_machine()` (`include/print_lifecycle_state.h`) | None |
-| Filament system lane state | What sits in the toolhead, bypass | `AmsSystemInfo`, `AmsBackend::is_bypass_active()`, `AmsSystemInfo::supports_bypass` | Printers with no filament system: the user unloads by hand |
+| Filament system lane state | What sits in the toolhead, bypass | `AmsSystemInfo`, `AmsBackend::is_bypass_active()`, `AmsBackend::is_filament_loaded()` | Printers with no filament system: the user unloads by hand |
 | Park macro | A safe, reachable head position | `StandardMacroSlot::ParkToolhead` (`include/standard_macros.h`, patterns in `include/macro_patterns.h#park_toolhead`) | Printers with no PARK-like macro: the head stays where it is |
 | Direct drive or bowden | Where the user grips and pulls | Nothing reports it. `pa::ExtruderKind` (`include/pa_tuning.h`) is a user choice in PA tuning, never detected. | Every printer: the flow shows both instructions or asks once (open question 3) |
 
@@ -91,7 +91,6 @@ Rules that come from the sources, not from taste:
 | Homing and park | `toolhead_is_homed()`, `ensure_homed_then()`; `StandardMacros` `ParkToolhead` | `include/toolhead_homing.h`, `include/standard_macros.h` |
 | Fan command | `fan_gcode(fan, percent)`; returns empty for a firmware-driven fan | `include/fan_gcode.h` |
 | Extrude script | `M83\nG1 E{mm} F{speed}` exists inline in `FilamentPanel::execute_extrude` and `execute_retract` (`src/ui/filament/ui_panel_filament.cpp`) and as `filament_purge_fallback_gcode()` (`src/ui/filament/filament_op_router.cpp`). Cold pull is the third caller: extract one `extrude_gcode(mm, speed_mm_min)` beside `filament_purge_fallback_gcode` and call it from all three. | `include/filament_op_router.h` |
-| Unloading a lane first | `plan_live_unload()` + `read_unload_target_loaded()` + `execute_filament_unload()` | `include/filament_op_execute.h` |
 | Clog alert button | `RecoveryAction` on `key845`; the presenter dispatch | `include/error_event.h#RecoveryAction`, `src/ui/notify/recovery_modal_presenter.cpp#RecoveryModalPresenter::on_recovery_tapped` |
 | Opening a flow by id from generic code | `register_guided_device_flow()` / `find_guided_device_flow()` | `include/ui_guided_device_flow.h` |
 | Progress ring | `helix_progress_arc` + `attach_progress_arc()` (diameter tiers 120-179 and 180-239) | `ui_xml/components/helix_progress_arc.xml`, `include/ui_progress_arc.h` |
@@ -170,7 +169,7 @@ heating, falling to pull while cooling. The caption under it reads `current / go
 - Refused, with the reason in place of Start: a job holds the machine; `FilamentOpHeater` has a
   preheat pending; Klippy not ready; the chosen head's heater is unknown.
 
-### 2. Prepare (`Preparing`, `AwaitClearToolhead`)
+### 2. Prepare (`Preparing`)
 
 - Multi-head: mount the chosen head through the tool-change dispatch when `decide_tool_change()`
   says it dispatches; a refusal ends the flow with that refusal's text.
@@ -178,11 +177,10 @@ heating, falling to pull while cooling. The caption under it reads `current / go
   nothing that moves; never home on our own (the H2D report in #2011 is a Z crash from exactly
   that). The step shows "Home and park" (`ensure_homed_then()` then the park macro) only when a
   park macro exists; otherwise "The head stays where it is."
-- Toolhead must be empty of the old filament:
-  - Filament system with a lane loaded into this head: offer "Unload lane N", which runs
-    `plan_live_unload()` / `execute_filament_unload()`; the flow waits on its completion. Where
-    the backend supports bypass, the instruction says to feed the cleaning filament through the
-    bypass.
+- The filament in the head decides the rest of the flow, with `ColdPullParams::toolhead_loaded`
+  set at start (a lane seated and no bypass active):
+  - Filament system with a lane loaded into this head: nothing is unloaded. The pull uses the
+    filament that is already there, and the step says so.
   - No filament system, or nothing loaded: "Unload the current filament, then continue."
     The user's own unload, or the standard unload, is theirs to run.
 - Action row: Cancel, Continue.
@@ -205,6 +203,9 @@ heating, falling to pull while cooling. The caption under it reads `current / go
     A toolhead sensor edge (`filament_detected()`) feeds without the tap.
   - Feeding: spinner on the Extrude button.
   - ConfirmOutput: "Does clean filament come out of the nozzle?" Extrude more, Done.
+- Seated lane (`ColdPullFeedMode`): first pass is `Loaded`, the embedded flow opens on
+  ConfirmOutput (nothing to push, purge only: `kPurgeMoreMm`). After a pull it is `Refeed`: the
+  hand-fed path, with "Cut off the pulled tip and push the filament back".
 - The ring holds at soak. Action row: Cancel, Extrude / Extrude more, Done.
 - Idle timeout `kFeedIdleTimeout` (8 min, under Klipper's default 10 min `idle_timeout`), reset
   by every tap.
@@ -242,6 +243,10 @@ heating, falling to pull while cooling. The caption under it reads `current / go
   2 x 130 x 98 (480x272) with a caption under each. Hint line: "Stretched thin: pull a little
   colder. Snapped: pull a little warmer." with the Pull number tappable.
 - Pass counter "Pass 2".
+- Seated lane: after a hand pull the filament is out of the hotend while the backend still
+  reports the lane loaded. `ColdPullFlow::lane_needs_reseat()` shows "This lane still shows as
+  loaded..." here and on the end screen until the filament is fed back on a Repeat. The flow sends
+  no backend command for this.
 - Action row: Repeat (back to Heat, counter + 1), Done.
 
 ### 8. Finish (`Finished`, `Cancelled`, `Abandoned`)
@@ -326,7 +331,7 @@ inline constexpr std::chrono::minutes kCoolTimeoutNoFan{20};
 inline constexpr std::chrono::minutes kPullHoldTimeout{5};
 
 enum class ColdPullStage : int {
-    Setup = 0, Preparing, AwaitClearToolhead, Heating, Feed, Cooling, Pull, Inspect,
+    Setup = 0, Preparing, Heating, Feed, Cooling, Pull, Inspect,
     Finished, Cancelled, Abandoned,
 };
 
@@ -355,7 +360,6 @@ struct ColdPullActions {
     std::string gcode;                    ///< extrusion, park; "" for none
     bool run_park = false;                ///< park macro (only ever set when homed)
     bool home_then_park = false;          ///< ensure_homed_then + park (user tap only)
-    bool unload_lane = false;             ///< plan_live_unload for the seated lane
     bool reset_meter = false;             ///< maintenance cold pull meter (Done only)
     bool hold_awake = false;              ///< DisplayAwakeToken held while true
     [[nodiscard]] bool empty() const;
@@ -378,8 +382,7 @@ class ColdPullFlow {
     // User events
     [[nodiscard]] ColdPullActions start(TimePoint now);         // Setup -> Preparing
     [[nodiscard]] ColdPullActions home_and_park(TimePoint now);
-    [[nodiscard]] ColdPullActions unload_lane(TimePoint now);
-    [[nodiscard]] ColdPullActions toolhead_clear(TimePoint now); // -> Heating
+    [[nodiscard]] ColdPullActions toolhead_ready(TimePoint now); // -> Heating
     [[nodiscard]] ColdPullActions extrude(TimePoint now);
     [[nodiscard]] ColdPullActions fed(TimePoint now);            // Feed done -> Cooling
     [[nodiscard]] ColdPullActions pulled(TimePoint now);         // -> Inspect
@@ -391,7 +394,6 @@ class ColdPullFlow {
     [[nodiscard]] ColdPullActions temperature(int current_c, int target_c, TimePoint now);
     [[nodiscard]] ColdPullActions filament_detected(TimePoint now);
     [[nodiscard]] ColdPullActions command_finished(bool ok, TimePoint now);
-    [[nodiscard]] ColdPullActions lane_unloaded(bool ok, TimePoint now);
     [[nodiscard]] ColdPullActions job_started();
     [[nodiscard]] ColdPullActions disconnected();
     [[nodiscard]] ColdPullActions tick(TimePoint now);
@@ -426,8 +428,7 @@ class ColdPullRunner {
     ColdPullRefusal start(const PhysicalHead& head, ColdPullMaterial material, ColdPullTemps temps);
     // User events, each forwarding to the flow and applying what it returns.
     void home_and_park();
-    void unload_lane();
-    void toolhead_clear();
+    void toolhead_ready();
     void extrude();
     void fed();
     void pulled();
@@ -506,7 +507,7 @@ All in `tests/unit/`, tags `[cold_pull]` plus the area tag. The flow tests drive
 | 13 | Hold pressure: Cooling with floor 170 emits 1 mm every 3 s while current ≥ 185, none at 184, never again after; one in flight at a time | `kHoldPressureMarginC`, single in-flight | An extrusion is queued near `min_extrude_temp` |
 | 14 | No part fan: no `fan_percent` in any action; cool timeout is 20 min | Fanless path | A fan command goes to an empty name |
 | 15 | Multi-head (runner, mock ToolState with two heads, own fans): only head 2's heater and fan named in every send | Isolation | Head 1 is touched |
-| 16 | Toolhead loaded on a filament-system printer: AwaitClearToolhead; `unload_lane()` sets `unload_lane`; `lane_unloaded(false)` stays and shows the failure; `lane_unloaded(true)` → Heating | Unload gate | Heating starts with the old filament seated |
+| 16 | Toolhead loaded on a filament-system printer: Preparing → Heating with nothing unloaded; Feed opens on ConfirmOutput (`Loaded`, 20 mm purge); after Pulled, `lane_needs_reseat()` holds through Done and a cancelled Repeat and clears when Repeat feeds it back (`Refeed`, 60 mm) | Using the loaded filament | The flow asks for a hand push of filament already seated, or forgets to warn that the lane reads loaded after the pull |
 | 17 | Feed: sensor edge feeds without a tap; extrude while Feeding is ignored; command_finished(false) during Feed ends CommandFailed with cleanup | Embedded `GuidedLoadFlow` | Double feed, or a failed feed leaves the heater on |
 | 18 | Meter: Done sets `reset_meter`; Cancel, Abandoned never do | #1901 tie-in | Cancel resets the meter |
 | 19 | `cold_pull_refusal()`: each refusal for Printing, Paused, Preparing, preheat pending, not ready, no heater, already running | Start gate | The flow starts during a job |
@@ -566,5 +567,5 @@ tens of KB to flash on every target. Open question 2.
 7. **Extruder-assisted pull** where `min_extrude_temp` from the config is already at or below
    the pull temperature (the printer owner allowed cold moves themselves): offer a "Pull with
    the extruder" button there, or always hand pull as the issue leans?
-8. **Filament-system printers:** unload the seated lane for the user (this plan's default,
-   through `plan_live_unload`), or only tell them to clear the toolhead?
+8. **Filament-system printers:** settled by Preston: use the seated filament, no unload. Whether
+   Done should also offer a guided re-seat is open; today it is an instruction.

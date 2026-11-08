@@ -50,8 +50,7 @@ inline constexpr std::chrono::minutes kPullHoldTimeout{5};
 /// Values are published on the cold_pull_stage subject and matched in cold_pull_overlay.xml.
 enum class ColdPullStage : int {
     Setup = 0,
-    Preparing,          ///< Park offered; the user clears the toolhead by hand
-    AwaitClearToolhead, ///< A lane is seated in the head: it unloads first
+    Preparing, ///< Park offered; the user makes the toolhead ready by hand
     Heating,
     Feed,
     Cooling,
@@ -60,6 +59,13 @@ enum class ColdPullStage : int {
     Finished,
     Cancelled,
     Abandoned,
+};
+
+/// How filament gets into the nozzle at Feed. Published on cold_pull_feed_mode.
+enum class ColdPullFeedMode : int {
+    ByHand = 0, ///< No lane in the head: the user pushes filament into the extruder
+    Loaded,     ///< The seated lane's filament is already in the nozzle
+    Refeed,     ///< The seated lane's filament was pulled out and goes back by hand
 };
 
 enum class ColdPullEndReason : int {
@@ -76,13 +82,14 @@ enum class ColdPullEndReason : int {
 /// Everything the flow fixes at start.
 struct ColdPullParams {
     ColdPullTemps temps;
-    std::string heater;           ///< Klipper heater object of the chosen head
-    std::string part_fan;         ///< "" when no commandable part fan
-    int prior_fan_percent = 0;    ///< Restored on every exit
-    int floor_c = 0;              ///< extrusion_floor_c() for the head
-    bool homed = false;           ///< Park runs only on a homed machine
-    bool has_park_macro = false;  ///< A park macro resolves on this printer
-    bool toolhead_loaded = false; ///< A filament-system lane is seated in this head
+    std::string heater;          ///< Klipper heater object of the chosen head
+    std::string part_fan;        ///< "" when no commandable part fan
+    int prior_fan_percent = 0;   ///< Restored on every exit
+    int floor_c = 0;             ///< extrusion_floor_c() for the head
+    bool homed = false;          ///< Park runs only on a homed machine
+    bool has_park_macro = false; ///< A park macro resolves on this printer
+    /// A filament-system lane is seated in this head; its filament is the one pulled.
+    bool toolhead_loaded = false;
     /// Small extrusions while cooling keep the nozzle full (Prusa's step). Off by
     /// default: they are moves the user did not tap for.
     bool hold_pressure = false;
@@ -96,12 +103,11 @@ struct ColdPullActions {
     std::string gcode;                  ///< extrusion only; "" for none
     bool run_park = false;              ///< park macro (only ever set when homed)
     bool home_then_park = false;        ///< ensure_homed_then + park (user tap only)
-    bool unload_lane = false;           ///< unload the lane seated in this head
     bool reset_meter = false;           ///< maintenance cold pull meter (Done only)
 
     [[nodiscard]] bool empty() const {
         return !heater_target_c && !fan_percent && gcode.empty() && !run_park && !home_then_park &&
-               !unload_lane && !reset_meter;
+               !reset_meter;
     }
 };
 
@@ -132,9 +138,12 @@ class ColdPullFlow {
     }
     /// A command this flow sent is still running.
     [[nodiscard]] bool busy() const;
-    /// The last lane unload failed; the user may try again.
-    [[nodiscard]] bool unload_failed() const {
-        return unload_failed_;
+    /// How the filament reaches the nozzle for this pass.
+    [[nodiscard]] ColdPullFeedMode feed_mode() const;
+    /// The seated lane's filament is out of the hotend while its backend, told nothing
+    /// of a hand pull, still reports it loaded.
+    [[nodiscard]] bool lane_needs_reseat() const {
+        return params_.toolhead_loaded && filament_out_;
     }
     [[nodiscard]] const ColdPullParams& params() const {
         return params_;
@@ -143,10 +152,9 @@ class ColdPullFlow {
     [[nodiscard]] std::optional<int> owned_target_c() const;
 
     // User events
-    [[nodiscard]] ColdPullActions start(TimePoint now); ///< Setup -> Preparing / AwaitClear
+    [[nodiscard]] ColdPullActions start(TimePoint now); ///< Setup -> Preparing
     [[nodiscard]] ColdPullActions home_and_park(TimePoint now);
-    [[nodiscard]] ColdPullActions unload_lane(TimePoint now);
-    [[nodiscard]] ColdPullActions toolhead_clear(TimePoint now); ///< Preparing -> Heating
+    [[nodiscard]] ColdPullActions toolhead_ready(TimePoint now); ///< Preparing -> Heating
     [[nodiscard]] ColdPullActions extrude(TimePoint now);
     [[nodiscard]] ColdPullActions fed(TimePoint now);    ///< Feed done -> Cooling
     [[nodiscard]] ColdPullActions pulled(TimePoint now); ///< -> Inspect
@@ -158,7 +166,6 @@ class ColdPullFlow {
     [[nodiscard]] ColdPullActions temperature(int current_c, int target_c, TimePoint now);
     [[nodiscard]] ColdPullActions filament_detected(TimePoint now);
     [[nodiscard]] ColdPullActions command_finished(bool ok, TimePoint now);
-    [[nodiscard]] ColdPullActions lane_unloaded(bool ok, TimePoint now);
     [[nodiscard]] ColdPullActions job_started();
     [[nodiscard]] ColdPullActions disconnected();
     [[nodiscard]] ColdPullActions tick(TimePoint now);
@@ -169,7 +176,7 @@ class ColdPullFlow {
     [[nodiscard]] ColdPullActions exit_actions(bool job_holds_machine) const;
 
   private:
-    enum class InFlight { None, Feed, Hold, Unload };
+    enum class InFlight { None, Feed, Hold };
 
     [[nodiscard]] ColdPullActions enter_heating(TimePoint now);
     [[nodiscard]] ColdPullActions enter_cooling(TimePoint now);
@@ -193,7 +200,7 @@ class ColdPullFlow {
     bool fan_changed_ = false;
     bool was_above_pull_ = false;
     bool hold_stopped_ = false;
-    bool unload_failed_ = false;
+    bool filament_out_ = false; ///< Pulled by hand and not fed back yet
     bool parked_ = false;
     int last_current_c_ = 0;
     TimePoint next_hold_at_{};
