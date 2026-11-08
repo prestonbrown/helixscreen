@@ -3022,7 +3022,7 @@
   <translation tag="Random" ru="Случайный"/>
   <translation tag="Raspberry Pi" ru="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" ru="Raspberry Pi (32-bit)"/>
-  <translation tag="Re-apply spool"/>
+  <translation tag="Re-apply spool" ru="Применить катушку снова"/>
   <translation tag="Re-identify" ru="Определить снова"/>
   <translation tag="Re-measure" ru="Измерить снова"/>
   <translation tag="Re-measure (~{} min)" ru="Замер (~{} мин)"/>
@@ -3853,7 +3853,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
-  <translation tag="The linked spool says {}."/>
+  <translation tag="The linked spool says {}." ru="Привязанная катушка указывает: {}."/>
   <translation tag="The loaded slot is not known yet" ru="Загруженный слот пока неизвестен"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ru="Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла."/>
   <translation tag="The message your printer&apos;s macros show (M117)" ru="Сообщение, которое показывают макросы принтера (M117)"/>
@@ -4199,7 +4199,7 @@
   <translation tag="Unknown Spool" ru="Неизвестная катушка"/>
   <translation tag="Unknown Step" ru="Неизвестный шаг"/>
   <translation tag="Unknown error" ru="Неизвестная ошибка"/>
-  <translation tag="Unlink"/>
+  <translation tag="Unlink" ru="Отвязать"/>
   <translation tag="Unlink, keep on this slot" ru="Отвязать, оставить на этом слоте"/>
   <translation tag="Unload" ru="Выгрузить"/>
   <translation tag="Unload Distance" ru="Расстояние выгрузки"/>
