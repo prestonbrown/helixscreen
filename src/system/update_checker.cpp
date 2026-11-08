@@ -3749,7 +3749,7 @@ static void register_notify_callbacks() {
 void UpdateChecker::show_update_notification() {
     spdlog::info("[UpdateChecker] Show update notification");
     if (!notify_modal_) {
-        notify_modal_ = helix::ui::modal_show("update_notify_modal");
+        notify_modal_ = helix::ui::ComponentModal::show_owned("update_notify_modal");
     }
 }
 

@@ -409,7 +409,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - deduplication",
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - returns after a backdrop dismiss",
                  "[recovery][integration]") {
-    // helix::ui::modal_show() unconditionally wires Modal::backdrop_click_cb, so
+    // Every modal wires Modal::backdrop_click_cb unconditionally, so
     // a tap outside the card dismisses the recovery dialog without ever reaching
     // dismiss_recovery_dialog(). EmergencyStopOverlay is then holding a pointer to
     // a modal that has left the ModalStack, and the NEXT shutdown must still
