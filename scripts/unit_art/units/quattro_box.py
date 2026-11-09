@@ -2,7 +2,7 @@
 """Quattro Box: a faceted DIY enclosure, its width set by how many lanes it was built with."""
 from pathlib import Path
 
-from .. import kit, spool
+from .. import feeder, kit, spool
 from ..kit import TrayShellDef, UnitDef
 
 # 1.0 is 400 mm, so a 0.25 spool radius is a 200 mm spool. Read off the front photo.
@@ -10,9 +10,11 @@ CAP, PITCH = 0.151, 0.2325
 D, H = 0.75, 0.81
 SPOOL_Y, SPOOL_Z, SPOOL_R = 0.375, 0.45, 0.25
 BODY, BODY_DARK, ACCENT, GLOW, GLASS = "#3b3836", "#292725", "#7b2fd0", "#62e6a0", "#6f7379"
-ROLLER = "#2a2b2e"
+ROLLER = "#4a4744"
 WINDOW_Z0, WINDOW_Z1, WALL_TOP = 0.197, 0.665, 0.68
 FEED_TOP = 0.295
+ROLLER_Y, ROLLER_Z, ROLLER_R = 0.09, 0.238, 0.052
+CARRIER_Y = 0.028
 # Front foot to rear foot, chamfered at all four corners.
 PROFILE = [(0.09, 0.0), (0.0, 0.085), (0.0, WALL_TOP), (0.13, H), (0.62, H), (D, 0.62), (D, 0.17), (0.64, 0.0)]
 SIDE_WINDOW = [(0.12, 0.36), (0.12, 0.66), (0.22, 0.77), (0.55, 0.77), (0.68, 0.62), (0.68, 0.52)]
@@ -39,19 +41,27 @@ def _window(w):
     return [(x0, z0), (x1, z0), (x1, z1 - cut), (x1 - cut, z1), (x0 + cut, z1), (x0, z1 - cut)]
 
 
+def _carrier_profile():
+    """A carrier's side: a flat front standing on the floor, its top rounded over the roller."""
+    pts = [(CARRIER_Y, WINDOW_Z0 - 0.02), (CARRIER_Y, FEED_TOP), (ROLLER_Y + ROLLER_R, FEED_TOP), (ROLLER_Y + ROLLER_R, WINDOW_Z0 - 0.02)]
+    return kit.fillet(pts, [0, 0.03, 0.05, 0], closed=True, steps=6)
+
+
 def _feeder(sc, xc, detail):
-    """One lane\x27s drive behind the glass: a purple carrier between two rings."""
-    y = 0.03
-    sc.poly(kit.rrect_front(xc - 0.056, xc + 0.056, WINDOW_Z0, FEED_TOP, 0.012, y), ACCENT)
-    sc.poly(kit.rrect_front(xc - 0.038, xc + 0.038, WINDOW_Z0 + 0.012, FEED_TOP - 0.012, 0.008, y - 0.001), "#4a1d84")
+    """One lane\x27s drive behind the glass: a purple carrier between two flanged rollers."""
+    half, reach = 0.044, 0.112
+    rim = {"flange_k": 1.05, "flange_w": 0.008, "sheen": "#716e6a"}
+    kit.roller(sc, xc - reach, xc - half - 0.008, ROLLER_Y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
+    feeder.solid(sc, _carrier_profile(), xc - half, xc + half, ACCENT)
+    kit.roller(sc, xc + half + 0.008, xc + reach, ROLLER_Y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
+    y = CARRIER_Y - 0.001
+    sc.poly(kit.rrect_front(xc - 0.032, xc + 0.032, WINDOW_Z0 + 0.012, FEED_TOP - 0.008, 0.008, y), "#4a1d84")
     if detail:
         for dz in (0.0, 0.03):
             z = WINDOW_Z0 + 0.03 + dz
-            sc.line([(xc - 0.024, y - 0.002, z), (xc, y - 0.002, z + 0.018), (xc + 0.024, y - 0.002, z)], GLOW, 0.007)
-        for dx in (-0.09, 0.09):
-            sc.poly(kit.rrect_front(xc + dx - 0.007, xc + dx + 0.007, WINDOW_Z0, FEED_TOP - 0.008, 0.005, y), ACCENT)
+            sc.line([(xc - 0.022, y - 0.001, z), (xc, y - 0.001, z + 0.018), (xc + 0.022, y - 0.001, z)], GLOW, 0.007)
     else:
-        sc.poly(kit.rrect_front(xc - 0.02, xc + 0.02, WINDOW_Z0 + 0.03, FEED_TOP - 0.03, 0.004, y - 0.002), GLOW)
+        sc.poly(kit.rrect_front(xc - 0.02, xc + 0.02, WINDOW_Z0 + 0.03, FEED_TOP - 0.03, 0.004, y - 0.001), GLOW)
 
 
 def draw_art(sc, colors, tier):
@@ -73,7 +83,7 @@ def draw_art(sc, colors, tier):
     for fx in (0.09, w - 0.13):
         for fy in (0.12, D - 0.17):
             sc.prism([(fx + 0.04, fy), (fx + 0.04, fy + 0.04), (fx, fy + 0.04), (fx, fy)], -0.018, 0.0, "#101010")
-    sc.poly(kit.rrect_front(0.02, w - 0.02, WINDOW_Z0, FEED_TOP - 0.018, 0.0, 0.05), ROLLER)
+    sc.poly(kit.rrect_front(0.02, w - 0.02, WINDOW_Z0, FEED_TOP - 0.018, 0.0, 0.15), "#1c1b1a")
     for xc in centers(lanes):
         _feeder(sc, xc, detail)
 
