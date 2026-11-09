@@ -48,6 +48,7 @@ EXIT_RELINK_NOT_OURS=4
 #   4 - a print is printing or paused; nothing restarted
 #   6 - the print state could not be read; nothing restarted
 #   7 - Moonraker does not answer
+#   8 - Moonraker does not name its own service, so only a reboot reloads it
 
 # Colors for output (works with printf)
 RED='\033[0;31m'

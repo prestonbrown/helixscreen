@@ -734,6 +734,37 @@ TEST_CASE_METHOD(SelfHealFixture,
     CHECK(messages[0].find("restarting") == std::string::npos);
 }
 
+// Z-Mod's Moonraker names no service of its own, so install.sh cannot restart
+// it and nothing in a web UI can either: only a reboot loads the new plugin
+// (prestonbrown/helixscreen#2086).
+TEST_CASE_METHOD(SelfHealFixture,
+                 "a Moonraker with no service of its own is advised a reboot, kept in the history",
+                 "[plugin_installer][print_select][self_heal][2086]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(8);
+    // A ui_notification_* call is the path that leaves a history row, and the
+    // toast it shows carries the same text.
+    std::vector<helix::ui::NotificationEvent> events;
+    helix::ui::set_test_notification_event_hook(
+        [&](const helix::ui::NotificationEvent& event) { events.push_back(event); });
+
+    run_plugin_probe();
+    settle();
+
+    REQUIRE(restarts() == 1);
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].severity == ToastSeverity::WARNING);
+    CHECK(events[0].message == "Reboot the printer to finish the plugin update.");
+
+    // The attempt is remembered: the next start does not try again.
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 1);
+}
+
 TEST_CASE_METHOD(SelfHealFixture,
                  "a restart that did not load a plugin Moonraker never ran is tried again",
                  "[plugin_installer][print_select][self_heal]") {

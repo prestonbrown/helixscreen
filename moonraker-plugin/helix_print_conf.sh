@@ -482,6 +482,7 @@ HELIX_RESTART_MANUAL=3
 HELIX_RESTART_HELD=4
 HELIX_RESTART_UNCHECKED=6
 HELIX_RESTART_DOWN=7
+HELIX_RESTART_NO_SERVICE=8
 
 # Restart the Moonraker at base URL @2 over its HTTP API, the only way any
 # caller here restarts it: no service manager, init script or process is
@@ -510,7 +511,8 @@ HELIX_RESTART_DOWN=7
 # MANUAL when Moonraker refused the request, did not restart, did not load
 # the plugin or still runs the old one; HELD for a print; UNCHECKED when the
 # print state cannot be read; DOWN when Moonraker does not answer, before the
-# request or after it.
+# request or after it; NO_SERVICE when a plugin restart cannot name
+# Moonraker's own service (moonraker_service_name), so only a reboot loads it.
 #
 # Its worst case, with every request running to its limit and each limit
 # doubled for wget or python (moonraker_request): /server/info 4s, the print
@@ -561,7 +563,7 @@ moonraker_restart() {
         if ! _mrs_service=$(moonraker_service_name "$_mrs_url"); then
             "$_mrs_warn" "Moonraker does not say which service it runs as, so it was not restarted"
             "$_mrs_warn" "$_mrs_redo"
-            return "$HELIX_RESTART_MANUAL"
+            return "$HELIX_RESTART_NO_SERVICE"
         fi
         _mrs_path="/machine/services/restart?service=$_mrs_service"
     else
