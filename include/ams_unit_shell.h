@@ -55,7 +55,16 @@ struct UnitShell {
     uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
     const FrontPart* front;
     int front_n;
+    /// Bit n set: baked art exists for n lanes, in a folder of its own. 0: only art_lanes.
+    uint32_t art_lane_variants = 0;
 };
+
+/// Whether baked art exists for a unit built with @p lanes bays.
+inline bool unit_shell_has_art_for(const UnitShell& shell, int lanes) {
+    if (shell.art_lane_variants == 0)
+        return lanes == shell.art_lanes;
+    return lanes >= 0 && lanes < 32 && ((shell.art_lane_variants >> lanes) & 1u) != 0;
+}
 
 /// The generated shell named @p id, or nullptr.
 const UnitShell* unit_shell_by_id(const char* id);

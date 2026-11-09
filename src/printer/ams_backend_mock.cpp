@@ -2532,6 +2532,12 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
     }
 }
 
+void AmsBackendMock::set_afc_unit_name(const std::string& name) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!system_info_.units.empty())
+        system_info_.units[0].name = name;
+}
+
 bool AmsBackendMock::is_afc_mode() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return afc_mode_;

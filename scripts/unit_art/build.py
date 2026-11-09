@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, ams_2_pro, ams_ht, box_turtle, btt_vivid, cfs, kms, qidi_box  # noqa: E402
+from unit_art.units import ace_pro, ams_2_pro, ams_ht, box_turtle, btt_vivid, cfs, kms, qidi_box, quattro_box  # noqa: E402
 UNITS = [
     ace_pro.UNIT,
     box_turtle.UNIT,
@@ -22,6 +22,7 @@ UNITS = [
     btt_vivid.UNIT,
     kms.UNIT,
     ams_ht.UNIT,
+    quattro_box.UNIT,
 ]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
@@ -36,19 +37,31 @@ def rsvg_render(svg_text, width, png_path):
         svg_path.unlink()
 
 
+def art_dirs(unit, out_dir):
+    """Each set of baked layers a unit has, with its lane count."""
+    root = Path(out_dir) / unit.id
+    if unit.lane_variants:
+        return [(root / str(lanes), lanes) for lanes in unit.lane_variants]
+    return [(root, unit.lanes)]
+
+
 def bake_unit(unit, out_dir, render=rsvg_render):
-    target = Path(out_dir) / unit.id
+    for target, lanes in art_dirs(unit, out_dir):
+        _bake_layers(unit, target, lanes, render)
+
+
+def _bake_layers(unit, target, lane_count, render):
     target.mkdir(parents=True, exist_ok=True)
-    manifest = {"id": unit.id, "lanes": unit.lanes, "tiers": {}}
+    manifest = {"id": unit.id, "lanes": lane_count, "tiers": {}}
     for tier, width in TIER_WIDTH.items():
         scene = kit.Scene(kit.ART_CAMERA)
         # White filament: its shading alone reaches the shade masks.
-        unit.draw_art(scene, ["#ffffff"] * unit.lanes, tier)
+        unit.draw_art(scene, ["#ffffff"] * lane_count, tier)
         back, front = f"{tier}_back.png", f"{tier}_front.png"
         render(scene.layer_svg("back", width), width, target / back)
         render(scene.layer_svg("front", width), width, target / front)
         lanes = []
-        for lane in range(unit.lanes):
+        for lane in range(lane_count):
             names = {"color": f"{tier}_lane{lane}.png", "shade": f"{tier}_lane{lane}_shade.png"}
             render(scene.lane_color_svg(lane, width), width, target / names["color"])
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
@@ -96,10 +109,11 @@ def generate_shell_table(units):
             out.append(f"constexpr ProfilePoint k_{unit.id}_dome[] = {{{points(dome_points)}}};")
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
+        variants = sum(1 << lanes for lanes in unit.lane_variants)
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}}},"
+            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, 0x{variants:x}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [
@@ -126,11 +140,11 @@ def contact_sheet(out_dir, sheet_path):
     # An SVG mask recolours each lane the way the runtime will.
     # A row clears the 320 px box a tall unit's art fills.
     cells, x_step, row_h, y = [], 360, 340, 0
+    roots = [root for unit in UNITS for root, _ in art_dirs(unit, out_dir)]
     for bg in ("#1a1b1e", "#e8e8ea"):
         x = 0
-        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(UNITS))}" height="{row_h}" fill="{bg}"/>')
-        for unit in UNITS:
-            root = Path(out_dir) / unit.id
+        cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(roots))}" height="{row_h}" fill="{bg}"/>')
+        for root in roots:
             m = json.loads((root / "manifest.json").read_text())
             for tier, ox in (("full", 10), ("thumb", 335 - 40)):
                 t = m["tiers"][tier]
@@ -138,7 +152,7 @@ def contact_sheet(out_dir, sheet_path):
                 h = w
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["back"])}"/>')
                 for lane, names in enumerate(t["lanes"]):
-                    mask_id = f"m{bg[1:]}{unit.id}{tier}{lane}"
+                    mask_id = f"m{bg[1:]}{m['id']}{m['lanes']}{tier}{lane}"
                     cells.append(
                         f'<mask id="{mask_id}"><image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["color"])}"/></mask>'
                         f'<rect x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" fill="{SAMPLE[lane]}" mask="url(#{mask_id})"/>'
@@ -147,7 +161,7 @@ def contact_sheet(out_dir, sheet_path):
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["front"])}"/>')
             x += x_step
         y += row_h
-    svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{x_step * max(1, len(UNITS))}" height="{y}">{"".join(cells)}</svg>'
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{x_step * max(1, len(roots))}" height="{y}">{"".join(cells)}</svg>'
     sheet_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = sheet_path.with_suffix(".svg")
     tmp.write_text(svg)
