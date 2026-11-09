@@ -416,6 +416,7 @@ void FanDial::handle_arc_changed() {
     update_onoff_state(value);
     update_knob_glow(value);
     update_fan_animation(value);
+    refresh_rpm_label();
 
     // Coalesce mid-drag bursts: stash the latest value and (re)arm a one-shot
     // 500 ms timer. Touch RELEASED flushes immediately, so dragging fast and
@@ -538,6 +539,7 @@ void FanDial::handle_switch_changed() {
     current_speed_ = new_speed;
     animate_speed_label(prev_speed, new_speed);
     update_fan_animation(new_speed);
+    refresh_rpm_label();
 
     if (on_speed_changed_) {
         on_speed_changed_(fan_id_, new_speed);
