@@ -9,8 +9,8 @@
 #include "ui_panel_print_select.h"
 #include "ui_update_queue.h"
 
+#include "filament_chip_model.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "text_io.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
 
@@ -201,10 +201,7 @@ void PrintSelectPanel::show_archive_plate(size_t i, int plate_index) {
     // The card keeps the whole file's time and weight; the detail view shows
     // the plate's (apply_plate_stats_to_detail()).
     const FileMetadata plate_meta = three_mf::plate_file_metadata(*plate);
-    file.filament_types.clear();
-    for (std::string_view t : text_io::lines(plate_meta.filament_type, ';')) {
-        file.filament_types.emplace_back(t);
-    }
+    file.filament_types = split_filament_types(plate_meta.filament_type);
     file.filament_colors = plate_meta.filament_colors;
     file.filament_type = file.filament_types.empty() ? "" : file.filament_types.front();
     selected_filament_type_ = file.filament_type;

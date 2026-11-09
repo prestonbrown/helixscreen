@@ -21,6 +21,7 @@
 #include "app_globals.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
+#include "filament_chip_model.h"
 #include "filament_display_name.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
@@ -233,15 +234,15 @@ void HistoryListPanel::on_activate() {
     // Register as history manager observer if manager available
     if (history_manager_ && !history_observer_) {
         history_observer_ = [this]() {
-            if (!is_active_) {
-                return;
-            }
-
             // If detail overlay is open, just mark that history changed - will refresh on return
             if (detail_overlay_open_) {
                 history_changed_while_detail_open_ = true;
                 spdlog::debug("[{}] History changed while detail open, deferring refresh",
                               get_name());
+                return;
+            }
+
+            if (!is_active_) {
                 return;
             }
 
@@ -275,10 +276,27 @@ void HistoryListPanel::on_activate() {
     }
 }
 
-void HistoryListPanel::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void HistoryListPanel::before_show() {
+    detail_overlay_open_ = false;
+    history_changed_while_detail_open_ = false;
+    reset_view_state();
+}
+
+void HistoryListPanel::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
     is_active_ = false;
+
+    // Cancel any pending search timer
+    search_debounce_.cancel();
+
+    // Covered by its own detail overlay: Back returns here, to the rows,
+    // scroll and filters the user left. The observer stays to flag history
+    // that changes meanwhile, so the return knows to refresh.
+    if (detail_overlay_open_ && reason != DeactivateReason::Shutdown &&
+        reason != DeactivateReason::Rebuild) {
+        return;
+    }
 
     // Remove history manager observer
     if (history_manager_ && history_observer_) {
@@ -286,9 +304,13 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
         history_observer_ = nullptr;
     }
 
-    // Cancel any pending search timer
-    search_debounce_.cancel();
+    // Clear the received flag so next activation will refresh
+    jobs_received_ = false;
 
+    reset_view_state();
+}
+
+void HistoryListPanel::reset_view_state() {
     // Reset filter state for fresh start on next activation
     search_query_.clear();
     status_filter_ = HistoryStatusFilter::ALL;
@@ -306,9 +328,6 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
     if (sort_dropdown_) {
         lv_dropdown_set_selected(sort_dropdown_, 0);
     }
-
-    // Clear the received flag so next activation will refresh
-    jobs_received_ = false;
 
     // Reset pagination state
     load_more_guard_.release();
@@ -1101,8 +1120,9 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     lv_subject_copy_string(&detail_bed_temp_, temp_buf);
 
     lv_subject_copy_string(&detail_filament_, job.filament_str.c_str());
+    const std::string materials = helix::filament_type_text(job.filament_type);
     lv_subject_copy_string(&detail_filament_type_,
-                           job.filament_type.empty() ? "Unknown" : job.filament_type.c_str());
+                           materials.empty() ? lv_tr("Unknown") : materials.c_str());
 
     // Set reprint availability based on file existence
     lv_subject_set_int(&detail_can_reprint_, job.exists ? 1 : 0);

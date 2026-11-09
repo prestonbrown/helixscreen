@@ -43,6 +43,9 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+- **View Full History is always on screen** - the button that opens the full print history now sits in the Print History header, so you no longer have to scroll down to find it on smaller screens.
+- **Print history after viewing a job** - going back from a job's details to the full history list shows the list where you left it, instead of a blank screen.
+- **Materials in print history** - a print's details and its row in the history list name each material once, such as "ABS, PETG", instead of the slicer's raw per-tool list, and a long list wraps instead of being cut off.
 
 ## [1.1.0-beta.18] - 2026-11-08
 

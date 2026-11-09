@@ -201,7 +201,8 @@
             </lv_obj>
             <lv_obj flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="false">
               <text_small text="Type"/>
-              <text_body name="filament_type_label" bind_text="history_detail_filament_type"/>
+              <text_body name="filament_type_label"
+                         width="100%" long_mode="wrap" bind_text="history_detail_filament_type"/>
             </lv_obj>
             <lv_obj flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="false">
               <text_small text="Layer Height"/>
