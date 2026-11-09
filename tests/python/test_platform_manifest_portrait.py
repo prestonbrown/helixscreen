@@ -80,3 +80,36 @@ def test_every_portrait_class_has_a_canvas_size_and_a_generator_entry():
         h = classes["splash_composite_height"][name]
         assert h > w, name
         assert gen.get(name) == (w, h), name
+
+
+def _splash_generator():
+    import gen_splash_3d
+    return gen_splash_3d
+
+
+def _content_width_fraction(gen, canvas):
+    left, right = gen.find_content_columns(canvas, gen.sample_edge_color(canvas))
+    return (right - left) / canvas.size[0]
+
+
+@pytest.mark.parametrize("size", [(480, 800), (600, 1024), (720, 1280)])
+def test_portrait_composition_leaves_side_margins(size):
+    gen = _splash_generator()
+    from PIL import Image
+    img = Image.open(REPO_ROOT / gen.SOURCE_IMAGES["dark"]).convert("RGBA")
+    canvas = gen.composite_canvas(img, *size)
+    assert canvas.size == size
+    assert _content_width_fraction(gen, canvas) == pytest.approx(gen.PORTRAIT_CONTENT_WIDTH, abs=0.01)
+    # Centred: the margins either side differ by no more than a couple of pixels.
+    left, right = gen.find_content_columns(canvas, gen.sample_edge_color(canvas))
+    assert abs(left - (size[0] - right)) <= 3
+
+
+def test_landscape_composition_ignores_the_portrait_width(monkeypatch):
+    gen = _splash_generator()
+    from PIL import Image
+    img = Image.open(REPO_ROOT / gen.SOURCE_IMAGES["dark"]).convert("RGBA")
+    before = gen.composite_canvas(img, 800, 480).tobytes()
+    monkeypatch.setattr(gen, "PORTRAIT_CONTENT_WIDTH", 0.3)
+    assert gen.composite_canvas(img, 800, 480).tobytes() == before
+    assert gen.composite_canvas(img, 480, 800).size == (480, 800)

@@ -37,7 +37,8 @@ except ImportError:
 # narrow axis by helix::get_splash_3d_size_name(). Logo is 50% of width below
 # 500px tall, 60% at or above. The -portrait classes are the landscape canvases
 # turned on end, taken by a panel taller than it is wide
-# (helix::get_splash_3d_portrait_size_name()).
+# (helix::get_splash_3d_portrait_size_name()); their logo is sized so the
+# wordmark spans PORTRAIT_CONTENT_WIDTH of the canvas.
 SCREEN_SIZES = [
     ("micro", 480, 272, 240),       # CC1
     ("tiny", 480, 320, 240),        # Snapmaker U1
@@ -46,10 +47,14 @@ SCREEN_SIZES = [
     ("large", 1024, 600, 614),
     ("xlarge", 1280, 720, 768),
     ("ultrawide", 1920, 440, 384),  # Wide, short bar display
-    ("medium-portrait", 480, 800, 288),
-    ("large-portrait", 600, 1024, 360),
-    ("xlarge-portrait", 720, 1280, 432),
+    ("medium-portrait", 480, 800, 448),
+    ("large-portrait", 600, 1024, 561),
+    ("xlarge-portrait", 720, 1280, 673),
 ]
+
+# On a portrait canvas the widest content, the wordmark, spans this fraction of
+# the canvas width. Filling the width leaves it nearly touching both edges.
+PORTRAIT_CONTENT_WIDTH = 0.85
 
 # Source images (relative to project root)
 SOURCE_IMAGES = {
@@ -124,6 +129,30 @@ def find_content_bounds(img: Image.Image, bg_color: tuple, tolerance: int = 20) 
     return (top, bottom)
 
 
+def find_content_columns(img: Image.Image, bg_color: tuple, tolerance: int = 20) -> tuple:
+    """Find the horizontal bounds of non-background content in the image.
+
+    Returns (left_x, right_x) of the first and last columns containing
+    pixels that differ from the background color.
+    """
+    rgb = img.convert("RGB")
+    w, h = rgb.size
+    bg_r, bg_g, bg_b = bg_color[:3]
+
+    def differs(x: int) -> bool:
+        for y in range(0, h, 4):  # Sample every 4th pixel for speed
+            p = rgb.getpixel((x, y))
+            if (abs(p[0] - bg_r) > tolerance or
+                abs(p[1] - bg_g) > tolerance or
+                abs(p[2] - bg_b) > tolerance):
+                return True
+        return False
+
+    left = next((x for x in range(w) if differs(x)), 0)
+    right = next((x + 1 for x in range(w - 1, -1, -1) if differs(x)), w)
+    return (left, right)
+
+
 def uniformize_background(img: Image.Image, bg_color: tuple, tolerance: int = 8) -> Image.Image:
     """Replace near-background pixels in the outer margin with exact bg color.
 
@@ -186,6 +215,56 @@ def uniformize_background(img: Image.Image, bg_color: tuple, tolerance: int = 8)
     return img
 
 
+def composite_canvas(img: Image.Image, screen_width: int, screen_height: int) -> Image.Image:
+    """Scale the RGBA source onto a full-screen background-coloured canvas."""
+    src_w, src_h = img.size  # 1024x1024
+
+    # Sample background color from corners
+    bg_color = sample_edge_color(img)
+
+    # Detect logo content bounds (rows with non-background pixels)
+    content_top, content_bottom = find_content_bounds(img, bg_color)
+    content_h = content_bottom - content_top
+
+    # Scale factor: make the logo fill as much of the screen as possible
+    # while keeping the content fully visible.
+    #
+    # Two constraints:
+    #   1. Content must fit vertically: scale <= screen_height / content_h
+    #   2. Image must fill screen width: scale = screen_width / src_w
+    #
+    # Use the smaller of the two to ensure both constraints are met.
+    # Add a small margin (5% of screen height) so the logo doesn't touch edges.
+    margin_px = int(screen_height * 0.12)
+    scale_by_height = (screen_height - margin_px) / content_h
+    scale_by_width = screen_width / src_w
+    scale_factor = min(scale_by_height, scale_by_width)
+
+    # A portrait canvas is as narrow as the content is wide, so it also caps the
+    # content's width to leave side margins.
+    if screen_height > screen_width:
+        content_left, content_right = find_content_columns(img, bg_color)
+        scale_by_content_width = (screen_width * PORTRAIT_CONTENT_WIDTH
+                                  / (content_right - content_left))
+        scale_factor = min(scale_factor, scale_by_content_width)
+
+    # Scale the full source image
+    scaled_w = int(src_w * scale_factor)
+    scaled_h = int(src_h * scale_factor)
+    scaled = img.resize((scaled_w, scaled_h), Image.LANCZOS)
+
+    # Clean up noisy background pixels so they blend seamlessly
+    scaled = uniformize_background(scaled, bg_color)
+
+    # Create full-screen canvas and paste scaled image centered
+    canvas = Image.new("RGBA", (screen_width, screen_height), bg_color + (255,))
+    x_offset = (screen_width - scaled_w) // 2
+    y_offset = (screen_height - scaled_h) // 2
+    canvas.paste(scaled, (x_offset, y_offset), scaled)
+
+    return canvas
+
+
 def generate_splash(
     source_path: Path,
     output_dir: Path,
@@ -213,42 +292,7 @@ def generate_splash(
         print(f"  Error opening {source_path}: {e}", file=sys.stderr)
         return False
 
-    src_w, src_h = img.size  # 1024x1024
-
-    # Sample background color from corners
-    bg_color = sample_edge_color(img)
-
-    # Detect logo content bounds (rows with non-background pixels)
-    content_top, content_bottom = find_content_bounds(img, bg_color)
-    content_h = content_bottom - content_top
-
-    # Scale factor: make the logo fill as much of the screen as possible
-    # while keeping the content fully visible.
-    #
-    # Two constraints:
-    #   1. Content must fit vertically: scale <= screen_height / content_h
-    #   2. Image must fill screen width: scale = screen_width / src_w
-    #
-    # Use the smaller of the two to ensure both constraints are met.
-    # Add a small margin (5% of screen height) so the logo doesn't touch edges.
-    margin_px = int(screen_height * 0.12)
-    scale_by_height = (screen_height - margin_px) / content_h
-    scale_by_width = screen_width / src_w
-    scale_factor = min(scale_by_height, scale_by_width)
-
-    # Scale the full source image
-    scaled_w = int(src_w * scale_factor)
-    scaled_h = int(src_h * scale_factor)
-    scaled = img.resize((scaled_w, scaled_h), Image.LANCZOS)
-
-    # Clean up noisy background pixels so they blend seamlessly
-    scaled = uniformize_background(scaled, bg_color)
-
-    # Create full-screen canvas and paste scaled image centered
-    canvas = Image.new("RGBA", (screen_width, screen_height), bg_color + (255,))
-    x_offset = (screen_width - scaled_w) // 2
-    y_offset = (screen_height - scaled_h) // 2
-    canvas.paste(scaled, (x_offset, y_offset), scaled)
+    canvas = composite_canvas(img, screen_width, screen_height)
 
     # Save to temp PNG, then convert with LVGLImage.py
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
