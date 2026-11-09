@@ -7,19 +7,19 @@
  * @file timelapse_local_installer.h
  * @brief Installs moonraker-timelapse on the host HelixScreen shares with Moonraker
  *
- * What moonraker-timelapse's own `make install` does, minus the steps that
- * need a password: clone the repository, link component/timelapse.py into
- * Moonraker's components directory and klipper_macro/timelapse.cfg into the
- * config directory (both through install.sh --link-timelapse, which knows
- * where Moonraker lives), then make sure ffmpeg is there. ffmpeg is installed
- * only through passwordless sudo; without it the user is shown the command.
- * The [timelapse] config sections and the Moonraker restart are the setup
- * wizard's own steps.
+ * moonraker-timelapse's data for the shared local plugin installer
+ * (local_plugin_installer.h), and the setup wizard's route decision. The recipe
+ * does what moonraker-timelapse's own `make install` does, minus the steps that
+ * need a password: clone the repository, link component/timelapse.py and
+ * klipper_macro/timelapse.cfg (install.sh --link-timelapse), and make sure
+ * ffmpeg is there. The [timelapse] config sections and the Moonraker restart are
+ * the setup wizard's own steps, over Moonraker's API, so the remote route
+ * shares them.
  */
 
+#include "local_plugin_installer.h"
 #include "system/process_runner.h"
 
-#include <functional>
 #include <string>
 
 namespace helix {
@@ -57,48 +57,10 @@ struct TimelapseSetupFacts {
  */
 TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts);
 
-/// The step a local install is on, or the one it failed in.
-enum class TimelapseInstallStage {
-    Clone,         ///< git clone of the repository
-    Link,          ///< install.sh --link-timelapse
-    CheckFfmpeg,   ///< looking for ffmpeg
-    InstallFfmpeg, ///< apt-get through passwordless sudo
-};
-
-enum class TimelapseInstallOutcome {
-    Installed,         ///< plugin linked, ffmpeg present
-    InstalledNoFfmpeg, ///< plugin linked; ffmpeg missing and not installable without a password
-    Failed,            ///< plugin not installed; failed_stage names the step
-};
-
-struct TimelapseInstallResult {
-    TimelapseInstallOutcome outcome = TimelapseInstallOutcome::Failed;
-    TimelapseInstallStage failed_stage = TimelapseInstallStage::Clone;
-    /// The failing command's last output line, for the log and the screen; empty on success.
-    std::string detail;
-};
-
-/// Where a local install works.
-struct TimelapseInstallPlan {
-    std::string install_script; ///< install.sh beside this app
-    std::string repo_dir;       ///< the clone: ~/moonraker-timelapse
-    bool repo_present = false;  ///< repo_dir already holds component/timelapse.py
-};
-
-/// The plan for @p home and @p install_script; looks at the filesystem.
-TimelapseInstallPlan make_timelapse_install_plan(const std::string& home,
-                                                 const std::string& install_script);
-
-/**
- * @brief Run a local install through @p run
- *
- * Blocks for as long as the commands take (an ffmpeg install through apt can
- * take minutes), so it belongs on a worker thread. @p on_stage, when set, is
- * called on that same thread as each step starts.
- */
-TimelapseInstallResult
-install_timelapse_locally(const TimelapseInstallPlan& plan, const ProcessRunner& run,
-                          const std::function<void(TimelapseInstallStage)>& on_stage = {});
+/// moonraker-timelapse's recipe for the local plugin installer: clone it to
+/// ~/moonraker-timelapse, `install.sh --link-timelapse` links its component and
+/// macro file, and it needs ffmpeg to render videos.
+const LocalPluginRecipe& timelapse_plugin_recipe();
 
 /// The runner a local install uses: real processes, or the simulated host under --test.
 ProcessRunner timelapse_install_runner();

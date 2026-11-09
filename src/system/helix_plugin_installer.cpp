@@ -8,6 +8,7 @@
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
+#include "local_plugin_installer.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "system/child_process.h"
 #include "system/process_runner.h"
@@ -55,21 +56,18 @@ struct WaitResult {
     std::string output;
 };
 
-/**
- * @brief Log install.sh's output line by line.
- *
- * The script's own messages are the only record of why it failed, so a
- * failure logs them at warn; a success keeps them at debug, except its own
- * [WARN] lines, such as a config edit it could not make.
- */
-static void log_script_output(const std::string& output, bool succeeded) {
+void log_command_output(const char* what, const std::string& output, bool succeeded) {
     for (const auto& line : script_output_lines(output)) {
         if (succeeded && line.rfind("[WARN]", 0) != 0) {
-            spdlog::debug("[PluginInstaller] install.sh: {}", line);
+            spdlog::debug("[PluginInstaller] {}: {}", what, line);
         } else {
-            spdlog::warn("[PluginInstaller] install.sh: {}", line);
+            spdlog::warn("[PluginInstaller] {}: {}", what, line);
         }
     }
+}
+
+static void log_script_output(const std::string& output, bool succeeded) {
+    log_command_output("install.sh", output, succeeded);
 }
 
 #if !defined(ESP_PLATFORM)
@@ -245,8 +243,8 @@ CommandResult run_process(const std::vector<std::string>& argv, int timeout_seco
     out.timed_out = result.timed_out;
     out.exit_code = result.timed_out || result.error ? -1 : result.exit_code;
     out.output = result.output;
-    if (result.error && !result.error_message.empty() && out.output.empty()) {
-        out.output = result.error_message;
+    if (result.error) {
+        out.error = result.error_message;
     }
     return out;
 }
@@ -324,9 +322,17 @@ bool HelixPluginInstaller::is_local_moonraker() const {
     return is_moonraker_on_same_host(host);
 }
 
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds) {
+    LocalPluginRecipe recipe;
+    recipe.name = "HelixPrint";
+    recipe.install_args = {"--no-restart", "--auto"};
+    recipe.install_timeout_seconds = install_timeout_seconds;
+    return recipe;
+}
+
 HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync() {
-    // NOTE: This method is designed to be called from a background thread.
-    // It does NOT use std::function to avoid ARM/glibc static linking issues.
+    // Blocks while install.sh runs; it runs the steps inline on the calling
+    // thread and starts no thread of its own.
 
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-install on remote Moonraker");
@@ -342,32 +348,30 @@ HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync
     spdlog::info("[PluginInstaller] Starting local installation: {} --no-restart --auto",
                  script_path);
 
-    WaitResult result =
-        run_install_script(script_path, "--auto", script_timeout_seconds_, "Installation");
-    log_script_output(result.output, !result.timed_out && !result.error && result.exit_code == 0);
-
-    if (result.spawn_failed) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Failed to start installer: ") + result.error_message};
-    }
-
-    if (result.timed_out) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Installation timed out. The script may be stuck.")};
-    }
-
-    if (result.error) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Installation failed: ") + result.error_message};
-    }
-
-    if (result.exit_code == 0) {
+    // The plugin ships beside install.sh: nothing to fetch, no dependencies.
+    LocalPluginPlan plan;
+    plan.install_script = script_path;
+    const LocalPluginResult installed = install_plugin_locally(
+        helix_print_plugin_recipe(script_timeout_seconds_), plan, run_process);
+    if (installed.outcome != LocalPluginOutcome::Failed) {
         state_.store(PluginInstallState::SUCCESS);
         spdlog::info("[PluginInstaller] Installation completed successfully");
         return {true, lv_tr("Plugin installed successfully.")};
     }
 
     state_.store(PluginInstallState::FAILED);
+    const CommandResult& result = installed.failure;
+    if (!result.started) {
+        return {false, lv_tr("Failed to start installer: ") + result.error};
+    }
+    if (result.timed_out) {
+        spdlog::error("[PluginInstaller] Installation timed out after {} seconds",
+                      script_timeout_seconds_);
+        return {false, lv_tr("Installation timed out. The script may be stuck.")};
+    }
+    if (!result.error.empty()) {
+        return {false, lv_tr("Installation failed: ") + result.error};
+    }
     spdlog::error("[PluginInstaller] Installation failed (exit code {})", result.exit_code);
     return {false, lv_tr("Installation failed. Check logs for details.")};
 }

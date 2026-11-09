@@ -14,6 +14,7 @@ struct CommandResult {
     bool timed_out = false; ///< it outlived its timeout and was stopped
     int exit_code = -1;     ///< its exit status; -1 when it did not exit on its own
     std::string output;     ///< stdout and stderr together, capped
+    std::string error;      ///< why it could not be spawned or waited for; empty otherwise
 
     bool succeeded() const {
         return started && !timed_out && exit_code == 0;
@@ -31,5 +32,10 @@ CommandResult run_process(const std::vector<std::string>& argv, int timeout_seco
 
 /// The last line of @p output with any text in it, color escapes removed.
 std::string last_output_line(const std::string& output);
+
+/// Log @p what's output line by line: the command's own messages are the only
+/// record of why it failed, so a failure logs them at warn; a success keeps
+/// them at debug, except its own [WARN] lines.
+void log_command_output(const char* what, const std::string& output, bool succeeded);
 
 } // namespace helix

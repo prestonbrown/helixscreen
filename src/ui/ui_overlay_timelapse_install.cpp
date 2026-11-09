@@ -322,28 +322,28 @@ void TimelapseInstallOverlay::step_show_install_instructions() {
 }
 
 namespace {
-const char* local_install_stage_text(TimelapseInstallStage stage) {
+const char* local_install_stage_text(LocalPluginStage stage) {
     switch (stage) {
-    case TimelapseInstallStage::Clone:
+    case LocalPluginStage::Fetch:
         return lv_tr("Downloading the timelapse plugin...");
-    case TimelapseInstallStage::Link:
+    case LocalPluginStage::Install:
         return lv_tr("Adding the timelapse plugin to Moonraker...");
-    case TimelapseInstallStage::CheckFfmpeg:
+    case LocalPluginStage::CheckDependency:
         return lv_tr("Checking for ffmpeg...");
-    case TimelapseInstallStage::InstallFfmpeg:
+    case LocalPluginStage::InstallDependency:
         return lv_tr("Installing ffmpeg. This can take several minutes...");
     }
     return "";
 }
 
-const char* local_install_failure_text(TimelapseInstallStage stage) {
+const char* local_install_failure_text(LocalPluginStage stage) {
     switch (stage) {
-    case TimelapseInstallStage::Clone:
+    case LocalPluginStage::Fetch:
         return lv_tr("Could not download the timelapse plugin. Check the printer's internet "
                      "connection.");
-    case TimelapseInstallStage::Link:
-    case TimelapseInstallStage::CheckFfmpeg:
-    case TimelapseInstallStage::InstallFfmpeg:
+    case LocalPluginStage::Install:
+    case LocalPluginStage::CheckDependency:
+    case LocalPluginStage::InstallDependency:
         return lv_tr("Could not add the timelapse plugin to Moonraker.");
     }
     return "";
@@ -369,9 +369,10 @@ void TimelapseInstallOverlay::step_install_locally() {
     // each step's progress and the outcome come back here.
     auto tok = lifetime_.token();
     helix::http::HttpExecutor::slow().submit([this, tok, home, script, runner]() {
-        const TimelapseInstallPlan plan = make_timelapse_install_plan(home, script);
-        const TimelapseInstallResult result =
-            install_timelapse_locally(plan, runner, [this, tok](TimelapseInstallStage stage) {
+        const LocalPluginRecipe& recipe = timelapse_plugin_recipe();
+        const LocalPluginPlan plan = make_local_plugin_plan(recipe, home, script);
+        const LocalPluginResult result =
+            install_plugin_locally(recipe, plan, runner, [this, tok](LocalPluginStage stage) {
                 tok.defer("TimelapseInstallOverlay::local_stage", [this, stage]() {
                     if (wizard_active_) {
                         set_status(local_install_stage_text(stage));
@@ -383,12 +384,12 @@ void TimelapseInstallOverlay::step_install_locally() {
     });
 }
 
-void TimelapseInstallOverlay::on_local_install_done(const TimelapseInstallResult& result) {
+void TimelapseInstallOverlay::on_local_install_done(const LocalPluginResult& result) {
     installing_ = false;
     if (!wizard_active_) {
         return;
     }
-    if (result.outcome == TimelapseInstallOutcome::Failed) {
+    if (result.outcome == LocalPluginOutcome::Failed) {
         spdlog::warn("[{}] Local install failed at stage {}: {}", get_name(),
                      static_cast<int>(result.failed_stage), result.detail);
         std::string text = local_install_failure_text(result.failed_stage);
@@ -399,7 +400,7 @@ void TimelapseInstallOverlay::on_local_install_done(const TimelapseInstallResult
         show_action_button(lv_tr("Retry"), [this]() { step_install_locally(); });
         return;
     }
-    ffmpeg_missing_ = result.outcome == TimelapseInstallOutcome::InstalledNoFfmpeg;
+    ffmpeg_missing_ = result.outcome == LocalPluginOutcome::InstalledMissingDependency;
     spdlog::info("[{}] Plugin installed locally (ffmpeg {})", get_name(),
                  ffmpeg_missing_ ? "missing" : "present");
     step_configure_moonraker();

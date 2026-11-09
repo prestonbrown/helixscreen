@@ -242,6 +242,17 @@ class HelixPluginInstaller {
     static constexpr const char* kPrefInstallDeclined = "/plugin_install_declined";
 };
 
+struct LocalPluginRecipe;
+
+/**
+ * @brief HelixPrint's recipe for the local plugin installer
+ *
+ * The plugin ships beside install.sh, so there is nothing to fetch; `install.sh
+ * --no-restart --auto` links it and writes its [helix_print] section, and the
+ * caller restarts Moonraker.
+ */
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds);
+
 /**
  * @brief The git ref holding the plugin of app version @p version
  *
