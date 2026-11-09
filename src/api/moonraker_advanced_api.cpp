@@ -3,12 +3,12 @@
 
 #include "moonraker_advanced_api.h"
 
-#include "ui_error_reporting.h"
 #include "ui_notification.h"
 
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
+#include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/text_io.h"

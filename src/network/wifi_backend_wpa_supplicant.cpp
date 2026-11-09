@@ -3,8 +3,7 @@
 
 #include "wifi_backend_wpa_supplicant.h"
 
-#include "ui_error_reporting.h"
-
+#include "core/error_reporting.h"
 #include "core/log_redact.h"
 #include "core/run_capture.h"
 #include "core/update_queue.h"

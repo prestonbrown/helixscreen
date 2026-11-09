@@ -13,9 +13,8 @@
 
 #include "wifi_manager.h"
 
-#include "ui_error_reporting.h"
-
 #include "config.h"
+#include "core/error_reporting.h"
 #include "core/http_executor.h"
 #include "core/log_redact.h"
 #include "core/timer_guard.h"

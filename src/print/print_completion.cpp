@@ -4,7 +4,6 @@
 #include "print_completion.h"
 
 #include "ui_confetti.h"
-#include "ui_error_reporting.h"
 #include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
@@ -15,6 +14,7 @@
 
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "core/error_reporting.h"
 #include "core/gcode_filename.h"
 #include "core/static_subject_registry.h"
 #include "display_manager.h"

@@ -3,8 +3,7 @@
 
 #include "wifi_backend_mock.h"
 
-#include "ui_error_reporting.h"
-
+#include "core/error_reporting.h"
 #include "helix_thread.h"
 #include "safe_log.h"
 #include "spdlog/spdlog.h"

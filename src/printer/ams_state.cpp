@@ -14,7 +14,6 @@
 #include "ams_state.h"
 
 #include "ui_color_picker.h"
-#include "ui_error_reporting.h"
 
 #include "ams_backend_registry.h"
 #include "ams_bypass_policy.h"
@@ -29,6 +28,7 @@
 #include "app_globals.h"
 #include "connection_state.h"
 #include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"

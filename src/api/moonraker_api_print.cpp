@@ -1,9 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_error_reporting.h"
 #include "ui_notification.h"
 
+#include "core/error_reporting.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_internal.h"

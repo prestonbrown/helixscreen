@@ -3,10 +3,10 @@
 
 #include "timelapse_state.h"
 
-#include "ui_error_reporting.h"
 #include "ui_format_utils.h"
 
 #include "app_globals.h"
+#include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"

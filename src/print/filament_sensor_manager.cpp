@@ -3,11 +3,10 @@
 
 #include "filament_sensor_manager.h"
 
-#include "ui_error_reporting.h"
-
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
