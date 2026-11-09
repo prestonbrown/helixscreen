@@ -17,6 +17,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_nav.h"
+#include "ui_slider_scale.h"
 #include "ui_utils.h"
 
 #include "core/static_panel_registry.h"
@@ -300,6 +301,26 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
     spdlog::info("[Keypad] Showing (initial={:.1f}, range={:.0f}-{:.0f})", config->initial_value,
                  config->min_value, config->max_value);
     return true;
+}
+
+void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
+                                       ui_keypad_callback_t callback, void* user_data,
+                                       const char* log_name) {
+    const SliderScale scale{spec.divisor};
+    ui_keypad_config_t config = {
+        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
+        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
+        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
+        .title_label = lv_tr(spec.title),
+        .unit_label = spec.unit,
+        .allow_decimal = spec.allow_decimal,
+        .allow_negative = false,
+        .callback = callback,
+        .user_data = user_data};
+
+    spdlog::debug("[{}] Keypad for {} ({}-{})", log_name, spec.title, config.min_value,
+                  config.max_value);
+    ui_keypad_show(&config);
 }
 
 void ui_keypad_hide() {

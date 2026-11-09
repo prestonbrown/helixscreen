@@ -29,26 +29,20 @@ namespace {
 
 using helix::ui::SliderScale;
 
-/// Per-row facts the slider itself cannot answer. The bounds deliberately do
-/// NOT live here: they are read from the row's lv_slider at tap time so the
-/// XML stays the single source of truth for each range.
 struct FieldSpec {
     const char* slider_name;
-    const char* title; ///< Keypad header, so the user knows what they are typing
-    const char* unit;  ///< Suffix beside the keypad's display
-    int divisor;       ///< Slider positions per real unit (see SliderScale)
-    bool allow_decimal;
+    helix::ui::SliderFieldSpec keypad;
 };
 
 /// Indexed by MachineLimitsOverlay::Field.
 constexpr FieldSpec kFieldSpecs[] = {
-    {"max_velocity_slider", "Max Velocity", "mm/s", 1, false},
-    {"max_accel_slider", "Max Acceleration", "mm/s²", 1, false},
-    {"accel_to_decel_slider", "Accel to Decel", "mm/s²", 1, false},
+    {"max_velocity_slider", {"Max Velocity", "mm/s", 1, false}},
+    {"max_accel_slider", {"Max Acceleration", "mm/s²", 1, false}},
+    {"accel_to_decel_slider", {"Accel to Decel", "mm/s²", 1, false}},
     // Tenths: square corner velocity is tuned in 0.5 steps, which an integer
     // slider cannot express. See SCV_DIVISOR uses below.
-    {"square_corner_velocity_slider", "Square Corner Velocity", "mm/s", 10, true},
-    {"extrude_speed_slider", "Extrude Speed", "mm/s", 1, false},
+    {"square_corner_velocity_slider", {"Square Corner Velocity", "mm/s", 10, true}},
+    {"extrude_speed_slider", {"Extrude Speed", "mm/s", 1, false}},
 };
 
 static_assert(sizeof(kFieldSpecs) / sizeof(kFieldSpecs[0]) ==
@@ -402,29 +396,9 @@ void MachineLimitsOverlay::handle_field_clicked(Field field) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
-    const SliderScale scale{spec.divisor};
-
-    // Bounds come from the slider, not from a second copy in this file. A range
-    // edited in machine_limits_overlay.xml stays correct here for free.
     pending_keypad_field_ = field;
-
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
-        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
-        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
-        // Titles are the same strings the rows already declare as
-        // translation_tag in XML, so this resolves with no new keys.
-        .title_label = lv_tr(spec.title),
-        .unit_label = spec.unit,
-        .allow_decimal = spec.allow_decimal,
-        .allow_negative = false,
-        .callback = on_keypad_value,
-        .user_data = this};
-
-    spdlog::debug("[{}] Keypad for {} ({}-{})", get_name(), spec.title, config.min_value,
-                  config.max_value);
-    ui_keypad_show(&config);
+    helix::ui::show_keypad_for_slider(slider, kFieldSpecs[static_cast<size_t>(field)].keypad,
+                                      on_keypad_value, this, get_name());
 }
 
 void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
@@ -440,9 +414,9 @@ void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
-    const int pos = SliderScale{spec.divisor}.to_slider_clamped(
-        value, lv_slider_get_min_value(slider), lv_slider_get_max_value(slider));
+    const int divisor = kFieldSpecs[static_cast<size_t>(field)].keypad.divisor;
+    const int pos = SliderScale{divisor}.to_slider_clamped(value, lv_slider_get_min_value(slider),
+                                                           lv_slider_get_max_value(slider));
     lv_slider_set_value(slider, pos, LV_ANIM_OFF);
 
     // Route through the drag handler rather than duplicating its work, so a
