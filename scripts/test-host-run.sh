@@ -845,9 +845,16 @@ client_pings() {
 
 run_detached() {
     local copy="${TMPDIR:-/tmp}/test-host-follow.$$" got rc status down_since="" phase=follow line
-    printf 'JOB %s\n' "$(base64 | tr -d '\n')" >&"${LOCKER[1]}"
+    # bash unsets a coproc's array once it exits, and the connection holding the
+    # lock can drop at any moment after LOCKED.
+    if [ -z "${LOCKER[1]-}" ]; then
+        echo "✗ could not start the job on $HOST: the connection holding the lock is gone" >&2
+        return 255
+    fi
+    local lock_in=${LOCKER[0]} lock_out=${LOCKER[1]}
+    printf 'JOB %s\n' "$(base64 | tr -d '\n')" >&"$lock_out"
     while :; do
-        if ! IFS= read -r line <&"${LOCKER[0]}"; then
+        if ! IFS= read -r line <&"$lock_in"; then
             echo "✗ could not start the job on $HOST" >&2
             return 255
         fi
