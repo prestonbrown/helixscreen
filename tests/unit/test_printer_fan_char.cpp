@@ -1357,19 +1357,20 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     state.init_subjects(false);
 
     state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2"});
+    // The slot-to-fan map comes from the printer's config (test_fan_tachometers.cpp);
+    // here it is given so only the routing is under test.
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "output_pin fan1"}});
 
-    SECTION("fan_feedback maps fanN_speed to output_pin fanN rpm") {
+    SECTION("fan_feedback fields land on the fans the map names") {
         json status = {
             {"fan_feedback", {{"fan0_speed", 16000}, {"fan1_speed", 3692}, {"fan2_speed", 0}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[0].rpm.has_value());
-        REQUIRE(fans[0].rpm.value() == 16000);
-        REQUIRE(fans[1].rpm.has_value());
-        REQUIRE(fans[1].rpm.value() == 3692);
-        REQUIRE(fans[2].rpm.has_value());
-        REQUIRE(fans[2].rpm.value() == 0);
+        REQUIRE(fans[0].rpm == std::optional<int>(0));
+        REQUIRE(fans[1].rpm == std::optional<int>(16000));
+        REQUIRE_FALSE(fans[2].rpm.has_value());
     }
 
     SECTION("fan_feedback for unknown fanN is ignored") {
@@ -1381,7 +1382,7 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     }
 
     SECTION("fan_feedback with non-numeric value is ignored") {
-        json status = {{"fan_feedback", {{"fan0_speed", nullptr}}}};
+        json status = {{"fan_feedback", {{"fan2_speed", nullptr}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
@@ -1472,17 +1473,27 @@ TEST_CASE("Fan characterization: fan_feedback and Klipper rpm on one printer (#2
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
-    state.fan_state().init_fans({"output_pin fan0", "heater_fan hotend_fan"});
+    state.fan_state().init_fans(
+        {"output_pin fan0", "heater_fan hotend_fan", "heater_fan chamber_fan"});
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "heater_fan chamber_fan"}});
     const auto& fans = state.fan_state().get_fans();
 
-    // fan_feedback owns the output_pin fans; Klipper's rpm reaches only the fan
+    // The tachometer map owns the fans it names; Klipper's rpm reaches only the fan
     // objects that publish it, so neither source overwrites the other.
-    state.update_from_status({{"fan_feedback", {{"fan0_speed", 16000}}},
+    state.update_from_status({{"fan_feedback", {{"fan2_speed", 16000}, {"fan0_speed", 2400}}},
                               {"output_pin fan0", {{"value", 1.0}, {"rpm", 5.0}}},
                               {"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 7000.0}}}});
 
     REQUIRE(fans[0].rpm == std::optional<int>(16000));
     REQUIRE(fans[1].rpm == std::optional<int>(7000));
+    REQUIRE(fans[2].rpm == std::optional<int>(2400));
+
+    SECTION("the fan object's own null rpm does not erase a tachometer reading") {
+        // Klipper publishes rpm null for a heater_fan without a tachometer_pin.
+        state.update_from_status({{"heater_fan chamber_fan", {{"speed", 1.0}, {"rpm", nullptr}}}});
+        REQUIRE(fans[2].rpm == std::optional<int>(2400));
+    }
 }
 
 TEST_CASE("Fan characterization: duplicate chamber_fan disambiguated by role",

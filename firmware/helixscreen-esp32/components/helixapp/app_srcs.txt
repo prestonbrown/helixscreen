@@ -155,6 +155,7 @@ src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
+src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ams_backend.cpp
 src/printer/ams_backend_registry.cpp

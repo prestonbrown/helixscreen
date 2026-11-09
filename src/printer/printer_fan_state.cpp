@@ -163,9 +163,14 @@ void PrinterFanState::update_klipper_rpm(const std::string& object_name,
     const auto it = fan_status.find("rpm");
     if (it == fan_status.end())
         return;
-    if (it->is_null())
-        update_fan_rpm(object_name, std::nullopt);
-    else if (it->is_number())
+    if (it->is_null()) {
+        // A fan with no tachometer_pin of its own may still be measured elsewhere.
+        const bool measured_elsewhere =
+            std::any_of(tachometers_.begin(), tachometers_.end(),
+                        [&](const fan_tach::TachSource& t) { return t.fan == object_name; });
+        if (!measured_elsewhere)
+            update_fan_rpm(object_name, std::nullopt);
+    } else if (it->is_number())
         update_fan_rpm(object_name, static_cast<int>(std::lround(it->get<double>())));
 }
 
@@ -226,18 +231,8 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Parse fan_feedback RPM data (Creality-specific tachometer module)
-    if (status.contains("fan_feedback")) {
-        const auto& fb = status["fan_feedback"];
-        if (fb.is_object()) {
-            for (int i = 0; i < 10; i++) {
-                std::string key = "fan" + std::to_string(i) + "_speed";
-                if (fb.contains(key) && fb[key].is_number()) {
-                    int rpm = fb[key].get<int>();
-                    update_fan_rpm("output_pin fan" + std::to_string(i), rpm);
-                }
-            }
-        }
+    for (const auto& [fan, rpm] : fan_tach::readings(tachometers_, status)) {
+        update_fan_rpm(fan, rpm);
     }
 }
 

@@ -171,6 +171,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     if (type == PrinterType::CREALITY_K2_PLUS) {
         set_config_settings_section("gcode_macro product_param", {{"variable_bed_size_x", "350"},
                                                                   {"variable_bed_size_y", "350"}});
+        // The stock tachometer pins (K2 printer_params.cfg) and the fans they
+        // measure: fan0 the chamber heater's PTC fan, fan1 the hotend fan, fan2
+        // the part fan. This persona's M106 drives the bare [fan].
+        set_config_settings_section("fan_feedback", {{"fan0_pin", json::array({"PC6"})},
+                                                     {"fan1_pin", "nozzle_mcu:PA12"},
+                                                     {"fan2_pin", "nozzle_mcu:PC13"}});
+        set_config_settings_section("fan", {{"pin", "!nozzle_mcu:PB15"}});
+        set_config_settings_section(
+            "heater_fan chamber_fan",
+            {{"pin", "!PB14"}, {"heater", json::array({"chamber_heater"})}});
+        set_config_settings_section("heater_generic chamber_heater", {{"heater_pin", "PC12"}});
     }
     // A pick of T0 failed before the screen connected: the hot end is on the
     // carriage while its dock switch still reads seated, so pin_watch cannot
@@ -1879,7 +1890,18 @@ void MoonrakerClientMock::append_k2_status(json& status) const {
     // Creality's motor controller and fan tachometer modules, in the fields
     // cfs::parse_motor_control and PrinterFanState read.
     status["motor_control"] = {{"motor_ready", true}};
-    status["fan_feedback"] = {{"fan0_speed", 0}, {"fan1_speed", 0}, {"fan2_speed", 0}};
+    double part = 0.0;
+    {
+        std::lock_guard<std::mutex> lock(fan_mutex_);
+        auto it = fan_speeds_.find("fan");
+        if (it != fan_speeds_.end())
+            part = it->second;
+    }
+    status["fan_feedback"] = {{"fan0_speed", 0},
+                              {"fan1_speed", 0},
+                              {"fan2_speed", mock_internal::part_fan_status(part)["rpm"]},
+                              {"fan3_speed", 0},
+                              {"fan4_speed", 0}};
 }
 
 bool MoonrakerClientMock::is_mock_cfs() const {

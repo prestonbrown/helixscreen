@@ -255,6 +255,7 @@ class PrinterStateTestAccess {
             ps.fan_state_.init_fans({});
             ps.temperature_state_.init_extruders({});
         }
+        ps.fan_state_.set_tachometers({});
         // Plain string setters — no subject touched, so they run unguarded. These
         // are the Klipper object names the chamber logic matches against; a leaked
         // one makes a later test's chamber read the previous test's sensor.
