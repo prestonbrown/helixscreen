@@ -78,14 +78,14 @@ agent brief, because agents default to over-verifying.
 
 | When | Run | Not then |
 |---|---|---|
-| **While building** - each task, each agent, each review fix | One change: `make t F='[tags the change touches]'` once after it. Several agents or worktrees at once: each syntax-checks (`scripts/syntax_check.py`) and commits, with no builds or tag runs; merge every branch, then run the tags once on the merged tree. A new or changed test: break the line it pins once, see it go red, restore, on the merged tree when building is deferred | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
+| **While building** - each task, each agent, each review fix | One change: `make t F='[tags the change touches]'` once after it. An independent job in its own worktree tests there as usual. Several worktrees for one feature or batch: each syntax-checks (`scripts/syntax_check.py`) and commits, with no builds or tag runs; merge them, then run the tags once on the merged tree. A new or changed test: break the line it pins once, see it go red, restore, on the merged tree when building is deferred | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
 | **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding. 2. One screenshot per changed screen. 3. ONE `make land-gate` on the combined result, on the fastest free machine (thelio, then zeus; never a Mac) | a gate per branch; a second full gate for a docs-only or test-only fix; waiting on mutation |
 | **Series finished** - when the work has stopped changing, not at each landing | `make mutate-diff MUTATE_ARGS="--base <origin/main before the series>"` once over the whole series, in the background, capped at 45 minutes. A survivor is a follow-up fix (a test that pins it) | after each landing while more of the same work is coming; blocking a merge on it |
 | **Gate red** | Flaky or environment stage: `make land-gate STAGES=<stage>` on the same clean HEAD. A real finding: fix it, rerun only that stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
 | **Release** | Whole-branch mutation, ASAN on the test host, device checks | |
 
 **Several changes or agents at once: one test plan, owned by one session.** The orchestrator
-writes it into every brief; agents syntax-check, commit and hand back, never tag runs, builds,
+writes it into every brief; agents on one feature or batch syntax-check, commit and hand back, never tag runs, builds,
 mutation, sweeps, gates or their own reviews. With peer sessions, whoever lands next owns the batch; the others hand over
 branch + SHA and stop testing.
 
