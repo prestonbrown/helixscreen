@@ -284,6 +284,28 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires when numb
     CHECK(helix::ui::lane_number(0) == 1);
 }
 
+// Slot badges repaint on slots_version, and a renumber changes no slot data.
+TEST_CASE_METHOD(LanguageSwitchFixture, "a numbering change repaints the slot badges",
+                 "[i18n][numbering]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>();
+    mock->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+    helix::ui::init_language_refresh();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    const int before = lv_subject_get_int(ams.get_slots_version_subject());
+    SettingsManager::instance().set_number_lanes_from_zero(true);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(lv_subject_get_int(ams.get_slots_version_subject()) != before);
+
+    SettingsManager::instance().set_number_lanes_from_zero(false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    ams.set_backend(nullptr);
+}
+
 TEST_CASE_METHOD(LanguageSwitchFixture, "a lane badge shows zero but not a missing number",
                  "[numbering]") {
     CHECK(ams_draw::lane_badge_text(0) == "0");

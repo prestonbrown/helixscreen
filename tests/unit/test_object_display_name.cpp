@@ -10,6 +10,7 @@
 #include "ui_text.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/zero_lane_numbering.h"
 
 #include <string>
 #include <vector>
@@ -77,6 +78,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "object_display_name numbers a name the font c
     CHECK(object_display_name(kMixed, 2, kFont) == "Object 3");
     CHECK(object_display_name("", 1, kFont) == "Object 2");
     CHECK(object_display_name(kCjk, -1, kFont) == "Object");
+
+    ScopedZeroLaneNumbering zero; // printed objects are counted, not numbered positions
+    CHECK(object_display_name(kCjk, 0, kFont) == "Object 1");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "object_display_name numbers by position in the defined list",
