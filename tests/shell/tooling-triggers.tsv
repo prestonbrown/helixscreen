@@ -53,7 +53,6 @@ tests/shell/test_deploy_stop_app.bats	mk/cross.mk scripts/deploy-stop-app-remote
 tests/shell/test_device_env_set.bats	config/helixscreen.env scripts/device-env-set-remote.sh scripts/device-env-set.sh
 tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh assets/config/platform/
 tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json assets/config/themes/defaults/ docs/README.md docs/audits/ docs/devel/ docs/user/ include/ams_types.h mk/patches.mk patches/ scripts/check_doc_refs.py scripts/gen_patch_markers.py android/fastlane/metadata/
-tests/shell/test_drm_mmap_lfs_gate.bats	mk/patches.mk patches/lvgl-drm-mmap64.patch scripts/check_drm_mmap_lfs.py
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_env_file_vars_are_live.bats	config/helixscreen.env include/ scripts/helix-launcher.sh src/
 tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py scripts/qc/esp32_app_srcs.sh src/printer/ams_backend_mock.cpp
@@ -70,7 +69,6 @@ tests/shell/test_fork_assertion_gate.bats	tests/shell/*.bats
 tests/shell/test_format_xml_gate.bats	scripts/format-xml.py scripts/qc/phase2.sh ui_xml/
 tests/shell/test_full_test_run.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
 tests/shell/test_gcode_error_ownership_gate.bats	scripts/check_gcode_error_ownership.py scripts/source_strip.py
-tests/shell/test_gcode_lfs_gate.bats	mk/rules.mk scripts/check_gcode_lfs.py
 tests/shell/test_gen_contributors.bats	scripts/gen-contributors.sh
 tests/shell/test_generate_manifest.bats	scripts/generate-manifest.sh
 tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsnew/ scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh
@@ -102,6 +100,7 @@ tests/shell/test_keep_unchanged_mtimes.bats	Makefile mk/deps.mk scripts/keep-unc
 tests/shell/test_l081_gate.bats	scripts/check_l081_anti_pattern.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_land_gate.bats	.githooks/lib/land-gate-stamp.sh .github/workflows/build.yml Makefile mk/tests.mk scripts/check_no_mocks.py scripts/helix-claim scripts/land-gate.sh scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/lib/sweep_location.sh
 tests/shell/test_latest_green_sha.bats	scripts/latest-green-sha.sh
+tests/shell/test_lfs_sites_gate.bats	mk/patches.mk mk/rules.mk patches/lvgl-drm-mmap64.patch scripts/check_lfs_sites.py
 tests/shell/test_libhv_dns_resolver_patch.bats	lib/libhv mk/patches.mk mk/rules.mk patches/libhv-dns-resolver-fallback.patch
 tests/shell/test_link_parity_gate.bats	Makefile mk/ scripts/check_link_parity.py scripts/mutate_diff.py scripts/qc/link_parity.sh scripts/quality-checks.sh src/ui/home/ui_panel_home.cpp
 tests/shell/test_load_base_rule_conformance.bats	scripts/resolve-backtrace.sh scripts/telemetry-crashes.py server/crash-worker/src/symbol-resolver.ts tests/fixtures/load_base_rule.json
