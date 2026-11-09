@@ -5,7 +5,7 @@ first-run configuration wizard (`src/ui/wizard/ui_wizard_printer_identify.cpp`),
 Image picker overlay (`src/ui/printers/ui_overlay_printer_image.cpp`), and the home panel's
 printer widget (`src/ui/panel_widgets/printer_image_widget.cpp`).
 
-87 PNGs, ~27 MB. PNG is the only format here; nothing loads a `.jpg` or `.webp` from
+87 PNGs, ~28 MB. PNG is the only format here; nothing loads a `.jpg` or `.webp` from
 this directory.
 
 ## Which printer gets which image
