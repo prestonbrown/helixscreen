@@ -369,6 +369,7 @@ int sweep_stale_helix_cache_dirs() {
     return removed;
 }
 
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
 std::string app_get_state_root() {
 #if defined(HELIX_PLATFORM_ANDROID) || defined(__ANDROID__)
     // The redirected state dir is in Android's backup set, so per-device state

@@ -498,6 +498,7 @@ std::string app_get_cache_dir();
  * on Android, whose state dir is in the device backup set. Creates the
  * directory it returns.
  */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
 std::string app_get_state_root();
 
 // Returns a writable base dir for SHORT-LIVED runtime files (nmcli stderr
