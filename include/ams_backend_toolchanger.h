@@ -459,6 +459,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// retires its generation so a late ack resolves nothing. A mount-to-feed
     /// run ends here too, and any heaters-off a lost run still owes goes out.
     void on_klipper_restarted() override;
+    /// Re-seeds the Z-Mod tool state (T_INFO) on each edge into READY.
+    void on_klippy_ready() override;
     /// A mount-to-feed run ends: nothing it sent will be answered, and its
     /// cleanup waits for a printer that can take it.
     void on_connection_lost() override;
@@ -837,7 +839,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     apply_afc_lane_spools_locked(const std::vector<helix::toolchanger_addon::AfcLaneSpool>& spools);
     /// Ask Z-Mod where every tool sits (T_INFO is read-only). Its answer fixes
     /// the boot state on firmware whose active_tool_id only recomputes inside
-    /// its own commands.
+    /// its own commands. Sent only while Klipper reads READY: a start ahead of
+    /// READY leaves it to on_klippy_ready(), so each connect sends it once.
     void query_zmod_tool_state();
 
   private:

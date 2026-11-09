@@ -669,13 +669,21 @@ void AmsState::install_klippy_state_observer() {
             }
             const bool restarted = self->klippy_ready_seen_ && prev != -1 && prev != kReady;
             self->klippy_ready_seen_ = true;
-            if (!restarted) {
+            // The observer's first fire reports the state it found, not an
+            // edge: backends started under a READY Klipper already saw it.
+            const bool became_ready = prev != -1 && prev != kReady;
+            if (!became_ready) {
                 return;
             }
             for (int i = 0; i < self->backend_count(); ++i) {
-                if (AmsBackend* backend = self->get_backend(i)) {
+                AmsBackend* backend = self->get_backend(i);
+                if (!backend) {
+                    continue;
+                }
+                if (restarted) {
                     backend->on_klipper_restarted();
                 }
+                backend->on_klippy_ready();
             }
         },
         get_printer_state().get_subjects_lifetime());
