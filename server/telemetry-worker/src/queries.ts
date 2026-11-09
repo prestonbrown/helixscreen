@@ -491,6 +491,10 @@ export function adoptionQueries(days: number, filters?: FilterParams): string[] 
     distribution("kinematics"),
     // Boards
     distribution("app_board"),
+    // Install sources
+    distribution("install_source"),
+    // Host firmware mods
+    distribution("host_mod"),
   ];
 }
 

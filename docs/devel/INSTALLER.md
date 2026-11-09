@@ -79,6 +79,7 @@ curl -sSL https://releases.helixscreen.org/install.sh | sh
 | Flag | Description |
 |------|-------------|
 | `--update` | Update existing installation (preserves config) |
+| `--source NAME` | Channel running this install (`helix-installer`, `kiauh`, `helper-script`, `curl`, `other`; anything else maps to `other`). Stored in `config/.install_source` for the opt-in telemetry. A fresh install with no `--source` records `curl`; `--update` keeps an existing marker |
 | `--uninstall` | Remove HelixScreen |
 | `--clean` | Remove old installation completely, then fresh install |
 | `--version VER` | Install specific version (e.g., `--version v1.1.0`) |
