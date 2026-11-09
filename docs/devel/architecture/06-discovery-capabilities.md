@@ -115,7 +115,7 @@ Eight managers derive the base: `FilamentSensorManager` (namespace `helix`), and
 | Step | Where | What |
 |------|-------|------|
 | Object-list pass | `init_subsystems_from_hardware()` ([`src/printer/printer_discovery.cpp`](../../../src/printer/printer_discovery.cpp)) | every manager: `discover(hw)` then `load_settings()`; an empty list clears the previous printer's sensors on a switch |
-| Configfile pass | `continue_discovery_objects` ([`src/api/moonraker_discovery_sequence.cpp`](../../../src/api/moonraker_discovery_sequence.cpp)) queues `rediscover_from_config()` to the main thread | `discover(hw)` again, only on managers with `rediscover_on_config` (accelerometers, probes, inputs), because they read config sections |
+| Configfile pass | `apply_configfile_config` ([`src/api/moonraker_discovery_sequence.cpp`](../../../src/api/moonraker_discovery_sequence.cpp)) queues `rediscover_from_config()` to the main thread | `discover(hw)` again, only on managers with `rediscover_on_config` (accelerometers, probes, inputs), because they read config sections |
 | Subscription | `build_subscription_objects` (same file) | `status_fields()` per classified object plus each manager's `extra_subscriptions()` |
 | Status | `dispatch_status_frame()` ([`src/printer/status_dispatch.cpp`](../../../src/printer/status_dispatch.cpp), chapter 05) | every manager's `update_from_status()` |
 

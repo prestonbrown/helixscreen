@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -295,6 +296,41 @@ class MoonrakerDiscoverySequence {
      * Chains: objects.list → server.info → printer.info → MCU queries → subscribe
      */
     void continue_discovery_objects(uint64_t seq);
+
+    struct McuQueryState;
+
+    // One step per reply of the discovery chain. Every step taking a sequence number drops
+    // a reply from a superseded pass or a recycled connection before touching anything.
+    void on_objects_listed(uint64_t seq, const json& response);
+    void on_objects_list_failed(uint64_t seq, const MoonrakerError& err);
+    void report_objects_list_failure(const std::string& reason);
+    void query_status_claims(uint64_t seq, const json& claim_query);
+    void on_status_claims(uint64_t seq, const json& status);
+    void on_server_info(uint64_t seq, const json& info_response);
+    void apply_server_info(uint64_t seq, const json& result);
+    void apply_server_components(uint64_t seq, const json& component_list,
+                                 const std::string& moonraker_version);
+    void query_spoolman_status(uint64_t seq);
+    void query_timelapse_settings();
+    void query_system_info();
+    void on_printer_info(uint64_t seq, const json& printer_response);
+    void publish_printer_info(const json& result);
+    void query_configfile();
+    void on_configfile(const json& config_response);
+    void apply_configfile_config(const json& cfg);
+
+    /// Everything configfile.settings decides about hardware_, written under one
+    /// hardware_mutex_ hold so a snapshot never sees half of it. The caller must not hold
+    /// hardware_mutex_.
+    void apply_configfile_settings(const json& settings);
+
+    void query_mcu_info(uint64_t seq);
+    void on_mcu_reply(uint64_t seq, const std::string& mcu_obj,
+                      const std::shared_ptr<McuQueryState>& state, const json& mcu_response);
+    void on_mcu_query_failed(uint64_t seq, const std::string& mcu_obj,
+                             const std::shared_ptr<McuQueryState>& state,
+                             const MoonrakerError& err);
+    void publish_mcu_results(McuQueryState& state);
 
     /**
      * @brief Complete discovery by subscribing to printer objects
