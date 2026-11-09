@@ -194,7 +194,12 @@ void AmsBackendToolChanger::on_stopped() {
     // goes out while the connection may still carry it, and the run resets.
     // Here and not in on_stopping(): the unwind takes mutex_ and emits, and
     // stop() holds mutex_ across on_stopping().
-    abandon_feed_run_after_disconnect();
+    abandon_feed_run_after_disconnect(carriage_trusted_for_restore());
+}
+
+void AmsBackendToolChanger::before_disconnect() {
+    // A carriage swap would run with nothing left to watch it.
+    abandon_feed_run_after_disconnect(/*restore_carriage=*/false);
 }
 
 void AmsBackendToolChanger::register_zmod_marker_listener() {
@@ -2068,6 +2073,7 @@ void AmsBackendToolChanger::send_feed_stage() {
     if (!feed_run_) {
         return;
     }
+    feed_heater_hold_.set(feed_run_->started());
     set_wait_watchdog(false);
     const std::optional<std::string> gcode = feed_run_->current_gcode();
     if (!gcode) {
@@ -2466,7 +2472,7 @@ void AmsBackendToolChanger::show_feed_toast(const std::string& message, NoticeSe
     publish_notice({severity, message});
 }
 
-void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
+void AmsBackendToolChanger::abandon_feed_run_after_disconnect(bool restore_carriage) {
     if (!feed_run_) {
         return;
     }
@@ -2475,7 +2481,7 @@ void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
     // reset the run now, rather than leaving a hot nozzle behind bookkeeping.
     spdlog::warn("[AMS ToolChanger] Backend stopping under a mount-to-feed run; sending the "
                  "cleanup and resetting the run");
-    feed_run_->abort(carriage_trusted_for_restore());
+    feed_run_->abort(restore_carriage);
     const std::optional<std::string> cleanup = feed_run_->current_gcode();
     reset_feed_run();
     if (cleanup) {
@@ -2579,6 +2585,7 @@ void AmsBackendToolChanger::owe_heaters_off(const std::vector<int>& heads) {
 
 void AmsBackendToolChanger::reset_feed_run() {
     feed_run_.reset();
+    feed_heater_hold_.set(false);
     feed_swap_check_.reset();
     feed_cancel_after_swap_ = false;
     set_swap_watchdog(false);

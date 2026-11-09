@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "heater_hold.h"
 #include "lvgl.h"
 
 #include <atomic>
@@ -45,6 +46,10 @@ class PostOpCooldownManager {
     /// Take @p heater out of the pending cooldown, leaving any other heater's.
     void cancel(std::string heater);
 
+    /// Run a pending cooldown now, while the printer can still hear it.
+    /// Main thread only.
+    void flush_before_disconnect();
+
     /// Shutdown — cancel timer, release resources. Call during app teardown.
     void shutdown();
 
@@ -70,7 +75,11 @@ class PostOpCooldownManager {
     // TIMER_DTOR_OK: the callback reaches the owner through
     // PostOpCooldownManager::instance() rather than a captured `this`, so
     // destroying the manager cannot leave the timer holding freed memory.
+    /// The timer is spent: turn off what it was owed. Main thread only.
+    void fire();
+
     lv_timer_t* timer_ = nullptr;
+    helix::HeaterHold heater_hold_;
     std::vector<std::string> heaters_; ///< What timer_ turns off; "" is the active extruder
     std::atomic<bool> initialized_{false};
 };

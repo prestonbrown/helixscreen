@@ -9,6 +9,7 @@
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override_store.h"
+#include "heater_hold.h"
 #include "mount_feed_sequence.h"
 #include "notice.h"
 #include "toolchanger_addon.h"
@@ -457,6 +458,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] bool reset_available() const override;
     [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;
+    /// Ends a live mount-to-feed run with its heaters off and no carriage move,
+    /// while the client can still carry it.
+    void before_disconnect() override;
     /// Refuses while a swap the controller failed mid-print leaves its target
     /// tool too cold for the machine's own RESUME.
     void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
@@ -629,9 +633,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void on_feed_signal(helix::mount_feed::ConsoleSignal signal);
     /// The backend stopping under a live run: the full cleanup goes out, best
     /// effort, and the run resets without waiting for an ack that may never
-    /// arrive. From on_stopped(). Takes mutex_ and emits, so never under the
-    /// lock.
-    void abandon_feed_run_after_disconnect();
+    /// arrive. Takes mutex_ and emits, so never under the lock.
+    void abandon_feed_run_after_disconnect(bool restore_carriage);
     /// The printer can no longer take the run's gcode (a lost connection, a
     /// Klipper restart): end the run sending nothing, say so, and owe its
     /// heaters-off to the next moment Klippy is ready.
@@ -741,6 +744,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;
     /// The run in progress. Main thread only; feed_active_ mirrors it under mutex_.
     std::optional<helix::mount_feed::Run> feed_run_;
+    helix::HeaterHold feed_heater_hold_;
     uint64_t feed_generation_ = 0;
     bool feed_active_ = false;
     AmsAction feed_action_ = AmsAction::IDLE;
