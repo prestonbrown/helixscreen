@@ -621,15 +621,18 @@ TEST_CASE_METHOD(
     // The replacement firmware ships a _START_PRINT_VARS of its own, the macro
     // the k2-improvements entries read as definitive, and declares no bed
     // through product_param. Its extended_zone_transform extra is what tells
-    // it apart.
-    PrinterHardwareData hardware = printer_capture("creality_k2_plus_jacobean");
+    // it apart. Two real units, two firmware builds, both saved as the stock
+    // K2 Plus.
+    const std::string capture = GENERATE(as<std::string>{}, "creality_k2_plus_jacobean",
+                                         "creality_k2_plus_jacobean_cartographer");
+    PrinterHardwareData hardware = printer_capture(capture);
     REQUIRE(std::find(hardware.printer_objects.begin(), hardware.printer_objects.end(),
                       "gcode_macro _START_PRINT_VARS") != hardware.printer_objects.end());
     const bool reported = GENERATE(false, true);
     hardware.objects_reported = reported;
 
     const auto result = PrinterDetector::detect(hardware);
-    CAPTURE(reported, result.type_name, result.confidence, result.runner_up_type_name,
+    CAPTURE(capture, reported, result.type_name, result.confidence, result.runner_up_type_name,
             result.runner_up_confidence, result.margin(), result.tied_count);
 
     REQUIRE(result.type_name == "Creality K2 Plus (Jacobean firmware)");
