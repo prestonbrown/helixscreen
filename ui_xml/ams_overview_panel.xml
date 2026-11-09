@@ -163,6 +163,7 @@
             <bind_style_if_eq name="detail_path_portrait" subject="ui_is_portrait" ref_value="1"/>
             <filament_path_canvas name="detail_path_canvas"
                                   width="100%" flex_grow="1" bind_motion="filament_manual_motion"/>
+            <unit_art name="path_rail_art" hidden="true" floating="true" clickable="false" tier="full"/>
             <lv_obj name="page_prev_button"
                     width="#ams_page_arrow_hit" height="#ams_page_arrow_hit" floating="true" clickable="true"
                     scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_radius="9999">

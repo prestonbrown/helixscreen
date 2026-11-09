@@ -1592,13 +1592,19 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                                      : std::string("MMU");
     };
 
+    auto unit_model = [this](int u) {
+        return u < static_cast<int>(machine_units_.size()) ? machine_units_[u].vendor
+                                                           : std::string{};
+    };
+
     // The split mmu_machine names usually matches the one already built; only
     // the topologies can still change then.
     if (resplit && static_cast<int>(system_info_.units.size()) == num_units_) {
         bool same = true;
         for (int u = 0; u < num_units_; ++u) {
             same = same && system_info_.units[u].slot_count == unit_counts[u] &&
-                   system_info_.units[u].name == unit_name(u);
+                   system_info_.units[u].name == unit_name(u) &&
+                   system_info_.units[u].model == unit_model(u);
         }
         if (same) {
             update_unit_topologies();
@@ -1623,6 +1629,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
         AmsUnit unit;
         unit.unit_index = u;
         unit.name = unit_name(u);
+        unit.model = unit_model(u);
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
         unit.connected = true;

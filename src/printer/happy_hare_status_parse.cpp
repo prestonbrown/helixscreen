@@ -254,6 +254,10 @@ std::vector<std::string> read_config_list(const nlohmann::json* v) {
 MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::json& fields) {
     MachineUnit u;
     u.display_name = read_string_member(fields, "display_name");
+    // Live unit_N fields say `vendor`; an old [mmu_machine] section says `mmu_vendor`.
+    u.vendor = read_string_member(fields, "vendor");
+    if (u.vendor.empty())
+        u.vendor = read_string_member(fields, "mmu_vendor");
     u.selector_type = read_string_member(fields, "selector_type");
     if (const auto* first = find_member(fields, "first_gate")) {
         u.first_gate = ams::read_integer(*first).value_or(-1);

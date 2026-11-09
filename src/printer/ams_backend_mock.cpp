@@ -2538,6 +2538,14 @@ void AmsBackendMock::set_afc_unit_name(const std::string& name) {
         system_info_.units[0].name = name;
 }
 
+void AmsBackendMock::set_unit_model(const std::string& model) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (system_info_.units.empty())
+        return;
+    system_info_.units[0].model = model;
+    system_info_.units[0].topology = PathTopology::LINEAR;
+}
+
 bool AmsBackendMock::is_afc_mode() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return afc_mode_;

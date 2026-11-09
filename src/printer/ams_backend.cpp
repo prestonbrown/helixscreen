@@ -670,6 +670,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
             mock->set_afc_mode(true);
             mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
             spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
+        } else if (ams_type == "ercf" || ams_type == "tradrack") {
+            mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
+            spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
         } else if (ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc") {
             mock->set_tool_changer_mode(true);
             spdlog::info("[AMS Backend] Mock tool changer mode enabled");

@@ -4729,6 +4729,17 @@ TEST_CASE_METHOD(HhHelperWithClient,
     }
 }
 
+TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare reports each unit's vendor as its model",
+                 "[ams][happy_hare][hh_multi_unit]") {
+    const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    connect_with_fixture(helper, client, fx);
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+    const auto info = helper.get_system_info();
+    REQUIRE(info.units.size() == 2);
+    CHECK(info.units[0].model == "ERCF");
+    CHECK(info.units[1].model == "BoxTurtle");
+}
+
 TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare single v4 unit is named by its display_name",
                  "[ams][happy_hare][hh_multi_unit]") {
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");

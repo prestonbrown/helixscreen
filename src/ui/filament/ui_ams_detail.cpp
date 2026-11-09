@@ -11,6 +11,7 @@
 #include "ui_error_reporting.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toast_manager.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 
 #include "ams_dryer.h"
@@ -896,6 +897,37 @@ void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
     spdlog::debug("[AmsDetail] Moved {} badges to overlay layer", slot_count);
 }
 
+namespace {
+
+/// The selector rail stands where the selector bar would be, around the hub the path drew.
+void sync_path_rail_art(lv_obj_t* canvas, const tray::UnitShell* shell, int unit_index,
+                        const helix::AmsSystemInfo& info) {
+    lv_obj_t* art = lv_obj_find_by_name(lv_obj_get_parent(canvas), "path_rail_art");
+    if (!art)
+        return;
+    const int unit = unit_index < 0 && info.units.size() == 1 ? 0 : unit_index;
+    const tray::CarriageTrack* track =
+        shell && unit >= 0 && unit < static_cast<int>(info.units.size())
+            ? tray::unit_shell_carriage(*shell, info.units[static_cast<size_t>(unit)].slot_count)
+            : nullptr;
+    // DECLARATIVE_OK: the art follows a measured canvas and a per-unit hardware answer.
+    lv_obj_set_hidden(art, track == nullptr);
+    if (!track)
+        return;
+    lv_obj_update_layout(canvas);
+    const int32_t canvas_h = lv_obj_get_height(canvas);
+    const int32_t height = canvas_h * 11 / 20;
+    const int32_t width =
+        std::min(lv_obj_get_width(canvas) * 2 / 5, static_cast<int32_t>(height * track->aspect));
+    lv_obj_set_size(art, width, height);
+    lv_obj_set_pos(art, lv_obj_get_x(canvas) + (lv_obj_get_width(canvas) - width) / 2,
+                   lv_obj_get_y(canvas) + std::max(0, canvas_h * 3 / 10 - height / 2));
+    lv_obj_update_layout(art);
+    helix::ui::unit_art_set_unit(art, info, unit, helix::ui::unit_reports_climate(unit));
+}
+
+} // namespace
+
 void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index) {
     if (!canvas)
         return;
@@ -961,6 +993,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
     ui_filament_path_canvas_set_built_in_hub(canvas, built_in_hub);
+    sync_path_rail_art(canvas, drawn_unit, unit_index, info);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
     // it by construction, and the all-units view always reaches a toolhead.

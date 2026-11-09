@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, ams_2_pro, ams_ht, bmcu, box_turtle, btt_vivid, cfs, kms, night_owl, qidi_box, quattro_box  # noqa: E402
+from unit_art.units import ace_pro, ams_2_pro, ams_ht, bmcu, box_turtle, btt_vivid, cfs, kms, night_owl, qidi_box, quattro_box, rail  # noqa: E402
 UNITS = [
     ace_pro.UNIT,
     box_turtle.UNIT,
@@ -25,6 +25,8 @@ UNITS = [
     bmcu.UNIT,
     night_owl.UNIT,
     quattro_box.UNIT,
+    rail.ERCF,
+    rail.TRADRACK,
 ]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
@@ -69,6 +71,10 @@ def _bake_layers(unit, target, lane_count, render):
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
+        if unit.carriage_step is not None:
+            carriage = f"{tier}_carriage.png"
+            render(scene.layer_svg("carriage", width), width, target / carriage)
+            manifest["tiers"][tier]["carriage"] = carriage
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
@@ -83,6 +89,16 @@ def generate_shell_table(units):
 
     def points(pts):
         return ", ".join(f"{{{d:.4f}f, {h:.2f}f}}" for d, h in pts)
+
+    def carriage_rows(unit):
+        rows = []
+        for gates in unit.lane_variants:
+            scene = kit.Scene(kit.ART_CAMERA)
+            unit.draw_art(scene, ["#ffffff"] * gates, "full")
+            step_x, step_y = kit.carriage_step(scene, unit.carriage_step(gates))
+            _, _, vw, vh = scene._viewbox()
+            rows.append(f"{{{gates}, {step_x:.5f}f, {step_y:.5f}f, {vw / vh:.5f}f}}")
+        return rows
 
     out = [
         "// SPDX-License-Identifier: GPL-3.0-or-later",
@@ -112,10 +128,15 @@ def generate_shell_table(units):
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
         variants = sum(1 << lanes for lanes in unit.lane_variants)
+        track = ""
+        if unit.carriage_step is not None:
+            carriage = carriage_rows(unit)
+            out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
+            track = f", k_{unit.id}_carriage, {len(carriage)}"
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, 0x{variants:x}}},"
+            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, 0x{variants:x}{track}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [
@@ -157,10 +178,12 @@ def contact_sheet(out_dir, sheet_path):
                     mask_id = f"m{bg[1:]}{m['id']}{m['lanes']}{tier}{lane}"
                     cells.append(
                         f'<mask id="{mask_id}"><image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["color"])}"/></mask>'
-                        f'<rect x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" fill="{SAMPLE[lane]}" mask="url(#{mask_id})"/>'
+                        f'<rect x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" fill="{SAMPLE[lane % len(SAMPLE)]}" mask="url(#{mask_id})"/>'
                         f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["shade"])}"/>'
                     )
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["front"])}"/>')
+                if "carriage" in t:
+                    cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["carriage"])}"/>')
             x += x_step
         y += row_h
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{x_step * max(1, len(roots))}" height="{y}">{"".join(cells)}</svg>'

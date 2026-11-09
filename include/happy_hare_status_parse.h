@@ -197,12 +197,13 @@ struct MachineLayout {
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
 /// configfile's `[mmu_machine]`, read as a single unit.
 struct MachineUnit {
-    std::string display_name;                     ///< v4 `display_name`; empty when not published
-    std::string selector_type;                    ///< e.g. "VirtualSelector" (Type B)
-    int first_gate = -1;                          ///< -1 when not published
-    int num_gates = 0;                            ///< 0 when not published
-    std::string filament_heater;                  ///< shared enclosure heater
-    std::string environment_sensor;               ///< shared enclosure sensor
+    std::string display_name;       ///< v4 `display_name`; empty when not published
+    std::string vendor;             ///< hardware family, e.g. "ERCF"; empty when not published
+    std::string selector_type;      ///< e.g. "VirtualSelector" (Type B)
+    int first_gate = -1;            ///< -1 when not published
+    int num_gates = 0;              ///< 0 when not published
+    std::string filament_heater;    ///< shared enclosure heater
+    std::string environment_sensor; ///< shared enclosure sensor
     std::vector<std::string> filament_heaters;    ///< one per gate of THIS unit
     std::vector<std::string> environment_sensors; ///< one per gate of THIS unit
     std::optional<bool> has_bypass;

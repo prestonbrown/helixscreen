@@ -36,6 +36,8 @@ Add the unit to `UNITS` in `scripts/unit_art/build.py`.
 
 A unit built in several lane counts sets `lane_variants` on its `UnitDef` and draws from `len(colors)`, as left cap, N lanes, right cap. Each count bakes to `assets/images/units/<id>/<n>/`. Lane counts without a baked set keep the live tray shell and lose only the picture.
 
+A unit with a moving selector has no spools: it draws one `lane` stub per gate and puts the moving part in `scene.layer = "carriage"` at gate 0, and sets `carriage_step` on its `UnitDef`. The build writes a `CarriageTrack` row per gate count for the widget. `scripts/unit_art/units/rail.py` is the model.
+
 ## Tray rules
 
 The tray shares the app's flat camera and draws real spool widgets between `tray_back_draw_cb` and `tray_front_draw_cb`. Depth barely shows there, so the end caps carry the side profile. Parts behind the spools belong in the back callback. Left cap, N lanes, right cap; lids stretch across the row.

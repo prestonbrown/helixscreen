@@ -217,6 +217,42 @@ class ScaledScene:
         self.scene.extrude_x(self._pts(profile), x0 * self.k, x1 * self.k, color, opacity, front)
 
 
+class RotatedScene:
+    """Draws into a scene with the plan turned about z, so a unit can sit askew on the camera's table."""
+
+    def __init__(self, scene, degrees):
+        self.scene, self.camera = scene, scene.camera
+        self._c, self._s = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
+
+    @property
+    def layer(self):
+        return self.scene.layer
+
+    @layer.setter
+    def layer(self, name):
+        self.scene.layer = name
+
+    def world(self, p):
+        return (p[0] * self._c - p[1] * self._s, p[0] * self._s + p[1] * self._c) + tuple(p[2:])
+
+    def poly(self, pts3, fill, opacity=1.0, stroke=None, sw=0.0, **kw):
+        self.scene.poly([self.world(p) for p in pts3], fill, opacity, stroke, sw, **kw)
+
+    def line(self, pts3, stroke, sw, opacity=1.0, **kw):
+        self.scene.line([self.world(p) for p in pts3], stroke, sw, opacity, **kw)
+
+    def prism(self, foot, z0, z1, color, **kw):
+        self.scene.prism([self.world(p) for p in foot], z0, z1, color, **kw)
+
+
+def carriage_step(scene, step):
+    """One gate of world-space travel as a fraction of the art's width on screen."""
+    a = scene.camera.project((0.0, 0.0, 0.0))
+    b = scene.camera.project(step)
+    _, _, vw, _ = scene._viewbox()
+    return (b[0] - a[0]) / vw, (b[1] - a[1]) / vw
+
+
 @dataclass
 class TrayShellDef:
     cheek: List[Tuple[float, float]]
@@ -244,6 +280,8 @@ class UnitDef:
     tray: Optional[TrayShellDef] = None
     # Lane counts this design is built in, each baked to its own set. Empty: only 'lanes'.
     lane_variants: Tuple[int, ...] = ()
+    # A unit with a moving selector: given a lane count, the world-space travel between gates.
+    carriage_step: Optional[Callable] = None
 
 
 @dataclass

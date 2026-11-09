@@ -20,6 +20,7 @@ struct ShellRow {
     const char* shell_id;
     const char* enclosed_shell_id; ///< nullptr when the unit is never enclosed.
     int only_lanes;                ///< Match only this many lanes; 0 for any.
+    bool selector_rail = false;    ///< Match only units that report a linear selector.
 };
 
 constexpr ShellRow kShellRows[] = {
@@ -33,6 +34,9 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
     // Happy Hare's display_name defaults to the unit's vendor, "QuattroBox".
     {"happy_hare", "quattro", "quattro_box", nullptr, 0},
+    // Happy Hare's vendor constants; only a real selector is one of these rails.
+    {"happy_hare", "ercf", "ercf_rail", nullptr, 0, true},
+    {"happy_hare", "tradrack", "tradrack_rail", nullptr, 0, true},
     {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
     // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.
@@ -65,11 +69,12 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
         return nullptr;
     const char* slug = ams_type_telemetry_slug(info.type);
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
-    const std::string unit_name = helix::text_io::to_lower(unit.name);
+    const std::string unit_name = helix::text_io::to_lower(unit.name + " " + unit.model);
     for (const ShellRow& row : kShellRows) {
         if (std::strcmp(row.backend_slug, slug) == 0 &&
             (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&
-            (row.only_lanes == 0 || unit.slot_count == row.only_lanes))
+            (row.only_lanes == 0 || unit.slot_count == row.only_lanes) &&
+            (!row.selector_rail || unit.topology == PathTopology::LINEAR))
             return unit_shell_by_id(row.enclosed_shell_id && has_climate(unit, has_dryer)
                                         ? row.enclosed_shell_id
                                         : row.shell_id);
