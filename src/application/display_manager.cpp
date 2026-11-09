@@ -665,6 +665,11 @@ void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) 
     if (dm->m_shutting_down || !dm->m_backend || dm->m_pointer_reopen_timer.get()) {
         return;
     }
+    if (!dm->m_backend->can_reopen_input_pointer()) {
+        spdlog::warn("[DisplayManager] Pointer device removed; the {} backend cannot reopen it",
+                     dm->m_backend->name());
+        return;
+    }
     // A USB touch controller that resets drops off the bus and re-enumerates a
     // few seconds later; lv_evdev has already deleted the device it read.
     spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",

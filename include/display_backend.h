@@ -473,6 +473,12 @@ class DisplayBackend {
         return nullptr;
     }
 
+    /// Whether reopen_input_pointer() can ever bring a pointer back. DisplayManager
+    /// arms its retry only on a backend that says yes.
+    virtual bool can_reopen_input_pointer() const {
+        return false;
+    }
+
     /**
      * @brief Create keyboard input device (optional)
      *
