@@ -99,6 +99,41 @@ TEST_CASE("Fan tachometers: K1 model-fan tach maps to the part fan",
     CHECK(map.size() == 1);
 }
 
+TEST_CASE("Fan tachometers: a K1 with a third tach pin is not read as a K2",
+          "[fan][fan_feedback][fan_tach]") {
+    json s = k1c_settings();
+    s["fan_feedback"]["fan2_pin"] = "nozzle_mcu:PB3";
+    // Creality's K1 module reports PB4 and PC6 as fan0/fan1 and drops the third pin;
+    // the K2 slots would put the backplane fan's RPM on the hotend fan.
+    CHECK(fan_tach::map_from_config(s).empty());
+}
+
+TEST_CASE("Fan tachometers: blank pins are not configured slots", "[fan][fan_feedback][fan_tach]") {
+    SECTION("a blank fan2_pin leaves the K1 layout") {
+        json s = k1c_settings();
+        s["fan_feedback"]["fan2_pin"] = " ";
+        const TachMap map = fan_tach::map_from_config(s);
+        CHECK(fan_for(map, "fan0_speed") == std::optional<std::string>("heater_fan hotend_fan"));
+        CHECK(map.size() == 1);
+    }
+    SECTION("a blank K1 slot does not shift the later pins") {
+        json s = k1c_settings();
+        s["fan_feedback"] = {{"fan0_pin", ""}, {"fan1_pin", "nozzle_mcu:PB4"}, {"fan3_pin", "PC6"}};
+        const TachMap map = fan_tach::map_from_config(s);
+        CHECK(fan_for(map, "fan0_speed") == std::optional<std::string>("heater_fan hotend_fan"));
+        CHECK_FALSE(fan_for(map, "fan1_speed"));
+    }
+}
+
+TEST_CASE("Fan tachometers: two candidate fans for one slot leave it unmapped",
+          "[fan][fan_feedback][fan_tach]") {
+    json s = k2_plus_settings();
+    s["heater_fan aux"] = {{"pin", "PA1"}, {"heater", {"extruder"}}};
+    const TachMap map = fan_tach::map_from_config(s);
+    CHECK_FALSE(fan_for(map, "fan1_speed"));
+    CHECK(fan_for(map, "fan2_speed") == std::optional<std::string>("output_pin fan0"));
+}
+
 TEST_CASE("Fan tachometers: a slot whose fan is missing stays unmapped",
           "[fan][fan_feedback][fan_tach]") {
     SECTION("no fan_feedback section") {

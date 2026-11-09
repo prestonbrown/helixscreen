@@ -4,6 +4,7 @@
 
 #include "core/text_io.h"
 
+#include <algorithm>
 #include <cmath>
 #include <string_view>
 
@@ -29,14 +30,20 @@ std::string normalize_pin(std::string_view raw) {
     return text_io::to_lower(out);
 }
 
+bool blank(std::string_view s) {
+    return s.find_first_not_of(" \t") == std::string_view::npos;
+}
+
 // configfile.settings holds a string for config.get() and an array for getlist().
+// A blank value is no pin: Creality's module skips it, though Klipper records it.
 std::vector<std::string> string_list(const nlohmann::json& v) {
     std::vector<std::string> out;
     if (v.is_string()) {
-        out.push_back(v.get<std::string>());
+        if (!blank(v.get<std::string>()))
+            out.push_back(v.get<std::string>());
     } else if (v.is_array()) {
         for (const auto& e : v)
-            if (e.is_string())
+            if (e.is_string() && !blank(e.get<std::string>()))
                 out.push_back(e.get<std::string>());
     }
     return out;
@@ -46,8 +53,10 @@ bool starts_with(std::string_view s, std::string_view prefix) {
     return s.substr(0, prefix.size()) == prefix;
 }
 
-// The heater_fan section whose heater list names a heater accepted by `wanted`.
+// The one heater_fan section whose heater list names a heater accepted by `wanted`;
+// empty when none or several match, since the tach can belong to only one.
 template <typename Pred> std::string heater_fan_for(const nlohmann::json& settings, Pred wanted) {
+    std::string found;
     for (const auto& [section, vals] : settings.items()) {
         if (!starts_with(section, "heater_fan ") || !vals.is_object())
             continue;
@@ -55,11 +64,14 @@ template <typename Pred> std::string heater_fan_for(const nlohmann::json& settin
         // Klipper's heater_fan defaults to the extruder.
         std::vector<std::string> heaters =
             it == vals.end() ? std::vector<std::string>{"extruder"} : string_list(*it);
-        for (const auto& h : heaters)
-            if (wanted(text_io::to_lower(h)))
-                return section;
+        if (std::any_of(heaters.begin(), heaters.end(),
+                        [&](const std::string& h) { return wanted(text_io::to_lower(h)); })) {
+            if (!found.empty())
+                return {};
+            found = section;
+        }
     }
-    return {};
+    return found;
 }
 
 std::string resolve_fan(const nlohmann::json& settings, Role role) {
@@ -141,12 +153,24 @@ TachMap map_from_config(const nlohmann::json& settings) {
     auto it = settings.find(kCrealityObject);
     if (it == settings.end() || !it->is_object())
         return {};
-    // The K2 module requires fan1_pin and fan2_pin; the K1 module reads only the
-    // pins configured, and no K1 config sets fan2_pin.
-    const auto fan2 = it->find("fan2_pin");
-    if (fan2 != it->end() && !string_list(*fan2).empty())
-        return map_k2_series(settings);
-    return map_k1_series(*it, settings);
+    // The K2 module requires fan1_pin and fan2_pin on the nozzle MCU and reads
+    // fan0_pin on the main MCU; no K1 config sets fan2_pin. Any other shape with a
+    // fan2_pin is a layout neither module documents.
+    const auto pins_of = [&](const char* key) {
+        auto p = it->find(key);
+        return p == it->end() ? std::vector<std::string>{} : string_list(*p);
+    };
+    if (pins_of("fan2_pin").empty())
+        return map_k1_series(*it, settings);
+    const auto on_nozzle_mcu = [](const std::string& pin) {
+        return starts_with(normalize_pin(pin), "nozzle_mcu:");
+    };
+    const auto fan0 = pins_of("fan0_pin"), fan1 = pins_of("fan1_pin"), fan2 = pins_of("fan2_pin");
+    const bool k2_layout = !fan0.empty() && !fan1.empty() &&
+                           std::none_of(fan0.begin(), fan0.end(), on_nozzle_mcu) &&
+                           std::all_of(fan1.begin(), fan1.end(), on_nozzle_mcu) &&
+                           std::all_of(fan2.begin(), fan2.end(), on_nozzle_mcu);
+    return k2_layout ? map_k2_series(settings) : TachMap{};
 }
 
 std::vector<std::pair<std::string, int>> readings(const TachMap& map,
