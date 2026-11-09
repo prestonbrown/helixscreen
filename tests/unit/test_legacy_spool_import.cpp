@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <string>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -61,6 +62,7 @@ void settle() {
 /// case ends: a failed REQUIRE must not leave AmsState holding a dead API.
 struct AmsOnPrinter {
     explicit AmsOnPrinter(MockPrinter& printer) {
+        clear_import_done();
         AmsState::instance().init_subjects(true);
         AmsState::instance().clear_backends();
         AmsState::instance().set_moonraker_api(&printer.api);
@@ -69,6 +71,15 @@ struct AmsOnPrinter {
         settle();
         AmsState::instance().set_moonraker_api(nullptr);
         AmsState::instance().clear_backends();
+        clear_import_done();
+    }
+    static void clear_import_done() {
+        if (Config* config = Config::get_instance()) {
+            nlohmann::json& filament = config->get_json(config->df() + "filament");
+            if (filament.is_object()) {
+                filament.erase("legacy_tool_import_done");
+            }
+        }
     }
 };
 
@@ -193,6 +204,59 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(printer.client.mock_db_get("lane_data", "T0")["spool_id"].is_null());
 
     fs::remove(file_path);
+    fs::remove(dir);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a finished 1.0 tool import deletes the store copy behind the link, for good",
+                 "[legacy_import][toolchanger][lane_truth][2085]") {
+    MockPrinter printer;
+    const std::string dir = test::unique_temp_dir("helix_legacy_import_link");
+    const std::string store = fs::join_path(dir, "store");
+    const std::string config_dir = fs::join_path(dir, "config");
+    fs::create_directories(store);
+    fs::create_directories(config_dir);
+    const std::string store_file = fs::join_path(store, legacy::kToolSpoolsFile);
+    const std::string link = fs::join_path(config_dir, legacy::kToolSpoolsFile);
+    const std::string one_printer = one_oh_tool_spools()["printers"]["default"].dump();
+    REQUIRE(text_io::write_file_atomic(store_file, one_printer));
+    REQUIRE(::symlink(store_file.c_str(), link.c_str()) == 0);
+
+    AmsOnPrinter scope(printer);
+    auto& ams = AmsState::instance();
+    test::RegisteredBackend<RecordBackedChanger> reg(&printer.api);
+    ToolChangerTestAccess::call_on_started(*reg);
+    settle();
+
+    ams.start_legacy_spool_import(link);
+    settle();
+    ams.sync_from_backend();
+    settle();
+    REQUIRE(printer.client.mock_db_get("lane_data", "T0")["spool_id"] == 12);
+    CHECK_FALSE(fs::exists(store_file));
+    CHECK_FALSE(fs::is_symlink(link));
+
+    // A store copy the restore script re-links (a 1.0 one left by an earlier
+    // build) does not bring back a link the user has since removed.
+    REQUIRE(text_io::write_file_atomic(store_file, one_printer));
+    REQUIRE(::symlink(store_file.c_str(), link.c_str()) == 0);
+    SlotInfo unlinked = reg->get_slot_info(0);
+    unlinked.spoolman_id = 0;
+    REQUIRE(helix::test::apply_edit(*reg, 0, unlinked).success());
+    printer.client.mock_db_set("lane_data", "T0", json{{"lane", "0"}});
+    ams.sync_from_backend();
+    settle();
+    REQUIRE(reg->get_slot_info(0).spoolman_id == 0);
+    ams.start_legacy_spool_import(link);
+    settle();
+    ams.sync_from_backend();
+    settle();
+    CHECK(printer.client.mock_db_get("lane_data", "T0")["spool_id"].is_null());
+
+    fs::remove(link);
+    fs::remove(store_file);
+    fs::remove(store);
+    fs::remove(config_dir);
     fs::remove(dir);
 }
 
