@@ -32,7 +32,6 @@ bool visible(lv_obj_t* root, const char* name) {
 
 TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane is an outline-free slot",
                  "[ams][lane_bar]") {
-    // No fill and no outline, so it cannot be read as a spool that has run low.
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),

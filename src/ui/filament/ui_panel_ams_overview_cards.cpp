@@ -212,7 +212,10 @@ void AmsOverviewPanel::layout_unit_row() {
     for (const auto& uc : unit_cards_) {
         if (!uc.card)
             continue;
-        if (peek_width > 0) {
+        if (uc.compact_width > 0) {
+            lv_obj_set_flex_grow(uc.card, 0);
+            lv_obj_set_width(uc.card, uc.compact_width);
+        } else if (peek_width > 0) {
             lv_obj_set_flex_grow(uc.card, 0);
             lv_obj_set_width(uc.card, peek_width);
         } else {
@@ -327,7 +330,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             lv_obj_set_flex_grow(uc.card, 1);
         else {
             lv_obj_set_style_min_width(uc.card, 0, LV_PART_MAIN);
-            lv_obj_set_width(uc.card, theme_manager_get_spacing("ams_tile_art_max_h"));
+            uc.compact_width = theme_manager_get_spacing("ams_tile_art_max_h") * 3 / 2;
+            lv_obj_set_width(uc.card, uc.compact_width);
         }
 
         // Store unit index for click handler
