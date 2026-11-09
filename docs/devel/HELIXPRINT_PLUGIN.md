@@ -362,6 +362,9 @@ its row there.
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
 | `not_listed` | `plr` | Power-loss recovery isn't supported on this printer yet. |
+| `gantry_drops` | `plr` | This printer's gantry drops when the power is cut, so a print can't be resumed. |
+| `delta_kinematics` | `plr` | A delta printer can't home X and Y without moving Z, so a print can't be resumed. |
+| `firmware_recovery` | `plr` | This printer's firmware has its own power-loss recovery. |
 | `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
 | `no_adventurer_json` | `vendor_ad5x` (hidden) | This printer has no IFS. |
 | `adventurer_json_unreadable` | `vendor_ad5x` | The IFS state file can't be read. |
