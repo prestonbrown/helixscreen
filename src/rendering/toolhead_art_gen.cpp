@@ -7,18 +7,25 @@
 namespace helix::ui {
 
 const ToolheadArt kToolheadArt[] = {
-    {ToolheadStyle::STEALTHBURNER, "stealthburner", 0.6427f, 0.4205f, 0.9919f},
-    {ToolheadStyle::MINI_STEALTHBURNER, "mini_stealthburner", 0.6448f, 0.4225f, 0.9914f},
-    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.6843f, 0.4283f, 0.9915f},
-    {ToolheadStyle::A4T, "a4t", 0.7185f, 0.4283f, 0.9914f},
-    {ToolheadStyle::ANTHEAD, "anthead", 0.5494f, 0.4285f, 0.9914f},
-    {ToolheadStyle::JABBERWOCKY, "jabberwocky", 0.6154f, 0.4696f, 0.9915f},
-    {ToolheadStyle::BAMBU, "bambu", 0.5642f, 0.4224f, 0.9917f},
-    {ToolheadStyle::CREALITY_K1, "creality_k1", 0.7350f, 0.4078f, 0.9916f},
-    {ToolheadStyle::CREALITY_K2, "creality_k2", 0.5840f, 0.4012f, 0.9917f},
-    {ToolheadStyle::ENDER3_BOWDEN, "ender3_bowden", 0.8433f, 0.1599f, 0.9908f},
-    {ToolheadStyle::ENDER3_INTEGRATED, "ender3_integrated", 0.6449f, 0.4495f, 0.9909f},
+    {ToolheadStyle::STEALTHBURNER, "stealthburner", 0.6364f, 0.3326f, 0.9602f, 0.9775f, 0.4625f, 0.0876f},
+    {ToolheadStyle::MINI_STEALTHBURNER, "mini_stealthburner", 0.6717f, 0.4089f, 0.9290f, 0.9498f, 0.4692f, 0.0986f},
+    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.6027f, 0.4035f, 0.9614f, 0.9813f, 0.4949f, 0.0304f},
+    {ToolheadStyle::A4T, "a4t", 0.6192f, 0.4110f, 0.9589f, 0.9310f, 0.4542f, 0.0161f},
+    {ToolheadStyle::ANTHEAD, "anthead", 0.5389f, 0.3964f, 0.9392f, 1.0422f, 0.5033f, 0.0038f},
+    {ToolheadStyle::JABBERWOCKY, "jabberwocky", 0.4592f, 0.3736f, 0.9809f, 1.2387f, 0.4547f, 0.2839f},
+    {ToolheadStyle::BAMBU, "bambu", 0.6543f, 0.3375f, 0.9714f, 0.9623f, 0.5203f, 0.1067f},
+    {ToolheadStyle::CREALITY_K1, "creality_k1", 0.7671f, 0.4345f, 0.9469f, 0.8272f, 0.6149f, 0.0799f},
+    {ToolheadStyle::CREALITY_K2, "creality_k2", 0.5569f, 0.3320f, 0.9939f, 1.1305f, 0.4347f, 0.1035f},
+    {ToolheadStyle::ENDER3, "ender3", 0.7796f, 0.4345f, 0.9623f, 0.8140f, 0.5479f, 0.0872f},
+    {ToolheadStyle::XOL, "xol", 0.6039f, 0.3694f, 0.9342f, 0.9338f, 0.3838f, 0.0424f},
+    {ToolheadStyle::SNAPMAKER_U1, "snapmaker_u1", 0.6515f, 0.4456f, 0.9394f, 0.9561f, 0.4950f, 0.0640f},
+    {ToolheadStyle::FLASHFORGE_AD5, "flashforge_ad5", 0.6127f, 0.3908f, 0.9910f, 0.9366f, 0.5316f, 0.0489f},
+    {ToolheadStyle::FLASHFORGE_CREATOR5, "flashforge_creator5", 0.8679f, 0.7962f, 0.9952f, 1.0195f, 0.7780f, 0.1360f},
+    {ToolheadStyle::ELEGOO_CENTAURI, "elegoo_centauri", 0.6866f, 0.3608f, 0.9837f, 0.9622f, 0.5704f, 0.0420f},
+    {ToolheadStyle::ARTILLERY_M1, "artillery_m1", 0.7136f, 0.3440f, 0.9846f, 1.0335f, 0.4636f, 0.1120f},
+    {ToolheadStyle::QIDI, "qidi", 0.5807f, 0.3123f, 0.9860f, 0.9637f, 0.4636f, 0.1172f},
+    {ToolheadStyle::SOVOL_SV08, "sovol_sv08", 0.7200f, 0.3640f, 0.9630f, 0.9819f, 0.4401f, 0.1030f},
 };
-const int kToolheadArtCount = 11;
+const int kToolheadArtCount = 18;
 
 } // namespace helix::ui

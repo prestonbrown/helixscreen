@@ -137,6 +137,7 @@
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
+      "toolhead_style": "flashforge_ad5",
       "name": "FlashForge Adventurer 5M",
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m.png",
@@ -231,11 +232,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_adventurer_5m_forgex",
+      "toolhead_style": "flashforge_ad5",
       "variant_of": "flashforge_adventurer_5m",
       "variant_label": "ForgeX",
       "klipper_hides_dot_dirs": true,
@@ -348,11 +349,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro",
+      "toolhead_style": "flashforge_ad5",
       "enclosed": true,
       "name": "FlashForge Adventurer 5M Pro",
       "aliases": [
@@ -472,11 +473,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro_forgex",
+      "toolhead_style": "flashforge_ad5",
       "variant_of": "flashforge_ad5m_pro",
       "variant_label": "ForgeX",
       "klipper_hides_dot_dirs": true,
@@ -612,7 +613,6 @@
           }
         ]
       },
-      "toolhead_style": "default",
       "_print_start_default_phases_comment": "Measured on an AD5M Pro on Forge-X 1.4.2 2026-10-15 (KAMP, ABS 105/265): homing ~5s; the nozzle clean ~135s, ~112s of it the silent cool-down to 120C for probing; the 25-point mesh plus Smart Park ~150s; the priming line ~15s. Heating is omitted - the thermal model owns those.",
       "print_start_default_phases": {
         "HOMING": 5,
@@ -628,6 +628,7 @@
     },
     {
       "id": "flashforge_ad5x",
+      "toolhead_style": "flashforge_ad5",
       "klipper_hides_dot_dirs": true,
       "name": "FlashForge Adventurer 5X",
       "manufacturer": "FlashForge",
@@ -732,6 +733,7 @@
     },
     {
       "id": "flashforge_creator_5",
+      "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5",
       "manufacturer": "FlashForge",
@@ -806,11 +808,11 @@
           "confidence": 0,
           "reason": "The chamber heater is the Pro's hardware; a machine carrying one is a Creator 5 Pro, not a Creator 5"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "flashforge_creator_5_pro",
+      "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5 Pro",
       "manufacturer": "FlashForge",
@@ -885,8 +887,7 @@
           "confidence": 0,
           "reason": "The chamber heater is the only hardware that separates a Creator 5 Pro from a Creator 5; a machine reporting none is a Creator 5, and the name itself is shared with other enclosed printers so it never scores on its own"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "voron_2_4",
@@ -2992,7 +2993,7 @@
     },
     {
       "id": "creality_ender_3_v3",
-      "toolhead_style": "ender3_integrated",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 V3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -3060,7 +3061,7 @@
     },
     {
       "id": "creality_ender_3_v3_ke",
-      "toolhead_style": "ender3_integrated",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 V3 KE",
       "manufacturer": "Creality",
       "image": "creality-ender-3-v3-ke.png",
@@ -3147,6 +3148,7 @@
     },
     {
       "id": "creality_ender_3_s1",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 S1",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -3190,7 +3192,7 @@
     },
     {
       "id": "creality_ender_3",
-      "toolhead_style": "ender3_bowden",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -3275,6 +3277,7 @@
     },
     {
       "id": "creality_ender_5",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 5",
       "manufacturer": "Creality",
       "image": "creality-ender-5.png",
@@ -3328,6 +3331,7 @@
     },
     {
       "id": "creality_ender_5_max",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 5 Max",
       "manufacturer": "Creality",
       "image": "creality-ender-5-max.png",
@@ -3441,6 +3445,7 @@
     },
     {
       "id": "elegoo_centauri_carbon",
+      "toolhead_style": "elegoo_centauri",
       "enclosed": true,
       "name": "Elegoo Centauri Carbon",
       "manufacturer": "Elegoo",
@@ -3552,6 +3557,7 @@
     },
     {
       "id": "elegoo_centauri_carbon_2",
+      "toolhead_style": "elegoo_centauri",
       "enclosed": true,
       "name": "Elegoo Centauri Carbon 2",
       "manufacturer": "Elegoo",
@@ -4076,6 +4082,7 @@
     },
     {
       "id": "qidi_plus_4",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Plus 4",
       "manufacturer": "Qidi",
@@ -4271,6 +4278,7 @@
     },
     {
       "id": "qidi_q1_pro",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Q1 Pro",
       "manufacturer": "Qidi",
@@ -4413,6 +4421,7 @@
     },
     {
       "id": "qidi_max_4",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Max 4",
       "manufacturer": "Qidi",
@@ -4528,6 +4537,7 @@
     },
     {
       "id": "qidi_q2",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Q2",
       "manufacturer": "Qidi",
@@ -5506,6 +5516,7 @@
     },
     {
       "id": "sovol_sv08",
+      "toolhead_style": "sovol_sv08",
       "name": "Sovol SV08",
       "manufacturer": "Sovol",
       "image": "sovol-sv08.png",
@@ -5596,6 +5607,7 @@
     },
     {
       "id": "sovol_sv08_max",
+      "toolhead_style": "sovol_sv08",
       "name": "Sovol SV08 Max",
       "manufacturer": "Sovol",
       "image": "sovol-sv08-max.png",
@@ -6892,6 +6904,7 @@
     },
     {
       "id": "artillery_m1_pro",
+      "toolhead_style": "artillery_m1",
       "name": "Artillery M1 Pro",
       "manufacturer": "Artillery",
       "image": "artillery-m1-pro.png",

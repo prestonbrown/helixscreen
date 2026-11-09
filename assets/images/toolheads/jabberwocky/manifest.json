@@ -1,16 +1,16 @@
 {
   "id": "jabberwocky",
-  "aspect": 0.6154,
+  "aspect": 0.4592,
   "tiers": {
     "full": {
-      "width": 98,
+      "width": 73,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 44,
+      "width": 33,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

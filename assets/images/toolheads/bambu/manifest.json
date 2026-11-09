@@ -1,16 +1,16 @@
 {
   "id": "bambu",
-  "aspect": 0.5642,
+  "aspect": 0.6543,
   "tiers": {
     "full": {
-      "width": 90,
+      "width": 105,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 41,
+      "width": 47,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

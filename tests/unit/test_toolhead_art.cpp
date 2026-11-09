@@ -88,26 +88,26 @@ TEST_CASE("toolhead art: a style without art keeps its renderer", "[toolhead-art
     CHECK(toolhead_art_for(ToolheadStyle::DEFAULT) == nullptr);
     CHECK(toolhead_art_for(ToolheadStyle::AUTO) == nullptr);
     for (ToolheadStyle s : {ToolheadStyle::STEALTHBURNER, ToolheadStyle::BAMBU,
-                            ToolheadStyle::ENDER3_BOWDEN, ToolheadStyle::DRAGONBURNER}) {
+                            ToolheadStyle::ENDER3, ToolheadStyle::DRAGONBURNER}) {
         REQUIRE(toolhead_art_for(s) != nullptr);
         CHECK(toolhead_art_for(s)->style == s);
     }
 }
 
 TEST_CASE("toolhead art: the frame puts the nozzle tip on the filament column", "[toolhead-art]") {
-    const ToolheadArt* art = toolhead_art_for(ToolheadStyle::ENDER3_BOWDEN);
+    const ToolheadArt* art = toolhead_art_for(ToolheadStyle::ENDER3);
     REQUIRE(art != nullptr);
     const ToolheadArtRect r = toolhead_art_rect(*art, 100, 50, 10);
-    CHECK(r.h == 80);
-    CHECK(r.y == 10);
-    CHECK(r.w == Catch::Approx(80 * art->aspect).margin(1));
+    CHECK(r.h == Catch::Approx(80 * art->height).margin(1));
+    CHECK(r.w == Catch::Approx(r.h * art->aspect).margin(1));
     CHECK(100 - r.x == Catch::Approx(r.w * art->tip_x).margin(1));
 
-    const GlyphBounds g = toolhead_bounds(ToolheadStyle::ENDER3_BOWDEN, 100, 50, 10);
-    CHECK(g.left == r.x);
-    CHECK(g.top == r.y);
-    CHECK(g.right == r.x + r.w - 1);
-    CHECK(g.bottom == r.y + r.h - 1);
+    const ToolheadArtPoint e = toolhead_art_entry(*art, 100, 50, 10);
+    CHECK(e.x == Catch::Approx(r.x + r.w * art->entry_x).margin(1));
+    CHECK(e.y == Catch::Approx(r.y + r.h * art->entry_y).margin(1));
+    const GlyphBounds g = toolhead_bounds(ToolheadStyle::ENDER3, 100, 50, 10);
+    CHECK((g.left == r.x && g.top == r.y && r.y == 50 - r.h / 2));
+    CHECK((g.right == r.x + r.w - 1 && g.bottom == r.y + r.h - 1));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "toolhead art: redraws reuse one composed image",

@@ -92,6 +92,14 @@ GlyphBounds toolhead_bounds(ToolheadStyle style, int32_t cx, int32_t nozzle_y, i
             cx + tenths_up(scale, e.right), nozzle_y + tenths_up(scale, e.bottom)};
 }
 
+ToolheadInlet toolhead_inlet(ToolheadStyle style, int32_t nozzle_y, int32_t scale) {
+    if (const ToolheadArt* art = toolhead_art_for(style)) {
+        const ToolheadArtPoint entry = toolhead_art_entry(*art, 0, nozzle_y, scale);
+        return {-entry.x, entry.y};
+    }
+    return {0, nozzle_y - scale * 2};
+}
+
 ToolBadgeColors tool_badge_colors(bool is_override) {
     const lv_color_t bg = theme_manager_get_color(is_override ? "warning" : "text_muted");
     // Both fills are accents, so the label starts from the palette text colour

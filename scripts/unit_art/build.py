@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import head as head_kit, kit  # noqa: E402
-from unit_art.heads import a4t, anthead, bambu, creality_k1, creality_k2, dragonburner, ender3_bowden, ender3_integrated, jabberwocky, mini_stealthburner, stealthburner  # noqa: E402
+from unit_art.heads import a4t, anthead, bambu, creality_k1, creality_k2, dragonburner, artillery_m1, qidi, sovol_sv08, elegoo_centauri, ender3, flashforge_ad5, flashforge_creator5, snapmaker_u1, xol, jabberwocky, mini_stealthburner, stealthburner  # noqa: E402
 from unit_art.units import (  # noqa: E402
     ace_pro,
     ad5x_ifs,
@@ -63,8 +63,15 @@ HEADS = [
     bambu.HEAD,
     creality_k1.HEAD,
     creality_k2.HEAD,
-    ender3_bowden.HEAD,
-    ender3_integrated.HEAD,
+    ender3.HEAD,
+    xol.HEAD,
+    snapmaker_u1.HEAD,
+    flashforge_ad5.HEAD,
+    flashforge_creator5.HEAD,
+    elegoo_centauri.HEAD,
+    artillery_m1.HEAD,
+    qidi.HEAD,
+    sovol_sv08.HEAD,
 ]
 HEAD_TIER_HEIGHT = {"full": 160, "path": 72}
 TIER_WIDTH = {"full": 320, "thumb": 40}
@@ -209,10 +216,14 @@ def generate_shell_table(units):
     return "\n".join(out)
 
 
+# World height, at size 1, of a head drawn at the app's nominal height.
+HEAD_REFERENCE_HEIGHT = 1.18
+
+
 def _head_frame(head):
     scene = kit.Scene(kit.ART_CAMERA)
     head.draw_art(scene, "full")
-    return head_kit.head_frame(scene, head.tip)
+    return head_kit.head_frame(scene, head.tip, head.entry)
 
 
 def bake_head(head, out_dir, render=rsvg_render):
@@ -248,7 +259,11 @@ def generate_head_table(heads):
     ]
     for head in heads:
         frame = _head_frame(head)
-        out.append(f'    {{ToolheadStyle::{head.style}, "{head.id}", {frame.aspect:.4f}f, {frame.tip_x:.4f}f, {frame.tip_y:.4f}f}},')
+        height = frame.world_height * head.size / HEAD_REFERENCE_HEIGHT
+        out.append(
+            f'    {{ToolheadStyle::{head.style}, "{head.id}", {frame.aspect:.4f}f, {frame.tip_x:.4f}f, {frame.tip_y:.4f}f, '
+            f"{height:.4f}f, {frame.entry_x:.4f}f, {frame.entry_y:.4f}f}},"
+        )
     out += ["};", f"const int kToolheadArtCount = {len(heads)};", "", "} // namespace helix::ui", ""]
     return "\n".join(out)
 

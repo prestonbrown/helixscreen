@@ -224,7 +224,8 @@ class SettingsManager {
 
     /** @brief Get toolhead rendering style */
     ToolheadStyle get_toolhead_style() const {
-        return static_cast<ToolheadStyle>(std::clamp(settings_.get(Key::ToolheadStyle), 0, 12));
+        return static_cast<ToolheadStyle>(
+            std::clamp(settings_.get(Key::ToolheadStyle), 0, kLastToolheadStyle));
     }
 
     /** @brief Get effective toolhead style (resolves AUTO using printer detection) */

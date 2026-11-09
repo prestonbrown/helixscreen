@@ -1,16 +1,16 @@
 {
   "id": "creality_k1",
-  "aspect": 0.735,
+  "aspect": 0.7671,
   "tiers": {
     "full": {
-      "width": 118,
+      "width": 123,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 53,
+      "width": 55,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

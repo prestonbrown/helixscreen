@@ -6,7 +6,6 @@
 5 include/nozzle_renderer_dispatch.h:vendor-name
 29 include/printer_discovery.h:vendor-name
 4 include/toolchanger_addon.h:vendor-name
-3 include/toolhead_style.h:vendor-name
 1 include/ui_guided_device_flow.h:vendor-name
 2 src/api/moonraker_advanced_api.cpp:vendor-name
 4 src/api/moonraker_discovery_sequence.cpp:vendor-name
@@ -34,12 +33,9 @@
 35 src/printer/toolchanger_addon.cpp:vendor-name
 5 src/rendering/gcode_parser.cpp:vendor-name
 1 src/rendering/nozzle_renderer_anthead.cpp:vendor-name
-3 src/rendering/toolhead_art_gen.cpp:vendor-name
 1 src/system/cli_args.cpp:vendor-string
 3 src/system/config_migrations.cpp:vendor-name
 7 src/system/config_migrations.cpp:vendor-string
-8 src/system/settings_manager.cpp:vendor-name
-2 src/system/settings_manager.cpp:vendor-string
 3 src/ui/calibration/touch_calibration.cpp:vendor-name
 3 src/ui/calibration/ui_panel_input_shaper.cpp:vendor-name
 1 src/ui/filament/ui_guided_device_flow.cpp:vendor-name

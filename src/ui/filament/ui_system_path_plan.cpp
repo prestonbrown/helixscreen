@@ -104,6 +104,11 @@ Route* try_new_route(PathPlan& plan) {
 // ----------------------------------------------------------------------------
 
 // One unit→tool route.
+// The most lanes drawn converging on a hub box; more would crowd the overview.
+constexpr int kMaxHubLanesDrawn = 3;
+// Wide enough to keep the box's "Hub" label on one line.
+constexpr int32_t kMinMiniHubWidth = 46;
+
 struct GlobalRoute {
     int unit_idx;
     int tool_idx;
@@ -115,6 +120,9 @@ struct GlobalRoute {
     bool is_hub;   // HUB topology route (lands on a mini hub)
     bool via_box;  // MIXED hub-group route: passes through its "H" box above the tool
     int group = 0; // shared hub this route joins (SystemPathData::unit_hub_group), 0 = own hub
+    int level = 0; // height of its horizontal run, 0 the highest
+    bool feeder = false; // an extra lane converging on a hub box; carries no tool of its own
+    int box_rank = 0;    // how many tubes into the same hub box run below this one
 };
 
 // A unit that can place a hub box on a nozzle: HUB topology, present, with a tool.
@@ -197,6 +205,10 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
     // overlap, and no further: keep the whole fan inside the unit's own column,
     // under its label, so each lane reads as leaving its unit.
     int32_t column_w = (data.unit_count > 1) ? (L.width / data.unit_count) : L.width;
+    // A MIXED group's extra hub lanes get their own stems, just past the tools' fan.
+    const bool hub_group = data.unit_topology[i] == kTopoMixed && tool_count > 1;
+    const int feeders =
+        hub_group ? LV_MAX(0, LV_MIN(data.unit_hub_lanes[i], kMaxHubLanesDrawn) - 1) : 0;
     int32_t spread = 0;
     if (tool_count > 1) {
         const int32_t pitch = data.tube_gauge + kHaloWidthExtra + 2;
@@ -219,14 +231,16 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
     // MIXED: the hub-routed lanes share the group's last tool. Its "H" box
     // stands just above that tool, where its route is alone: the route enters
     // the box top and leaves the bottom for the nozzle.
-    if (data.unit_topology[i] == kTopoMixed && tool_count > 1 && n > 0 &&
-        routes[n - 1].tool_idx == first_tool + tool_count - 1) {
+    if (hub_group && n > 0 && routes[n - 1].tool_idx == first_tool + tool_count - 1) {
         GlobalRoute& hub_route = routes[n - 1];
         hub_route.via_box = true;
-        const int32_t mhw = data.hub_width * 2 / 5;
+        const int32_t entry_pitch = data.tube_gauge + kHaloWidthExtra + 2;
+        const int32_t mhw =
+            LV_MAX(LV_MAX(data.hub_width * 2 / 5, kMinMiniHubWidth), (feeders + 2) * entry_pitch);
         const int32_t mhh = L.hub_h * 2 / 3;
         const int32_t outlet = LV_MAX(10, 3 * data.tube_gauge);
-        const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
+        const int32_t nozzle_top =
+            helix::ui::toolhead_inlet(data.toolhead_style, L.tools_y, small_tool_scale(data)).y;
         const int32_t mhy = nozzle_top - outlet - mhh / 2;
         const bool hub_has_filament =
             i == data.active_unit && data.filament_loaded && data.active_tool == hub_route.tool_idx;
@@ -240,6 +254,19 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
                          true,
                          true};
         hub_route.end_y = mhy - mhh / 2;
+
+        // The lanes enter the box top side by side and one tube leaves its centre.
+        const int32_t hub_x = hub_route.end_x;
+        const int32_t first_entry = hub_x - feeders * entry_pitch / 2;
+        hub_route.end_x = first_entry;
+        const int tool_idx = hub_route.tool_idx;
+        const int32_t box_top = hub_route.end_y;
+        for (int f = 1; f <= feeders && n < SystemPathData::kMaxTools; ++f) {
+            const int32_t sx = start_x_of(tool_count - 1) + f * spread / (tool_count - 1);
+            const int32_t ex = first_entry + f * entry_pitch;
+            routes[n++] = {i,     tool_idx, sx, L.entry_y, ex,  box_top, LV_ABS(sx - ex),
+                           false, false,    0,  0,         true};
+        }
     }
     return n;
 }
@@ -257,7 +284,8 @@ void place_hub_buffer(const SystemPathData& data, const SysLayout& L, int unit, 
     if (!data.unit_has_buffer[unit])
         return;
     const int32_t hub_bottom = hub.mini_hub_y + hub.mini_hub_h / 2;
-    const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
+    const int32_t nozzle_top =
+        helix::ui::toolhead_inlet(data.toolhead_style, L.tools_y, small_tool_scale(data)).y;
     const int32_t run = nozzle_top - hub_bottom;
     hub.buffer_h = LV_MIN(hub.mini_hub_h, run / 2);
     hub.buffer_w = data.hub_width * 2 / 3;
@@ -572,11 +600,12 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     resolve_hub_row(data, L, routes, n, boxes);
     sort_routes(routes, n);
 
-    const float nozzle_top = (float)(L.tools_y - small_tool_scale(data) * 2);
+    const float nozzle_top =
+        (float)helix::ui::toolhead_inlet(data.toolhead_style, L.tools_y, small_tool_scale(data)).y;
 
     // PARALLEL horizontal levels, fixed spacing, centred at 55% between the
-    // entries and the tool row. The leftmost tool takes the lowest level and
-    // the rightmost the highest, so no end drop crosses another route's run.
+    // entries and the tool row. The tube going furthest in its direction turns
+    // first, at the highest level, so no run crosses another route's drop.
     int parallel_count = 0;
     for (int r = 0; r < n; ++r)
         parallel_count +=
@@ -585,13 +614,30 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     const int32_t par_step = LV_MAX(10, data.tube_gauge + kHaloWidthExtra + 2);
     const int32_t par_group_h = (parallel_count > 1) ? par_step * (parallel_count - 1) : 0;
     const int32_t par_center_y = L.entry_y + (L.tools_y - L.entry_y) * 55 / 100;
-    const int32_t par_bot_y = par_center_y - par_group_h / 2 + par_group_h;
-    int parallel_idx = 0;
+    const int32_t par_top_y = par_center_y - par_group_h / 2;
+    int next_level = 0;
+    for (int r = 0; r < n; ++r) { // routes are in end_x order: leftward ones, leftmost first
+        if (!routes[r].is_hub && routes[r].end_x < routes[r].start_x - data.tube_gauge)
+            routes[r].level = next_level++;
+    }
+    for (int r = n - 1; r >= 0; --r) { // then rightward ones, rightmost first
+        if (!routes[r].is_hub && routes[r].end_x > routes[r].start_x + data.tube_gauge)
+            routes[r].level = next_level++;
+    }
+    // A hub box sits above the tool row, so its tubes would all clamp to one height over it.
+    const auto enters_box = [](const GlobalRoute& g) { return g.via_box || g.feeder; };
+    for (int r = 0; r < n; ++r) {
+        for (int o = 0; o < n && enters_box(routes[r]); ++o) {
+            routes[r].box_rank += enters_box(routes[o]) &&
+                                  routes[o].unit_idx == routes[r].unit_idx &&
+                                  routes[o].level > routes[r].level;
+        }
+    }
 
     for (int k = 0; k < n; ++k) {
         const GlobalRoute& route = routes[k];
         const bool unit_on = route.unit_idx == data.active_unit;
-        const bool tool_on = unit_on && route.tool_idx == data.active_tool;
+        const bool tool_on = !route.feeder && unit_on && route.tool_idx == data.active_tool;
         Route* r = try_new_route(plan);
         if (!r)
             break;
@@ -613,16 +659,17 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
             lane.on = tool_on;
             const fpath::SpanStyle s = lane.style(PathSegment::LANE);
             // A hub-group route ends at its box top; the rest at the nozzle.
-            const int32_t end_y = route.via_box ? route.end_y : (int32_t)nozzle_top;
+            const int32_t end_y =
+                (route.via_box || route.feeder) ? route.end_y : (int32_t)nozzle_top;
             const int32_t dx = route.end_x - route.start_x;
             if (LV_ABS(dx) <= data.tube_gauge) {
                 // Too close to bend into: drop straight onto the glyph.
                 append_line(*r, (float)route.start_x, (float)route.start_y, (float)route.start_x,
                             (float)end_y, s);
             } else {
-                int32_t horiz_y = par_bot_y - parallel_idx * par_step;
-                parallel_idx++;
-                horiz_y = clamp_span(route.start_y + arc_r + 2, horiz_y, end_y - arc_r - 2);
+                int32_t horiz_y = par_top_y + route.level * par_step;
+                horiz_y = clamp_span(route.start_y + arc_r + 2, horiz_y,
+                                     end_y - arc_r - 2 - route.box_rank * par_step);
                 append_harness(*r, route.start_x, route.start_y, route.end_x, end_y, horiz_y, s);
             }
             if (route.via_box) {
@@ -634,7 +681,9 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
                     add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT),
                                     lane.color, /*on_box_edge=*/true);
                 }
-                append_line(*r, x, out_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
+                const float hub_x = (float)hub.hub_x;
+                append_line(*r, x, out_y, hub_x, out_y, unpainted(lane.style(PathSegment::HUB)));
+                append_line(*r, hub_x, out_y, hub_x, nozzle_top, lane.style(PathSegment::OUTPUT));
             }
             if (tool_on)
                 plan.active_route = plan.route_count - 1;
@@ -761,7 +810,8 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     const int32_t hub_top = L.hub_y - L.hub_h / 2;
     TrunkYs y;
     y.hub_bottom = L.hub_y + L.hub_h / 2;
-    y.nozzle_top = L.nozzle_y - data.extruder_scale * 2;
+    y.nozzle_top =
+        helix::ui::toolhead_inlet(data.toolhead_style, L.nozzle_y, data.extruder_scale).y;
     y.bypass_merge = y.hub_bottom + (L.nozzle_y - y.hub_bottom) / 3;
     y.toolhead = y.hub_bottom + (y.nozzle_top - y.hub_bottom) * 2 / 3;
     const float cx = (float)L.center_x;

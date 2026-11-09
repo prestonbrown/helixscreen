@@ -243,7 +243,8 @@ static void filament_path_click_cb(lv_event_t* e) {
         const BaseGeometry g = compute_base_geometry(obj, data);
         const ParallelRows rows = parallel_rows(*data, g);
         const helix::ui::GlyphBounds glyph =
-            toolhead_glyph_bounds(0, rows.toolhead_y, rows.tool_scale);
+            toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
+                                  rows.toolhead_y, rows.tool_scale);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
         layout.slot_count = g.slot_count;
@@ -1223,7 +1224,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const helix::ui::GlyphBounds b =
-        toolhead_glyph_bounds(f.center_x, f.nozzle_y, data->theme.extruder_scale);
+        toolhead_glyph_bounds(f.head_x, f.nozzle_y, data->theme.extruder_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
 }

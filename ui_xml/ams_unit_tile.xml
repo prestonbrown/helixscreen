@@ -39,6 +39,12 @@
         <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
         <bind_style_if_eq name="styles.unit_offline" subject="$absent" ref_value="1"/>
         <unit_art name="unit_art" width="100%" height="100%" align="center" tier="full"/>
+        <!-- A unit with no drawing shows one lane bar per lane here instead. -->
+        <lv_obj name="bars_container"
+                width="100%" height="100%" align="center" scrollable="false" clickable="false" event_bubble="true"
+                flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                style_flex_track_place="center" style_pad_all="0" style_pad_column="#space_xs" style_bg_opa="0"
+                style_border_width="0"/>
       </lv_obj>
       <ams_disconnected_chip name="unit_disconnected_chip"
                              align="top_mid" style_bg_color="#screen_bg" style_bg_opa="235" disconnected="$disconnected"/>
@@ -52,7 +58,7 @@
       <!-- A wrapper carries the breakpoint rule: the indicator binds its own hidden flag to
            whether the unit has readings, and one flag cannot follow two bindings. -->
       <lv_obj name="tile_readout"
-              width="content" height="content" align="bottom_right" style_translate_x="#space_lg"
+              width="content" height="content" align="bottom_right" style_translate_x="#space_xxs"
               style_translate_y="#space_lg" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"
               style_bg_opa="0" style_border_width="0">
         <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>

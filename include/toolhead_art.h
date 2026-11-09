@@ -12,13 +12,16 @@
 
 namespace helix::ui {
 
-/// One baked head, from src/generated/toolhead_art_gen.cpp.
+/// One baked head, from src/rendering/toolhead_art_gen.cpp.
 struct ToolheadArt {
     ToolheadStyle style;
     const char* id;
     float aspect; ///< width over height
     float tip_x;  ///< the nozzle tip's column, as a share of the width
     float tip_y;  ///< the nozzle tip's row, as a share of the height
+    float height; ///< drawn height as a share of the nominal height, so heads keep their real sizes
+    float entry_x; ///< the filament entry's column, as a share of the width
+    float entry_y; ///< the filament entry's row, as a share of the height
 };
 extern const ToolheadArt kToolheadArt[];
 extern const int kToolheadArtCount;
@@ -29,9 +32,17 @@ const ToolheadArt* toolhead_art_for(ToolheadStyle style);
 struct ToolheadArtRect {
     int32_t x, y, w, h;
 };
-/// Where a head draws: 8 scale units tall, centred on @p nozzle_y, nozzle tip on @p cx.
+/// Where a head draws: art.height times 8 scale units tall, centred on @p nozzle_y, nozzle tip on
+/// @p cx.
 ToolheadArtRect toolhead_art_rect(const ToolheadArt& art, int32_t cx, int32_t nozzle_y,
                                   int32_t scale);
+
+/// Where the filament enters a head drawn by toolhead_art_rect(), in display coordinates.
+struct ToolheadArtPoint {
+    int32_t x, y;
+};
+ToolheadArtPoint toolhead_art_entry(const ToolheadArt& art, int32_t cx, int32_t nozzle_y,
+                                    int32_t scale);
 
 /// Paints @p tint through @p mask, then @p shade, over @p body. All are ARGB8888, @p w by @p h.
 void toolhead_art_compose(uint8_t* body, const uint8_t* mask, const uint8_t* shade, int32_t w,
