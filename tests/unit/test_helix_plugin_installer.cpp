@@ -459,9 +459,13 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
         CHECK(sandbox.script_args() == "--restart-moonraker ");
     }
-    SECTION("Moonraker refused, or still runs the old plugin") {
+    SECTION("Moonraker restarted but still runs the old plugin") {
         sandbox.write_script("exit 3");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NeedsManual);
+    }
+    SECTION("Moonraker refused the restart") {
+        sandbox.write_script("exit 9");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Refused);
     }
     SECTION("Moonraker names no service of its own") {
         sandbox.write_script("exit 8");
@@ -501,23 +505,24 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
     }
     SECTION("an inherited HELIX_JOB_STATE never reaches the script, which asks Moonraker") {
         helix::ScopedEnv inherited("HELIX_JOB_STATE", "idle");
-        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 9");
+        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 5");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
     }
 }
 
-TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual restart, is "
-          "not repeated for the same versions",
-          "[plugin_installer]") {
+TEST_CASE("plugin_restart_finished: only a restart that happened is not repeated for the same "
+          "versions",
+          "[plugin_installer][2090]") {
     using Outcome = helix::PluginRestartOutcome;
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, true));
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, false));
     CHECK(helix::plugin_restart_finished(Outcome::NeedsManual, true));
     // With no plugin loaded, a restart that did not load one is tried again.
     CHECK_FALSE(helix::plugin_restart_finished(Outcome::NeedsManual, false));
-    CHECK(helix::plugin_restart_finished(Outcome::NoService, true));
-    CHECK_FALSE(helix::plugin_restart_finished(Outcome::NoService, false));
     for (const bool loaded : {true, false}) {
+        // Moonraker never went down: nothing restarted (#2090).
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::NoService, loaded));
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::Refused, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::HeldForPrint, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::JobUnknown, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::NotAnswering, loaded));

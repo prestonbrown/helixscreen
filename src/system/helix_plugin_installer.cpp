@@ -463,6 +463,7 @@ constexpr int kRestartExitHeldForPrint = 4;
 constexpr int kRestartExitJobUnknown = 6;
 constexpr int kRestartExitNotAnswering = 7;
 constexpr int kRestartExitNoService = 8;
+constexpr int kRestartExitRefused = 9;
 } // namespace
 
 PluginRestartOutcome restart_moonraker_for_plugin(const std::string& script_path,
@@ -499,6 +500,9 @@ PluginRestartOutcome restart_moonraker_for_plugin(const std::string& script_path
     case kRestartExitNoService:
         log_script_output(result.output, false);
         return PluginRestartOutcome::NoService;
+    case kRestartExitRefused:
+        log_script_output(result.output, false);
+        return PluginRestartOutcome::Refused;
     default:
         log_script_output(result.output, false);
         return PluginRestartOutcome::Failed;
@@ -507,9 +511,7 @@ PluginRestartOutcome restart_moonraker_for_plugin(const std::string& script_path
 
 bool plugin_restart_finished(PluginRestartOutcome outcome, bool plugin_was_loaded) {
     return outcome == PluginRestartOutcome::Restarted ||
-           ((outcome == PluginRestartOutcome::NeedsManual ||
-             outcome == PluginRestartOutcome::NoService) &&
-            plugin_was_loaded);
+           (outcome == PluginRestartOutcome::NeedsManual && plugin_was_loaded);
 }
 
 std::string parse_plugin_version(std::string_view text) {

@@ -43,12 +43,13 @@ EXIT_RELINK_NOT_OURS=4
 # Exit codes for --restart-moonraker (HelixPluginInstaller reads them), those
 # of moonraker_restart in helix_print_conf.sh:
 #   0 - Moonraker restarted and runs this tree's plugin
-#   3 - Moonraker needs a manual restart: it refused, did not restart, did
-#       not load the plugin, or runs the old one
+#   3 - Moonraker restarted but did not load the plugin, or runs the old one
 #   4 - a print is printing or paused; nothing restarted
 #   6 - the print state could not be read; nothing restarted
 #   7 - Moonraker does not answer
-#   8 - Moonraker does not name its own service, so only a reboot reloads it
+#   8 - Moonraker does not name its own service, or its service restart does
+#       nothing, so only a reboot reloads it
+#   9 - Moonraker refused the restart; nothing restarted
 
 # Colors for output (works with printf)
 RED='\033[0;31m'

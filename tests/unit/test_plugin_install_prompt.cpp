@@ -734,12 +734,13 @@ TEST_CASE_METHOD(SelfHealFixture,
     CHECK(messages[0].find("restarting") == std::string::npos);
 }
 
-// Z-Mod's Moonraker names no service of its own, so install.sh cannot restart
-// it and nothing in a web UI can either: only a reboot loads the new plugin
-// (prestonbrown/helixscreen#2086).
+// Z-Mod's Moonraker names no service of its own, and a Snapmaker U1's accepts
+// a service restart it cannot carry out, so install.sh cannot restart it and
+// nothing in a web UI can either: only a reboot loads the new plugin
+// (prestonbrown/helixscreen#2086, #2090).
 TEST_CASE_METHOD(SelfHealFixture,
                  "a Moonraker with no service of its own is advised a reboot, kept in the history",
-                 "[plugin_installer][print_select][self_heal][2086]") {
+                 "[plugin_installer][print_select][self_heal][2086][2090]") {
     ship("1.2.0", 0);
     ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
     set_restart_exit(8);
@@ -757,12 +758,31 @@ TEST_CASE_METHOD(SelfHealFixture,
     CHECK(events[0].severity == ToastSeverity::WARNING);
     CHECK(events[0].message == "Reboot the printer to finish the plugin update.");
 
-    // The attempt is remembered: the next start does not try again.
+    // Nothing restarted, so the next start tries again and advises again
+    // until a reboot loads the plugin.
     PluginSelfHealTestAccess::set_ran_this_start(false);
     set_plugin_installed(false);
     run_plugin_probe();
     settle();
-    CHECK(restarts() == 1);
+    CHECK(restarts() == 2);
+    CHECK(events.size() == 2);
+}
+
+TEST_CASE_METHOD(SelfHealFixture, "a restart Moonraker refused is tried again on the next start",
+                 "[plugin_installer][print_select][self_heal][2090]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(9);
+
+    run_plugin_probe();
+    settle();
+    REQUIRE(restarts() == 1);
+
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 2);
 }
 
 TEST_CASE_METHOD(SelfHealFixture,
