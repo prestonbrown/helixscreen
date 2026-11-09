@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "tour_steps.h"
 
 #include <cstddef>

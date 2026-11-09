@@ -971,11 +971,11 @@ follows.
 ## 10. Timers
 
 LVGL timers created with `lv_timer_create()` are **not** cleaned up automatically. Use
-`LvglTimerGuard` (`include/ui_timer_guard.h`) for RAII, or delete manually in the destructor
+`LvglTimerGuard` (`include/core/timer_guard.h`) for RAII, or delete manually in the destructor
 behind an `lv_is_initialized()` guard.
 
 ```cpp
-#include "ui_timer_guard.h"
+#include "core/timer_guard.h"
 LvglTimerGuard update_timer_;   // deleted on destruction
 ```
 
@@ -988,7 +988,7 @@ armed in LVGL's timer list holding a freed `this` — the callback then fires on
 raw `lv_timer_t*` cancelled in `cleanup()` must also be cancelled in the destructor.**
 
 Share one `cancel_*_timer()` helper between both paths, and cancel with
-`lv_timer_cancel_safe()` (`include/ui_timer_guard.h`) — it self-guards on
+`lv_timer_cancel_safe()` (`include/core/timer_guard.h`) — it self-guards on
 `lv_is_initialized()` and neuters the timer instead of unlinking it, so it is safe to call
 from a destructor and from inside `lv_timer_handler()` (#750, #751). Exemplar:
 `FlyingToasterScreensaver::cancel_timer()` in `src/ui/screensaver/ui_screensaver.cpp`.
@@ -1114,7 +1114,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `include/core/static_subject_registry.h` | Shutdown cleanup registry |
 | `include/core/http_executor.h` | `HttpExecutor::fast()` / `slow()` pools |
 | `src/bluetooth/bt_bus_thread.h` | BlueZ `BusThread` |
-| `include/ui_timer_guard.h` | `LvglTimerGuard` RAII |
+| `include/core/timer_guard.h` | `LvglTimerGuard` RAII |
 | `include/ui_widget_memory.h` | `lvgl_unique_ptr` / `lvgl_make_unique` |
 | `src/printer/printer_state.cpp` | `set_*_internal()` reference pattern |
 | `src/network/wifi_manager.cpp` | Backend integration reference |

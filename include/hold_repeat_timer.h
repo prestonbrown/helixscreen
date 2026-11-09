@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_timer_guard.h"
-
+#include "core/timer_guard.h"
 #include "hold_repeat.h"
 
 #include <lvgl.h>

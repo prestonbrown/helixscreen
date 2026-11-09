@@ -5,7 +5,6 @@
 
 #include "ui_belt_names_modal.h"
 #include "ui_belt_retest_menu.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "belt_gating.h"
@@ -15,6 +14,7 @@
 #include "belt_tune_session.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "live_sweep_preview.h"
 #include "memory_utils.h"
 #include "operation_timeout_guard.h"

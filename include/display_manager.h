@@ -4,10 +4,10 @@
 #pragma once
 
 #include "ui_coalesced_timer.h"
-#include "ui_timer_guard.h"
 
 #include "backlight_backend.h"
 #include "color_transform.h"
+#include "core/timer_guard.h"
 #include "display_backend.h"
 #include "display_sleep_controller.h"
 #include "indev_delete_watch.h"

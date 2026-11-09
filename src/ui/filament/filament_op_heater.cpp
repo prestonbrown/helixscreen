@@ -5,7 +5,6 @@
 
 #include "ui_error_reporting.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -13,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"

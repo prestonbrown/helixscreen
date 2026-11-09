@@ -12,7 +12,6 @@
 #include "ui_subject_registry.h"
 #include "ui_swatch.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -20,6 +19,7 @@
 #include "color_utils.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
 #include "filament_display_name.h"

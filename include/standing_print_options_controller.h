@@ -5,10 +5,9 @@
 // in Moonraker's database, and sends it at a job start some other client made
 // when the HelixPrint plugin's print_hooks feature cannot.
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "helix_plugin_features.h"
 #include "history_job_events.h"
 

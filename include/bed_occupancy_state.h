@@ -13,11 +13,10 @@
 // RECENT history has loaded, the last occupying job stands in for the newest job, and a
 // failed load is retried every kHistoryRetryMs while connected. Main thread only.
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "bed_occupancy.h"
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "print_history_manager.h"
 #include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"

@@ -3,12 +3,11 @@
 #pragma once
 #if HELIX_HAS_SNAPMAKER
 
-#include "ui_timer_guard.h"
-
 #include "ams_insert_signals.h"
 #include "ams_print_routing.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"

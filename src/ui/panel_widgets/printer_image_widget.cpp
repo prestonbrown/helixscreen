@@ -9,7 +9,6 @@
 #include "ui_overlay_temp_graph.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
@@ -19,6 +18,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix_fs.h"

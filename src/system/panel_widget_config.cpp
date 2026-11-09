@@ -3,11 +3,10 @@
 
 #include "panel_widget_config.h"
 
-#include "ui_timer_guard.h"
-
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "default_layout_resolver.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"

@@ -5,10 +5,10 @@
 
 #include "ui_event_safety.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"

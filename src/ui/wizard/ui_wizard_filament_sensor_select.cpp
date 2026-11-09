@@ -5,13 +5,13 @@
 
 #include "ui_error_reporting.h"
 #include "ui_notification.h"
-#include "ui_timer_guard.h"
 #include "ui_wizard.h"
 #include "ui_wizard_helpers.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"

@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "thumbnail_cache.h"

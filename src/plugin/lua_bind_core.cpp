@@ -3,8 +3,7 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_timer_guard.h"
-
+#include "core/timer_guard.h"
 #include "locale_formats.h"
 #include "lua_bindings.h"
 

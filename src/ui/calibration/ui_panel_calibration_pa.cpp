@@ -7,7 +7,6 @@
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 
 #include "ams_backend.h"
@@ -15,6 +14,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "filament_database.h"
 #include "filament_op_slot_resolver.h"
 #include "i18n_plural.h"

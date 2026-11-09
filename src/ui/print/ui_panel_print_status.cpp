@@ -23,7 +23,6 @@
 #include "ui_print_start_controller.h"
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -36,6 +35,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_numbering.h"

@@ -8,7 +8,6 @@
 #include "ui_notification.h"
 #include "ui_panel_notification_history.h"
 #include "ui_subject_registry.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -16,6 +15,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"

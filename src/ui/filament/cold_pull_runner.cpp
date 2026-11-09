@@ -5,12 +5,12 @@
 
 #include "ui_manual_pull_prompt.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "fan_gcode.h"
 #include "filament_op_heater.h"
 #include "filament_sensor_manager.h"

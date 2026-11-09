@@ -8,7 +8,6 @@
 #include "ui_event_safety.h"
 #include "ui_notification.h"
 #include "ui_subject_registry.h"
-#include "ui_timer_guard.h"
 #include "ui_wizard.h"
 
 #include "ams_state.h"
@@ -17,6 +16,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "i18n_plural.h"

@@ -14,7 +14,6 @@
 #include "ui_print_select_path_navigator.h"
 #include "ui_print_select_usb_source.h"
 #include "ui_print_start_controller.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_backend.h"
@@ -23,6 +22,7 @@
 #include "connection_state.h"
 #include "core/observer_guard.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "gcode_ops_detector.h"
 #include "helix_plugin_installer.h"
 #include "helix_shared_callback.h"
