@@ -90,6 +90,13 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
+/// A built-in selector redraws only routes that merge to one nozzle; PARALLEL and MIXED
+/// units send lanes to separate tools.
+inline bool draws_built_in_hub(bool shell_built_in, helix::PathTopology reported) {
+    return shell_built_in &&
+           (reported == helix::PathTopology::LINEAR || reported == helix::PathTopology::HUB);
+}
+
 /// Where a built-in selector's lanes join: a short drop below their sensors.
 inline int32_t built_in_bus_y(const LinearHubFrame& f) {
     return f.prep_y + (f.hub_y - f.hub_h / 2 - f.prep_y) / 2;

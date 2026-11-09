@@ -297,6 +297,26 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merg
     CHECK(horizontal);
 }
 
+TEST_CASE("A built-in selector leaves routes to separate tools alone",
+          "[filament-path][hub-stack]") {
+    using helix::PathTopology;
+    CHECK(draws_built_in_hub(true, PathTopology::LINEAR));
+    CHECK(draws_built_in_hub(true, PathTopology::HUB));
+    CHECK_FALSE(draws_built_in_hub(true, PathTopology::PARALLEL));
+    CHECK_FALSE(draws_built_in_hub(true, PathTopology::MIXED));
+    CHECK_FALSE(draws_built_in_hub(false, PathTopology::HUB));
+}
+
+TEST_CASE_METHOD(HubStackFixture,
+                 "A built-in selector's junction stays tappable when a tap is wired",
+                 "[filament-path][hub-stack]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_built_in_hub(c.obj, true);
+    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
+    render(c);
+    CHECK(c.data->hits.hub_valid);
+}
+
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
                  "[filament-path][hub-stack]") {
     auto c = make(true, false);

@@ -31,6 +31,7 @@
 #include "printer_detector.h"
 #include "printer_state.h" // PrinterState, complete for get_print_lifecycle()
 #include "sort_small.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
@@ -953,7 +954,8 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
     const tray::UnitShell* drawn_unit =
         view_shell(unit_index, helix::ui::unit_reports_climate(unit_index));
-    const bool built_in_hub = drawn_unit && drawn_unit->built_in_selector;
+    const bool built_in_hub =
+        helix::ui::fpath::draws_built_in_hub(drawn_unit && drawn_unit->built_in_selector, topo);
     if (built_in_hub)
         topo = helix::PathTopology::HUB;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));

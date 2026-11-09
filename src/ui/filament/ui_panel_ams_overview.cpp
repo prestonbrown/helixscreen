@@ -107,13 +107,13 @@ int32_t helix::ui::overview_peek_card_width(int32_t row_width, int32_t gap,
     return floor_width;
 }
 
-/// Set a label to "N slots" / "N lanes" text, with null-safety
 // overflow_visible only widens the clip by the extended draw size, and the readout hangs past
 // the tile's corner by this much.
 static void tile_readout_ext_draw_cb(lv_event_t* e) {
     lv_event_set_ext_draw_size(e, theme_manager_get_spacing("space_lg"));
 }
 
+/// Set a label to "N slots" / "N lanes" text, with null-safety
 static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int slot_count) {
     if (!label) {
         return;
