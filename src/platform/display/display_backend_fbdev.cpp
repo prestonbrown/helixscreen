@@ -11,6 +11,7 @@
 #include "env_knobs.h"
 #include "fbdev_signal_clear.h"
 #include "fbdev_size_helper.h"
+#include "framebuffer_fill.h"
 #include "input_device_scanner.h"
 #include "pending_startup_warnings.h"
 #include "touch_calibration.h"
@@ -109,16 +110,6 @@ DetectedResolution DisplayBackendFbdev::detect_resolution() const {
     return {static_cast<int>(vinfo.xres), static_cast<int>(vinfo.yres), true};
 }
 
-namespace {
-
-/// Bits per pixel the clear fills by, read from the stride (32 when xres is 0).
-/// clear_framebuffer() and the signal-safe clear must agree on it.
-uint32_t fill_bits_per_pixel(const fb_var_screeninfo& vinfo, const fb_fix_screeninfo& finfo) {
-    return vinfo.xres > 0 ? (finfo.line_length * 8) / vinfo.xres : 32;
-}
-
-} // namespace
-
 lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
     spdlog::info("[Fbdev Backend] Creating framebuffer display on {}", fb_device_);
 
@@ -189,8 +180,9 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
         struct fb_var_screeninfo vinfo {};
         if (ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo) == 0 &&
             ioctl(fb_fd, FBIOGET_VSCREENINFO, &vinfo) == 0) {
-            helix::cache_framebuffer_for_signal(fb_device_, finfo.smem_len,
-                                                fill_bits_per_pixel(vinfo, finfo));
+            helix::cache_framebuffer_for_signal(
+                fb_device_, finfo.smem_len,
+                helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length));
         }
         close(fb_fd);
     }
@@ -811,33 +803,8 @@ bool DisplayBackendFbdev::clear_framebuffer(uint32_t color) {
         return false;
     }
 
-    const uint32_t bpp = fill_bits_per_pixel(vinfo, finfo);
-
-    // Fill framebuffer with the specified color
-    // Color is in ARGB format (0xAARRGGBB)
-    if (bpp == 32) {
-        // 32-bit: fill with ARGB pixels
-        uint32_t* pixels = static_cast<uint32_t*>(fbp);
-        size_t pixel_count = screensize / 4;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = color;
-        }
-    } else if (bpp == 16) {
-        // 16-bit RGB565: convert ARGB to RGB565
-        uint16_t r = ((color >> 16) & 0xFF) >> 3; // 5 bits
-        uint16_t g = ((color >> 8) & 0xFF) >> 2;  // 6 bits
-        uint16_t b = (color & 0xFF) >> 3;         // 5 bits
-        uint16_t rgb565 = (r << 11) | (g << 5) | b;
-
-        uint16_t* pixels = static_cast<uint16_t*>(fbp);
-        size_t pixel_count = screensize / 2;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = rgb565;
-        }
-    } else {
-        // Fallback: just zero the buffer (black)
-        memset(fbp, 0, screensize);
-    }
+    const uint32_t bpp = helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length);
+    helix::fill_framebuffer(fbp, screensize, bpp, color);
 
     spdlog::info("[Fbdev Backend] Cleared framebuffer to 0x{:08X} ({}x{}, {}bpp)", color,
                  vinfo.xres, vinfo.yres, bpp);

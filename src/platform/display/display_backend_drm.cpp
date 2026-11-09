@@ -12,6 +12,7 @@
 #include "config.h"
 #include "drm_rotation_strategy.h"
 #include "env_knobs.h"
+#include "framebuffer_fill.h"
 #include "gpu_libs.h"
 #include "helix_display_telemetry.h"
 #include "input_device_scanner.h"
@@ -1370,33 +1371,8 @@ bool DisplayBackendDRM::clear_framebuffer(uint32_t color) {
         return false;
     }
 
-    // Determine bytes per pixel from stride
-    uint32_t bpp = 32;
-    if (vinfo.xres > 0) {
-        bpp = (finfo.line_length * 8) / vinfo.xres;
-    }
-
-    // Fill framebuffer with the specified color
-    if (bpp == 32) {
-        uint32_t* pixels = static_cast<uint32_t*>(fbp);
-        size_t pixel_count = screensize / 4;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = color;
-        }
-    } else if (bpp == 16) {
-        uint16_t r = ((color >> 16) & 0xFF) >> 3;
-        uint16_t g = ((color >> 8) & 0xFF) >> 2;
-        uint16_t b = (color & 0xFF) >> 3;
-        uint16_t rgb565 = (r << 11) | (g << 5) | b;
-
-        uint16_t* pixels = static_cast<uint16_t*>(fbp);
-        size_t pixel_count = screensize / 2;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = rgb565;
-        }
-    } else {
-        memset(fbp, 0, screensize);
-    }
+    helix::fill_framebuffer(fbp, screensize,
+                            helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length), color);
 
     spdlog::info("[DRM Backend] Cleared framebuffer via /dev/fb0 to 0x{:08X}", color);
 
