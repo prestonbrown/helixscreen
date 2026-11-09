@@ -121,7 +121,7 @@ json MoonrakerClientMock::mock_plr_feature_entry() {
     if (!mock_plr_config().active) {
         return nullptr;
     }
-    return json{{"version", helix::kPlrFeatureMinVersion},
+    return json{{"version", helix::kPlrUnlistedTierMinVersion},
                 {"available", true},
                 {"enabled", mock_plr_saving() || mock_plr_interrupted()},
                 {"saving", mock_plr_saving()},

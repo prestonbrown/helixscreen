@@ -124,6 +124,9 @@ std::optional<PlrDbBlock> plr_parse_db_block(const nlohmann::json& printer_entry
     if (auto skip = bounded_number(*block, "resume_skip_fraction", 0.0f, 1.0f)) {
         db.resume_skip_fraction = *skip;
     }
+    if (auto reason = nonempty_string(*block, "reason")) {
+        db.reason = *reason;
+    }
     if (const nlohmann::json* mv = json_util::find_member(*block, "macro_vars");
         mv != nullptr && mv->is_object()) {
         for (auto it = mv->begin(); it != mv->end(); ++it) {
@@ -143,9 +146,14 @@ std::optional<PlrDbBlock> plr_parse_db_block(const nlohmann::json& printer_entry
 }
 
 PlrProfile plr_resolve_profile(const std::optional<PlrDbBlock>& db, const PlrUserOverride& user,
-                               const PlrHomingCheck& homing) {
+                               const PlrHomingCheck& homing, bool plugin_guards_unlisted) {
     PlrProfile p;
+    if (!db && plugin_guards_unlisted) {
+        p.tier = kPlrUnlistedTier;
+    }
     if (db) {
+        p.listed = true;
+        p.reason = db->reason;
         p.tier = db->tier;
         // Trusting the held Z is only right where the steppers hold unpowered.
         if (p.tier == 2 && !db->z_holds_unpowered) {
@@ -201,6 +209,8 @@ nlohmann::json plr_profile_json(const PlrProfile& profile) {
         {"purge_gcode", profile.purge_gcode ? nlohmann::json(*profile.purge_gcode) : nullptr},
         {"resume_skip_fraction", profile.resume_skip_fraction},
         {"macro_vars", macro_vars},
+        {"listed", profile.listed},
+        {"reason", profile.reason ? nlohmann::json(*profile.reason) : nullptr},
     };
 }
 
