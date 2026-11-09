@@ -29,6 +29,7 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
@@ -141,20 +142,6 @@ bool panel_is_available() {
     return s_panel_available_override.value_or(kPanelBuilt);
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* icon_xs;
-    const lv_font_t* icon_lg;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("icon_font_xs"),
-            theme_manager_get_font("icon_font_lg")};
-}
-
 using helix::line_px;
 
 /// The state a rung's content depends on.
@@ -172,7 +159,7 @@ struct MeasureState {
 /// widget's whole extent, so the chrome is added back.
 helix::RungNeeds measure_needs(const MeasureState& m, const helix::ContentChrome& chrome) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -182,8 +169,8 @@ helix::RungNeeds measure_needs(const MeasureState& m, const helix::ContentChrome
     constexpr int kSlackPx = 1;
     const int button_px = theme_manager_get_spacing("button_height_sm");
 
-    const int icon_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_large"), f.icon_xs);
-    const int icon_h = line_px(f.icon_xs);
+    const int icon_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_large"), f.icon);
+    const int icon_h = line_px(f.icon);
     const int icon_lg_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_off"), f.icon_lg);
     const int icon_lg_h = line_px(f.icon_lg);
     const int xs_h = line_px(f.xs);
