@@ -25,14 +25,14 @@ struct ShellRow {
 
 constexpr ShellRow kShellRows[] = {
     {"ace", nullptr, "ace_pro", nullptr, 0},
+    // "htlf " is the type token: Claymore instances are often named HTLF_claymore_N.
+    {"afc", "htlf ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
     {"afc", "vivid", "btt_vivid", nullptr, 0},
     {"afc", "night_owl", "night_owl", nullptr, 0},
     {"afc", "bmcu", "bmcu", nullptr, 0},
     {"afc", "quattro_box", "quattro_box", nullptr, 0},
-    // "htlf " is the type token: Claymore instances are often named HTLF_claymore_N.
-    {"afc", "htlf ", "htlf", nullptr, 0},
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
     // Happy Hare's display_name defaults to the unit's vendor, "QuattroBox".
     {"happy_hare", "quattro", "quattro_box", nullptr, 0},
@@ -74,7 +74,7 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
         return nullptr;
     const char* slug = ams_type_telemetry_slug(info.type);
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
-    const std::string unit_name = helix::text_io::to_lower(unit.name + " " + unit.model);
+    const std::string unit_name = helix::text_io::to_lower(unit.name + "\n" + unit.model);
     for (const ShellRow& row : kShellRows) {
         if (std::strcmp(row.backend_slug, slug) == 0 &&
             (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&

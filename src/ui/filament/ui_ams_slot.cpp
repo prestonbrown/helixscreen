@@ -821,6 +821,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (d) {
                     evaluate_pulse_state(d);
                     apply_current_slot_highlight(d, current_slot);
+                    apply_spool_spin(d);
                 }
             },
             state.get_subjects_lifetime());

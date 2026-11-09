@@ -1278,7 +1278,14 @@ static void spool_spin_anim_cb(void* var, int32_t value) {
         return;
     const int phases = spool_vent_phase_count(spool_vent_detail(data->size));
     const int phase = ((value % phases) + phases) % phases;
-    if (phase == data->vent_phase || !lv_obj_is_visible(canvas))
+    // Off screen the animation stops, so LVGL's timer can idle. Clearing the spin lets the next
+    // state update start it again.
+    if (!lv_obj_is_visible(canvas)) {
+        data->spin = SpoolSpin{};
+        lv_anim_delete(canvas, spool_spin_anim_cb);
+        return;
+    }
+    if (phase == data->vent_phase)
         return;
     data->vent_phase = phase;
     redraw_spool_pixels(data);
@@ -1287,6 +1294,8 @@ static void spool_spin_anim_cb(void* var, int32_t value) {
 void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin) {
     SpoolCanvasData* data = get_data(canvas);
     if (!data || spin == data->spin)
+        return;
+    if (!lv_obj_is_visible(canvas) && spin.direction != 0)
         return;
     data->spin = spin;
     lv_anim_delete(canvas, spool_spin_anim_cb);

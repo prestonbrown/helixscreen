@@ -200,3 +200,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool canvas: a hidden spool does not step 
     CHECK(unchanged);
     lv_obj_delete(canvas);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "A hidden spool does not keep an animation running",
+                 "[spool_spin]") {
+    lv_obj_t* canvas = ui_spool_canvas_create(test_screen(), 64);
+    REQUIRE(canvas != nullptr);
+    lv_obj_set_hidden(canvas, true);
+    process_lvgl(20);
+    const auto before = lv_anim_count_running();
+    spool_canvas_set_spin(canvas, helix::ui::SpoolSpin{1, 40});
+    CHECK(lv_anim_count_running() == before);
+}

@@ -551,6 +551,7 @@ src/ui/components/ui_multiselect.cpp
 src/ui/filament/ui_batch_filament_modal.cpp
 src/ui/filament/ui_ams_sidebar.cpp
 src/ui/filament/ui_ams_slot.cpp
+src/ui/filament/spool_spin.cpp
 src/ui/filament/ui_buffer_slider.cpp
 src/ui/ui_busy_overlay.cpp
 src/ui/components/ui_button.cpp
