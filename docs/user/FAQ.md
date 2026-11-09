@@ -116,6 +116,8 @@ For an exact layer count and a reliable time-remaining estimate, HelixScreen nee
 | **3D bed mesh** | Yes | 2D heatmap | 2D heatmap |
 | **Status** | Actively developed | Mature (maintenance) | Unmaintained |
 
+GrumpyScreen is an actively developed fork of GuppyScreen, built specifically for Simple AF and OpenCentauri COSMOS. Like its parent it uses LVGL 8, and it supports Spoolman and the AFC and Happy Hare multi-material systems. We have not measured its memory or disk use, so it does not have a column in the table above.
+
 **HelixScreen advantages:**
 - Low memory footprint (~15MB on embedded targets vs ~50MB for KlipperScreen on the same hardware)
 - Declarative XML layouts (change UI without recompiling)

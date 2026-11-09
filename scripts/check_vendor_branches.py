@@ -6,7 +6,7 @@
 # running on. A vendor name belongs to ONE module per capability; everything else asks
 # that module a capability question. See .claude/rules/vendor-abstraction.md.
 #
-# Three shapes are counted, per file, in src/ and include/:
+# Five shapes are counted, per file, in src/ and include/:
 #
 #   platform-macro   a preprocessor conditional naming HELIX_PLATFORM_<AD5M|AD5X|MIPS|K1|K2|
 #                    CC1|SNAPMAKER_U1>. Build shapes (_ESP32, _ANDROID, _X86, _PI32) are not
@@ -14,6 +14,10 @@
 #   amstype-branch   ==, != or `case` on an AmsType value other than NONE.
 #   board-probe      a call to flashforge_machine_id(, ad5x_mod_layout_present(,
 #                    flashforge_mod_tree( or a `name()` compare either way round.
+#   vendor-name      an identifier containing a vendor, firmware or mod name. Comments and
+#                    string literals are blanked first, so text a user reads never counts.
+#   vendor-string    a string literal naming one where the program acts on it: compared with
+#                    == or !=, or passed to has_macro(, has_object( or a gcode send.
 #
 # A line carrying `VENDOR_OK: <reason>`, or directly preceded by a comment line carrying
 # it, is skipped. The module that owns a capability is exempt for that shape.
@@ -32,11 +36,13 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from source_strip import blank_cxx  # noqa: E402
 from staged_content import staged_files  # noqa: E402
 
 SCAN_DIRS = ("src", "include")
@@ -58,7 +64,46 @@ BOARD_PROBE = re.compile(
 )
 LINE_COMMENT = re.compile(r"//.*$")
 
-SHAPES = ("platform-macro", "amstype-branch", "board-probe")
+_VENDOR_WORDS = (
+    r"zmod|forge_?x|creality|flashforge|snapmaker|qidi|bambu|elegoo|anycubic|sovol|voron|prusa"
+    r"|happy_?hare|ad5m|ad5x|kalico|rinkhals|guppy|paxx|ercf|tradrack|centauri"
+)
+_VENDOR_TEXT = _VENDOR_WORDS + r"|z-mod|forge-x|happy[ -]hare"
+# Lowercase patterns matched against lowered text: re.I over the whole tree costs seconds.
+VENDOR_FILTER = re.compile(_VENDOR_TEXT)
+VENDOR_IDENT = re.compile(_VENDOR_WORDS)
+_VENDOR_LITERAL = rf"\"[^\"\n]*(?:{_VENDOR_TEXT})[^\"\n]*\""
+VENDOR_STRING = re.compile(
+    rf"(?:==|!=)\s*{_VENDOR_LITERAL}"
+    rf"|{_VENDOR_LITERAL}\s*(?:==|!=)"
+    rf"|\b(?:has_macro|has_object|execute_gcode|send_gcode|gcode_script)\s*\(\s*{_VENDOR_LITERAL}"
+)
+
+SHAPES = ("platform-macro", "amstype-branch", "board-probe", "vendor-name", "vendor-string")
+
+# The modules .claude/rules/vendor-abstraction.md names as owning a capability, plus the code
+# that exists to imitate or describe vendors. A file named for a vendor is exempt separately.
+VENDOR_OWNERS = (
+    r"^src/mock/",
+    r"_mock",
+    r"^include/mock_",
+    r"^src/generated/",
+    r"^(?:src/printer|include)/ams_backend",
+    r"^include/ams_types?\.h$",
+    r"^(?:src/system|include)/board_identity\.(?:cpp|h)$",
+    r"^(?:src/system|include)/platform_(?:info|table)\.(?:cpp|h)$",
+    r"^include/helix_features\.h$",
+    r"^(?:src/printer|include)/z_offset_persistence\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/filament_macro_profiles\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/plr_(?:backend|profile)\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/pause_descriptor\.(?:cpp|h)$",
+    r"^(?:src/\w+|include)/fault_path_position\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/detection_source_table\.(?:cpp|h)$",
+    r"^(?:src/\w+|include)/klipper_error_table\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/printer_detector\.(?:cpp|h)$",
+    r"helix_cache_dir(?:_internal)?\.(?:cpp|h)$",
+    r"^src/system/(?:log_collector|diagnostics)\.cpp$",
+)
 
 # Owners per shape: the module whose job is the vendor question.
 EXEMPT = {
@@ -79,11 +124,31 @@ EXEMPT = {
         r"src/system/diagnostics\.cpp$",
         r"src/system/helix_cache_dir\.cpp$",
     ),
+    "vendor-name": VENDOR_OWNERS,
+    "vendor-string": VENDOR_OWNERS,
 }
 
 
 def exempt(shape: str, rel: str) -> bool:
+    if shape in ("vendor-name", "vendor-string") and VENDOR_FILTER.search(
+            rel.rsplit("/", 1)[-1].lower()):
+        return True
     return any(re.search(p, rel) for p in EXEMPT[shape])
+
+
+def vendor_hits(rel: str, text: str) -> dict[int, list[str]]:
+    """Vendor-mention shapes by 0-based line index, one entry per mention."""
+    hits: dict[int, list[str]] = {}
+    if exempt("vendor-name", rel) or not VENDOR_FILTER.search(text.lower()):
+        return hits
+    scans = (("vendor-name", VENDOR_IDENT, blank_cxx(text)),
+             ("vendor-string", VENDOR_STRING, blank_cxx(text, strings="keep")))
+    for shape, pattern, original in scans:
+        source = original.lower()
+        newlines = [m.start() for m in re.finditer("\n", source)]
+        for match in pattern.finditer(source):
+            hits.setdefault(bisect.bisect_left(newlines, match.start()), []).append(shape)
+    return hits
 
 
 def count_text(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
@@ -94,10 +159,17 @@ def count_text(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
     pp_buf = ""
     pp_start = 0
     pp_opt = False
-    for lineno, raw in enumerate(text.splitlines(), start=1):
+    vendor = vendor_hits(rel, text)
+    for lineno, raw in enumerate(text.split("\n"), start=1):
         opt_out = "VENDOR_OK:" in raw or prev_ok
         stripped = raw.strip()
         prev_ok = stripped.startswith(("//", "*", "/*")) and "VENDOR_OK:" in raw
+
+        if not (opt_out or (in_pp_continuation and pp_opt)):
+            for shape in vendor.get(lineno - 1, ()):
+                key = f"{rel}:{shape}"
+                counts[key] = counts.get(key, 0) + 1
+                detail.append(f"{rel}:{lineno}: {shape}\n      {raw.strip()[:110]}")
 
         # A conditional continued over backslash lines is one logical line.
         if in_pp_continuation:
@@ -115,14 +187,16 @@ def count_text(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
             in_pp_continuation, pp_buf, pp_start, pp_opt = True, raw, lineno, opt_out
             continue
 
-        code = LINE_COMMENT.sub("", raw)
         hits = []
-        if PLATFORM_MACRO.search(raw):
+        if "HELIX_PLATFORM_" in raw and PLATFORM_MACRO.search(raw):
             hits.append("platform-macro")
-        if AMSTYPE_BRANCH.search(code):
-            hits.append("amstype-branch")
-        if BOARD_PROBE.search(code):
-            hits.append("board-probe")
+        # Substring guards: these patterns run over every line of the tree at commit time.
+        if "AmsType::" in raw or "name" in raw or "flashforge_" in raw or "ad5x_mod" in raw:
+            code = LINE_COMMENT.sub("", raw)
+            if AMSTYPE_BRANCH.search(code):
+                hits.append("amstype-branch")
+            if BOARD_PROBE.search(code):
+                hits.append("board-probe")
         for shape in hits:
             if opt_out or exempt(shape, rel):
                 continue

@@ -193,28 +193,6 @@ void PrintSelectListView::init_pool() {
     spdlog::debug("[PrintSelectListView] Pool initialized with {} rows", list_pool_.size());
 }
 
-void PrintSelectListView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
-    }
-}
-
 // ============================================================================
 // Row Configuration
 // ============================================================================
@@ -289,7 +267,7 @@ void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
         init_pool();
     }
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // Cache row dimensions on first populate (after pool exists but before hiding all rows)
     // We need a visible, laid-out row to measure correctly

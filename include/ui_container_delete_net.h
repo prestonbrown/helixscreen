@@ -79,6 +79,24 @@ class ContainerDeleteNet {
         netted_ = nullptr;
     }
 
+    /// Create the zero-height leading and trailing spacers a virtualized view
+    /// sizes to stand in for its off-screen rows. A spacer that already exists,
+    /// or a null @p container, leaves the slot alone.
+    static void create_spacers(lv_obj_t* container, lv_obj_t*& leading, lv_obj_t*& trailing) {
+        if (!container) {
+            return;
+        }
+        for (lv_obj_t** slot : {&leading, &trailing}) {
+            if (!*slot) {
+                *slot = lv_obj_create(container);
+                lv_obj_remove_style_all(*slot);
+                lv_obj_remove_flag(*slot, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_width(*slot, lv_pct(100));
+                lv_obj_set_height(*slot, 0);
+            }
+        }
+    }
+
     /// The watched tree died — its real LV_EVENT_DELETE, or a retarget away
     /// from it. Drop every pointer cached into that tree.
     virtual void on_netted_container_destroyed() = 0;

@@ -250,6 +250,7 @@ translations:
   Add: 添加
   Add Filament: 添加耗材
   Add Hidden Network: 添加隐藏网络
+  Add Part Fan to MPC: '将模型风扇添加到 MPC'
   Add Printer: 添加打印机
   Add Vendor: 添加供应商
   Add Widget: 添加小组件
@@ -257,6 +258,7 @@ translations:
   Add custom filament: 添加自定义耗材
   Add new: "新增"
   Add page: '添加页面'
+  Add part fan to MPC?: '将模型风扇添加到 MPC?'
   Add to Mainsail/Fluidd Webcams: '添加到 Mainsail/Fluidd 摄像头'
   Add to Queue: 添加到队列
   Added: 已添加
@@ -2098,6 +2100,7 @@ translations:
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
+  Klipper restarts before calibrating.: '校准前 Klipper 将重启。'
   Klipper shut down: Klipper已关闭
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"
@@ -2468,6 +2471,8 @@ translations:
   Name, image and model: 名称、图片和型号
   'Name:': '名称:'
   Named actions in the LED Controls widget. Not shown under LED selection.: 在 LED 控制小组件中显示为命名操作。不会出现在 LED 选择中。
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : '指定模型风扇后,MPC 可以计入其冷却效果。Klipper 重启后将校准此加热器。在工作温度下需要几分钟。'
   Needs attention: 需要处理
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
   'Needs {}x{} free: remove or shrink a widget first': 需要 {}x{} 空位。请先移除或缩小小组件

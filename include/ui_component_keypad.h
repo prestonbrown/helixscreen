@@ -62,6 +62,25 @@ struct ui_keypad_config_t {
     std::function<void(const std::string&)> on_confirm_text;
 };
 
+namespace helix::ui {
+
+/// Per-row facts a slider cannot answer about itself when its value is typed.
+/// Bounds are read from the lv_slider at tap time, so the XML stays the single
+/// source of truth for each range.
+struct SliderFieldSpec {
+    const char* title; ///< Keypad header, a translation tag the row already declares
+    const char* unit;  ///< Suffix beside the keypad's display
+    int divisor;       ///< Slider positions per real unit (see SliderScale)
+    bool allow_decimal;
+};
+
+/// Open the keypad on @p slider's current value and range.
+/// @param log_name Prefix for the debug line
+void show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
+                            ui_keypad_callback_t callback, void* user_data, const char* log_name);
+
+} // namespace helix::ui
+
 /**
  * @brief Initialize keypad subjects for reactive binding
  *

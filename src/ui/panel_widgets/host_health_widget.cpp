@@ -22,6 +22,7 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -124,17 +125,6 @@ int perf_reading(const char* value_subject, const char* present_subject) {
     return perf_int(present_subject, 0) != 0 ? perf_int(value_subject, -1) : -1;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* body;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_body"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 /// The height of the sparklines in a row, and the least width a row gives one. Mirrors
@@ -159,7 +149,7 @@ const char* const kWidestMcuText = "100% \xc2\xb7 9999 retx";
 /// (space_xs).
 helix::RungNeeds measure_needs(bool printing, int* mcu_row_pitch) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never

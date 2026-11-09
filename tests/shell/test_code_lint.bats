@@ -1792,6 +1792,63 @@ CPP
     contains "2 branch" "$output"
 }
 
+@test "the vendor-name gate counts identifiers and acted-on strings, each mention once" {
+    local root="$BATS_TEST_TMPDIR/vname"
+    mkdir -p "$root/src/ui"
+    cat > "$root/src/ui/x.cpp" <<'CPP'
+bool a(Hw& hw) { return hw.has_zmod_afc() && hw.is_creality_k1(); }
+bool b(Hw& hw) { return hw.has_macro("SAVE_ZMOD_DATA"); }
+bool c(const std::string& n) { return n == "qidi_print_state"; }
+void d(Api& api) { api->execute_gcode("KALICO_THING"); }
+CPP
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "planted vendor names passed"
+    contains "x.cpp:vendor-name: 2 branch" "$output"
+    contains "x.cpp:vendor-string: 3 branch" "$output"
+}
+
+@test "the vendor-name gate ignores comments, text a user reads, and generic words" {
+    local root="$BATS_TEST_TMPDIR/vquiet"
+    mkdir -p "$root/src/ui"
+    cat > "$root/src/ui/x.cpp" <<'CPP'
+// Snapmaker and zmod printers keep this in a comment.
+/* creality
+   flashforge */
+#include "snapmaker_exceptions.h"
+const char* a = lv_tr("Connect your Snapmaker");
+void b() { spdlog::info("QIDI box found"); }
+const char* c = R"(zmod raw text)";
+bool d(int persisted_z_offset, int modulus) { return persisted_z_offset > modulus; }
+CPP
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "legitimate text reported: $output"
+}
+
+@test "the vendor-name gate exempts owning modules and honours VENDOR_OK and its baseline" {
+    local root="$BATS_TEST_TMPDIR/vowner"
+    mkdir -p "$root/src/printer" "$root/src/ui" "$root/include"
+    local plant='bool f() { return has_snapmaker_; }'
+    printf '%s\n' "$plant" > "$root/src/printer/ams_backend_foo.cpp"
+    printf '%s\n' "$plant" > "$root/src/printer/snapmaker_status_parse.cpp"
+    printf '%s\n' "$plant" > "$root/src/printer/z_offset_persistence.cpp"
+    printf '%s // VENDOR_OK: test\n' "$plant" > "$root/src/ui/ok.cpp"
+    printf '%s\n' "$plant" > "$root/src/ui/ams_state.cpp"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "ams_state is generic and passed"
+    contains "ams_state.cpp:vendor-name" "$output"
+    ! contains "ams_backend_foo" "$output" || fail "owner flagged: $output"
+    ! contains "snapmaker_status_parse.cpp:" "$output" || fail "vendor-named file flagged: $output"
+    ! contains "z_offset_persistence" "$output" || fail "provider table flagged: $output"
+    ! contains "ok.cpp" "$output" || fail "VENDOR_OK ignored: $output"
+
+    printf '1 src/ui/ams_state.cpp:vendor-name\n' > "$root/base.txt"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "at baseline failed: $output"
+    printf '%s\n%s\n' "$plant" "$plant" > "$root/src/ui/ams_state.cpp"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "growth above the baseline passed"
+}
+
 @test "the short_clicked gate fires on an XML trigger and a C++ registration" {
     local d="${BATS_TEST_TMPDIR}/short_clicked"
     mkdir -p "$d/xml" "$d/src"

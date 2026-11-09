@@ -112,6 +112,27 @@ class PIDCalibrationPanel : public OverlayBase {
     build_control_migration_edits(CalibMethod target, int heater_wattage,
                                   const std::string& cooling_fan = "");
 
+    /**
+     * @brief Whether to offer naming a part fan on a heater already running MPC
+     *
+     * @param names_cooling_fan Whether the heater's section already has a cooling_fan
+     * @param part_fan Klipper object of the fan reaching this heater; empty for none
+     */
+    /// Whether a confirmed config rewrite may still run: the state the dialog
+    /// promised has to hold when Continue is tapped.
+    [[nodiscard]] static bool migration_still_valid(bool promised_fan, bool adding_fan,
+                                                    bool needs_migration) {
+        return promised_fan ? adding_fan : needs_migration;
+    }
+
+    [[nodiscard]] static bool offers_cooling_fan(ControlType current, CalibMethod target,
+                                                 bool names_cooling_fan,
+                                                 const std::string& part_fan);
+
+    /// The edit naming @p cooling_fan, which leaves a fan the user already named.
+    [[nodiscard]] static std::vector<helix::system::ConfigEdit>
+    build_cooling_fan_edits(const std::string& cooling_fan);
+
     PIDCalibrationPanel();
     ~PIDCalibrationPanel() override;
 
@@ -321,6 +342,7 @@ class PIDCalibrationPanel : public OverlayBase {
     bool needs_migration_ = false;
     bool supports_mpc_ = false;
     ControlType current_control_ = ControlType::UNKNOWN;
+    bool heater_names_cooling_fan_ = true;
 
     // MPC results
     MoonrakerAdvancedAPI::MPCResult mpc_result_;
@@ -381,15 +403,17 @@ class PIDCalibrationPanel : public OverlayBase {
     char buf_wattage_display_[16];
 
     // MPC-related int subjects
-    lv_subject_t subj_supports_mpc_{};    // int 0/1
-    lv_subject_t subj_method_is_mpc_{};   // int 0/1
-    lv_subject_t subj_show_wattage_{};    // int 0/1
-    lv_subject_t subj_needs_migration_{}; // int 0/1
-    lv_subject_t subj_show_fan_config_{}; // int 0/1
-    lv_subject_t subj_fan_is_quick_{};    // int 0/1
-    lv_subject_t subj_fan_is_detailed_{}; // int 0/1
-    lv_subject_t subj_fan_is_thorough_{}; // int 0/1
-    lv_subject_t subj_show_pid_fan_{};    // 1 when extruder + PID method
+    lv_subject_t subj_supports_mpc_{};      // int 0/1
+    lv_subject_t subj_method_is_mpc_{};     // int 0/1
+    lv_subject_t subj_show_wattage_{};      // int 0/1
+    lv_subject_t subj_needs_migration_{};   // int 0/1
+    lv_subject_t subj_show_fan_config_{};   // int 0/1
+    lv_subject_t subj_offer_cooling_fan_{}; // int 0/1
+    lv_subject_t subj_add_cooling_fan_{};   // int 0/1
+    lv_subject_t subj_fan_is_quick_{};      // int 0/1
+    lv_subject_t subj_fan_is_detailed_{};   // int 0/1
+    lv_subject_t subj_fan_is_thorough_{};   // int 0/1
+    lv_subject_t subj_show_pid_fan_{};      // 1 when extruder + PID method
 
     // Int subject: 1 when not idle (disables Start button in header)
     lv_subject_t subj_cal_not_idle_{};
@@ -484,7 +508,7 @@ class PIDCalibrationPanel : public OverlayBase {
      *        it, and a late answer must not override a PID choice made since.
      */
     void detect_heater_control_type(bool preselect_mpc = true);
-    void start_migration(CalibMethod target);
+    void start_migration(CalibMethod target, bool adding_fan);
     void confirm_migration();
     void begin_calibration(CalibMethod method);
     void update_migration_notice();
@@ -511,6 +535,8 @@ class PIDCalibrationPanel : public OverlayBase {
     /// The Klipper fan object that cools the heater being tuned, or "" where
     /// no part fan reaches it or discovery did not find that object.
     std::string mpc_cooling_fan() const;
+    /// The user took the offer to name a part fan on a heater already on MPC.
+    bool adding_cooling_fan();
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
 

@@ -248,6 +248,7 @@
   <translation tag="Add" ja="追加"/>
   <translation tag="Add Filament" ja="フィラメントを追加"/>
   <translation tag="Add Hidden Network" ja="非公開ネットワークを追加"/>
+  <translation tag="Add Part Fan to MPC" ja="パーツファンをMPCに追加"/>
   <translation tag="Add Printer" ja="プリンターを追加"/>
   <translation tag="Add Vendor" ja="ベンダーを追加"/>
   <translation tag="Add Widget" ja="ウィジェットを追加"/>
@@ -255,6 +256,7 @@
   <translation tag="Add custom filament" ja="カスタムフィラメントを追加"/>
   <translation tag="Add new" ja="新規追加"/>
   <translation tag="Add page" ja="ページを追加"/>
+  <translation tag="Add part fan to MPC?" ja="パーツファンをMPCに追加しますか?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ja="Mainsail/Fluiddのウェブカメラに追加"/>
   <translation tag="Add to Queue" ja="キューに追加"/>
   <translation tag="Add to Spoolman + label" ja="Spoolman に追加 + ラベル"/>
@@ -2016,6 +2018,7 @@
   <translation tag="Klipper ready" ja="Klipper準備完了"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
+  <translation tag="Klipper restarts before calibrating." ja="キャリブレーション前にKlipperが再起動します。"/>
   <translation tag="Klipper shut down" ja="Klipperシャットダウン"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ja="Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足し、Klipperが停止したままになることがあり、その場合はファームウェア再起動では復旧できません。プリンターの電源を入れ直して（またはSSHでKlipperを再起動して）から再試行してください。"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." ja="Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足することがあります。Klipperを再起動してから再試行してください。"/>
@@ -2385,6 +2388,7 @@
   <translation tag="Name, image and model" ja="名前、画像、モデル"/>
   <translation tag="Name:" ja="名前:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." ja="LEDコントロールウィジェットの名前付きアクションです。LED選択には表示されません。"/>
+  <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." ja="パーツファンを指定すると、MPCがその冷却を考慮できます。Klipperの再起動後、このヒーターをキャリブレートします。加熱した状態で数分かかります。"/>
   <translation tag="Needs attention" ja="対応が必要"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>

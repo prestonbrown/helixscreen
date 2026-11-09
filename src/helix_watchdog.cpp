@@ -34,6 +34,7 @@
 #include "app_constants.h"
 #include "helix_version.h"
 #include "logging_init.h"
+#include "proc_comm.h"
 #include "system/crash_record.h"
 #include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
@@ -338,28 +339,7 @@ static pid_t start_splash_process(const WatchdogArgs& args) {
  * — better to leak a splash than kill the wrong process.
  */
 static bool pid_is_our_splash(pid_t pid) {
-    if (pid <= 0) {
-        return false;
-    }
-    char comm_path[64];
-    snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
-    FILE* f = fopen(comm_path, "r");
-    if (!f) {
-        return false;
-    }
-    char comm[64] = {0};
-    bool got_line = (fgets(comm, sizeof(comm), f) != nullptr);
-    fclose(f);
-    if (!got_line) {
-        return false;
-    }
-    // Strip trailing newline
-    size_t n = strlen(comm);
-    if (n > 0 && comm[n - 1] == '\n') {
-        comm[n - 1] = '\0';
-    }
-    // Linux truncates /proc/<pid>/comm to 15 chars. "helix-splash" is 12, fits.
-    return strcmp(comm, "helix-splash") == 0;
+    return helix::proc_comm_is(pid, "helix-splash");
 }
 
 /**

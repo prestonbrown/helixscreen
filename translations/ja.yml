@@ -251,6 +251,7 @@ translations:
   Add: 追加
   Add Filament: フィラメントを追加
   Add Hidden Network: 非公開ネットワークを追加
+  Add Part Fan to MPC: 'パーツファンをMPCに追加'
   Add Printer: プリンターを追加
   Add Vendor: ベンダーを追加
   Add Widget: ウィジェットを追加
@@ -258,6 +259,7 @@ translations:
   Add custom filament: カスタムフィラメントを追加
   Add new: "新規追加"
   Add page: 'ページを追加'
+  Add part fan to MPC?: 'パーツファンをMPCに追加しますか?'
   Add to Mainsail/Fluidd Webcams: 'Mainsail/Fluiddのウェブカメラに追加'
   Add to Queue: キューに追加
   Added: 追加済み
@@ -2103,6 +2105,7 @@ translations:
   Klipper ready: Klipper準備完了
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
+  Klipper restarts before calibrating.: 'キャリブレーション前にKlipperが再起動します。'
   Klipper shut down: Klipperシャットダウン
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足し、Klipperが停止したままになることがあり、その場合はファームウェア再起動では復旧できません。プリンターの電源を入れ直して（またはSSHでKlipperを再起動して）から再試行してください。"
@@ -2474,6 +2477,8 @@ translations:
   Name, image and model: 名前、画像、モデル
   'Name:': '名前:'
   Named actions in the LED Controls widget. Not shown under LED selection.: LEDコントロールウィジェットの名前付きアクションです。LED選択には表示されません。
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : 'パーツファンを指定すると、MPCがその冷却を考慮できます。Klipperの再起動後、このヒーターをキャリブレートします。加熱した状態で数分かかります。'
   Needs attention: 対応が必要
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
   'Needs {}x{} free: remove or shrink a widget first': 空き {}x{} が必要です。先にウィジェットを削除または縮小してください

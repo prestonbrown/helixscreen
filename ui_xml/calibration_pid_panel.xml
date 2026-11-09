@@ -278,6 +278,11 @@
                 <text_small width="100%"
                             text="More points = more accurate, but takes longer." style_text_color="#text_muted"
                             long_mode="wrap"/>
+                <setting_toggle_row name="row_add_cooling_fan"
+                                    label="Add Part Fan to MPC" description="Klipper restarts before calibrating."
+                                    subject="cal_add_cooling_fan" callback="on_cal_add_cooling_fan_toggled">
+                  <bind_flag_if_eq subject="cal_offer_cooling_fan" flag="hidden" ref_value="0"/>
+                </setting_toggle_row>
               </lv_obj>
               <!-- Heater Wattage (MPC migration only) -->
               <lv_obj name="wattage_section"

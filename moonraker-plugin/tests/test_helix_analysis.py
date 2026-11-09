@@ -18,6 +18,7 @@ import io
 import json
 import os
 import shutil
+import signal
 import sys
 import threading
 import types
@@ -772,12 +773,23 @@ class TestWorker:
 
     @pytest.mark.asyncio
     async def test_a_worker_past_its_timeout_is_killed(self, gc, tmp_path, monkeypatch):
-        argv, log = fake_worker(tmp_path, "time.sleep(60)")
+        # The timeout can land before an interpreter on a loaded host has run a
+        # line of the worker, so the attempts are counted at the spawn, not by
+        # anything the worker does.
+        argv, _ = fake_worker(tmp_path, "time.sleep(120)")
         monkeypatch.setattr(analysis, "worker_command", lambda root, rel: argv)
         monkeypatch.setattr(analysis, "worker_timeout", lambda size: 0.3)
+        spawned = []
+        real_spawn = asyncio.create_subprocess_exec
+
+        async def spawn(*args, **kwargs):
+            proc = await real_spawn(*args, **kwargs)
+            spawned.append(proc)
+            return proc
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
         helix, comp = await make(gc, files={"no_define.gcode"})
-        await asyncio.wait_for(settle(comp), 10)
-        assert calls(log) == 2
+        await asyncio.wait_for(settle(comp), 60)
+        assert [p.returncode for p in spawned] == [-signal.SIGKILL] * 2
         assert not comp._runner.running
 
     @pytest.mark.asyncio

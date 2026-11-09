@@ -304,6 +304,7 @@ translations:
   Add: Добавить
   Add Filament: Добавить филамент
   Add Hidden Network: Добавить скрытую сеть
+  Add Part Fan to MPC: 'Добавить вентилятор детали в MPC'
   Add Printer: Добавить принтер
   Add Vendor: Добавить производителя
   Add Widget: Добавить виджет
@@ -311,6 +312,7 @@ translations:
   Add custom filament: Добавить свой филамент
   Add new: "Добавить новый"
   Add page: 'Добавить страницу'
+  Add part fan to MPC?: 'Добавить вентилятор детали в MPC?'
   Add to Mainsail/Fluidd Webcams: 'Добавить в веб-камеры Mainsail/Fluidd'
   Add to Queue: Добавить в очередь
   Added: Добавлено
@@ -2261,6 +2263,7 @@ translations:
   Klipper ready: Klipper готов
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
+  Klipper restarts before calibrating.: 'Klipper перезапустится перед калибровкой.'
   Klipper shut down: Klipper остановлен
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."
@@ -2646,6 +2649,8 @@ translations:
   Name, image and model: Имя, изображение и модель
   'Name:': 'Имя:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Именованные действия в виджете «Управление LED». Не отображаются в разделе «Выбор LED».
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : 'Указание вентилятора детали позволяет MPC учитывать его охлаждение. Klipper перезапустится, затем этот нагреватель будет откалиброван. Это займёт несколько минут при рабочей температуре.'
   Needs attention: Требует внимания
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
   'Needs {}x{} free: remove or shrink a widget first': 'Требуется {}x{} свободного места: сначала удалите или уменьшите виджет'

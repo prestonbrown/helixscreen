@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <atomic>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -58,86 +59,31 @@ class TestDiscoveryClient : public MoonrakerClientMock {
 // Tests
 // ============================================================================
 
-TEST_CASE("Discovery succeeds when Klippy is ready", "[discovery][klippy_gate]") {
+TEST_CASE("Discovery proceeds only when Klippy is ready or shut down", "[discovery][klippy_gate]") {
+    using KS = MoonrakerClientMock::KlippyState;
+    const auto [state, proceeds, reason_word] = GENERATE(table<KS, bool, std::string>({
+        {KS::READY, true, ""},
+        {KS::SHUTDOWN, true, ""},
+        {KS::STARTUP, false, "startup"},
+        {KS::ERROR, false, "error"},
+    }));
     LVGLTestFixture fixture;
 
     TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.set_klippy_state(state);
 
     bool completed = false;
-    bool errored = false;
     std::string error_reason;
-
+    bool errored = false;
     client.discover_printer_real([&completed]() { completed = true; },
                                  [&errored, &error_reason](const std::string& reason) {
                                      errored = true;
                                      error_reason = reason;
                                  });
 
-    REQUIRE(completed);
-    REQUIRE_FALSE(errored);
-}
-
-TEST_CASE("Discovery aborts when Klippy in STARTUP state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::STARTUP);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE_FALSE(completed);
-    REQUIRE(errored);
-    REQUIRE(error_reason.find("startup") != std::string::npos);
-}
-
-TEST_CASE("Discovery aborts when Klippy in ERROR state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::ERROR);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE_FALSE(completed);
-    REQUIRE(errored);
-    REQUIRE(error_reason.find("error") != std::string::npos);
-}
-
-TEST_CASE("Discovery succeeds when Klippy in SHUTDOWN state", "[discovery][klippy_gate]") {
-    LVGLTestFixture fixture;
-
-    TestDiscoveryClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::SHUTDOWN);
-
-    bool completed = false;
-    bool errored = false;
-    std::string error_reason;
-
-    client.discover_printer_real([&completed]() { completed = true; },
-                                 [&errored, &error_reason](const std::string& reason) {
-                                     errored = true;
-                                     error_reason = reason;
-                                 });
-
-    REQUIRE(completed);
-    REQUIRE_FALSE(errored);
+    REQUIRE(completed == proceeds);
+    REQUIRE(errored == !proceeds);
+    REQUIRE(error_reason.find(reason_word) != std::string::npos);
 }
 
 TEST_CASE("Discovery onto a shut-down Klippy seeds the reason with the state",
@@ -320,6 +266,234 @@ TEST_CASE("Discovery settles the OpenAMS claim before the hardware callback",
         CHECK(run.ams_types.empty());
         CHECK_FALSE(client.subscribe_params["objects"].contains("oams_manager"));
     }
+}
+
+// ============================================================================
+// Every step of the chain drops a reply from a dead pass
+// ============================================================================
+
+namespace {
+
+struct HeldStep {
+    const char* name;
+    const char* method;
+    int skip;         ///< occurrences of @c method let through first
+    bool mcu_query;   ///< printer.objects.query of an MCU object
+    bool claim_query; ///< printer.objects.query of the claim
+    bool fail;        ///< replay through the error callback
+    json reply;
+};
+
+/// Holds the replies of one step instead of delivering them, for replay later.
+class HeldStepClient : public ClaimQueryClient {
+  public:
+    explicit HeldStepClient(const HeldStep& step)
+        : ClaimQueryClient(MoonrakerClientMock::PrinterType::VORON_24), step_(step) {}
+
+    helix::RequestId send_jsonrpc(const std::string& method, const json& params,
+                                  helix::SharedCallback<void(const json&)> cb) override {
+        ++rpcs;
+        if (should_hold(method, params)) {
+            held_success.push_back(std::move(cb));
+            return 1;
+        }
+        if (method == "server.info") {
+            // The mock's component list has no timelapse, so its settings query never goes out.
+            cb = [inner = std::move(cb)](const json& response) {
+                json with_timelapse = response;
+                with_timelapse["result"]["components"].push_back("timelapse");
+                inner(with_timelapse);
+            };
+        }
+        return MoonrakerClientMock::send_jsonrpc(method, params, std::move(cb));
+    }
+
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+        ++rpcs;
+        if (should_hold(method, params)) {
+            held_success.push_back(std::move(success_cb));
+            held_error.push_back(std::move(error_cb));
+            return 1;
+        }
+        return ClaimQueryClient::send_jsonrpc(method, params, std::move(success_cb),
+                                              std::move(error_cb), timeout_ms, silent, intent);
+    }
+
+    uint64_t connection_generation() const override {
+        return ClaimQueryClient::connection_generation() + generation_bump;
+    }
+
+    bool holding = true;
+    uint64_t generation_bump = 0;
+    long rpcs = 0;
+    std::vector<helix::SharedCallback<void(const json&)>> held_success;
+    std::vector<helix::SharedCallback<void(const MoonrakerError&)>> held_error;
+
+  private:
+    bool should_hold(const std::string& method, const json& params) {
+        if (!holding || method != step_.method) {
+            return false;
+        }
+        const json* objects =
+            params.is_object() && params.contains("objects") ? &params["objects"] : nullptr;
+        const bool is_claim = objects && objects->contains("oams_manager");
+        const bool is_mcu =
+            objects && !objects->empty() && objects->begin().key().rfind("mcu", 0) == 0;
+        if (step_.claim_query != is_claim || step_.mcu_query != is_mcu) {
+            return false;
+        }
+        return seen_++ >= step_.skip;
+    }
+
+    HeldStep step_;
+    int seen_ = 0;
+};
+
+enum class PassState { Live, Superseded, Reconnected };
+
+} // namespace
+
+TEST_CASE("A discovery step acts on its reply only while its pass is current",
+          "[discovery][klippy_gate]") {
+    LVGLTestFixture fixture;
+    get_printer_state().init_subjects(false);
+
+    const json objects_reply = {{"result", {{"objects", {"extruder"}}}}};
+    const json server_reply = {{"result", {{"moonraker_version", "v0.9.3"}}}};
+    const json printer_reply = {{"result", {{"hostname", "held"}}}};
+    const HeldStep step = GENERATE_COPY(values<HeldStep>({
+        {"objects.list reply", "printer.objects.list", 0, false, false, false, objects_reply},
+        {"objects.list failure", "printer.objects.list", 0, false, false, true, json()},
+        {"claim reply", "printer.objects.query", 0, false, true, false,
+         json{{"result", {{"status", json::object()}}}}},
+        {"claim failure", "printer.objects.query", 0, false, true, true, json()},
+        {"server.info reply", "server.info", 1, false, false, false, server_reply},
+        {"spoolman reply", "server.spoolman.status", 0, false, false, false,
+         json{{"result", {{"spoolman_connected", false}}}}},
+        {"spoolman failure", "server.spoolman.status", 0, false, false, true, json()},
+        {"printer.info reply", "printer.info", 0, false, false, false, printer_reply},
+        {"mcu reply", "printer.objects.query", 0, true, false, false,
+         json{{"result", {{"status", json::object()}}}}},
+        {"mcu failure", "printer.objects.query", 0, true, false, true, json()},
+        {"configfile reply", "printer.objects.query", 0, false, false, false,
+         json{{"result",
+               {{"status",
+                 {{"configfile",
+                   {{"settings", {{"virtual_sdcard", {{"auto_creator5_start", true}}}}}}}}}}}}},
+        {"system_info reply", "machine.system_info", 0, false, false, false,
+         json{{"result", {{"system_info", {{"distribution", {{"name", "HeldOS"}}}}}}}}},
+        {"system_info failure", "machine.system_info", 0, false, false, true, json()},
+        {"timelapse settings reply", "machine.timelapse.get_settings", 0, false, false, false,
+         json{{"result", {{"enabled", true}}}}},
+    }));
+    const PassState pass = GENERATE(PassState::Live, PassState::Superseded, PassState::Reconnected);
+    CAPTURE(step.name, static_cast<int>(pass));
+
+    HeldStepClient client(step);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.set_mock_spoolman_enabled(true);
+
+    int hardware_callbacks = 0;
+    int failure_events = 0;
+    client.set_on_hardware_discovered(
+        [&hardware_callbacks](const helix::PrinterDiscovery&) { ++hardware_callbacks; });
+    client.register_event_handler([&failure_events](const MoonrakerEvent& e) {
+        failure_events += e.type == MoonrakerEventType::DISCOVERY_FAILED ? 1 : 0;
+    });
+
+    client.discover_printer_real([]() {}, [](const std::string&) {});
+    REQUIRE_FALSE(client.held_success.empty());
+    client.holding = false;
+
+    if (pass == PassState::Superseded) {
+        client.discover_printer_real([]() {}, [](const std::string&) {});
+    } else if (pass == PassState::Reconnected) {
+        client.generation_bump = 1;
+    }
+
+    get_printer_state().capabilities_state().set_spoolman_available(true);
+    get_printer_state().set_timelapse_default_enabled(false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    const auto observe = [&]() {
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        const helix::PrinterDiscovery hardware = client.hardware();
+        const auto* timelapse =
+            get_printer_state().profile_state().pre_print_option_set().find("timelapse");
+        return std::make_tuple(client.rpcs, hardware_callbacks, failure_events,
+                               get_printer_state().is_spoolman_available(), hardware.os_version(),
+                               hardware.firmware_runs_start_macro_before_file(),
+                               timelapse && timelapse->default_enabled);
+    };
+    const auto before = observe();
+
+    if (step.fail) {
+        MoonrakerError error;
+        error.message = "Request timed out";
+        for (auto& cb : client.held_error) {
+            cb(error);
+        }
+    } else {
+        for (auto& cb : client.held_success) {
+            cb(step.reply);
+        }
+    }
+
+    if (pass == PassState::Live) {
+        CHECK(observe() != before);
+    } else {
+        CHECK(observe() == before);
+    }
+}
+
+TEST_CASE("The last MCU reply publishes what the fan-out gathered, whichever way it ended",
+          "[discovery][klippy_gate][subscription]") {
+    LVGLTestFixture fixture;
+    get_printer_state().init_subjects(false);
+
+    enum class Ending { LastSucceeds, LastFails, AllFail };
+    const Ending ending = GENERATE(Ending::LastSucceeds, Ending::LastFails, Ending::AllFail);
+    CAPTURE(static_cast<int>(ending));
+
+    HeldStepClient client(
+        HeldStep{"mcu", "printer.objects.query", 0, true, false, false, json::object()});
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+
+    int completions = 0;
+    client.discover_printer_real([&completions]() { ++completions; }, [](const std::string&) {});
+    const std::vector<std::string> mcus = client.hardware().mcus();
+    REQUIRE(mcus.size() >= 2);
+    REQUIRE(client.held_success.size() == mcus.size());
+    REQUIRE(completions == 0);
+
+    MoonrakerError error;
+    error.message = "Request timed out";
+    std::vector<std::string> gathered;
+    for (size_t i = 0; i < mcus.size(); ++i) {
+        const bool last = i + 1 == mcus.size();
+        if (ending == Ending::AllFail || (ending == Ending::LastFails && last)) {
+            client.held_error[i](error);
+            continue;
+        }
+        const std::string chip = "held_chip_" + std::to_string(i);
+        gathered.push_back(chip);
+        client.held_success[i](json{
+            {"result",
+             {{"status",
+               {{mcus[i], {{"mcu_constants", {{"MCU", chip}}}, {"mcu_version", "v-held"}}}}}}}});
+        CHECK(completions == (last ? 1 : 0));
+    }
+
+    CHECK(completions == 1);
+    const helix::PrinterDiscovery hardware = client.hardware();
+    std::vector<std::string> published = hardware.mcu_list();
+    std::sort(published.begin(), published.end());
+    CHECK(published == gathered);
+    CHECK(hardware.mcu_versions().size() == gathered.size());
 }
 
 // ============================================================================

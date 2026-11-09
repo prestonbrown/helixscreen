@@ -253,6 +253,7 @@ translations:
   Add: Add
   Add Filament: Add Filament
   Add Hidden Network: Add Hidden Network
+  Add Part Fan to MPC: Add Part Fan to MPC
   Add Printer: Add Printer
   Add Vendor: Add Vendor
   Add Widget: Add Widget
@@ -260,6 +261,7 @@ translations:
   Add custom filament: Add custom filament
   Add new: Add new
   Add page: Add page
+  Add part fan to MPC?: Add part fan to MPC?
   Add to Mainsail/Fluidd Webcams: Add to Mainsail/Fluidd Webcams
   Add to Queue: Add to Queue
   Add to Spoolman + label: Add to Spoolman + label
@@ -2163,6 +2165,7 @@ translations:
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
+  Klipper restarts before calibrating.: Klipper restarts before calibrating.
   Klipper shut down: Klipper shut down
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -2545,6 +2548,8 @@ translations:
   Name, image and model: Name, image and model
   'Name:': 'Name:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Named actions in the LED Controls widget. Not shown under LED selection.
+  ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
+  : Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   Needs attention: Needs attention
   Needs the {} package to switch spools: Needs the {} package to switch spools
   'Needs {}x{} free: remove or shrink a widget first': 'Needs {}x{} free: remove or shrink a widget first'

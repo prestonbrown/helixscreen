@@ -233,7 +233,7 @@ if (sensor == status.end() || !sensor->is_object()) {
 
 ### rediscover_on_config
 
-The first discovery pass runs from the object list, before `configfile.config` has arrived. A manager that reads config sections in `on_discovered()` sets `rediscover_on_config`, and `rediscover_from_config(hw)` (`include/sensor_manager.h#rediscover_from_config`) runs its `discover()` again against discovery data that now carries the sections. `src/api/moonraker_discovery_sequence.cpp#continue_discovery_objects` queues that call to the main thread. Three managers need it:
+The first discovery pass runs from the object list, before `configfile.config` has arrived. A manager that reads config sections in `on_discovered()` sets `rediscover_on_config`, and `rediscover_from_config(hw)` (`include/sensor_manager.h#rediscover_from_config`) runs its `discover()` again against discovery data that now carries the sections. `src/api/moonraker_discovery_sequence.cpp#apply_configfile_config` queues that call to the main thread. Three managers need it:
 
 - accelerometers, which exist only as config sections;
 - probes, which seed `z_offset` from their section for modules whose status reports it as null;

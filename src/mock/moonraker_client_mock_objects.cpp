@@ -467,6 +467,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 if (is_mock_kalico()) {
                     extruder_settings["control"] = "mpc";
                     extruder_settings["heater_power"] = 50.0;
+                    if (!self->extruder_cooling_fan().empty()) {
+                        extruder_settings["cooling_fan"] = self->extruder_cooling_fan();
+                    }
                 } else {
                     extruder_settings["control"] = "pid";
                     extruder_settings["pid_kp"] = 22.865;

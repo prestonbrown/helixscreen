@@ -248,6 +248,7 @@
   <translation tag="Add" fr="Ajouter"/>
   <translation tag="Add Filament" fr="Ajouter un filament"/>
   <translation tag="Add Hidden Network" fr="Ajouter un réseau masqué"/>
+  <translation tag="Add Part Fan to MPC" fr="Ajouter le ventilateur de pièce à MPC"/>
   <translation tag="Add Printer" fr="Ajouter une imprimante"/>
   <translation tag="Add Vendor" fr="Ajouter un fournisseur"/>
   <translation tag="Add Widget" fr="Ajouter un widget"/>
@@ -255,6 +256,7 @@
   <translation tag="Add custom filament" fr="Ajouter un filament personnalisé"/>
   <translation tag="Add new" fr="Ajouter un nouveau"/>
   <translation tag="Add page" fr="Ajouter une page"/>
+  <translation tag="Add part fan to MPC?" fr="Ajouter le ventilateur de pièce à MPC ?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" fr="Ajouter aux webcams Mainsail/Fluidd"/>
   <translation tag="Add to Queue" fr="Ajouter à la file"/>
   <translation tag="Add to Spoolman + label" fr="Ajouter à Spoolman + étiquette"/>
@@ -2016,6 +2018,7 @@
   <translation tag="Klipper ready" fr="Klipper prêt"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." fr="Klipper réserve &apos;default&apos; aux nouvelles calibrations. Choisissez un autre nom."/>
   <translation tag="Klipper restarting - macros activating" fr="Redémarrage de Klipper - activation des macros"/>
+  <translation tag="Klipper restarts before calibrating." fr="Klipper redémarre avant la calibration."/>
   <translation tag="Klipper shut down" fr="Klipper arrêté"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." fr="Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes et bloquer Klipper, qu&apos;un redémarrage firmware ne peut alors plus atteindre. Éteignez puis rallumez l&apos;imprimante (ou redémarrez Klipper via SSH), puis réessayez."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." fr="Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes ; redémarrez Klipper puis réessayez."/>
@@ -2385,6 +2388,7 @@
   <translation tag="Name, image and model" fr="Nom, image et modèle"/>
   <translation tag="Name:" fr="Nom :"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." fr="Actions nommées dans le widget Commandes LED. Non affichées dans la sélection LED."/>
+  <translation tag="Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature." fr="Nommer le ventilateur de pièce permet à MPC de tenir compte de son refroidissement. Klipper redémarre, puis cette chauffe est calibrée. Cela prend plusieurs minutes en température."/>
   <translation tag="Needs attention" fr="Attention requise"/>
   <translation tag="Needs the {} package to switch spools" fr="Nécessite le plugin {} pour changer de bobine"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" fr="Nécessite {}x{} de libre : supprimez ou réduisez d&apos;abord un widget"/>
