@@ -244,6 +244,8 @@ class UnitDef:
     tray: Optional[TrayShellDef] = None
     # Lane counts this design is built in, each baked to its own set. Empty: only 'lanes'.
     lane_variants: Tuple[int, ...] = ()
+    # A second drawing, baked under stubs/: the body alone, tight in its frame, a tube per lane.
+    stub_art: Optional[Callable] = None
 
 
 @dataclass

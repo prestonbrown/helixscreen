@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ams_ht, bmcu, box_turtle, cfs, night_owl, quattro_box  # noqa: E402
+from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, three_ms  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -280,3 +280,64 @@ def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
     xs = [p[0] for i in scene.items for p in i.points]
     assert vx <= min(xs) and max(xs) <= vx + vw
+
+
+FEEDERS = [bmcu.UNIT, mmx.UNIT, htlf.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeders_stub_look_frames_its_own_body_with_one_tube_per_lane(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.stub_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius is None
+    tubes = [i for i in scene.items if i.lane is not None]
+    assert {i.lane for i in tubes} == set(range(unit.lanes))
+    assert all(not i.closed for i in tubes)
+    assert all(i.layer == "back" for i in tubes)
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeders_spool_look_stands_in_the_shared_frame(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    assert scene.spool_radius == 0.25
+    assert any(i.layer == "front" for i in scene.items)
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_feeder_shows_a_slim_strip_and_no_enclosure(unit):
+    t = unit.tray
+    assert t.dome == []
+    assert t.front_wall_px <= 16
+    assert not t.lid_spans_row
+
+
+def test_a_feeder_bakes_both_looks(tmp_path):
+    build.bake_unit(mmx.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    root = tmp_path / mmx.UNIT.id
+    for sub in (root, root / "stubs"):
+        assert json.loads((sub / "manifest.json").read_text())["lanes"] == mmx.UNIT.lanes
+        assert (sub / "full_lane3.png").is_file()
+
+
+def test_a_unit_without_a_stub_look_bakes_only_its_own_art(tmp_path):
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    assert not (tmp_path / ace_pro.UNIT.id / "stubs").exists()
+
+
+def test_the_shell_table_records_which_units_have_a_stub_look():
+    table = build.generate_shell_table([mmx.UNIT, ace_pro.UNIT])
+
+    def row(uid):
+        return next(line for line in table.splitlines() if line.strip().startswith(chr(123) + chr(34) + uid))
+
+    assert row("mmx").rstrip().endswith("true, 0x0},")
+    assert row("ace_pro").rstrip().endswith("false, 0x0},")
+
+
+@pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
+def test_a_tube_ends_clear_of_the_inlet_it_leaves(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.stub_art(scene, ["#ffffff"] * unit.lanes, "full")
+    for tube in (i for i in scene.items if i.lane == 0):
+        assert math.dist(tube.points[0], tube.points[-1]) > 0.08

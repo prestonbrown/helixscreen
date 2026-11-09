@@ -13,11 +13,16 @@
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
+#include <string>
 
 namespace helix {
 struct AmsSystemInfo;
 struct SlotInfo;
 } // namespace helix
+
+namespace helix::ui::tray {
+struct UnitShell;
+}
 
 namespace helix::ui {
 
@@ -27,6 +32,16 @@ struct UnitArtLane {
     bool filled = false;
     uint32_t color = 0;
 };
+
+/// Which drawing a unit that holds no spools uses: spools behind it, or tube stubs.
+enum class FeederLook { Spools, Stubs };
+
+/// The look named by the HELIX_UNIT_ART_FEEDER value @p value; Spools unless it says stubs.
+FeederLook parse_feeder_look(const char* value);
+
+/// The asset path, without extension or layer, of a unit's drawing at @p lanes bays.
+std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtTier tier,
+                               FeederLook look);
 
 /// What one bay shows.
 UnitArtLane unit_art_lane(const SlotInfo& slot);

@@ -8,8 +8,8 @@ body width; SCALE turns them into the shared scale where a 200 mm spool has radi
 import math
 from pathlib import Path
 
-from .. import kit, spool
-from ..kit import TrayShellDef, UnitDef
+from .. import feeder, kit, spool
+from ..kit import UnitDef
 
 W, D, H = 1.0, 0.44, 0.82
 FOOT_Z = 0.1
@@ -62,18 +62,10 @@ def _fitting(sc, xc):
     sc.poly([(x0, y0, H + 0.07), (x1, y0, H + 0.07), (x1, y1, H + 0.07), (x0, y1, H + 0.07)], "#3a3b3d")
 
 
-def draw_art(scene, colors, tier):
+def _body(scene, detail):
     sc = kit.ScaledScene(scene, SCALE)
-    detail = tier == "full"
     thick = 1 if detail else 3
-    c = spool.spool_constants(_REPO)
     cam = sc.camera
-    x0, x1 = SPOOL_CENTERS[0] - 0.12, SPOOL_CENTERS[-1] + 0.12
-    scene.poly([(x0, 0.0, 0), (x1, 0.0, 0), (x1, SPOOL_Y + 0.2, 0), (x0, SPOOL_Y + 0.2, 0)], "#000", 0.5, blur=True)
-    for lane, (xc, col) in enumerate(zip(SPOOL_CENTERS, colors)):
-        spool.draw_spool(scene, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
-
-    scene.layer = "front"
     for xc in CENTERS:
         _foot(sc, xc)
     side = kit.shade(cam, BODY, (1, 0, 0), amb=0.68, dif=0.5, spec=0)
@@ -100,30 +92,25 @@ def draw_art(scene, colors, tier):
         _fitting(sc, xc)
 
 
-_WALL = 40.0
+def draw_art(scene, colors, tier):
+    detail = tier == "full"
+    c = spool.spool_constants(_REPO)
+    x0, x1 = SPOOL_CENTERS[0] - 0.12, SPOOL_CENTERS[-1] + 0.12
+    scene.poly([(x0, 0.0, 0), (x1, 0.0, 0), (x1, SPOOL_Y + 0.2, 0), (x0, SPOOL_Y + 0.2, 0)], "#000", 0.5, blur=True)
+    for lane, (xc, col) in enumerate(zip(SPOOL_CENTERS, colors)):
+        spool.draw_spool(scene, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
+    scene.layer = "front"
+    _body(scene, detail)
+
+
+def draw_stubs(scene, colors, tier):
+    _body(scene, tier == "full")
+    y = TOP_D / 2 * SCALE
+    z = (H + 0.07) * SCALE
+    for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
+        x = xc * SCALE
+        feeder.tube(scene, feeder.bend((x, y, z), (x, y, z + 0.13), (x, y + 0.1, z + 0.2)), col, lane, 0.016 if tier == "full" else feeder.TUBE_THUMB)
+
+
 _LEVER_RGB = int(LEVER[1:], 16)
-
-
-def _tray_shell():
-    return TrayShellDef(
-        cheek=[(0.0, 0.0), (1.0, 0.0)],
-        dome=[],
-        back_extra_px=0.0,
-        front_wall_px=_WALL,
-        rail_px=6.0,
-        cap_clearance_px=8.0,
-        lid_spans_row=False,
-        has_latch=False,
-        body=int(BODY[1:], 16),
-        panel=int(BODY[1:], 16),
-        rail=0xb4b6ba,
-        accent=_LEVER_RGB,
-        front=[
-            kit.span(2, 2, 2, _WALL - 2, 0xb4b6ba, 3),
-            kit.lane(-14, 14, _WALL - 6, _WALL - 1, 0xd6d8dc, 2),
-            kit.lane(-11, 11, 5, _WALL - 8, _LEVER_RGB, 3),
-        ],
-    )
-
-
-UNIT = UnitDef("bmcu", 4, draw_art, _tray_shell())
+UNIT = UnitDef("bmcu", 4, draw_art, feeder.tray_strip(int(BODY[1:], 16), _LEVER_RGB), stub_art=draw_stubs)

@@ -11,7 +11,25 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import kit  # noqa: E402
-from unit_art.units import ace_pro, ams_2_pro, ams_ht, bmcu, box_turtle, btt_vivid, cfs, kms, night_owl, qidi_box, quattro_box  # noqa: E402
+from unit_art.units import (  # noqa: E402
+    ace_pro,
+    ad5x_ifs,
+    ams_2_pro,
+    ams_ht,
+    bmcu,
+    box_turtle,
+    btt_vivid,
+    cfs,
+    elegoo_canvas,
+    htlf,
+    kms,
+    mmx,
+    night_owl,
+    qidi_box,
+    quattro_box,
+    three_ms,
+)
+
 UNITS = [
     ace_pro.UNIT,
     box_turtle.UNIT,
@@ -25,6 +43,11 @@ UNITS = [
     bmcu.UNIT,
     night_owl.UNIT,
     quattro_box.UNIT,
+    mmx.UNIT,
+    htlf.UNIT,
+    three_ms.UNIT,
+    ad5x_ifs.UNIT,
+    elegoo_canvas.UNIT,
 ]
 TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
@@ -47,18 +70,30 @@ def art_dirs(unit, out_dir):
     return [(root, unit.lanes)]
 
 
+def stub_dirs(unit, out_dir):
+    """Each set of baked layers of a unit's stub look; empty when it has none."""
+    if unit.stub_art is None:
+        return []
+    root = Path(out_dir) / unit.id / "stubs"
+    if unit.lane_variants:
+        return [(root / str(lanes), lanes) for lanes in unit.lane_variants]
+    return [(root, unit.lanes)]
+
+
 def bake_unit(unit, out_dir, render=rsvg_render):
     for target, lanes in art_dirs(unit, out_dir):
-        _bake_layers(unit, target, lanes, render)
+        _bake_layers(unit.id, unit.draw_art, target, lanes, render)
+    for target, lanes in stub_dirs(unit, out_dir):
+        _bake_layers(unit.id, unit.stub_art, target, lanes, render)
 
 
-def _bake_layers(unit, target, lane_count, render):
+def _bake_layers(unit_id, draw, target, lane_count, render):
     target.mkdir(parents=True, exist_ok=True)
-    manifest = {"id": unit.id, "lanes": lane_count, "tiers": {}}
+    manifest = {"id": unit_id, "lanes": lane_count, "tiers": {}}
     for tier, width in TIER_WIDTH.items():
         scene = kit.Scene(kit.ART_CAMERA)
         # White filament: its shading alone reaches the shade masks.
-        unit.draw_art(scene, ["#ffffff"] * lane_count, tier)
+        draw(scene, ["#ffffff"] * lane_count, tier)
         back, front = f"{tier}_back.png", f"{tier}_front.png"
         render(scene.layer_svg("back", width), width, target / back)
         render(scene.layer_svg("front", width), width, target / front)
@@ -115,7 +150,7 @@ def generate_shell_table(units):
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
-            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, 0x{variants:x}}},"
+            f"{lid}, {'true' if t.built_in_selector else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, {'true' if unit.stub_art else 'false'}, 0x{variants:x}}},"
         )
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
     out += [
@@ -142,7 +177,7 @@ def contact_sheet(out_dir, sheet_path):
     # An SVG mask recolours each lane the way the runtime will.
     # A row clears the 320 px box a tall unit's art fills.
     cells, x_step, row_h, y = [], 360, 340, 0
-    roots = [root for unit in UNITS for root, _ in art_dirs(unit, out_dir)]
+    roots = [root for unit in UNITS for root, _ in art_dirs(unit, out_dir) + stub_dirs(unit, out_dir)]
     for bg in ("#1a1b1e", "#e8e8ea"):
         x = 0
         cells.append(f'<rect x="0" y="{y}" width="{x_step * max(1, len(roots))}" height="{row_h}" fill="{bg}"/>')

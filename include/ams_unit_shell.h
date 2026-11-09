@@ -55,6 +55,8 @@ struct UnitShell {
     uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
     const FrontPart* front;
     int front_n;
+    bool
+        has_stub_art; ///< A second drawing, the body alone with a tube per lane, sits under stubs/.
     /// Bit n set: baked art exists for n lanes, in a folder of its own. 0: only art_lanes.
     uint32_t art_lane_variants = 0;
 };

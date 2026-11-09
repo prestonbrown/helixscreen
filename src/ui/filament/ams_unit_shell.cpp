@@ -30,9 +30,14 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "night_owl", "night_owl", nullptr, 0},
     {"afc", "bmcu", "bmcu", nullptr, 0},
     {"afc", "quattro_box", "quattro_box", nullptr, 0},
+    // "htlf " is the type token: Claymore instances are often named HTLF_claymore_N.
+    {"afc", "htlf ", "htlf", nullptr, 0},
     {"afc", "turtle", "box_turtle", "box_turtle_enclosed", 0},
     // Happy Hare's display_name defaults to the unit's vendor, "QuattroBox".
     {"happy_hare", "quattro", "quattro_box", nullptr, 0},
+    {"happy_hare", "mmx", "mmx", nullptr, 0},
+    {"happy_hare", "3ms", "3ms", nullptr, 0},
+    {"ifs", nullptr, "ad5x_ifs", nullptr, 0},
     {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
     // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.
