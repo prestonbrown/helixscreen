@@ -32,7 +32,12 @@ namespace helix::ams {
 /// spoolman_id is engaged exactly when the binding changed, an unlink as 0. A
 /// cleared text field or a zeroed id travels engaged-empty, and filing it
 /// withdraws the field's earlier pending value.
-[[nodiscard]] Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited);
+///
+/// @p spool_owns_linked_fields false is for a lane whose firmware owns its
+/// identity: a linked spool's fields then travel with the edit, and the Pending
+/// record covers the write until the firmware answers.
+[[nodiscard]] Observation user_edit_observation(const SlotInfo& original, const SlotInfo& edited,
+                                                bool spool_owns_linked_fields = true);
 
 /// A stored lane record as a Record observation, whole. Only the fields the
 /// record actually carries are observed: unknown is unset.

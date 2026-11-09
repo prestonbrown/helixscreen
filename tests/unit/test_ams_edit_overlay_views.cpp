@@ -78,6 +78,9 @@ class AmsEditOverlayViewTestAccess {
     std::string spool_disagreement_text() {
         return lv_subject_get_string(&overlay_.spool_disagreement_text_subject_);
     }
+    std::string selected_family() {
+        return overlay_.sel_.family;
+    }
     void call_handle_reapply() {
         overlay_.handle_reapply_linked_spool();
     }
@@ -898,6 +901,97 @@ TEST_CASE_METHOD(BoxWinsFixture, "unlinking from the note keeps the lane's own f
     CHECK(captured.slot_info.spoolman_id == 0);
     CHECK(captured.slot_info.material == "PLA");
     CHECK(captured.slot_info.color_rgb == 0xFF0000U);
+}
+
+TEST_CASE_METHOD(BoxWinsFixture,
+                 "update in Spoolman on a disagreeing lane moves only what the user changed",
+                 "[ams_edit_overlay][box_wins]") {
+    // The spool is red ASA, the lane red PLA: only the material disagrees.
+    client.spoolman_mock().get_mock_spools().back().color_hex = "FF0000";
+    open(true, box_lane());
+
+    SlotInfo edited = access.working_info();
+    edited.color_rgb = 0x0000FF;
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    access.call_do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
+    settle();
+
+    const SpoolInfo& spool = client.spoolman_mock().get_mock_spools().back();
+    CHECK(spool.material == "ASA");
+    CHECK(spool.vendor == "Elegoo");
+    REQUIRE(fired);
+    CHECK(captured.slot_info.material == "PLA");
+    CHECK(captured.slot_info.brand == "Creality");
+    CHECK(captured.slot_info.color_rgb == 0x0000FFU);
+    ModalStack::instance().clear();
+}
+
+namespace {
+struct RefusingBoxBackend : AmsBackendMock {
+    using AmsBackendMock::AmsBackendMock;
+    bool refuse = false;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override {
+        if (!refuse) {
+            return AmsBackendMock::apply_user_edit(slot_index, info);
+        }
+        return AmsError(AmsResult::WRONG_STATE, "refused", "refused", "", slot_index);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(BoxWinsFixture, "a refused note action leaves the form on the lane",
+                 "[ams_edit_overlay][box_wins]") {
+    auto owned = std::make_unique<RefusingBoxBackend>(4);
+    RefusingBoxBackend* refusing = owned.get();
+    backend = refusing;
+    AmsState::instance().set_backend(std::move(owned));
+    backend->set_firmware_owns_lane_identity_for_testing(true);
+    REQUIRE(helix::test::apply_edit(*backend, 0, box_lane()).success());
+    const SlotInfo lane = backend->get_slot_info(0);
+    refusing->refuse = true;
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, lane, &api, [this](const AmsEditOverlay::EditResult& r) {
+            (void)AmsState::instance().commit_slot_edit(
+                r.slot_index, backend->get_slot_info(r.slot_index), r.slot_info);
+        }));
+    settle();
+    REQUIRE(access.spool_disagrees() == 1);
+
+    SECTION("re-apply") {
+        access.call_handle_reapply();
+    }
+    SECTION("unlink") {
+        access.call_handle_unlink_disagreeing();
+    }
+    settle();
+
+    CHECK(access.working_info().material == "PLA");
+    CHECK(access.working_info().spoolman_id == 149);
+    CHECK(access.working_info().color_rgb == 0xFF0000U);
+    CHECK(access.selected_family() == "PLA");
+    CHECK(access.spool_disagrees() == 1);
+    CHECK_FALSE(access.dirty());
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "a note action stopped before it commits leaves the form alone",
+                 "[ams_edit_overlay][box_wins]") {
+    open(true, box_lane());
+    REQUIRE(access.spool_disagrees() == 1);
+    lv_obj_t* price = access.widget("detail_field_price");
+    REQUIRE(price != nullptr);
+    lv_textarea_set_text(price, "-1");
+
+    access.call_handle_reapply();
+    settle();
+
+    CHECK_FALSE(fired);
+    CHECK(access.working_info().material == "PLA");
+    CHECK(access.spool_disagrees() == 1);
+    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament still asks",

@@ -514,7 +514,8 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // lands. The edit states the new binding, so an earlier Pending it amends
     // names the new spool too.
     const std::uint64_t filed_before = helix::ams::pending_filings(lane);
-    helix::ams::file_pending(lane, helix::ams::user_edit_observation(original, applied));
+    helix::ams::file_pending(
+        lane, helix::ams::user_edit_observation(original, applied, !firmware_owns_lane_identity()));
 
     AmsError err = apply_user_edit(slot_index, applied);
     // A partly applied edit still changed what it applied.
