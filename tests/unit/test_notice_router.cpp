@@ -232,23 +232,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A print start asks the UI for the print sta
                  "[notification][notice][print][navigation]") {
     using helix::PrintJobState;
     CapturedRequests requests(UiRequestKind::OpenPrintStatus);
+    ObserverGuard nav = helix::init_print_start_navigation_observer();
+    drain();
+    REQUIRE(g_requests.empty());
+    helix::test::set_wire_state(state(), PrintJobState::PRINTING);
+    helix::test::set_wire_state(state(), PrintJobState::PAUSED);
+    CHECK(g_requests.empty()); // queued for the UI thread, not run inline
+    drain();
+    CHECK(g_requests.size() == 1);
 
-    SECTION("a job already running when the observer starts") {
-        helix::test::set_wire_state(state(), PrintJobState::PRINTING);
-        ObserverGuard nav = helix::init_print_start_navigation_observer();
-        CHECK(g_requests.empty()); // queued for the UI thread, not run inline
-        drain();
-        CHECK(g_requests.size() == 1);
-    }
-    SECTION("an idle printer starting a job, once per start") {
-        ObserverGuard nav = helix::init_print_start_navigation_observer();
-        drain();
-        REQUIRE(g_requests.empty());
-        helix::test::set_wire_state(state(), PrintJobState::PRINTING);
-        helix::test::set_wire_state(state(), PrintJobState::PAUSED);
-        drain();
-        CHECK(g_requests.size() == 1);
-    }
+    // A job already running when the observer starts asks too.
+    nav = helix::init_print_start_navigation_observer();
+    drain();
+    CHECK(g_requests.size() == 2);
     helix::test::set_wire_state(state(), PrintJobState::STANDBY);
     drain();
 }
