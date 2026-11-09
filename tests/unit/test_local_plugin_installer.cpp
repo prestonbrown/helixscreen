@@ -9,13 +9,17 @@
  * Run with: ./build/bin/helix-tests "[timelapse][local_install]"
  */
 
+#include "../test_helpers/unique_temp_dir.h"
 #include "helix_plugin_installer.h"
 #include "timelapse_host_mock.h"
 #include "timelapse_local_installer.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <fcntl.h>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <string>
 #include <unistd.h>
@@ -36,6 +40,8 @@ std::string join(const std::vector<std::string>& argv) {
 }
 
 /// Records every command; answers the ones named in `answers` (by joined argv), 0 otherwise.
+/// A clone leaves its destination behind the way git does when it stops part way,
+/// and fills it with a checkout only when it succeeds.
 struct FakeRunner {
     std::vector<std::string> calls;
     std::map<std::string, CommandResult> answers;
@@ -43,14 +49,21 @@ struct FakeRunner {
     ProcessRunner runner() {
         return [this](const std::vector<std::string>& argv, int) {
             calls.push_back(join(argv));
-            auto it = answers.find(calls.back());
-            if (it != answers.end()) {
-                return it->second;
+            CommandResult r;
+            r.started = true;
+            r.exit_code = 0;
+            if (auto it = answers.find(calls.back()); it != answers.end()) {
+                r = it->second;
             }
-            CommandResult ok;
-            ok.started = true;
-            ok.exit_code = 0;
-            return ok;
+            if (std::find(argv.begin(), argv.end(), "clone") != argv.end()) {
+                const std::string dest = argv.back();
+                std::filesystem::create_directories(dest + "/.git");
+                if (r.succeeded()) {
+                    std::filesystem::create_directories(dest + "/component");
+                    std::ofstream(dest + "/component/timelapse.py") << "# plugin\n";
+                }
+            }
+            return r;
         };
     }
 };
@@ -63,20 +76,45 @@ CommandResult exited(int code, std::string output = "") {
     return r;
 }
 
-const std::string kClone = "env GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c "
-                           "http.lowSpeedTime=30 clone "
-                           "https://github.com/mainsail-crew/moonraker-timelapse.git "
-                           "/home/pi/moonraker-timelapse";
-const std::string kLink =
-    "sh /opt/helix/moonraker-plugin/install.sh --link-timelapse /home/pi/moonraker-timelapse";
+const std::string kInstallScript = "/opt/helix/moonraker-plugin/install.sh";
 const std::string kFindFfmpeg = "/bin/sh -c command -v \"$1\" sh ffmpeg";
 
-LocalPluginPlan fresh_plan() {
-    LocalPluginPlan plan;
-    plan.install_script = "/opt/helix/moonraker-plugin/install.sh";
-    plan.repo_dir = "/home/pi/moonraker-timelapse";
-    plan.repo_present = false;
-    return plan;
+/// A home directory of its own, so the clone and its rename land on a real filesystem.
+struct TempHome {
+    std::string path = helix::test::unique_temp_dir("plugin_home");
+    TempHome() {
+        std::filesystem::create_directories(path);
+    }
+    ~TempHome() {
+        std::error_code ec;
+        std::filesystem::remove_all(path, ec);
+    }
+    [[nodiscard]] LocalPluginPlan plan() const {
+        return make_local_plugin_plan(timelapse_plugin_recipe(), path, kInstallScript);
+    }
+    [[nodiscard]] std::string repo() const {
+        return path + "/moonraker-timelapse";
+    }
+    /// Everything in home, so a test can see that nothing was left behind.
+    [[nodiscard]] std::vector<std::string> entries() const {
+        std::vector<std::string> names;
+        for (const auto& e : std::filesystem::directory_iterator(path)) {
+            names.push_back(e.path().filename().string());
+        }
+        std::sort(names.begin(), names.end());
+        return names;
+    }
+};
+
+std::string clone_cmd(const LocalPluginPlan& plan) {
+    return "env GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c "
+           "http.lowSpeedTime=30 clone "
+           "https://github.com/mainsail-crew/moonraker-timelapse.git " +
+           plan.fetch_dir;
+}
+
+std::string link_cmd(const LocalPluginPlan& plan) {
+    return "sh " + kInstallScript + " --link-timelapse " + plan.repo_dir;
 }
 
 } // namespace
@@ -121,84 +159,133 @@ TEST_CASE("timelapse setup takes the local route only for a local Moonraker it c
 // ============================================================================
 
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {
+    TempHome home;
     FakeRunner fake;
+    const auto plan = home.plan();
     std::vector<LocalPluginStage> stages;
-    const auto result =
-        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner(),
-                               [&](LocalPluginStage s) { stages.push_back(s); });
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner(),
+                                               [&](LocalPluginStage s) { stages.push_back(s); });
 
     CHECK(result.outcome == LocalPluginOutcome::Installed);
     CHECK(result.detail.empty());
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg});
+    CHECK(fake.calls == std::vector<std::string>{clone_cmd(plan), link_cmd(plan), kFindFfmpeg});
     CHECK(stages == std::vector<LocalPluginStage>{LocalPluginStage::Fetch,
                                                   LocalPluginStage::Install,
                                                   LocalPluginStage::CheckDependency});
+    // The clone reached its place whole, and its staging directory is gone.
+    CHECK(std::filesystem::exists(home.repo() + "/component/timelapse.py"));
+    CHECK(home.entries() == std::vector<std::string>{"moonraker-timelapse"});
+}
+
+TEST_CASE("a local install clones beside home's checkout, never into it",
+          "[timelapse][local_install]") {
+    TempHome home;
+    const auto plan = home.plan();
+    CHECK(plan.fetch_dir.rfind(home.path + "/.moonraker-timelapse.partial-", 0) == 0);
+    CHECK(plan.fetch_dir != plan.repo_dir);
 }
 
 TEST_CASE("a local install reuses a checkout already there", "[timelapse][local_install]") {
+    TempHome home;
+    std::filesystem::create_directories(home.repo() + "/component");
+    std::ofstream(home.repo() + "/component/timelapse.py") << "# plugin\n";
+    std::ofstream(home.repo() + "/local-edit") << "mine\n";
     FakeRunner fake;
-    auto plan = fresh_plan();
-    plan.repo_present = true;
+    const auto plan = home.plan();
+    REQUIRE(plan.repo_present);
     const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Installed);
-    CHECK(fake.calls == std::vector<std::string>{kLink, kFindFfmpeg});
+    CHECK(fake.calls == std::vector<std::string>{link_cmd(plan), kFindFfmpeg});
+    CHECK(std::filesystem::exists(home.repo() + "/local-edit"));
 }
 
 TEST_CASE("a failed clone stops the install and names git's last line",
           "[timelapse][local_install]") {
+    TempHome home;
     FakeRunner fake;
-    fake.answers[kClone] =
+    const auto plan = home.plan();
+    fake.answers[clone_cmd(plan)] =
         exited(128, "Cloning into 'x'...\nfatal: unable to access 'https://github.com/': "
                     "Could not resolve host: github.com\n");
-    const auto result =
-        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.failed_stage == LocalPluginStage::Fetch);
     CHECK(result.detail ==
           "fatal: unable to access 'https://github.com/': Could not resolve host: github.com");
-    CHECK(fake.calls == std::vector<std::string>{kClone});
+    CHECK(fake.calls == std::vector<std::string>{clone_cmd(plan)});
 }
 
-TEST_CASE("a clone that times out reports the timeout", "[timelapse][local_install]") {
+TEST_CASE("a clone stopped part way leaves nothing that blocks the retry",
+          "[timelapse][local_install]") {
+    TempHome home;
     FakeRunner fake;
+    const auto plan = home.plan();
     CommandResult slow;
     slow.started = true;
     slow.timed_out = true;
-    fake.answers[kClone] = slow;
-    const auto result =
-        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    fake.answers[clone_cmd(plan)] = slow;
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.detail == "timed out");
+    CHECK(home.entries().empty());
+
+    FakeRunner retry;
+    const auto again = home.plan();
+    CHECK_FALSE(again.repo_present);
+    CHECK(install_plugin_locally(timelapse_plugin_recipe(), again, retry.runner()).outcome ==
+          LocalPluginOutcome::Installed);
+    CHECK(std::filesystem::exists(home.repo() + "/component/timelapse.py"));
+}
+
+TEST_CASE("a directory of the user's in the clone's place is left alone",
+          "[timelapse][local_install]") {
+    TempHome home;
+    std::filesystem::create_directories(home.repo());
+    std::ofstream(home.repo() + "/notes.txt") << "mine\n";
+    FakeRunner fake;
+    const auto plan = home.plan();
+    REQUIRE_FALSE(plan.repo_present);
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
+
+    CHECK(result.outcome == LocalPluginOutcome::Failed);
+    CHECK(result.failed_stage == LocalPluginStage::Fetch);
+    CHECK(result.detail.find(home.repo()) != std::string::npos);
+    CHECK(fake.calls == std::vector<std::string>{clone_cmd(plan)});
+    CHECK(std::filesystem::exists(home.repo() + "/notes.txt"));
+    CHECK_FALSE(std::filesystem::exists(home.repo() + "/component"));
+    CHECK(home.entries() == std::vector<std::string>{"moonraker-timelapse"});
 }
 
 TEST_CASE("a failed link stops the install before ffmpeg", "[timelapse][local_install]") {
+    TempHome home;
     FakeRunner fake;
-    fake.answers[kLink] = exited(1, "\033[0;31m[ERROR]\033[0m Could not auto-detect Moonraker "
-                                    "installation.\n");
-    const auto result =
-        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    const auto plan = home.plan();
+    fake.answers[link_cmd(plan)] = exited(1, "\033[0;31m[ERROR]\033[0m Could not auto-detect "
+                                             "Moonraker installation.\n");
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.failed_stage == LocalPluginStage::Install);
     CHECK(result.detail == "[ERROR] Could not auto-detect Moonraker installation.");
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink});
+    CHECK(fake.calls == std::vector<std::string>{clone_cmd(plan), link_cmd(plan)});
 }
 
 TEST_CASE("missing ffmpeg is left to the user: nothing is installed for it",
           "[timelapse][local_install]") {
+    TempHome home;
     FakeRunner fake;
+    const auto plan = home.plan();
     fake.answers[kFindFfmpeg] = exited(1);
     std::vector<LocalPluginStage> stages;
-    const auto result =
-        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner(),
-                               [&](LocalPluginStage s) { stages.push_back(s); });
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner(),
+                                               [&](LocalPluginStage s) { stages.push_back(s); });
 
     CHECK(result.outcome == LocalPluginOutcome::InstalledMissingDependency);
     CHECK(result.missing_dependency == "ffmpeg");
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg});
+    CHECK(fake.calls == std::vector<std::string>{clone_cmd(plan), link_cmd(plan), kFindFfmpeg});
     CHECK(stages.back() == LocalPluginStage::CheckDependency);
     for (const auto& call : fake.calls) {
         CHECK(call.find("sudo") == std::string::npos);

@@ -323,6 +323,26 @@ bool remove(const std::string& p) {
     return rc == 0;
 }
 
+bool remove_all(const std::string& p) {
+    if (!storage_allowed("remove_all", p)) {
+        return false;
+    }
+    struct stat st;
+    if (lstat_compat(p.c_str(), &st) != 0) {
+        return errno == ENOENT;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        auto entries = list_dir(p);
+        if (!entries) {
+            return false;
+        }
+        for (const auto& e : *entries) {
+            remove_all(e.path);
+        }
+    }
+    return remove(p);
+}
+
 bool rename(const std::string& from, const std::string& to) {
     if (!storage_allowed("rename", from)) {
         return false;

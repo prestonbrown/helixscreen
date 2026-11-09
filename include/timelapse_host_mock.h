@@ -26,7 +26,8 @@ TimelapseHost parse_timelapse_host(const char* value);
 bool timelapse_plugin_present();
 
 /// The simulated host's commands: each takes a moment and answers per
-/// HELIX_MOCK_TIMELAPSE; linking the component makes the plugin answer.
+/// HELIX_MOCK_TIMELAPSE; a clone leaves a checkout at its destination, and
+/// linking the component makes the plugin answer.
 ProcessRunner timelapse_host_runner();
 
 } // namespace helix::mock

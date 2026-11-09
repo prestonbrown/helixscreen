@@ -316,9 +316,12 @@ void PrintControlButtons::start_pending_action(PendingAction action) {
 - **Set** when a pause/resume is dispatched.
 - **Cleared** authoritatively when the `print_state_enum` observer sees the real
   transition (PRINTING↔PAUSED).
-- **Cleared on failure** via the dispatch error callback, unless the error is an
-  RPC timeout (`MoonrakerError::command_may_still_run()`): the macro may still be
-  running, so the pending state stays and no failure toast is shown.
+- **Cleared on failure** via the dispatch error callback, unless the printer may
+  still be running the macro (`MoonrakerError::command_may_still_run(sent)`): an
+  RPC timeout, or a socket that dropped after the request went out. Then the
+  pending state stays and no failure toast is shown, so a WiFi blip mid-reheat
+  cannot re-enable Resume and queue a second RESUME. A client that refuses the
+  request before sending it (not connected) still releases the button and toasts.
 - **Backstop** - if Klipper never confirms, the timer fires a warning toast and
   clears (`pending_action_backstop_ms()`: 25 s for pause; for resume the same
   5-minute ceiling the RPC waits on, `IMoonrakerAPI::kMacroTimeoutMs`). A resume
