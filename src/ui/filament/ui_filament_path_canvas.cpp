@@ -504,6 +504,7 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: one of the canvas's C-style setters
 void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
     auto* data = get_data(obj);
     if (!data || data->built_in_hub == built_in)

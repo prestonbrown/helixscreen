@@ -122,7 +122,7 @@ static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int 
 }
 
 /// A tile's art stands this tall against its width: the drawings run close to 4:3.
-constexpr int32_t kTileArtHeightPct = 75;
+static constexpr int32_t kTileArtHeightPct = 75;
 
 /// The measured width one mini bar gets for this container and lane count.
 /// Both create_mini_bars() and the update-path rebuild check recompute it, so
@@ -615,6 +615,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                s.drying_text.c_str(),
                                nullptr,
                                nullptr};
+        // required-names: ams_unit_tile ams_unit_card
         uc.card = static_cast<lv_obj_t*>(
             lv_xml_create(cards_row_, uc.has_art ? "ams_unit_tile" : "ams_unit_card", attrs));
         if (!uc.card) {

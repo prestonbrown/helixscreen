@@ -142,6 +142,16 @@ class PagedFleet : public AmsBackendMock {
 
 class PagingFixture : public LVGLUITestFixture {
   public:
+    auto cards() {
+        return AmsPanelTestAccess::unit_cards(panel());
+    }
+    auto card_units() {
+        return AmsPanelTestAccess::unit_card_units(panel());
+    }
+    bool in_unit_view() {
+        return AmsPanelTestAccess::in_unit_view(panel());
+    }
+
     PagingFixture() {
         animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
         DisplaySettingsManager::instance().set_animations_enabled(false);
@@ -197,11 +207,11 @@ class PagingFixture : public LVGLUITestFixture {
 
     /// Tap the unit card of the unit at @p unit_pos in AmsSystemInfo::units.
     void enter(int unit_pos) {
-        const auto cards = AmsPanelTestAccess::unit_cards(panel());
-        const auto units = AmsPanelTestAccess::unit_card_units(panel());
-        for (size_t i = 0; i < cards.size(); ++i) {
+        const auto tiles = cards();
+        const auto units = card_units();
+        for (size_t i = 0; i < tiles.size(); ++i) {
             if (units[i] == unit_pos) {
-                tap(cards[i]);
+                tap(tiles[i]);
                 return;
             }
         }
@@ -211,9 +221,9 @@ class PagingFixture : public LVGLUITestFixture {
     /// Open the panel and zoom into the unit at @p unit_pos.
     void open_at(int unit_pos) {
         open();
-        REQUIRE_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE_FALSE(in_unit_view());
         enter(unit_pos);
-        REQUIRE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE(in_unit_view());
     }
 
     void close() {
@@ -1284,9 +1294,9 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
     install([](PagedFleet& f) { art_fleet(f, 3); });
     open();
 
-    const auto cards = AmsPanelTestAccess::unit_cards(panel());
-    REQUIRE(cards.size() == 3);
-    for (lv_obj_t* card : cards) {
+    const auto tiles = cards();
+    REQUIRE(tiles.size() == 3);
+    for (lv_obj_t* card : tiles) {
         CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == LV_OPA_TRANSP);
         CHECK(lv_obj_get_style_border_width(card, LV_PART_MAIN) == 0);
         CHECK(lv_obj_find_by_name(card, "bars_container") == nullptr);
@@ -1301,8 +1311,8 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
         CHECK(lv_obj_get_style_text_align(name, LV_PART_MAIN) == LV_TEXT_ALIGN_CENTER);
     }
 
-    tap(cards[1]);
-    CHECK(AmsPanelTestAccess::in_unit_view(panel()));
+    tap(tiles[1]);
+    CHECK(in_unit_view());
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its card",
@@ -1313,10 +1323,10 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its car
     });
     open();
 
-    const auto cards = AmsPanelTestAccess::unit_cards(panel());
-    const auto units = AmsPanelTestAccess::unit_card_units(panel());
-    REQUIRE(cards.size() == 2);
-    lv_obj_t* plain = units[0] == 1 ? cards[0] : cards[1];
+    const auto tiles = cards();
+    const auto units = card_units();
+    REQUIRE(tiles.size() == 2);
+    lv_obj_t* plain = units[0] == 1 ? tiles[0] : tiles[1];
     CHECK(lv_obj_find_by_name(plain, "unit_art") == nullptr);
     CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_COVER);
     CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 1);
@@ -1352,8 +1362,7 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest
     lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
     REQUIRE(bp != nullptr);
     const int original = lv_subject_get_int(bp);
-    lv_obj_t* readout =
-        lv_obj_find_by_name(AmsPanelTestAccess::unit_cards(panel())[0], "tile_readout");
+    lv_obj_t* readout = lv_obj_find_by_name(cards()[0], "tile_readout");
     REQUIRE(readout != nullptr);
     for (int tier : {0, 1}) {
         lv_subject_set_int(bp, tier);
@@ -1374,14 +1383,14 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of
     open();
     process_lvgl(50);
 
-    lv_obj_t* row = AmsPanelTestAccess::cards_row(panel());
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
     lv_obj_update_layout(row);
     REQUIRE(lv_obj_get_scroll_right(row) > 0);
     lv_area_t row_box;
     lv_obj_get_coords(row, &row_box);
 
     int cut_off = 0;
-    for (lv_obj_t* card : AmsPanelTestAccess::unit_cards(panel())) {
+    for (lv_obj_t* card : cards()) {
         lv_area_t box;
         lv_obj_get_coords(card, &box);
         if (box.x1 <= row_box.x2 && box.x2 > row_box.x2) {

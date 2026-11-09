@@ -952,8 +952,9 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     if (backend->hub_on_toolhead())
         topo = helix::PathTopology::HUB;
     // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
-    const tray::UnitShell* drawn_unit =
-        view_shell(unit_index, helix::ui::unit_reports_climate(unit_index));
+    // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
+    const tray::UnitShell* drawn_unit = tray::unit_shell_for(
+        info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
     const bool built_in_hub =
         helix::ui::fpath::draws_built_in_hub(drawn_unit && drawn_unit->built_in_selector, topo);
     if (built_in_hub)
