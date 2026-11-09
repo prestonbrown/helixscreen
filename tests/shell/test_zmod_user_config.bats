@@ -63,7 +63,7 @@ snapshot() {
     [ "$status" -eq 0 ]
     contains "moved tool_spools.json" "$output"
 
-    for f in settings.json tool_spools.json crash_history.json telemetry_device.json; do
+    for f in settings.json tool_spools.json crash_history.json; do
         [ -L "$INSTALL_DIR/config/$f" ] || fail "$f is not a link"
         [ "$(readlink "$INSTALL_DIR/config/$f")" = "$STATE/$f" ] || fail "$f links elsewhere"
         [ -f "$STATE/$f" ] && [ ! -L "$STATE/$f" ] || fail "$f is not a real file in the state dir"
@@ -84,8 +84,60 @@ snapshot() {
     run restore_config_symlinks
     [ "$status" -eq 0 ]
     printf '%s\n' "$output" | grep -Eq \
-        '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} restore-user-config: moved telemetry_device.json to ' \
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} restore-user-config: moved tool_spools.json to ' \
         || fail "no timestamped move line in: $output"
+}
+
+# A sync that records, at the moment it runs, whether the originals are still
+# real files and the store copies already exist.
+mock_recording_sync() {
+    export SYNC_LOG="$BATS_TEST_TMPDIR/sync.log" INSTALL_DIR STATE
+    mock_command_script "sync" '
+{
+    echo SYNC
+    for f in tool_spools.json settings.json; do
+        if [ -L "$INSTALL_DIR/config/$f" ]; then echo "install $f link"
+        elif [ -f "$INSTALL_DIR/config/$f" ]; then echo "install $f real"; fi
+        [ -f "$STATE/$f" ] && echo "store $f present"
+    done
+    [ -d "$INSTALL_DIR/config/themes" ] && [ ! -L "$INSTALL_DIR/config/themes" ] && echo "install themes real dir"
+} >> "$SYNC_LOG"
+exit 0'
+}
+
+@test "moved copies are synced before any original is replaced by a link" {
+    mock_recording_sync
+    write_user_files
+
+    restore_config_symlinks >/dev/null
+
+    [ -f "$SYNC_LOG" ] || fail "sync never ran"
+    first=$(sed -n '/^SYNC$/,/^SYNC$/p' "$SYNC_LOG" | head -n 6)
+    contains "install tool_spools.json real" "$first"
+    contains "store tool_spools.json present" "$first"
+    contains "install settings.json real" "$first"
+    contains "store settings.json present" "$first"
+}
+
+@test "a user directory is synced into the store before the original is deleted" {
+    mock_recording_sync
+    mkdir -p "$INSTALL_DIR/config/themes"
+    echo '{"name":"mine"}' > "$INSTALL_DIR/config/themes/mine.json"
+
+    restore_config_symlinks >/dev/null
+
+    grep -q "install themes real dir" "$SYNC_LOG" || fail "no sync while themes/ was still real: $(cat "$SYNC_LOG" 2>/dev/null)"
+    [ -L "$INSTALL_DIR/config/themes" ]
+    [ "$(cat "$STATE/themes/mine.json")" = '{"name":"mine"}' ]
+}
+
+@test "a run that moves nothing does not sync" {
+    write_user_files
+    restore_config_symlinks >/dev/null
+    mock_recording_sync
+
+    restore_config_symlinks >/dev/null
+    [ ! -e "$SYNC_LOG" ] || fail "second run synced: $(cat "$SYNC_LOG")"
 }
 
 @test "a newer file already in the state dir is never overwritten" {
@@ -115,17 +167,17 @@ snapshot() {
     [ "$(cat "$STATE/tool_spools.json.pre-restore")" = '{"spools":"install"}' ]
 }
 
-@test "the device id survives a simulated rmtree of the install root" {
+@test "user files survive a simulated rmtree of the install root" {
     write_user_files
     restore_config_symlinks >/dev/null
 
     simulate_web_update
-    [ ! -e "$INSTALL_DIR/config/telemetry_device.json" ]
+    [ ! -e "$INSTALL_DIR/config/tool_spools.json" ]
 
     run restore_config_symlinks
     [ "$status" -eq 0 ]
-    [ -L "$INSTALL_DIR/config/telemetry_device.json" ]
-    [ "$(cat "$INSTALL_DIR/config/telemetry_device.json")" = '{"uuid":"u-1","salt":"s-1"}' ]
+    [ -L "$INSTALL_DIR/config/tool_spools.json" ]
+    [ "$(cat "$INSTALL_DIR/config/crash_history.json")" = '[1]' ]
     # The packaged settings.json does not replace the user's.
     [ "$(cat "$INSTALL_DIR/config/settings.json")" = '{"config_version":33}' ]
     [ "$(cat "$INSTALL_DIR/config/tool_spools.json")" = '{"spools":1}' ]
@@ -152,9 +204,25 @@ snapshot() {
     [ "$status" -eq 0 ]
     [ ! -e "$STATE" ]
     # Unchanged rule there: only runtime-only files move on a service start.
-    [ -L "$INSTALL_DIR/config/telemetry_device.json" ]
-    [ "$(readlink "$INSTALL_DIR/config/telemetry_device.json")" = "$PD/telemetry_device.json" ]
     [ -f "$INSTALL_DIR/config/tool_spools.json" ] && [ ! -L "$INSTALL_DIR/config/tool_spools.json" ]
+}
+
+# The telemetry uuid and salt: printer_data is listed by web UIs and pushed by
+# config backups, so the app keeps this file in its state root instead.
+@test "telemetry_device.json never goes to printer_data or the Z-Mod store" {
+    PD="$BATS_TEST_TMPDIR/printer_data/config/helixscreen"
+    mkdir -p "$PD"
+    write_user_files
+
+    discover_pd_helix() { printf '%s' "$PD"; }
+    restore_config_symlinks >/dev/null
+    [ ! -e "$PD/telemetry_device.json" ]
+    [ -f "$INSTALL_DIR/config/telemetry_device.json" ] && [ ! -L "$INSTALL_DIR/config/telemetry_device.json" ]
+
+    discover_pd_helix() { :; }
+    restore_config_symlinks >/dev/null
+    [ ! -e "$STATE/telemetry_device.json" ]
+    [ ! -L "$INSTALL_DIR/config/telemetry_device.json" ]
 }
 
 @test "an install root other than Z-Mod's gets no state dir" {
@@ -187,12 +255,12 @@ EOF
     printf '#!/bin/sh\nexit 0\n' > "$INSTALL_DIR/bin/helix-splash"
     chmod +x "$INSTALL_DIR/bin/helix-screen" "$INSTALL_DIR/bin/helix-splash"
     echo 'HELIX_LOG_LEVEL=debug' > "$STATE/helixscreen.env"
-    echo '{"uuid":"u-1","salt":"s-1"}' > "$STATE/telemetry_device.json"
+    echo '{"spools":1}' > "$STATE/tool_spools.json"
     unset HELIX_LOG_LEVEL HELIX_DEBUG
 
     sh "$INSTALL_DIR/bin/helix-launcher.sh" >/dev/null 2>&1 || true
 
-    [ -L "$INSTALL_DIR/config/telemetry_device.json" ]
+    [ -L "$INSTALL_DIR/config/tool_spools.json" ]
     [ -L "$INSTALL_DIR/config/helixscreen.env" ]
     [ "$(cat "$INSTALL_DIR/seen_log_level")" = "debug" ]
 }

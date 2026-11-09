@@ -81,7 +81,6 @@ cat /usr/data/.mod/.zmod/srv/helixscreen/config/settings.json
 │   ├── .helix-screen.lock
 │   ├── .crash_restart_count  (watchdog crash counter)
 │   ├── settings.json
-│   ├── telemetry_device.json
 │   ├── telemetry_queue.json
 │   ├── tool_spools.json
 │   ├── helixscreen.env       (env vars sourced by launcher)
@@ -91,6 +90,10 @@ cat /usr/data/.mod/.zmod/srv/helixscreen/config/settings.json
 ├── assets/, ui_xml/, scripts/
 ├── install.sh
 └── release_info.json
+/srv/helixscreen-state/       (survives an update)
+├── cache/
+├── config/                   (the user files config/ links to)
+└── telemetry_device.json     (telemetry uuid + salt, written by the app)
 ```
 
 `/etc/init.d/S80helixscreen` (in chroot) is the active init script with
