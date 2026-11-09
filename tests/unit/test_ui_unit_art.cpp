@@ -206,8 +206,8 @@ TEST_CASE("unit art glow: strength stays inside the drawing and under its peak",
           "[ams][unit-art][glow]") {
     CHECK(unit_art_glow_alpha(0, 255) == 0);
     CHECK(unit_art_glow_alpha(255, 0) == 0);
-    CHECK(unit_art_glow_alpha(255, 255) == 100);
-    CHECK(unit_art_glow_alpha(128, 255) < 100);
+    CHECK(unit_art_glow_alpha(255, 255) == 150);
+    CHECK(unit_art_glow_alpha(128, 255) < 150);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: lights only part of the drawing",

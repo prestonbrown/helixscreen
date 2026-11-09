@@ -28,7 +28,7 @@ namespace helix::ui {
 namespace {
 
 constexpr uint64_t kFnvPrime = 1099511628211ull;
-constexpr int kGlowPeakAlpha = 100;
+constexpr int kGlowPeakAlpha = 150;
 constexpr int kChamberSpreadDivisor = 24; ///< blur radius is the short side over this
 constexpr int kChamberSpreadGain = 2;     ///< lifts the blur so it reaches past the lanes
 constexpr OpaPulse kGlowPulse{110, LV_OPA_COVER, 2000};
