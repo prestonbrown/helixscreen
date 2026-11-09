@@ -62,7 +62,6 @@ TEST_CASE("icon: the filament names are the spool glyphs, the nozzle names the n
 }
 
 TEST_CASE("icon: sites about the nozzle or extruder keep the nozzle", "[ui_icon][icon]") {
-    CHECK(icon_near(read_xml("maintenance_overlay.xml"), "name=\"row_interval_1\"") == "nozzle");
     CHECK(icon_near(read_xml("runout_guidance_modal.xml"), "name=\"btn_purge\"") == "nozzle");
     const std::string pm = read_xml("printer_manager_overlay.xml");
     CHECK(icon_near(pm, "name=\"pm_chip_nozzle_clean\"") == "nozzle");

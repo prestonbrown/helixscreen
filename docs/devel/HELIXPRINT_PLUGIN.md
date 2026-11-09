@@ -1247,6 +1247,44 @@ Backend details: [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md),
 
 ---
 
+## Signal Macro Migration (`signal_macro_migration` v1)
+
+HelixScreen names its eleven signal macros with a leading underscore so Fluidd and Mainsail
+leave them out of their macro lists. Printers instrumented by HelixScreen before 1.1 call the
+visible names from marker blocks inside `PRINT_START`. At every `klippy_ready` the plugin
+renames each block's call line to the hidden name, so the printer keeps every phase and ready
+signal and the app's scan of `configfile.settings` stops counting those calls as reasons to keep
+a visible alias (#2006). Own switch: `[helix_print] migrate_signal_macros`, default on.
+
+| File | Role |
+|------|------|
+| `moonraker-plugin/strip_phase_tracking.py` | `compute_renamed_content`, `process_file(mode="rename", dry_run, allowed_names)`, `run_tree`, `TreeReport` (`names_needed`, `summary_line`, `exit_status`); the strip uninstall runs |
+| `moonraker-plugin/helix_signal_migration.py` | `missing_hidden_names` (the gate), `firmware_managed`, `HelixSignalMigration` (`run_once`, the report, the endpoint) |
+
+**Order of a run** (one `asyncio.Lock`, file work in a thread): a dry `run_tree` and its one log
+line; nothing planned ends it; switched off or firmware-managed ends it as `disabled` /
+`firmware_managed`; `configfile.settings` must define every name in `names_needed()`, else
+`waiting_for_pack`; then the real `run_tree`, restricted to those checked names
+(`allowed_names`), so a file that changed in between into calling another name is skipped
+rather than renamed past the gate. The edit rules, backups and concurrent-change check are the
+strip's (`safe_replace_file`). The report is stored in the `helix_print` namespace; a
+`nothing` run does not replace a stored `done`. A change of state sends
+`notify_helix_features_changed`.
+
+**Firmware-managed installs** (the markers of
+`scripts/lib/installer/main.sh#_refuse_if_firmware_managed`): report only. Whether the firmware's own config should
+be renamed there is open in #2006.
+
+**Endpoint.** `server.helix.signal_migration`: README § Signal Macro Migration has the shape.
+It is on the Lua read-only allowlist. The app names the feature in the overview
+(`kKnownPluginFeatures`, `PluginFeatureHome::None`: it has no switch on the screen); the mock
+reports it ready and answers `state: "nothing"`.
+
+**Testing.** `pytest moonraker-plugin/tests/test_strip_phase_tracking.py
+moonraker-plugin/tests/test_helix_signal_migration.py`.
+
+---
+
 ## Adding a Feature
 
 1. **Module.** `moonraker-plugin/helix_<feature>.py`, with its feature name and contract version

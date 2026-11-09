@@ -7,10 +7,8 @@
 
 namespace helix {
 
-/// The maintenance meters' detail overlay, opened from the home tile: a card per meter
-/// with its used hours and a Reset that asks first, the total print time, and the
-/// service interval for each meter, where Off hides it. Everything binds
-/// maintenance_model's subjects; the callbacks write straight through it.
+/// The maintenance meters' overview, opened from the home tile: a card per enabled meter,
+/// which opens its task page, the total print time, and the way to the reminder intervals.
 class MaintenanceOverlay : public OverlayBase {
   public:
     const char* get_name() const override {
@@ -25,10 +23,42 @@ class MaintenanceOverlay : public OverlayBase {
     }
 
     void register_callbacks() override;
+};
 
-    /// Fills each interval dropdown under @p root with interval_options() and selects
-    /// its meter's interval. The choices are kIntervalChoices, so the list lives once.
-    static void apply_interval_options(lv_obj_t* root);
+/// One meter's task page: what it is, how to do it, and Mark done. Filled through
+/// maintenance_model::set_task_meter().
+class MaintenanceTaskOverlay : public OverlayBase {
+  public:
+    const char* get_name() const override {
+        return "Maintenance Task";
+    }
+    const char* xml_component() const override {
+        return "maintenance_task_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
+    }
+
+    void register_callbacks() override;
+};
+
+/// Every meter's hours and day limit; the only place an Off meter is turned back on.
+class MaintenanceIntervalsOverlay : public OverlayBase {
+  public:
+    const char* get_name() const override {
+        return "Maintenance Intervals";
+    }
+    const char* xml_component() const override {
+        return "maintenance_intervals_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
+    }
+
+    void register_callbacks() override;
+
+    /// Fills each row's dropdowns with the shared choices and selects its meter's values.
+    static void apply_options(lv_obj_t* root);
 
   protected:
     void before_show() override;
@@ -36,6 +66,14 @@ class MaintenanceOverlay : public OverlayBase {
 
 inline MaintenanceOverlay& get_maintenance_overlay() {
     return lazy_global<MaintenanceOverlay>("MaintenanceOverlay");
+}
+
+inline MaintenanceTaskOverlay& get_maintenance_task_overlay() {
+    return lazy_global<MaintenanceTaskOverlay>("MaintenanceTaskOverlay");
+}
+
+inline MaintenanceIntervalsOverlay& get_maintenance_intervals_overlay() {
+    return lazy_global<MaintenanceIntervalsOverlay>("MaintenanceIntervalsOverlay");
 }
 
 } // namespace helix

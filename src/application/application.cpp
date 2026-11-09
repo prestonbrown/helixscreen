@@ -240,9 +240,11 @@
 #include "plugin_host.h"
 #include "plugin_source_app.h"
 #endif
+#include "heater_hold.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "sigterm_decision.h"
 #include "splash_screen.h"
 #include "standard_macros.h"
 #include "tips_manager.h"
@@ -352,6 +354,17 @@ void apply_display_scale(lv_display_t* display, const helix::ScaleDecision& d) {
                  d.lvgl_dpi);
 }
 
+// 32 bits because 32-bit MIPS has no lock-free 64-bit atomic. Wraparound is harmless:
+// callers only subtract two readings.
+std::atomic<uint32_t> s_graceful_sigterm_ms{0};
+static_assert(std::atomic<uint32_t>::is_always_lock_free);
+
+uint32_t monotonic_ms_signal_safe() {
+    struct timespec ts {};
+    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    return static_cast<uint32_t>(ts.tv_sec) * 1000u + static_cast<uint32_t>(ts.tv_nsec / 1000000);
+}
+
 /**
  * @brief Signal handler for SIGINT/SIGTERM
  *
@@ -369,10 +382,33 @@ void apply_display_scale(lv_display_t* display, const helix::ScaleDecision& d) {
  * is written up to 500 ms after a change: a SIGTERM inside that window drops
  * the plugin's latest helix.storage.set calls.
  *
- * Async-signal-safe: raw syscalls and _exit(2) only — no spdlog, no allocation.
+ * Exception: while a heater is on that only this app will turn off, SIGTERM
+ * takes the SIGINT path so teardown can send the off (sigterm_action()).
+ *
+ * Async-signal-safe: raw syscalls, lock-free atomics and _exit(2) only — no
+ * spdlog, no allocation.
  */
 void graceful_quit_signal_handler(int sig) {
     if (sig == SIGTERM) {
+        const uint32_t now_ms = monotonic_ms_signal_safe();
+        const uint32_t graceful_at = s_graceful_sigterm_ms.load(std::memory_order_relaxed);
+        const helix::SigtermAction action =
+            helix::sigterm_action(helix::HeaterHold::any_held_signal_safe(), graceful_at != 0,
+                                  helix::ms_since_sigterm_stamp(now_ms, graceful_at));
+        if (action == helix::SigtermAction::Ignore) {
+            return;
+        }
+        if (action == helix::SigtermAction::GracefulQuit) {
+            const int saved_errno = errno;
+            s_graceful_sigterm_ms.store(helix::sigterm_stamp(now_ms), std::memory_order_relaxed);
+            static const char held_msg[] =
+                "[Application] SIGTERM with a heater held: graceful quit\n";
+            ssize_t written = write(STDERR_FILENO, held_msg, sizeof(held_msg) - 1);
+            (void)written;
+            app_request_quit_signal_safe();
+            errno = saved_errno;
+            return;
+        }
         // A supervisor stop is not a crash. Because this path skips
         // Application::shutdown() — the only other place the crash-restart
         // marker is cleared — every SIGTERM used to leave its start timestamp

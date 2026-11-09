@@ -20,6 +20,9 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "panel_widget_manager.h"
+#include "printer_capabilities_state.h"
+#include "printer_discovery.h"
+#include "printer_state.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
 #include "src/ui/panel_widgets/maintenance_widget.h"
 #include "theme_manager.h"
@@ -46,7 +49,7 @@ struct MaintenanceTileFixture : public LVGLUITestFixture {
         helix::unregister_idle_xml_components();
         StaticSubjectRegistry::instance().deinit_one("MaintenanceModelSubjects");
         PanelWidgetManager::instance().init_widget_subjects();
-        drain();
+        identify_printer();
     }
     ~MaintenanceTileFixture() override {
         StaticSubjectRegistry::instance().deinit_one("MaintenanceModelSubjects");
@@ -54,6 +57,24 @@ struct MaintenanceTileFixture : public LVGLUITestFixture {
     }
     static void drain() {
         helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    /// A running print's duration, seeded so the first reading only sets the baseline.
+    void seed_print(int seconds) {
+        lv_subject_t* d = state().print_state().get_print_duration_subject();
+        const int base = lv_subject_get_int(d) + 7;
+        lv_subject_set_int(d, base);
+        drain();
+        lv_subject_set_int(d, base + seconds);
+        drain();
+    }
+
+    /// Discovery has run on an enclosed printer, so the meters take their defaults.
+    void identify_printer() {
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"extruder", "controller_fan board"}));
+        state().set_hardware(hw);
+        state().capabilities_state().set_has_chamber_filter_fan(true);
+        drain();
     }
 };
 
@@ -147,11 +168,44 @@ TEST_CASE_METHOD(MaintenanceTileFixture,
                  "[widget_size][maintenance]") {
     PanelWidgetHarness<MaintenanceWidget> h(test_screen());
     h.resize(1, 1, kWide.w, kWide.h);
-    maintenance_model::set_interval_choice(static_cast<int>(maintenance::MeterId::Rails), 0);
+    for (int i = 2; i < maintenance::kMeterCount; ++i)
+        maintenance_model::set_interval_choice(i, 0);
     drain();
     CHECK_FALSE(shown(h, "mt_list_row_2"));
     CHECK(shown(h, "mt_list_row_0"));
     CHECK(subject_int("maintenance_rung") == static_cast<int>(kWide.rung));
+}
+
+TEST_CASE_METHOD(MaintenanceTileFixture,
+                 "maintenance tile: ranked rows show the most due, and the rung does not move",
+                 "[widget_size][maintenance]") {
+    PanelWidgetHarness<MaintenanceWidget> h(test_screen());
+    h.resize(1, 1, kFull.w, kFull.h);
+    const int rung = subject_int("maintenance_rung");
+    const int nozzle = static_cast<int>(maintenance::MeterId::Nozzle);
+    maintenance_model::set_interval_choice(nozzle, maintenance::interval_choice_index(25));
+    lv_subject_t* row = lv_xml_get_subject(nullptr, "maintenance_r0_name");
+    REQUIRE(row != nullptr);
+    seed_print(3600 * 20);
+    CHECK(std::string(lv_subject_get_string(row)) == "Nozzle");
+    CHECK(subject_int("maintenance_rung") == rung);
+}
+
+TEST_CASE_METHOD(MaintenanceTileFixture,
+                 "maintenance tile: a short box hides the ranked rows it cannot hold",
+                 "[widget_size][maintenance]") {
+    PanelWidgetHarness<MaintenanceWidget> h(test_screen());
+    bool found = false;
+    for (int height = 240; height > 0 && !found; height -= 2) {
+        h.resize(1, 1, kWide.w, height);
+        if (subject_int("maintenance_rung") == static_cast<int>(SizeRung::Wide) &&
+            subject_int("maintenance_tile_rows") == 3) {
+            found = true;
+            CHECK(shown(h, "mt_list_row_2"));
+            CHECK_FALSE(shown(h, "mt_list_row_3"));
+        }
+    }
+    CHECK(found);
 }
 
 TEST_CASE_METHOD(MaintenanceTileFixture,

@@ -60,6 +60,7 @@
 #include "panel_widget_manager.h"
 #include "plr_offer_controller.h"
 #include "plugin_status_refresh.h"
+#include "post_op_cooldown_manager.h"
 #include "preset_materials.h"
 #include "print_completion.h"
 #include "print_control_buttons.h"
@@ -108,6 +109,10 @@ void SubjectInitializer::before_disconnect() {
     if (m_cold_pull_runner) {
         m_cold_pull_runner->before_disconnect();
     }
+    if (m_filament_op_heater) {
+        m_filament_op_heater->before_disconnect();
+    }
+    PostOpCooldownManager::instance().flush_before_disconnect();
 }
 
 void SubjectInitializer::init_core_and_state() {

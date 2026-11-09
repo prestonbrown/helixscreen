@@ -167,6 +167,10 @@ void FilamentOpHeater::forget(FilamentOpTicket ticket) {
     }
 }
 
+void FilamentOpHeater::sync_heater_hold() {
+    heater_hold_.set(pending_ && pending_->prior_target_c == 0);
+}
+
 void FilamentOpHeater::restore_prior(const std::string& heater, int prior_target_c) {
     // Back off only if it was off: a target someone else set stays theirs.
     if (prior_target_c != 0) {
@@ -351,6 +355,7 @@ void FilamentOpHeater::start_heating(Pending p, int send_c, const std::string& m
                                : temps.get_extruder_target_subject(extruder, target_life);
     p.extruder_life = temp_life;
     pending_ = std::move(p);
+    sync_heater_hold();
 
     if (auto* c = get_temperature_controller()) {
         if (extruder.empty()) {
@@ -412,6 +417,7 @@ void FilamentOpHeater::end_pending(PreheatPhase phase) {
     }
     Pending ended = std::move(*pending_);
     pending_.reset();
+    sync_heater_hold();
     temp_observer_.reset();
     target_observer_.reset();
     lifecycle_observer_.reset();
@@ -538,6 +544,20 @@ void FilamentOpHeater::check_deadlines() {
     }
 }
 
+void FilamentOpHeater::before_disconnect() {
+    if (handoff_) {
+        restore_prior(handoff_->heater, handoff_->prior_target_c);
+        handoff_.reset();
+    }
+    if (!pending_) {
+        return;
+    }
+    spdlog::info("{} Disconnecting while {} preheats: backing the heater off",
+                 pending_->req.log_tag, filament_heat_op_name(pending_->req.op));
+    restore_prior(pending_->heater, pending_->prior_target_c);
+    end_pending(PreheatPhase::Cancelled);
+}
+
 bool FilamentOpHeater::cancel() {
     if (!pending_) {
         return false;
@@ -586,6 +606,7 @@ void FilamentOpHeater::op_succeeded(FilamentOpTicket ticket) {
                       "cooldown passes to it",
                       heater);
         pending_->prior_target_c = 0;
+        sync_heater_hold();
         return;
     }
     // A job that is starting is about to heat the nozzle itself, and a paused

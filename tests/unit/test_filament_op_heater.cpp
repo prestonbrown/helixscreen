@@ -32,6 +32,7 @@
 #include "core/update_queue.h"
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
+#include "heater_hold.h"
 #include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
@@ -53,6 +54,10 @@
 
 using helix::FilamentSensorWidget;
 using helix::FilamentSensorWidgetTestAccess;
+
+static const auto press_load = [](auto& tile) {
+    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+};
 using helix::ui::decide_preheat;
 using helix::ui::FilamentOpHeater;
 using helix::ui::PreheatDecision;
@@ -307,7 +312,7 @@ TEST_CASE_METHOD(HeaterFixture, "The home tile's Load heats a cold nozzle before
                  "[filament][preheat][heater][tile]") {
     feed_nozzle(25, 0);
 
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(heater->get().pending());
@@ -358,7 +363,7 @@ TEST_CASE_METHOD(HeaterFixture, "A hot nozzle loads at once with no heat command
     feed_nozzle(215, 215);
     client.clear_gcode_script_history();
 
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK_FALSE(heater->get().pending());
@@ -371,7 +376,7 @@ TEST_CASE_METHOD(HeaterFixture, "The allow-cold-load setting skips the preheat",
     helix::SafetySettingsManager::instance().set_allow_cold_extrude(true);
     feed_nozzle(25, 0);
 
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK_FALSE(heater->get().pending());
@@ -419,7 +424,7 @@ TEST_CASE_METHOD(HeaterFixture, "The load runs after the surface that asked for 
     feed_nozzle(25, 0);
     {
         FilamentSensorWidget closing_tile;
-        FilamentSensorWidgetTestAccess::dispatch_load(closing_tile);
+        press_load(closing_tile);
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE(heater->get().pending());
     }
@@ -430,12 +435,12 @@ TEST_CASE_METHOD(HeaterFixture, "The load runs after the surface that asked for 
 TEST_CASE_METHOD(HeaterFixture, "A second tap while heating cancels and turns the heater back off",
                  "[filament][preheat][heater][cancel]") {
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(heater->get().pending());
     client.clear_gcode_script_history();
 
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
 
     CHECK_FALSE(heater->get().pending());
@@ -446,10 +451,88 @@ TEST_CASE_METHOD(HeaterFixture, "A second tap while heating cancels and turns th
     CHECK_FALSE(sent("LOAD_FILAMENT"));
 }
 
+TEST_CASE_METHOD(HeaterFixture, "A preheat that turned the heater on holds it until it ends",
+                 "[filament][preheat][heater][sigterm]") {
+    feed_nozzle(25, 0);
+    REQUIRE_FALSE(helix::HeaterHold::any_held_signal_safe());
+    press_load(tile);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(heater->get().pending());
+    REQUIRE(helix::HeaterHold::any_held_signal_safe());
+    client.clear_gcode_script_history();
+
+    SECTION("teardown sends the off and drops the op") {
+        heater->get().before_disconnect();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(sent(std::string(kHeatGcode) + "0"));
+        CHECK_FALSE(heater->get().pending());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+        feed_nozzle(220, 220);
+        CHECK_FALSE(sent("LOAD_FILAMENT"));
+    }
+    SECTION("cancel") {
+        REQUIRE(heater->get().cancel());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+    SECTION("the heater is destroyed") {
+        heater.reset();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+}
+
+TEST_CASE_METHOD(HeaterFixture, "A preheat on someone else's target holds nothing and leaves it on",
+                 "[filament][preheat][heater][sigterm]") {
+    feed_nozzle(25, 200);
+    press_load(tile);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(heater->get().pending());
+    CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    client.clear_gcode_script_history();
+
+    heater->get().before_disconnect();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(heater->get().pending());
+    CHECK_FALSE(sent(std::string(kHeatGcode) + "0"));
+}
+
+TEST_CASE_METHOD(HeaterFixture, "A pending cooldown holds the heater and flushes before disconnect",
+                 "[filament][preheat][heater][sigterm]") {
+    auto& cd = PostOpCooldownManager::instance();
+    set_print_state("standby");
+    heater->get().op_succeeded(heated_ticket());
+    drain_all();
+    REQUIRE(cd.has_pending_timer());
+    REQUIRE(helix::HeaterHold::any_held_signal_safe());
+    client.clear_gcode_script_history();
+
+    SECTION("flushed: the off goes out now") {
+        // The cooldown reads the app's printer state, so it sees the target there.
+        helix::PrinterState& app = get_printer_state();
+        app.temperature_state().init_extruders({"extruder"});
+        app.update_from_status({{"extruder", {{"target", 220.0}}}});
+        cd.flush_before_disconnect();
+        drain_all();
+        app.update_from_status({{"extruder", {{"target", 0.0}}}});
+        CHECK(sent(std::string(kHeatGcode) + "0"));
+        CHECK_FALSE(cd.has_pending_timer());
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+    SECTION("cancelled") {
+        cd.cancel();
+        drain_all();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+    SECTION("cancelled for its one heater") {
+        cd.cancel("extruder");
+        drain_all();
+        CHECK_FALSE(helix::HeaterHold::any_held_signal_safe());
+    }
+}
+
 TEST_CASE_METHOD(HeaterFixture, "Cancelling leaves alone a target someone else had set",
                  "[filament][preheat][heater][cancel]") {
     feed_nozzle(25, 200); // the user's own preheat, still climbing
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(heater->get().pending());
     client.clear_gcode_script_history();
@@ -463,7 +546,7 @@ TEST_CASE_METHOD(HeaterFixture, "Cancelling leaves alone a target someone else h
 TEST_CASE_METHOD(HeaterFixture, "A preheat whose target is taken away runs nothing",
                  "[filament][preheat][heater][cancel]") {
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(heater->get().pending());
 
@@ -484,7 +567,7 @@ TEST_CASE_METHOD(HeaterFixture, "A preheat cancels a cooldown left from the prev
     REQUIRE(cd.has_pending_timer());
 
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(heater->get().pending());
@@ -541,7 +624,7 @@ TEST_CASE_METHOD(HeaterFixture, "A preheat waiting when an op finishes takes ove
     set_print_state("standby");
     const auto ticket = heated_ticket(); // leaves the nozzle at 220/220
     set_spool("PETG");                   // which the next load must climb past
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 
@@ -559,7 +642,7 @@ TEST_CASE_METHOD(HeaterFixture, "A replacement that runs on the replaced heat ke
     set_print_state("standby");
     set_spool("PETG");
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
     // A target below the load's wait lands and is reached: not enough for the
@@ -590,7 +673,7 @@ TEST_CASE_METHOD(HeaterFixture, "A tile load that heated cools down after its ma
     auto& cd = PostOpCooldownManager::instance();
     set_print_state("standby");
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     feed_nozzle(220, 220);
     REQUIRE(sent("LOAD_FILAMENT"));
@@ -674,7 +757,7 @@ TEST_CASE_METHOD(HeaterFixture, "A print started during an idle preheat abandons
                  "[filament][preheat][heater][print_guard]") {
     set_print_state("standby");
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 
@@ -718,7 +801,7 @@ TEST_CASE_METHOD(HeaterFixture, "A reload requested during a pause is not abando
 TEST_CASE_METHOD(HeaterFixture, "A target that never lands times the preheat out",
                  "[filament][preheat][heater][timeout]") {
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 
@@ -739,7 +822,7 @@ TEST_CASE_METHOD(HeaterFixture, "A target that never lands times the preheat out
 TEST_CASE_METHOD(HeaterFixture, "A nozzle that never gets hot times the preheat out",
                  "[filament][preheat][heater][timeout]") {
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     feed_nozzle(120, 220); // the target landed; the heater plateaus
     REQUIRE(heater->get().pending());
@@ -763,7 +846,7 @@ TEST_CASE_METHOD(HeaterFixture, "Never runs below the extrusion floor",
     limits.min_extrude_temp_celsius = 230.0;
     api->set_safety_limits(limits);
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 
@@ -778,7 +861,7 @@ TEST_CASE_METHOD(HeaterFixture, "Never runs below the extrusion floor",
 TEST_CASE_METHOD(HeaterFixture, "Another surface's different op replaces a pending preheat",
                  "[filament][preheat][heater][cancel]") {
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
     client.clear_gcode_script_history();
@@ -813,7 +896,7 @@ TEST_CASE_METHOD(HeaterFixture, "A surface waiting on the op hears when its preh
     SECTION("another op replaces it") {
         helix::ui::execute_filament_unload(nullptr, -1, true, surface);
         drain_all();
-        FilamentSensorWidgetTestAccess::dispatch_load(tile);
+        press_load(tile);
     }
     SECTION("it times out") {
         helix::ui::execute_filament_unload(nullptr, -1, true, surface);
@@ -1021,7 +1104,7 @@ TEST_CASE_METHOD(HeaterFixture, "A runout reload replaces a tile load waiting du
                  "[filament][preheat][heater][cancel][runout]") {
     set_print_state("paused");
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 
@@ -1121,7 +1204,7 @@ TEST_CASE_METHOD(HeaterFixture, "A replace that skips its preheat takes the heat
     auto& cd = PostOpCooldownManager::instance();
     set_print_state("standby");
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
     client.clear_gcode_script_history();
@@ -1156,7 +1239,7 @@ TEST_CASE_METHOD(HeaterFixture, "An op that runs at once cancels the previous op
     REQUIRE(cd.has_pending_timer());
 
     feed_nozzle(215, 215);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(sent("LOAD_FILAMENT"));
     CHECK_FALSE(cd.has_pending_timer());
@@ -1198,7 +1281,7 @@ TEST_CASE_METHOD(HeaterFixture, "A purge right after a heated load still cools d
             3000);
     };
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     feed_nozzle(220, 220);
     REQUIRE(sent("LOAD_FILAMENT"));
@@ -1219,7 +1302,7 @@ TEST_CASE_METHOD(HeaterFixture, "An op finishing while a preheat waits schedules
     const auto ticket = heated_ticket();
 
     feed_nozzle(25, 0);
-    FilamentSensorWidgetTestAccess::dispatch_load(tile);
+    press_load(tile);
     drain_all();
     REQUIRE(heater->get().pending());
 

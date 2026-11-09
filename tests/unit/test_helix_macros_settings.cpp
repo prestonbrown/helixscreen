@@ -136,10 +136,11 @@ TEST_CASE_METHOD(MacrosSettingsFixture, "helix_macros_status maps every discover
     state().set_hardware(discovery_with({"gcode_macro START_PRINT", "bed_mesh"}));
     REQUIRE(macros_status() == static_cast<int>(S::NotInstalled));
 
-    state().set_hardware(discovery_with(
-        {"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED", "gcode_macro HELIX_RESET",
-         "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+    state().set_hardware(
+        discovery_with({"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED",
+                        "gcode_macro HELIX_RESET", "gcode_macro HELIX_START_PRINT",
+                        "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+                        "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
     REQUIRE(macros_status() == static_cast<int>(S::Installed));
 
     state().set_hardware(
@@ -183,7 +184,7 @@ TEST_CASE_METHOD(MacrosSettingsFixture,
     state().set_hardware(
         discovery_with({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
                         "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-                        "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+                        "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
     REQUIRE(macros_status() == static_cast<int>(S::Installed));
 
     // Pending set while the macros are active never masks the truth.

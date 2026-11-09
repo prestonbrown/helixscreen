@@ -114,6 +114,46 @@ gcode:
     _HELIX_READY
 ```
 
+### Declaring Phase Durations
+
+An adaptive `PRINT_START` often knows exactly how long a soak or a chamber wait will take. Say so
+once and the countdown trusts it instead of pricing the phase from past prints:
+
+```
+[gcode_macro PRINT_START]
+gcode:
+    {% set bed = params.BED|int %}
+    {% set soak = 600 if bed >= 100 else 0 %}
+    {% set mesh = params.MESH|default(1)|int %}
+    _HELIX_PLAN SOAKING={soak} BED_MESH={90 if mesh else 0}
+    _HELIX_PHASE_HOMING
+    G28
+    _HELIX_PHASE_HEATING_BED
+    M190 S{bed}
+    {% if soak > 0 %}
+    _HELIX_PHASE_SOAKING
+    G4 P{soak * 1000}
+    {% endif %}
+    {% if mesh %}
+    _HELIX_PHASE_BED_MESH
+    BED_MESH_CALIBRATE
+    {% endif %}
+    _HELIX_READY
+```
+
+- `_HELIX_PLAN NAME=SECONDS ...` takes any phase name from the table above, without the
+  `_HELIX_PHASE_` prefix, or its alias (`SOAK`, `HEAT_CHAMBER`, `QUAD_GANTRY_LEVEL`). Durations are
+  per phase; there is no total, because the sum of the phases you declare is the total you know.
+- A value of 0 means the phase will not run. A phase you leave out keeps its usual estimate.
+- The most a phase may declare is 6 hours (21600); a larger value is dropped with a warning.
+- You may call it again from a sub-macro. A later value for a phase replaces the earlier one. For
+  the phase already running, the value means the seconds left from now, so a plan just before
+  `G4 P600000` is right whether it comes before or after the phase signal. A finished phase ignores it.
+- Also signal the phase with its `_HELIX_PHASE_*` macro, so the countdown knows when it starts. While a
+  declared phase runs, a silent macro will not trip the timeouts; if it runs past its declared length,
+  the time label says it is running over.
+- The plan is kept in `_HELIX_STATE`, so a screen that restarts mid-start picks it back up.
+
 ### Option 2: Add Variables to Existing Macro
 
 If you have an existing `_START_PRINT` or `START_PRINT` macro, add state tracking:
@@ -144,7 +184,7 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
-The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. A printer that already has the pack under the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) keeps those names when it updates, because its own macros and sliced files may call them, so an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` makes that choice when the app installs or updates the pack. Copying the file over by hand always gives the underscore names, so a printer that calls the old names needs those calls changed as well.
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names. A printer that already has the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) may call them from its own macros and sliced files, so when the app installs or updates the pack it appends a forwarding macro after the pack for each visible name the printer's loaded config still calls, outside the pack itself and except where the user defined that name themselves (all eleven when the app has not read the config yet) (`[gcode_macro HELIX_READY]` whose body calls `_HELIX_READY`, described `HelixScreen alias for _HELIX_READY`), and an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` builds that file, `signal_macros::scan` (`include/signal_macro_names.h`) finds the callers in `configfile.settings` at discovery, and `signal_macros::alias_block` writes the forwarders. When what is loaded differs from what an update would stage (the old visible pack, a called name with no forwarder, or a forwarder nothing calls), the helper macros read as outdated, so the update is offered. Copying the file over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
 
 ### Core Signals
 
@@ -160,6 +200,8 @@ The signal and phase macros below start with an underscore so Fluidd and Mainsai
 |-------|-----------------|
 | `_HELIX_PHASE_HOMING` | "Homing..." |
 | `_HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `_HELIX_PHASE_HEATING_CHAMBER` | "Heating Chamber..." |
+| `_HELIX_PHASE_SOAKING` | "Heat Soaking..." |
 | `_HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
 | `_HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
 | `_HELIX_PHASE_QGL` | "Leveling Gantry..." |

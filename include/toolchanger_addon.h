@@ -24,7 +24,7 @@
 // Adding a machine means adding one Provider to the table in
 // toolchanger_addon.cpp - no call site changes.
 
-#include "display_numbering.h"
+#include "core/tool_number_style.h"
 #include "json_fwd.h"
 #include "macro_choice.h"
 

@@ -21,11 +21,16 @@
 /// - `maintenance_version` (int): bumps whenever anything below changes
 /// - `maintenance_any_on` (int 0/1): some meter has an interval
 /// - `maintenance_worst_pct`, `maintenance_worst_status`, `maintenance_worst_left`,
-///   `maintenance_worst_name`: the meter closest to due (used percent, ValueStatus, hours
+///   `maintenance_worst_name`: the meter closest to due (used percent, ValueStatus, time
 ///   left, short name); "--" and "Off" when every meter is off
-/// - per meter i (MeterId order): `maintenance_m<i>_on`, `_pct`, `_status`, `_interval`
-///   (index into kIntervalChoices, the dropdown's selection), `_name`, `_short`, `_left`,
-///   `_line` (used of interval), `_note` (share left, and the reset stamp when there is one)
+/// - per meter i (MeterId order): `maintenance_m<i>_on`, `_pct`, `_status`, `_interval` and
+///   `_days` (dropdown selections into kIntervalChoices and kDayChoices), `_name`, `_short`,
+///   `_left` (hours or days, whichever is closer), `_line` (used of interval), `_desc`
+/// - per tile row k, most due first: `maintenance_r<k>_on`, `_pct`, `_status`, `_name`,
+///   `_short`, `_left`
+/// - `maintenance_belt_available`: the printer's model has a belt tension meter
+/// - `maintenance_task_*`: the task page's meter (`_name`, `_left`, `_pct`, `_status`,
+///   `_line`, `_last`, `_what`, `_steps`)
 /// - `maintenance_total_text`: every print hour counted for this printer
 namespace helix::maintenance_model {
 
@@ -57,6 +62,20 @@ void reset_meter_locally(int meter);
 /// Sets a meter's interval from a kIntervalChoices index and saves.
 void set_interval_choice(int meter, int choice_index);
 
+/// The check that runs a few seconds after the printer becomes known, once the first status
+/// has said whether a print is running: announces meters that came due while idle.
+void check_idle_notices();
+
+/// Sets a meter's calendar limit from a kDayChoices index and saves.
+void set_days_choice(int meter, int choice_index);
+
+/// The meter the task page shows.
+void set_task_meter(int meter);
+int task_meter();
+
+/// Opens the task page on a meter; a notice's action lands here.
+void open_task_page(int meter);
+
 /// Whole hours as every meter text shows them ("37 h").
 std::string hours_text(int hours);
 
@@ -70,5 +89,8 @@ std::string meter_short_name(int meter);
 /// The interval dropdown's options, one line per kIntervalChoices entry in its order
 /// ("Off", then "25 h" and up), translated.
 std::string interval_options();
+
+/// The day limit dropdown's options, one line per kDayChoices entry in its order.
+std::string day_options();
 
 } // namespace helix::maintenance_model

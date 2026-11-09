@@ -27,6 +27,7 @@
 #include "led/led_controller.h"
 #include "macro_executor.h"
 #include "macro_fan_analyzer.h"
+#include "macro_manager.h"
 #include "macro_param_cache.h"
 #include "macro_patterns.h"
 #include "moonraker_api.h"
@@ -46,6 +47,7 @@
 #include "screws_tilt_dialect.h"
 #include "sensor_manager.h"
 #include "sensor_state.h"
+#include "signal_macro_names.h"
 #include "system/platform_tls.h"
 #include "tool_offsets.h"
 #include "toolchanger_addon.h"
@@ -1028,6 +1030,8 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     hardware_.set_skip_wrappers(
                                         helix::skip_wrappers::wrappable(settings),
                                         helix::skip_wrappers::active(settings));
+                                    hardware_.set_signal_macro_scan(helix::signal_macros::scan(
+                                        settings, helix::MacroManager::pack_section_names()));
                                     hardware_.parse_sensor_toggle_command(settings);
                                     hardware_.parse_screws_tilt_builtin(settings);
                                 }
