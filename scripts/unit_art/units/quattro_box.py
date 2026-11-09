@@ -5,10 +5,10 @@ from pathlib import Path
 from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
-# Fractions of a four-lane body, read off the front photo.
+# 1.0 is 400 mm, so a 0.25 spool radius is a 200 mm spool. Read off the front photo.
 CAP, PITCH = 0.151, 0.2325
 D, H = 0.75, 0.81
-SPOOL_Y, SPOOL_Z, SPOOL_R = 0.375, 0.47, 0.27
+SPOOL_Y, SPOOL_Z, SPOOL_R = 0.375, 0.45, 0.25
 BODY, BODY_DARK, ACCENT, GLOW, GLASS = "#3b3836", "#292725", "#7b2fd0", "#62e6a0", "#6f7379"
 ROLLER = "#2a2b2e"
 WINDOW_Z0, WINDOW_Z1, WALL_TOP = 0.197, 0.665, 0.68

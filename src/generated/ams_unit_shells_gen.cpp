@@ -37,7 +37,7 @@ constexpr ProfilePoint k_ams_ht_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr ProfilePoint k_ams_ht_dome[] = {{0.0000f, 0.00f}, {0.0037f, 18.49f}, {0.0147f, 27.51f}, {0.0442f, 40.14f}, {0.0879f, 51.06f}, {0.1237f, 57.08f}, {0.1852f, 63.87f}, {0.2531f, 67.65f}, {0.7000f, 68.38f}, {0.7469f, 67.65f}, {0.8148f, 63.87f}, {0.8763f, 57.08f}, {0.9121f, 51.06f}, {0.9558f, 40.14f}, {0.9853f, 27.51f}, {0.9963f, 18.49f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_quattro_box_front[] = {{FrontAnchor::Span, 2.00f, 2.00f, 3.00f, 34.00f, 0x2a2826, 3}, {FrontAnchor::Lane, -11.00f, 11.00f, 5.00f, 24.00f, 0x7b2fd0, 2}, {FrontAnchor::Lane, -5.00f, 5.00f, 9.00f, 20.00f, 0x62e6a0, 1}};
 constexpr ProfilePoint k_quattro_box_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
-constexpr ProfilePoint k_quattro_box_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 65.88f}, {0.0000f, 65.88f}, {0.0000f, 65.88f}, {0.0000f, 65.88f}, {0.1733f, 88.12f}, {0.1733f, 88.12f}, {0.1733f, 88.12f}, {0.1733f, 88.12f}, {0.8267f, 88.12f}, {0.8267f, 88.12f}, {1.0000f, 55.61f}, {1.0000f, 55.61f}, {1.0000f, 0.00f}};
+constexpr ProfilePoint k_quattro_box_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.0000f, 71.15f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.1733f, 95.17f}, {0.8267f, 95.17f}, {0.8267f, 95.17f}, {1.0000f, 60.06f}, {1.0000f, 60.06f}, {1.0000f, 0.00f}};
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, true, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, 0x0},
