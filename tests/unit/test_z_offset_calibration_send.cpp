@@ -46,6 +46,23 @@ using helix::PrinterState;
 using helix::ZOffsetCalibrationStrategy;
 using nlohmann::json;
 
+// One name each for the private sends the cases drive.
+static void begin_calibration_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::begin_calibration(panel);
+}
+
+static void send_accept_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::send_accept(panel);
+}
+
+static void begin_probe_sequence_of(ZOffsetCalibrationPanel& panel) {
+    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+}
+
+static void adjust_z_of(ZOffsetCalibrationPanel& panel, float delta) {
+    ZOffsetCalibrationTestAccess::adjust_z(panel, delta);
+}
+
 namespace {
 
 /// Seed the calibration strategy as a connected printer gets it, through its type:
@@ -126,17 +143,13 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         ZOffsetCalibrationPanel panel;
         panel.set_api(&api);
         ZOffsetCalibrationTestAccess::set_cumulative_delta(panel, -0.15f);
-        ZOffsetCalibrationTestAccess::send_accept(panel);
+        send_accept_of(panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
         return client.last_send_script();
     }
 };
 
 } // namespace
-
-static void begin_calibration_of(ZOffsetCalibrationPanel& panel) {
-    ZOffsetCalibrationTestAccess::begin_calibration(panel);
-}
 
 TEST_CASE_METHOD(CalibrationSendFixture,
                  "Calibration accept: ZMOD clears the stale probe delta before the offset",
@@ -191,7 +204,7 @@ std::vector<std::string> probe_accept_scripts(
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::send_accept(panel);
+    send_accept_of(panel);
     for (int i = 0; i < 20; ++i) {
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
@@ -445,7 +458,7 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
     api.hardware() = std::move(hw);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     return {client.gcode_script_history(), panel.get_state()};
 }
@@ -557,19 +570,19 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(client.last_send_script().find("PROBE_EDDY_CURRENT_CALIBRATE") != std::string::npos);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
     REQUIRE(helix::sensors::ProbeSensorManager::instance().get_sensors().empty());
 
-    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    adjust_z_of(panel, -0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 
     SECTION("accept") {
-        ZOffsetCalibrationTestAccess::send_accept(panel);
+        send_accept_of(panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
         const auto sent = client.gcode_script_history();
         CHECK(std::find(sent.begin(), sent.end(), "ACCEPT") != sent.end());
@@ -597,12 +610,12 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
-    ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
+    begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     panel.on_calibration_result(false, "probe failed");
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
-    ZOffsetCalibrationTestAccess::adjust_z(panel, 0.05f);
+    adjust_z_of(panel, 0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     const auto sent = client.gcode_script_history();
     CHECK(std::any_of(sent.begin(), sent.end(), [](const std::string& s) {
@@ -824,7 +837,7 @@ TEST_CASE_METHOD(ToolGateFixture,
     REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::ADJUSTING);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
-    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    adjust_z_of(panel, -0.05f);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 }
