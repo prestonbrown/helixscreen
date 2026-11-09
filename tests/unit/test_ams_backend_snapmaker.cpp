@@ -5663,6 +5663,27 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().empty());
 }
 
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an official-flag repair keeps the head\x27s sub-type",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_subtype");
+    SlotInfo edit = inland_pla();
+    edit.spool_name.clear();
+    helix::test::edit_slot_as_user(h.backend, 3, edit);
+    h.printer.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    json ptc = make_official_task(3, "PLA", "FF5500FF");
+    ptc["print_task_config"]["filament_sub_type"] =
+        json::array({"NONE", "NONE", "NONE", "SnapSpeed"});
+    h.frame(ptc);
+
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 VENDOR=Generic "
+                       "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed FORCE=1");
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker leaves an official flag it cannot prove it wrote",
                  "[ams][snapmaker][filament_record][official_repair]") {
     lv_init_safe();

@@ -1120,6 +1120,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] std::optional<RecordWrite>
     plan_record_write_locked(int head, const SlotInfo& info, bool material_declared) const;
 
+    /// The sub-type head @p head keeps when @p info names no product line and
+    /// leaves its filament unchanged; empty otherwise. Caller holds mutex_.
+    [[nodiscard]] std::string kept_subtype_locked(int head, const SlotInfo& info) const;
+
     /// Send @p plan for @p head. Main thread, mutex_ not held.
     void write_task_filament_record(int head, const SlotInfo& info, const RecordWrite& plan);
 
