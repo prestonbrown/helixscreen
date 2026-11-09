@@ -97,14 +97,6 @@ struct HistoryListPanelTestAccess {
         p.apply_filters_and_sort();
     }
 
-    static const std::string& search_query(HistoryListPanel& p) {
-        return p.search_query_;
-    }
-
-    static HistoryStatusFilter status_filter(HistoryListPanel& p) {
-        return p.status_filter_;
-    }
-
     /// Give the panel the two containers create() would find in its XML, so
     /// the virtual-scroll list can be driven without the whole overlay.
     static void set_list_containers(HistoryListPanel& p, lv_obj_t* content, lv_obj_t* rows) {

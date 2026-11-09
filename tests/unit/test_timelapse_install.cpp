@@ -223,6 +223,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
     TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    overlay.register_callbacks();
     REQUIRE(overlay.create(test_screen()) != nullptr);
     lv_obj_t* ssh = lv_obj_find_by_name(overlay.get_panel(), "ssh_instructions_container");
     REQUIRE(ssh != nullptr);

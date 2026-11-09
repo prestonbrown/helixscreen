@@ -8,7 +8,6 @@
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
-#include "core/text_io.h"
 #include "filament_chip_model.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"

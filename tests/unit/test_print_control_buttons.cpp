@@ -13,6 +13,7 @@
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+using ButtonsAccess = helix::ui::PrintControlButtonsTestAccess;
 
 namespace {
 
@@ -23,7 +24,7 @@ struct ControlButtonsFixture : LVGLTestFixture {
         // subject (freeing its observers in LVGL); resetting the controller
         // observer afterwards would lv_observer_remove() a freed observer (UAF
         // across sequential test cases — the singleton persists).
-        helix::ui::PrintControlButtonsTestAccess::reset();
+        ButtonsAccess::reset();
 
         // Fresh PrinterState subjects so print_state_enum is valid to observe.
         helix::PrinterStateTestAccess::reset(get_printer_state());
@@ -90,7 +91,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "primary disabled when macro slots empty
 TEST_CASE_METHOD(ControlButtonsFixture, "pending action publishes hourglass state",
                  "[print_control][slow]") {
     set_print_state(helix::PrintJobState::PRINTING);
-    helix::ui::PrintControlButtonsTestAccess::set_pending(helix::ui::PendingAction::Pausing);
+    ButtonsAccess::set_pending(helix::ui::PendingAction::Pausing);
     REQUIRE(read_int("print_pending_action") ==
             static_cast<int>(helix::ui::PendingAction::Pausing));
     REQUIRE(read_str("print_control_primary_label") == "Pausing...");
@@ -106,10 +107,9 @@ TEST_CASE_METHOD(ControlButtonsFixture, "pending action publishes hourglass stat
 TEST_CASE_METHOD(ControlButtonsFixture, "pending action set then cleared on state arrival",
                  "[print_control][slow]") {
     using helix::ui::PendingAction;
-    using helix::ui::PrintControlButtonsTestAccess;
 
     set_print_state(helix::PrintJobState::PRINTING);
-    PrintControlButtonsTestAccess::set_pending(PendingAction::Pausing);
+    ButtonsAccess::set_pending(PendingAction::Pausing);
     REQUIRE(read_int("print_pending_action") == static_cast<int>(PendingAction::Pausing));
     REQUIRE(read_str("print_control_primary_label") == "Pausing...");
     REQUIRE(read_int("print_control_primary_enabled") == 0); // disabled in flight
@@ -132,10 +132,9 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error releases a pending resume
                  "[print_control][slow]") {
     using helix::ui::PendingAction;
     using helix::ui::PrintControlButtons;
-    using helix::ui::PrintControlButtonsTestAccess;
 
     set_print_state(helix::PrintJobState::PAUSED);
-    PrintControlButtonsTestAccess::set_pending(PendingAction::Resuming);
+    ButtonsAccess::set_pending(PendingAction::Resuming);
     REQUIRE(read_str("print_control_primary_label") == "Resuming...");
     REQUIRE(read_int("print_control_primary_enabled") == 0);
 
@@ -144,7 +143,7 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error releases a pending resume
         "\"head_switch_sensor\" has detected that the filament has run out, "
         "please load it and press RESUME");
 
-    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
     REQUIRE(read_int("print_pending_action") == static_cast<int>(PendingAction::None));
     // Back to the actionable label. primary_enabled is NOT asserted here: this
     // harness runs no printer discovery, so the Resume macro slot is empty and
@@ -158,15 +157,14 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error also releases a pending p
                  "[print_control][slow]") {
     using helix::ui::PendingAction;
     using helix::ui::PrintControlButtons;
-    using helix::ui::PrintControlButtonsTestAccess;
 
     set_print_state(helix::PrintJobState::PRINTING);
-    PrintControlButtonsTestAccess::set_pending(PendingAction::Pausing);
+    ButtonsAccess::set_pending(PendingAction::Pausing);
     REQUIRE(read_str("print_control_primary_label") == "Pausing...");
 
     PrintControlButtons::instance().notify_printer_error("Move out of range");
 
-    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
     REQUIRE(read_str("print_control_primary_label") == "Pause");
 }
 
@@ -176,15 +174,14 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
                  "[print_control][slow]") {
     using helix::ui::PendingAction;
     using helix::ui::PrintControlButtons;
-    using helix::ui::PrintControlButtonsTestAccess;
 
     set_print_state(helix::PrintJobState::PRINTING);
-    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
 
     PrintControlButtons::instance().notify_printer_error("Heater extruder not heating at expected "
                                                          "rate");
 
-    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    REQUIRE(ButtonsAccess::pending() == PendingAction::None);
     REQUIRE(read_str("print_control_primary_label") == "Pause");
 }
 
@@ -210,18 +207,17 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "reset_all detaches PrintControlButtons observer before subject teardown",
                  "[print_control][slow]") {
     using helix::ui::PrintControlButtons;
-    using helix::ui::PrintControlButtonsTestAccess;
 
     // Stand up fresh PrinterState subjects and the controller observing them,
     // mirroring what a ControlButtonsFixture-based test leaves behind.
     helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     PrintControlButtons::instance().init_subjects();
-    REQUIRE(PrintControlButtonsTestAccess::has_observer()); // precondition: observer is live
+    REQUIRE(ButtonsAccess::has_observer()); // precondition: observer is live
 
     // reset_all() must detach the controller while print_state_enum is alive.
     HelixTestFixture::reset_all();
-    REQUIRE_FALSE(PrintControlButtonsTestAccess::has_observer());
+    REQUIRE_FALSE(ButtonsAccess::has_observer());
 
     // With the observer detached, tearing the subject down (what a later test or
     // process exit does) never walks a dangling lv_observer_t*. A

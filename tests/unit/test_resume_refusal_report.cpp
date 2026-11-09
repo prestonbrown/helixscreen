@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+using ButtonsAccess = helix::ui::PrintControlButtonsTestAccess;
 
 using namespace helix;
 
@@ -360,7 +361,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
                  "a resume whose RPC times out stays pending until the print runs",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
     settle();
@@ -374,12 +374,12 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
     // RPC's own ceiling would re-enable Resume while the printer still runs it.
     CHECK(ui::pending_action_backstop_ms(PendingAction::Resuming) >= mock.last_send_timeout_ms());
     CHECK(toasts.empty());
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
     CHECK(primary_enabled() == 0);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
     CHECK(toasts.empty());
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
@@ -388,7 +388,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
 TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused over RPC releases the button and toasts",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
     settle();
@@ -400,7 +399,7 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused over RPC releases the b
 
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].rfind("Failed to resume: ", 0) == 0);
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
@@ -408,7 +407,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused over RPC releases the b
 TEST_CASE_METHOD(ResumeRefusalFixture, "a pause whose RPC times out stays pending and quiet",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
@@ -418,7 +416,7 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a pause whose RPC times out stays pendin
     settle();
 
     CHECK(toasts.empty());
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Pausing);
+    CHECK(ButtonsAccess::pending() == PendingAction::Pausing);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
@@ -439,7 +437,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
                  "a resume whose socket drops after sending stays pending and quiet",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
     settle();
@@ -447,19 +444,19 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
     mock.defer_next("printer.gcode.script");
     ui::PrintControlButtons::instance().request_resume();
     settle();
-    REQUIRE(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
+    REQUIRE(ButtonsAccess::pending() == PendingAction::Resuming);
     mock.fire_deferred_error("printer.gcode.script", connection_lost());
     settle();
 
     // RESUME may still be reheating on the printer; a second one would run
     // its moves mid-print.
     CHECK(toasts.empty());
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Resuming);
+    CHECK(ButtonsAccess::pending() == PendingAction::Resuming);
     CHECK(primary_enabled() == 0);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
@@ -467,7 +464,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
 TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused before sending releases the button",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
     settle();
@@ -478,7 +474,7 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a resume refused before sending releases
 
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].rfind("Failed to resume: ", 0) == 0);
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
@@ -487,7 +483,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
                  "a pause whose socket drops after sending stays pending and quiet",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
@@ -499,7 +494,7 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
     settle();
 
     CHECK(toasts.empty());
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::Pausing);
+    CHECK(ButtonsAccess::pending() == PendingAction::Pausing);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }
@@ -507,7 +502,6 @@ TEST_CASE_METHOD(ResumeRefusalFixture,
 TEST_CASE_METHOD(ResumeRefusalFixture, "a pause refused before sending releases the button",
                  "[resume][resume_timeout]") {
     using ui::PendingAction;
-    using ui::PrintControlButtonsTestAccess;
     PrintControlScope buttons(api.get());
     get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
@@ -517,7 +511,7 @@ TEST_CASE_METHOD(ResumeRefusalFixture, "a pause refused before sending releases 
     settle();
 
     CHECK(toasts.size() == 1);
-    CHECK(PrintControlButtonsTestAccess::pending() == PendingAction::None);
+    CHECK(ButtonsAccess::pending() == PendingAction::None);
 
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
 }

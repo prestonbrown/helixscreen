@@ -8,7 +8,6 @@
 #include "ui_panel_print_select.h"
 
 #include "core/gcode_filename.h"
-#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "filament_chip_model.h"
 #include "lvgl.h"

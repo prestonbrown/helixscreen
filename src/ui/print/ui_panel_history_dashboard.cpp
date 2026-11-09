@@ -12,7 +12,6 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
-#include "core/text_io.h"
 #include "filament_chip_model.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"

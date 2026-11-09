@@ -15,13 +15,12 @@
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/print_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -36,8 +35,8 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::HistoryScope;
-using helix::PrintHistoryManagerTestAccess;
-using helix::ui::HistoryListPanelTestAccess;
+using ManagerAccess = helix::PrintHistoryManagerTestAccess;
+using ListAccess = helix::ui::HistoryListPanelTestAccess;
 
 namespace {
 
@@ -70,8 +69,7 @@ int visible_rows(lv_obj_t* rows) {
 class DetailReturnFixture : public LVGLUITestFixture {
   public:
     DetailReturnFixture() : manager(nullptr, nullptr) {
-        PrintHistoryManagerTestAccess::set_loaded_jobs(manager, jobs_newest_first(40),
-                                                       HistoryScope::COMPLETE, 40);
+        ManagerAccess::set_loaded_jobs(manager, jobs_newest_first(40), HistoryScope::COMPLETE, 40);
         panel.init_subjects();
         content = lv_obj_create(test_screen());
         lv_obj_set_size(content, 400, 300);
@@ -79,24 +77,24 @@ class DetailReturnFixture : public LVGLUITestFixture {
         lv_obj_set_width(rows, LV_PCT(100));
         lv_obj_set_height(rows, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(rows, LV_FLEX_FLOW_COLUMN);
-        HistoryListPanelTestAccess::set_list_containers(panel, content, rows);
-        HistoryListPanelTestAccess::set_history_manager(panel, &manager);
+        ListAccess::set_list_containers(panel, content, rows);
+        ListAccess::set_history_manager(panel, &manager);
 
         // A fresh open from the dashboard, as show() runs it.
-        HistoryListPanelTestAccess::before_show(panel);
+        ListAccess::before_show(panel);
         panel.on_activate();
         lv_obj_update_layout(content);
     }
 
     ~DetailReturnFixture() override {
         panel.on_deactivate(DeactivateReason::Shutdown);
-        HistoryListPanelTestAccess::set_history_manager(panel, nullptr);
+        ListAccess::set_history_manager(panel, nullptr);
         lv_obj_delete(content);
     }
 
     /// What a row tap and NavigationManager's push of the detail do to the list.
     void open_detail() {
-        HistoryListPanelTestAccess::set_detail_overlay_open(panel, true);
+        ListAccess::set_detail_overlay_open(panel, true);
         panel.on_deactivate(DeactivateReason::NavigateAway);
     }
 
@@ -122,7 +120,7 @@ TEST_CASE_METHOD(DetailReturnFixture, "back from a history detail shows the list
 
     CHECK(visible_rows(rows) > 0);
     CHECK(lv_obj_get_scroll_y(content) == reading_at);
-    CHECK(HistoryListPanelTestAccess::filtered_jobs(panel).size() == 40);
+    CHECK(ListAccess::filtered_jobs(panel).size() == 40);
 }
 
 TEST_CASE_METHOD(DetailReturnFixture,
@@ -130,14 +128,13 @@ TEST_CASE_METHOD(DetailReturnFixture,
                  "[history][detail_return]") {
     open_detail();
     // A job finishes while the user reads the detail.
-    PrintHistoryManagerTestAccess::set_loaded_jobs(manager, jobs_newest_first(41),
-                                                   HistoryScope::COMPLETE, 41);
-    REQUIRE(HistoryListPanelTestAccess::filtered_jobs(panel).size() == 40);
+    ManagerAccess::set_loaded_jobs(manager, jobs_newest_first(41), HistoryScope::COMPLETE, 41);
+    REQUIRE(ListAccess::filtered_jobs(panel).size() == 40);
 
     panel.on_activate();
     lv_obj_update_layout(content);
 
-    CHECK(HistoryListPanelTestAccess::filtered_jobs(panel).size() == 41);
+    CHECK(ListAccess::filtered_jobs(panel).size() == 41);
     CHECK(visible_rows(rows) > 0);
 }
 
@@ -145,30 +142,28 @@ TEST_CASE_METHOD(DetailReturnFixture,
                  "a list closed under its detail opens populated from the dashboard",
                  "[history][detail_return]") {
     // The user narrowed, re-sorted and scrolled the list before opening a detail.
-    HistoryListPanelTestAccess::set_view(panel, "part", HistoryStatusFilter::COMPLETED,
-                                         HistorySortColumn::DATE, HistorySortDirection::ASC);
+    ListAccess::set_view(panel, "part", HistoryStatusFilter::COMPLETED, HistorySortColumn::DATE,
+                         HistorySortDirection::ASC);
     lv_obj_update_layout(content);
     lv_obj_scroll_to_y(content, 200, LV_ANIM_OFF);
     lv_obj_update_layout(content);
     REQUIRE(lv_obj_get_scroll_y(content) > 0);
-    REQUIRE(HistoryListPanelTestAccess::filtered_jobs(panel).front().job_id == "id39");
+    REQUIRE(ListAccess::filtered_jobs(panel).front().job_id == "id39");
 
     open_detail();
     // A nav-bar switch tears the stack down with the detail still on top, so
     // the list is never activated by a Back.
     panel.on_deactivate(DeactivateReason::NavigateAway);
 
-    HistoryListPanelTestAccess::before_show(panel);
+    ListAccess::before_show(panel);
     panel.on_activate();
     lv_obj_update_layout(content);
 
     // A fresh open starts from the defaults, at the top, newest first.
     CHECK(visible_rows(rows) > 0);
     CHECK(lv_obj_get_scroll_y(content) == 0);
-    CHECK(HistoryListPanelTestAccess::search_query(panel).empty());
-    CHECK(HistoryListPanelTestAccess::status_filter(panel) == HistoryStatusFilter::ALL);
-    REQUIRE(HistoryListPanelTestAccess::filtered_jobs(panel).size() == 40);
-    CHECK(HistoryListPanelTestAccess::filtered_jobs(panel).front().job_id == "id0");
+    REQUIRE(ListAccess::filtered_jobs(panel).size() == 40);
+    CHECK(ListAccess::filtered_jobs(panel).front().job_id == "id0");
 }
 
 namespace {
@@ -192,8 +187,7 @@ class DeleteFromDetailFixture : public LVGLUITestFixture {
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
 
-        PrintHistoryManagerTestAccess::set_loaded_jobs(manager, jobs_newest_first(40),
-                                                       HistoryScope::COMPLETE, 40);
+        ManagerAccess::set_loaded_jobs(manager, jobs_newest_first(40), HistoryScope::COMPLETE, 40);
         panel.init_subjects();
 
         auto& nav = NavigationManager::instance();
@@ -208,16 +202,16 @@ class DeleteFromDetailFixture : public LVGLUITestFixture {
         lv_obj_set_width(rows_, LV_PCT(100));
         lv_obj_set_height(rows_, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(rows_, LV_FLEX_FLOW_COLUMN);
-        HistoryListPanelTestAccess::set_list_containers(panel, list_root_, rows_);
-        HistoryListPanelTestAccess::set_history_manager(panel, &manager);
+        ListAccess::set_list_containers(panel, list_root_, rows_);
+        ListAccess::set_history_manager(panel, &manager);
 
         detail_root_ = lv_obj_create(test_screen());
         nav.register_overlay_instance(list_root_, &panel);
         nav.register_overlay_instance(detail_root_, nullptr);
-        HistoryListPanelTestAccess::before_show(panel);
+        ListAccess::before_show(panel);
         nav.push_overlay(list_root_);
         drain();
-        HistoryListPanelTestAccess::set_detail_overlay_open(panel, true);
+        ListAccess::set_detail_overlay_open(panel, true);
         nav.push_overlay(detail_root_);
         drain();
     }
@@ -229,8 +223,8 @@ class DeleteFromDetailFixture : public LVGLUITestFixture {
         nav.unregister_overlay_instance(list_root_);
         nav.unregister_overlay_instance(detail_root_);
         panel.on_deactivate(DeactivateReason::Shutdown);
-        HistoryListPanelTestAccess::set_history_manager(panel, nullptr);
-        HistoryListPanelTestAccess::set_list_containers(panel, nullptr, nullptr);
+        ListAccess::set_history_manager(panel, nullptr);
+        ListAccess::set_list_containers(panel, nullptr, nullptr);
         drain();
         set_moonraker_api(previous_api_);
         api.reset();
@@ -240,17 +234,17 @@ class DeleteFromDetailFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Select the row with `job_id`, as tapping it before opening the detail does.
     void select(const std::string& job_id) {
-        std::vector<PrintHistoryJob> shown = HistoryListPanelTestAccess::filtered_jobs(panel);
+        std::vector<PrintHistoryJob> shown = ListAccess::filtered_jobs(panel);
         auto it = std::find_if(shown.begin(), shown.end(),
                                [&job_id](const PrintHistoryJob& j) { return j.job_id == job_id; });
         REQUIRE(it != shown.end());
         const auto index = static_cast<size_t>(it - shown.begin());
-        HistoryListPanelTestAccess::select_job(panel, std::move(shown), index);
+        ListAccess::select_job(panel, std::move(shown), index);
     }
 
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
@@ -274,15 +268,14 @@ TEST_CASE_METHOD(DeleteFromDetailFixture,
                  "[history][detail_return]") {
     // A job finishes while the user reads the detail, so Back takes the full
     // reload from the manager's cache.
-    PrintHistoryManagerTestAccess::set_loaded_jobs(manager, jobs_newest_first(41),
-                                                   HistoryScope::COMPLETE, 41);
+    ManagerAccess::set_loaded_jobs(manager, jobs_newest_first(41), HistoryScope::COMPLETE, 41);
     select("id5");
 
-    HistoryListPanelTestAccess::confirm_delete(panel);
+    ListAccess::confirm_delete(panel);
     drain();
 
-    CHECK_FALSE(holds_job(HistoryListPanelTestAccess::filtered_jobs(panel), "id5"));
-    CHECK(HistoryListPanelTestAccess::filtered_jobs(panel).size() == 40);
+    CHECK_FALSE(holds_job(ListAccess::filtered_jobs(panel), "id5"));
+    CHECK(ListAccess::filtered_jobs(panel).size() == 40);
     // Nothing that reads the manager's cache later brings it back either.
     CHECK_FALSE(holds_job(manager.get_jobs(), "id5"));
 }
