@@ -15,13 +15,39 @@ INLET_Z = 0.232
 PROFILE = [(0.0, 0.0), (0.0, H - 0.03), (0.03, H), (D - 0.05, H), (D, H - 0.03), (D, 0.0)]
 
 
+def _lever_profile():
+    """A cam lever's side: a low nose at the front, a raised grip, a tail towards the hinge."""
+    pts = [(0.06, H), (0.06, H + 0.012), (0.1, H + 0.038), (0.19, H + 0.038), (0.24, H + 0.016), (0.24, H)]
+    return kit.fillet(pts, [0, 0.01, 0.022, 0.03, 0.012, 0], closed=False, steps=5)
+
+
+def _lever(sc, x, detail):
+    feeder.solid(sc, _lever_profile(), x - 0.022, x + 0.022, "#2c2d31")
+    if detail:
+        top = H + 0.0385
+        slot = [(x - 0.01, 0.112), (x + 0.01, 0.112), (x + 0.01, 0.18), (x - 0.01, 0.18)]
+        sc.poly([(a, b, top) for a, b in slot], "#0c0c0e")
+
+
+def _tower(sc, x0):
+    pts = [(0.24, H), (0.24, H + 0.085), (0.34, H + 0.085), (0.34, H)]
+    feeder.solid(sc, kit.fillet(pts, [0, 0.045, 0.045, 0], closed=True, steps=6), x0, x0 + 0.04, EDGE)
+
+
+def _end_plate(sc):
+    """The plate standing proud of the body's left side, its corners rounded."""
+    pts = [(0.03, 0.0), (0.03, H + 0.055), (D + 0.03, H + 0.055), (D + 0.03, 0.0)]
+    feeder.solid(sc, kit.fillet(pts, [0, 0.05, 0.05, 0], closed=True, steps=6), -0.03, -0.006, "#26272a")
+
+
 def _body(sc, detail):
+    _end_plate(sc)
     feeder.solid(sc, PROFILE, 0.0, W, BODY)
     for x in CENTERS:
-        feeder.box(sc, x - 0.018, x + 0.018, 0.08, 0.24, H, H + 0.022, "#2c2d31")
-    for x0 in (0.0, W - 0.04):
-        feeder.box(sc, x0, x0 + 0.04, 0.24, 0.34, H, H + 0.075, EDGE)
-    sc.line([(-0.01, 0.29, H + 0.06), (W + 0.015, 0.29, H + 0.06)], "#e6e6e8", 0.034)
+        _lever(sc, x, detail)
+    _tower(sc, 0.0)
+    sc.line([(0.04, 0.29, H + 0.06), (W - 0.04, 0.29, H + 0.06)], "#e6e6e8", 0.034)
+    _tower(sc, W - 0.04)
     if detail:
         for z in (0.05, 0.25):
             for x in (0.02, W - 0.02):
