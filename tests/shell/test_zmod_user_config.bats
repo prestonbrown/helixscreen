@@ -131,6 +131,29 @@ exit 0'
     [ "$(cat "$STATE/themes/mine.json")" = '{"name":"mine"}' ]
 }
 
+@test "a merged ledger is synced before the install copy is removed" {
+    mkdir -p "$STATE"
+    printf 'a\nb\n' > "$STATE/.disabled_services"
+    printf 'b\nc\n' > "$INSTALL_DIR/config/.disabled_services"
+    export SYNC_LOG="$BATS_TEST_TMPDIR/sync.log" INSTALL_DIR STATE
+    mock_command_script "sync" '
+{
+    echo SYNC
+    f=.disabled_services
+    [ -f "$INSTALL_DIR/config/$f" ] && [ ! -L "$INSTALL_DIR/config/$f" ] && echo "install $f real"
+    grep -qx c "$STATE/$f" 2>/dev/null && echo "store $f merged"
+} >> "$SYNC_LOG"
+exit 0'
+
+    restore_config_symlinks >/dev/null
+
+    [ -L "$INSTALL_DIR/config/.disabled_services" ]
+    [ "$(cat "$STATE/.disabled_services")" = "$(printf 'a\nb\nc')" ]
+    grep -A2 '^SYNC$' "$SYNC_LOG" | grep -q "install .disabled_services real" \
+        || fail "no sync while the install copy was still there: $(cat "$SYNC_LOG" 2>/dev/null)"
+    grep -q "store .disabled_services merged" "$SYNC_LOG" || fail "synced before the merge"
+}
+
 @test "a run that moves nothing does not sync" {
     write_user_files
     restore_config_symlinks >/dev/null

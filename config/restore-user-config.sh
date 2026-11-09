@@ -268,8 +268,8 @@ restore_config_symlinks() {
 
     # Copy pass. A dotfile or pending_remap.json is runtime state no release
     # zip ships. A real one here with nothing in the store was written before
-    # it was linked: copy it across so the next rmtree cannot take it. Elsewhere only these: this runs after a zip extraction, so
-    # any other real file here is the release's default, not the user's (the
+    # it was linked: copy it across so the next rmtree cannot take it. Only
+    # these: this runs after a zip extraction, so any other real file here is the release's default, not the user's (the
     # installer's own migration, which runs on a tree the user has been editing,
     # moves every file). Every copy is synced before the link pass below removes
     # an original, so a power cut cannot leave an empty store file behind a
@@ -319,6 +319,9 @@ restore_config_symlinks() {
         if [ -f "$pd_file" ]; then
             if [ -f "$install_file" ] && [ ! -L "$install_file" ]; then
                 reconcile_real_file "$file" "$install_file" "$pd_file"
+                # A merged ledger or a .pre-restore copy reaches the disk before
+                # the original it was made from goes.
+                sync || true
             fi
             rm -f "$install_file" 2>/dev/null
             ln -s "$pd_file" "$install_file" 2>/dev/null || true
