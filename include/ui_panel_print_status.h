@@ -640,6 +640,7 @@ class PrintStatusPanel : public OverlayBase {
     /// the machine. push_overlay() and on_ui_destroyed() disarm it.
     ObserverGuard kept_tree_job_observer_;
     ObserverGuard print_filename_observer_;
+    ObserverGuard print_has_thumbnail_observer_;
     ObserverGuard speed_factor_observer_;
     ObserverGuard flow_factor_observer_;
     ObserverGuard live_velocity_observer_;
