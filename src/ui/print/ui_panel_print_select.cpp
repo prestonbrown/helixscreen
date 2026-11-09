@@ -44,6 +44,7 @@
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "filament_chip_model.h"
 #include "filament_mapper.h"
 #include "first_run_tour.h"
 #include "format_utils.h"
@@ -2243,9 +2244,7 @@ void PrintSelectPanel::fill_missing_from_archive(size_t i) {
         filled = true;
     }
     if (f.filament_types.empty() && !meta.filament_type.empty()) {
-        for (std::string_view t : tio::lines(meta.filament_type, ';')) {
-            f.filament_types.emplace_back(t);
-        }
+        f.filament_types = helix::split_filament_types(meta.filament_type);
         f.filament_type = f.filament_types.front();
         filled = true;
     }

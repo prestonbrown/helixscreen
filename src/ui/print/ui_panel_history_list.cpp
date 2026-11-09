@@ -309,6 +309,9 @@ void HistoryListPanel::on_deactivating(DeactivateReason reason) {
         reason != DeactivateReason::Rebuild) {
         return;
     }
+    // The observer goes below, so nothing would flag a change for the
+    // detail's Back; that return has to take the full refresh.
+    detail_overlay_open_ = false;
 
     // Remove history manager observer
     if (history_manager_ && history_observer_) {
@@ -1318,12 +1321,16 @@ void HistoryListPanel::confirm_delete() {
                                              job_id);
                                 helix::ui::HistoryPhotoViewer::delete_photos(deleted);
 
-                                // Remove from jobs_ and filtered_jobs_
                                 jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
                                                            [&job_id](const PrintHistoryJob& j) {
                                                                return j.job_id == job_id;
                                                            }),
                                             jobs_.end());
+                                // The list's re-activation after go_back() can reload
+                                // jobs_ from the manager's cache, so it forgets the job too.
+                                if (history_manager_) {
+                                    history_manager_->forget_job(job_id);
+                                }
 
                                 // Close detail overlay and refresh list
                                 helix::nav::go_back();

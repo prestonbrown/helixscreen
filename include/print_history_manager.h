@@ -368,6 +368,16 @@ class PrintHistoryManager {
      */
     void forget_printer();
 
+    /**
+     * @brief Drop one job the user deleted, and tell observers
+     *
+     * Moonraker sends no history notification for a deleted job, so without
+     * this the cache keeps serving it until the next full load.
+     *
+     * @param job_id Moonraker job id of the deleted record
+     */
+    void forget_job(const std::string& job_id);
+
     // ========================================================================
     // Observer Pattern
     // ========================================================================
