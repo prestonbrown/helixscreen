@@ -15,6 +15,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <optional>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -506,6 +508,68 @@ TEST_CASE("migrate_state_root drops empty legacy scaffolding", "[cache]") {
 }
 
 // ---------------------------------------------------------------------------
+// migrate_state_identity() - the telemetry identity follows a state root move
+// ---------------------------------------------------------------------------
+
+using helix::cache_internal::migrate_state_identity;
+
+namespace {
+void write_identity(const std::string& root, const std::string& uuid) {
+    std::filesystem::create_directories(root);
+    std::ofstream(root + "/telemetry_device.json")
+        << R"({"uuid":")" << uuid << R"(","salt":"s-)" << uuid << R"("})";
+}
+
+std::string read_text(const std::string& path) {
+    std::ifstream in(path);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+} // namespace
+
+TEST_CASE("migrate_state_identity moves the identity into a new state root", "[cache][2092]") {
+    const std::string root = make_test_tmpdir("identity_move");
+    const std::string legacy = root + "/srv/helixscreen-state";
+    const std::string current = root + "/mod_data/helixscreen-state";
+    write_identity(legacy, "old-uuid");
+    seed_state(legacy, "cache");
+
+    REQUIRE(migrate_state_identity(legacy, current));
+    CHECK(read_text(current + "/telemetry_device.json").find("old-uuid") != std::string::npos);
+    CHECK_FALSE(std::filesystem::exists(legacy + "/telemetry_device.json"));
+    // The cache rebuilds wherever the root is: it stays behind.
+    CHECK(std::filesystem::exists(legacy + "/cache/marker"));
+    CHECK_FALSE(std::filesystem::exists(current + "/cache"));
+
+    // Once moved there is nothing left to move.
+    CHECK_FALSE(migrate_state_identity(legacy, current));
+    cleanup_dir(root);
+}
+
+TEST_CASE("migrate_state_identity never replaces an identity the new root holds", "[cache][2092]") {
+    const std::string root = make_test_tmpdir("identity_keep");
+    const std::string legacy = root + "/srv/helixscreen-state";
+    const std::string current = root + "/mod_data/helixscreen-state";
+    write_identity(legacy, "old-uuid");
+    write_identity(current, "new-uuid");
+
+    CHECK_FALSE(migrate_state_identity(legacy, current));
+    CHECK(read_text(current + "/telemetry_device.json").find("new-uuid") != std::string::npos);
+    CHECK(read_text(legacy + "/telemetry_device.json").find("old-uuid") != std::string::npos);
+    cleanup_dir(root);
+}
+
+TEST_CASE("migrate_state_identity does nothing without a legacy identity", "[cache][2092]") {
+    const std::string root = make_test_tmpdir("identity_none");
+    const std::string legacy = root + "/srv/helixscreen-state";
+    const std::string current = root + "/mod_data/helixscreen-state";
+    seed_state(legacy, "cache");
+
+    CHECK_FALSE(migrate_state_identity(legacy, current));
+    CHECK_FALSE(std::filesystem::exists(current));
+    cleanup_dir(root);
+}
+
+// ---------------------------------------------------------------------------
 // board_cache_candidates() - the platform rung is a per-board table
 // ---------------------------------------------------------------------------
 
@@ -583,6 +647,23 @@ TEST_CASE("the Forge-X state root is a known state root", "[cache]") {
         found = found || std::string(root) == "/opt/config/mod_data/helixscreen-state";
     }
     CHECK(found);
+}
+
+TEST_CASE("only a Forge-X tree moves its identity off the Z-Mod state root", "[cache][2092]") {
+    using helix::cache_internal::state_identity_migration;
+    using P = std::optional<std::pair<std::string, std::string>>;
+    const P forgex{{"/srv/helixscreen-state", "/opt/config/mod_data/helixscreen-state"}};
+
+    for (const Board board : {Board::Ad5x, Board::Creator5, Board::Creator5Pro}) {
+        INFO("board " << helix::board::info(board).key);
+        CHECK(state_identity_migration(board, FlashForgeModTree::ForgeX) == forgex);
+        CHECK(state_identity_migration(board, FlashForgeModTree::Zmod) == P{});
+        CHECK(state_identity_migration(board, FlashForgeModTree::None) == P{});
+    }
+    for (const Board board : {Board::Ad5m, Board::K1, Board::SnapmakerU1, Board::Generic}) {
+        INFO("board " << helix::board::info(board).key);
+        CHECK(state_identity_migration(board, FlashForgeModTree::ForgeX) == P{});
+    }
 }
 
 TEST_CASE("state_root_candidates puts the board's state roots before the host fallbacks",

@@ -17,6 +17,7 @@
 #endif
 
 #include "config.h"
+#include "system/device_identity.h"
 #include "system/helix_cache_dir_internal.h"
 #include "system/helix_paths.h"
 
@@ -356,6 +357,33 @@ int migrate_state_root(const std::string& legacy_root, const std::string& curren
     return actions;
 }
 
+std::optional<std::pair<std::string, std::string>>
+state_identity_migration(board::Board board, FlashForgeModTree tree) {
+    if (tree != FlashForgeModTree::ForgeX)
+        return std::nullopt;
+    const std::vector<std::string> zmod = board_state_roots(board, FlashForgeModTree::Zmod);
+    const std::vector<std::string> forgex = board_state_roots(board, FlashForgeModTree::ForgeX);
+    if (zmod.empty() || forgex.empty() || zmod.front() == forgex.front())
+        return std::nullopt;
+    return std::make_pair(zmod.front(), forgex.front());
+}
+
+bool migrate_state_identity(const std::string& legacy_root, const std::string& current_root) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string from = legacy_root + "/" + telemetry::kDeviceIdentityFile;
+    const std::string to = current_root + "/" + telemetry::kDeviceIdentityFile;
+    if (!fs::exists(from, ec))
+        return false;
+    if (!helix::paths::ensure_dir(current_root)) {
+        spdlog::warn("[CacheDir] Cannot create {}; device identity stays in {}", current_root,
+                     legacy_root);
+        return false;
+    }
+    telemetry::move_device_identity(from, to);
+    return !fs::exists(from, ec) && fs::exists(to, ec);
+}
+
 } // namespace helix::cache_internal
 
 int sweep_stale_helix_cache_dirs() {
@@ -390,7 +418,12 @@ std::string app_get_state_root() {
 namespace helix {
 
 void migrate_legacy_state_roots() {
-    if (board::current() != board::Board::Ad5m)
+    const board::Board board = board::current();
+    if (const auto moved = cache_internal::state_identity_migration(board, mod_tree_for(board))) {
+        cache_internal::migrate_state_identity(moved->first, moved->second);
+        return;
+    }
+    if (board != board::Board::Ad5m)
         return;
     // /data is this board's only large writable partition and the vendor
     // symlinks it whole into Moonraker's gcodes root, so the state root has to

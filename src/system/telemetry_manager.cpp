@@ -41,6 +41,7 @@
 #include "sensor_manager.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
+#include "system/device_identity.h"
 #include "system/ingest_client.h"
 #include "system/sha256_util.h"
 #include "system/update_checker.h"
@@ -2387,13 +2388,9 @@ std::optional<std::pair<std::string, std::string>> read_device_identity(const st
     return std::make_pair(std::move(uuid), std::move(salt));
 }
 
-/// Move a device identity left at @p from to @p to, once. The copy is written
-/// and synced before @p from goes, so an interrupted move leaves two identical
-/// files, which the next start settles. A readable identity already at @p to is
-/// never replaced; @p from is then removed only when it is the same identity. An
-/// unreadable one at @p to is set aside beside it, and a readable @p from takes
-/// its place.
-void move_device_identity(const std::string& from, const std::string& to) {
+} // namespace
+
+void helix::telemetry::move_device_identity(const std::string& from, const std::string& to) {
     std::error_code ec;
     if (from == to || !fs::exists(from, ec)) {
         return;
@@ -2436,13 +2433,12 @@ void move_device_identity(const std::string& from, const std::string& to) {
     spdlog::info("[TelemetryManager] Moved device identity {} -> {}", from, to);
 }
 
-} // namespace
-
 void TelemetryManager::ensure_device_id() {
     std::lock_guard<std::mutex> lock(mutex_);
 
     const std::string device_path = get_device_id_path();
-    move_device_identity(config_dir_ + "/telemetry_device.json", device_path);
+    helix::telemetry::move_device_identity(
+        config_dir_ + "/" + helix::telemetry::kDeviceIdentityFile, device_path);
 
     if (const auto identity = read_device_identity(device_path)) {
         device_uuid_ = identity->first;
@@ -2479,7 +2475,7 @@ std::string TelemetryManager::get_queue_path() const {
 }
 
 std::string TelemetryManager::get_device_id_path() const {
-    return identity_dir_ + "/telemetry_device.json";
+    return identity_dir_ + "/" + helix::telemetry::kDeviceIdentityFile;
 }
 
 // =============================================================================
