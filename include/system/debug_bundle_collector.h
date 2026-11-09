@@ -298,7 +298,7 @@ class DebugBundleCollector {
     static nlohmann::json collect_crash_history(const std::string& config_dir);
 
     /// Get double-hashed device ID from telemetry_device.json (for R2 cross-ref)
-    static std::string collect_device_id(const std::string& config_dir);
+    static std::string collect_device_id(const std::string& device_file);
 
     /// Read log tail from an explicit ordered list of paths (testable)
     static std::string collect_log_tail_from_paths(const std::vector<std::string>& paths,

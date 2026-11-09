@@ -37,6 +37,24 @@ inline bool is_deliberate(const CacheCandidate& c) {
 }
 
 /**
+ * @brief The board's own state roots, in priority order: the directories beside
+ * the payload where cache/ and logs/ live (platforms.json storage.state_root).
+ *
+ * Empty for Board::Generic. @p tree matters only to the FlashForge MIPS boards,
+ * whose mod (Z-Mod or Forge-X) decides which durable directory holds state.
+ */
+std::vector<std::string> board_state_roots(board::Board board, FlashForgeModTree tree);
+
+/**
+ * @brief Where app_get_state_root() looks, in priority order: the board's state
+ * roots, then @p state_dir (the systemd StateDirectory), then @p home_state_dir.
+ * Pure: enumerating touches nothing on disk.
+ */
+std::vector<std::string> state_root_candidates(board::Board board, FlashForgeModTree tree,
+                                               const std::string& state_dir,
+                                               const std::string& home_state_dir);
+
+/**
  * @brief The board's own cache rungs for one subdir, in priority order.
  *
  * Empty for Board::Generic. Each rung is labelled with the board key and marked as

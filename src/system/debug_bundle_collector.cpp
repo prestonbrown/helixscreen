@@ -189,7 +189,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
             bundle["crash_history"] = sanitize_json(crash_history);
         }
 
-        auto device_id = collect_device_id(config_dir);
+        auto device_id = collect_device_id(TelemetryManager::instance().get_device_id_path());
         if (!device_id.empty()) {
             bundle["device_id"] = device_id;
         }
@@ -2342,8 +2342,7 @@ json DebugBundleCollector::collect_crash_history(const std::string& config_dir) 
 // Device ID (double-hashed for R2 cross-referencing)
 // =============================================================================
 
-std::string DebugBundleCollector::collect_device_id(const std::string& config_dir) {
-    std::string path = config_dir + "/telemetry_device.json";
+std::string DebugBundleCollector::collect_device_id(const std::string& path) {
     try {
         std::ifstream file(path);
         if (!file.good()) {

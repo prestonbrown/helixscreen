@@ -1265,7 +1265,8 @@ TEST_CASE_METHOD(DebugBundleTestFixture,
     ofs << device.dump();
     ofs.close();
 
-    auto result = helix::DebugBundleCollector::collect_device_id(temp_dir_.string());
+    auto result = helix::DebugBundleCollector::collect_device_id(
+        (temp_dir_ / "telemetry_device.json").string());
     // Should be a hashed device ID (64 char hex), not the raw UUID
     REQUIRE_FALSE(result.empty());
     // Must NOT contain the raw UUID
@@ -1275,7 +1276,8 @@ TEST_CASE_METHOD(DebugBundleTestFixture,
 TEST_CASE_METHOD(DebugBundleTestFixture,
                  "DebugBundleCollector: collect_device_id returns empty when no device file",
                  "[debug-bundle]") {
-    auto result = helix::DebugBundleCollector::collect_device_id(temp_dir_.string());
+    auto result = helix::DebugBundleCollector::collect_device_id(
+        (temp_dir_ / "telemetry_device.json").string());
     REQUIRE(result.empty());
 }
 

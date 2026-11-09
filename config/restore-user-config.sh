@@ -30,7 +30,7 @@ USER_VAL="${USER_VAL:-}"
 # Runs as root (inherited from the calling service unit), so no sudo needed.
 
 # Keep in sync with scripts/lib/installer/platform.sh.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route telemetry_device.json"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
 
 # Z-Mod (AD5X, AD5M) installs and launches HelixScreen itself at this root, and
@@ -266,10 +266,9 @@ restore_config_symlinks() {
         move_all=1
     fi
 
-    # Copy pass. A dotfile, pending_remap.json or telemetry_device.json is
-    # runtime state no release zip ships. A real one here with nothing in the
-    # store was written before it was linked: copy it across so the next rmtree
-    # cannot take it. Elsewhere only these: this runs after a zip extraction, so
+    # Copy pass. A dotfile or pending_remap.json is runtime state no release
+    # zip ships. A real one here with nothing in the store was written before
+    # it was linked: copy it across so the next rmtree cannot take it. Elsewhere only these: this runs after a zip extraction, so
     # any other real file here is the release's default, not the user's (the
     # installer's own migration, which runs on a tree the user has been editing,
     # moves every file). Every copy is synced before the link pass below removes
@@ -283,7 +282,7 @@ restore_config_symlinks() {
         local install_file="${install_config}/${file}"
         local movable="$move_all"
         case "$file" in
-            .*|pending_remap.json|telemetry_device.json) movable=1 ;;
+            .*|pending_remap.json) movable=1 ;;
         esac
         if [ -n "$movable" ] && [ ! -e "$pd_file" ] && [ ! -L "$pd_file" ] \
             && [ -f "$install_file" ] && [ ! -L "$install_file" ]; then

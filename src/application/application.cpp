@@ -711,7 +711,12 @@ int Application::run(int argc, char** argv) {
     // Initialize TelemetryManager (opt-in, default OFF)
     // Note: record_session() is called after m_session.init_panel_subjects() so that
     // SettingsManager subjects are ready and the enabled state can be synced.
-    TelemetryManager::instance().init(user_config_dir);
+    // The identity lives in the state root, out of the install root an update
+    // replaces and out of the Klipper config tree web UIs and backups expose.
+    // Test mode keeps it in its own config dir, as it does the settings backups.
+    TelemetryManager::instance().init(user_config_dir, get_runtime_config()->is_test_mode()
+                                                           ? std::string{}
+                                                           : app_get_state_root());
 #if HELIX_ENABLE_SCREENSAVER
     TelemetryManager::instance().set_screensaver_usage(&ScreensaverManager::instance().usage());
 #endif
