@@ -1,0 +1,41 @@
+// Copyright (C) 2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace helix {
+
+/// What one command did.
+struct CommandResult {
+    bool started = false;   ///< the command was spawned
+    bool timed_out = false; ///< it outlived its timeout and was stopped
+    int exit_code = -1;     ///< its exit status; -1 when it did not exit on its own
+    std::string output;     ///< stdout and stderr together, capped
+    std::string error;      ///< why it could not be spawned or waited for; empty otherwise
+
+    bool succeeded() const {
+        return started && !timed_out && exit_code == 0;
+    }
+};
+
+/// Runs @p argv (argv[0] looked up on PATH) for up to @p timeout_seconds.
+/// Blocking. Code that runs commands takes one, so tests hand it a fake.
+using ProcessRunner =
+    std::function<CommandResult(const std::vector<std::string>& argv, int timeout_seconds)>;
+
+/// The real runner: forks /bin/sh to exec @p argv, never interpreting its words,
+/// and captures the output while it waits. BLOCKING: never on the LVGL thread.
+CommandResult run_process(const std::vector<std::string>& argv, int timeout_seconds);
+
+/// The last line of @p output with any text in it, color escapes removed.
+std::string last_output_line(const std::string& output);
+
+/// Log @p what's output line by line: the command's own messages are the only
+/// record of why it failed, so a failure logs them at warn; a success keeps
+/// them at debug, except its own [WARN] lines.
+void log_command_output(const char* what, const std::string& output, bool succeeded);
+
+} // namespace helix

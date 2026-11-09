@@ -501,6 +501,11 @@ subject:telemetry_info_text
 subject:test_printing
 subject:timelapse_capture_info
 subject:timelapse_frame_count
+subject:timelapse_install_action_text
+subject:timelapse_install_action_visible
+subject:timelapse_install_card
+subject:timelapse_install_ffmpeg_command
+subject:timelapse_install_status
 subject:timelapse_render_progress
 subject:timelapse_render_status
 subject:tool_cal_active

@@ -15,4 +15,17 @@ struct TimelapseInstallOverlayTestAccess {
     static bool wizard_active(const TimelapseInstallOverlay& o) {
         return o.wizard_active_;
     }
+    /// Put the wizard on its SSH-instructions step, the remote route of step 3.
+    static void show_remote_route(TimelapseInstallOverlay& o) {
+        o.wizard_active_ = true;
+        o.step_show_install_instructions();
+    }
+    /// Fire the footer action the way its button does.
+    static bool run_action(TimelapseInstallOverlay& o) {
+        if (!o.action_callback_) {
+            return false;
+        }
+        o.action_callback_();
+        return true;
+    }
 };

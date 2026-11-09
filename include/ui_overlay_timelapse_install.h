@@ -4,6 +4,8 @@
 #pragma once
 
 #include "overlay_base.h"
+#include "subject_managed_panel.h"
+#include "timelapse_local_installer.h"
 
 #include <functional>
 #include <string>
@@ -23,7 +25,8 @@ class IMoonrakerAPI;
  * Guides users through timelapse plugin installation with step progress:
  * 1. Check webcam availability
  * 2. Check if plugin is already installed
- * 3. Show SSH install instructions (if plugin not found)
+ * 3. Install the plugin: by itself when Moonraker runs on this host,
+ *    through SSH instructions otherwise
  * 4. Configure moonraker.conf with [timelapse] section
  * 5. Restart Moonraker service
  * 6. Verify plugin is loaded
@@ -31,6 +34,7 @@ class IMoonrakerAPI;
 class TimelapseInstallOverlay : public OverlayBase {
   public:
     explicit TimelapseInstallOverlay(helix::IMoonrakerAPI* api);
+    ~TimelapseInstallOverlay() override;
 
     const char* get_name() const override {
         return "Timelapse Install";
@@ -39,6 +43,7 @@ class TimelapseInstallOverlay : public OverlayBase {
         return "timelapse_install_overlay";
     }
 
+    void init_subjects() override;
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
 
@@ -93,8 +98,21 @@ class TimelapseInstallOverlay : public OverlayBase {
     void step_restart_moonraker();
     void step_verify();
 
+    /// Take the route decide_timelapse_setup_path() picks for an absent plugin
+    void step_install_plugin();
+
+    /// Install the plugin on this host, off the main thread
+    void step_install_locally();
+    void on_local_install_done(const helix::LocalPluginResult& result);
+
     /// Re-check plugin after user runs SSH install commands
     void recheck_after_install();
+
+    /// Which instructions card shows (timelapse_install_card)
+    enum class Card { None = 0, Ssh = 1, Ffmpeg = 2 };
+    void show_card(Card card);
+    /// Scroll the card on show into view
+    void reveal_card();
 
     // Config file modification (private: requires API)
     void download_and_modify_config();
@@ -108,9 +126,21 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     helix::IMoonrakerAPI* api_;
     lv_obj_t* step_progress_ = nullptr;
-    lv_obj_t* status_label_ = nullptr;
-    lv_obj_t* action_btn_ = nullptr;
-    lv_obj_t* ssh_container_ = nullptr;
+
+    SubjectManager subjects_;
+    lv_subject_t status_subject_{};
+    char status_buf_[384] = {};
+    lv_subject_t action_text_subject_{};
+    char action_text_buf_[64] = {};
+    lv_subject_t action_visible_subject_{};
+    lv_subject_t card_subject_{};
+    lv_subject_t ffmpeg_command_subject_{};
+    char ffmpeg_command_buf_[64] = {};
+
+    /// The local install left ffmpeg missing; the last screen says how to add it
+    bool ffmpeg_missing_ = false;
+    /// A local install is running on a worker; a second tap must not start another
+    bool installing_ = false;
 
     Step current_step_ = Step::CHECKING_WEBCAM;
     bool wizard_active_ = false;

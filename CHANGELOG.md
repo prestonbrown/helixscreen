@@ -16,6 +16,7 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
 - **Z-Tilt and QGL use your Bed Level macro** (#2083) - if you assigned a macro to Bed Level in Standard Macros, the Z-Tilt and Quad Gantry Level buttons run it too.
 - **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
+- **Timelapse setup installs the plugin for you** - when HelixScreen runs on the same machine as Moonraker, Setup Timelapse downloads and installs the timelapse plugin itself instead of asking you to do it over SSH. If ffmpeg is missing and can't be installed without a password, the last screen shows the one command to run.
 
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
 
@@ -40,6 +41,7 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Fan RPM on Creality printers** (#2071) - on the K1 and K2 series, a fan's RPM now shows on that fan's own dial or card. Before, one fan's RPM could show under another, such as the part fan's under an auxiliary fan. A dial set to Off also no longer shows a leftover RPM over its zero mark.
 - **No error after powering off on purpose** (#2076) - turning the printer off from HelixScreen or Mainsail, through a power device that also stops Klipper, no longer shows the "Printer Shutdown" dialog.
 - **SnapSpeed filament on the Snapmaker U1** - changing only a spool's colour no longer turns a SnapSpeed filament into Basic. A new material or brand still starts at Basic.
+- **Check Again in Setup Timelapse** - the Check Again button on the install step is always on screen, and the empty blue square in the top corner of that screen is gone.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
