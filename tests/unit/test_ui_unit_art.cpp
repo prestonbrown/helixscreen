@@ -164,3 +164,84 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a new lane count builds that
     unit_art_set_unit(art, quattro_system(3), 0);
     CHECK(lv_obj_is_hidden(art));
 }
+
+TEST_CASE("unit art glow: only a drying unit on a capable board glows", "[ams][unit-art][glow]") {
+    CHECK(unit_art_glow_for(true, true, false) == UnitArtGlow::Pulsing);
+    CHECK(unit_art_glow_for(true, false, false) == UnitArtGlow::Steady);
+    CHECK(unit_art_glow_for(false, true, false) == UnitArtGlow::Off);
+    CHECK(unit_art_glow_for(true, true, true) == UnitArtGlow::Off);
+    CHECK(unit_art_glow_for(true, false, true) == UnitArtGlow::Off);
+}
+
+TEST_CASE("unit art glow: follows the outline and fades from the middle", "[ams][unit-art][glow]") {
+    CHECK(unit_art_glow_alpha(0, 50, 50, 100, 100) == 0);
+    const int middle = unit_art_glow_alpha(255, 50, 50, 100, 100);
+    const int off_centre = unit_art_glow_alpha(255, 80, 50, 100, 100);
+    CHECK(middle > off_centre);
+    CHECK(off_centre > 0);
+    CHECK(unit_art_glow_alpha(255, 0, 0, 100, 100) == 0);
+    CHECK(unit_art_glow_alpha(128, 50, 50, 100, 100) < middle);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: pulses, holds steady, and stops",
+                 "[ams][unit-art][glow]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 40, 40);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+
+    unit_art_set_glow(art, UnitArtGlow::Pulsing);
+    lv_obj_t* glow = unit_art_glow_obj(art);
+    REQUIRE(glow != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(glow));
+    lv_anim_t* pulse = lv_anim_get(glow, nullptr);
+    REQUIRE(pulse != nullptr);
+    CHECK(pulse->start_value < pulse->end_value);
+    CHECK(pulse->repeat_cnt == LV_ANIM_REPEAT_INFINITE);
+    pulse->act_time = 77;
+    unit_art_set_glow(art, UnitArtGlow::Pulsing); // every refresh repeats this
+    CHECK(lv_anim_get(glow, nullptr)->act_time == 77);
+
+    unit_art_set_glow(art, UnitArtGlow::Steady);
+    CHECK(lv_anim_get(glow, nullptr) == nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(glow));
+    CHECK(lv_obj_get_style_image_opa(glow, LV_PART_MAIN) == LV_OPA_COVER);
+
+    unit_art_set_glow(art, UnitArtGlow::Pulsing);
+    unit_art_set_glow(art, UnitArtGlow::Off);
+    CHECK(lv_anim_get(glow, nullptr) == nullptr);
+    CHECK(lv_obj_is_hidden(glow));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: a new drawing gets a new glow",
+                 "[ams][unit-art][glow]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 40, 40);
+    AmsSystemInfo info = ace_system();
+    unit_art_set_unit(art, info, 0);
+    unit_art_set_glow(art, UnitArtGlow::Pulsing);
+    lv_obj_t* glow = unit_art_glow_obj(art);
+    REQUIRE(glow != nullptr);
+    const void* before = lv_image_get_src(glow);
+
+    info.units[0].slots[0].color_rgb = 0x00ff00;
+    unit_art_set_unit(art, info, 0);
+    unit_art_set_glow(art, UnitArtGlow::Pulsing);
+    CHECK(lv_image_get_src(glow) != before);
+    CHECK_FALSE(lv_obj_is_hidden(glow));
+
+    unit_art_set_unit(art, quattro_system(4), 0); // another shell rebuilds every child
+    CHECK(unit_art_glow_obj(art) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: its pulse dies with the widget",
+                 "[ams][unit-art][glow]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 40, 40);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_glow(art, UnitArtGlow::Pulsing);
+    lv_obj_t* glow = unit_art_glow_obj(art);
+    REQUIRE(lv_anim_get(glow, nullptr) != nullptr);
+    lv_obj_delete(art);
+    CHECK(lv_anim_get(glow, nullptr) == nullptr);
+}

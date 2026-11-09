@@ -30,7 +30,9 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "display_numbering.h"
+#include "display_settings_manager.h"
 #include "filament_database.h"
+#include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
 #include "preset_materials.h"
@@ -611,6 +613,12 @@ void AmsEnvironmentOverlay::on_activate() {
             ams.get_subjects_lifetime());
     }
 
+    auto& display = DisplaySettingsManager::instance();
+    animations_observer_ = observe<int>(
+        display.subject_animations_enabled(), this,
+        [refresh_if_visible](AmsEnvironmentOverlay* self, int) { refresh_if_visible(self); },
+        display.get_subjects_lifetime());
+
     // Pull current state immediately on activation.
     refresh();
 
@@ -622,6 +630,12 @@ void AmsEnvironmentOverlay::on_deactivating(DeactivateReason) {
     env_humidity_observer_.reset();
     dryer_active_observer_.reset();
     dryer_temp_observer_.reset();
+    animations_observer_.reset();
+
+    if (overlay_root_) {
+        helix::ui::unit_art_set_glow(lv_obj_find_by_name(overlay_root_, "unit_art_picture"),
+                                     helix::ui::UnitArtGlow::Off);
+    }
 
     spdlog::debug("[{}] Deactivated", get_name());
 }
@@ -682,6 +696,8 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
+        helix::ui::unit_art_set_glow(lv_obj_find_by_name(overlay_root_, "unit_art_picture"),
+                                     helix::ui::UnitArtGlow::Off);
         lv_subject_set_int(&unit_logo_visible_subject_, 0);
         lv_subject_set_int(&unit_art_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
@@ -745,9 +761,9 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         info && helix::ui::unit_art_available(*info, zone.unit_index,
                                               helix::ui::unit_reports_climate(zone.unit_index));
     lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
+    lv_obj_t* const unit_art = lv_obj_find_by_name(overlay_root_, "unit_art_picture");
     if (info)
-        helix::ui::unit_art_set_unit(lv_obj_find_by_name(overlay_root_, "unit_art_picture"), *info,
-                                     zone.unit_index,
+        helix::ui::unit_art_set_unit(unit_art, *info, zone.unit_index,
                                      helix::ui::unit_reports_climate(zone.unit_index));
 
     const std::string gates = zone_slot_text(zone, slot_noun);
@@ -840,6 +856,14 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
 
     // Drying active state
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
+
+    // A closed overlay can still publish, and a queued zone is waiting for the heater.
+    const bool heating_now = is_visible() && has_art && dryer.active &&
+                             zone.state != helix::printer::ZoneDryingState::Queued;
+    helix::ui::unit_art_set_glow(
+        unit_art, helix::ui::unit_art_glow_for(
+                      heating_now, DisplaySettingsManager::instance().get_animations_enabled(),
+                      helix::ui::reduced_effects()));
 
     if (dryer.active) {
         snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",
