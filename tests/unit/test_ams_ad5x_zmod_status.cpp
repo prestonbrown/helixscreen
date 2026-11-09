@@ -290,6 +290,13 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     set_idle_state("Ready");
     Ad5xIfsTestAccess::run_action_timeout(backend);
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+
+    // The next change starts with no busy sighting of its own: the last
+    // change's Printing says nothing about this one.
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
 }
 
 // A successful change's last frame often carries END_CHANGE_FILAMENT's idle
