@@ -271,6 +271,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels 
     CHECK_FALSE(t.is_running());
     CHECK(nav.get_active() == helix::PanelId::Controls);
     CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
+    nav.shutdown();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
@@ -298,6 +299,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip 
     t.skip();
     CHECK(nav.get_active() == helix::PanelId::Home);
     CHECK_FALSE(t.is_running());
+    nav.shutdown();
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {
