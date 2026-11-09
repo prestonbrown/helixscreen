@@ -198,14 +198,16 @@ def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, le
     """A drum along x, flanged at its right end and, unless told not to, its left.
 
     sheen is the colour of a highlight along the drum's lit shoulder, for a colour too dark
-    to show its curve by shading alone. end_face fills the right end inside its flange,
-    leaving the flange as a thin rim.
+    to show its curve by shading alone. end_face fills each flange inside its edge,
+    leaving a thin rim.
     """
     ring = circle_yz(y, z, r)
     edge = circle_yz(y, z, r * flange_k)
     if left_flange:
         sc.extrude_x(edge, x0 - flange_w, x0, flange, 1.0, front=True)
         sc.poly([(x0, a, b) for a, b in edge], shift(flange, 18))
+        if end_face:
+            sc.poly([(x0 + 0.0005, a, b) for a, b in circle_yz(y, z, r * 0.92)], end_face)
     sc.extrude_x(ring, x0, x1, color, 1.0, front=True)
     if sheen:
         sc.line([(x0 + r * 0.1, y - r * 0.6, z + r * 0.8), (x1 - r * 0.1, y - r * 0.6, z + r * 0.8)], sheen, r * 0.2, 0.75)
