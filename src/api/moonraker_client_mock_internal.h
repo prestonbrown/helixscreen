@@ -72,6 +72,7 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
 
 // The part fan's tachometer at full speed. Klipper reports `rpm` for a fan with a
 // tachometer_pin; the mock's part fan has one, reading in proportion to its speed.
+// NAMESPACE_OK: mock_internal constant, alongside its sibling mock constants
 constexpr double kMockPartFanMaxRpm = 6800.0;
 
 /// The part fan's status block, as every frame the mock serves carries it.
