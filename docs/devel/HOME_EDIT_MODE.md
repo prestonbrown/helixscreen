@@ -570,7 +570,7 @@ void GridEditMode::handle_drag_end(lv_event_t* /*e*/) {
 | Outcome | When `resolve_drop()` returns it | What commits |
 |---------|----------------------------------|--------------|
 | `Move` | On a config page, the previewed cell or the page differs from the origin and the span fits the occupancy there | `commit_drop()` -> `PanelWidgetConfig::place_entry` |
-| `CreatePage` | `cross_page_drop_creates_page()` holds for the scope the release lands in: on the next-page slot, the entry lands at the previewed cell; on the last page with the widget's majority past its right border, in the rightmost columns its span allows, on the previewed row; on the first page with the widget's majority past its left border, in the leftmost column, on the previewed row, and `prepend_page` is set so the page lands before it. A landing cell that does not fit an empty page creates nothing | `commit_drop()` -> `add_page` (appends, or inserts at 0 when `prepend_page`), then `place_entry` |
+| `CreatePage` | `cross_page_drop_creates_page()` holds for the scope the release lands in: on the next-page slot, the entry lands at the previewed cell; on the last page with the widget's majority past its right border, in the rightmost columns its span allows, on the previewed row; on the first page with the widget's majority past its left border, in the leftmost column, on the previewed row, and `prepend_page` is set so the page lands before it. A landing cell that does not fit an empty page creates nothing. While a crossing flip waits, `drop_input()` reports neither border, so the release resolves on the visible page | `commit_drop()` -> `add_page` (appends, or inserts at 0 when `prepend_page`), then `place_entry` |
 | `ReturnToOrigin` | Nothing commits, and the release landed off the origin page | Nothing; `return_drag_to_origin()` carries the drag home first |
 | `Cancel` | Nothing commits, on the origin page | Nothing; the widget snaps back |
 
@@ -645,6 +645,7 @@ the cap guard, the page ids and the landing rules are the same either way.
   the widget in the rightmost columns its span allows; a drop on the first page with the
   widget's majority past its left border sets `prepend_page`, and the page lands at index 0 with
   everything after it shifted one page later.
+  Neither border counts while a crossing flip waits: that release stays on the visible page.
 - A release on the slot that creates nothing carries the drag back to its origin page first
   (`return_drag_to_origin`), where it resolves as a cancelled move.
 - At the page cap there is no slot: no + tile, `has_next_page_slot()` is false, and a drop past
@@ -710,8 +711,8 @@ shifted. Where each change lands:
 | Change | The rebuilt carousel comes up on | And ends on |
 |--------|----------------------------------|-------------|
 | A drop on the next-page slot | The new page, on the tile the slot held, or one tile before it when the move pruned its origin page | The same page, with no slide |
-| A drop past the last page's border, released before a flip, that keeps its origin page | The origin page, the page on screen | The new page, one slide on |
-| The same drop when it prunes its origin page | The new page, which takes the origin's index | The same page |
+| A drop past the last page's border, with no crossing flip waiting | The last page, the page on screen | The new page, one slide on |
+| A release past a border while a crossing flip waits | The page on screen, no page created | The same page |
 | A drop past the first page's left border | The page the drag left, one page later than before | The new page 0, one slide back |
 | A tap on the slot's + | The appended page, on the tile the slot held, with no slide; the page on screen, one slide on, when the tap came from a page | The appended page |
 | A move that prunes a page before its landing page | The landing page at its shifted index, the page already on screen | The same page |
