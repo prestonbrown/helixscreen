@@ -2688,15 +2688,18 @@ TEST_CASE_METHOD(EditHomeFixture,
     enter_edit_mode();
     const lv_area_t frame = settled_page_area();
     const lv_area_t wa = area_of(widget);
-    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
+    const bool right = GENERATE(true, false);
+    CAPTURE(right);
+    const int grab_x = wa.x1 + lv_area_get_width(&wa) * (right ? 3 : 7) / 10;
     const int y = (wa.y1 + wa.y2) / 2;
+    const int edge_x = right ? frame.x2 : frame.x1;
     indev.grab(grab_x, y);
-    indev.move(grab_x - past_drag_threshold(), y);
+    indev.move(grab_x + (right ? -past_drag_threshold() : past_drag_threshold()), y);
     REQUIRE(grid().is_dragging());
-    indev.move(frame.x2, y);
+    indev.move(edge_x, y);
     REQUIRE(armed_session_timer_count() == 1);
 
-    indev.release(frame.x2, y);
+    indev.release(edge_x, y);
     settle();
     CHECK(config().page_count() == 1);
     CHECK(current_page() == 0);
