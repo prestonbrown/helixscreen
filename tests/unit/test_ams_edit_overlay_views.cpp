@@ -851,6 +851,41 @@ TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane agreeing with its spool shows 
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool replaces the lane's own name",
+                 "[ams_edit_overlay][box_wins]") {
+    client.spoolman_mock().get_mock_spools().back().filament_name = "Black ASA";
+    SlotInfo lane = box_lane();
+    lane.spool_name = "CR-PLA";
+    open(true, lane);
+
+    access.call_handle_reapply();
+    settle();
+
+    REQUIRE(fired);
+    CHECK(captured.slot_info.spool_name == "Black ASA");
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's temperatures",
+                 "[ams_edit_overlay][box_wins]") {
+    SlotInfo lane = box_lane();
+    lane.material = "ASA";
+    lane.brand = "Elegoo";
+    lane.nozzle_temp_min = 222;
+    lane.nozzle_temp_max = 233;
+    lane.bed_temp = 77;
+    open(true, lane);
+    REQUIRE(access.spool_disagrees() == 1);
+
+    access.call_handle_reapply();
+    settle();
+
+    REQUIRE(fired);
+    CHECK(captured.slot_info.color_rgb == 0x000000U);
+    CHECK(captured.slot_info.nozzle_temp_min == 222);
+    CHECK(captured.slot_info.nozzle_temp_max == 233);
+    CHECK(captured.slot_info.bed_temp == 77);
+}
+
 TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
