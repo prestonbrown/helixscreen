@@ -595,7 +595,11 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         char cmd[32];
         snprintf(cmd, sizeof(cmd), "M140 S%d", temp);
         spdlog::info("[ZOffsetCal] Warming bed to {}°C for calibration", temp);
-        bed_was_warmed_ = true;
+        // Heat already there is someone's, and only this panel's normal endings clear it.
+        const bool bed_was_off =
+            lv_subject_get_int(get_printer_state().temperature_state().get_bed_target_subject()) ==
+            0;
+        heat_.own("heater_bed", temp, bed_was_off);
 
         auto tok = lifetime_.token();
         api_->execute_gcode(
@@ -1044,11 +1048,16 @@ void ZOffsetCalibrationPanel::handle_warm_bed_toggled() {
 }
 
 void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
-    if (!bed_was_warmed_ || !api_)
+    if (!api_) {
         return;
+    }
+    heat_.turn_off();
+}
 
-    bed_was_warmed_ = false;
-    spdlog::info("[ZOffsetCal] Turning off bed heater after calibration");
+void ZOffsetCalibrationPanel::send_bed_off() {
+    if (!api_) {
+        return;
+    }
     api_->execute_gcode(
         "M140 S0", []() { spdlog::debug("[ZOffsetCal] Bed heater off"); },
         // Log-only handler — see adjust_z().
@@ -1057,6 +1066,14 @@ void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
         },
         /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+void ZOffsetCalibrationPanel::before_disconnect() {
+    // A warm-up reaching its target now would start homing on a printer being left.
+    if (state_ == State::WARMING) {
+        set_state(State::IDLE);
+    }
+    heat_.before_disconnect();
 }
 
 // ============================================================================

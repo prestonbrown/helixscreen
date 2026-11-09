@@ -112,6 +112,12 @@ void SubjectInitializer::before_disconnect() {
     if (m_filament_op_heater) {
         m_filament_op_heater->before_disconnect();
     }
+    if (auto* mesh_panel = helix::lazy_global_if_exists<BedMeshPanel>()) {
+        mesh_panel->before_disconnect();
+    }
+    if (auto* zoffset_panel = helix::lazy_global_if_exists<ZOffsetCalibrationPanel>()) {
+        zoffset_panel->before_disconnect();
+    }
     PostOpCooldownManager::instance().flush_before_disconnect();
 }
 
