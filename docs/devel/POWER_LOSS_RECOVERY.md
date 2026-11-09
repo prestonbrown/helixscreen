@@ -194,12 +194,19 @@ in the `helix-screen` namespace, so it has them with the screen off:
 
 - `plr_profile`, which the app resolves and writes: `{"tier", "backend",
   "storage_hint", "z_holds_unpowered", "xy_home_gcode", "z_lift_mm",
-  "purge_gcode", "resume_skip_fraction", "macro_vars"}`. `plr_resolve_profile()`
-  resolves the printer database's `plr` block
-  (`PrinterDetector::get_plr_block()`). A printer with no block is tier 0: the
-  plugin reports the `plr` feature `available: false`, reason `not_listed`, and
-  saves and offers nothing. Tier 2 needs the database's `z_holds_unpowered`, so without it
-  the tier is at most 1. The function also takes user overrides (tier, XY homing,
+  "purge_gcode", "resume_skip_fraction", "macro_vars", "listed", "reason"}`.
+  `plr_resolve_profile()` resolves the printer database's `plr` block
+  (`PrinterDetector::get_plr_block()`). A printer with no block (an unidentified
+  printer included) gets `kPlrUnlistedTier`, tier 1 on the generic backend, with
+  `listed: false` (#1863); the plugin then vetoes it where Klipper says the
+  default is wrong ("The default for an unlisted printer" below). Only a plugin
+  whose `plr` feature is at `kPlrUnlistedTierMinVersion` (3) or newer gets that
+  default, since an older one lacks the veto: it gets tier 0 for an unlisted
+  printer. A tier-0 profile, an explicit block or an older plugin's default,
+  makes the plugin report the `plr` feature `available: false` with the
+  block's `reason`, or `not_listed` without one, and save and offer nothing.
+  Tier 2 needs the database's `z_holds_unpowered`, so without it the tier is at
+  most 1. The function also takes user overrides (tier, XY homing,
   purge, skip fraction), but no UI provides them: the caller passes an empty
   `PlrUserOverride`, so the record is the database block as is. `PlrOfferController::publish_profile()` writes
   the record once per connection and printer type whenever the plugin reports a
@@ -222,8 +229,9 @@ in the `helix-screen` namespace, so it has them with the screen off:
   the feature is Ready or Disabled, greyed with Install without a plugin, greyed
   asking for an update when the plugin reports no `plr`, and hidden when the
   plugin reports it `available: false` (`python_too_old`, `no_virtual_sdcard`,
-  `store_unwritable`, `not_listed`). An unlisted printer (no `plr_profile`, or
-  tier 0) is `not_listed`, so it gets no switch; the plugin overview shows the
+  `store_unwritable`, `not_listed`, `gantry_drops`, `delta_kinematics`,
+  `firmware_recovery`). A printer with no `plr_profile`, at tier 0, or whose
+  default the plugin vetoes gets no switch; the plugin overview shows the
   feature unavailable with that reason. Its switch follows `plr_saving_enabled`, the
   plugin's own report re-read after each write: the `plr` entry's `saving`, or
   its `enabled` from a plugin that reports no `saving`. The entry's `enabled`
@@ -232,9 +240,17 @@ in the `helix-screen` namespace, so it has them with the screen off:
 
 Listed printers: the Qidi Q2 (`backend: qidi_print_state`, eMMC, tier 2). Tier 2
 replicates QIDI's own stock resume, which already trusts the Z the steppers held;
-the Q2 results are under "Testing" below. The K1 line stays unlisted: Creality's
-own recovery serves it and outranks the generic backend, and the Snapmaker, Creality
-and legacy QIDI backends are kept as they are.
+the Q2 results are under "Testing" below. The Sovol SV08 and SV08 Max are listed at
+tier 1 only so the plugin's levelled-gantry veto does not refuse them: four Z lead
+screws hold their gantry. Listed at tier 0, with the `reason` the plugin reports:
+
+| Models | `reason` | Why |
+|---|---|---|
+| Voron 2.4, PFA Micron | `gantry_drops` | The flying gantry hangs on four belted Z motors: it drops and racks when the power goes, and re-levelling it (`QUAD_GANTRY_LEVEL`) probes over the part |
+| FLSUN V400, Super Racer, Delta, S1, T1 Pro; Doron Velta; Venture Delta | `delta_kinematics` | `G28 X Y` cannot home a delta without Z; the plugin's XY homing check refuses it too |
+| Creality K1, K1C, K1 Max, K1 SE (and CFS variants), K2, K2 Plus (stock, k2-improvements, Jacobean), K2 Pro (stock, k2-improvements), Hi, Ender-3 V3, Ender-3 V3 KE; Snapmaker U1; every QIDI but the Q2 | `firmware_recovery` (`backend: vendor`) | The firmware runs its own recovery, which the Creality, Snapmaker and legacy QIDI backends serve; the plugin saves and offers nothing |
+
+Every other printer takes the tier 1 default.
 
 **The layer index.** The plugin's follower (`moonraker-plugin/helix_plr.py#LayerFollower`) builds the
 printing file's layer index while the print runs, so a resume scan starts at a layer
@@ -405,17 +421,19 @@ printer database's `storage` hint, so a CM4 with eMMC qualifies whatever its lis
 says and a listed eMMC model booted from an SD card does not; `unknown` falls back to
 the hint. `emmc` and `ssd` are wear-tolerant; raw NAND only when the database says the
 model has it. `saving_enabled` is the user's `plr_user.enabled` when set, else
-wear-tolerant storage on a printer listed at tier 1 or above. Saving also needs the
+wear-tolerant storage on a profile at tier 1 or above, the unlisted default included. Saving also needs the
 feature available (`_saving()` and the `saving` field both require
-`availability()`), so an unlisted printer saves nothing even with `plr_user.enabled`
-true. The settings switch is offered wherever the feature is available, which needs
+`availability()`), so a printer at tier 0 or vetoed saves nothing even with
+`plr_user.enabled` true. The settings switch is offered wherever the feature is available, which needs
 the profile's tier to be 1 or more.
 
 `HelixPlr.availability()` is the feature's probe, read synchronously on every status
 call: Python 3.8 or newer, a `[virtual_sdcard]`, a writable snapshot store, and a
-profile tier of 1 or more (`not_listed` otherwise, a missing record included). The
-probe cannot read the database, so it answers from `listed_tier`, which every
-`profile()` read updates. The plugin reads the profile at component init, and a
+profile tier of 1 or more (the profile's `reason` otherwise, `not_listed` without
+one or with no record), and for an unlisted profile no veto (the veto's code). The
+probe cannot read the database, so it answers from `listed_tier`, `listed` and
+`listed_reason`, which every `profile()` read updates, and from `guard`, which
+Klippy ready sets. The plugin reads the profile at component init, and a
 features status reads the switch (`feature_enabled()`, which reads the profile) before
 the probe, so a profile the app writes shows in the next status; the app re-reads the
 features map once the stored profile matches what it resolved.
@@ -424,8 +442,8 @@ features map once the stored profile matches what it resolved.
 
 | Tier | Z handling |
 |------|-----------|
-| 0 | Nothing offered, saving off by default. Every printer without a `plr` block |
-| 1 | Assisted: the user jogs the nozzle down onto the top of the print and confirms |
+| 0 | Nothing offered, nothing saved. A model listed at tier 0, or an unlisted printer the plugin vetoes |
+| 1 | Assisted: the user jogs the nozzle down onto the top of the print and confirms. Every printer without a `plr` block |
 | 2 | Trusted: the Z the steppers held, measured in the snapshot, with one visual confirm. Needs `z_holds_unpowered` |
 | 3 | Re-referenced (probe a part-free spot, or home Z to max). Not built; acts as tier 2 |
 
@@ -442,11 +460,14 @@ The block in `assets/config/printer_database.json`, parsed by `plr_parse_db_bloc
 | `purge_gcode` | none | A purge macro; none means the generic purge line |
 | `resume_skip_fraction` | 0.0 | See "Where it resumes" |
 | `macro_vars` | none | `{macro: [variable, ...]}` saved in the snapshot and restored with `SET_GCODE_VARIABLE` |
+| `reason` | none | Why the model sits at its tier, as the plugin's reason code; reported while the tier is 0 |
+| `note` | none | Evidence for the listing; not read by the code |
 
 The app writes the resolved profile as `plr_profile` (above). The plugin also reads
 `nozzle_standby_drop_c` from that record (default 70 °C); the app does not write it, so
 the default applies. `parse_profile` gives any missing or wrongly typed key its default,
-and a missing record is tier 0.
+and a missing record is tier 0. A record without `listed` reads as listed: an app
+that does not write the key resolves an unlisted printer to tier 0.
 
 `HelixPlr.backend` turns the profile into what PLR acts with: the tier is capped at 2
 and lowered to 1 without `z_holds_unpowered`; `qidi_print_state` needs the QIDI adapter
@@ -459,6 +480,22 @@ for X or Y and its G-code homes Z or a bare `G28` (`override_homes_z`), sets
 `set_position_z` (`override_sets_z`), or runs any command not on the short list known to
 leave Z alone (`override_unknown`; template tags are stripped first). Unsafe with the
 default `xy_home_gcode` makes the effective tier 0.
+
+**The default for an unlisted printer** (`unlisted_guard`, at Klippy ready, for a
+`listed: false` profile only). The database cannot vouch for a printer it does not
+list, so the plugin vetoes the default where Klipper shows a design the default
+is wrong for, and reports the code as the feature's reason:
+
+| Evidence | Code |
+|---|---|
+| A `[quad_gantry_level]` section | `gantry_drops`: a belted flying gantry drops and racks unpowered, and levelling probes over the part |
+| `print_stats.power_loss` or `virtual_sdcard.pl_env_valid` in the status, or the QIDI print_state adapter selected | `firmware_recovery`: the firmware runs its own recovery |
+
+A veto that changes sends `helix_print:helix_features_changed`, so a screen that
+read the features before Klippy was ready reads them again. The delta and homing
+checks above apply to the default as to any profile. Klipper does not report
+whether a Z stepper holds unpowered; tier 1 does not depend on it, since the
+user sets Z on the part.
 
 ### Offer rules
 
@@ -617,11 +654,12 @@ with, so a second outage can load it again.
 ### Endpoints, events and confirmations
 
 `server.helix.status` reports the feature as
-`"plr": {"version": 2, "available", "enabled", "reason", "saving"}`. `enabled` is "saving
+`"plr": {"version": 3, "available", "enabled", "reason", "saving"}`. `enabled` is "saving
 is on, or a saved snapshot is waiting", so switching saving off does not withdraw an
 offer already saved; `saving` is the switch as applied and is what the settings row
 shows. `reason` when unavailable: `python_too_old`, `no_virtual_sdcard`,
-`store_unwritable`, `not_listed`.
+`store_unwritable`, `not_listed`, or a tier-0 profile's or the veto's code
+(`gantry_drops`, `delta_kinematics`, `firmware_recovery`).
 
 | Method (JSON-RPC / HTTP) | Params | Reply |
 |---|---|---|
