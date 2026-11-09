@@ -354,7 +354,11 @@ they arrive in changes.
   only then does `0` mean none) caps the whole run, baseline included. At the
   cap the in-flight hunk is stopped and restored, and it and
   every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
-  `CLEAN`.
+  `CLEAN`. Each filter's baseline time is kept in the
+  checkout's build directory, as mutate-baseline-secs.json (a baseline the cap
+  cut off as a lower bound), and a baseline whose kept time exceeds what is left is not started:
+  its hunks read `UNEXAMINED` (unjudged in a pool) at once, so a large batch's
+  whole-suite fallback cannot spend the cap before any mutant runs.
 - SIGINT, SIGTERM and SIGHUP all stop it the same way: every child (make and
   its compilers, `git apply`, the suites) runs in its own process group and is
   stopped and reaped first, then every mutated file is written back from the
@@ -398,7 +402,7 @@ The verdicts are not interchangeable:
 | `SURVIVED` | the mutant ran and the suite stayed green: NO test detects it |
 | `uncompilable` / `unreversible` | a mutant was attempted but no test ever judged it. Never a kill: a compiler error proves the code is load-bearing for the build, not that anything tests its behaviour |
 | `skipped (declaration-only)` | every changed line of a C/C++ hunk is one of: a forward declaration (`class X;`, `enum class E : int;`), an access specifier or `friend class`, a `static_assert`, `#pragma once`, a class head with no `alignas` or base that is not changed between `class` and `struct`, or a member function or destructor declaration that is not `virtual` or `explicit` (changes to its signature, `const`, `noexcept` or `= delete` included, as long as `static`/`constexpr`/`inline` match the other side). Its revert can only fail to compile, so it is not built and never counts as a kill. Everything else is mutated: every `#include`, every data member, namespace-scope prototypes, aliases and externs, friend functions and operators, explicit specialisations and instantiations, initialisers, default arguments, inline bodies, enumerators, `#define`. `--no-skip-declarations` mutates them all |
-| `UNEXAMINED` | the run stopped (`--max-minutes`, or its parent exited) before reaching this hunk |
+| `UNEXAMINED` | the run stopped (`--max-minutes`, or its parent exited) before reaching this hunk, or its baseline was known not to fit in what was left |
 | `NOT COVERED` | nothing here can mutate that file, so the gate did not look at it |
 
 The run answers `CLEAN` only when every hunk it built was mutated and every
