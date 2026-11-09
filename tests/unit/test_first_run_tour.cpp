@@ -4,6 +4,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_select.h"
+#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "../helix_test_fixture.h"
@@ -182,6 +183,8 @@ TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar",
     CHECK(steps.front().target_name.empty());
     CHECK(steps.back().target_name == "nav_btn_settings");
     CHECK(step_titled(steps, "Customize your home screen").target_name == "fan_stack");
+    CHECK(step_titled(steps, "Customize your home screen").fallback_target_name == "printer_image");
+    CHECK(step_titled(steps, "Your printer at a glance").fallback_target_name == "print_status");
     CHECK_FALSE(has_title(steps, "New in 1.1"));
 }
 
@@ -245,6 +248,29 @@ TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
     Config::get_instance()->set<int>("/tour/last_seen_version", 1);
     REQUIRE(helix::tour::kTourVersion == 2);
     CHECK(FirstRunTour::should_auto_start());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels and stays there",
+                 "[tour]") {
+    reset_tour_settings();
+    auto& nav = NavigationManager::instance();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    nav.set_panels(panels.data());
+    nav.set_active(helix::PanelId::Home);
+
+    auto& t = FirstRunTour::instance();
+    t.start();
+    REQUIRE(t.is_running());
+
+    nav.set_active(helix::PanelId::Controls);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+
+    CHECK_FALSE(t.is_running());
+    CHECK(nav.get_active() == helix::PanelId::Controls);
+    CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
