@@ -104,6 +104,8 @@ std::string snapshot(const DispatchCase& c) {
 }
 
 const std::vector<DispatchCase>& cases() {
+    // One row per case, however long its expected line: a reflow rewraps the whole table.
+    // clang-format off
     static const std::vector<DispatchCase> rows = {
         // --- thermal ---------------------------------------------------------
         {PT::VORON_24,
@@ -607,7 +609,7 @@ const std::vector<DispatchCase>& cases() {
          nullptr,
          true,
          {"M106 S128"},
-         R"G(M106 S128 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.5019607843137255}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S128 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":3413.0,"speed":0.5019607843137255}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
@@ -619,25 +621,25 @@ const std::vector<DispatchCase>& cases() {
          nullptr,
          true,
          {"M106 S300"},
-         R"G(M106 S300 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S300 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":6800.0,"speed":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M106"},
-         R"G(M106 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":0.0,"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M106 S100 M107"},
-         R"G(M106 S100 M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.39215686274509803}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S100 M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":2667.0,"speed":0.39215686274509803}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M107"},
-         R"G(M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":0.0,"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
@@ -1427,6 +1429,7 @@ const std::vector<DispatchCase>& cases() {
          {"G28", "M117 done", "M104 S0"},
          R"G(G28 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"homed_axes":"xyz"}},0.0]}} ;; M117 done => rc=0 err=[] {{"method":"notify_status_update","params":[{"display_status":{"message":"done"}},0.0]}} ;; M104 S0 => rc=0 err=[] {{"method":"notify_status_update","params":[{"extruder":{"target":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
     };
+    // clang-format on
     return rows;
 }
 

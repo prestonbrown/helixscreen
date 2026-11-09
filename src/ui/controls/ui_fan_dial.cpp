@@ -24,6 +24,14 @@ using namespace helix;
 // FanDial Implementation
 // ============================================================================
 
+FanDial::RpmSubject::RpmSubject() {
+    lv_subject_init_int(&subject, 0);
+}
+
+FanDial::RpmSubject::~RpmSubject() {
+    lv_subject_deinit(&subject);
+}
+
 FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& fan_id,
                  int initial_speed, bool label_bottom)
     : name_(name), fan_id_(fan_id), current_speed_(initial_speed) {
@@ -60,6 +68,12 @@ FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& f
 
     if (!arc_ || !speed_label_ || !onoff_switch_ || !onoff_label_) {
         return;
+    }
+
+    if (lv_obj_t* rpm_label = helix::ui::find_required(root_, "rpm_label", "FanDial")) {
+        rpm_ = std::make_unique<RpmSubject>();
+        lv_label_bind_text(rpm_label, &rpm_->subject, "%d RPM");
+        lv_obj_bind_flag_if_eq(rpm_label, &rpm_->subject, LV_OBJ_FLAG_HIDDEN, 0);
     }
 
     // Set rotation pivot on fan icon for spin animation
@@ -134,7 +148,7 @@ FanDial::~FanDial() {
 FanDial::FanDial(FanDial&& other) noexcept
     : root_(other.root_.get()), arc_(other.arc_.get()), speed_label_(other.speed_label_),
       fan_icon_(other.fan_icon_.get()), onoff_switch_(other.onoff_switch_.get()),
-      onoff_label_(other.onoff_label_), name_(std::move(other.name_)),
+      onoff_label_(other.onoff_label_), rpm_(std::move(other.rpm_)), name_(std::move(other.name_)),
       fan_id_(std::move(other.fan_id_)), current_speed_(other.current_speed_),
       on_speed_changed_(std::move(other.on_speed_changed_)),
       on_icon_clicked_(std::move(other.on_icon_clicked_)), syncing_(other.syncing_),
@@ -200,6 +214,7 @@ FanDial& FanDial::operator=(FanDial&& other) noexcept {
         fan_icon_ = other.fan_icon_.get();
         onoff_switch_ = other.onoff_switch_.get();
         onoff_label_ = other.onoff_label_;
+        rpm_ = std::move(other.rpm_);
         name_ = std::move(other.name_);
         fan_id_ = std::move(other.fan_id_);
         current_speed_ = other.current_speed_;
@@ -285,6 +300,16 @@ void FanDial::set_speed(int percent) {
 void FanDial::restore_speed(int percent) {
     last_user_input_ = 0;
     set_speed(percent);
+}
+
+void FanDial::set_rpm(std::optional<int> rpm) {
+    if (!rpm_) {
+        return;
+    }
+    const int value = rpm.value_or(0) > 0 ? *rpm : 0;
+    if (lv_subject_get_int(&rpm_->subject) != value) {
+        lv_subject_set_int(&rpm_->subject, value);
+    }
 }
 
 int FanDial::get_speed() const {

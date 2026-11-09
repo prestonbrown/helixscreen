@@ -21,6 +21,9 @@
             event_bubble="true">
       <icon name="fan_icon" src="fan" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
       <text_heading name="speed_label" text="Off" clickable="false" event_bubble="true"/>
+      <!-- Tachometer reading: FanDial binds its text and visibility; hidden on every other user -->
+      <text_tiny name="rpm_label"
+                 text="" hidden="true" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
     </lv_obj>
   </view>
 </component>

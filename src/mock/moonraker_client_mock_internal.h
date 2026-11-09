@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <functional>
 #include <string>
@@ -89,6 +90,15 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
         return 0.05;
     }
     return std::clamp(gap / 10.0, 0.1, 1.0);
+}
+
+// The part fan's tachometer at full speed. Klipper reports `rpm` for a fan with a
+// tachometer_pin; the mock's part fan has one, reading in proportion to its speed.
+constexpr double kMockPartFanMaxRpm = 6800.0;
+
+/// The part fan's status block, as every frame the mock serves carries it.
+[[nodiscard]] inline nlohmann::json part_fan_status(double speed) {
+    return {{"speed", speed}, {"rpm", speed > 0.0 ? std::round(kMockPartFanMaxRpm * speed) : 0.0}};
 }
 
 /**
