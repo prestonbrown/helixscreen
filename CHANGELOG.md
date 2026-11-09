@@ -5,6 +5,16 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.19] - UNRELEASED
+
+### Added
+
+- **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
+
+### Fixed
+
+- **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+
 ## [1.1.0-beta.18] - 2026-11-08
 
 ### Added
