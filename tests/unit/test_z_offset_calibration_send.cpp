@@ -34,6 +34,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -530,7 +531,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
                                 {{"homed_axes", "xyz"},
                                  {"axis_minimum", json::array({0.0, 0.0, 0.0, 0.0})},
                                  {"axis_maximum", json::array({350.0, 350.0, 340.0, 0.0})}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     discover_eddy();
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
@@ -538,19 +539,19 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(client.last_send_script().find("PROBE_EDDY_CURRENT_CALIBRATE") != std::string::npos);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
     REQUIRE(helix::sensors::ProbeSensorManager::instance().get_sensors().empty());
 
     ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 
     SECTION("accept") {
         ZOffsetCalibrationTestAccess::send_accept(panel);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         const auto sent = client.gcode_script_history();
         CHECK(std::find(sent.begin(), sent.end(), "ACCEPT") != sent.end());
         CHECK(std::none_of(sent.begin(), sent.end(), [](const std::string& s) {
@@ -560,7 +561,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     SECTION("abort") {
         ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::ADJUSTING);
         panel.on_deactivate(DeactivateReason::NavigateAway);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(client.last_send_script() == "ABORT");
     }
 }
@@ -578,12 +579,12 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::begin_probe_sequence(panel);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    ZOffsetCalibrationTestAccess::on_calibration_result(panel, false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    ZOffsetCalibrationTestAccess::send_accept(panel);
 
     helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
     ZOffsetCalibrationTestAccess::adjust_z(panel, 0.05f);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     const auto sent = client.gcode_script_history();
     CHECK(std::any_of(sent.begin(), sent.end(), [](const std::string& s) {
         return s.find("G1 Z0.050 F300") != std::string::npos;
@@ -751,6 +752,62 @@ TEST_CASE_METHOD(ToolGateFixture,
     press("btn_primary");
     CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
     CHECK(client.last_send_script().empty());
+}
+
+namespace {
+/// An eddy probe for one case; the probe manager is process-wide.
+struct EddyScope {
+    EddyScope() {
+        discover_eddy();
+    }
+    ~EddyScope() {
+        helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration start: an eddy on a firmware-managed printer asks for the "
+                 "reference tool",
+                 "[zoffset][calibration][reference_tool][eddy][1994]") {
+    // The eddy runs its own probe calibration here, so the reference tool matters.
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        get_printer_state(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    EddyScope eddy;
+    panel.on_activate();
+    mount(1);
+    start();
+    CHECK(Modal::get_top() != nullptr);
+    CHECK(client.last_send_script().empty());
+}
+
+// A manual probe session the panel did not start keeps the strategy it was
+// picked up with: a rediscovery that drops the eddy must not turn its jogs into G1.
+TEST_CASE_METHOD(ToolGateFixture,
+                 "Calibration session: a session picked up from Klipper keeps its strategy",
+                 "[zoffset][eddy][1994]") {
+    helix::PrinterStateTestAccess::pin_z_offset_strategy(
+        get_printer_state(), ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    EddyScope eddy;
+    std::optional<ManualProbeActive> session;
+    SECTION("running when the panel opens") {
+        session.emplace(true);
+        panel.on_activate();
+    }
+    SECTION("starting while the panel is open") {
+        panel.init_subjects();
+        REQUIRE(panel.create(test_screen()) != nullptr);
+        panel.on_activate();
+        REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+        session.emplace(true);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::ADJUSTING);
+
+    helix::sensors::ProbeSensorManager::instance().discover(helix::PrinterDiscovery{});
+    ZOffsetCalibrationTestAccess::adjust_z(panel, -0.05f);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(client.last_send_script() == "TESTZ Z=-0.050");
 }
 
 // --- per-head offsets -------------------------------------------------------
