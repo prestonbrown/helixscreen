@@ -7,6 +7,7 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "filament_chip_model.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
 #include "gcode_preview_fetcher.h"
@@ -16,7 +17,6 @@
 #include "klipper_extruder_naming.h"
 #include "printer_detector.h"
 #include "printer_state.h"
-#include "text_io.h"
 #include "tools_used_cache.h"
 
 #include <spdlog/spdlog.h>
@@ -28,8 +28,6 @@
 
 namespace helix {
 
-namespace tio = helix::text_io;
-
 FileVersion file_version_of(const std::optional<FileMetadata>& metadata) {
     if (!metadata) {
         return {};
@@ -39,13 +37,7 @@ FileVersion file_version_of(const std::optional<FileMetadata>& metadata) {
 
 FilePalette file_palette_from_metadata(const FileMetadata& metadata) {
     FilePalette palette;
-    // Per-tool materials from the semicolon-separated metadata
-    // (e.g., "PLA;PLA;PETG" → ["PLA", "PLA", "PETG"])
-    if (!metadata.filament_type.empty()) {
-        for (std::string_view sv : tio::lines(metadata.filament_type, ';')) {
-            palette.materials.emplace_back(sv);
-        }
-    }
+    palette.materials = split_filament_types(metadata.filament_type);
     // Per-tool hex colors, parsed by Moonraker
     palette.colors = metadata.filament_colors;
     return palette;
