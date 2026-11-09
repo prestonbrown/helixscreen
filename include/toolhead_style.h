@@ -16,7 +16,12 @@ enum class ToolheadStyle : int8_t {
     JABBERWOCKY = 4,
     STEALTHBURNER = 5,
     CREALITY_K1 = 6,
-    CREALITY_K2 = 7
+    CREALITY_K2 = 7,
+    DRAGONBURNER = 8,
+    MINI_STEALTHBURNER = 9,
+    BAMBU = 10,
+    ENDER3_BOWDEN = 11,
+    ENDER3_INTEGRATED = 12
 };
 
 } // namespace helix

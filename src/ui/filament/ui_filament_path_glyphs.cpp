@@ -358,7 +358,13 @@ helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t sca
 
 // Nozzle tip Y for the configured style — anchors the heat glow halo.
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
-    switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    if (const helix::ui::ToolheadArt* art = helix::ui::toolhead_art_for(style)) {
+        const helix::ui::ToolheadArtRect r =
+            helix::ui::toolhead_art_rect(*art, 0, nozzle_y, drawn_scale(style, extruder_scale));
+        return r.y + static_cast<int32_t>(r.h * art->tip_y);
+    }
+    switch (style) {
     case helix::ToolheadStyle::A4T:
         return nozzle_y + (extruder_scale * 6 / 5 * 46) / 10 - 6;
     case helix::ToolheadStyle::STEALTHBURNER:

@@ -8,6 +8,7 @@
 #include "../lvgl_test_fixture.h"
 #include "filament_tube_stroker.h"
 #include "nozzle_renderer_dispatch.h"
+#include "toolhead_art.h"
 
 #include <algorithm>
 
@@ -105,7 +106,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Toolhead bounds hold every style's drawn pixe
             lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_TRANSP);
             lv_layer_t layer;
             lv_canvas_init_layer(canvas, &layer);
-            sc.draw(&layer, 200, 200, std::nullopt, s, LV_OPA_COVER);
+            if (!draw_toolhead_art(&layer, sc.style, 200, 200, std::nullopt, s, LV_OPA_COVER))
+                sc.draw(&layer, 200, 200, std::nullopt, s, LV_OPA_COVER);
             lv_canvas_finish_layer(canvas, &layer);
 
             int32_t x1 = 400, y1 = 400, x2 = -1, y2 = -1;
