@@ -2396,7 +2396,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Grabbed at its center with the pointer in the edge zone, the dwell runs
     // until the push carries the widget's majority across; that crossing cuts
@@ -2423,7 +2423,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.hold(2 * helix::kCrossPageDwellMs);
     CHECK(grid().page_index() == 1);
     CHECK(current_page() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(back_x, c.y);
 }
 
