@@ -320,6 +320,7 @@ translations:
   Added to queue (position {}): Добавлено в очередь (позиция {})
   Added to queue (position {}) - queue is paused: Добавлено в очередь (позиция {}) – очередь на паузе
   Adding printer: Добавление принтера
+  Adding the timelapse plugin to Moonraker...: 'Добавление плагина таймлапса в Moonraker...'
   Adding to queue...: Добавление в очередь...
   Address: Адрес
   'Adds to:': 'Добавляет в:'
@@ -829,6 +830,7 @@ translations:
   Checking extruders...: Проверка экструдеров...
   Checking file…: 'Проверка файла…'
   Checking filament...: Проверка филамента...
+  Checking for ffmpeg...: 'Поиск ffmpeg...'
   Checking for plugin...: Поиск плагина...
   Checking for webcam...: Проверка веб-камеры...
   Checking plugin: Проверка плагина
@@ -1069,6 +1071,7 @@ translations:
   Corner roundness: Скругление углов
   Corners differ by {} mm: "Разница углов {} мм"
   Correction (Ki): Коррекция (Ki)
+  Could not add the timelapse plugin to Moonraker.: 'Не удалось добавить плагин таймлапса в Moonraker.'
   Could not add to queue: Не удалось добавить в очередь
   Could not analyze PRINT_START macro. Some print options may be unavailable.: Не
     удалось проанализировать макрос PRINT_START. Некоторые параметры печати могут
@@ -1108,6 +1111,7 @@ translations:
   Could not copy the printer's layout: "Не удалось скопировать раскладку принтера"
   'Could not copy {} from USB: {}': 'Не удалось скопировать {} с USB: {}'
   Could not disconnect from WiFi: Не удалось отключиться от WiFi
+  Could not download the timelapse plugin. Check the printer's internet connection.: 'Не удалось скачать плагин таймлапса. Проверьте подключение принтера к интернету.'
   'Could not extract plate {} of {}: {}': 'Не удалось извлечь пластину {} из {}: {}'
   Could not forget device: Не удалось забыть устройство
   Could not free space: 'Не удалось освободить место'
@@ -1312,6 +1316,7 @@ translations:
   Door switches, buttons, and other on/off inputs: Датчики дверей, кнопки и другие входы вкл/выкл
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
+  Downloading the timelapse plugin...: 'Загрузка плагина таймлапса...'
   Downloading...: Загрузка...
   Downloading... {:.1f}/{:.1f} MB: Загрузка... {:.1f}/{:.1f} МБ
   Draw a ripple at each touch — helps diagnose offsets: Рисовать круг при каждом касании
@@ -2158,6 +2163,9 @@ translations:
   Installation timed out. The script may be stuck.: Время установки истекло. Скрипт
     мог зависнуть.
   Installed: 'Установлено'
+  Installing ffmpeg. This can take several minutes...: 'Установка ffmpeg. Это может занять несколько минут...'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'Установка перезапускает Moonraker, поэтому ждёт, пока печать не завершится или не будет отменена.'
+  Installing the timelapse plugin...: 'Установка плагина таймлапса...'
   Installing...: Установка...
   Intensity: Интенсивность
   Interactive calibration for all lanes: 'Интерактивная калибровка всех каналов'
@@ -4472,6 +4480,8 @@ translations:
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  : 'Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который HelixScreen не смог установить без пароля.'
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
   The tool change under way finished, and {} was not put back on the carriage: 'Текущая смена инструмента завершена, {} не возвращён на каретку'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?
@@ -4664,6 +4674,7 @@ translations:
   Tips: 'Советы'
   Tips database format error: Ошибка формата базы данных советов
   Tips database not found: База данных советов не найдена
+  'To make videos, run this on your printer via SSH:': 'Чтобы создавать видео, выполните это на принтере через SSH:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."

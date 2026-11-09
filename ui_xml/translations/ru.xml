@@ -301,6 +301,7 @@
   <translation tag="Added to queue (position {})" ru="Добавлено в очередь (позиция {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" ru="Добавлено в очередь (позиция {}) – очередь на паузе"/>
   <translation tag="Adding printer" ru="Добавление принтера"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." ru="Добавление плагина таймлапса в Moonraker..."/>
   <translation tag="Adding to queue..." ru="Добавление в очередь..."/>
   <translation tag="Address" ru="Адрес"/>
   <translation tag="Adds to:" ru="Добавляет в:"/>
@@ -764,6 +765,7 @@
   <translation tag="Checking extruders..." ru="Проверка экструдеров..."/>
   <translation tag="Checking filament..." ru="Проверка филамента..."/>
   <translation tag="Checking file…" ru="Проверка файла…"/>
+  <translation tag="Checking for ffmpeg..." ru="Поиск ffmpeg..."/>
   <translation tag="Checking for plugin..." ru="Поиск плагина..."/>
   <translation tag="Checking for webcam..." ru="Проверка веб-камеры..."/>
   <translation tag="Checking plugin" ru="Проверка плагина"/>
@@ -981,6 +983,7 @@
   <translation tag="Corner roundness" ru="Скругление углов"/>
   <translation tag="Corners differ by {} mm" ru="Разница углов {} мм"/>
   <translation tag="Correction (Ki)" ru="Коррекция (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." ru="Не удалось добавить плагин таймлапса в Moonraker."/>
   <translation tag="Could not add to queue" ru="Не удалось добавить в очередь"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ru="Не удалось проанализировать макрос PRINT_START. Некоторые параметры печати могут быть недоступны."/>
   <translation tag="Could not answer the connection request" ru="Не удалось ответить на запрос подключения"/>
@@ -992,6 +995,7 @@
   <translation tag="Could not copy the printer&apos;s layout" ru="Не удалось скопировать раскладку принтера"/>
   <translation tag="Could not copy {} from USB: {}" ru="Не удалось скопировать {} с USB: {}"/>
   <translation tag="Could not disconnect from WiFi" ru="Не удалось отключиться от WiFi"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." ru="Не удалось скачать плагин таймлапса. Проверьте подключение принтера к интернету."/>
   <translation tag="Could not extract plate {} of {}: {}" ru="Не удалось извлечь пластину {} из {}: {}"/>
   <translation tag="Could not forget device" ru="Не удалось забыть устройство"/>
   <translation tag="Could not free space" ru="Не удалось освободить место"/>
@@ -1190,6 +1194,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" ru="Датчики дверей, кнопки и другие входы вкл/выкл"/>
   <translation tag="Download update?" ru="Загрузить обновление?"/>
   <translation tag="Download v{}?" ru="Загрузить v{}?"/>
+  <translation tag="Downloading the timelapse plugin..." ru="Загрузка плагина таймлапса..."/>
   <translation tag="Downloading..." ru="Загрузка..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ru="Загрузка... {:.1f}/{:.1f} МБ"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ru="Рисовать круг при каждом касании — помогает диагностировать смещения"/>
@@ -1974,6 +1979,9 @@
   <translation tag="Installation timed out" ru="Время установки истекло"/>
   <translation tag="Installation timed out. The script may be stuck." ru="Время установки истекло. Скрипт мог зависнуть."/>
   <translation tag="Installed" ru="Установлено"/>
+  <translation tag="Installing ffmpeg. This can take several minutes..." ru="Установка ffmpeg. Это может занять несколько минут..."/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ru="Установка перезапускает Moonraker, поэтому ждёт, пока печать не завершится или не будет отменена."/>
+  <translation tag="Installing the timelapse plugin..." ru="Установка плагина таймлапса..."/>
   <translation tag="Installing..." ru="Установка..."/>
   <translation tag="Intensity" ru="Интенсивность"/>
   <translation tag="Interactive calibration for all lanes" ru="Интерактивная калибровка всех каналов"/>
@@ -4111,6 +4119,7 @@
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ru="Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." ru="Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который HelixScreen не смог установить без пароля."/>
   <translation tag="The tool change under way finished, and the tool was not parked" ru="Текущая смена инструмента завершена, инструмент не припаркован"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ru="Текущая смена инструмента завершена, {} не возвращён на каретку"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
@@ -4259,6 +4268,7 @@
   <translation tag="Tips" ru="Советы"/>
   <translation tag="Tips database format error" ru="Ошибка формата базы данных советов"/>
   <translation tag="Tips database not found" ru="База данных советов не найдена"/>
+  <translation tag="To make videos, run this on your printer via SSH:" ru="Чтобы создавать видео, выполните это на принтере через SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Без плагина HelixPrint в историю печати попадает изменённая копия, поэтому выполненные задания отображаются под именами вроде modified_1730824_benchy.gcode вместо выбранного файла.&#10;&#10;Установка плагина занимает немного времени и не требует перезапуска."/>
   <translation tag="Toggle" ru="Переключить"/>

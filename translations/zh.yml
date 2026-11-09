@@ -266,6 +266,7 @@ translations:
   Added to queue (position {}): 已添加到队列（第 {} 位）
   Added to queue (position {}) - queue is paused: 已添加到队列（第 {} 位）– 队列已暂停
   Adding printer: 正在添加打印机
+  Adding the timelapse plugin to Moonraker...: '正在将延时摄影插件添加到 Moonraker...'
   Adding to queue...: 正在添加到队列...
   Address: 地址
   'Adds to:': '添加到:'
@@ -732,6 +733,7 @@ translations:
   Checking extruders...: 正在检查挤出机...
   Checking file…: '正在检查文件…'
   Checking filament...: 正在检查耗材……
+  Checking for ffmpeg...: '正在检查 ffmpeg...'
   Checking for plugin...: 正在检查插件...
   Checking for webcam...: 正在检查摄像头...
   Checking plugin: 正在检查插件
@@ -953,6 +955,7 @@ translations:
   Corner roundness: 圆角程度
   Corners differ by {} mm: "四角相差 {} mm"
   Correction (Ki): 校正 (Ki)
+  Could not add the timelapse plugin to Moonraker.: '无法将延时摄影插件添加到 Moonraker。'
   Could not add to queue: 无法添加到队列
   Could not analyze PRINT_START macro. Some print options may be unavailable.: 无法分析
     PRINT_START 宏。部分打印选项可能不可用。
@@ -991,6 +994,7 @@ translations:
   Could not copy the printer's layout: "无法复制打印机的布局"
   'Could not copy {} from USB: {}': '无法从 USB 复制 {}：{}'
   Could not disconnect from WiFi: 无法断开 WiFi 连接
+  Could not download the timelapse plugin. Check the printer's internet connection.: '无法下载延时摄影插件。请检查打印机的网络连接。'
   'Could not extract plate {} of {}: {}': '无法提取第 {} 号板（{}）: {}'
   Could not forget device: 无法忘记设备
   Could not free space: '无法释放空间'
@@ -1194,6 +1198,7 @@ translations:
   Door switches, buttons, and other on/off inputs: 门开关、按钮及其他开/关输入
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
+  Downloading the timelapse plugin...: '正在下载延时摄影插件...'
   Downloading...: 下载中...
   Downloading... {:.1f}/{:.1f} MB: 下载中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: 在每次触摸时绘制涟漪 — 有助于诊断偏移
@@ -2000,6 +2005,9 @@ translations:
   Installation timed out: 安装超时
   Installation timed out. The script may be stuck.: 安装超时。脚本可能已卡住。
   Installed: '已安装'
+  Installing ffmpeg. This can take several minutes...: '正在安装 ffmpeg，可能需要几分钟...'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: '安装会重启 Moonraker，因此会等到打印完成或取消后再进行。'
+  Installing the timelapse plugin...: '正在安装延时摄影插件...'
   Installing...: 正在安装...
   Intensity: 强度
   Interactive calibration for all lanes: '所有耗材通道的交互式校准'
@@ -4198,6 +4206,8 @@ translations:
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  : '延时摄影插件已安装。生成视频还需要 ffmpeg，但 HelixScreen 无法在没有密码的情况下安装它。'
   The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
   The tool change under way finished, and {} was not put back on the carriage: '正在进行的换工具已完成，{}未放回打印头'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
@@ -4373,6 +4383,7 @@ translations:
   Tips: '提示'
   Tips database format error: 提示数据库格式错误
   Tips database not found: 未找到提示数据库
+  'To make videos, run this on your printer via SSH:': '要生成视频，请通过 SSH 在打印机上运行：'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : 为了映射耗材，HelixScreen 会在打印前改写任务文件。此打印机的 Moonraker 版本过旧，HelixPrint 插件无法在之后恢复原始文件名，因此完成的任务将以改写后的名称显示。耗材映射本身可正常工作。
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."

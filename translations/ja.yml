@@ -267,6 +267,7 @@ translations:
   Added to queue (position {}): キューに追加しました（{} 番目）
   Added to queue (position {}) - queue is paused: キューに追加しました（{} 番目）– キューは一時停止中です
   Adding printer: プリンターを追加中
+  Adding the timelapse plugin to Moonraker...: 'タイムラプスプラグインをMoonrakerに追加中...'
   Adding to queue...: キューに追加中...
   Address: アドレス
   'Adds to:': '追加先:'
@@ -733,6 +734,7 @@ translations:
   Checking extruders...: エクストルーダーを確認中...
   Checking file…: 'ファイルを確認中…'
   Checking filament...: フィラメントを確認中...
+  Checking for ffmpeg...: 'ffmpegを確認中...'
   Checking for plugin...: プラグインを確認中...
   Checking for webcam...: ウェブカメラを確認中...
   Checking plugin: プラグインを確認中
@@ -955,6 +957,7 @@ translations:
   Corner roundness: 角の丸み
   Corners differ by {} mm: "四隅の差 {} mm"
   Correction (Ki): 補正 (Ki)
+  Could not add the timelapse plugin to Moonraker.: 'タイムラプスプラグインをMoonrakerに追加できませんでした。'
   Could not add to queue: キューに追加できませんでした
   Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START
     マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
@@ -993,6 +996,7 @@ translations:
   Could not copy the printer's layout: "プリンターのレイアウトをコピーできませんでした"
   'Could not copy {} from USB: {}': '{} を USB からコピーできませんでした: {}'
   Could not disconnect from WiFi: WiFi から切断できませんでした
+  Could not download the timelapse plugin. Check the printer's internet connection.: 'タイムラプスプラグインをダウンロードできませんでした。プリンターのインターネット接続を確認してください。'
   'Could not extract plate {} of {}: {}': 'プレート {} を {} から抽出できませんでした: {}'
   Could not forget device: デバイスの登録を解除できませんでした
   Could not free space: '空き容量を確保できませんでした'
@@ -1197,6 +1201,7 @@ translations:
   Door switches, buttons, and other on/off inputs: ドアスイッチ、ボタン、その他のオン/オフ入力
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
+  Downloading the timelapse plugin...: 'タイムラプスプラグインをダウンロード中...'
   Downloading...: ダウンロード中...
   Downloading... {:.1f}/{:.1f} MB: ダウンロード中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: タッチごとに波紋を描画 — ズレの診断に役立ちます
@@ -2005,6 +2010,9 @@ translations:
   Installation timed out: インストールがタイムアウトしました
   Installation timed out. The script may be stuck.: インストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Installed: 'インストール済み'
+  Installing ffmpeg. This can take several minutes...: 'ffmpegをインストール中。数分かかることがあります...'
+  Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。'
+  Installing the timelapse plugin...: 'タイムラプスプラグインをインストール中...'
   Installing...: インストール中...
   Intensity: 強度
   Interactive calibration for all lanes: '全レーンの対話式キャリブレーション'
@@ -4207,6 +4215,8 @@ translations:
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  : 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、HelixScreenはパスワードなしではインストールできませんでした。'
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
   The tool change under way finished, and {} was not put back on the carriage: '実行中のツール変更は完了し、{}はキャリッジに戻されていません'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？
@@ -4382,6 +4392,7 @@ translations:
   Tips: 'ヒント'
   Tips database format error: ヒントデータベースの形式エラー
   Tips database not found: ヒントデータベースが見つかりません
+  'To make videos, run this on your printer via SSH:': '動画を作成するには、SSHでプリンター上で次を実行してください:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。このプリンターのMoonrakerは旧バージョンのため、HelixPrintプラグインが後から元のファイル名を復元できず、完了したジョブは書き換え後の名前で表示されます。フィラメントマッピング自体は正常に動作します。
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."

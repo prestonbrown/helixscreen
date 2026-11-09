@@ -57,7 +57,8 @@
                   height="content" style_bg_color="#overlay_bg" style_radius="#border_radius" style_pad_all="#space_sm"
                   style_bg_opa="255">
             <text_small name="ffmpeg_command"
-                        width="100%" text="sudo apt-get install -y ffmpeg" style_text_color="#text" long_mode="wrap"/>
+                        width="100%" bind_text="timelapse_install_ffmpeg_command" style_text_color="#text"
+                        long_mode="wrap"/>
           </lv_obj>
         </lv_obj>
       </lv_obj>

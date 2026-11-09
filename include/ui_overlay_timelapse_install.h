@@ -135,6 +135,8 @@ class TimelapseInstallOverlay : public OverlayBase {
     char action_text_buf_[64] = {};
     lv_subject_t action_visible_subject_{};
     lv_subject_t card_subject_{};
+    lv_subject_t ffmpeg_command_subject_{};
+    char ffmpeg_command_buf_[64] = {};
 
     /// The local install left ffmpeg missing; the last screen says how to add it
     bool ffmpeg_missing_ = false;

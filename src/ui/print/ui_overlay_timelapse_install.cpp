@@ -71,6 +71,9 @@ void TimelapseInstallOverlay::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(card_subject_, static_cast<int>(Card::None),
                                "timelapse_install_card", subjects_);
+        UI_MANAGED_SUBJECT_STRING(ffmpeg_command_subject_, ffmpeg_command_buf_,
+                                  kFfmpegInstallCommand, "timelapse_install_ffmpeg_command",
+                                  subjects_);
     });
 }
 

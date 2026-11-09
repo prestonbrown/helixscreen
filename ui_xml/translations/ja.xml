@@ -265,6 +265,7 @@
   <translation tag="Added to queue (position {})" ja="キューに追加しました（{} 番目）"/>
   <translation tag="Added to queue (position {}) - queue is paused" ja="キューに追加しました（{} 番目）– キューは一時停止中です"/>
   <translation tag="Adding printer" ja="プリンターを追加中"/>
+  <translation tag="Adding the timelapse plugin to Moonraker..." ja="タイムラプスプラグインをMoonrakerに追加中..."/>
   <translation tag="Adding to queue..." ja="キューに追加中..."/>
   <translation tag="Address" ja="アドレス"/>
   <translation tag="Adds to:" ja="追加先:"/>
@@ -722,6 +723,7 @@
   <translation tag="Checking extruders..." ja="エクストルーダーを確認中..."/>
   <translation tag="Checking filament..." ja="フィラメントを確認中..."/>
   <translation tag="Checking file…" ja="ファイルを確認中…"/>
+  <translation tag="Checking for ffmpeg..." ja="ffmpegを確認中..."/>
   <translation tag="Checking for plugin..." ja="プラグインを確認中..."/>
   <translation tag="Checking for webcam..." ja="ウェブカメラを確認中..."/>
   <translation tag="Checking plugin" ja="プラグインを確認中"/>
@@ -936,6 +938,7 @@
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Corners differ by {} mm" ja="四隅の差 {} mm"/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
+  <translation tag="Could not add the timelapse plugin to Moonraker." ja="タイムラプスプラグインをMoonrakerに追加できませんでした。"/>
   <translation tag="Could not add to queue" ja="キューに追加できませんでした"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." ja="PRINT_START マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。"/>
   <translation tag="Could not answer the connection request" ja="接続リクエストに応答できませんでした"/>
@@ -947,6 +950,7 @@
   <translation tag="Could not copy the printer&apos;s layout" ja="プリンターのレイアウトをコピーできませんでした"/>
   <translation tag="Could not copy {} from USB: {}" ja="{} を USB からコピーできませんでした: {}"/>
   <translation tag="Could not disconnect from WiFi" ja="WiFi から切断できませんでした"/>
+  <translation tag="Could not download the timelapse plugin. Check the printer&apos;s internet connection." ja="タイムラプスプラグインをダウンロードできませんでした。プリンターのインターネット接続を確認してください。"/>
   <translation tag="Could not extract plate {} of {}: {}" ja="プレート {} を {} から抽出できませんでした: {}"/>
   <translation tag="Could not forget device" ja="デバイスの登録を解除できませんでした"/>
   <translation tag="Could not free space" ja="空き容量を確保できませんでした"/>
@@ -1145,6 +1149,7 @@
   <translation tag="Door switches, buttons, and other on/off inputs" ja="ドアスイッチ、ボタン、その他のオン/オフ入力"/>
   <translation tag="Download update?" ja="アップデートをダウンロードしますか？"/>
   <translation tag="Download v{}?" ja="v{}をダウンロードしますか？"/>
+  <translation tag="Downloading the timelapse plugin..." ja="タイムラプスプラグインをダウンロード中..."/>
   <translation tag="Downloading..." ja="ダウンロード中..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" ja="ダウンロード中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" ja="タッチごとに波紋を描画 — ズレの診断に役立ちます"/>
@@ -1926,6 +1931,9 @@
   <translation tag="Installation timed out" ja="インストールがタイムアウトしました"/>
   <translation tag="Installation timed out. The script may be stuck." ja="インストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Installed" ja="インストール済み"/>
+  <translation tag="Installing ffmpeg. This can take several minutes..." ja="ffmpegをインストール中。数分かかることがあります..."/>
+  <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ja="インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。"/>
+  <translation tag="Installing the timelapse plugin..." ja="タイムラプスプラグインをインストール中..."/>
   <translation tag="Installing..." ja="インストール中..."/>
   <translation tag="Intensity" ja="強度"/>
   <translation tag="Interactive calibration for all lanes" ja="全レーンの対話式キャリブレーション"/>
@@ -4048,6 +4056,7 @@
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ja="タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." ja="タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、HelixScreenはパスワードなしではインストールできませんでした。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" ja="実行中のツール変更は完了し、ツールは格納されていません"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" ja="実行中のツール変更は完了し、{}はキャリッジに戻されていません"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
@@ -4196,6 +4205,7 @@
   <translation tag="Tips" ja="ヒント"/>
   <translation tag="Tips database format error" ja="ヒントデータベースの形式エラー"/>
   <translation tag="Tips database not found" ja="ヒントデータベースが見つかりません"/>
+  <translation tag="To make videos, run this on your printer via SSH:" ja="動画を作成するには、SSHでプリンター上で次を実行してください:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." ja="フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。このプリンターのMoonrakerは旧バージョンのため、HelixPrintプラグインが後から元のファイル名を復元できず、完了したジョブは書き換え後の名前で表示されます。フィラメントマッピング自体は正常に動作します。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." ja="フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。HelixPrintプラグインがない場合、書き換えられたコピーが印刷履歴に残るため、完了したジョブは選んだファイルではなくmodified_1730824_benchy.gcodeのような名前で表示されます。&#10;&#10;プラグインのインストールはすぐに完了し、再起動は必要ありません。"/>
   <translation tag="Toggle" ja="トグル"/>
