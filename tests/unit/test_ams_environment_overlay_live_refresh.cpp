@@ -200,10 +200,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The dryer page glows only while its unit is
     CHECK(lv_anim_get(glow, nullptr) != nullptr);
 
     display.set_animations_enabled(false);
+    overlay.refresh(); // the setting applies at the next publish
     drain();
     CHECK(glow_is_on());
     CHECK(lv_anim_get(glow, nullptr) == nullptr);
     display.set_animations_enabled(true);
+    overlay.refresh(); // the setting applies at the next publish
     drain();
     CHECK(lv_anim_get(glow, nullptr) != nullptr);
 
