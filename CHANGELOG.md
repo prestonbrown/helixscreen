@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Plugin updates on Z-Mod** (#2086) - when the HelixPrint plugin needs a restart that only a reboot can give, the message now says to reboot the printer and stays in the notification history.
 - **Touch stops working on some Pi 5 screens** (#2069) - when a USB touch controller resets, as some HDMI touchscreens do when the picture changes, HelixScreen reopens it instead of losing touch until a restart.
 - **K2 "set up as stock" message** (#2087) - the type mismatch message now goes away once you change the printer type, instead of staying on screen.
+- **Z offset on the Snapmaker U1** (#2089) - the probe screen shows the printer's real Z offset instead of 0.000, and hides the value on printers that don't report one.
+- **Plugin updates on printers that can't restart Moonraker** (#2090) - when a restart for the HelixPrint plugin doesn't happen, HelixScreen says to reboot the printer and asks again on the next start, instead of giving up silently.
+- **Creator 5 Pro tool dock state at startup** (#2091) - the startup check of which tool is docked now runs once Klipper is ready, so a stale dock state is corrected.
+- **Forge-X on the AD5X** (#2092) - an AD5X running Forge-X is no longer mistaken for Z-Mod, and its telemetry id moves to the Forge-X state folder once.
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
