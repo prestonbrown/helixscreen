@@ -3,6 +3,7 @@
 
 #include "ui_spool_canvas.h"
 
+#include "ui_spool_canvas_internal.h"
 #include "ui_utils.h"
 
 #include "ams_tray_projection.h"
@@ -37,8 +38,6 @@
 // Flange size, depth skew and flange spacing are the tray's camera
 // (ams_tray_projection.h), shared with the box and lid.
 static constexpr float kHubRadius = 0.10f; // Center hub hole radius
-static constexpr int32_t kDefaultSize = 64;
-static constexpr uint32_t kDefaultColor = 0xE0E0E0; // Default white/light filament
 
 // The key light comes from above and in front, falling kLightDrop for each
 // unit it travels into the spool along its axis.
@@ -65,9 +64,6 @@ static constexpr float kFrontMaxFilament = 0.85f; // a full spool stops short of
 
 // Current-spool glow layer, grown from the spool's silhouette. Capable
 // hardware gets a soft halo and a tight rim; reduced effects a solid outline.
-namespace {
-enum class SpoolGlow : uint8_t { None, Outline, Halo };
-} // namespace
 static constexpr int kGlowHaloDilate = 3;
 static constexpr int kGlowHaloBoxR = 4; // three box passes ~ Gaussian sigma 4.5
 static constexpr int kGlowHaloPasses = 3;
@@ -125,22 +121,6 @@ static constexpr int kFillBuckets = 10;
 // Bucket 0 holds only empty spools, since they render differently from the
 // lowest filled ones.
 static constexpr float kEmptyFill = 0.01f;
-
-struct SpoolCacheKey {
-    uint32_t color_rgb; // 0x00RRGGBB
-    uint16_t size;
-    uint8_t fill_bucket; // 0..kFillBuckets
-    SpoolGlow glow;
-    uint32_t filament_hash = 0; // multi-colour list and finish; 0 for a plain single colour
-    helix::ui::SpoolView view = helix::ui::SpoolView::Side;
-    uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
-
-    bool operator==(const SpoolCacheKey& o) const {
-        return color_rgb == o.color_rgb && size == o.size && fill_bucket == o.fill_bucket &&
-               glow == o.glow && filament_hash == o.filament_hash && view == o.view &&
-               vent_phase == o.vent_phase;
-    }
-};
 
 struct SpoolCacheKeyHash {
     size_t operator()(const SpoolCacheKey& k) const {
@@ -200,28 +180,9 @@ static void cache_put(const SpoolCacheKey& key, std::vector<uint8_t>&& pixels) {
     s_cache_index[key] = s_cache_list.begin();
 }
 
-struct SpoolCanvasData {
-    lv_obj_t* canvas = nullptr;
-    lv_draw_buf_t* draw_buf = nullptr;
-    int32_t size = kDefaultSize;
-    lv_color_t color = lv_color_hex(kDefaultColor);
-    float fill_level = 1.0f;
-    /// A multi-colour filament's colours (two or more), else empty: the body
-    /// is split the way every swatch splits (helix::ui::swatch_split_thresholds).
-    std::vector<lv_color_t> colors;
-    helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
-    helix::ui::SpoolView view = helix::ui::SpoolView::Side;
-    helix::ui::SpoolSpin spin;
-    int vent_phase = 0; ///< current rotation, kept across a stop so the vents hold still
-
-    // Last-rendered key, for dedup (idea #1). Valid only when has_rendered.
-    SpoolCacheKey last_key{0, 0, 0, SpoolGlow::None};
-    bool has_rendered = false;
-};
-
 static helix::WidgetDataRegistry<SpoolCanvasData> s_registry;
 
-static SpoolCanvasData* get_data(lv_obj_t* obj) {
+SpoolCanvasData* spool_canvas_data(lv_obj_t* obj) {
     return s_registry.get(obj);
 }
 
@@ -1013,8 +974,6 @@ static void repaint_bound_glows(lv_obj_t* spool_canvas);
 static void unbind_glows(lv_obj_t* spool_canvas);
 static void clear_glow_cache();
 
-static bool redraw_spool_pixels(SpoolCanvasData* data);
-
 // Redraw entry point. A new silhouette repaints the glows bound to this spool.
 static void redraw_spool(SpoolCanvasData* data) {
     if (redraw_spool_pixels(data))
@@ -1026,7 +985,7 @@ static void redraw_spool(SpoolCanvasData* data) {
 //   - cache hit (idea #2): memcpy cached pixels into draw_buf
 //   - cache miss: full render + capture into cache
 // Returns true when the buffer now holds a different render.
-static bool redraw_spool_pixels(SpoolCanvasData* data) {
+bool redraw_spool_pixels(SpoolCanvasData* data) {
     if (!data || !data->canvas || !data->draw_buf)
         return false;
 
@@ -1124,7 +1083,7 @@ static void spool_canvas_xml_apply(lv_xml_parser_state_t* state, const char** at
 
     lv_xml_obj_apply(state, attrs);
 
-    auto* data = get_data(obj);
+    auto* data = spool_canvas_data(obj);
     if (!data)
         return;
 
@@ -1203,7 +1162,7 @@ lv_obj_t* ui_spool_canvas_create(lv_obj_t* parent, int32_t size) {
 }
 
 void ui_spool_canvas_set_color(lv_obj_t* canvas, lv_color_t color) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (!data)
         return;
     // Short-circuit: same color → no state change, skip the redraw pipeline
@@ -1221,7 +1180,7 @@ void ui_spool_canvas_set_color(lv_obj_t* canvas, lv_color_t color) {
 }
 
 void ui_spool_canvas_set_fill_level(lv_obj_t* canvas, float fill_level) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (!data)
         return;
     float clamped = LV_CLAMP(0.0f, fill_level, 1.0f);
@@ -1232,7 +1191,7 @@ void ui_spool_canvas_set_fill_level(lv_obj_t* canvas, float fill_level) {
 }
 
 void ui_spool_canvas_set_size(lv_obj_t* canvas, int32_t size) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (!data || size <= 0 || size == data->size)
         return;
 
@@ -1246,7 +1205,7 @@ void ui_spool_canvas_set_size(lv_obj_t* canvas, int32_t size) {
 }
 
 void ui_spool_canvas_redraw(lv_obj_t* canvas) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (data) {
         redraw_spool(data);
     }
@@ -1256,7 +1215,7 @@ namespace helix::ui {
 
 void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string& multi_color_hexes,
                                SwatchFinish finish) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (!data)
         return;
     std::vector<lv_color_t> colors = parse_multi_colors(multi_color_hexes);
@@ -1268,57 +1227,8 @@ void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string
     redraw_spool(data);
 }
 
-// One step of a turning spool. Runs at LVGL's animation tick but acts only when
-// the phase changes, and only for a canvas on screen. The silhouette is the same
-// at every phase, so the glow bound to this spool is left alone.
-static void spool_spin_anim_cb(void* var, int32_t value) {
-    auto* canvas = static_cast<lv_obj_t*>(var);
-    SpoolCanvasData* data = get_data(canvas);
-    if (!data)
-        return;
-    const int phases = spool_vent_phase_count(spool_vent_detail(data->size));
-    const int phase = ((value % phases) + phases) % phases;
-    // Off screen the animation stops, so LVGL's timer can idle. Clearing the spin lets the next
-    // state update start it again.
-    if (!lv_obj_is_visible(canvas)) {
-        data->spin = SpoolSpin{};
-        lv_anim_delete(canvas, spool_spin_anim_cb);
-        return;
-    }
-    if (phase == data->vent_phase)
-        return;
-    data->vent_phase = phase;
-    redraw_spool_pixels(data);
-}
-
-void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin) {
-    SpoolCanvasData* data = get_data(canvas);
-    if (!data || spin == data->spin)
-        return;
-    if (!lv_obj_is_visible(canvas) && spin.direction != 0)
-        return;
-    data->spin = spin;
-    lv_anim_delete(canvas, spool_spin_anim_cb);
-    const int phases = spool_vent_phase_count(spool_vent_detail(data->size));
-    if (spin.direction == 0 || phases <= 1)
-        return;
-
-    // Starts from the current phase, so a change of speed never jumps the vents.
-    const int32_t from = data->vent_phase;
-    const int32_t to = from + spin.direction * phases;
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, canvas);
-    lv_anim_set_values(&anim, from, to);
-    lv_anim_set_duration(&anim, static_cast<uint32_t>(spin.step_ms) * phases);
-    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&anim, lv_anim_path_linear);
-    lv_anim_set_exec_cb(&anim, spool_spin_anim_cb);
-    lv_anim_start(&anim);
-}
-
 void spool_canvas_set_view(lv_obj_t* canvas, SpoolView view) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     if (!data || data->view == view)
         return;
     data->view = view;
@@ -1326,7 +1236,7 @@ void spool_canvas_set_view(lv_obj_t* canvas, SpoolView view) {
 }
 
 SpoolView spool_canvas_get_view(lv_obj_t* canvas) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     return data ? data->view : SpoolView::Side;
 }
 
@@ -1338,12 +1248,12 @@ void spool_canvas_set_filament(lv_obj_t* canvas, const SlotInfo& slot) {
 } // namespace helix::ui
 
 float ui_spool_canvas_get_fill_level(lv_obj_t* canvas) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     return data ? data->fill_level : -1.0f;
 }
 
 lv_color_t ui_spool_canvas_get_color(lv_obj_t* canvas) {
-    auto* data = get_data(canvas);
+    auto* data = spool_canvas_data(canvas);
     return data ? data->color : lv_color_hex(kDefaultColor);
 }
 
@@ -1453,7 +1363,7 @@ static std::vector<uint8_t> silhouette_mask(SpoolCanvasData* spool, int32_t size
 // Show the glow for the layer's bound shape. A 3D spool that has not rendered
 // yet has no silhouette to read: the layer stays empty until its first render.
 static void paint_glow_layer(lv_obj_t* glow, SpoolGlowData& g) {
-    SpoolCanvasData* spool = get_data(g.spool);
+    SpoolCanvasData* spool = spool_canvas_data(g.spool);
     if (!spool || !spool->has_rendered) {
         set_glow_image(glow, g, nullptr, 0);
         return;

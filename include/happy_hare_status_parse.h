@@ -290,4 +290,11 @@ parse_entry_sensor_objects(const nlohmann::json& params);
 [[nodiscard]] MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu);
 [[nodiscard]] MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu);
 
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+[[nodiscard]] SpoolMotorAction spool_motor_action(const std::string& state);
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt when
+/// sync feedback is absent or "disabled".
+[[nodiscard]] std::optional<BufferMotion> sync_feedback_motion(const std::string& state);
+
 } // namespace helix::happy_hare

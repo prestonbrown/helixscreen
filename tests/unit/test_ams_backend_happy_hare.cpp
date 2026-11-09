@@ -1196,50 +1196,6 @@ TEST_CASE_METHOD(HhHelper,
     CHECK(helper.reset_button_label() == "Home");
 }
 
-TEST_CASE("path_segment_from_happy_hare_pos maps every filament_pos and rejects the rest",
-          "[ams][happy_hare][v4][edge]") {
-    const std::pair<int, PathSegment> rows[] = {
-        {-100, PathSegment::NONE}, {-1, PathSegment::NONE},  {0, PathSegment::SPOOL},
-        {1, PathSegment::PREP},    {2, PathSegment::PREP},   {3, PathSegment::LANE},
-        {4, PathSegment::HUB},     {5, PathSegment::OUTPUT}, {6, PathSegment::TOOLHEAD},
-        {7, PathSegment::NOZZLE},  {8, PathSegment::NOZZLE}, {9, PathSegment::NOZZLE},
-        {10, PathSegment::NOZZLE}, {11, PathSegment::NONE},  {255, PathSegment::NONE},
-    };
-    for (const auto& [pos, segment] : rows) {
-        INFO("filament_pos " << pos);
-        CHECK(path_segment_from_happy_hare_pos(pos) == segment);
-    }
-}
-
-TEST_CASE("ams_action_from_string maps every Happy Hare action, unknown to IDLE",
-          "[ams][happy_hare][v4][edge]") {
-    const std::pair<const char*, AmsAction> rows[] = {
-        {"Idle", AmsAction::IDLE},
-        {"Loading", AmsAction::LOADING},
-        {"Loading Ext", AmsAction::LOADING},
-        {"Unloading", AmsAction::UNLOADING},
-        {"Exiting Ext", AmsAction::UNLOADING},
-        {"Selecting", AmsAction::SELECTING},
-        {"Homing", AmsAction::RESETTING},
-        {"Resetting", AmsAction::RESETTING},
-        {"Cutting", AmsAction::CUTTING},
-        {"Cutting Tip", AmsAction::CUTTING},
-        {"Cutting Filament", AmsAction::CUTTING},
-        {"Forming Tip", AmsAction::FORMING_TIP},
-        {"Heating", AmsAction::HEATING},
-        {"Checking", AmsAction::CHECKING},
-        {"Purging", AmsAction::PURGING},
-        {"Paused (user)", AmsAction::PAUSED},
-        {"Error: filament jam", AmsAction::ERROR},
-        {"SomeNewV5Action", AmsAction::IDLE},
-        {"", AmsAction::IDLE},
-    };
-    for (const auto& [text, action] : rows) {
-        INFO("action \"" << text << "\"");
-        CHECK(ams_action_from_string(text) == action);
-    }
-}
-
 TEST_CASE("Happy Hare per-gate arrays land on their own gates and skip unreadable entries",
           "[ams][happy_hare][v4][edge]") {
     // A short array leaves the remaining gates alone; a wrong-typed entry

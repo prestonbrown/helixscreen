@@ -719,4 +719,34 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
     return d;
 }
 
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+SpoolMotorAction spool_motor_action(const std::string& state) {
+    if (state.empty()) {
+        return SpoolMotorAction::None;
+    }
+    if (state == "rewind") {
+        return SpoolMotorAction::Rewinding;
+    }
+    if (state == "assist") {
+        return SpoolMotorAction::Assisting;
+    }
+    return SpoolMotorAction::Other;
+}
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" advances,
+/// "tension" trails, anything else ("neutral") has no direction.
+std::optional<BufferMotion> sync_feedback_motion(const std::string& state) {
+    if (state.empty() || state == "disabled") {
+        return std::nullopt;
+    }
+    if (state == "compressed") {
+        return BufferMotion::Advancing;
+    }
+    if (state == "tension") {
+        return BufferMotion::Trailing;
+    }
+    return BufferMotion::Unknown;
+}
+
 } // namespace helix::happy_hare

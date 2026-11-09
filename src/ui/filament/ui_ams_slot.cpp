@@ -4,11 +4,11 @@
 #include "ui_ams_slot.h"
 
 #include "ui_ams_lane_spool.h"
+#include "ui_ams_slot_internal.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_fonts.h"
 #include "ui_humidity_drop.h"
 #include "ui_observer_guard.h"
-#include "ui_spool_canvas.h"
 #include "ui_text.h"
 #include "ui_toolhead_badge.h"
 #include "ui_utils.h"
@@ -16,7 +16,6 @@
 #include "ams_lane_state.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "app_globals.h"
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
@@ -31,7 +30,6 @@
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
 #include "panel_widget_size.h"
-#include "printer_state.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
@@ -58,83 +56,6 @@ using namespace helix;
  * Contains the slot index and observer handles. Managed via static registry
  * rather than lv_obj user_data to ensure safe cleanup during lv_deinit().
  */
-struct AmsSlotData {
-    int slot_index = -1;
-    int total_count = 4; // Total slots being displayed (for stagger calculation)
-    helix::ui::AmsSlotHitBand hit_band;
-
-    /// Backend whose subjects the observers below are bound to (captured at
-    /// setup_slot_observers time from the active backend). Kept so later
-    /// re-reads (apply_slot_label) hit the same backend the
-    /// observers are bound to, even if the active backend moved on.
-    int backend_index = 0;
-
-    // Last lane classification seen from the per-slot lane_state subject. The
-    // material label's text and ghost strength depend on it (an Empty lane
-    // reads "Empty", a Ghosted one dims alongside its spool), and lane_state
-    // and material arrive on SEPARATE subjects with no ordering guarantee - so
-    // the material path reads the classification from here rather than racing
-    // for it.
-    helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
-
-    // RAII observer handles - automatically removed when this struct is destroyed
-    ObserverGuard status_observer;     ///< Per-slot status -> badge color
-    ObserverGuard lane_state_observer; ///< Per-slot lane_state -> label text + ghost
-    ObserverGuard material_observer;   ///< Per-slot material type label (static subject)
-    ObserverGuard name_observer;       ///< Per-slot spool name line
-    ObserverGuard remaining_observer;  ///< Per-slot remaining length (primary backend)
-    ObserverGuard current_slot_observer;
-    ObserverGuard filament_loaded_observer;
-    ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
-    ObserverGuard action_observer;
-    ObserverGuard target_slot_observer;
-    ObserverGuard print_state_observer;        ///< Spool spin: printing or not
-    ObserverGuard extruder_velocity_observer;  ///< Spool spin: paced by flow
-    ObserverGuard animations_enabled_observer; ///< Spool spin: the setting turns it off
-    ObserverGuard slots_version_observer;      ///< Spool table renumber -> badge number
-
-    // Lifetime tokens paired with the observers that bind per-backend subjects
-    // (status, lane_state, material, name). Secondary-backend (index > 0) subjects
-    // are DYNAMIC - recreated on backend rediscovery - so those observers need
-    // tokens that expire when AmsState tears the subject down (L084). For
-    // backend 0 the accessors return AmsState's subjects lifetime. Each MUST be
-    // reset BEFORE its matching observer (see cleanup paths, #705).
-    SubjectLifetime status_lifetime;
-    SubjectLifetime lane_state_lifetime;
-    SubjectLifetime material_lifetime;
-    SubjectLifetime name_lifetime;
-
-    lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
-
-    // The lane spool graphic (spool, placeholder, error glow) renders itself
-    // from the per-slot subjects; ams_slot only points it at a slot index.
-    lv_obj_t* lane_spool = nullptr;
-
-    // Other UI elements
-    lv_obj_t* name_label = nullptr; // Brand, above the material
-    lv_obj_t* material_label = nullptr;
-    lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
-    lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
-    lv_obj_t* status_badge_bg = nullptr; // Status badge background (colored circle)
-    lv_obj_t* slot_badge = nullptr;      // Slot number label inside status badge
-    lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
-    lv_obj_t* container = nullptr;       // The ams_slot widget itself
-    lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
-    lv_obj_t* lane_humidity_text = nullptr; // The row's value
-    lv_obj_t* lane_humidity_drop = nullptr; // The row's drop, filled to the value
-    lv_obj_t* lane_temp_row = nullptr;      // Thermometer + value, above the humidity
-    lv_obj_t* lane_temp_text = nullptr;
-    lv_obj_t* lane_remaining = nullptr; // Measured remaining length, under the material
-    bool show_lane_humidity = false;
-    lv_obj_t* drying_badge = nullptr;       // Top-right drying-state badge
-    lv_obj_t* drying_icons[4] = {};         // Queued, active, complete, cancelled
-    lv_subject_t* drying_subject = nullptr; // Subject the badge is bound to
-
-    // Pulsing state - when true, highlight updates are skipped to preserve animation
-    bool is_pulsing = false;
-};
-
 // Static registry mapping lv_obj_t* -> AmsSlotData*
 // Used for safe cleanup during lv_deinit() when user_data may be unreliable
 static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
@@ -142,7 +63,7 @@ static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
 /**
  * @brief Get AmsSlotData for an object from the registry
  */
-static AmsSlotData* get_slot_data(lv_obj_t* obj) {
+AmsSlotData* get_slot_data(lv_obj_t* obj) {
     return s_slot_registry.get(obj);
 }
 
@@ -543,31 +464,6 @@ static void apply_current_slot_highlight(AmsSlotData* data, int current_slot) {
                   data->slot_index, is_active);
 }
 
-/// Re-derive this lane's spool rotation from the state it depends on.
-static void apply_spool_spin(AmsSlotData* data) {
-    if (!data || !data->lane_spool)
-        return;
-    AmsState& ams = AmsState::instance();
-    const auto int_of = [](lv_subject_t* s, int fallback) {
-        return s ? lv_subject_get_int(s) : fallback;
-    };
-    helix::ui::SpoolSpinInput in;
-    in.lane = data->backend_index == ams.active_backend_index() ? data->slot_index : -1;
-    in.current_slot = int_of(ams.get_current_slot_subject(), -1);
-    in.target_slot = int_of(ams.get_pending_target_slot_subject(), -1);
-    in.action = static_cast<AmsAction>(
-        int_of(ams.get_ams_action_subject(), static_cast<int>(AmsAction::IDLE)));
-    in.lane_active_loaded = int_of(ams.get_slot_active_loaded_subject(data->slot_index), 0) != 0;
-    PrinterState& printer = get_printer_state();
-    // RAW_PRINT_STATE_OK: a spool turns only while filament moves, so a paused job stands still.
-    in.printing = printer.print_state().get_print_job_state() == PrintJobState::PRINTING;
-    in.extruder_velocity_centimm =
-        lv_subject_get_int(printer.motion_state().get_live_extruder_velocity_subject());
-    in.animations_enabled = DisplaySettingsManager::instance().get_animations_enabled();
-    in.reduced_effects = helix::ui::reduced_effects();
-    helix::ui::ams_lane_spool_set_spin(data->lane_spool, helix::ui::decide_spool_spin(in));
-}
-
 // Forward declaration (defined below in Animation section)
 void ui_ams_slot_set_pulsing(lv_obj_t* obj, bool pulsing);
 
@@ -889,21 +785,7 @@ static void setup_slot_observers(AmsSlotData* data) {
             state.get_subjects_lifetime());
     }
 
-    // What else turns the spool: the print, its flow and the animations setting.
-    {
-        const auto respin = [](lv_obj_t* o, int /*value*/) { apply_spool_spin(get_slot_data(o)); };
-        PrinterState& printer = get_printer_state();
-        const SubjectLifetime printer_subjects = printer.get_subjects_lifetime();
-        // RAW_PRINT_STATE_OK: wakes the same decision, which reads the job state above
-        data->print_state_observer = observe<int>(
-            printer.print_state().get_print_state_enum_subject(), obj, respin, printer_subjects);
-        data->extruder_velocity_observer =
-            observe<int>(printer.motion_state().get_live_extruder_velocity_subject(), obj, respin,
-                         printer_subjects);
-        DisplaySettingsManager& display = DisplaySettingsManager::instance();
-        data->animations_enabled_observer = observe<int>(display.subject_animations_enabled(), obj,
-                                                         respin, display.get_subjects_lifetime());
-    }
+    observe_slot_spin(data);
 
     // Slots version observer: the badge number follows the whole spool table,
     // not only this lane's own status. A routing change re-numbers lanes that

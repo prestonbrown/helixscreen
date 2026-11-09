@@ -631,23 +631,6 @@ inline const char* tip_method_to_string(TipMethod method) {
     return "Unknown";
 }
 
-/**
- * @brief Get user-friendly step label for tip handling
- * @param method The tip method enum value
- * @return Untranslated English key; the display site passes it through lv_tr()
- */
-inline const char* tip_method_step_label(TipMethod method) {
-    switch (method) {
-    case TipMethod::CUT:
-        return TR_NOOP("Cut & retract");
-    case TipMethod::TIP_FORM:
-        return TR_NOOP("Form tip & retract");
-    case TipMethod::NONE:
-    default:
-        return TR_NOOP("Retract");
-    }
-}
-
 // ============================================================================
 // Filament Path Visualization Types
 // ============================================================================

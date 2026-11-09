@@ -64,6 +64,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 set(MOCK_SRCS "")
 if(CONFIG_HELIX_MOCK_PRINTER)
     list(APPEND MOCK_SRCS ${REPO_ROOT}/src/printer/ams_backend_mock.cpp)
+    list(APPEND MOCK_SRCS ${REPO_ROOT}/src/printer/ams_backend_mock_identity.cpp)
 endif()
 
 # Local firmware-tree sources: platform seams (Linux-bound singletons the app
