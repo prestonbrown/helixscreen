@@ -32,8 +32,9 @@ setup() {
 make_tree() {
     TREE="$WORK/tree"
     rm -rf "$TREE"
-    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system" "$TREE/include"
+    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system" "$TREE/include" "$TREE/config"
     cp assets/config/platforms.json "$TREE/assets/config/"
+    cp config/restore-user-config.sh "$TREE/config/"
     cp mk/cross.mk mk/images.mk "$TREE/mk/"
     cp scripts/lib/installer/common.sh scripts/lib/installer/platform.sh "$TREE/scripts/lib/installer/"
     cp src/system/log_collector.cpp src/system/update_checker.cpp \
@@ -235,6 +236,48 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
     run python3 "$GATE" --quiet --root "$TREE"
     contains "[cache-rungs]" "$output"
     contains "/brand-new-mount/helixscreen-state/cache" "$output"
+}
+
+# Edit one storage field of the scratch tree's manifest: platform, key, JSON value
+# (null deletes the key).
+set_storage() {
+    python3 -c 'import json,sys; p,pid,k,v=sys.argv[1:]; d=json.load(open(p)); \
+st=d["platforms"][pid]["storage"]; v=json.loads(v); \
+st.pop(k,None) if v is None else st.__setitem__(k,v); \
+json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json" "$@"
+}
+
+@test "check_user_config_outside_payload reports a config dir inside the payload root" {
+    make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "[config-in-payload]" "$output"
+
+    set_storage ad5x user_config_dir '"/srv/helixscreen/config"'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "[config-in-payload]" "$output"
+    contains "ad5x: user_config_dir /srv/helixscreen/config is inside the payload root" "$output"
+}
+
+@test "check_user_config_outside_payload reports a platform that names no config dir" {
+    make_tree
+    set_storage ad5x user_config_dir null
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "ad5x: no user_config_dir, so user config stays in /srv/helixscreen/config" "$output"
+}
+
+@test "check_user_config_outside_payload checks each firmware's root" {
+    make_tree
+    set_storage ad5m user_config_dir_by_firmware \
+        '{"klipper_mod": "/root/printer_data/config/helixscreen", "zmod": "/srv/helixscreen/config", "forge_x": "/root/printer_data/config/helixscreen"}'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "ad5m (zmod): user_config_dir /srv/helixscreen/config is inside the payload root /srv/helixscreen" "$output"
+}
+
+@test "check_user_config_outside_payload reports a config dir the device never resolves" {
+    make_tree
+    set_storage k1 user_config_dir '"/brand-new-mount/printer_data/config/helixscreen"'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "k1: config/restore-user-config.sh never resolves user_config_dir /brand-new-mount" "$output"
 }
 
 @test "gate: reports a platform whose panel is not hardware-verified" {
