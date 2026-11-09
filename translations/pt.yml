@@ -3234,7 +3234,7 @@ translations:
   Random: Aleatório
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
-  Re-apply spool: ''
+  'Re-apply spool': 'Reaplicar carretel'
   Re-identify: Reidentificar
   Re-measure: 'Medir novamente'
   Re-measure (~{} min): "Remedir (~{} min)"
@@ -4154,7 +4154,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca.
   The left RFID reader in this CFS unit may need service: O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção
-  The linked spool says {}.: ''
+  'The linked spool says {}.': 'O carretel vinculado indica {}.'
   The loaded slot is not known yet: "O slot carregado ainda não é conhecido"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : O carretel carregado é {}, mas este arquivo foi fatiado para {}. Filamento composto funciona com fluxo menor e precisa de um bico endurecido.
@@ -5093,7 +5093,7 @@ translations:
   'Reset to tag': 'Restaurar do tag'
   'Save the changes to this spool?': 'Salvar as alterações deste carrete?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Não corresponde ao carrete vinculado do Spoolman. Atualizar no Spoolman ou desvincular e manter neste slot?'
-  Unlink: ''
+  'Unlink': 'Desvincular'
   'Unlink, keep on this slot': 'Desvincular, manter neste slot'
   'Unsaved changes': 'Alterações não salvas'
   Update heater model?: Atualizar o modelo do aquecedor?

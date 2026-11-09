@@ -2968,7 +2968,7 @@
   <translation tag="Random" es="Aleatorio"/>
   <translation tag="Raspberry Pi" es="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" es="Raspberry Pi (32-bit)"/>
-  <translation tag="Re-apply spool"/>
+  <translation tag="Re-apply spool" es="Reaplicar bobina"/>
   <translation tag="Re-identify" es="Reidentificar"/>
   <translation tag="Re-measure" es="Volver a medir"/>
   <translation tag="Re-measure (~{} min)" es="Remedir (~{} min)"/>
@@ -3793,7 +3793,7 @@
   <translation tag="The helper macros are installed and activate after Klipper restarts." es="Las macros de ayuda están instaladas y se activan tras reiniciar Klipper."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." es="El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base."/>
   <translation tag="The left RFID reader in this CFS unit may need service" es="Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio"/>
-  <translation tag="The linked spool says {}."/>
+  <translation tag="The linked spool says {}." es="La bobina vinculada indica {}."/>
   <translation tag="The loaded slot is not known yet" es="La ranura cargada aún no se conoce"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." es="La bobina cargada es {}, pero este archivo se laminó para {}. El filamento con relleno funciona con un caudal menor y necesita una boquilla endurecida."/>
   <translation tag="The message your printer&apos;s macros show (M117)" es="El mensaje que muestran las macros de tu impresora (M117)"/>
@@ -4139,7 +4139,7 @@
   <translation tag="Unknown Spool" es="Bobina Desconocida"/>
   <translation tag="Unknown Step" es="Paso Desconocido"/>
   <translation tag="Unknown error" es="Error desconocido"/>
-  <translation tag="Unlink"/>
+  <translation tag="Unlink" es="Desvincular"/>
   <translation tag="Unlink, keep on this slot" es="Desvincular, mantener en este carril"/>
   <translation tag="Unload" es="Descargar"/>
   <translation tag="Unload Distance" es="Distancia de descarga"/>

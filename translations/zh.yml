@@ -3071,7 +3071,7 @@ translations:
   Random: 随机
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
-  Re-apply spool: ''
+  'Re-apply spool': '重新应用料盘'
   Re-identify: 重新识别
   Re-measure: '重新测量'
   Re-measure (~{} min): "重新测量(约 {} 分钟)"
@@ -3931,7 +3931,7 @@ translations:
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修
-  The linked spool says {}.: ''
+  'The linked spool says {}.': '关联的料盘显示为 {}。'
   The loaded slot is not known yet: "已加载的槽位尚未报告"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。
@@ -4823,7 +4823,7 @@ translations:
   'Reset to tag': '恢复标签值'
   'Save the changes to this spool?': '保存此料盘的更改？'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': '与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？'
-  Unlink: ''
+  'Unlink': '取消关联'
   'Unlink, keep on this slot': '取消关联，保留在此料位'
   'Unsaved changes': '未保存的更改'
   Update heater model?: 更新加热器模型？
