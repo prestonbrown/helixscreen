@@ -182,7 +182,6 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
     // Containers
     stats_grid_ = find_required(overlay_root_, "stats_grid", get_name());
     empty_state_ = find_required(overlay_root_, "empty_state", get_name());
-    btn_view_history_ = find_required(overlay_root_, "btn_view_history", get_name());
 
     // Chart containers
     trend_chart_container_ = find_required(overlay_root_, "trend_chart_container", get_name());
