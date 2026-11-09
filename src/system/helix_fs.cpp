@@ -259,6 +259,28 @@ std::optional<std::string> canonical(const std::string& p) {
     return std::string(buf);
 }
 
+std::optional<std::string> read_symlink(const std::string& p) {
+#if defined(HELIX_PLATFORM_ESP32)
+    (void)p;
+    return std::nullopt;
+#else
+#ifndef PATH_MAX
+    constexpr size_t kPathMax = 4096;
+#else
+    constexpr size_t kPathMax = PATH_MAX;
+#endif
+    if (!storage_allowed("readlink", p)) {
+        return std::nullopt;
+    }
+    char buf[kPathMax];
+    const ssize_t n = ::readlink(p.c_str(), buf, sizeof(buf));
+    if (n < 0 || static_cast<size_t>(n) >= sizeof(buf)) {
+        return std::nullopt;
+    }
+    return std::string(buf, static_cast<size_t>(n));
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Operations
 // ---------------------------------------------------------------------------
