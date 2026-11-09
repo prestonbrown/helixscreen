@@ -117,6 +117,12 @@ TEST_CASE("plugin_reason_text says what a reason code means", "[plugin_feature]"
     CHECK(plugin_reason_text("no_virtual_sdcard") == "Klipper has no [virtual_sdcard] section.");
     CHECK(plugin_reason_text("not_listed") ==
           "Power-loss recovery isn't supported on this printer yet.");
+    CHECK(plugin_reason_text("gantry_drops") ==
+          "This printer's gantry drops when the power is cut, so a print can't be resumed.");
+    CHECK(plugin_reason_text("delta_kinematics") ==
+          "A delta printer can't home X and Y without moving Z, so a print can't be resumed.");
+    CHECK(plugin_reason_text("firmware_recovery") ==
+          "This printer's firmware has its own power-loss recovery.");
     // A code with a detail suffix maps on the code before the colon.
     CHECK(plugin_reason_text("snapshot_unreachable: /webcam/?action=snapshot") ==
           "The plugin can't reach the camera, so this screen takes the photos.");

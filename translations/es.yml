@@ -158,6 +158,7 @@ translations:
   : "Una boquilla de 0,2 mm no puede imprimir todos los filamentos, entre ellos PA, PC, TPU y los tipos con fibra de carbono o de vidrio. Si este cabezal tiene uno de ellos cargado, la impresora borra su información de filamento y tendrás que configurarla de nuevo."
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'Un zumbador o altavoz para alertas y sonidos. Elige qué se reproduce en los ajustes de sonido.'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Una cámara que transmite Moonraker. Añade el widget de cámara a la pantalla de inicio para verla, también durante una impresión.'
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Una impresora delta no puede hacer home en X e Y sin mover Z, así que no se puede reanudar una impresión."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilador que hace pasar el aire de la cámara por un filtro. Contrólalo en la pantalla de temperatura de la cámara.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Unos minutos, casi todo calentando. No juzgas nada a ojo.'
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Un nombre de carpeta en moonraker.conf no es seguro, por eso la limpieza está desactivada."
@@ -4348,6 +4349,8 @@ translations:
   "This printer's INDX macros are missing: {}": "A las macros de INDX de esta impresora les falta: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'El Moonraker de esta impresora rechazó su clave API. Revisa la clave en Ajustes > Conexión.'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'El Moonraker de esta impresora requiere inicio de sesión. Añade su clave API en Ajustes > Conexión.'
+  This printer's firmware has its own power-loss recovery.: "El firmware de esta impresora tiene su propia recuperación tras corte de energía."
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "El pórtico de esta impresora cae cuando se corta la energía, así que no se puede reanudar una impresión."
   This printer's network service controls the WiFi radio: El servicio de red de esta impresora controla la radio WiFi
   This printer's network service manages saved WiFi networks: El servicio de red de esta impresora gestiona las redes WiFi guardadas
   This printer's screen has not shared a layout: "La pantalla de esta impresora no ha compartido un diseño"

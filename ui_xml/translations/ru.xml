@@ -183,6 +183,7 @@
   <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." ru="Сопло 0,2 мм может печатать не все филаменты: в их числе PA, PC, TPU и материалы с углеволокном или стекловолокном. Если в эту печатающую головку загружен один из них, принтер сотрёт данные о филаменте, и их нужно будет задать заново."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." ru="Зуммер или динамик для оповещений и звуков. Что воспроизводится, настраивается в настройках звука."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." ru="Камера, которую транслирует Moonraker. Добавьте виджет камеры на главный экран, чтобы смотреть ее, в том числе во время печати."/>
+  <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." ru="Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ru="Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." ru="Небезопасное имя папки в moonraker.conf, поэтому очистка выключена."/>
@@ -4013,6 +4014,8 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." ru="Moonraker этого принтера отклонил его API-ключ. Проверьте ключ в Настройки &gt; Соединение."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ru="Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки &gt; Соединение."/>
+  <translation tag="This printer&apos;s firmware has its own power-loss recovery." ru="Прошивка этого принтера имеет собственное восстановление после отключения питания."/>
+  <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." ru="Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" ru="WiFi-модулем управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" ru="Сохранёнными сетями WiFi управляет сетевая служба этого принтера"/>
   <translation tag="This printer&apos;s screen has not shared a layout" ru="Экран этого принтера не поделился раскладкой"/>

@@ -150,6 +150,7 @@
   <translation tag="A 0.2 mm nozzle can&apos;t print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you&apos;ll need to set it again." pt="Um bico de 0,2 mm não imprime todos os filamentos, entre eles PA, PC, TPU e os tipos com fibra de carbono ou de vidro. Se este cabeçote tiver um deles carregado, a impressora apaga as informações do filamento e você precisará defini-las novamente."/>
   <translation tag="A buzzer or speaker for alerts and sounds. Set what plays in the sound settings." pt="Um buzzer ou alto-falante para alertas e sons. Defina o que toca nas configurações de som."/>
   <translation tag="A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print." pt="Uma câmera transmitida pelo Moonraker. Adicione o widget de câmera à tela inicial para assisti-la, inclusive durante uma impressão."/>
+  <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." pt="Uma impressora delta não consegue fazer home de X e Y sem mover Z, então uma impressão não pode ser retomada."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." pt="Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." pt="Alguns minutos, quase todo aquecendo. Você não julga nada a olho."/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." pt="Um nome de pasta no moonraker.conf não é seguro, por isso a limpeza está desligada."/>
@@ -3953,6 +3954,8 @@
   <translation tag="This printer&apos;s INDX macros are missing: {}" pt="Faltam nas macros do INDX desta impressora: {}"/>
   <translation tag="This printer&apos;s Moonraker rejected its API key. Check the key in Settings &gt; Connection." pt="O Moonraker desta impressora rejeitou a chave de API. Verifique a chave em Configurações &gt; Conexão."/>
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." pt="O Moonraker desta impressora exige login. Adicione a chave de API em Configurações &gt; Conexão."/>
+  <translation tag="This printer&apos;s firmware has its own power-loss recovery." pt="O firmware desta impressora tem a sua própria recuperação após queda de energia."/>
+  <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." pt="O pórtico desta impressora cai quando a energia é cortada, então uma impressão não pode ser retomada."/>
   <translation tag="This printer&apos;s network service controls the WiFi radio" pt="O serviço de rede desta impressora controla o rádio WiFi"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" pt="O serviço de rede desta impressora gerencia as redes WiFi salvas"/>
   <translation tag="This printer&apos;s screen has not shared a layout" pt="A tela desta impressora não compartilhou um layout"/>

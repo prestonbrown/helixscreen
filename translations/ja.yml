@@ -154,6 +154,7 @@ translations:
   : "0.2 mmノズルでは、PA、PC、TPU、カーボンファイバー・グラスファイバー入りなど、印刷できないフィラメントがあります。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。'
+  A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "デルタプリンターはZを動かさずにXとYをホーミングできないため、印刷を再開できません。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"
@@ -4121,6 +4122,8 @@ translations:
   "This printer's INDX macros are missing: {}": "このプリンターのINDXマクロに不足があります: {}"
   This printer's Moonraker rejected its API key. Check the key in Settings > Connection.: 'このプリンターのMoonrakerがAPIキーを拒否しました。設定 > 接続 でキーを確認してください。'
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
+  This printer's firmware has its own power-loss recovery.: "このプリンターのファームウェアには独自の停電からの復帰機能があります。"
+  This printer's gantry drops when the power is cut, so a print can't be resumed.: "このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"
   This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
   This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   This printer's screen has not shared a layout: "このプリンターの画面はレイアウトを共有していません"
