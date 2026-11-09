@@ -844,19 +844,6 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float x = (float)g.slot_x[i];
         Route& r = new_route(out);
 
-        if (data.built_in_hub) {
-            // The lanes merge inside the unit, so only the active one has a line: out of its base.
-            if (!lane.on)
-                continue;
-            append_line(r, cx, (float)f.entry_y, cx, hub_bot, lane.style(PathSegment::HUB));
-            out.active_route = i;
-            if (feeds)
-                append_trunk(out, r, lane, f, data, bypass_on_trunk, bypass_owner);
-            else
-                add_hub_output_band(out, lane, f, data);
-            continue;
-        }
-
         append_line(r, x, (float)f.entry_y, x, (float)f.prep_band_y,
                     lane.style(PathSegment::SPOOL));
         if (data.slot_has_prep_sensor[i]) {
@@ -898,12 +885,24 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                     pts[0].y = load_y;
                 }
             }
+            // With no box to land on, every lane drops to a shared bus and meets on the trunk.
+            if (data.built_in_hub) {
+                const float bus = (float)built_in_bus_y(f);
+                pts[1] = {x, bus};
+                pts[2] = {cx, bus};
+                pts[3] = {cx, hub_top};
+            }
             pg::FilamentPath fan;
-            pg::route_polyline_filleted(fan, pts, 4, 8.0f);
+            // Long S-bends: as round as the lane's distance from the trunk allows.
+            const float bend =
+                data.built_in_hub ? std::clamp(std::fabs(x - cx) / 2.0f, 0.5f, 18.0f) : 8.0f;
+            pg::route_polyline_filleted(fan, pts, 4, bend);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
-            append_line(r, pts[3].x, hub_top, cx, hub_bot, unpainted(lane.style(PathSegment::HUB)));
+            const auto through = lane.style(PathSegment::HUB);
+            append_line(r, pts[3].x, hub_top, cx, hub_bot,
+                        data.built_in_hub ? through : unpainted(through));
         }
 
         out.active_route = i;
@@ -924,7 +923,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             out.trunk_route = out.route_count;
             Route& r = new_route(out);
             if (data.built_in_hub)
-                append_line(r, cx, (float)f.entry_y, cx, hub_bot, idle.style(PathSegment::HUB));
+                append_line(r, cx, hub_top, cx, hub_bot, idle.style(PathSegment::HUB));
             append_trunk(out, r, idle, f, data, bypass_on_trunk, bypass_owner);
         } else {
             add_hub_output_band(out, idle, f, data);

@@ -90,6 +90,11 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
+/// Where a built-in selector's lanes join: a short drop below their sensors.
+inline int32_t built_in_bus_y(const LinearHubFrame& f) {
+    return f.prep_y + (f.hub_y - f.hub_h / 2 - f.prep_y) / 2;
+}
+
 /// Width the hub or selector box is drawn at: the frame's fitted width for a HUB, the
 /// slot span for a LINEAR selector. Its center is (center_x, hub_y).
 int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const LinearHubFrame& f);

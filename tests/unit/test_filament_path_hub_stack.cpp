@@ -261,7 +261,7 @@ TEST_CASE_METHOD(HubStackFixture, "HUB with the bypass shown keeps the ratio lay
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "A built-in selector draws one line out of the unit",
+TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merges them at a point",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));
@@ -272,13 +272,29 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector draws one line out of the
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
     REQUIRE(plan.active_route == 0);
-    for (int i = 1; i < 4; ++i)
-        CHECK(plan.routes[i].path.count == 0);
-    const auto& route = plan.routes[0].path;
-    REQUIRE(route.count > 0);
-    CHECK(seg_start(route.segs[0]).x == Catch::Approx((float)f.center_x).margin(0.01));
-    CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
-    check_contiguous(route);
+    const float top = (float)(f.hub_y - f.hub_h / 2);
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& route = plan.routes[i].path;
+        REQUIRE(route.count > 0);
+        CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
+        bool meets = false;
+        for (int s = 0; s < route.count; ++s)
+            meets = meets || (std::fabs(seg_end(route.segs[s]).x - (float)f.center_x) < 0.5f &&
+                              std::fabs(seg_end(route.segs[s]).y - top) < 0.5f);
+        CHECK(meets);
+    }
+    check_contiguous(plan.routes[0].path);
+    // An outer lane travels sideways on the bus, rather than along a straight diagonal.
+    const float bus = (float)built_in_bus_y(f);
+    bool horizontal = false;
+    for (int s = 0; s < plan.routes[0].path.count; ++s) {
+        const auto& seg = plan.routes[0].path.segs[s];
+        horizontal =
+            horizontal || (seg.type == pg::PathSeg::LINE && std::fabs(seg.p0.y - bus) < 0.5f &&
+                           std::fabs(seg.p1.y - bus) < 0.5f);
+    }
+    CHECK(horizontal);
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
