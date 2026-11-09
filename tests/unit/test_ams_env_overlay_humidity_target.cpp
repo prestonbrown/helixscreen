@@ -369,6 +369,26 @@ TEST_CASE_METHOD(XMLTestFixture, "A preset's fractional hours reach its label an
     AmsState::instance().set_backend(nullptr);
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "A running dry shows its phase and time left",
+                 "[ams][dryer][overlay]") {
+    reset_overlay_singleton();
+    auto* backend = show_overlay_with(false);
+
+    EnvironmentZone zone = dryer_zone(*backend);
+    zone.dryer.active = true;
+    zone.dryer.phase = DryingPhase::Holding;
+    zone.dryer.remaining_min = 205;
+    get_ams_environment_overlay().show_zone(lv_screen_active(), {zone}, 0, false);
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_subject_t* text = lv_xml_get_subject(nullptr, "ams_env_overlay_drying_text");
+    REQUIRE(text != nullptr);
+    CHECK(std::string(lv_subject_get_string(text)) == "Drying: 3:25 left");
+
+    reset_overlay_singleton();
+    AmsState::instance().set_backend(nullptr);
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "The overlay pictures the unit it shows, and nothing without one",
                  "[ams][dryer][overlay]") {
     reset_overlay_singleton();
