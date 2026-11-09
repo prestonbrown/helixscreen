@@ -566,6 +566,7 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // initial status dispatch that carries the interrupted flag; the offer
     // decision reads both, so the capability must land first.
     print_domain_.set_plr_resume_macro_present(helix::plr_resume_macro_present(discovery_));
+    print_domain_.set_plr_saved_file_gates_offer(helix::plr_saved_file_gates_offer(discovery_));
 
     // Fold the helper-macro install status in with the same snapshot.
     plugin_status_state_.set_helix_macros_base_status(MacroManager::evaluate_status(discovery_));

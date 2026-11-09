@@ -262,7 +262,8 @@
       "humidity"
     ],
     "controller_fan board": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "display_status": [
       "message",
@@ -285,7 +286,8 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_feedback": [
       "fan0_speed",
@@ -300,7 +302,8 @@
       "fan9_speed"
     ],
     "fan_generic aux": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_motion_sensor encoder": [
       "filament_detected",
@@ -341,7 +344,8 @@
       "power"
     ],
     "heater_fan hotend_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_generic chamber_heater": [
       "temperature",
@@ -413,7 +417,8 @@
     "temperature_fan exhaust": [
       "temperature",
       "target",
-      "speed"
+      "speed",
+      "rpm"
     ],
     "temperature_sensor extruder_board": [
       "temperature",

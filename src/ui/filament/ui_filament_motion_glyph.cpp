@@ -5,6 +5,7 @@
 
 #include "ui_toolhead_badge.h"
 
+#include "ams_types.h"
 #include "display_settings_manager.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
@@ -15,6 +16,7 @@
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
+#include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,7 +41,8 @@ constexpr float kToolheadHeightShare = 0.55f;
 
 struct GlyphData {
     FilamentMotion motion = FilamentMotion::Idle;
-    int32_t phase = 0; ///< 0..kPhaseSteps through one chevron spacing
+    int32_t phase = 0;                 ///< 0..kPhaseSteps through one chevron spacing
+    uint32_t color = kNoFilamentPaint; ///< the loaded filament's color, when known
 };
 
 GlyphData* data_of(lv_obj_t* obj) {
@@ -83,9 +86,16 @@ void draw_cb(lv_event_t* e) {
     if (w <= 0 || h <= 0)
         return;
 
-    const lv_color_t chevron_color = lv_obj_get_style_line_color(obj, LV_PART_MAIN);
+    const bool color_known = d->color != kNoFilamentPaint;
     const lv_color_t wall_color = lv_obj_get_style_border_color(obj, LV_PART_MAIN);
-    const lv_color_t filament_color = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
+    const lv_color_t filament_color =
+        color_known ? lv_color_hex(d->color) : lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
+    // Over a known color the chevrons take a contrasting shade: the theme's accent
+    // can match the filament.
+    const lv_color_t chevron_color =
+        color_known ? theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                               filament_color)
+                    : lv_obj_get_style_line_color(obj, LV_PART_MAIN);
     const lv_opa_t opa = lv_obj_get_style_opa_recursive(obj, LV_PART_MAIN);
 
     // Fit the configured toolhead into the lower part of the box.
@@ -140,6 +150,11 @@ void delete_cb(lv_event_t* e) {
     lv_obj_set_user_data(obj, nullptr);
 }
 
+void color_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    filament_motion_glyph_set_color(static_cast<lv_obj_t*>(lv_observer_get_target(observer)),
+                                    static_cast<uint32_t>(lv_subject_get_int(subject)));
+}
+
 void motion_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* obj = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
     filament_motion_glyph_set_motion(obj, filament_motion_from_int(lv_subject_get_int(subject)));
@@ -162,6 +177,17 @@ void* xml_create(lv_xml_parser_state_t* state, const char** /*attrs*/) {
 void xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
     auto* obj = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
     lv_xml_obj_apply(state, attrs);
+
+    if (const char* color_name = lv_xml_get_value_of(attrs, "bind_color");
+        color_name && color_name[0] != '\0') {
+        if (lv_subject_t* subject = lv_xml_get_subject(&state->scope, color_name)) {
+            lv_subject_add_observer_obj(subject, color_observer_cb, obj, nullptr);
+        } else {
+            spdlog::debug(
+                "[FilamentMotionGlyph] subject '{}' does not exist; the column stays neutral",
+                color_name);
+        }
+    }
 
     const char* subject_name = lv_xml_get_value_of(attrs, "bind_motion");
     if (subject_name && subject_name[0] != '\0') {
@@ -195,6 +221,19 @@ void filament_motion_glyph_set_motion(lv_obj_t* obj, FilamentMotion motion) {
         d->phase = 0;
     }
     lv_obj_invalidate(obj);
+}
+
+void filament_motion_glyph_set_color(lv_obj_t* obj, uint32_t rgb) {
+    GlyphData* d = data_of(obj);
+    if (!d || d->color == rgb)
+        return;
+    d->color = rgb;
+    lv_obj_invalidate(obj);
+}
+
+uint32_t filament_motion_glyph_color(lv_obj_t* obj) {
+    const GlyphData* d = data_of(obj);
+    return d ? d->color : kNoFilamentPaint;
 }
 
 FilamentMotion filament_motion_glyph_motion(lv_obj_t* obj) {

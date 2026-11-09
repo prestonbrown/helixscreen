@@ -78,8 +78,7 @@ class ColdPullRunner {
 
     // User events, each forwarded to the flow with what it returns applied.
     void home_and_park();
-    void unload_lane();
-    void toolhead_clear();
+    void toolhead_ready();
     void extrude();
     void fed();
     void pulled();
@@ -124,9 +123,8 @@ class ColdPullRunner {
     void on_lifecycle();
     void on_connection();
     void on_sensor(int value);
-    void on_ams_action(int action);
-    void send_gcode(const std::string& gcode, bool report);
-    void dispatch_unload();
+    /// @param command_id The flow's name for this send; 0 expects no reply.
+    void send_gcode(const std::string& gcode, uint32_t command_id);
     void settle_owed();
     /// The owed cleanup, once the printer has answered with @p target_c, its heater's
     /// live target (nullopt when it did not say).
@@ -155,9 +153,6 @@ class ColdPullRunner {
     ColdPullMaterial material_ = ColdPullMaterial::Pla;
     ColdPullTemps setup_temps_{};
     int last_sensor_ = -1;
-    int unload_last_action_ = -1;
-    bool unload_seen_busy_ = false;
-    bool unload_watching_ = false;
 
     DisplayAwakeToken awake_;
     ObserverGuard temp_observer_;
@@ -166,7 +161,6 @@ class ColdPullRunner {
     ObserverGuard connection_observer_;
     ObserverGuard klippy_observer_;
     ObserverGuard sensor_observer_;
-    ObserverGuard action_observer_;
     lv_timer_t* tick_timer_ = nullptr;
     AsyncLifetimeGuard lifetime_;
 
@@ -179,7 +173,9 @@ class ColdPullRunner {
     lv_subject_t has_fan_{};
     lv_subject_t can_home_park_{};
     lv_subject_t busy_{};
-    lv_subject_t unload_failed_{};
+    lv_subject_t toolhead_loaded_{};
+    lv_subject_t feed_mode_{};
+    lv_subject_t lane_needs_reseat_{};
     lv_subject_t material_subject_{};
     lv_subject_t hold_pressure_{};
     lv_subject_t refusal_{};

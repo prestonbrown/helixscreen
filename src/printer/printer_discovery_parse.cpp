@@ -751,12 +751,46 @@ const nlohmann::json* PrinterDiscovery::section(std::string_view name) const {
     return nullptr;
 }
 
+namespace {
+
+/// Drops fan-named output_pins that only gate a sibling PWM pin (`fan0_en` beside
+/// `fan0`). A lone enable pin stays: it may be the only control that fan has.
+void remove_fan_enable_pins(std::vector<std::string>& fans) {
+    static constexpr std::string_view kPrefix = "output_pin ";
+    // remove_if overwrites elements as it goes, so siblings are looked up in a copy.
+    const std::vector<std::string> names = fans;
+    const auto has_sibling = [&names](std::string_view stem) {
+        return std::any_of(names.begin(), names.end(), [stem](const std::string& fan) {
+            return std::string_view(fan).substr(0, kPrefix.size()) == kPrefix &&
+                   text_io::equals_ignore_case(std::string_view(fan).substr(kPrefix.size()), stem);
+        });
+    };
+    const auto gates_sibling = [&has_sibling](const std::string& fan) {
+        if (std::string_view(fan).substr(0, kPrefix.size()) != kPrefix) {
+            return false;
+        }
+        const std::string_view pin = std::string_view(fan).substr(kPrefix.size());
+        for (const std::string_view suffix :
+             {std::string_view("_en"), std::string_view("_enable")}) {
+            if (text_io::ends_with_ignore_case(pin, suffix) &&
+                has_sibling(pin.substr(0, pin.size() - suffix.size()))) {
+                return true;
+            }
+        }
+        return false;
+    };
+    fans.erase(std::remove_if(fans.begin(), fans.end(), gates_sibling), fans.end());
+}
+
+} // namespace
+
 void PrinterDiscovery::rebuild_buckets() {
     using hw::ObjectKind;
     heaters_ = objects_of({ObjectKind::Heater, ObjectKind::GenericHeater});
     fans_ =
         objects_of({ObjectKind::Fan, ObjectKind::HeaterFan, ObjectKind::ControllerFan,
                     ObjectKind::GenericFan, ObjectKind::TemperatureFan, ObjectKind::OutputPinFan});
+    remove_fan_enable_pins(fans_);
     sensors_ = objects_of({ObjectKind::TemperatureSensor, ObjectKind::TemperatureFan,
                            ObjectKind::DriverTemperature, ObjectKind::HumidityChip});
     leds_ = objects_of({ObjectKind::Led, ObjectKind::OutputPinLed});

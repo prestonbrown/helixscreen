@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <atomic>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -412,6 +413,23 @@ TEST_CASE("Discovery reads whether the firmware starts the print before the file
     SECTION("a stock virtual_sdcard streams the file from its first line") {
         CHECK_FALSE(discover());
     }
+}
+
+TEST_CASE("Discovery records each tool's configured tool_number from configfile.settings",
+          "[discovery][klippy_gate][configured_tool_numbers]") {
+    LVGLTestFixture fixture;
+    ConfigfileSettingsClient client(MoonrakerClientMock::PrinterType::VORON_24);
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.extra_settings =
+        json{{"tool t0", {{"tool_number", 0}}}, {"tool t2", {{"tool_number", 5}}}};
+
+    bool completed = false;
+    client.discover_printer_real([&completed]() { completed = true; },
+                                 [](const std::string& reason) { FAIL(reason); });
+    REQUIRE(completed);
+
+    const std::unordered_map<std::string, int> expected{{"t0", 0}, {"t2", 5}};
+    CHECK(client.hardware().configured_tool_numbers() == expected);
 }
 
 TEST_CASE("A Centauri Carbon's Bed Screws runs the wrapped builtin, or stock without a wrapper",

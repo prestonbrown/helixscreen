@@ -157,7 +157,6 @@
   <translation tag="A cold pull is already running." ja="コールドプルはすでに実行中です。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ja="チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ja="数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。"/>
-  <translation tag="A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one." ja="このツールヘッドにフィラメントレーンがロードされています。先に排出してください。バイパスがある場合は、そこから清掃用フィラメントを入れてください。"/>
   <translation tag="A folder name in moonraker.conf is unsafe, so cleanup is off." ja="moonraker.confのフォルダー名が安全でないため、クリーンアップはオフになっています。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ja="プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." ja="チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。"/>
@@ -179,7 +178,6 @@
   <translation tag="A print started" ja="印刷が開始されました"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ja="スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"/>
   <translation tag="A print took the printer." ja="印刷がプリンターを使用し始めました。"/>
-  <translation tag="A printer command failed." ja="プリンターコマンドが失敗しました。"/>
   <translation tag="A restart is already in progress" ja="再起動はすでに進行中です"/>
   <translation tag="A right, B left" ja="A右・B左"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ja="ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。"/>
@@ -766,6 +764,7 @@
   <translation tag="Clog Manual" ja="詰まり: 手動"/>
   <translation tag="Clog and flow health while printing" ja="印刷中の詰まりとフローの状態"/>
   <translation tag="Clog detection" ja="詰まり検出"/>
+  <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." ja="ノズルが詰まっていますか？押し出しは任意です。「完了」をタップして進んでください。"/>
   <translation tag="Close" ja="閉じる"/>
   <translation tag="Close feeder" ja="フィーダーを閉じる"/>
   <translation tag="Close feeder macro" ja="フィーダーを閉じるマクロ"/>
@@ -1002,6 +1001,7 @@
   <translation tag="Cut &amp; retract" ja="切断して引き戻し"/>
   <translation tag="Cut Distance" ja="カット距離"/>
   <translation tag="Cut filament" ja="フィラメントを切断"/>
+  <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ja="引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"/>
   <translation tag="Cut position saved: {}" ja="切断位置を保存しました: {}"/>
   <translation tag="Cut tip" ja="先端をカット"/>
   <translation tag="Cutter Enabled" ja="カッター有効"/>
@@ -1057,6 +1057,7 @@
   <translation tag="Deploy" ja="展開"/>
   <translation tag="Depth and lighting on buttons and panels" ja="ボタンとパネルに奥行きと光を加えます"/>
   <translation tag="Describe the issue (optional)" ja="問題の詳細（任意）"/>
+  <translation tag="Detach the filament tube at the toolhead first so you can grip the filament." ja="フィラメントをつかめるよう、先にツールヘッドのフィラメントチューブを外してください。"/>
   <translation tag="Detailed" ja="詳細"/>
   <translation tag="Details" ja="詳細"/>
   <translation tag="Detect automatically" ja="自動検出"/>
@@ -1470,6 +1471,7 @@
   <translation tag="Feed filament from current slot" ja="現在のスロットからフィラメントを送る"/>
   <translation tag="Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload" ja="フィラメントを手でセンサー先まで挿入して「再開」を押してください。または印刷をキャンセルして「装填」「排出」を使用してください"/>
   <translation tag="Feed the cleaning filament" ja="清掃用フィラメントを入れてください"/>
+  <translation tag="Feed the filament back" ja="フィラメントを戻す"/>
   <translation tag="Feeder" ja="フィーダー"/>
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament forward" ja="フィラメントを前方に送り出し中"/>
@@ -2045,6 +2047,7 @@
   <translation tag="Learn More" ja="詳細を見る"/>
   <translation tag="Learn the basics: the setup wizard, moving around the screens, and touch gestures." ja="基本：セットアップウィザード、画面の移動、タッチ操作。"/>
   <translation tag="Leave it" ja="そのままにする"/>
+  <translation tag="Leave this off for a clogged nozzle." ja="ノズルが詰まっている場合はオフのままにしてください。"/>
   <translation tag="LedSelect" ja="LEDを選択"/>
   <translation tag="Left" ja="左"/>
   <translation tag="Left belt" ja="左ベルト"/>
@@ -2988,6 +2991,7 @@
   <translation tag="Purge chute position saved." ja="パージシュートの位置を保存しました。"/>
   <translation tag="Purge failed: {}" ja="パージに失敗しました: {}"/>
   <translation tag="Purge may still be running — response timed out" ja="パージがまだ実行中の可能性があります — 応答タイムアウト"/>
+  <translation tag="Purge the loaded filament" ja="ロード済みフィラメントをパージ"/>
   <translation tag="Purge to bucket" ja="バケツへパージ"/>
   <translation tag="Purge tower and brush settings" ja="パージタワーとブラシの設定"/>
   <translation tag="Purging" ja="パージ中"/>
@@ -3755,6 +3759,7 @@
   <translation tag="Tangle prevention boosted" ja="絡み防止 強化中"/>
   <translation tag="Tangle sensitivity" ja="絡み検出の感度"/>
   <translation tag="Tap + to add" ja="+ をタップして追加"/>
+  <translation tag="Tap Extrude more until clean filament comes out of the nozzle, then tap Done." ja="ノズルからきれいなフィラメントが出るまで「さらに押し出し」をタップし、「完了」をタップしてください。"/>
   <translation tag="Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge" ja="「ファームウェア再起動」をタップして復旧してください。K2 では rpi MCU ブリッジも再起動されます"/>
   <translation tag="Tap Resume to try the load again from {}." ja="再開をタップすると、{}からもう一度ロードします。"/>
   <translation tag="Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman." ja="スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"/>
@@ -3994,7 +3999,6 @@
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ja="ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ja="ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ja="ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です"/>
-  <translation tag="The unload did not finish. Try again, or cancel." ja="排出が完了しませんでした。再試行するか、キャンセルしてください。"/>
   <translation tag="The unload did not start: unload by hand, then start again" ja="排出が始まりませんでした: 手で排出してから、もう一度始めてください"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ja="排出はそのまま完了しますが、ベッドは移動しません。"/>
   <translation tag="Theme" ja="テーマ"/>
@@ -4024,6 +4028,7 @@
   <translation tag="This channel offers v{}, older than the installed v{}. Anything added since then will be removed." ja="このチャンネルが提供するのは v{} で、インストール済みの v{} より古いバージョンです。それ以降に追加されたものは削除されます。"/>
   <translation tag="This check runs Klipper&apos;s resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.&#10;&#10;Each sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs." ja="このチェックはKlipperの共振テストを各ベルトパスに沿って実行し、2つの応答を比較します。バランスの取れたベルトは同じ形の曲線になり、ピークが同じ周波数に現れます。&#10;&#10;各スイープには数分かかり、ツールヘッドが動きます。実行中はプリンターから離れてください。"/>
   <translation tag="This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again." ja="エンドレススプールの予備をすべて消去します。エンドレススプールを再設定するまで、フィラメント切れで印刷が停止します。"/>
+  <translation tag="This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand." ja="このコールドプルでは、このツールヘッドにロードされているフィラメントを使います。エクストルーダーとフィラメント経路の上部を手で操作できる必要があります。"/>
   <translation tag="This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen." ja="このデバイスには有線ネットワーク接続がありません。WiFiをオフにすると、この画面からのみオンに戻せます。"/>
   <translation tag="This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a &quot;Timer Too Close&quot; error or restart mid-test. Continue anyway?" ja="このデバイスの RAM は {} MB しかありません。共振キャリブレーションはメモリを大量に消費し、プリンターのファームウェアが &quot;Timer Too Close&quot; エラーを報告したり、テスト中に再起動したりする可能性があります。それでも続行しますか？"/>
   <translation tag="This device has very little RAM. Resonance calibration is memory-intensive and may cause a &quot;Timer Too Close&quot; error. Continue anyway?" ja="このデバイスの RAM は非常に少ないです。共振キャリブレーションはメモリを大量に消費し、&quot;Timer Too Close&quot; エラーを引き起こす可能性があります。それでも続行しますか？"/>
@@ -4044,6 +4049,7 @@
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ja="これは緊急停止です：プリンターが停止し、Klipperが再起動します。"/>
   <translation tag="This is exactly the data that will be sent" ja="これが送信されるデータです"/>
   <translation tag="This is what data would be sent if enabled" ja="これは有効にした場合に送信されるデータです"/>
+  <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." ja="このレーンはロード済みと表示されていますが、フィラメントはノズルから抜けています。印刷前にエクストルーダーに戻し、流れ出るまで押し出してください。"/>
   <translation tag="This looks like a {}, but it is set up as a {}" ja="このプリンターは{}のようですが、{}として設定されています"/>
   <translation tag="This may take up to 30 seconds" ja="最大30秒かかる場合があります"/>
   <translation tag="This needs the plugin&apos;s file analysis, which isn&apos;t running." ja="プラグインのファイル解析が必要ですが、実行されていません。"/>
@@ -4267,7 +4273,6 @@
   <translation tag="Unload filament" ja="フィラメントをアンロード"/>
   <translation tag="Unload filament?" ja="フィラメントを排出しますか?"/>
   <translation tag="Unload from toolhead first" ja="先にツールヘッドから取り出してください"/>
-  <translation tag="Unload lane" ja="レーンを排出"/>
   <translation tag="Unload macro not configured" ja="アンロードマクロが未設定です"/>
   <translation tag="Unload stopped" ja="アンロードを停止しました"/>
   <translation tag="Unload the CFS filament before enabling bypass" ja="バイパスを有効にする前に CFS のフィラメントを取り出してください"/>

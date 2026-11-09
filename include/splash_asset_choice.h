@@ -26,7 +26,7 @@
  *
  * 1. the full-screen canvas for the panel's size class
  * 2. the `tiny` canvas, when a `small` panel has none of its own
- * 3. neither, if the canvas found is taller than the panel
+ * 3. neither, if the canvas found is wider or taller than the panel
  * 4. the 3D logo PNG, centred and scaled
  * 5. the pre-rendered centred logo for the class settled on at step 2
  * 6. the logo PNG, centred and scaled
@@ -48,12 +48,12 @@ struct SplashChoice {
     std::string path;
     /// The class actually settled on, which is not always the one the panel
     /// selects: step 2 can move it. Callers that go on to ask
-    /// get_splash_3d_target_height() must ask about THIS one.
+    /// get_splash_3d_target_width() or _height() must ask about THIS one.
     std::string size_class;
-    /// True when a canvas existed but was taller than the panel. The caller has
-    /// a scaled fallback either way; this is worth a log line because it means
-    /// the panel has no canvas of its own.
-    bool canvas_too_tall = false;
+    /// True when a canvas existed but was wider or taller than the panel. The
+    /// caller has a scaled fallback either way; this is worth a log line because
+    /// it means the panel has no canvas of its own.
+    bool canvas_does_not_fit = false;
 };
 
 /// Return a usable path for `relative`, or "" when it is not there.

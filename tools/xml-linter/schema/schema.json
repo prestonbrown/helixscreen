@@ -2031,8 +2031,19 @@
       },
       "inherits": "lv_obj"
     },
+    "cold_pull_tip_sketch": {
+      "attributes": {
+        "dirty": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "filament_motion_glyph": {
       "attributes": {
+        "bind_color": {
+          "type": "color"
+        },
         "bind_motion": {
           "type": "string"
         }
@@ -3048,6 +3059,7 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "cold_pull_tip_sketch",
     "filament_motion_glyph",
     "humidity_drop",
     "unit_art",

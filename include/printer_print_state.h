@@ -830,6 +830,23 @@ class PrinterPrintState {
     /// a clean slate and re-derives both from the fresh status. Main-thread only.
     void clear_pl_recovery_file() {
         pl_recovery_file_.clear();
+        plr_saved_file_.reset();
+    }
+
+    /// The firmware's saved recovery filename (plr_parse_saved_file): nullopt
+    /// when it keeps none, empty when cleared. Main-thread only.
+    [[nodiscard]] const std::optional<std::string>& plr_saved_file() const {
+        return plr_saved_file_;
+    }
+
+    /// Whether the saved filename decides availability (plr_saved_file_gates_offer).
+    [[nodiscard]] bool plr_saved_file_gates_offer() const {
+        return plr_saved_file_gates_offer_;
+    }
+
+    /// Set from the discovery snapshot, alongside the resume-macro capability.
+    void set_plr_saved_file_gates_offer(bool gates) {
+        plr_saved_file_gates_offer_ = gates;
     }
 
     /// The active recovery probe's capability marker (plr_parse_power_loss_signal
@@ -1462,6 +1479,8 @@ class PrinterPrintState {
     // Recovery file (plr_parse_recovery_file). Not a subject:
     // no XML binding needed, read on the main thread by the resume dispatcher.
     std::string pl_recovery_file_;
+    std::optional<std::string> plr_saved_file_;
+    bool plr_saved_file_gates_offer_ = false;
 
     // Active recovery probe capability marker (plr_parse_power_loss_signal).
     // Integer: 1 once the key has been seen (presence, not value).

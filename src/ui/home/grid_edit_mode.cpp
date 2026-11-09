@@ -166,11 +166,7 @@ void GridEditMode::finish_resize_snap() {
 }
 
 void GridEditMode::stop_page_flip_timers() {
-    crossing_flip_dir_ = 0;
-    if (crossing_flip_timer_) {
-        helix::ui::lv_timer_cancel_safe(crossing_flip_timer_);
-        crossing_flip_timer_ = nullptr;
-    }
+    cancel_crossing_flip();
     if (dwell_flip_timer_) {
         helix::ui::lv_timer_cancel_safe(dwell_flip_timer_);
         dwell_flip_timer_ = nullptr;
@@ -178,14 +174,18 @@ void GridEditMode::stop_page_flip_timers() {
 }
 
 // Both flip timers are one-shots: each trigger asks for exactly one flip.
-void GridEditMode::start_crossing_flip(int dir) {
+void GridEditMode::cancel_crossing_flip() {
+    crossing_flip_dir_ = 0;
     if (crossing_flip_timer_) {
         helix::ui::lv_timer_cancel_safe(crossing_flip_timer_);
         crossing_flip_timer_ = nullptr;
     }
+}
+
+void GridEditMode::start_crossing_flip(int dir, uint32_t delay_ms) {
+    cancel_crossing_flip();
     crossing_flip_dir_ = dir;
-    crossing_flip_timer_ =
-        lv_timer_create(crossing_flip_cb, helix::kCrossPageCrossingDelayMs, this);
+    crossing_flip_timer_ = lv_timer_create(crossing_flip_cb, delay_ms, this);
     lv_timer_set_repeat_count(crossing_flip_timer_, 1);
 }
 
@@ -209,6 +209,7 @@ void GridEditMode::crossing_flip_cb(lv_timer_t* timer) {
     self->crossing_flip_timer_ = nullptr; // one-shot: the runner retires it
     const int dir = self->crossing_flip_dir_;
     self->crossing_flip_dir_ = 0;
+    helix::cross_page_note_crossing_flip(self->cross_page_);
     self->request_page_flip("crossing", dir);
 }
 
@@ -1967,9 +1968,12 @@ void GridEditMode::handle_drag_move(lv_event_t* /*e*/) {
 
     // Both flips wait on timers, since both are deadlines: the dwell runs out
     // while the pointer may rest, and a crossing flips only if the finger is
-    // still down when kCrossPageCrossingDelayMs runs out.
+    // still down, with the widget still past the line, when its delay runs out.
+    if (step.cancel_crossing) {
+        cancel_crossing_flip();
+    }
     if (step.flip_dir != 0) {
-        start_crossing_flip(step.flip_dir);
+        start_crossing_flip(step.flip_dir, step.flip_delay_ms);
     }
     if (step.dwell_changed) {
         restart_dwell_flip(step.dwell_dir);

@@ -167,8 +167,6 @@ translations:
   A cold pull is already running.: "Un cold pull est déjà en cours."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
-  ? A filament lane is loaded into this toolhead. Unload it first; feed the cleaning filament through the bypass if your system has one.
-  : "Une voie de filament est chargée dans cette tête. Déchargez-la d'abord ; insérez le filament de nettoyage par le bypass si votre système en a un."
   A folder name in moonraker.conf is unsafe, so cleanup is off.: "Un nom de dossier dans moonraker.conf n'est pas sûr, le nettoyage est donc désactivé."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Une macro de heat soak est configurée sur l''imprimante. HelixScreen la détecte mais ne l''exécute pas.'
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un chauffage qui réchauffe l''air de l''enceinte. Réglez sa température sur l''écran de température de l''enceinte.'
@@ -190,7 +188,6 @@ translations:
   A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
   A print took the printer.: "Une impression a pris l'imprimante."
-  A printer command failed.: "Une commande de l'imprimante a échoué."
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
@@ -842,6 +839,7 @@ translations:
   Clog Manual: Bouchon manuel
   Clog and flow health while printing: Bouchons et débit pendant l'impression
   Clog detection: Détection de bouchon
+  'Clogged nozzle? Extruding is optional: tap Done to go on.': "Buse bouchée ? L'extrusion est facultative : appuyez sur Terminé pour continuer."
   Close: Fermer
   Close feeder: Fermer l'alimentateur
   Close feeder macro: Macro de fermeture de l'alimentateur
@@ -1125,6 +1123,7 @@ translations:
   Cut & retract: 'Couper et rétracter'
   Cut Distance: 'Distance de coupe'
   Cut filament: Couper le filament
+  Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "Coupez la pointe extraite et repoussez le filament dans l'extrudeur jusqu'en butée, puis appuyez sur Extruder."
   'Cut position saved: {}': 'Position de coupe enregistrée : {}'
   Cut tip: 'Couper la pointe'
   Cutter Enabled: 'Coupeur activé'
@@ -1180,6 +1179,7 @@ translations:
   Deploy: Déployer
   Depth and lighting on buttons and panels: Profondeur et lumière sur les boutons et les panneaux
   Describe the issue (optional): Décrivez le problème (optionnel)
+  Detach the filament tube at the toolhead first so you can grip the filament.: "Détachez d'abord le tube de filament sur la tête pour pouvoir saisir le filament."
   Detailed: Détaillé
   Details: 'Détails'
   Detect automatically: 'Détecter automatiquement'
@@ -1631,6 +1631,7 @@ translations:
   Feed filament from current slot: 'Alimenter le filament depuis le slot actuel'
   Feed filament past the sensor by hand, then press Resume — or cancel the print to use Load/Unload: Insérez le filament à la main jusqu'après le capteur, puis appuyez sur Reprendre — ou annulez l'impression pour utiliser Charger/Décharger
   Feed the cleaning filament: "Insérez le filament de nettoyage"
+  Feed the filament back: "Réinsérer le filament"
   Feeder: Alimentateur
   Feeders: Alimentateurs
   Feeding filament forward: Avancement du filament
@@ -2265,6 +2266,7 @@ translations:
   Layout changes are off in safe mode. Restart to edit.: 'Les modifications de disposition sont désactivées en mode sans échec. Redémarrez pour modifier.'
   Learn More: En savoir plus
   Leave it: 'La laisser'
+  Leave this off for a clogged nozzle.: "Laissez désactivé si la buse est bouchée."
   LedSelect: Sélection de la LED
   Left: 'Gauche'
   Left belt: "Courroie gauche"
@@ -3269,6 +3271,7 @@ translations:
   'Purge failed: {}': 'Échec de la purge : {}'
   Purge may still be running — response timed out: Purge peut-être encore en cours
     — délai dépassé
+  Purge the loaded filament: "Purger le filament chargé"
   Purge to bucket: 'Purger dans le bac'
   Purge tower and brush settings: 'Paramètres de tour de purge et de brosse'
   Purging: Purge en cours
@@ -4117,6 +4120,7 @@ translations:
   Tangle prevention boosted: Anti-nœud renforcé
   'Tangle sensitivity': 'Sensibilité aux nœuds'
   Tap + to add: Touchez + pour ajouter
+  Tap Extrude more until clean filament comes out of the nozzle, then tap Done.: "Appuyez sur Extruder plus jusqu'à ce qu'un filament propre sorte de la buse, puis sur Terminé."
   Tap Firmware Restart to recover — on K2 this also bounces the rpi MCU bridge: Appuyez sur Redémarrer le firmware pour récupérer. Sur la K2, cela redémarre aussi le pont MCU rpi
   Tap Resume to try the load again from {}.: 'Touchez Reprendre pour relancer le chargement depuis {}.'
   Tap again to confirm this orientation: Appuyez à nouveau pour confirmer cette orientation
@@ -4401,7 +4405,6 @@ translations:
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: L'unité exécute déjà une autre opération. Attendez la fin, ou réinitialisez le CFS s'il reste bloqué
   The unit reported a fault with no further detail. Restart the printer if it repeats: L'unité a signalé une panne sans plus de détails. Redémarrez l'imprimante si cela se reproduit
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La mémoire interne de l'unité est défaillante. La carte mère du CFS doit être remplacée
-  The unload did not finish. Try again, or cancel.: "Le déchargement n'a pas abouti. Réessayez ou annulez."
   'The unload did not start: unload by hand, then start again': 'Le déchargement n''a pas démarré : déchargez à la main, puis recommencez'
   The unload finishes on its own, but the plate will not move.: 'Le déchargement se termine de lui-même, mais le plateau ne bougera pas.'
   Theme: Thème
@@ -4442,6 +4445,8 @@ translations:
   ? "This check runs Klipper's resonance test along each belt path and compares the two responses. Balanced belts give curves of the same shape, with peaks at the same frequencies.\n\nEach sweep takes a few minutes and moves the toolhead; keep clear of the printer while it runs."
   : "Ce contrôle exécute le test de résonance de Klipper le long de chaque chemin de courroie et compare les deux réponses. Des courroies équilibrées donnent des courbes de même forme, avec des pics aux mêmes fréquences.\n\nChaque balayage prend quelques minutes et déplace la tête d'outil ; tenez-vous à l'écart de l'imprimante pendant son exécution."
   This clears every Endless Spool backup. The print will stop on runout until you set up Endless Spool again.: Cela efface toutes les réserves de la bobine infinie. L'impression s'arrêtera en fin de filament jusqu'à ce que vous reconfiguriez la bobine infinie.
+  ? This cold pull uses the filament loaded in this toolhead. The extruder and the top of its filament path must be reachable by hand.
+  : "Ce cold pull utilise le filament chargé dans cette tête. L'extrudeur et le haut du trajet du filament doivent être accessibles à la main."
   This device has no wired network connection. If you turn WiFi off, it can only be turned back on from this screen.: Cet appareil n'a pas de connexion réseau filaire. Si vous désactivez le WiFi, il ne pourra être réactivé que depuis cet écran.
   ? This device has only {} MB of RAM. Resonance calibration is memory-intensive and can make the printer firmware report a "Timer Too Close" error or restart mid-test. Continue anyway?
   : Cet appareil ne dispose que de {} Mo de RAM. La calibration de résonance est gourmande en mémoire et peut amener le firmware de l'imprimante à signaler une erreur "Timer Too Close" ou à redémarrer en cours de test. Continuer quand même ?
@@ -4467,6 +4472,8 @@ translations:
     envoyées
   This is what data would be sent if enabled: Voici les données qui seraient envoyées
     si activé
+  ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  : "Cette voie apparaît encore comme chargée, mais son filament est sorti de la buse. Avant d'imprimer, repoussez-le dans l'extrudeur et extrudez jusqu'à ce qu'il s'écoule."
   This looks like a {}, but it is set up as a {}: Cette imprimante ressemble à une {}, mais elle est configurée comme {}
   This may take up to 30 seconds: Cela peut prendre jusqu'à 30 secondes
   This needs the plugin's file analysis, which isn't running.: "Ceci nécessite l'analyse des fichiers du plugin, qui ne tourne pas."
@@ -4727,7 +4734,6 @@ translations:
   Unload filament?: Décharger le filament ?
 
   Unload from toolhead first: 'Déchargez d''abord depuis la tête d''outil'
-  Unload lane: "Décharger la voie"
   Unload macro not configured: Macro de déchargement non configurée
   Unload the CFS filament before enabling bypass: 'Déchargez le filament du CFS avant d''activer le bypass'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Déchargez le filament actuel, puis continuez. L'extrudeur et le haut du trajet du filament doivent être accessibles à la main."

@@ -59,7 +59,7 @@ std::vector<TourStep> build_tour_steps(bool has_ams, int seen_version) {
     customize.since_version = 2;
     steps.push_back(std::move(customize));
 
-    // Print Status only has content during a print, so the card carries a picture of it.
+    // Print Status only has content during a print, so the card carries a sample of it.
     TourStep print_status{"",
                           "A new Print Status screen",
                           "During a print, see a chip for each heater, fan, and light, a checklist "
@@ -67,7 +67,7 @@ std::vector<TourStep> build_tour_steps(bool has_ams, int seen_version) {
                           TooltipAnchor::Center,
                           {}};
     print_status.since_version = 2;
-    print_status.preview_image = "A:assets/images/tour/print_status_preview.png";
+    print_status.shows_print_status_preview = true;
     steps.push_back(std::move(print_status));
 
     steps.push_back({"nav_btn_controls",
