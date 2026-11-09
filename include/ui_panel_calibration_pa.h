@@ -5,6 +5,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "heater_hold.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
@@ -12,6 +13,7 @@
 
 #include <functional>
 #include <lvgl.h>
+#include <optional>
 #include <string>
 
 /**
@@ -143,6 +145,10 @@ class PACalibrationPanel : public OverlayBase {
         return result_k_;
     }
 
+    /// Ends a run while the client can still send, turning its heat off. Shutdown
+    /// and printer switches reach the panel only after the client is gone.
+    void before_disconnect();
+
     /// Whether this printer can measure pressure advance at all. The Controls
     /// entry is bound to the same capability through `printer_has_pa_cal`.
     static bool printer_supports_calibration();
@@ -152,6 +158,21 @@ class PACalibrationPanel : public OverlayBase {
     //
 
     /// Drive the state machine directly, without a printer.
+    void begin_run_for_test() {
+        begin_run();
+    }
+    bool heater_held_for_test() const {
+        return heater_hold_.held();
+    }
+    void stop_run_for_test(bool user_requested) {
+        stop_run(user_requested);
+    }
+    lv_timer_t* run_timer_for_test() const {
+        return run_timer_;
+    }
+    void fire_run_timer_for_test() {
+        handle_run_timer();
+    }
     void set_state_for_test(State s) {
         set_state(s);
     }
@@ -175,11 +196,29 @@ class PACalibrationPanel : public OverlayBase {
     }
 
   private:
+    /// The nozzle heating alone never takes this long on a working machine.
+    static constexpr uint32_t kHeatDeadlineMs = 600000;
+    /// Past the firmware command's own limit, so a late result still lands.
+    static constexpr uint32_t kMeasureDeadlineGraceMs = 60000;
+    /// Long enough for the first status after a reconnect to arrive.
+    static constexpr uint32_t kOwedOffSettleMs = 5000;
+
     // --- run control ---
     void confirm_and_start();
     void begin_run();
     void begin_measure();
     void stop_run(bool user_requested);
+    /// A run that stopped short gives its heat back. Skipped for a preheat the
+    /// run did not start; owed until reconnect when the link is down.
+    void abandon_run_heat();
+    /// Normal endings, where a preheat the run began on is cleared too.
+    void finish_run_heat();
+    /// Send the off unless another target or a job has taken the nozzle.
+    /// @param expected_c The run's target; 0 when the firmware command owns it
+    void send_off_unless_taken(const std::string& heater, int expected_c);
+    void flush_owed_off();
+    bool printer_connected() const;
+    void watch_connection();
     /// Typical minutes for a run on this printer, for the pre-run copy.
     int estimate_minutes() const;
     void on_result(float k);
@@ -214,6 +253,11 @@ class PACalibrationPanel : public OverlayBase {
     /// Cancel the ETA timer. Safe with none armed and safe from the
     /// destructor, which is why it is separate from stop_heat_tracking().
     void cancel_eta_timer();
+    /// The run's deadline while one is live, then the wait before an owed off.
+    void cancel_run_timer();
+    void arm_run_timer(uint32_t ms);
+    void handle_run_timer();
+    static void on_run_timer(lv_timer_t* timer);
     /// Start the once-a-second remaining-time tick, replacing any armed one.
     void arm_eta_timer();
     static void on_eta_tick(lv_timer_t* timer);
@@ -244,6 +288,19 @@ class PACalibrationPanel : public OverlayBase {
     /// running command, so a stop mid-measurement leaves the firmware to
     /// finish while the screen stops waiting for it.
     std::function<void()> pa_cancel_;
+
+    /// Target the nozzle already had when the run began. Nonzero means someone
+    /// else's heat, which shutdown leaves alone.
+    int prior_target_c_ = 0;
+
+    /// An off the link was down for, sent once the printer is back.
+    struct OwedOff {
+        std::string heater;
+        int expected_c = 0;
+    };
+    std::optional<OwedOff> owed_off_;
+    ObserverGuard connection_observer_;
+    HeaterHold heater_hold_;
 
     /// Ticks when the current phase began, for the remaining-time clock.
     uint32_t phase_start_tick_ms_ = 0;
@@ -323,6 +380,7 @@ class PACalibrationPanel : public OverlayBase {
     ObserverGuard temp_observer_;
     SubjectLifetime temp_lifetime_;
     lv_timer_t* eta_timer_ = nullptr;
+    lv_timer_t* run_timer_ = nullptr;
 };
 
 /// Singleton accessor (lazily created, destroyed via StaticPanelRegistry)
