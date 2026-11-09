@@ -296,6 +296,7 @@
   <translation tag="An API key is 32 characters, each 0-9 or a-f." zh="API 密钥为 32 个字符，每个为 0-9 或 a-f。"/>
   <translation tag="An accelerometer was detected on your printer." zh="在您的打印机上检测到加速度计。"/>
   <translation tag="An app on your network is asking to connect to this printer." zh="网络中的某个应用请求连接到此打印机。"/>
+  <translation tag="An earlier install is still finishing..." zh="之前的安装仍在进行中..."/>
   <translation tag="An error occurred during calibration." zh="校准过程中发生错误。"/>
   <translation tag="An error occurred during filament loading." zh="装载耗材时发生错误。"/>
   <translation tag="An error occurred during probing." zh="探测过程中发生错误。"/>
@@ -1848,7 +1849,6 @@
   <translation tag="Installation timed out" zh="安装超时"/>
   <translation tag="Installation timed out. The script may be stuck." zh="安装超时。脚本可能已卡住。"/>
   <translation tag="Installed" zh="已安装"/>
-  <translation tag="Installing ffmpeg. This can take several minutes..." zh="正在安装 ffmpeg，可能需要几分钟..."/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." zh="安装会重启 Moonraker，因此会等到打印完成或取消后再进行。"/>
   <translation tag="Installing the timelapse plugin..." zh="正在安装延时摄影插件..."/>
   <translation tag="Installing..." zh="正在安装..."/>
@@ -3888,7 +3888,7 @@
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
-  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但 HelixScreen 无法在没有密码的情况下安装它。"/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" zh="正在进行的换工具已完成，工具未停放"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" zh="正在进行的换工具已完成，{}未放回打印头"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>

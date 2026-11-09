@@ -8,9 +8,15 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/timelapse_install_overlay_test_access.h"
+#include "app_globals.h"
 #include "moonraker_config_manager.h"
+#include "printer_state.h"
 
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -274,5 +280,199 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(ffmpeg, LV_OBJ_FLAG_HIDDEN));
 
+    overlay.cleanup();
+}
+
+// ============================================================================
+// Local install: runs, reopens, prints
+// ============================================================================
+
+namespace {
+using helix::CommandResult;
+using helix::LocalPluginOutcome;
+using helix::LocalPluginResult;
+
+constexpr const char* kWaitsForPrint =
+    "Installing restarts Moonraker, so it waits until the print is finished or cancelled.";
+
+/// LVGL, the global PrinterState the wizard reads a job from, and a HOME to clone under.
+struct LocalInstallFixture : public LVGLTestFixture {
+    LocalInstallFixture() {
+        const char* home = std::getenv("HOME");
+        had_home_ = home != nullptr;
+        saved_home_ = home ? home : "";
+        setenv("HOME", "/nonexistent-timelapse-home", 1);
+        get_printer_state().init_subjects(false);
+        set_job_holds(false);
+    }
+    ~LocalInstallFixture() override {
+        set_job_holds(false);
+        if (had_home_) {
+            setenv("HOME", saved_home_.c_str(), 1);
+        } else {
+            unsetenv("HOME");
+        }
+    }
+    static void set_job_holds(bool holds) {
+        lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(),
+                           holds ? 1 : 0);
+    }
+    /// Drain the UI queue until @p done holds, for up to five seconds.
+    template <typename Pred> static bool settle_until(Pred done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (std::chrono::steady_clock::now() < deadline) {
+            helix::ui::UpdateQueue::instance().drain();
+            if (done()) {
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+
+  private:
+    bool had_home_ = false;
+    std::string saved_home_;
+};
+
+/// A runner whose every command blocks until released, then succeeds.
+struct GatedRunner {
+    std::atomic<bool> released{false};
+    std::atomic<int> calls{0};
+
+    helix::ProcessRunner runner() {
+        return [this](const std::vector<std::string>&, int) {
+            ++calls;
+            while (!released.load()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            CommandResult ok;
+            ok.started = true;
+            ok.exit_code = 0;
+            return ok;
+        };
+    }
+};
+
+LocalPluginResult installed() {
+    LocalPluginResult r;
+    r.outcome = LocalPluginOutcome::Installed;
+    return r;
+}
+} // namespace
+
+TEST_CASE_METHOD(LocalInstallFixture,
+                 "closing the wizard mid-install leaves no stuck install: a reopened run installs",
+                 "[timelapse][local_install_ui]") {
+    using Access = TimelapseInstallOverlayTestAccess;
+    TimelapseInstallOverlay overlay(nullptr);
+    overlay.init_subjects();
+    GatedRunner gate;
+    Access::set_runner(overlay, gate.runner());
+
+    overlay.on_activate();
+    Access::install_locally(overlay);
+    REQUIRE(settle_until([&] { return gate.calls.load() == 1; }));
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    overlay.on_activate();
+    Access::install_locally(overlay);
+    // The first run's worker is still going: this run says so, and keeps a button.
+    CHECK(Access::status(overlay) == "An earlier install is still finishing...");
+    CHECK(Access::action_visible(overlay));
+    CHECK(gate.calls.load() == 1);
+
+    // When it ends, the reopened run starts its own install and finishes it.
+    gate.released.store(true);
+    REQUIRE(settle_until([&] { return Access::at_configure(overlay); }));
+    CHECK(gate.calls.load() > 1);
+    CHECK_FALSE(Access::install_running(overlay));
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "a closed run's install result never drives a reopened run",
+                 "[timelapse][local_install_ui]") {
+    using Access = TimelapseInstallOverlayTestAccess;
+    TimelapseInstallOverlay overlay(nullptr);
+    overlay.init_subjects();
+
+    overlay.on_activate();
+    const unsigned first = Access::generation(overlay);
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    overlay.on_activate();
+    const unsigned second = Access::generation(overlay);
+    REQUIRE(second != first);
+    Access::park_at_install(overlay);
+
+    Access::finish_install(overlay, first, installed());
+    CHECK(Access::at_install(overlay));
+
+    // The run's own result does move it on.
+    Access::finish_install(overlay, second, installed());
+    CHECK(Access::at_configure(overlay));
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture,
+                 "a print started during the install holds configure and the restart",
+                 "[timelapse][local_install_ui]") {
+    using Access = TimelapseInstallOverlayTestAccess;
+    TimelapseInstallOverlay overlay(nullptr);
+    overlay.init_subjects();
+    overlay.on_activate();
+    Access::park_at_install(overlay);
+
+    set_job_holds(true);
+    Access::finish_install(overlay, Access::generation(overlay), installed());
+    CHECK(Access::at_configure(overlay));
+    CHECK(Access::status(overlay) == kWaitsForPrint);
+    REQUIRE(Access::action_visible(overlay));
+
+    // Check Again while it still prints keeps waiting; once it ends, configure runs.
+    REQUIRE(Access::run_action(overlay));
+    CHECK(Access::status(overlay) == kWaitsForPrint);
+    set_job_holds(false);
+    REQUIRE(Access::run_action(overlay));
+    CHECK(Access::status(overlay) == "Not connected to printer");
+
+    SECTION("the restart waits too") {
+        set_job_holds(true);
+        Access::restart_moonraker(overlay);
+        CHECK(Access::at_restart(overlay));
+        CHECK(Access::status(overlay) == kWaitsForPrint);
+    }
+    SECTION("so does a Retry of the install") {
+        GatedRunner gate;
+        gate.released.store(true);
+        Access::set_runner(overlay, gate.runner());
+        set_job_holds(true);
+        Access::install_locally(overlay);
+        CHECK(Access::status(overlay) == kWaitsForPrint);
+        CHECK_FALSE(Access::install_running(overlay));
+        CHECK(gate.calls.load() == 0);
+    }
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "no HOME to clone under takes the SSH route",
+                 "[timelapse][local_install_ui]") {
+    using Access = TimelapseInstallOverlayTestAccess;
+    TimelapseInstallOverlay overlay(nullptr);
+    overlay.init_subjects();
+    GatedRunner gate;
+    gate.released.store(true);
+    Access::set_runner(overlay, gate.runner());
+    overlay.on_activate();
+
+    SECTION("unset") {
+        unsetenv("HOME");
+    }
+    SECTION("empty") {
+        setenv("HOME", "", 1);
+    }
+    Access::install_locally(overlay);
+    CHECK(Access::card(overlay) == 1); // Card::Ssh
+    CHECK_FALSE(Access::install_running(overlay));
+    CHECK(gate.calls.load() == 0);
     overlay.cleanup();
 }

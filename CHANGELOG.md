@@ -16,7 +16,7 @@ This is the first 1.1 release candidate. Unless testing turns up a problem, it i
 - **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
 - **Z-Tilt and QGL use your Bed Level macro** (#2083) - if you assigned a macro to Bed Level in Standard Macros, the Z-Tilt and Quad Gantry Level buttons run it too.
 - **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
-- **Timelapse setup installs the plugin for you** - when HelixScreen runs on the same machine as Moonraker, Setup Timelapse downloads and installs the timelapse plugin itself instead of asking you to do it over SSH. If ffmpeg is missing and can't be installed without a password, the last screen shows the one command to run.
+- **Timelapse setup installs the plugin for you** - when HelixScreen runs on the same machine as Moonraker, Setup Timelapse downloads and installs the timelapse plugin itself instead of asking you to do it over SSH. If ffmpeg, which timelapse needs to make videos, is missing, the last screen says so and shows the command that installs it.
 
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
 

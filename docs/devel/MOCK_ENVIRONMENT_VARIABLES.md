@@ -387,16 +387,16 @@ behaves exactly as before.
 
 ### `HELIX_MOCK_TIMELAPSE`
 
-Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Setup Timelapse** and its wizard reaches the install step. With the mock Moonraker on this host (the default), the wizard takes the local route: a simulated host answers its git, `install.sh --link-timelapse`, ffmpeg and sudo commands, and nothing runs on your machine. Linking the component makes the plugin answer, so the wizard finishes. With `HELIX_MOCK_REMOTE_PRINTER=1` it shows the SSH instructions instead, and Check Again keeps finding the plugin absent.
+Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Setup Timelapse** and its wizard reaches the install step. With the mock Moonraker on this host (the default), the wizard takes the local route: a simulated host answers its git, `install.sh --link-timelapse` and ffmpeg commands, and nothing runs on your machine. Linking the component makes the plugin answer, so the wizard finishes. With `HELIX_MOCK_REMOTE_PRINTER=1` it shows the SSH instructions instead, and Check Again keeps finding the plugin absent.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg; passwordless sudo installs it), `no-sudo` (no ffmpeg; sudo needs a password, so the last screen shows the ffmpeg command) |
+| **Values** | `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it) |
 | **Default** | unset (plugin present) |
 | **File** | `src/api/timelapse_host_mock.cpp` |
 
 ```bash
-HELIX_MOCK_TIMELAPSE=no-sudo ./build/bin/helix-screen --test -vv               # local install, ffmpeg left to the user
+HELIX_MOCK_TIMELAPSE=no-ffmpeg ./build/bin/helix-screen --test -vv             # local install, ffmpeg left to the user
 HELIX_MOCK_TIMELAPSE=absent HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv   # SSH instructions
 ```
 
