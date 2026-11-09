@@ -152,7 +152,6 @@ class HistoryDashboardPanel : public OverlayBase {
     // Containers
     lv_obj_t* stats_grid_ = nullptr;
     lv_obj_t* empty_state_ = nullptr;
-    lv_obj_t* btn_view_history_ = nullptr;
 
     // Charts
     lv_obj_t* trend_chart_container_ = nullptr;

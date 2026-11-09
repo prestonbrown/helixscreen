@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
+- **View Full History is always on screen** - the button that opens the full print history now sits in the Print History header, so you no longer have to scroll down to find it on smaller screens.
+- **Print history after viewing a job** - going back from a job's details to the full history list shows the list where you left it, instead of a blank screen.
 
 ## [1.1.0-beta.18] - 2026-11-08
 
