@@ -190,7 +190,8 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_feedback": [
       "fan0_speed",
@@ -241,10 +242,12 @@
       "power"
     ],
     "heater_fan chamber_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan chamber_heater_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_generic chamber_heater": [
       "temperature",
@@ -302,7 +305,8 @@
     "temperature_fan chamber_fan": [
       "temperature",
       "target",
-      "speed"
+      "speed",
+      "rpm"
     ],
     "temperature_sensor chamber_temp": [
       "temperature",

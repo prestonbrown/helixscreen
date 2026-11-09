@@ -188,8 +188,9 @@ class PrinterFanState {
      */
     void update_fan_speed(const std::string& object_name, double speed);
 
-    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field)
-    void update_fan_rpm(const std::string& object_name, int rpm);
+    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field);
+    /// nullopt means the fan has no tachometer
+    void update_fan_rpm(const std::string& object_name, std::optional<int> rpm);
 
     /// Rename a fan: saves custom name to Config, updates display_name, bumps fans_version
     void rename_fan(const std::string& object_name, const std::string& new_name);
@@ -301,6 +302,9 @@ class PrinterFanState {
     /// matching Mainsail. Unknown fans and max_power<=0 default to 1.0 (no
     /// scaling). Result is clamped to [0.0, 1.0].
     double normalize_speed(const std::string& object_name, double raw_speed) const;
+
+    /// Apply the Klipper "rpm" field of one fan object's status, if present
+    void update_klipper_rpm(const std::string& object_name, const nlohmann::json& fan_status);
 
     /// Disambiguate fans sharing the "chamber_fan" suffix by role: a HEATER_FAN
     /// becomes "Chamber Heater Fan" and a TEMPERATURE_FAN "Chamber Cooling Fan".
