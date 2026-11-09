@@ -615,7 +615,6 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                s.drying_text.c_str(),
                                nullptr,
                                nullptr};
-        // required-names: ams_unit_tile ams_unit_card
         uc.card = static_cast<lv_obj_t*>(
             lv_xml_create(cards_row_, uc.has_art ? "ams_unit_tile" : "ams_unit_card", attrs));
         if (!uc.card) {
@@ -633,8 +632,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         lv_obj_add_event_cb(uc.card, on_unit_card_clicked, LV_EVENT_CLICKED, this);
 
         // Find child widgets declared in XML
+        // required-names: ams_unit_tile ams_unit_card
         uc.name_label = helix::ui::find_required(uc.card, "unit_name", get_name());
         if (uc.has_art) {
+            // required-names: ams_unit_tile
             uc.art_stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
             for (lv_obj_t* clip : {uc.card, uc.art_stage}) {
                 // DECLARATIVE_OK: extended draw size has no XML form
@@ -642,10 +643,14 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                     nullptr);
                 lv_obj_refresh_ext_draw_size(clip);
             }
+            // required-names: ams_unit_tile
             uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
         } else {
+            // required-names: ams_unit_card
             uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
+            // required-names: ams_unit_card
             uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+            // required-names: ams_unit_card
             uc.slot_count_label = helix::ui::find_required(uc.card, "slot_count", get_name());
         }
 
