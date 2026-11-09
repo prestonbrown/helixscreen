@@ -629,6 +629,9 @@ class ReopeningPointerBackend : public MockDrmPointerBackend {
         }
         return create_input_pointer();
     }
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
 
     bool device_present = false;
     int reopen_calls = 0;
@@ -673,6 +676,25 @@ TEST_CASE_METHOD(ApplicationTestFixture,
     lv_indev_delete(reopened);
     CHECK(mgr.pointer_input() == nullptr);
     CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager arms no pointer retry on a backend that cannot reopen it",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend = std::make_unique<MockDrmPointerBackend>();
+    REQUIRE_FALSE(backend->can_reopen_input_pointer());
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    if (mgr.keyboard_input()) {
+        lv_indev_delete(mgr.keyboard_input());
+    }
 }
 
 TEST_CASE_METHOD(ApplicationTestFixture,
