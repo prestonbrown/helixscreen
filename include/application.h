@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "cli_args.h"
+#include "core/observer_guard.h"
 #include "gcode_response_routing.h"
 #include "lvgl/lvgl.h"
 #include "main_loop_handler.h"

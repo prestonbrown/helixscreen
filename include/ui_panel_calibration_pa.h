@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"

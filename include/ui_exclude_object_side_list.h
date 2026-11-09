@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_exclude_object_badges.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "print_status_layout_decision.h"
 

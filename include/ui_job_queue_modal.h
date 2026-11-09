@@ -4,7 +4,8 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
+
+#include "core/observer_guard.h"
 
 #include <string>
 

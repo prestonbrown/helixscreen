@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_print_cancel_modal.h"
 
+#include "core/observer_guard.h"
 #include "print_control_view.h"
 #include "print_job_ref.h"
 #include "subject_managed_panel.h"

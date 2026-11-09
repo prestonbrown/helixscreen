@@ -5,13 +5,13 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_filament_mapping_card.h"
-#include "ui_observer_guard.h"
 #include "ui_plugin_items_menu.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_widget_ref.h"
 
 #include "ams_remap.h"
+#include "core/observer_guard.h"
 #include "gcode_footer_summary.h"
 #include "gcode_preview_fetcher.h"
 #include "helix_shared_callback.h"

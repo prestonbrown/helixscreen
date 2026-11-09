@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "chamber_heater_backend.h"
+#include "core/observer_guard.h" // SubjectLifetime
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 

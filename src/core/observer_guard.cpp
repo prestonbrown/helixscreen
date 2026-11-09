@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_observer_guard.h"
+#include "core/observer_guard.h"
 
 // Out of line: every class holding a guard would otherwise inline reset() into its own
 // destructor and move operations, one copy per translation unit.

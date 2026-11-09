@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "moonraker_error.h"

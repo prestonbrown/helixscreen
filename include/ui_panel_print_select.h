@@ -4,7 +4,6 @@
 #pragma once
 
 #include "ui_filament_mapping_modal.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_plugin_install_modal.h"
 #include "ui_print_select_card_view.h"
@@ -22,6 +21,7 @@
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
 #include "connection_state.h"
+#include "core/observer_guard.h"
 #include "core/text_io.h"
 #include "gcode_ops_detector.h"
 #include "helix_plugin_installer.h"

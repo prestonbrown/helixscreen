@@ -3,10 +3,10 @@
 #pragma once
 
 #include "ui_fan_dial.h"
-#include "ui_observer_guard.h"
 
 #include "app_globals.h"
 #include "chamber_air_modes.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "printer_state.h"

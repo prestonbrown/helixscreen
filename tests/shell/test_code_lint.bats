@@ -687,7 +687,7 @@ print(sorted(b))
 @test "the ObserverGuard move gate fires when std::move comes back" {
     local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_moved.cpp"
     sed -e 's@std::exchange(other\.cleanup_, nullptr)@std::move(other.cleanup_)@' \
-        src/ui/ui_observer_guard.cpp > "$mutated"
+        src/core/observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]
@@ -697,7 +697,7 @@ print(sorted(b))
 @test "the ObserverGuard move gate fails closed when a move path disappears" {
     local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_dropped.cpp"
     awk '/cleanup_.*other\.cleanup_/ && !seen { seen = 1; next } { print }' \
-        src/ui/ui_observer_guard.cpp > "$mutated"
+        src/core/observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]

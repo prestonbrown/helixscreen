@@ -110,7 +110,6 @@
 #include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
-#include "ui_observer_guard.h"
 #include "ui_overlay_network_settings.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
@@ -161,6 +160,7 @@
 #include "ui_wizard_wifi.h"
 
 #include "color_utils.h"
+#include "core/observer_guard.h"
 #include "preflight_validator.h"
 #include "ui/ui_widget_helpers.h"
 

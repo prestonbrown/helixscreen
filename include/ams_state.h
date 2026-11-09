@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
 
 #include "ams_backend.h"
@@ -13,6 +12,7 @@
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
 #include "buffer_reading.h"
+#include "core/observer_guard.h"
 #include "filament_consumption_tracker.h"
 #include "filament_mapper.h"
 #include "filament_slot_override_store.h"

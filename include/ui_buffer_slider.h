@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_timer_guard.h"
 
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 
 namespace helix::ui {

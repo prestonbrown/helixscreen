@@ -8,9 +8,9 @@
 #include "ui_nav_panel_registry.h"
 #include "ui_nav_printer_badge.h"
 #include "ui_navbar_button.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"

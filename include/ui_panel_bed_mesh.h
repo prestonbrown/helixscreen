@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_subscription_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h" // For BedMeshProfile

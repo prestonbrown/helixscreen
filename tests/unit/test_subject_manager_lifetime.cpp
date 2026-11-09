@@ -13,9 +13,8 @@
  * must therefore be able to fetch a live token between the two.
  */
 
-#include "ui_observer_guard.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/observer_guard.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>

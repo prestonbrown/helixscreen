@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "json_fwd.h"
 #include "moonraker_types.h"
 

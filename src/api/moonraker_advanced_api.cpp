@@ -5,12 +5,12 @@
 
 #include "ui_error_reporting.h"
 #include "ui_notification.h"
-#include "ui_observer_guard.h"
 
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_unknown_command.h"

@@ -7,8 +7,7 @@
 // the page that holds its switch; the switches live there, never here. The
 // lines are the plugin's feature map, which the XML cannot enumerate.
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "helix_plugin_features.h"
 #include "overlay_base.h"

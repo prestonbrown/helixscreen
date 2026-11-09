@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "overlay_base.h"
 

@@ -570,7 +570,7 @@ create an observer; the no-argument one is for one-shot reads.
 
 ### The pairing rule: hand the token to `observe_*`
 
-`SubjectLifetime` is `std::shared_ptr<bool>` (`include/ui_observer_guard.h`), and every
+`SubjectLifetime` is `std::shared_ptr<bool>` (`include/core/observer_guard.h`), and every
 token'd accessor is an **out-param that hands you a copy of a token the owner keeps**:
 
 ```cpp
@@ -590,7 +590,7 @@ writes `*lifetime = false` and only then drops its own copy — `printer_fan_sta
 
 ```cpp
 auto locked = alive_token_.lock();
-subject_dead = !locked || !*locked;   // include/ui_observer_guard.h
+subject_dead = !locked || !*locked;   // include/core/observer_guard.h
 ```
 
 **The rule that actually matters: if you fetch a token, you must pass it to the `observe_*`
@@ -659,7 +659,7 @@ first, token second** — i.e. declare the token **before** the observer:
 - **Token first:** the `weak_ptr` expires, `reset()` *skips* `lv_observer_remove()`, and a live
   observer is left orphaned on a live subject while its `LambdaObserverContext` is freed — UAF on
   the next notify. Same failure family the `created_epoch_` machinery exists to prevent
-  (`include/ui_observer_guard.h`, debug bundles 449TVQ82 / X3RA4252).
+  (`include/core/observer_guard.h`, debug bundles 449TVQ82 / X3RA4252).
 
 When the subject is already dead, both orders are safe: the owner set `*token = false` before
 freeing it, and that flag is visible regardless of who dropped their copy when.
@@ -759,7 +759,7 @@ Create observers with the factories in `include/core/observer_factory.h` rather 
 | `observe_print_state<T>()` | typed `PrintJobState` over the raw `print_state_enum` subject, deferred; `Dispatch::Immediate` as the last argument fires synchronously |
 | `observe_print_lifecycle<T>()` | typed `PrintState` over the derived `print_lifecycle` subject |
 
-All return an `ObserverGuard` (`include/ui_observer_guard.h`) for RAII removal.
+All return an `ObserverGuard` (`include/core/observer_guard.h`) for RAII removal.
 
 The print factories are not sugar: `PrintJobState` and `PrintState` do not share
 numbering past index 0, so pairing a factory with the wrong subject (or hand-casting the
@@ -1108,7 +1108,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 |------|----------|
 | `include/core/update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
-| `include/ui_observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
+| `include/core/observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
 | `include/core/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |
 | `include/core/static_subject_registry.h` | Shutdown cleanup registry |

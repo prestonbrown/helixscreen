@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "async_lifetime_guard.h"
 #include "axis.h"
+#include "core/observer_guard.h" // SubjectLifetime
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 #include "tool_offsets.h"

@@ -644,7 +644,7 @@ src/ui/notify/ui_notification.cpp
 src/ui/notify/ui_notification_badge.cpp
 src/ui/notify/ui_notification_history.cpp
 src/ui/notify/ui_notification_manager.cpp
-src/ui/ui_observer_guard.cpp
+src/core/observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
 src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp

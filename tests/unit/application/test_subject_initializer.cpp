@@ -13,12 +13,11 @@
  * tests are done as integration tests with the actual application.
  */
 
-#include "ui_observer_guard.h"
-
 #include "../../lvgl_test_fixture.h"
 #include "../../test_helpers/ams_state_test_access.h"
 #include "ams_state.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "filament_sensor_manager.h"
 #include "runtime_config.h"
 #include "settings_manager.h"

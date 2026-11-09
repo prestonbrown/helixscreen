@@ -15,9 +15,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "ams_environment_zone.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "display_numbering.h"
 #include "helix/xml/indexed_subject_pool.h"

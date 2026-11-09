@@ -4,8 +4,8 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
 #include "lan_sweep.h"
 #include "mdns_discovery.h"
 #include "utils/network_validation.h"

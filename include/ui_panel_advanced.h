@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_panel_history_dashboard.h"
 #include "ui_plugin_install_modal.h"
 #include "ui_shutdown_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "helix_plugin_installer.h"
 #include "macro_manager.h"
 

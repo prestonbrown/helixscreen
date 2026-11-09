@@ -5,10 +5,10 @@
 
 #include "ui_error_reporting.h"
 #include "ui_gradient_canvas.h"
-#include "ui_observer_guard.h"
 
 #include "border_radius_sizes.h"
 #include "config.h"
+#include "core/observer_guard.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_psram_attr.h"
 #include "layout_manager.h"

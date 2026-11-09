@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
 #include "camera_frame.h"
+#include "core/observer_guard.h"
 #include "detection_manager.h"
 #include "subject_managed_panel.h"
 

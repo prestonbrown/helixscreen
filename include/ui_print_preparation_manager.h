@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "capability_matrix.h"
+#include "core/observer_guard.h"
 #include "file_version.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"

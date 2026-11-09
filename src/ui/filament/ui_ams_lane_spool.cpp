@@ -5,7 +5,6 @@
 
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
-#include "ui_observer_guard.h"
 #include "ui_spool_canvas.h"
 #include "ui_swatch.h"
 #include "ui_utils.h"
@@ -14,6 +13,7 @@
 #include "ams_state.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"

@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "filament_display_name.h"
 #include "lane_source_store.h"
 #include "lvgl/lvgl.h"

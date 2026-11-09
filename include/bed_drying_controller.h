@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "bed_drying.h"
+#include "core/observer_guard.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "subject_managed_panel.h"

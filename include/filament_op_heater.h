@@ -29,8 +29,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
 #include "heater_hold.h"

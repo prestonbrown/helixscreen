@@ -5,10 +5,10 @@
 
 #include "ui_history_list_view.h"
 #include "ui_history_photos.h"
-#include "ui_observer_guard.h"
 #include "ui_search_debounce.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "in_flight_guard.h"
 #include "overlay_base.h"

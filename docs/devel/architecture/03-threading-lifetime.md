@@ -43,7 +43,7 @@ flowchart LR
 | [`docs/devel/THREADING.md`](../THREADING.md) | Single source of truth: every rule here in full, plus enforcement layers, shutdown ordering, symptom index |
 | [`include/core/update_queue.h`](../../../include/core/update_queue.h) | `UpdateQueue` and `queue_update()` - the only sanctioned thread crossing |
 | [`include/async_lifetime_guard.h`](../../../include/async_lifetime_guard.h) | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` - the callback-lifetime guard |
-| [`include/ui_observer_guard.h`](../../../include/ui_observer_guard.h) | `ObserverGuard`, `SubjectLifetime` - observer cleanup and subject-death tracking |
+| [`include/core/observer_guard.h`](../../../include/core/observer_guard.h) | `ObserverGuard`, `SubjectLifetime` - observer cleanup and subject-death tracking |
 | [`include/core/observer_factory.h`](../../../include/core/observer_factory.h) | `observe<int>()` and friends; the factories whose 4th parameter carries the lifetime |
 | [`include/ui_utils.h`](../../../include/ui_utils.h) | `safe_delete_deferred()`, `safe_clean_children()`, `safe_delete_subtree()` - deferred deletion |
 | [`include/ui_timer_guard.h`](../../../include/ui_timer_guard.h) | `LvglTimerGuard` RAII and `lv_timer_cancel_safe()` |
@@ -154,7 +154,7 @@ Who has a guard already: `Modal` ([`include/ui_modal.h#"class Modal {"`](../../.
 
 The mirrored problem: dynamic subjects (per-fan, per-sensor, per-extruder) are destroyed and recreated when hardware is rediscovered, and an `ObserverGuard` still holding an observer pointer into the dead subject's list would call `lv_observer_remove()` on freed memory in its `reset()` (#705).
 
-`SubjectLifetime` ([`include/ui_observer_guard.h#SubjectLifetime`](../../../include/ui_observer_guard.h)) is deliberately dumber than the generation counter: a `shared_ptr<bool>` whose *value*, not its refcount, signals death. Before destroying a subject, the owner writes `*lifetime = false` and only then deinits; `ObserverGuard::reset()` (`include/ui_observer_guard.h#reset`) treats an expired pointer *or* a false value as "observer already freed, skip removal":
+`SubjectLifetime` ([`include/core/observer_guard.h#SubjectLifetime`](../../../include/core/observer_guard.h)) is deliberately dumber than the generation counter: a `shared_ptr<bool>` whose *value*, not its refcount, signals death. Before destroying a subject, the owner writes `*lifetime = false` and only then deinits; `ObserverGuard::reset()` (`include/core/observer_guard.h#reset`) treats an expired pointer *or* a false value as "observer already freed, skip removal":
 
 ```cpp
 bool subject_dead = false;
@@ -164,11 +164,11 @@ if (has_alive_token_) {
 }
 ```
 
-(excerpted from [`src/ui/ui_observer_guard.cpp#subject_dead`](../../../src/ui/ui_observer_guard.cpp)). The value check is what makes it work with multiple token holders - the refcount can stay above zero while every holder learns the subject died.
+(excerpted from [`src/core/observer_guard.cpp#subject_dead`](../../../src/core/observer_guard.cpp)). The value check is what makes it work with multiple token holders - the refcount can stay above zero while every holder learns the subject died.
 
 The trap is the API shape: the `observe<V>` factory takes the lifetime as a required 4th parameter, but `{}` and `subject_never_freed()` satisfy it, so fetching a token from an accessor and handing over something else compiles silently - the guard never learns the subject died. The rule: if you fetch a `SubjectLifetime`, you pass it to the `observe_*` call. Chapter 02's "Observing subjects from C++" section walks the full `FanStackWidget` example, including the paired `(name, lifetime)` accessor overloads that assign the owner's own token into your copy.
 
-`ObserverGuard` also carries a second safety: the invalidation epoch (`include/ui_observer_guard.h#invalidate_all`). Observers created before a soft-restart teardown had their subjects freed by `StaticSubjectRegistry::deinit_all()`; each guard compares its creation epoch against the current one (`src/ui/ui_observer_guard.cpp#reset/"freed_by_deinit ="`) to decide whether removal is safe. The shutdown ordering that makes all of this hold - panels destroyed, then subjects deinitialized, then `lv_deinit()` - is `Application::shutdown()` territory and THREADING.md §7 owns it.
+`ObserverGuard` also carries a second safety: the invalidation epoch (`include/core/observer_guard.h#invalidate_all`). Observers created before a soft-restart teardown had their subjects freed by `StaticSubjectRegistry::deinit_all()`; each guard compares its creation epoch against the current one (`src/core/observer_guard.cpp#reset/"freed_by_deinit ="`) to decide whether removal is safe. The shutdown ordering that makes all of this hold - panels destroyed, then subjects deinitialized, then `lv_deinit()` - is `Application::shutdown()` territory and THREADING.md §7 owns it.
 
 ## Patterns & gotchas
 
@@ -226,7 +226,7 @@ Read in this order; about 25 minutes total.
 2. [`include/async_lifetime_guard.h#expired`](../../../include/async_lifetime_guard.h) - `LifetimeToken::expired()` with the background-thread detector inline; then `include/async_lifetime_guard.h#"defer(const char* tag, F&& fn) const"` `defer()` and its pre-enqueue generation check (the doomed-callback drop), and `include/async_lifetime_guard.h#bg_cb` `bg_cb()` - read the doc comment for the short-form/long-form tradeoff.
 3. [`src/printer/detection_manager.cpp#init`](../../../src/printer/detection_manager.cpp) - the two-line `bg_cb` in the wild: an observer registered with a marshalled callback, nothing else to it.
 4. [`src/printer/printer_state.cpp#set_printer_connection_state`](../../../src/printer/printer_state.cpp) - `set_printer_connection_state()` (defer through the guard), then `src/printer/printer_state.cpp#set_klippy_state` `set_klippy_state()`. The whole marshalling-setter pattern in twenty lines.
-5. [`include/ui_observer_guard.h#SubjectLifetime`](../../../include/ui_observer_guard.h) - the `SubjectLifetime` contract in the doc comment; then `reset()` (`src/ui/ui_observer_guard.cpp#reset`) with its two death checks: token value (`src/ui/ui_observer_guard.cpp#reset/"if (has_alive_token_)"`) and invalidation epoch (`src/ui/ui_observer_guard.cpp#reset/"freed_by_deinit ="`).
+5. [`include/core/observer_guard.h#SubjectLifetime`](../../../include/core/observer_guard.h) - the `SubjectLifetime` contract in the doc comment; then `reset()` (`src/core/observer_guard.cpp#reset`) with its two death checks: token value (`src/core/observer_guard.cpp#reset/"if (has_alive_token_)"`) and invalidation epoch (`src/core/observer_guard.cpp#reset/"freed_by_deinit ="`).
 6. [`src/network/wifi_manager.cpp#handle_scan_complete`](../../../src/network/wifi_manager.cpp) - `handle_scan_complete`: parse on the backend thread, `queue_update` the mutation. THREADING.md's other reference integration.
 7. [`include/core/http_executor.h#HttpExecutor`](../../../include/core/http_executor.h) - the class comment: why the pools exist (EAGAIN history), the stop-timeout-detach semantics, and the self-wait deadlock warning on `run_sync`.
 8. [`src/bluetooth/bt_bus_thread.h#helix::bluetooth`](../../../src/bluetooth/bt_bus_thread.h) - `BusWork` and the single-thread sd-bus ownership contract, including the null-bus idle-worker defense.

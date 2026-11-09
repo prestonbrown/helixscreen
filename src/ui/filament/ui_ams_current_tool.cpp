@@ -12,13 +12,13 @@
  */
 
 #include "ui_callback_helpers.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_swatch.h"
 
 #include "ams_state.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 

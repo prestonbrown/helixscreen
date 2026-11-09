@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -226,7 +225,7 @@ class PrinterFanState {
      *
      * IMPORTANT: These are dynamic subjects that may be destroyed during reconnection.
      * Always pass the returned lifetime token to your observer factory function
-     * to prevent use-after-free crashes. See ui_observer_guard.h for details.
+     * to prevent use-after-free crashes. See core/observer_guard.h for details.
      *
      * @param object_name Moonraker object name (e.g., "fan", "heater_fan hotend_fan")
      * @param[out] lifetime Receives the subject's lifetime token (empty if not found)

@@ -9,7 +9,6 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_notification_history.h"
-#include "ui_observer_guard.h"
 #include "ui_test_utils.h"
 #include "ui_toast_manager.h"
 
@@ -21,6 +20,7 @@
 #include "board_identity.h"
 #include "config.h"
 #include "core/http_executor.h"
+#include "core/observer_guard.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_surface_correlation.h"

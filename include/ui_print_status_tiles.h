@@ -19,10 +19,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
 #include "preprint_checklist.h"
 #include "print_status_chips.h"
 #include "printer_image_regions.h"

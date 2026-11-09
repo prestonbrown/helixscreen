@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "i_moonraker_api.h" // Need full definition for PowerDevice
 #include "subject_managed_panel.h"
 

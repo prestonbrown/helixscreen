@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
- * @file ui_observer_guard.h
+ * @file observer_guard.h
  * @brief RAII wrapper for LVGL observer cleanup with subject lifetime tracking
  *
  * @pattern Guard that removes observer on destruction; release() for pre-destroyed subjects.
