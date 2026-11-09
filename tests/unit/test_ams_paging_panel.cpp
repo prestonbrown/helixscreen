@@ -18,10 +18,12 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_panel_test_access.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
@@ -36,6 +38,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -110,6 +113,8 @@ class PagedFleet : public AmsBackendMock {
             }
             info.units.push_back(unit);
         }
+        if (system_type)
+            info.type = *system_type;
         info.total_slots = first_slot;
         info.current_slot = loaded_slot;
         info.filament_loaded = loaded_slot >= 0;
@@ -129,6 +134,7 @@ class PagedFleet : public AmsBackendMock {
     }
 
     std::vector<UnitSpec> specs;
+    std::optional<AmsType> system_type;      ///< set to a type with baked unit art
     mutable int info_reads = 0;              ///< get_system_info() calls, a full copy each
     int loaded_slot = 2 * kSlotsPerUnit + 1; ///< a bay of unit 2
     int drying_unit = kOwnNumberBase + 6;    ///< by the unit's own number
@@ -136,6 +142,16 @@ class PagedFleet : public AmsBackendMock {
 
 class PagingFixture : public LVGLUITestFixture {
   public:
+    auto cards() {
+        return AmsPanelTestAccess::unit_cards(panel());
+    }
+    auto card_units() {
+        return AmsPanelTestAccess::unit_card_units(panel());
+    }
+    bool in_unit_view() {
+        return AmsPanelTestAccess::in_unit_view(panel());
+    }
+
     PagingFixture() {
         animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
         DisplaySettingsManager::instance().set_animations_enabled(false);
@@ -191,11 +207,11 @@ class PagingFixture : public LVGLUITestFixture {
 
     /// Tap the unit card of the unit at @p unit_pos in AmsSystemInfo::units.
     void enter(int unit_pos) {
-        const auto cards = AmsPanelTestAccess::unit_cards(panel());
-        const auto units = AmsPanelTestAccess::unit_card_units(panel());
-        for (size_t i = 0; i < cards.size(); ++i) {
+        const auto tiles = cards();
+        const auto units = card_units();
+        for (size_t i = 0; i < tiles.size(); ++i) {
             if (units[i] == unit_pos) {
-                tap(cards[i]);
+                tap(tiles[i]);
                 return;
             }
         }
@@ -205,9 +221,9 @@ class PagingFixture : public LVGLUITestFixture {
     /// Open the panel and zoom into the unit at @p unit_pos.
     void open_at(int unit_pos) {
         open();
-        REQUIRE_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE_FALSE(in_unit_view());
         enter(unit_pos);
-        REQUIRE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE(in_unit_view());
     }
 
     void close() {
@@ -1087,7 +1103,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     SlotInfo spool;
     spool.color_rgb = 0x3366CC;
     spool.material = "PETG";
-    ams.set_external_spool_info_in_memory(spool);
+    helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::bypass_spool_sync_from_state(w);
     REQUIRE(helix::ui::bypass_node_visible_for(ams.get_backend()));
     CHECK_FALSE(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));
@@ -1219,4 +1235,172 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     CHECK(da.y2 <= ca.y2);
     CHECK(da.y1 >= (ca.y1 + ca.y2) / 2);
     CHECK(da.x2 <= (ca.x1 + ca.x2) / 2 + 1);
+}
+
+// ---- Art tiles on the overview ----
+
+namespace {
+
+/// The unit art matches an ACE system whose unit reports exactly this many bays.
+constexpr int kArtLanes = 4;
+constexpr int kNoArtLanes = 6;
+
+void art_fleet(PagedFleet& f, int units) {
+    f.system_type = AmsType::ACE;
+    f.specs.clear();
+    for (int u = 0; u < units; ++u)
+        f.specs.push_back({"ACE " + std::to_string(u + 1), "fps", false, kArtLanes});
+}
+
+} // namespace
+
+TEST_CASE("Overview row: a row that fits lets flex share it", "[ams][overview-tiles]") {
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 72}) == 0);
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {}) == 0);
+    // 5 * 77 + 4 * 12 = 433: the row is three pixels short, so it overflows.
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {77, 77, 77, 77, 77}) > 0);
+}
+
+TEST_CASE("Overview row: an overflowing row leaves the next card cut off",
+          "[ams][overview-tiles]") {
+    for (int32_t row : {300, 430, 431, 600, 977}) {
+        for (int count : {4, 6, 12, 30}) {
+            const std::vector<int32_t> mins(static_cast<size_t>(count), 100);
+            const int32_t w = helix::ui::overview_peek_card_width(row, 12, mins);
+            INFO("row " << row << " count " << count << " width " << w);
+            if (count * 100 + (count - 1) * 12 <= row) {
+                CHECK(w == 0);
+                continue;
+            }
+            REQUIRE(w >= 100);
+            int32_t x = 0;
+            while (x + w <= row)
+                x += w + 12;
+            const int32_t shown = row - x;
+            CHECK(shown >= w / 5);
+            CHECK(shown <= w * 4 / 5);
+        }
+    }
+}
+
+TEST_CASE("Overview row: a mixed row sizes every card by the widest floor",
+          "[ams][overview-tiles]") {
+    const int32_t w = helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 100, 72});
+    CHECK(w >= 100);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not a card",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 3); });
+    open();
+
+    const auto tiles = cards();
+    REQUIRE(tiles.size() == 3);
+    for (lv_obj_t* card : tiles) {
+        CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == LV_OPA_TRANSP);
+        CHECK(lv_obj_get_style_border_width(card, LV_PART_MAIN) == 0);
+        CHECK(lv_obj_find_by_name(card, "bars_container") == nullptr);
+        CHECK(lv_obj_find_by_name(card, "slot_count") == nullptr);
+        lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
+        REQUIRE(art != nullptr);
+        CHECK_FALSE(lv_obj_has_flag(art, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_width(art) > 40);
+        CHECK(helix::ui::unit_art_is_flattened(art));
+        lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
+        REQUIRE(name != nullptr);
+        CHECK(lv_obj_get_style_text_align(name, LV_PART_MAIN) == LV_TEXT_ALIGN_CENTER);
+    }
+
+    tap(tiles[1]);
+    CHECK(in_unit_view());
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art keeps its card",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.specs[1].slots = kNoArtLanes;
+    });
+    open();
+
+    const auto tiles = cards();
+    const auto units = card_units();
+    REQUIRE(tiles.size() == 2);
+    lv_obj_t* plain = units[0] == 1 ? tiles[0] : tiles[1];
+    CHECK(lv_obj_find_by_name(plain, "unit_art") == nullptr);
+    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 1);
+    lv_obj_t* bars = lv_obj_find_by_name(plain, "bars_container");
+    REQUIRE(bars != nullptr);
+    CHECK(lv_obj_get_child_count(bars) == kNoArtLanes);
+    CHECK(lv_obj_find_by_name(plain, "unit_logo") != nullptr);
+    CHECK(lv_obj_find_by_name(plain, "slot_count") != nullptr);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a tile",
+                 "[ams][overview-tiles]") {
+    PagedFleet* fleet = install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.specs[0].slots = kNoArtLanes;
+    });
+    open();
+    REQUIRE(lv_obj_find_by_name(root(), "bars_container") != nullptr);
+
+    fleet->specs[0].slots = kArtLanes;
+    AmsState::instance().sync_from_backend();
+    settle();
+    process_lvgl(50);
+
+    CHECK(lv_obj_find_by_name(root(), "bars_container") == nullptr);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest breakpoints",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 2); });
+    open();
+
+    lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(bp != nullptr);
+    const int original = lv_subject_get_int(bp);
+    lv_obj_t* readout = lv_obj_find_by_name(cards()[0], "tile_readout");
+    REQUIRE(readout != nullptr);
+    for (int tier : {0, 1}) {
+        lv_subject_set_int(bp, tier);
+        INFO("breakpoint " << tier);
+        CHECK(lv_obj_has_flag(readout, LV_OBJ_FLAG_HIDDEN));
+    }
+    for (int tier : {2, 3}) {
+        lv_subject_set_int(bp, tier);
+        INFO("breakpoint " << tier);
+        CHECK_FALSE(lv_obj_has_flag(readout, LV_OBJ_FLAG_HIDDEN));
+    }
+    lv_subject_set_int(bp, original);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of the next tile",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 12); });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    lv_area_t row_box;
+    lv_obj_get_coords(row, &row_box);
+
+    int cut_off = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_area_t box;
+        lv_obj_get_coords(card, &box);
+        if (box.x1 <= row_box.x2 && box.x2 > row_box.x2) {
+            ++cut_off;
+            const int32_t shown = row_box.x2 - box.x1 + 1;
+            const int32_t width = lv_area_get_width(&box);
+            INFO("shown " << shown << " of " << width);
+            CHECK(shown >= width / 5);
+            CHECK(shown <= width * 4 / 5);
+        }
+    }
+    CHECK(cut_off == 1);
 }

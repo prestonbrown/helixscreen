@@ -253,7 +253,8 @@
       "humidity"
     ],
     "controller_fan controller_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "display_status": [
       "message",
@@ -273,10 +274,12 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic nevermore": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_switch_sensor runout_sensor": [
       "filament_detected",
@@ -319,7 +322,8 @@
       "power"
     ],
     "heater_fan hotend_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_generic chamber": [
       "temperature",

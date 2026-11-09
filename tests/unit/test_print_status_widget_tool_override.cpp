@@ -159,7 +159,7 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool badge: many AMS lanes on one hotend are
     ts.set_ams_topology(lane_topology(12));
     UpdateQueue::instance().drain_until_empty();
 
-    // The lane count really did land — this is the value the gate used to read.
+    // The lane count really did land; the multi-tool gate must ignore it.
     REQUIRE(ts.tool_count() == 12);
     REQUIRE(ts.extruder_count() == 1);
 

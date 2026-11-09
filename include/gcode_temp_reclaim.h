@@ -9,14 +9,10 @@
  *
  * PrintSelectDetailView reclaims its downloaded G-code from seven places: the
  * destructor, view teardown, a size-mismatch re-download, a transfer error, an
- * oversize reject, and the adopt-the-new-copy swap. Each one used to call
- * std::remove() on whatever path it happened to hold, which was safe only
- * because every path in the view came from the same download and therefore lived
- * in our own cache directory.
- *
- * Reading a G-code in place from Moonraker's own `gcodes` root breaks that
- * premise: the same variable can now carry the user's print file. Guarding the
- * seven callers would be the same rule written seven times, so the rule lives
+ * oversize reject, and the adopt-the-new-copy swap. A bare std::remove() at each
+ * of them is not safe: a G-code read in place from Moonraker's own `gcodes` root
+ * puts the user's print file in the same variable as our own downloads. Guarding
+ * the seven callers would be the same rule written seven times, so the rule lives
  * here instead, at the sink — a path that is not ours simply cannot be deleted,
  * whichever caller offers it.
  */

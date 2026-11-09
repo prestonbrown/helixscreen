@@ -8,6 +8,7 @@
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "filament_sensor_manager.h"
+#include "standard_macros.h"
 
 #include <spdlog/spdlog.h>
 
@@ -104,6 +105,13 @@ bool notify_if_filament_op_unavailable(const AmsBackend* backend, int slot, bool
     }
     const HeadFilamentOps ops = backend->head_filament_ops(*head);
     if ((load ? ops.load : ops.unload) == FilamentOpSupport::Automatic) {
+        return false;
+    }
+    // A macro the user chose in Standard Macros is the op's implementation, and
+    // the planner dispatches it ahead of the backend (#2067).
+    const auto& macro = StandardMacros::instance().get(load ? StandardMacroSlot::LoadFilament
+                                                            : StandardMacroSlot::UnloadFilament);
+    if (macro.get_source() == MacroSource::CONFIGURED) {
         return false;
     }
     const std::string& reason = load ? ops.load_reason : ops.unload_reason;

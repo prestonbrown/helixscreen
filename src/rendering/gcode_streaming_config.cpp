@@ -75,7 +75,6 @@ GCodeStreamingMode get_gcode_streaming_mode() {
 int get_streaming_threshold_percent() {
     Config* config = Config::get_instance();
     int percent = config->get<int>("/gcode_viewer/streaming_threshold_percent", 40);
-    // Clamp to valid range
     return std::clamp(percent, 1, 90);
 
     return 40; // Default

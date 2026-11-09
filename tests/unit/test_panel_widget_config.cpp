@@ -923,8 +923,8 @@ TEST_CASE_METHOD(PanelWidgetConfigFixture,
     REQUIRE(grid.size() == default_grid_widget_count());
 
     // Which ids the shipped table anchors is per-tier and belongs to the table,
-    // not to this test — it used to hardcode five and broke the moment the
-    // landscape layout was re-authored. What must hold everywhere: the two
+    // not to this test, so hardcoding them would break whenever a layout is
+    // re-authored. What must hold everywhere: the two
     // widgets every tier anchors are placed, a disabled widget never is, and no
     // entry comes back half-placed.
     for (const char* id : {"printer_image", "print_status"}) {

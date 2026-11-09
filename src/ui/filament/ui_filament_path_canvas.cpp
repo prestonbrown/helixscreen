@@ -19,6 +19,7 @@
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
+#include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "theme_manager.h"
@@ -395,6 +396,11 @@ static void* filament_path_xml_create(lv_xml_parser_state_t* state, const char**
     return obj;
 }
 
+static void filament_path_motion_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* obj = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    ui_filament_path_canvas_set_manual_motion(obj, lv_subject_get_int(subject));
+}
+
 static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
     void* item = lv_xml_state_get_item(state);
     lv_obj_t* obj = static_cast<lv_obj_t*>(item);
@@ -450,6 +456,18 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
     if (needs_redraw) {
         layered_mark_dirty(obj);
     }
+
+    // The manual Extrude / Retract the filament panel is running streams the
+    // same chevrons a load/unload does.
+    const char* motion_subject = lv_xml_get_value_of(attrs, "bind_motion");
+    if (motion_subject && motion_subject[0] != '\0') {
+        lv_subject_t* subject = lv_xml_get_subject(&state->scope, motion_subject);
+        if (subject) {
+            lv_subject_add_observer_obj(subject, filament_path_motion_observer_cb, obj, nullptr);
+        } else {
+            spdlog::debug("[FilamentPath] motion subject '{}' is not registered", motion_subject);
+        }
+    }
 }
 
 // ============================================================================
@@ -483,6 +501,15 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     if (!data || data->topology == topology)
         return;
     data->topology = topology;
+    layered_mark_dirty(obj);
+}
+
+// NAMESPACE_OK: one of the canvas's C-style setters
+void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in) {
+    auto* data = get_data(obj);
+    if (!data || data->built_in_hub == built_in)
+        return;
+    data->built_in_hub = built_in;
     layered_mark_dirty(obj);
 }
 
@@ -744,7 +771,27 @@ bool ui_filament_path_canvas_is_animating(lv_obj_t* obj) {
     if (!data)
         return false;
 
-    return data->anim.segment_active || data->anim.error_pulse_active || data->anim.flow_active;
+    return data->anim.segment_active || data->anim.error_pulse_active || flow_visible(*data);
+}
+
+// NAMESPACE_OK: beside this widget's global C API
+void ui_filament_path_canvas_set_manual_motion(lv_obj_t* obj, int motion) {
+    auto* data = get_data(obj);
+    if (!data)
+        return;
+    set_manual_motion(obj, data, helix::filament_motion_from_int(motion));
+}
+
+// NAMESPACE_OK: beside this widget's global C API
+int ui_filament_path_canvas_get_manual_motion(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    return data ? static_cast<int>(data->anim.manual_motion) : 0;
+}
+
+// NAMESPACE_OK: beside this widget's global C API
+bool ui_filament_path_canvas_flow_reversed(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    return data && flow_reversed(*data);
 }
 
 void ui_filament_path_canvas_stop_animations(lv_obj_t* obj) {
@@ -754,6 +801,7 @@ void ui_filament_path_canvas_stop_animations(lv_obj_t* obj) {
 
     stop_segment_animation(obj, data);
     stop_error_pulse(obj, data);
+    set_manual_motion(obj, data, helix::FilamentMotion::Idle);
     stop_flow_animation(obj, data);
     stop_heat_pulse(obj, data);
     layered_mark_dirty(obj);

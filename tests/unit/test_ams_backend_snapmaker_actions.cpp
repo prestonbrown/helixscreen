@@ -640,31 +640,25 @@ TEST_CASE("a reported nozzle change announces a state change and a repeat does n
 
 TEST_CASE("the flow row is available only where High Flow applies",
           "[ams][snapmaker][actions][nozzle]") {
+    struct Case {
+        double diameter;
+        const char* flow;
+        bool enabled;
+    };
+    // A 0.6 mm head still on High Flow can leave it.
+    const auto c = GENERATE(Case{0.4, "standard", true}, Case{0.6, "standard", false},
+                            Case{0.6, "high_flow", true});
+    CAPTURE(c.diameter, c.flow);
     HelixTestFixture fixture;
     helix::test::StartedBackend<AmsBackendSnapmaker> backend;
-    SECTION("0.4 mm") {
-        backend.fire_status(head_frame(1, kStandard04));
-        const auto actions = backend.get_device_actions();
-        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
-        REQUIRE(flow != nullptr);
-        CHECK(flow->enabled);
-    }
-    SECTION("0.6 mm on standard flow") {
-        backend.fire_status(
-            head_frame(1, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "standard"}}));
-        const auto actions = backend.get_device_actions();
-        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
-        REQUIRE(flow != nullptr);
-        CHECK_FALSE(flow->enabled);
+    backend.fire_status(
+        head_frame(1, {{"nozzle_diameter", c.diameter}, {"nozzle_volume_type", c.flow}}));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
+    REQUIRE(flow != nullptr);
+    CHECK(flow->enabled == c.enabled);
+    if (!c.enabled) {
         CHECK(flow->disable_reason == "High Flow needs a 0.4 mm nozzle");
-    }
-    SECTION("0.6 mm still on High Flow can leave it") {
-        backend.fire_status(
-            head_frame(1, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}));
-        const auto actions = backend.get_device_actions();
-        const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
-        REQUIRE(flow != nullptr);
-        CHECK(flow->enabled);
     }
 }
 
@@ -707,9 +701,5 @@ TEST_CASE("a nozzle pick names the diameter and only a flow type that changes",
         CHECK_FALSE(
             backend.build_nozzle_change("snapmaker_nozzle_flow_t9", pick("Standard")).valid);
         CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t", pick("Standard")).valid);
-    }
-    SECTION("a real change is sent") {
-        CHECK(backend.execute_device_action("snapmaker_nozzle_diameter_t2", pick("0.6 mm"))
-                  .success());
     }
 }

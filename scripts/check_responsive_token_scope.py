@@ -41,6 +41,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from source_strip import blank_xml_comments
+
 SCAN_DIRS = ("ui_xml",)
 
 # android/app/src/main/assets/ui_xml/ is a gradle copy of ui_xml/, not a source
@@ -55,14 +57,6 @@ RESPONSIVE_SUFFIXES = ("_micro", "_tiny", "_small", "_medium", "_large", "_xlarg
 # theme_manager_parse_all_xml_for_suffix() reads. Attributes may wrap onto the
 # next line, so match across newlines.
 DECL_RE = re.compile(r'<(px|string)\b[^>]*?\bname\s*=\s*"([^"]*)"', re.DOTALL)
-
-COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-
-
-def strip_comments(text: str) -> str:
-    """Blank out comment bodies, keeping newlines so line numbers stay right."""
-    return COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
-
 
 def line_of(text: str, index: int) -> int:
     return text.count("\n", 0, index) + 1
@@ -89,7 +83,7 @@ def scan_file(path: Path) -> list[tuple[str, int, str]]:
         return []
 
     try:
-        text = strip_comments(path.read_text(encoding="utf-8"))
+        text = blank_xml_comments(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError):
         return []
 

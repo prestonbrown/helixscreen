@@ -64,7 +64,6 @@ void PostOpCooldownManager::schedule(std::string heater) {
             self.heaters_.push_back(heater);
         }
 
-        // Delete existing timer if any
         if (self.timer_) {
             lv_timer_delete(self.timer_);
             self.timer_ = nullptr;

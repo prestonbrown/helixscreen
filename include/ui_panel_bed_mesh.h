@@ -206,7 +206,7 @@ class BedMeshPanel : public OverlayBase {
     char error_message_buf_[256]; ///< Buffer for error_message_ subject
     char calibrate_name_buf_[64]; ///< Buffer for calibrate_name_ subject
 
-    // ========== Modal Widget Pointers (uses ui_modal_show pattern) ==========
+    // ========== Modal Widget Pointers (ComponentModal dialogs) ==========
     helix::ui::WidgetRef calibrate_modal_widget_;
     helix::ui::WidgetRef rename_modal_widget_;
     helix::ui::WidgetRef save_config_modal_widget_;

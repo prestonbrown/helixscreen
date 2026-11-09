@@ -28,8 +28,7 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_required_names import strip_comments  # noqa: E402
+from source_strip import blank_cxx
 
 PATTERNS = {
     "already_exists": re.compile(r"spdlog::\w+\([^;]*already exists"),
@@ -41,7 +40,7 @@ def counts(root: Path) -> dict[str, int]:
     out = dict.fromkeys(PATTERNS, 0)
     base = root / "src" / "ui"
     for f in sorted(list(base.rglob("*.cpp")) + list(base.rglob("*.h"))):
-        code = strip_comments(f.read_text(errors="replace"))
+        code = blank_cxx(f.read_text(errors="replace"), strings="keep")
         for key, pat in PATTERNS.items():
             out[key] += len(pat.findall(code))
     return out

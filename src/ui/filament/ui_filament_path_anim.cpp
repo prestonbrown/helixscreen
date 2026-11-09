@@ -5,10 +5,11 @@
 // by lv_anim with the widget object as the animation variable:
 //
 //   segment   one-shot 0→100 ease-out; slides the filament tip between path
-//             segments and couples the flow particles on/off
+//             segments and couples the flow chevrons on/off
 //   error     infinite opacity pulse on the segment that reported an error
 //   heat      infinite opacity pulse for the nozzle heat glow halo
-//   flow      infinite linear 0→kFlowDotSpacing cycle moving the particles
+//   flow      infinite linear cycle over one chevron spacing moving the
+//             chevrons, for a load/unload and a manual extrude/retract alike
 //   output_x  one-shot slide of the LINEAR output exit under the active slot
 //
 // All systems share run_anim() (the lv_anim boilerplate) and write only their
@@ -24,6 +25,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -113,9 +115,8 @@ void flow_anim_cb(void* var, int32_t value) {
     int old_offset = data->anim.flow_offset;
     data->anim.flow_offset = value;
 
-    // Throttle redraws: only invalidate when dots visibly move (~2px change).
-    // Flow dots are 1px radius at low opacity — sub-pixel changes are invisible.
-    if (std::abs(value - old_offset) >= 2) {
+    // Throttle redraws to whole-pixel steps of the stream.
+    if (value != old_offset) {
         queue_invalidate(obj);
     }
 }
@@ -171,7 +172,7 @@ void start_segment_animation(lv_obj_t* obj, FilamentPathData* data, int from_seg
     run_anim(obj, segment_anim_cb, 0, 100, kSegmentAnimDurationMs, lv_anim_path_ease_out,
              /*infinite=*/false, /*playback=*/false);
 
-    // Start flow particles only for real filament movement (small steps).
+    // Start flow chevrons only for real filament movement (small steps).
     // Big jumps (e.g., 0→4 on initial state setup) are not real flow operations.
     int step = std::abs(to_segment - from_segment);
     if (step <= 2) {
@@ -266,6 +267,29 @@ void stop_heat_pulse(lv_obj_t* obj, FilamentPathData* data) {
 // Flow particles
 // ============================================================================
 
+namespace {
+
+// One lv_anim moves the stream for a load/unload and a manual move alike; it
+// runs while either wants it, and only with animations on.
+void run_flow_cycle(lv_obj_t* obj, FilamentPathData* data) {
+    if (lv_anim_get(obj, flow_anim_cb))
+        return;
+    data->anim.flow_offset = 0;
+    data->anim.flow_span =
+        std::max<int32_t>(1, static_cast<int32_t>(lroundf(flow_chevron_size(*data).spacing)));
+    run_anim(obj, flow_anim_cb, 0, data->anim.flow_span, kFlowAnimDurationMs, lv_anim_path_linear,
+             /*infinite=*/true, /*playback=*/false);
+}
+
+void end_flow_cycle_if_unused(lv_obj_t* obj, FilamentPathData* data) {
+    if (flow_visible(*data))
+        return;
+    lv_anim_delete(obj, flow_anim_cb);
+    data->anim.flow_offset = 0;
+}
+
+} // namespace
+
 void start_flow_animation(lv_obj_t* obj, FilamentPathData* data) {
     if (!obj || !data || data->anim.flow_active)
         return;
@@ -273,11 +297,8 @@ void start_flow_animation(lv_obj_t* obj, FilamentPathData* data) {
         return;
 
     data->anim.flow_active = true;
-    data->anim.flow_offset = 0;
     spdlog::info("[FilamentPath] Flow animation STARTED");
-
-    run_anim(obj, flow_anim_cb, 0, kFlowDotSpacing, kFlowAnimDurationMs, lv_anim_path_linear,
-             /*infinite=*/true, /*playback=*/false);
+    run_flow_cycle(obj, data);
 }
 
 void stop_flow_animation(lv_obj_t* obj, FilamentPathData* data) {
@@ -291,9 +312,23 @@ void stop_flow_animation(lv_obj_t* obj, FilamentPathData* data) {
     if (data->anim.flow_active) {
         spdlog::info("[FilamentPath] Flow animation STOPPED");
     }
-    lv_anim_delete(obj, flow_anim_cb);
     data->anim.flow_active = false;
-    data->anim.flow_offset = 0;
+    end_flow_cycle_if_unused(obj, data);
+}
+
+void set_manual_motion(lv_obj_t* obj, FilamentPathData* data, helix::FilamentMotion motion) {
+    if (!obj || !data || data->anim.manual_motion == motion)
+        return;
+    data->anim.manual_motion = motion;
+    spdlog::debug("[FilamentPath] Manual motion: {}", static_cast<int>(motion));
+    if (motion != helix::FilamentMotion::Idle && animations_enabled()) {
+        run_flow_cycle(obj, data);
+    } else {
+        end_flow_cycle_if_unused(obj, data);
+    }
+    // Static chevrons (animations off) and the end of the stream both need a
+    // fresh DRAW_POST pass.
+    queue_invalidate(obj);
 }
 
 // ============================================================================

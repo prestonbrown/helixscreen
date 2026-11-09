@@ -233,3 +233,19 @@ TEST_CASE("GuidedLoadFlow: older firmware is never sent the waiting-only command
         CHECK(flow.command_finished(false) == steps().cleanup);
     }
 }
+
+TEST_CASE("GuidedLoadFlow: steps with no flush, release or cleanup send nothing at the end",
+          "[guided_load][cold_pull]") {
+    GuidedLoad bare;
+    bare.feed = "M83\nG1 E60 F300";
+    bare.retry = "M83\nG1 E20 F300";
+    GuidedLoadFlow flow(bare, /*waits_for_push=*/true);
+    (void)flow.extrude();
+    (void)flow.command_finished(true);
+    CHECK(flow.done().empty());
+    CHECK(flow.stage() == GuidedLoadStage::Finished);
+
+    GuidedLoadFlow cancelled(bare, true);
+    CHECK(cancelled.cancel().empty());
+    CHECK(cancelled.stage() == GuidedLoadStage::Cancelled);
+}

@@ -101,6 +101,12 @@ void ExactSizeImage::generate_if_missing(const std::string& source) {
         spdlog::debug("[{}] Not laid out yet ({}x{}), skipping cache", log_tag_, w, h);
         return;
     }
+    // A source that is not on disk can only fail, and its generation would hold
+    // the one slot a real picture's request then waits behind.
+    if (!helix::printer_image_source_exists(source)) {
+        spdlog::debug("[{}] Source '{}' is not on disk, using scaled source", log_tag_, source);
+        return;
+    }
     // Decoding and resizing an image is half a second per entry on a two-core
     // MIPS board, so it runs off the UI thread.
     if (inflight_) {

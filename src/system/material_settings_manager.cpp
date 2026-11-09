@@ -371,6 +371,85 @@ void MaterialSettingsManager::clear_preset_filament(int index) {
     save_presets_to_config();
 }
 
+// ============================================================================
+// Cold pull temperatures
+// ============================================================================
+
+namespace {
+
+constexpr const char* kColdPullPath = "/cold_pull";
+constexpr const char* kColdPullMaterialKeys[kColdPullMaterialCount] = {"pla", "nylon", "cleaning"};
+/// A stored temperature above this is corrupt, not a hot nozzle.
+constexpr int kMaxStoredNozzleC = 500;
+
+const char* cold_pull_key(ColdPullMaterial m) {
+    const int i = static_cast<int>(m);
+    return cold_pull_material_valid(i) ? kColdPullMaterialKeys[i] : kColdPullMaterialKeys[0];
+}
+
+nlohmann::json& cold_pull_root(Config& config) {
+    auto& root = config.get_json(kColdPullPath);
+    if (!root.is_object()) {
+        root = nlohmann::json::object();
+    }
+    return root;
+}
+
+} // namespace
+
+ColdPullTemps MaterialSettingsManager::get_cold_pull_temps(ColdPullMaterial m) const {
+    const ColdPullTemps fallback = cold_pull_default_temps(m);
+    Config* config = Config::get_instance();
+    const auto* root = config ? config->try_get_json(kColdPullPath) : nullptr;
+    const auto* entry =
+        root && root->is_object() ? json_util::find_member(*root, cold_pull_key(m)) : nullptr;
+    if (!entry || !entry->is_object()) {
+        return fallback;
+    }
+    const ColdPullTemps t{json_util::safe_int(*entry, "soak", 0),
+                          json_util::safe_int(*entry, "pull", 0)};
+    // A hand edit that cannot be a cold pull is ignored, not clamped into one.
+    if (t.pull_c < kMinPullC || t.soak_c - t.pull_c < kMinSoakPullGapC ||
+        t.soak_c > kMaxStoredNozzleC) {
+        return fallback;
+    }
+    return t;
+}
+
+void MaterialSettingsManager::set_cold_pull_temps(ColdPullMaterial m, ColdPullTemps t) {
+    Config* config = Config::get_instance();
+    if (!config) {
+        return;
+    }
+    cold_pull_root(*config)[cold_pull_key(m)] = {{"soak", t.soak_c}, {"pull", t.pull_c}};
+    config->save();
+}
+
+void MaterialSettingsManager::reset_cold_pull_temps(ColdPullMaterial m) {
+    Config* config = Config::get_instance();
+    if (!config || !config->exists(kColdPullPath)) {
+        return;
+    }
+    cold_pull_root(*config).erase(cold_pull_key(m));
+    config->save();
+}
+
+ColdPullMaterial MaterialSettingsManager::get_cold_pull_material() const {
+    Config* config = Config::get_instance();
+    const auto* root = config ? config->try_get_json(kColdPullPath) : nullptr;
+    const int v = root && root->is_object() ? json_util::safe_int(*root, "material", 0) : 0;
+    return cold_pull_material_valid(v) ? static_cast<ColdPullMaterial>(v) : ColdPullMaterial::Pla;
+}
+
+void MaterialSettingsManager::set_cold_pull_material(ColdPullMaterial m) {
+    Config* config = Config::get_instance();
+    if (!config) {
+        return;
+    }
+    cold_pull_root(*config)["material"] = static_cast<int>(m);
+    config->save();
+}
+
 } // namespace helix
 
 // ============================================================================

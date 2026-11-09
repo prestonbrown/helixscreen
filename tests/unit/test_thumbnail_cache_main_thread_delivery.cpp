@@ -5,10 +5,9 @@
  * @file test_thumbnail_cache_main_thread_delivery.cpp
  * @brief ThumbnailCache callbacks always land on the LVGL main thread (#960, #1202).
  *
- * Callers hand ThumbnailCache callbacks that set LVGL image sources, but which
- * thread a result arrived on used to depend on which internal path produced it.
- * #1202 identified the download callbacks; it closed with the mutex half and
- * left the marshalling half open. Two of the four paths are non-obvious:
+ * Callers hand ThumbnailCache callbacks that set LVGL image sources, so every
+ * result must arrive on the main thread whichever internal path produced it
+ * (#1202). Two of the four paths are non-obvious:
  *
  *   - `fetch_optimized()`'s download ERROR fires on an HttpExecutor worker,
  *     while its download SUCCESS is already safe (it routes through

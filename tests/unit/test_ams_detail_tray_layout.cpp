@@ -64,7 +64,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
   public:
     /// A tool changer has no housing, and flat spools stand in none, so build()
     /// finds no tray for either.
-    void build(const char* env_mode, int gates = 4, bool tool_changer = false) {
+    void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false) {
         helix::Config::get_instance()->set<std::string>("/ams/spool_style", flat_ ? "flat" : "3d");
         auto mock = std::make_unique<AmsBackendMock>(gates);
         if (tool_changer)
@@ -72,6 +72,10 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         else
             mock->set_afc_mode(true);
         mock->set_environment_mode(env_mode);
+        // These cases cover the generic box, which a unit with its own drawing does not use.
+        mock->rename_unit(0, "Generic Unit");
+        if (ace)
+            mock->set_ace_identity();
         REQUIRE(mock->start().success());
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);
@@ -496,6 +500,21 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         lv_obj_get_coords(label, &la);
         CHECK(ra.y2 <= la.y1);
     }
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS tray: a drawn unit's readout tucks low over its end",
+                 "[ams][tray][ui_integration]") {
+    build("dryer", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+    REQUIRE(pill != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
+    lv_obj_update_layout(test_screen());
+    lv_area_t pill_area, box_area;
+    lv_obj_get_coords(pill, &pill_area);
+    lv_obj_get_coords(container_, &box_area);
+    const int32_t tuck = theme_manager_get_spacing("space_sm");
+    CHECK(pill_area.x1 == box_area.x1 + (int32_t)std::lround(tray::pill_left_x(box_)) - tuck);
+    CHECK(pill_area.y2 == box_area.y1 + (int32_t)std::lround(box_.fb) + tuck);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS flat spool style: the readout stands beside the spools",

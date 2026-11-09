@@ -147,7 +147,7 @@ Key the choice on the question you actually have, not on a phase of work:
 | **Can this test fail at all?** | break the line it covers, rerun that one case, restore | one `make t` cycle |
 | Do any assertions only look like assertions? | `make check-tautology`, `make test-vacuous` | 3s, seconds |
 | Does any test even reach this code? | `make cov-diff` | minutes |
-| Do my changed lines have detection? | `make mutate-diff MUTATE_ARGS="--base <origin/main it landed on>"`, **once per batch, right after it lands** | per hunk: one rebuild + that file's tests |
+| Do my changed lines have detection? | `make mutate-diff MUTATE_ARGS="--base <origin/main before the series>"`, **once, when the series of work is done** | per hunk: one rebuild + that file's tests |
 | Did I break something elsewhere in C++? | `make unit-sweep` | ~50s idle, minutes loaded |
 | Will CI's unit job pass? | `make unit-sweep NPROCS=8`: CI runs 8 shards, split four apiece across two 4-core runners, so tests share a process with different neighbours than the local 96 | ~100s |
 | Am I finished - did I break anything, anywhere? | `make full-test-run` | ~2m, **once, at the end** |
@@ -350,7 +350,7 @@ they arrive in changes.
 
 **A run is bounded, and any stop leaves the tree as it found it.**
 
-- `--max-minutes N` (default and maximum 30; `--release` lifts the cap, and
+- `--max-minutes N` (default and maximum 45; `--release` lifts the cap, and
   only then does `0` mean none) caps the whole run, baseline included. At the
   cap the in-flight hunk is stopped and restored, and it and
   every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
@@ -475,16 +475,12 @@ Only reverting the hunk and watching for red finds it.
 
 ### When to run it, and where the record goes
 
-Run `make mutate-diff` once per batch, right after the batch lands, from the landed tree:
-`MUTATE_ARGS="--base <the origin/main it landed on>"`, in the background. It never holds
-up a merge, and it is never skipped: the landing session starts it as soon as the push is
-verified, and a survivor becomes a follow-up fix (a test that pins the hunk), landed like any
-other. When several branches land together, it runs once over the merged result, never once
-per branch. Never run it per task, per commit or per agent while work is in progress: hunks a
-later commit rewrites get mutated twice for nothing. A whole-branch run against the full
-suite is a release check (`--release`), not a landing check. While building, a new test's
-proof is one hand break of the line it pins (above). Root `CLAUDE.md` § Verification
-Cadence has the whole schedule.
+Run `make mutate-diff` once when a series of work is done, from the landed tree:
+`MUTATE_ARGS="--base <origin/main before the series>"`, in the background. A series is every batch
+serving one goal, so several landings can share one run. It never holds up a merge, and it is never
+skipped at the end: a survivor becomes a follow-up fix (a test that pins the hunk), landed like any
+other. Never run it per task, per commit, per agent or per landing while the work is still moving:
+hunks a later commit rewrites get mutated twice for nothing, and the verdict on them is thrown away.
 
 **Each changed file runs against its own tests.** A run prints `tests per file:` first. A
 file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
@@ -496,10 +492,12 @@ slow. A bats or pytest case red at baseline (inside the test container some fail
 the environment alone: root, no jobpool) is set aside by name, printed, and every other
 case judges; a red Catch2 baseline still stops the run. Files sharing what judges
 them run as one group, each group a child run with its own baseline, inside the one
-30-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
+45-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
 `--tests`, `--shell-tests` and `--python-tests`.
 Generated output (`src/generated/`, `ui_xml/translations/`) is not mutated: its source is,
 and the regeneration gates pin the two together.
+
+`make mutate-diff` passes `--pool`, so a landing run shares one build and one set of worker copies across every file.
 
 **A whole-branch run is a release-class job, on an idle test host:** `--release --max-minutes
 0 --pool --auto-tests-max 100 --confirm-survivors --inside 2 --first <path>`. `--pool` keeps
@@ -631,6 +629,9 @@ Gates live in `scripts/check_*.py` and run from `scripts/quality-checks.sh`, eac
 **meta-test** in `tests/shell/test_*_gate.bats` pinning both halves of its contract: the shape
 it must catch, and the idioms it must stay quiet about. A gate that fires on legitimate code
 gets switched off, so the silent cases matter as much as the loud ones.
+
+A gate that must not match inside comments or string literals blanks them with
+`scripts/source_strip.py` (`blank_cxx`, `blank_xml_comments`), never a private copy.
 
 Verify a new gate by running it against known-good and known-bad fixtures before wiring it in.
 

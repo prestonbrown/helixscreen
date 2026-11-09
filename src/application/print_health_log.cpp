@@ -9,18 +9,30 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include <chrono>
+
 namespace helix {
 
 namespace {
 
 // Display events and the sampler both run on the main thread.
-uint64_t s_frames = 0;
+FrameCostCounter s_frame_cost;
 uint64_t s_flushed_px = 0;
 lv_display_t* s_attached_display = nullptr;
 
+uint64_t monotonic_ns() {
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                     std::chrono::steady_clock::now().time_since_epoch())
+                                     .count());
+}
+
 // The refresh timer ticks whether or not anything changed; a render means a drawn frame.
 void on_render_start(lv_event_t*) {
-    ++s_frames;
+    s_frame_cost.render_start(monotonic_ns());
+}
+
+void on_render_ready(lv_event_t*) {
+    s_frame_cost.render_ready(monotonic_ns());
 }
 
 void on_flush_start(lv_event_t* e) {
@@ -46,12 +58,18 @@ std::string format_print_health(const PrintHealthSample& earlier, const PrintHea
                                ? static_cast<double>(delta(earlier.flushed_px, later.flushed_px)) /
                                      static_cast<double>(later.screen_px)
                                : 0.0;
-    return fmt::format("cpu={:.1f}% main={:.1f}% frames={:.1f}/s flushed={:.2f} screens/s rss={}MB "
-                       "mem_avail={}MB swap_free={}MB",
+    const uint64_t frames = delta(earlier.frames, later.frames);
+    const double render_ms =
+        frames > 0 ? static_cast<double>(delta(earlier.render_ns, later.render_ns)) / 1e6 / frames
+                   : 0.0;
+    return fmt::format("cpu={:.1f}% main={:.1f}% frames={:.1f}/s render={:.1f}ms slow={} "
+                       "flushed={:.2f} screens/s rss={}MB peak_rss={}MB mem_avail={}MB "
+                       "swap_free={}MB",
                        cpu_percent(delta(earlier.process_cpu_ns, later.process_cpu_ns)),
                        cpu_percent(delta(earlier.main_thread_cpu_ns, later.main_thread_cpu_ns)),
-                       per_second(static_cast<double>(delta(earlier.frames, later.frames))),
-                       per_second(screens), later.rss_kb / 1024, later.mem_available_kb / 1024,
+                       per_second(static_cast<double>(frames)), render_ms,
+                       delta(earlier.slow_frames, later.slow_frames), per_second(screens),
+                       later.rss_kb / 1024, later.peak_rss_kb / 1024, later.mem_available_kb / 1024,
                        later.swap_free_kb / 1024);
 }
 
@@ -80,6 +98,7 @@ void attach_print_health_counters(lv_display_t* display) {
         return;
     }
     lv_display_add_event_cb(display, on_render_start, LV_EVENT_RENDER_START, nullptr);
+    lv_display_add_event_cb(display, on_render_ready, LV_EVENT_RENDER_READY, nullptr);
     lv_display_add_event_cb(display, on_flush_start, LV_EVENT_FLUSH_START, nullptr);
     s_attached_display = display;
 }
@@ -90,13 +109,17 @@ PrintHealthSample read_print_health_sample(lv_display_t* display) {
     sample.process_cpu_ns = cpu.cpu_ns;
     sample.wall_ns = cpu.wall_ns;
     sample.main_thread_cpu_ns = static_cast<uint64_t>(thread_cpu_ns());
-    sample.frames = s_frames;
+    sample.frames = s_frame_cost.frames();
+    sample.render_ns = s_frame_cost.render_ns();
+    sample.slow_frames = s_frame_cost.slow_frames();
     sample.flushed_px = s_flushed_px;
     if (display) {
         sample.screen_px = static_cast<uint64_t>(lv_display_get_horizontal_resolution(display)) *
                            static_cast<uint64_t>(lv_display_get_vertical_resolution(display));
     }
-    sample.rss_kb = MemoryMonitor::get_current_stats().vm_rss_kb;
+    const MemoryStats process_memory = MemoryMonitor::get_current_stats();
+    sample.rss_kb = process_memory.vm_rss_kb;
+    sample.peak_rss_kb = process_memory.vm_hwm_kb;
     const MemoryInfo memory = get_system_memory_info();
     sample.mem_available_kb = memory.available_kb;
     sample.swap_free_kb = memory.swap_free_kb;

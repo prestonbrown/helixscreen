@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_plugin_status_state.cpp
- * @brief HelixPrint plugin status management extracted from PrinterState
+ * @brief HelixPrint plugin status management (a PrinterState sub-state)
  *
  * Manages plugin installation subjects for UI feature gating.
  * Uses tri-state semantics (-1=unknown, 0=no, 1=yes) to distinguish between
  * "still checking" and "definitely not available" states.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_plugin_status_state.h"

@@ -673,7 +673,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
                         // trace, not debug: one line per series per sample interval
                         // with no decision content. The bundle's ring buffer captures
                         // DEBUG by default (ring_captures_debug()), so at debug this
-                        // line evicts every other line: bundle ED2YC336 was 2000/2000.
+                        // line evicts every other line from the ring.
                         spdlog::trace("[TempGraphController] live push series_id={} '{}' {:.1f}°C",
                                       sj.series_id, sj.klipper_name, temp_deg);
                         ui_temp_graph_update_series_with_time(self->graph_, sj.series_id, temp_deg,

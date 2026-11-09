@@ -16,6 +16,12 @@
                             options="Jog Pad&#10;Arrows&#10;Arrows + Home&#10;Axis Rows"
                             options_tag="Jog Pad&#10;Arrows&#10;Arrows + Home&#10;Axis Rows"
                             bind_selected="settings_motion_layout" callback="on_motion_layout_changed"/>
+      <!-- ZMovementStyle order (Auto, Bed, Nozzle); Auto follows the kinematics. -->
+      <setting_dropdown_row name="row_z_movement_style"
+                            label="Z Buttons Move" icon="arrow_up_down"
+                            description="Whether the Z arrows follow the bed or the Z value"
+                            options="Auto&#10;Bed&#10;Nozzle" options_tag="Auto&#10;Bed&#10;Nozzle"
+                            bind_selected="settings_z_movement_style" callback="on_z_movement_style_changed"/>
       <divider_horizontal/>
       <!-- ================================================================== -->
       <!-- JOG SPEED XY -->

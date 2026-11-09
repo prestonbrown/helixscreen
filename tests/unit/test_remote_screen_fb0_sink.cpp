@@ -393,8 +393,8 @@ TEST_CASE("Fb0MailboxSink: frame past px_map_len is skipped even when the inferr
     constexpr int32_t kRealRows = 100;
     const size_t real_len = static_cast<size_t>(FB_STRIDE) * kRealRows; // 192000
 
-    // Backing allocation is deliberately larger than the declared length so the
-    // pre-fix behaviour reads valid-but-wrong memory instead of crashing the
+    // Backing allocation is deliberately larger than the declared length so an
+    // over-read reads valid-but-wrong memory instead of crashing the
     // test run. 0xAB marks anything that gets mirrored.
     std::vector<uint8_t> src(kFbSize, 0xAB);
 

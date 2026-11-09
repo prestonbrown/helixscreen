@@ -311,7 +311,7 @@ void SettingsPanel::show_restart_prompt() {
         return;
     }
 
-    restart_prompt_dialog_ = helix::ui::modal_show("restart_prompt_dialog");
+    restart_prompt_dialog_ = helix::ui::ComponentModal::show_owned("restart_prompt_dialog");
     if (restart_prompt_dialog_) {
         spdlog::debug("[{}] Restart prompt dialog shown via Modal system", get_name());
         // Clear pending flag so we don't show again until next change

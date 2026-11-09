@@ -1192,6 +1192,218 @@ def test_auto_filter_still_gives_up_on_a_common_stem_whatever_its_header():
     assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
 
 
+GIZMO_LOADER = (
+    '#include "gizmo_loader.h"\n'
+    'json GizmoLoader::load() { return read(find_readable("gizmo_db.json")); }\n'
+)
+DATA_SOURCES = {
+    "test_loader_user": "auto rules = GizmoLoader::load();\n",
+    "test_names_db": 'REQUIRE(path_of("gizmo_db") != "");\n',
+    "test_unrelated": "GizmoLoaderX and gizmo_dbx\n",
+}
+
+
+def test_a_data_file_is_judged_by_the_tests_reaching_its_declared_consumers():
+    filt = md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES,
+                                consumers=[("src/gizmo_loader.cpp", GIZMO_LOADER)])
+    assert filt == "[#test_loader_user]~[.]~[slow],[#test_names_db]~[.]~[slow]"
+    assert md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES) \
+        == "[#test_names_db]~[.]~[slow]"
+
+
+def test_data_consumers_follow_the_map_globs():
+    rows = md.parse_data_consumers(
+        "# comment\n\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_loader.cpp\tgizmo_db.json\n"
+        "assets/config/presets/*.json\tsrc/system/config.cpp\tpresets/\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_rules.cpp\tgizmo_rules(\n")
+    assert md.data_consumers("assets/config/gizmo_db.json", rows) \
+        == ["src/gizmo_loader.cpp", "src/gizmo_rules.cpp"]
+    assert md.data_consumers("assets/config/presets/k1.json", rows) == ["src/system/config.cpp"]
+    assert md.data_consumers("assets/config/other.json", rows) == []
+
+
+def test_a_row_naming_its_reach_replaces_the_sources_own():
+    rows = md.parse_data_consumers(
+        "assets/config/presets/*.json\tsrc/system/config.cpp\t\"presets/\"\t"
+        "apply_preset_file, config/presets\n"
+        "assets/config/presets/*.json\tsrc/other.cpp\tpresets\n")
+    path = "assets/config/presets/k1.json"
+    assert md.data_consumers(path, rows) == ["src/other.cpp"]
+    assert md.data_names(path, rows) == ["apply_preset_file", "config/presets"]
+    sources = {"test_apply": "cfg.apply_preset_file(\"k1\");\n",
+               "test_links": 'const char* d = "assets/config/presets";\n',
+               "test_config": "Config c; c.load();\n"}
+    assert md.auto_tests_filter(path, sources, extra_names=md.data_names(path, rows)) \
+        == "[#test_apply]~[.]~[slow],[#test_links]~[.]~[slow]"
+
+
+def test_a_declared_reach_stands_in_for_a_data_stem_too_many_tests_name():
+    # A preset named for a printer (ad5x) shares its stem with that printer's
+    # every test; the loader the map declares is the evidence instead.
+    sources = {f"test_{i}": "ad5x persona\n" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    sources["test_apply"] = "cfg.apply_preset_file(name);\n"
+    path = "assets/config/presets/ad5x.json"
+    assert md.auto_tests_filter(path, sources) == ""
+    assert md.auto_tests_filter(path, sources, extra_names=["apply_preset_file"]) \
+        == "[#test_apply]~[.]~[slow]"
+
+
+def test_parse_data_consumers_refuses_a_row_without_three_fields():
+    with pytest.raises(ValueError):
+        md.parse_data_consumers("assets/config/x.json\tsrc/x.cpp\n")
+
+
+def test_every_declared_data_consumer_still_reads_its_data():
+    # A consumer that no longer loads the file would silently narrow its filter.
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    assert rows
+    tracked = subprocess.run(["git", "ls-files", "assets"], cwd=REPO_ROOT, text=True,
+                             stdout=subprocess.PIPE).stdout.split()
+    for glob, source, evidence, names in rows:
+        assert any(md.fnmatch(t, glob) for t in tracked), f"{glob} matches no tracked file"
+        text = (REPO_ROOT / source).read_text()
+        assert evidence in text, f"{source} no longer contains {evidence!r} for {glob}"
+        assert md.classify(source, False) == ("mutate", "cxx"), source
+        # A named reach is the source's own loader, or the data's own directory.
+        for name in names:
+            assert name in text or name in glob, f"{source} no longer has {name!r}"
+
+
+def test_the_printer_database_reaches_the_tests_reading_it_through_code():
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    path = "assets/config/printer_database.json"
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers)
+    # The whole --tests ('') also runs them; a narrow filter must name both.
+    assert filt == "" or ("[#test_probe_preparation]" in filt
+                          and "[#test_probe_sensor_manager]" in filt), filt
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("assets/config/presets/k1.json",
+     ("test_config_preset", "test_preset_database_links")),
+    # Tests opening a preset by its quoted path segment ("presets/ad5x.json",
+    # "config" / "presets") read it without naming the loader.
+    ("assets/config/presets/ad5x.json",
+     ("test_config_preset", "test_preset_database_links", "test_display_manager",
+      "test_display_metrics", "test_hardware_validator")),
+    ("assets/config/default_layout.json",
+     ("test_default_layout", "test_default_layout_resolver", "test_panel_widget_live_default")),
+])
+def test_presets_and_the_default_layout_get_their_loaders_tests_not_the_suite(path, expected):
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers,
+                                extra_names=md.data_names(path, rows))
+    assert filt, "fell back to the whole suite"
+    for name in expected:
+        assert f"[#{name}]" in filt, filt
+
+
+PARSER_CPP = (
+    '#include "ifs_parser.h"\n'
+    'namespace ifs {\n'
+    'SlotMap parse_slots(const json& j) {\n'
+    '    SlotMap out;\n'
+    '    return out;\n'
+    '}\n'
+    'class LaneReader {};\n'
+    'struct SensorFrame {\n'
+    '    std::optional<bool> motion_detected;\n'
+    '    std::array<int, 4> port_counts{};\n'
+    '};\n'
+    '}\n'
+)
+BACKEND_PRE = 'void Backend::update(const json& j) {\n    for (auto& s : j["slots"]) {}\n}\n'
+
+
+def _hunk(path, body, new_file=False):
+    head = "--- /dev/null\n" if new_file else f"--- a/{path}\n"
+    return {"file": path, "line": 1, "old_line": 1,
+            "body": ["@@ -1,2 +1,2 @@\n", *body],
+            "patch": f"diff --git a/{path} b/{path}\n{head}+++ b/{path}\n"}
+
+
+def test_an_added_file_is_one_whose_patch_starts_from_nothing():
+    hunks = [_hunk("src/ifs_parser.cpp", ["+x\n"], new_file=True),
+             _hunk("src/backend.cpp", ["-a\n", "+b\n"])]
+    assert md.added_files(hunks) == {"src/ifs_parser.cpp"}
+
+
+def test_a_survivor_calling_into_an_added_file_is_an_extraction():
+    swap = _hunk("src/backend.cpp", ['-    for (auto& s : j["slots"]) {}\n',
+                                     "+    slots_ = ifs::parse_slots(j);\n"])
+    plain = _hunk("src/backend.cpp", ["-    return 1;\n", "+    return 2;\n"])
+    # A name the pre-image already has (update, json) is no evidence of a move.
+    reuse = _hunk("src/backend.cpp", ["-    x();\n", "+    update(j);\n"])
+    # A member of a struct the added file declares is a moved name too.
+    field = _hunk("src/backend.cpp", ["-    if (j.contains(\"m\")) {\n",
+                                      "+    if (frame.motion_detected) {\n"])
+    field["line"] = 9
+    # Only adding a call is new behaviour, whose survival is a real gap.
+    added_call = _hunk("src/backend.cpp", ["+    ifs::parse_slots(j);\n"])
+    added_call["line"] = 20
+    found = md.extraction_targets([swap, plain, reuse, field, added_call], {"src/ifs_parser.cpp": PARSER_CPP},
+                                  {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp",
+                     "src/backend.cpp:9": "src/ifs_parser.cpp"}
+    assert md.extraction_targets([swap], {}, {"src/backend.cpp": BACKEND_PRE}) == {}
+
+
+def test_a_name_an_added_header_declares_is_credited_to_its_source():
+    swap = _hunk("src/backend.cpp", ["-    int k = 0;\n", "+    LaneFrame k = read();\n"])
+    found = md.extraction_targets(
+        [swap], {"include/ifs_parser.h": "struct LaneFrame { int n; };\n",
+                 "src/ifs_parser.cpp": PARSER_CPP}, {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp"}
+
+
+def test_declared_names_cover_functions_types_and_members():
+    names = md.declared_names(PARSER_CPP)
+    assert {"parse_slots", "LaneReader", "ifs", "SensorFrame", "motion_detected",
+            "port_counts", "out"} <= names
+    assert "SlotMap" not in names and "return" not in names
+
+
+def test_the_summary_groups_extraction_survivors_by_the_file_they_moved_into():
+    lines = md.extraction_report({"src/backend.cpp:12": "src/ifs_parser.cpp",
+                                  "src/backend.cpp:40": "src/ifs_parser.cpp"},
+                                 ["src/ifs_parser.cpp:1", "src/ifs_parser.cpp:30",
+                                  "src/other.cpp:5"])
+    text = "\n".join(lines)
+    assert "2 survivor(s) replace code with a call into a file this diff adds" in text
+    assert "src/ifs_parser.cpp <- src/backend.cpp:12, src/backend.cpp:40" in text
+    assert "2 hunk(s) inside src/ifs_parser.cpp cannot be judged by a revert" in text
+    assert "--inside N --only src/ifs_parser.cpp" in text
+    assert "other.cpp" not in text
+    assert md.extraction_report({}, ["src/other.cpp:5"]) == []
+
+
+EXTRACTION_MAKEFILE = """test-build:
+\t@if grep -q parse_gizmo src/feature.cpp && ! grep -qs parse_gizmo src/gizmo_parser.cpp; \\
+\t    then echo 'undefined reference to parse_gizmo'; exit 1; fi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
+def test_a_run_over_an_extraction_names_the_shape_instead_of_listing_survivors(tmp_path):
+    work = _fixture(tmp_path, EXTRACTION_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text("int f(int n) {\n    return parse_gizmo(n);\n}\n")
+    (work / "src" / "gizmo_parser.cpp").write_text(
+        "int parse_gizmo(int n) {\n    return n + 1;\n}\n")
+    _git(work, "add", "-N", "src/gizmo_parser.cpp")
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--no-auto-tests")
+    assert r.returncode == 1, r.stdout
+    assert "EXTRACTION: 1 survivor(s) replace code with a call" in r.stdout, r.stdout
+    assert "src/gizmo_parser.cpp <- src/feature.cpp:1" in r.stdout
+    assert "1 hunk(s) inside src/gizmo_parser.cpp cannot be judged by a revert" in r.stdout
+    summary = r.stdout.split("hunk(s) survived reversion", 1)[1].split("EXTRACTION:", 1)[0]
+    assert "src/feature.cpp:1" not in summary, r.stdout
+
+
 def test_reach_names_are_the_stem_the_implemented_header_and_its_class():
     assert md.reach_names("src/gizmo_bar.cpp", SPLIT_TU) == ["gizmo_bar", "gizmo", "Gizmo"]
     assert md.reach_names("src/gizmo_bar.cpp", "") == ["gizmo_bar"]
@@ -1227,6 +1439,15 @@ def test_files_sharing_a_filter_run_as_one_group():
         ("[x]", ["a.cpp", "c.cpp"]), ("[y]", ["b.cpp"])]
 
 
+@pytest.mark.parametrize("path", ["translations/de.yml", "assets/images/tour/preview.png"])
+def test_content_with_no_logic_does_not_make_a_run_incomplete(path):
+    assert md.classify(path, False)[0] == "inert"
+
+
+def test_an_unclaimed_asset_stays_visible():
+    assert md.classify("assets/sounds/beep.wav", False)[0] == "uncovered"
+
+
 @pytest.mark.parametrize("codes, worst", [
     ([0, 0], 0), ([0, 3], 3), ([3, 1, 0], 1), ([0, 4, 3], 4), ([143, 3], 143), ([], 0)])
 def test_the_worst_child_exit_is_the_run_exit(codes, worst):
@@ -1245,7 +1466,7 @@ def test_generated_output_is_not_mutated_as_code():
     assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
 
 
-@pytest.mark.parametrize("minutes", ["31", "0", "240"])
+@pytest.mark.parametrize("minutes", ["46", "0", "240"])
 def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
     p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
                         "--max-minutes", minutes], cwd=REPO_ROOT, capture_output=True, text=True)

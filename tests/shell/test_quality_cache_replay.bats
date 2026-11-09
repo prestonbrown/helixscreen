@@ -117,3 +117,53 @@ with_stamp_helpers() {
   [ -n "$(hash_with 1)" ]
   [ "$(hash_with 1)" != "$(hash_with 0)" ]
 }
+
+# The collect loop and the final verdict from the real driver, over gates whose
+# rc files $1 writes into QC_TMP (gate:rc pairs).
+with_gate_results() {
+  bash -c '
+    QC_TMP="$1"; shift
+    QC_ALL=""
+    for pair in "$@"; do
+      QC_ALL="$QC_ALL ${pair%%:*}"
+      echo "${pair#*:}" > "$QC_TMP/${pair%%:*}.rc"
+    done
+    qc_keep_gate_log() { :; }
+    EXIT_CODE=0; FAILED_GATES=""; SCRIPT_START=$(date +%s); QC_STAMP=""
+    eval "$(sed -n "/^for fn in \$QC_ALL; do/,/^done/p; /^if \[ \$EXIT_CODE -eq 0 \]; then/,/^fi/p" scripts/quality-checks.sh)"
+  ' _ "$BATS_TEST_TMPDIR" "$@"
+}
+
+@test "a failed run names every gate that failed, and only those" {
+  run with_gate_results qc_alpha:0 qc_beta:1 qc_gamma:0 qc_delta:2
+  [ "$status" -eq 1 ] || fail "$output"
+  contains "Quality checks failed!" "$output"
+  contains "   Failed gates: qc_beta qc_delta" "$output"
+  lacks "qc_alpha" "$output"
+  lacks "qc_gamma" "$output"
+}
+
+@test "a passing run prints no failed-gates line" {
+  run with_gate_results qc_alpha:0 qc_beta:0
+  [ "$status" -eq 0 ] || fail "$output"
+  contains "Quality checks passed!" "$output"
+  lacks "Failed gates" "$output"
+}
+
+@test "HELIX_QC_SKIP_PYTHON_TESTS=1 leaves tests/python to the caller, and its pass never stands in for a full one" {
+  unset GITHUB_ACTIONS
+  local venv="$BATS_TEST_TMPDIR/venv-python"
+  printf '#!/bin/sh\necho "pytest ran" >> "%s/ran"\necho "1 passed"\n' "$BATS_TEST_TMPDIR" >"$venv"
+  chmod +x "$venv"
+  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" HELIX_QC_SKIP_PYTHON_TESTS=1 qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 0 ]
+  [ ! -e "$BATS_TEST_TMPDIR/ran" ]
+  contains "the land gate's python step runs tests/python" "$output"
+  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
+  [ -e "$BATS_TEST_TMPDIR/ran" ]
+  hash_with() {
+    HELIX_QC_SKIP_PYTHON_TESTS="$1" bash -c \
+      'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+  }
+  [ "$(hash_with 1)" != "$(hash_with 0)" ]
+}

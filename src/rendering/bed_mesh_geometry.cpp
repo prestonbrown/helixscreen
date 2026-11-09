@@ -127,7 +127,7 @@ void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
                 base_y_1 = helix::mesh::printer_y_to_world_y(printer_y1, renderer->bed_center_y,
                                                              renderer->coord_scale);
             } else {
-                // Legacy: Index-based coordinates (centered around origin)
+                // Bed geometry not computed: index-based coordinates centered on the origin
                 // Note: Y is inverted because mesh[0] = front edge
                 base_x_0 = helix::mesh::mesh_col_to_world_x(col, renderer->cols, BED_MESH_SCALE);
                 base_x_1 =
@@ -234,7 +234,6 @@ void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
 
     size_t mesh_quad_count = renderer->quads.size();
 
-    // DEBUG: Log quad generation with z_scale used
     spdlog::debug("[QUAD_GEN] Generated {} mesh quads, z_scale={:.2f}, z_center={:.4f}",
                   mesh_quad_count, renderer->view_state.z_scale, renderer->cached_z_center);
     // Log a sample quad to verify Z values
@@ -328,7 +327,7 @@ void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
                     base_y_1 = helix::mesh::printer_y_to_world_y(printer_y1, renderer->bed_center_y,
                                                                  renderer->coord_scale);
                 } else {
-                    // Legacy fallback
+                    // Bed geometry not computed: center on the plane size
                     base_x_0 = printer_x0 - plane_max_x / 2.0;
                     base_x_1 = printer_x1 - plane_max_x / 2.0;
                     base_y_0 = -(printer_y0 - plane_max_y / 2.0);

@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-// Pure decision logic for the Macros panel edit mode, extracted from
+// Pure decision logic for the Macros panel edit mode, kept out of
 // MacrosPanel so it can be unit-tested with realistic inputs without
 // instantiating any LVGL widgets (see test_ui_panel_macros_edit_mode.cpp).
 //

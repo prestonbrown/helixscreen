@@ -629,9 +629,9 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
                  "Widget catalog: a gated multi-instance widget is dimmed and unselectable",
                  "[widget_catalog][1016]") {
     // power_device and thermistor are the only defs that are BOTH multi_instance
-    // and hardware-gated. The multi-instance branch used to hardcode the gate
-    // off, so on a printer with no Moonraker power device the Power row rendered
-    // bright and clickable and minted an instance that could never work.
+    // and hardware-gated. A multi-instance branch that hardcodes the gate off
+    // renders the Power row bright and clickable on a printer with no Moonraker
+    // power device, minting an instance that can never work.
     // The target must also have a live gate subject in this fixture — some gate
     // subjects (e.g. temp_sensor_count) are not registered here, and a missing
     // subject reads as available, which is not the branch under test.

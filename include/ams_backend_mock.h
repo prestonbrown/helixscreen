@@ -213,14 +213,11 @@ class AmsBackendMock : public AmsBackend,
      * tool mapping, and nothing else. Passing a status other than UNKNOWN that
      * differs from the slot's current one logs a warning rather than silently
      * doing nothing — use force_slot_status() to stage a mock slot state.
+     * The edit is also filed as the lane's Record, which echoes the fields the
+     * simulated firmware does not hold.
      */
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
-    /// The same write as apply_user_edit(). The mock has no firmware or store
-    /// behind a slot, so an edit and a sync differ only in what the caller
-    /// says the values are.
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -242,6 +239,12 @@ class AmsBackendMock : public AmsBackend,
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
     // Dryer
+    /// Rename a unit, so screens that key on hardware names see a different unit.
+    void rename_unit(int unit_index, const std::string& name);
+
+    /// Report as an Anycubic ACE, so screens that draw that unit can be exercised.
+    void set_ace_identity();
+
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     /// Runs the same simulated cycle as start_drying(); the target is logged, not simulated.
@@ -619,6 +622,9 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_afc_mode(bool enabled);
 
+    /// Report unit 0 under @p name, as AFC reports "<type> <instance>".
+    void set_afc_unit_name(const std::string& name);
+
     /**
      * @brief Check if AFC mode is enabled
      * @return true if simulating an AFC Box Turtle
@@ -858,7 +864,11 @@ class AmsBackendMock : public AmsBackend,
      */
     void init_mock_data();
 
-    /// The slot write apply_user_edit() and sync_external_identity() share.
+    /// The simulated firmware takes a metered weight onto the slot, as AFC's does.
+    void update_slot_weight_impl(int slot_index, float remaining_weight_g, float total_weight_g,
+                                 bool persist) override;
+
+    /// The slot write behind apply_user_edit().
     AmsError write_slot(int slot_index, const SlotInfo& info);
 
     /**
@@ -953,21 +963,16 @@ class AmsBackendMock : public AmsBackend,
      *
      * The simulated population is this backend's firmware: the constructor seeds
      * it from kSampleFilaments and each rig mode rebuilds it, which is the same
-     * signal a real backend gets from a parse. Presence is Sensed; colour and
-     * material are VendorCache.
+     * signal a real backend gets from a parse. Presence is Sensed; identity is
+     * Firmware, every field the simulated firmware holds, the way AFC's lane
+     * object states colour, material, brand, name and spool id. Not a colour's
+     * name (firmware reports hex) and not a weight, which is the meter's and
+     * Spoolman's on this backend. A write
+     * files the population again, so an edit echoes the way it does on such a
+     * printer and its Pending record retires.
      *
-     * Nothing else is, and the bound is deliberate: a mock that files a field
-     * no hardware reports lets a case pass against a reading no backend can
-     * produce. Brand is out for the reason the constructor gives, that a real
-     * lane's brand comes only from the override store or the Spoolman identity
-     * cache. Colour NAME is out for the same reason one step further on:
-     * firmware reports hex, and a name comes from our own naming or from
-     * Spoolman. The Spoolman handles and weights on these slots are Spoolman's
-     * to file, not this backend's.
-     *
-     * Called from start(), which AmsState reaches only after registration has
-     * stamped a backend index; an earlier call files onto kInvalidLaneId and
-     * is dropped.
+     * Called from start() and after every slot write. Before registration has
+     * stamped a backend index a call files onto kInvalidLaneId and is dropped.
      *
      * Takes mutex_ itself, so the caller must not hold it.
      */

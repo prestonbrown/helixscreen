@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "favorite_macro_config.h"
 
+#include "json_utils.h"
 #include "tile_color.h"
 
 #include <algorithm>
@@ -12,10 +13,10 @@ namespace helix {
 
 FavoriteMacroConfig favorite_macro_config_from_json(const nlohmann::json& j) {
     FavoriteMacroConfig c;
-    if (j.contains("macro") && j["macro"].is_string())
-        c.macro = j["macro"].get<std::string>();
-    if (j.contains("icon") && j["icon"].is_string())
-        c.icon = j["icon"].get<std::string>();
+    if (auto macro = json_util::read_field<std::string>(j, "macro"))
+        c.macro = std::move(*macro);
+    if (auto icon = json_util::read_field<std::string>(j, "icon"))
+        c.icon = std::move(*icon);
     c.color = tile_color::color_from_config(j);
     // Two spellings of the same switch. "require_confirmation" is what this
     // build writes; "skip_param_prompt" is the pre-v23 key with the opposite
@@ -23,10 +24,10 @@ FavoriteMacroConfig favorite_macro_config_from_json(const nlohmann::json& j) {
     // migrate_v22_to_v23() (a preset asset, a hand-edited file, a widget config
     // restored from an older backup) keeps the user's choice instead of
     // silently reverting to the default.
-    if (j.contains("require_confirmation") && j["require_confirmation"].is_boolean()) {
-        c.require_confirmation = j["require_confirmation"].get<bool>();
-    } else if (j.contains("skip_param_prompt") && j["skip_param_prompt"].is_boolean()) {
-        c.require_confirmation = !j["skip_param_prompt"].get<bool>();
+    if (auto confirm = json_util::read_field<bool>(j, "require_confirmation")) {
+        c.require_confirmation = *confirm;
+    } else if (auto skip = json_util::read_field<bool>(j, "skip_param_prompt")) {
+        c.require_confirmation = !*skip;
     }
     return c;
 }

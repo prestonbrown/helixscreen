@@ -20,7 +20,7 @@
 // filled prefix in FilamentPathData::path_cache, and the hub/buffer/bypass boxes record their hit
 // rects — see ui_filament_path_internal.h ("render → record").
 //
-// The DRAW_POST animation overlays (flow dots, heat glow, moving tip) live at
+// The DRAW_POST animation overlays (flow chevrons, heat glow, moving tip) live at
 // the bottom of this file; they replay the recorded path each frame without
 // re-running the heavyweight render.
 
@@ -31,10 +31,12 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 namespace helix::ui::fpath {
 
@@ -409,6 +411,19 @@ bool hub_has_filament(const FilamentPathData* data, const LinearHubFrame& f) {
 // the recorded hub hit rect.
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
+    if (data->built_in_hub) {
+        // A small junction where the lanes meet the trunk; it is not a control.
+        const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
+        const int32_t size = LV_MAX(10, f.hub_h / 2);
+        draw_hub_box(ctx, f.center_x, f.hub_y - f.hub_h / 2, size * 2, size, tint.bg, tint.border,
+                     "", LV_OPA_COVER, /*interactive=*/false);
+        if (data->hub_callback) {
+            const int32_t y = f.hub_y - f.hub_h / 2;
+            data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
+            data->hits.hub_valid = true;
+        }
+        return;
+    }
     const BaseGeometry& g = ctx.geo;
 
     // Hub box - tint based on an error at the hub, or filament color
@@ -549,6 +564,10 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     data->path_cache.center_x = f.center_x;
     data->path_cache.nozzle_y = f.nozzle_y;
     data->path_cache.sensor_r = f.sensor_r;
+    data->path_cache.origin = {ctx.geo.x_off, ctx.geo.y_off};
+    for (int i = 0; i < pg::FilamentPath::kMaxSegs; ++i)
+        data->path_cache.seg_shown[i] =
+            plan.active_route >= 0 && plan.routes[plan.active_route].style[i].painted;
     data->path_cache.valid = true;
 }
 
@@ -556,23 +575,52 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 // DRAW_POST animation overlays
 // ============================================================================
 
-// Animation overlay for LINEAR/HUB — flow particles, heat glow, segment
+// Animation overlay for LINEAR/HUB — flow chevrons, heat glow, segment
 // transition filament tip. Reads the active path cached by the state-tied
 // renderer (populated in render_linear_hub).
-void draw_animation_linear_hub(lv_layer_t* layer, FilamentPathData* data) {
+void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     if (!data->path_cache.valid)
         return;
 
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    const int32_t dx = coords.x1 - data->path_cache.origin.x;
+    const int32_t dy = coords.y1 - data->path_cache.origin.y;
+
     lv_color_t active_color = lv_color_hex(data->filament_color);
     int32_t sensor_r = data->path_cache.sensor_r;
-    int32_t center_x = data->path_cache.center_x;
-    int32_t nozzle_y = data->path_cache.nozzle_y;
-    auto& path = data->path_cache.path;
+    int32_t center_x = data->path_cache.center_x + dx;
+    int32_t nozzle_y = data->path_cache.nozzle_y + dy;
+    pg::FilamentPath path = data->path_cache.path;
+    pg::translate_path(path, static_cast<float>(dx), static_cast<float>(dy));
 
-    // Flow particles along the active filament path.
-    if (data->anim.flow_active && data->active_slot >= 0) {
-        bool reverse = (data->anim.direction == AnimDirection::UNLOADING);
-        draw_flow_dots_path(layer, path, active_color, data->anim.flow_offset, reverse);
+    // Flow chevrons along the active filament path.
+    if (flow_visible(*data) && data->active_slot >= 0) {
+        // The route drops into the toolhead from above; the glyph covers the
+        // run inside it, so the stream ends at the glyph's top.
+        pg::FilamentPath flow_path = path;
+        if (data->feeds_toolhead && flow_path.count > 0) {
+            pg::PathSeg& last = flow_path.segs[flow_path.count - 1];
+            const float top =
+                static_cast<float>(toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+            if (last.type == pg::PathSeg::LINE && std::fabs(last.p1.x - last.p0.x) < 0.5f &&
+                last.p1.y > top)
+                last.p1.y = std::max(last.p0.y, top);
+        }
+        // The hub and buffer boxes are drawn over the tube with their labels.
+        pg::PathBox avoid[2];
+        int n_avoid = 0;
+        const int32_t hx = coords.x1 - data->hits.origin.x;
+        const int32_t hy = coords.y1 - data->hits.origin.y;
+        for (const auto& [rect, ok] : {std::pair{data->hits.hub, data->hits.hub_valid},
+                                       std::pair{data->hits.buffer, data->hits.buffer_valid}}) {
+            if (ok)
+                avoid[n_avoid++] = {
+                    static_cast<float>(rect.x1 + hx), static_cast<float>(rect.y1 + hy),
+                    static_cast<float>(rect.x2 + hx), static_cast<float>(rect.y2 + hy)};
+        }
+        draw_flow(layer, *data, flow_path, active_color, data->path_cache.seg_shown, avoid,
+                  n_avoid);
     }
 
     // Heat glow halo around the nozzle tip.
@@ -605,24 +653,25 @@ void draw_animation_linear_hub(lv_layer_t* layer, FilamentPathData* data) {
     }
 }
 
-// Animation overlay for PARALLEL — flow particles on the mounted slot's entry
+// Animation overlay for PARALLEL — flow chevrons on the mounted slot's entry
 // run. Painted via DRAW_POST on top of the overlay canvas.
 void draw_animation_parallel(lv_layer_t* layer, const BaseGeometry& g,
                              const SlotRenderStates& states, const FilamentPathData* data) {
-    if (!data->anim.flow_active)
+    if (!flow_visible(*data))
         return;
     const ParallelRows rows = parallel_rows(*data, g);
     int32_t entry_y = rows.entry_y;
     int32_t sensor_y = rows.sensor_y;
     int32_t sensor_r = data->theme.sensor_radius;
-    bool reverse = (data->anim.direction == AnimDirection::UNLOADING);
     int count = LV_MIN(data->slot_count, FilamentPathData::kMaxSlots);
     for (int i = 0; i < count; i++) {
         const SlotRenderState& s = states[i];
         if (!s.is_mounted || !s.has_filament)
             continue;
-        draw_flow_dots_line(layer, g.slot_x[i], entry_y, g.slot_x[i], sensor_y - sensor_r, s.color,
-                            data->anim.flow_offset, reverse);
+        pg::FilamentPath run;
+        run.add_line(static_cast<float>(g.slot_x[i]), static_cast<float>(entry_y),
+                     static_cast<float>(g.slot_x[i]), static_cast<float>(sensor_y - sensor_r));
+        draw_flow(layer, *data, run, s.color);
     }
 }
 
@@ -653,7 +702,7 @@ void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData
         draw_animation_parallel(layer, g, states, data);
     } else if (topo == static_cast<int>(PathTopology::LINEAR) ||
                topo == static_cast<int>(PathTopology::HUB)) {
-        draw_animation_linear_hub(layer, data);
+        draw_animation_linear_hub(obj, layer, data);
     }
     // MIXED has no per-frame animation — nothing to paint here.
 }

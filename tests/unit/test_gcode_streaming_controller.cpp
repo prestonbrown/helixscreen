@@ -296,8 +296,8 @@ TEST_CASE("GCodeStreamingController prefetch", "[gcode][streaming]") {
     GCodeStreamingController controller;
     REQUIRE(controller.open_file(temp_file.path()));
 
-    // Prefetch runs on a worker thread — it used to run inline, which is exactly
-    // what put up to 2*radius+1 seek-and-parses on the LVGL main thread. The
+    // Prefetch runs on a worker thread: inline, it would put up to 2*radius+1
+    // seek-and-parses on the LVGL main thread. The
     // requested layer is still loaded synchronously; only the NEIGHBOURS are
     // asynchronous, so these sections sync on wait_for_prefetch_idle() before
     // asserting on them.

@@ -27,6 +27,9 @@ class TourOverlay {
     /// Show step at `index`. 0-based. Triggers target resolution + tooltip placement.
     void show_step(size_t index);
 
+    /// Hide the card and highlight while the screen beneath changes.
+    void hide_card();
+
     lv_obj_t* root() const {
         return root_;
     }
@@ -38,6 +41,7 @@ class TourOverlay {
     void place_tooltip(const lv_area_t& target_rect, bool has_target, TooltipAnchor hint);
     void update_tooltip_text(const TourStep& step, size_t index, size_t total);
     void update_counter(size_t index, size_t total);
+    void update_preview(const TourStep& step);
 
     static void on_skip_cb(lv_event_t* e);
     static void on_next_cb(lv_event_t* e);
@@ -50,6 +54,7 @@ class TourOverlay {
     lv_obj_t* dim_ = nullptr;
     lv_obj_t* highlight_ = nullptr;
     lv_obj_t* tooltip_ = nullptr; // instantiated from tour_overlay.xml
+    int tooltip_width_ = 0;
 };
 
 } // namespace helix::tour

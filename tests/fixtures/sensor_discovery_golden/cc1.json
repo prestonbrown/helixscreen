@@ -208,13 +208,16 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic aux_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic case_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_switch_sensor filament_sensor": [
       "filament_detected",
@@ -253,7 +256,8 @@
       "power"
     ],
     "heater_fan extruder": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"
@@ -301,7 +305,8 @@
     "temperature_fan mainboard": [
       "temperature",
       "target",
-      "speed"
+      "speed",
+      "rpm"
     ],
     "temperature_sensor chamber": [
       "temperature",

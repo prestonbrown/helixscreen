@@ -16,6 +16,7 @@
 
 using helix::cross_page_drop_creates_page;
 using helix::cross_page_edge_zone_px;
+using helix::cross_page_note_crossing_flip;
 using helix::cross_page_note_dwell_flip;
 using helix::cross_page_past_left_border;
 using helix::cross_page_past_right_border;
@@ -82,6 +83,18 @@ TEST_CASE("cross-page tuning keeps the 800x480 feel and scales with the track",
     // Vanishing tracks share one floor instead of shrinking the zone with them.
     CHECK(cross_page_edge_zone_px(1.0f) == cross_page_edge_zone_px(8.0f));
     CHECK(cross_page_edge_zone_px(8.0f) > static_cast<int>(8.0f));
+}
+
+TEST_CASE("a flip waits long enough for a drop near the border", "[2070][grid_edit][cross_page]") {
+    // A widget settled past the majority line and lifted at about a human
+    // reaction time still drops on the page shown.
+    CHECK(helix::kCrossPageCrossingDelayMs >= 300);
+    // Carrying a widget through the zone to the outer column and pausing there
+    // does not flip.
+    CHECK(helix::kCrossPageDwellMs >= 800);
+    // Both stay short enough to answer a held push within about a second.
+    CHECK(helix::kCrossPageCrossingDelayMs < helix::kCrossPageDwellMs);
+    CHECK(helix::kCrossPageDwellMs <= 1000);
 }
 
 TEST_CASE("the edge push advances by time in the zone rather than by move count",
@@ -190,6 +203,104 @@ TEST_CASE("a crossing requests one flip and re-arms once the widget is back insi
         CHECK(cross_page_step(state, cross_move(x, crossed_left, 33, kWideW)).flip_dir == 0);
         CHECK(cross_page_step(state, cross_move(x + 60, inside_left, 33, kWideW)).flip_dir == 0);
         CHECK(cross_page_step(state, cross_move(x, crossed_left, 33, kWideW)).flip_dir == -1);
+    }
+}
+
+TEST_CASE("a crossing pulled back inside before its flip cancels it",
+          "[2070][grid_edit][cross_page]") {
+    SECTION("clear of the zones: the cancel comes once, and a new crossing asks again") {
+        const int x = kFrameX2 - zone_px() - 20;
+        const int crossed_left = kFrameX2 - kWideW / 2 + 30;
+        const int inside_left = kFrameX2 - kWideW / 2 - 30;
+        CrossPageState state;
+        CrossPageStep out = cross_page_step(state, cross_move(x, crossed_left, 33, kWideW));
+        REQUIRE(out.flip_dir == 1);
+        CHECK(out.flip_delay_ms == helix::kCrossPageCrossingDelayMs);
+        CHECK_FALSE(out.cancel_crossing);
+        CHECK_FALSE(
+            cross_page_step(state, cross_move(x, crossed_left, 33, kWideW)).cancel_crossing);
+        out = cross_page_step(state, cross_move(x - 60, inside_left, 33, kWideW));
+        CHECK(out.cancel_crossing);
+        CHECK(out.flip_dir == 0);
+        CHECK_FALSE(
+            cross_page_step(state, cross_move(x - 60, inside_left, 33, kWideW)).cancel_crossing);
+        out = cross_page_step(state, cross_move(x, crossed_left, 33, kWideW));
+        CHECK(out.flip_dir == 1);
+        CHECK_FALSE(out.cancel_crossing);
+    }
+
+    SECTION("left: the mirror") {
+        const int x = kFrameX1 + zone_px() + 20;
+        const int crossed_left = kFrameX1 - kWideW / 2 - 30;
+        const int inside_left = kFrameX1 - kWideW / 2 + 30;
+        CrossPageState state;
+        REQUIRE(cross_page_step(state, cross_move(x, crossed_left, 33, kWideW)).flip_dir == -1);
+        CHECK(cross_page_step(state, cross_move(x + 60, inside_left, 33, kWideW)).cancel_crossing);
+    }
+
+    SECTION("a crossing whose flip already happened has nothing to cancel") {
+        const int x = kFrameX2 - zone_px() - 20;
+        const int crossed_left = kFrameX2 - kWideW / 2 + 30;
+        const int inside_left = kFrameX2 - kWideW / 2 - 30;
+        CrossPageState state;
+        REQUIRE(cross_page_step(state, cross_move(x, crossed_left, 33, kWideW)).flip_dir == 1);
+        cross_page_note_crossing_flip(state);
+        CHECK_FALSE(
+            cross_page_step(state, cross_move(x - 60, inside_left, 33, kWideW)).cancel_crossing);
+    }
+
+    SECTION("in the zone: the cancel frees the zone stay, so the dwell counts again") {
+        const int x = kFrameX2 - 20;
+        // The pointer alone puts the widget past the line: an immediate crossing.
+        const int crossed_left = kFrameX2 - kWidgetW / 2 + 2;
+        CrossPageState state;
+        CrossPageStep out = cross_page_step(state, cross_move(x, crossed_left, 0));
+        REQUIRE(out.flip_dir == 1);
+        REQUIRE(out.dwell_dir == 0);
+        // Back along the zone, far enough that the push cap leaves the
+        // widget's majority inside.
+        out = cross_page_step(state, cross_move(x - 10, crossed_left - 30, 0));
+        CHECK(out.cancel_crossing);
+        CHECK(out.dwell_dir == 1);
+        CHECK(out.dwell_changed);
+    }
+}
+
+TEST_CASE("a crossing that cuts off the dwell flips no later than the dwell would have",
+          "[2070][grid_edit][cross_page]") {
+    const int x = kFrameX2 - 20;
+    // Majority inside and far from the line, so the push takes most of the
+    // dwell to carry the widget across.
+    const int raw_left = x - 180;
+    CrossPageState state;
+    REQUIRE(cross_page_step(state, cross_move(x, raw_left, 0)).dwell_dir == 1);
+    uint32_t held_ms = 0;
+    CrossPageStep out;
+    while (held_ms < 2 * helix::kCrossPageDwellMs) {
+        held_ms += 33;
+        out = cross_page_step(state, cross_move(x, raw_left, 33));
+        if (out.flip_dir != 0) {
+            break;
+        }
+    }
+    INFO("crossed after " << held_ms << "ms");
+    REQUIRE(out.flip_dir == 1);
+    REQUIRE(held_ms + helix::kCrossPageCrossingDelayMs > helix::kCrossPageDwellMs);
+    REQUIRE(held_ms < helix::kCrossPageDwellMs);
+    CHECK(out.flip_delay_ms == helix::kCrossPageDwellMs - held_ms);
+
+    SECTION("a dwell restarted by a zone change gives the crossing no head start") {
+        CrossPageState fresh;
+        const int mid = (kFrameX1 + kFrameX2) / 2;
+        cross_page_step(fresh, cross_move(x, raw_left, 0));
+        cross_page_step(fresh, cross_move(x, raw_left, 600));
+        cross_page_step(fresh, cross_move(mid, mid - 60, 33));
+        // Back in the zone with the pointer alone carrying the widget past the
+        // line: the crossing comes on the step the dwell would start.
+        const CrossPageStep back =
+            cross_page_step(fresh, cross_move(x, kFrameX2 - kWidgetW / 2 + 2, 33));
+        CHECK(back.flip_dir == 1);
+        CHECK(back.flip_delay_ms == helix::kCrossPageCrossingDelayMs);
     }
 }
 

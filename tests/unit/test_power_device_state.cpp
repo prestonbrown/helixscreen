@@ -383,3 +383,26 @@ TEST_CASE_METHOD(
     drain_queue();
     set_ui_request_handler(UiRequestKind::ExpectKlippyDisconnect, previous);
 }
+
+TEST_CASE_METHOD(RediscoveryFixture, "A Klipper-bound device counts as off only when reported off",
+                 "[power_device_state][power]") {
+    auto& state = PowerDeviceState::instance();
+    state.set_devices({PowerDevice{"printer", "gpio", "on", false}});
+    state.set_klipper_bound_devices({"printer"});
+    REQUIRE_FALSE(state.klipper_bound_device_off());
+
+    notify("printer", "off");
+    CHECK(state.klipper_bound_device_off());
+    notify("printer", "error");
+    CHECK_FALSE(state.klipper_bound_device_off());
+
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    CHECK(state.klipper_bound_device_off());
+    state.set_devices({PowerDevice{"printer", "gpio", "error", false}});
+    CHECK_FALSE(state.klipper_bound_device_off());
+
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    state.deinit_subjects();
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    CHECK_FALSE(state.klipper_bound_device_off());
+}

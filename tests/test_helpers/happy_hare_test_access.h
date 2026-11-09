@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ams_backend_happy_hare.h"
+#include "core/update_queue.h"
 
 #include <string>
 #include <utility>
@@ -112,7 +113,7 @@ class HappyHareTestAccess {
     /// built. Lets a test assert the PRIVATE namespace without reaching for the
     /// store itself, which stays private.
     template <class B> static std::string store_namespace(const B& b) {
-        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
+        return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
 
     // --- private methods ----------------------------------------------------
@@ -136,6 +137,8 @@ class HappyHareTestAccess {
     }
     template <class B> static void on_started(B& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
     template <class B, class... A> static decltype(auto) apply_heater_config(B& b, A&&... a) {
         return b.apply_heater_config(std::forward<A>(a)...);

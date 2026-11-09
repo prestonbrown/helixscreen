@@ -9,6 +9,7 @@
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "printer_state.h"
 #include "translation_loader.h"
 
@@ -320,13 +321,17 @@ TEST_CASE("RecoveryReason enum values", "[recovery]") {
 // test_timezone_env assertion failure.
 #ifndef __APPLE__
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - SHUTDOWN shows dialog",
-                 "[recovery][integration]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - SHUTDOWN shows dialog and wakes",
+                 "[recovery][integration][2037]") {
     auto& estop = EmergencyStopOverlay::instance();
+    int wakes = 0;
+    helix::set_display_wake_handler([&wakes] { ++wakes; });
 
     // Trigger SHUTDOWN via show_recovery_for (bypasses observer, tests the method directly)
     estop.show_recovery_for(RecoveryReason::SHUTDOWN);
     process_lvgl(50); // Allow async callback to execute
+    helix::set_display_wake_handler(nullptr);
+    CHECK(wakes == 1);
 
     // Dialog should be visible - find it by the backdrop name
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
@@ -360,12 +365,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     EmergencyStopOverlayTestAccess::set_restart_in_progress(estop, false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - DISCONNECTED shows dialog",
-                 "[recovery][integration]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Unified recovery dialog - DISCONNECTED shows dialog without waking",
+                 "[recovery][integration][2037]") {
     auto& estop = EmergencyStopOverlay::instance();
+    int wakes = 0;
+    helix::set_display_wake_handler([&wakes] { ++wakes; });
 
     estop.show_recovery_for(RecoveryReason::DISCONNECTED);
     process_lvgl(50);
+    helix::set_display_wake_handler(nullptr);
+    CHECK(wakes == 0);
 
     lv_obj_t* dialog = lv_obj_find_by_name(lv_screen_active(), "klipper_recovery_card");
     REQUIRE(dialog != nullptr);
@@ -409,7 +419,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - deduplication",
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Unified recovery dialog - returns after a backdrop dismiss",
                  "[recovery][integration]") {
-    // helix::ui::modal_show() unconditionally wires Modal::backdrop_click_cb, so
+    // Every modal wires Modal::backdrop_click_cb unconditionally, so
     // a tap outside the card dismisses the recovery dialog without ever reaching
     // dismiss_recovery_dialog(). EmergencyStopOverlay is then holding a pointer to
     // a modal that has left the ModalStack, and the NEXT shutdown must still

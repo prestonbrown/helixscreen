@@ -6,8 +6,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 
 namespace helix {
+
+/// A nozzle wiper behind the chute park, as the printer's own config places it:
+/// a strip from X x_min to x_max whose edge nearest the bed lies at Y y.
+struct ChuteWiperLine {
+    double x_min;
+    double x_max;
+    double y;
+};
 
 /// Decides how far each chute calibration jog may move.
 ///
@@ -24,6 +33,11 @@ namespace helix {
 /// without waiting for the previous one and the live position lags it, so a live
 /// reading alone lets fast taps overshoot; nothing else moves the toolhead during
 /// the jog step, which keeps the commanded position accurate.
+///
+/// A known wiper (ChuteWiperLine) behind park adds one more limit: with X at or
+/// past the wiper's near end, on the side of park the wiper lies, Y stops
+/// kWiperMarginMm short of the wiper line, and with Y beyond that line X does
+/// not move onto the wiper. With no wiper known, only the limits above apply.
 class ChuteJogGuard {
   public:
     static constexpr double kXReachMm = 15.0;
@@ -38,6 +52,8 @@ class ChuteJogGuard {
     static constexpr double kParkToleranceMm = 0.05;
     /// The pad's distances arrive as float, so a 0.1 step can read a hair over.
     static constexpr double kStepToleranceMm = 0.001;
+    /// How far short of a known wiper line Y stops.
+    static constexpr double kWiperMarginMm = 0.3;
 
     enum class Outcome {
         Move,            ///< Send `delta`.
@@ -56,10 +72,12 @@ class ChuteJogGuard {
 
     /// Start a jog session once prepare has acked. Call once per session: a
     /// later call while the head is past park would take that Y as the park.
-    void arm(uint32_t now_ms) {
+    /// @p wiper is the printer's wiper, when its config names one.
+    void arm(uint32_t now_ms, std::optional<ChuteWiperLine> wiper = std::nullopt) {
         *this = ChuteJogGuard{};
         armed_ = true;
         armed_at_ms_ = now_ms;
+        wiper_ = wiper;
     }
 
     void disarm() {
@@ -74,7 +92,8 @@ class ChuteJogGuard {
         // Past park, a step and a hold can only run on into what cannot be seen,
         // so X takes single fine steps there.
         double reach = kXReachMm;
-        if (std::max(commanded_y_, live_y) > park_y_ + kParkToleranceMm) {
+        const double far_y = std::max(commanded_y_, live_y);
+        if (far_y > park_y_ + kParkToleranceMm) {
             if (is_repeat) {
                 return {0.0, Outcome::RepeatPastPark, false};
             }
@@ -83,8 +102,16 @@ class ChuteJogGuard {
             }
             reach = kFineReachMm;
         }
-        return step(delta, live_x, commanded_x_, std::max(axis_min, park_x_ - reach),
-                    std::min(axis_max, park_x_ + reach), warned_x_);
+        double min = std::max(axis_min, park_x_ - reach);
+        double max = std::min(axis_max, park_x_ + reach);
+        if (const auto cap = wiper_cap_y(); cap && far_y > *cap + kParkToleranceMm) {
+            if (wiper_->x_min > park_x_) {
+                max = std::min(max, wiper_->x_min - kParkToleranceMm);
+            } else if (wiper_->x_max < park_x_) {
+                min = std::max(min, wiper_->x_max + kParkToleranceMm);
+            }
+        }
+        return step(delta, live_x, commanded_x_, min, max, warned_x_);
     }
 
     Decision jog_y(double delta, uint32_t now_ms, double live_x, double live_y, double axis_min,
@@ -100,6 +127,9 @@ class ChuteJogGuard {
             }
             axis_max = std::min(axis_max, park_y_);
         }
+        if (const auto cap = wiper_cap_y(); cap && on_wiper_side(commanded_x_, live_x)) {
+            axis_max = std::min(axis_max, *cap);
+        }
         return step(delta, live_y, commanded_y_, axis_min, axis_max, warned_y_);
     }
 
@@ -114,6 +144,31 @@ class ChuteJogGuard {
     }
 
   private:
+    /// The Y a known wiper stops the head at; none without a wiper, or when its
+    /// line does not lie past park.
+    [[nodiscard]] std::optional<double> wiper_cap_y() const {
+        if (!wiper_) {
+            return std::nullopt;
+        }
+        const double cap = wiper_->y - kWiperMarginMm;
+        if (cap <= park_y_ + kParkToleranceMm) {
+            return std::nullopt;
+        }
+        return cap;
+    }
+
+    /// Whether either X reading is at or past the wiper's near end, counted
+    /// from park toward the wiper.
+    [[nodiscard]] bool on_wiper_side(double commanded_x, double live_x) const {
+        if (wiper_->x_min > park_x_) {
+            return std::max(commanded_x, live_x) > wiper_->x_min - kParkToleranceMm;
+        }
+        if (wiper_->x_max < park_x_) {
+            return std::min(commanded_x, live_x) < wiper_->x_max + kParkToleranceMm;
+        }
+        return true;
+    }
+
     bool latch_park(uint32_t now_ms, double live_x, double live_y) {
         if (!armed_) {
             return false;
@@ -155,6 +210,7 @@ class ChuteJogGuard {
     double commanded_y_ = 0.0;
     bool warned_x_ = false;
     bool warned_y_ = false;
+    std::optional<ChuteWiperLine> wiper_;
 };
 
 } // namespace helix

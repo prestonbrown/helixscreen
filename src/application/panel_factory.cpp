@@ -29,9 +29,6 @@
 
 using namespace helix;
 
-// Note: PanelOverlayAdapter was removed - PrintStatusPanel now inherits directly
-// from OverlayBase, eliminating the need for an adapter.
-
 bool PanelFactory::find_panels(lv_obj_t* panel_container) {
     m_panel_container = panel_container; // kept for deferred panel creation (ESP)
     for (int i = 0; i < kUiPanelCount; i++) {
@@ -103,7 +100,7 @@ void PanelFactory::build_deferred_panel(int panel_id) {
     if (m_panels[panel_id])
         return; // already built
 
-    // The loading scrim + paint-before-block is now owned by NavigationManager's
+    // The loading scrim + paint-before-block is owned by NavigationManager's
     // NavTransitionScrim guard, which wraps the whole nav transition (this build
     // runs under it). One scrim mechanism for all transitions, not two.
     auto build_start = std::chrono::steady_clock::now();
@@ -154,12 +151,11 @@ void IdlePrebuilder::tick() {
 
 void PanelFactory::setup_panels(lv_obj_t* screen) {
     m_screen = screen; // setup() target for eager + deferred panels
-    // Register panels with navigation system
     NavigationManager::instance().set_panels(m_panels.data());
 
 #if defined(HELIX_PLATFORM_ESP32)
     // ESP: build ONLY home at boot. Instantiating all six panels here is ~19s of
-    // layout_update_core on the K-Touch (Plan 4 Task 6 profile). The other five
+    // layout_update_core on the K-Touch (measured). The other five
     // are created on first navigation via build_deferred_panel, registered as
     // NavigationManager's deferred builder below. See app_layout override.
     NavigationManager::instance().set_deferred_panel_builder(

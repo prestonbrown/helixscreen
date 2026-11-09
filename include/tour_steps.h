@@ -14,6 +14,15 @@ enum class TooltipAnchor {
     PreferAbove,
     PreferRight, ///< Typical for navbar buttons (tooltip to the right of left-side navbar)
     PreferLeft,
+    /// Left of a wide target, with the card narrowed to fit the space there.
+    LeftNarrowed,
+};
+
+/// Which screen a step's target lives on. The tour opens it before showing the step.
+enum class TourPanel {
+    Home,
+    Filament,
+    AmsOverlay, ///< The filament system's screen, opened over the Filament panel
 };
 
 struct TourStep {
@@ -29,10 +38,29 @@ struct TourStep {
     /// Additional widget names to sequentially spotlight inside this step (step 2 only).
     /// Each is highlighted for ~1.5s before the next. Empty = single target only.
     std::vector<std::string> sub_spotlights;
+
+    TourPanel panel = TourPanel::Home;
+
+    /// Tour version that introduced this step. An upgrader sees only newer steps.
+    int since_version = 1;
+
+    /// Shown only to someone who has already seen an earlier tour.
+    bool upgrade_only = false;
+
+    /// Show the sample Print Status screen, with this printer's picture, in the card.
+    bool shows_print_status_preview = false;
+
+    /// Tried when target_name is absent (a screen with two layouts names them differently).
+    std::string fallback_target_name;
 };
 
-/// Build the tour step list. AMS sub-spotlight on step 2 only added when has_ams=true.
-std::vector<TourStep> build_tour_steps(bool has_ams);
+/// Build the tour step list. A `seen_version` of 0 is the full tour; anything else
+/// is the upgrade tour holding only the steps newer than that version.
+std::vector<TourStep> build_tour_steps(bool has_ams, int seen_version = 0);
+
+/// The `seen_version` for an automatic start, from the persisted tour state. Someone
+/// who has never finished a tour, or whose state predates versioning, gets the full tour.
+int auto_start_seen_version(bool completed, int last_seen_version);
 
 /// Convenience: queries `AmsState::instance().backend_count() > 0`.
 bool hardware_has_ams();

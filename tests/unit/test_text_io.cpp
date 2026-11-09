@@ -264,6 +264,35 @@ TEST_CASE("LineReader reads files like std::getline", "[text_io]") {
     CHECK(read_records(dir.file("long")) == V{long_line, "end"});
 }
 
+TEST_CASE("LineReader returns records that straddle its read chunks whole", "[text_io]") {
+    // Lengths from 0 to past 9000 put delimiters at every offset of a 4 KiB
+    // chunk, records longer than a chunk, and an empty record at a chunk edge.
+    std::string text;
+    for (size_t i = 0; text.size() < 600000; ++i) {
+        const size_t len = (i * 7919) % 9001;
+        for (size_t k = 0; k < len; ++k) {
+            text.push_back(static_cast<char>('a' + (i + k) % 26));
+        }
+        text.push_back('\n');
+    }
+    text += "unterminated tail";
+    ScratchDir dir;
+    tio::write_file(dir.file("big"), text);
+
+    tio::LineReader r(dir.file("big"));
+    std::string line;
+    size_t n = 0;
+    for (std::string_view want : tio::lines(text)) {
+        REQUIRE(r.next(line));
+        REQUIRE(line == want);
+        ++n;
+    }
+    CHECK_FALSE(r.last_had_delimiter());
+    CHECK_FALSE(r.next(line));
+    CHECK_FALSE(r.next(line));
+    CHECK(n > 100);
+}
+
 TEST_CASE("LineReader reports whether the last record was terminated", "[text_io]") {
     ScratchDir dir;
     tio::write_file(dir.file("f"), "a\nb");

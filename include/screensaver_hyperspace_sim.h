@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "screensaver_clock_reading.h"
 #include "screensaver_frame.h"
 
 #include <cstddef>
@@ -18,9 +19,13 @@
  * in around the flight path and fades back out; now and then a shell of flares bursts from a
  * point ahead; and a slow plasma of iridescent goo glows behind it all.
  *
+ * A print shows as a light at the vanishing point, the end of the tunnel, growing as the print
+ * goes. A paused print slows the flight; a finished one drops out of hyperspace into
+ * slowly drifting stars; a failed or cancelled one dims the light and closes the tunnel.
+ *
  * No LVGL, no clock and no shared random sequence: the saver passes the frame time, its own
- * random sequence and the frame, so a seed replays exactly. Buffers are sized in init() for the
- * frame; only a level change resizes the tunnel's, and a frame allocates nothing.
+ * random sequence, the print reading and the frame, so a seed replays exactly. Buffers are sized in
+ * init() for the frame; only a level change resizes the tunnel's, and a frame allocates nothing.
  */
 
 namespace helix::ui {
@@ -46,6 +51,18 @@ inline constexpr HyperspaceLevel kHyperspaceLevels[] = {
 
 inline constexpr size_t kHyperspaceLevelCount = std::size(kHyperspaceLevels);
 
+/// The light's radius at the start of a print, px, and at its end, as a share of the frame's
+/// shorter side; the level without a tunnel draws it per pixel, so it ends smaller there.
+inline constexpr float kHyperspaceLightStartPx = 4.0f;
+inline constexpr float kHyperspaceLightEndShare = 0.18f;
+inline constexpr float kHyperspaceCheapLightEndShare = 0.09f;
+/// Camera speed while a print is paused, as a share of the flight's own.
+inline constexpr float kHyperspacePausedSpeed = 0.25f;
+/// How long a finished print takes to drop out of hyperspace to its drift.
+inline constexpr uint32_t kHyperspaceDropOutMs = 3000;
+/// Camera speed once a finished print has dropped out, as a share of the flight's own.
+inline constexpr float kHyperspaceDoneDriftSpeed = 0.06f;
+
 /// Largest roll either way, in radians.
 inline constexpr float kHyperspaceMaxRoll = 0.3f;
 
@@ -70,17 +87,19 @@ class HyperspaceSim {
      * @brief Sizes every buffer for `frame` and starts the flight at `level`
      *
      * The tunnel's tables are built for the level the run starts at, on its first frame, and a
-     * coarser level reuses them; a level without a tunnel frees them.
+     * coarser level reuses them; a level without a tunnel frees them. The flight starts as
+     * `reading` leaves it: an ended print's already at its end.
      */
-    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level);
+    void init(const FrameTarget& frame, std::minstd_rand& rng, size_t level,
+              const ClockReading& reading);
 
     /**
-     * @brief Advances the flight by `dt_ms` and draws the whole frame
+     * @brief Advances the flight by `dt_ms`, following `reading`, and draws the whole frame
      *
      * Every pixel is written, opaque, so `dirty` is replaced with one box over the frame.
      */
     void step(uint32_t dt_ms, FrameTarget& frame, std::minstd_rand& rng,
-              std::vector<DirtyRect>& dirty);
+              const ClockReading& reading, std::vector<DirtyRect>& dirty);
 
     /// Runs at `level` (clamped to the ladder) from the next frame on.
     void request_level(size_t level);
@@ -90,9 +109,23 @@ class HyperspaceSim {
         return level_;
     }
 
-    /// How far the tunnel has swept in, 0 (open space) to 255 (fully in the tunnel).
+    /// How far the tunnel has swept in as drawn, 0 (open space) to 255 (fully in the tunnel).
     uint8_t tunnel_amount() const {
-        return tunnel_amount_;
+        return shown_tunnel_;
+    }
+
+    /// Radius, px, of the light at the vanishing point at the level the flight runs at; 0
+    /// with none.
+    float light_radius() const;
+
+    /// How bright the light burns, 0 (out) to 1.
+    float light_gain() const {
+        return light_gain_;
+    }
+
+    /// Share of the flight's speed the camera flies at now.
+    float speed_scale() const {
+        return speed_scale_;
     }
 
     const HyperspaceCamera& camera() const {
@@ -144,6 +177,9 @@ class HyperspaceSim {
 
     enum class Phase : uint8_t { OPEN, SWEEP_IN, TUNNEL, SWEEP_OUT };
 
+    /// Moves the speed, tunnel and light toward where `reading` puts them after `dt_ms`, or
+    /// there at once when `snap` is set.
+    void follow_print(const ClockReading& reading, uint32_t dt_ms, bool snap);
     void advance(uint32_t dt_ms, std::minstd_rand& rng);
     void advance_phase(uint32_t dt_ms, std::minstd_rand& rng);
     void throw_starburst(std::minstd_rand& rng);
@@ -155,6 +191,8 @@ class HyperspaceSim {
     template <typename Px> void draw_background(FrameTarget& frame);
     /// Draws a flare at camera-space (x, y, z), its sprite radius `size` of the frame height at
     /// z = 1, at `brightness` out of 256.
+    /// Adds the light's glow around the vanishing point, in blocks of the level's size.
+    template <typename Px> void draw_light(FrameTarget& frame);
     template <typename Px>
     void draw_flare(FrameTarget& frame, float x, float y, float z, float size, uint8_t hue_offset,
                     uint32_t brightness);
@@ -176,6 +214,13 @@ class HyperspaceSim {
     uint8_t tunnel_amount_ = 0;
     int32_t burst_in_ms_ = 0;
     uint32_t bursts_started_ = 0;
+
+    ClockMode mode_ = ClockMode::CLOCK;
+    float speed_scale_ = 1.0f;
+    float tunnel_fade_ = 1.0f;    ///< share of the swept-in tunnel drawn
+    uint8_t shown_tunnel_ = 0;    ///< tunnel_amount_ by tunnel_fade_
+    float light_progress_ = 0.0f; ///< 0 to 1, the light's radius between start and end
+    float light_gain_ = 0.0f;
 
     // Tunnel lookup for one quadrant around the vanishing point, at the level's block size and
     // wide enough for the drift: a pixel's distance into the tunnel and its angle within the

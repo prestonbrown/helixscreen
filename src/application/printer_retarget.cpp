@@ -148,6 +148,8 @@ bool retarget_printer_connection() {
     // The old printer's queued frames apply now rather than on top of the new printer.
     LapLog laps("PrinterRetarget");
     get_moonraker_manager()->process_notifications();
+    // Telemetry still held belongs to the old printer.
+    get_moonraker_manager()->discard_held_status();
     laps.lap("drain notifications");
 
     AmsState::instance().clear_backends();

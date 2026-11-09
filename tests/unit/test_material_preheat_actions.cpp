@@ -5,6 +5,7 @@
 #include "ui_nav_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/filament_panel_macro_harness.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/preheat_widget_test_access.h"
@@ -111,7 +112,7 @@ void press(PreheatAction action, Harness& h) {
         helix::MaterialSettingsManager::instance().set_preset_material(2, "ASA");
         helix::SlotInfo spool;
         spool.material = "ABS";
-        helix::AmsState::instance().set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
         PanelAccess::update_spool_preset(*h.panel);
         PanelAccess::handle_spool_preset_button(*h.panel);
         break;
@@ -274,7 +275,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Spool preheat resolves a case-insensitive m
     helix::SlotInfo spool;
     spool.material = "abs";
     helix::MaterialSettingsManager::instance().set_preset_material(2, "ASA");
-    helix::AmsState::instance().set_external_spool_info_in_memory(spool);
+    helix::AmsStateTestAccess::seed_external_spool(spool);
     PanelAccess::update_spool_preset(*h.panel);
 
     PanelAccess::handle_spool_preset_button(*h.panel);
@@ -666,7 +667,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::MaterialSettingsManager::instance().set_preset_material(2, "ASA");
         helix::SlotInfo spool;
         spool.material = "ABS";
-        helix::AmsState::instance().set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
         PanelAccess::update_spool_preset(*h.panel);
         PanelAccess::handle_spool_preset_button(*h.panel);
     }

@@ -411,7 +411,7 @@ panel — not a slicer-to-printer write.
 
 - **Wire-format spec (public):** [`../specs/filament_slots.md`](../specs/filament_slots.md)
 - **Implementation notes (internal):** [`FILAMENT_SLOT_METADATA.md`](FILAMENT_SLOT_METADATA.md)
-- **Lane source model (the read path):** [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source" - the per-source `Observation` / `resolve()` model that carries where a value came from instead of inferring it from the value's shape. All nine backends file their readings there, a human slot edit is filed as that person's declaration, and every backend's parse ends by laying the resolved lane back onto the `SlotInfo` it just built, so what a user sees is what `resolve()` ranked. `FilamentSlotOverride` is what that identity is persisted as, not what the lane is rendered from.
+- **Lane source model (the read path):** [`architecture/07-filament-ams.md`](architecture/07-filament-ams.md) § "Lane identity by source" - the per-source `Observation` / `resolve()` model that carries where a value came from instead of inferring it from the value's shape. All nine backends file their readings there, the lane records read from Moonraker are filed whole as `Record`, a human slot edit is filed as `Pending` until its write echoes, fails or times out, and every backend's parse ends by laying the resolved lane back onto the `SlotInfo` it just built, so what a user sees is what `resolve()` ranked. `FilamentSlotOverride` is the shape a record is read into and written from; there is no local copy of it. Editing is disabled until a backend's first lane-record read lands (`ams_lane_records_ready`): [`FILAMENT_SLOT_METADATA.md`](FILAMENT_SLOT_METADATA.md) § "Editing waits for the first read".
 
 ### Material names as G-code parameter values
 
@@ -475,6 +475,34 @@ return `AmsResult::COMMAND_FAILED` naming the material. The user keeps the color
 weight and Spoolman link and is told which part did not land; returning success
 for a write that never happened is what made this invisible for so long.
 
+### CFS: telling Creality's daemon about an edit
+
+On Creality OS a daemon serves a WebSocket on `127.0.0.1:9999` that Creality Print and the
+Creality Cloud app read slot state from. It does not watch Klipper's `tn_data`, so a slot written
+with `BOX_MODIFY_TN_DATA` stays stale in both apps until the daemon is told (#2048, protocol and
+captures from a K1C by firestorm986). After Klipper acknowledges the write, `AmsBackendCfs` sends
+the frame Creality Print itself sends for an edit:
+
+```json
+{"method":"set","params":{"modifyMaterial":{"boxId":1,"id":0,"rfid":"00003","type":"PETG",
+ "vendor":"Generic","name":"PETG","color":"#0ff0000","minTemp":220.0,"maxTemp":270.0,
+ "pressure":"0.04"}}}
+```
+
+| Field | Source |
+|-------|--------|
+| `boxId`, `id` | unit T1..T4 = 1..4 (0 = external spool holder), bay A..D = 0..3 |
+| `color` | `'#'` + the same `0RRGGBB` written to `color_value`; the `boxsInfo` capture reports every color that way |
+| `rfid` | the 5-char catalog code of the `material_type` written, `""` for a color-only write |
+| `type`, `vendor`, `name` | the edit, then the catalog product of that code |
+| `minTemp`, `maxTemp` | the slot's temps, else that catalog product's |
+| `pressure` | always `"0.04"`, the value in the capture: HelixScreen keeps no per-slot pressure advance |
+
+The send is strictly best effort (`include/cfs_daemon_sync.h`): one connection per edit on an
+`HttpExecutor::fast()` worker, a 150 ms connect timeout and a 750 ms budget end to end, no reply
+read, every failure a debug line. A write Klipper rejects sends nothing. The ESP32 firmware has
+no transport for it and sends nothing.
+
 ### Gcode Tool Remapper
 
 `helix::GcodeToolRemapper` (`src/rendering/gcode_tool_remapper.cpp`, `include/gcode_tool_remapper.h`) rewrites the tool numbers inside a sliced G-code file when a logical tool must print from a different physical head. It stays generic: pure text in, changed lines out, no `AmsBackend`, Moonraker, or LVGL dependency, because the problem lives at the file level, not the backend level. A slicer bakes tool numbers into several command families, and a remap that moves one but not the others runs the right filament at the wrong temperature, or from a head nothing heated.
@@ -508,89 +536,44 @@ The strategy is guarded in `open_remap_modal()` (`include/ui_panel_print_select.
 
 User-facing counterpart: [Filament Mapping § Printers that map filament by rewriting the file](../user/guide/filament.md#printers-that-map-filament-by-rewriting-the-file).
 
-### AD5X IFS material/color reconcile (locks, insert, #1065/#1071)
+### AD5X IFS material/color reconcile (insert, #1065/#1071)
 
-Native ZMOD has **no per-port RFID or spool identity** — the only per-lane
+Native ZMOD has **no per-port RFID or spool identity**: the only per-lane
 signals are a color (`ffmColor`) and a material type (`ffmType`), read via
-`GET_ZCOLOR` / `IFS_STATUS`, plus a presence bit from `IFS_STATUS Ports`. Because
-there's no identity, a lane's `FilamentSlotOverride` bundles two conceptually
-different kinds of data, and they follow different rules:
-
-- **Display data** — `color_rgb` + `material`. Should track what's physically loaded.
-- **Identity data** — `spoolman_id`, `brand`, `spool_name`, weights. Attached by
-  the user; firmware knows nothing about it. Retained across an eject/insert
-  cycle so a re-inserted same spool keeps its assignment (**#1071**).
-
-The record's declared set (`FilamentSlotOverride::declared`, read through
-`declares_color()` / `declares_material()`) is where colour's and material's
-authorship lives, and two readers consult it. The `OverwriteAlways` auto-mirror
-(`mirror_firmware_to_lane_data`) asks whether it may refresh the display fields
-from firmware truth: a declared field is **never** auto-refreshed, which is what protects a deliberate user choice from the AD5X
-post-print `FFMInfo` revert, which re-emits the *old* type after a print
-(**#965**). And `sources_from_record()`
-(`src/printer/lane_translation.cpp#sources_from_record`) asks whether a stored
-record's colour and material are the user's own declaration or something the
-store merely remembered, because the two rank differently against what firmware
-states on the current frame. The `helix_locked_*` keys on the wire are written
-from the set; on load they count only on a record with no Spoolman binding,
-only when present and true, and only beside a value
-(`src/printer/lane_translation.cpp#declared_fields_on_load`).
+`GET_ZCOLOR` / `IFS_STATUS`, plus a presence bit from `IFS_STATUS Ports`. Colour
+and material are firmware's, filed as the lane's `Firmware` observation; a user's
+colour or material edit is written to `Adventurer5M.json` and shows as `Pending`
+until firmware states it back. Brand, spool name, the Spoolman link and weights
+exist only in the lane's record, which is retained across an eject/insert cycle
+so a re-inserted spool keeps its assignment (**#1071**).
 
 **The reconcile detectors** live in `ams_backend_ad5x_ifs.cpp`:
 `check_external_color_change` and `check_external_type_change`, both called from
 `update_slot_from_state`. Each keeps a per-slot baseline (`last_firmware_color_`
-/ `last_firmware_material_`); a baseline≠observed delta on a *present* lane fires
-`sync_override_to_firmware_locked`, which runs the auto-mirror.
+/ `last_firmware_material_`); a baseline-to-observed delta on a *present* lane
+fires `sync_override_to_firmware_locked`, which runs the `OverwriteAlways`
+auto-mirror (`mirror_firmware_to_lane_data`), so the record follows what firmware
+holds.
 
-Two footguns this area has repeatedly hit (fixed in #1065; keep them fixed):
+**Baseline swallow on presence lag** (#1065; keep it fixed). On modern ZMOD the
+firmware color/type can surface one parse frame *before* `IFS_STATUS Ports` flips
+the slot present. The detectors must **hold** the baseline while the slot reads
+not-present (advancing it only for a genuine empty-lane/`""` eject reading). If
+the baseline advances during the lag, the delta is consumed while the sync is
+skipped, and when presence catches up there's no delta left: the change is
+swallowed (classic symptom: *color updated on screen, material stuck*).
 
-1. **Baseline swallow on presence lag.** On modern ZMOD the firmware
-   color/type can surface one parse frame *before* `IFS_STATUS Ports` flips the
-   slot present. The detectors must **hold** the baseline while the slot reads
-   not-present (advancing it only for a genuine empty-lane/`""` eject reading).
-   If the baseline advances during the lag, the delta is consumed while the sync
-   is skipped, and when presence catches up there's no delta left — the change is
-   swallowed (classic symptom: *color updated on screen, material stuck*).
-
-2. **Insert can't clear a lock, so the display sticks.** The only thing that
-   clears a lock is an external `CHANGE_ZCOLOR` in the gcode stream (**#981**,
-   emitted by the ZMOD COLOR macro / LCD). A **physical insert emits no
-   `CHANGE_ZCOLOR`**, so a lane whose material was declared by a menu type-set
-   (`apply_user_edit`) keeps painting the *previous* spool's
-   type after a new spool goes in. This is why "change type via the COLOR macro"
-   worked while "insert a new spool and change its type" did not.
-
-   Fix: `unlock_auto_tracked_override_on_insert_locked()` runs on the
-   empty→present edge (both `apply_zcolor_result` presence sites). It withdraws the
-   colour and material declarations **only when the lane has no real Spoolman binding**
-   (`spoolman_id <= 0`) — an auto-tracked material is a guess that a fresh insert
-   invalidates, so firmware truth should win. `brand` / `spool_name` /
-   `spoolman_id` / weights are never touched, so a retained binding still paints.
-
-   **Why gate on the Spoolman binding.** On insert we can't tell "same spool back
-   after maintenance" from "brand-new spool" — there's no identity signal. The
-   two want opposite things for the identity fields, so we don't guess: a lane
-    with a deliberate Spoolman binding is left entirely alone (**#1071** retains
-    it), and only auto-tracked lanes (no binding) refresh material/color from
-    firmware. A lane whose firmware later reports a *different* spool id drops
-    the binding entirely (`classify_binding()`'s re-bind verdict, reached through
-    `AmsBackend::reconcile_lane_binding()`, **#1281**) — the
-    residual stale-binding case is now only the no-signal backends. On AFC and
-    Happy Hare the eject signal itself is user-configurable ("Keep Spool Info
-    on Eject", AMS Management overlay; default on).
-
-    **Firmware that has its own retention setting owns it.** AFC reports a
-    per-lane `remember_spool`. Where a lane reports it, AFC's value decides: a
-    lane at `false` that empties drops every HelixScreen record of its spool
-    (`AmsBackendAfc::forget_lane_spool_locked()`), so the screen shows what AFC
-    and Mainsail show. Once every lane reports it,
-    `AmsBackend::firmware_owns_spool_retention()` is true and the overlay swaps
-    the HelixScreen switch for one bound to
-    `ams_device_ops_printer_retains_spool_info` (`printer_retains_spool_info()`,
-    true when every lane remembers) that writes through
-    `set_firmware_spool_retention()` (`AFC_SET_REMEMBER_SPOOL` per lane). The
-    HelixScreen setting, and the #1289 re-assert, apply only where firmware
-    reports no such setting.
+**Spool retention on eject.** On AFC and Happy Hare the firmware states the
+lane's spool id, so a lane's link is whatever firmware says now, and Spoolman's
+details count only for that id. **Firmware that has its own retention setting
+owns it.** AFC reports a per-lane `remember_spool`; a lane at `false` that
+empties drops every HelixScreen record of its spool
+(`AmsBackendAfc::forget_lane_spool_locked()`), so the screen shows what AFC and
+Mainsail show. Once every lane reports it,
+`AmsBackend::firmware_owns_spool_retention()` is true and the overlay shows a
+switch bound to `ams_device_ops_printer_retains_spool_info`
+(`printer_retains_spool_info()`, true when every lane remembers) that writes
+through `set_firmware_spool_retention()` (`AFC_SET_REMEMBER_SPOOL` per lane).
 
 ### OrcaSlicer compatibility — by backend
 
@@ -609,7 +592,7 @@ additional configuration. **Verified against OrcaSlicer upstream/main
 | OpenAMS (klipper_openams) | HelixScreen (`FilamentSlotOverrideStore`) | `laneN` (1-based) | `lane_data` namespace |
 | AFC / Box Turtle | AFC's own Klipper plugin | `T(n)` per mapping (virtual-tools firmware, #832); `laneN` (1-based) before | `lane_data` namespace (AFC is the originator) |
 | Happy Hare | Happy Hare's own Klipper plugin (components/mmu_server.py `push_lane_data`) | `laneN` (1-based) | `lane_data` namespace — Orca prefers it over the live `mmu` object |
-| Tool Changer | (not applicable — no per-slot metadata) | — | N/A |
+| Tool Changer | HelixScreen (`FilamentSlotOverrideStore`) | `T<n>` (0-based) | `lane_data` namespace |
 
 The key style is derived from the AMS type (`lane_key_style_for(get_type())`),
 not hardcoded per backend: tool changers (Snapmaker U1, generic
@@ -675,7 +658,7 @@ Mainsail, is in
   `feat/moonraker-vendor-aware-filament-match`; until it lands, assume the
   type-only behaviour above.)
 
-#### Two-string identity: `material` (Orca wire) vs `helix_material` (HelixScreen)
+#### Two-string identity: `material` (Orca wire) vs `filament_type` (HelixScreen)
 
 A lane's display type and its Orca match string are **not the same string**.
 HelixScreen stores the precise identity the user chose — `ASA-GF`, `PLA Silk`,
@@ -695,28 +678,20 @@ temperatures on a glass-filled ASA — while the color came through untouched.
   if Orca's library carries it → the base polymer with the type's one filler
   (`PA12-CF` → `PA-CF`) if the library carries that → `extract_base_material()`
   base polymer if the
-  library carries *that* → otherwise **omitted entirely** (better an empty tray in
+  library carries *that* → otherwise `null` (better an empty tray in
   Orca than a confident wrong match). The library-type set and the override table
   are generated into `assets/filaments.json` (`orca_library_types`,
   `orca_type_overrides`) by `scripts/import_orca_filaments.py`.
-- **`helix_material`** — the precise identity, written unconditionally. Orca ignores
-  it; HelixScreen's reader (`from_lane_data_record()`) prefers it over `material`,
-  so the on-device AMS screen still shows `ASA-GF` even though the same lane synced
-  to Orca as `ASA`.
+- **`filament_type`**: the precise identity. Orca ignores it; HelixScreen's
+  reader (`from_lane_data_record()`) prefers it over `material`, then the legacy
+  `helix_material` older HelixScreen records carry, so the on-device AMS screen
+  still shows `ASA-GF` even though the same lane synced to Orca as `ASA`.
 
-**Healing existing installs.** Records written before this split carry an
-unmatchable `material` and no `helix_material`. `load_blocking()` rewrites
-helix-authored records — proven by a `helix_locked_*` key, never a foreign
-co-author's — in place: `helix_material` = the precise identity, `material` =
-`orca_match_type()` of it (or dropped if nothing matches). Mutating in place
-preserves `scan_time` and any co-author's fields. The heal is gated on
-`orca_tables_available()` — a missing or stale `assets/filaments.json` would
-otherwise strip `material` from every lane in one pass — and it re-runs on **drift**
-(a later library regeneration that drops a type we used to match), converging once
-`orca_match_type(material) == material`. The tables are pre-warmed on the main
-thread at startup (`filament::warm_orca_tables()`, called from
-`SubjectInitializer`) so the first match never parses the asset on a WebSocket
-background thread.
+Nothing rewrites an older record in place: it reads through the legacy
+spellings, and the next edit writes the RFC 0001 shape. The Orca tables are
+pre-warmed on the main thread at startup (`filament::warm_orca_tables()`, called
+from `SubjectInitializer`) so the first match never parses the asset on a
+WebSocket background thread.
 
 #### Vendor / product-name aliases (`vendor_name` / `name`)
 
@@ -734,18 +709,15 @@ dict calls the same values, and `AmsBackendAfc` meets it only on the status
 path.
 
 HelixScreen's writer (`to_lane_data_record()` in
-`filament_slot_override_store.cpp`) emits **both** the shared key and our legacy
-one per value, so a reader of this namespace finds our overrides under the key
-it already looks for: a zero-cost hedge, since every consumer ignores unknown
-keys. Its reader (`from_lane_data_record()`) prefers our key and falls back to
-the shared one, so round-trips of our own records stay exact while foreign
-records still read. `AmsBackendAfc::read_vendor()` runs a wider ladder because
-it serves both surfaces: `vendor_name` (lane_data), `spool_vendor` (status),
-then `vendor` / `brand` defensively. **Do not add
-a HelixScreen-side `filament_id` resolver:** Orca reads the field from nowhere,
-there is no deterministic (vendor, material) → Orca `setting_id` catalog (the
-ids number in the hundreds and churn across releases), and we do not ship a
-forked OrcaSlicer that could add the read path.
+`filament_slot_override_store.cpp`) emits the shared keys only. Its reader
+(`from_lane_data_record()`) reads the shared keys first and falls back to our
+legacy ones, so records an older HelixScreen wrote still read.
+`AmsBackendAfc::read_vendor()` runs a wider ladder because it serves both
+surfaces: `vendor_name` (lane_data), `spool_vendor` (status), then `vendor` /
+`brand` defensively. **`filament_id` is never guessed:** it carries the linked
+spool's own Orca id, else an id the catalog records for the one product picked,
+else `null`. There is no deterministic (vendor, material) to Orca `setting_id`
+mapping (the ids number in the hundreds and churn across releases).
 
 ### `lane_data` interoperability (outer-key contract)
 
@@ -753,8 +725,8 @@ forked OrcaSlicer that could add the read path.
 readers**. The authoritative, source-verified contract lives in the public
 spec — [`../specs/filament_slots.md` § "Interoperating readers and
 writers"](../specs/filament_slots.md#8-interoperating-readers-and-writers).
-Read that section before touching key formatting, the load filter, or the
-migration. The summary:
+Read that section before touching key formatting or the read path. The
+summary:
 
 - **Writers and their key style**: HelixScreen (`T<n>` on tool changers,
   `laneN` otherwise), AFC (`T(n)` per mapping since the virtual-tools firmware,
@@ -764,11 +736,11 @@ migration. The summary:
   the outer key — MoonrakerPrinterAgent.cpp:780), requires the inner `lane`
   to be a JSON **string**, and does **no deduplication**. HelixScreen's reader
   is **key-agnostic** and prefers the canonical key for its own style on
-  duplicates (`load_blocking` in `filament_slot_override_store.cpp`).
+  duplicates (`parse_namespace_document` in `filament_slot_override_store.cpp`).
 - **The collision hazard is not a wrong outer key** — it is the **same inner
   `lane` under two different outer keys**, which Orca renders as two trays for
-  one slot. A tool changer converges on `T<n>` (matching Mainsail) and migrates
-  its own stale `laneN` records to `T<n>` on load to avoid exactly this.
+  one slot. A tool changer converges on `T<n>` (matching Mainsail) to avoid
+  exactly this.
 
 **Lesson (recorded inline so we don't re-derive it):** verify wire-format
 claims against the tools' **source**, not their PR or release text. Mainsail
@@ -1054,11 +1026,13 @@ types already in its own library).
 ### Regenerating the catalog
 
 ```bash
-make regen-filaments ORCA_TAG=v2.4.1     # ORCA_TAG defaults to a pinned tag in mk/filaments.mk
+make regen-filaments                     # ORCA_TAG and ORCA_ID_TAG default to pinned tags in mk/filaments.mk
+make regen-filaments ORCA_TAG=v2.4.1 ORCA_ID_TAG=v2.5.0-beta
 ```
 
-This shallow-clones OrcaSlicer's `resources/profiles` at the pinned tag into
-`build/orca-profiles` (sparse checkout, blob-filtered), runs
+This shallow-clones OrcaSlicer's `resources/profiles` at `ORCA_TAG` into
+`build/orca-profiles` and at `ORCA_ID_TAG` into `build/orca-id-profiles` (sparse
+checkouts, blob-filtered), runs
 `scripts/import_orca_filaments.py` to resolve `inherits` chains, extract
 facts, and union them with the preserved CFS-code seed
 (`scripts/fixtures/filament_seed.json`), carries the hand-maintained `types` table
@@ -1080,8 +1054,18 @@ inherits from a template when no other product inherits that same id. A
 template shared by several products (Elegoo's `PLA @base` under fourteen PLA
 variants) names none of them, so those products carry no `orca_id` and Orca
 matches them by material type. The shipped catalog takes its temps from v2.4.1
-and its `orca_id`s from v2.5.0-beta (`_attribution` says so); a single-tag
-`make regen-filaments` does not reproduce that split.
+and its `orca_id`s from v2.5.0-beta (`_attribution` says so): `ORCA_TAG` gives
+the products and temps, and `ORCA_ID_TAG` replaces every product's `orca_id` with
+the one the same (brand, name) carries at that tag
+(`scripts/import_orca_filaments.py#overlay_orca_ids`). A product the ids tag has
+no id for carries none. The importer refuses to overwrite a catalog whose
+`_attribution` names a different ids tag than the one passed; moving to a new ids
+tag is `make regen-filaments ORCA_ID_TAG=<tag> ALLOW_ID_TAG_CHANGE=1`.
+
+Products that Orca does not profile live in `scripts/fixtures/filament_seed.json`
+(`source` `cfs-seed`, `helix-seed`, `vendor-spec`), never only in
+`assets/filaments.json`: a regen rebuilds every row from Orca plus the seed, so a
+row added to the catalog by hand is gone after the next one.
 
 `assets/filaments.json` is **generated but committed** (same pattern as fonts
 and translations) — cross-compiled targets need the file present without
@@ -1646,16 +1630,10 @@ component) on the summary and on every row whose shown value is the tag's
 restores every field the tag states through `ams::reset_to_tag()`.
 
 **Spools in use elsewhere.** The picker list disables (state `DISABLED`, not
-clickable) every spool in `ToolState::assigned_spool_ids(slot_index_)`
-(`src/ui/filament/ui_ams_edit_overlay.cpp#render_spool_list`,
-`src/printer/tool_state.cpp#assigned_spool_ids`): the Spoolman ids assigned to
-any tool other than the one numbered like the slot being edited, because one
-physical spool cannot feed two places. ToolState's per-tool assignments are
-mirrored from lanes through each lane's `mapped_tool` (`AmsState` sync), so a
-spool linked to a lane with no mapped tool is not excluded. The exclusion
-compares a slot index against tool indices; on a lane remapped to another tool
-its own spool can read as "elsewhere". The external spool editor runs with
-`slot_index_ == -2`, which excludes no tool, so every lane-linked spool is
+clickable) every spool another lane of the primary backend links
+(`src/ui/filament/ui_ams_edit_overlay.cpp#render_spool_list`), because one physical spool
+cannot feed two places; a tool holds no spool of its own. The external spool
+editor runs with `slot_index_ == -2`, which is no lane, so every lane-linked spool is
 disabled there. The Home Active Spool widget opens that editor whenever no lane
 is loaded (`src/ui/panel_widgets/active_spool_widget.cpp#handle_clicked`), and the
 loaded lane's editor otherwise. Which spool becomes Moonraker's active spool is
@@ -3059,8 +3037,8 @@ display-and-tracking rows below never suppress anything.
 
 On the bottom five rows the override is display-and-tracking only. Their `is_bypass_active()`
 returns a literal `false`, so `bypass_node_visible()` reaches the `!bypass_is_virtual` branch and renders
-the node; tapping it opens `show_external_spool_menu()`, which writes HelixScreen-side slot
-metadata (`AmsState::set_external_spool_info()`) and sends nothing to the printer. The sidebar
+the node; tapping it opens `show_external_spool_menu()`, which writes the bypass spool's lane
+record (`AmsState::set_external_spool_info()`) and sends no G-code. The sidebar
 toggle, however, is gated on the same `ams_supports_bypass` subject, so it appears too and then
 fails with the backend's `not_supported`.
 
@@ -3262,33 +3240,22 @@ drop it from the armed set, so the restore never sends a command for state we no
 own. The user's monitoring switches (master enable, per-sensor enable) gate the arming,
 which is a temporary firmware-state change, not a settings change.
 
-**External lane publish** (`AmsBackend::publish_external_spool_lane` +
-`helix::ams::publish_external_lane`): the external spool is published as the lane one past
-the last physical slot in the shared `lane_data` namespace, so OrcaSlicer's
-MoonrakerPrinterAgent can select it as the "next tool over" (T4 beside T0–T3). Readers key
-off the inner 0-based `lane` field (`filament_slots.md` §4), which is the slot count.
-Triggered on bypass engage and on every external-spool identity change
-(`AmsState::apply_external_spool_store`), on every backend — each override decides for
-itself:
+**The bypass spool is a lane record** (`lane_name: "bypass"`), so slicers reading
+`lane_data` see it as the "next tool over" (T4 beside T0–T3) on the backends where
+HelixScreen writes `lane_data`. The primary backend keeps it among its own lane records,
+at `AmsSubscriptionBackend::bypass_lane_index_locked()`, and reads it with the same
+refresh and poll as its slots:
 
-| Backend | Publishes | Namespace owner / source-verified caveat |
-|---------|-----------|------------------------------------------|
-| CFS | Fork: the payload's external slot (`T<that>` is what box.py registers), so `lane5` on one box. Stock: `lane17` (index 16, past every bay) | The Fork key can be a real bay of a box off the bus, so CFS writes or clears it only when it is empty or holds our `helix_external: true` mirror |
-| AD5X IFS | `lane{kNumPorts+1}` via its own mirror store | same — ours alone |
-| AFC | `T{N}` via a dedicated shared-namespace store (lazy, from `api_`) | AFC's plugin never publishes extern (`AFC_lane.send_lane_data` runs only for lanes with a tool mapping) and **deletes the whole namespace at boot** (its `delete_lane_data()`); our entry dies at AFC restart and is re-published on the next trigger |
-| Happy Hare | `lane{N+1}` via a dedicated shared-namespace store | HH's plugin publishes gates only (`push_lane_data` in its Moonraker component), and its **boot-time cleanup deletes records with `lane >= num_gates`**; same die-at-restart, re-publish-on-trigger cycle |
-| ACE / Snapmaker / QIDI / Tool Changer | no (default no-op) | `supports_bypass` is false — there is no external spool to publish |
+| Backend | Index | Store |
+|---------|-------|-------|
+| CFS | Fork: the payload's external slot (`T<that>` is what box.py registers), so `lane5` on one box. Stock: `lane17` (index 16, past every bay) | `lane_data`. The Fork index can be a bay of a box off the bus; a slot's record there is never overwritten or deleted |
+| AFC, Happy Hare | one past the lanes | the extras namespace (`helix-screen-afc-overrides`, `helix-screen-hh-overrides`): HelixScreen never writes `lane_data` on these, so slicers do not see the bypass spool there |
+| Every other `AmsSubscriptionBackend` (AD5X IFS, ACE, QIDI, Snapmaker U1, OpenAMS, tool changers, INDX) | one past the lanes | `lane_data` |
+| No filament backend | lane 0 (`lane1`) | `lane_data`, kept and polled by AmsState |
 
-Every mirror `publish_external_lane()` writes carries `helix_external: true`. CFS sorts the
-loaded mirrors against the first box frame of a session: one whose key is a bay the box reports
-becomes that bay's record (an adopted mirror may have been one) and is rewritten without the
-mark, and any other is dropped from the bay overrides. An unmarked record at the external key is adopted when it names the spool
-being published (`record_describes_spool()`), and left alone otherwise. When the Fork key moves
-(the top box returns), the old key is cleared only where CFS still holds its own marked mirror.
-
-The identity rule is shared in `publish_external_lane()`: a null or identity-less record
-(no Spoolman id, no material, default-gray color) **clears** the lane rather than
-publishing a phantom tray; pure black is a real pick and publishes.
+A record of ours left at an earlier index (the Fork's external slot moves with the chain)
+is deleted on the next write. `docs/devel/FILAMENT_SLOT_METADATA.md` § "The bypass
+spool's record" has the read and write paths.
 
 ### Dynamic Actions (backend-specific)
 
@@ -3331,7 +3298,7 @@ The section overlay (`src/ui/filament/ui_ams_device_section_detail_overlay.cpp`)
 registry. It never names a vendor, and a flow id with no registration is refused with a
 warning rather than executed, because the flow is what asks before moving the machine.
 
-The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
+The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`, `cfs_belt_tension`) live in `src/ui/filament/ui_cfs_device_flows.cpp`
 and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
 `register_builtin_guided_device_flows()` (`src/ui/filament/ui_guided_device_flow.cpp`). Startup calls
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
@@ -3624,7 +3591,10 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 - `get_type()`, `get_system_info()` -- State queries
 - `get_topology()`, `get_filament_segment()`, `get_slot_filament_segment()`, `infer_error_segment()` -- Path visualization
 - `recover()`, `reset()`, `cancel()` -- Recovery
-- `apply_user_edit()`, `sync_external_identity()` -- Filament identity
+- `apply_user_edit()` -- Filament identity. Every link and identity write is a person's edit
+  through `AmsState::commit_slot_edit()`; a metered weight reaches the live slot through
+  `update_slot_weight_impl()` (the `AmsSubscriptionBackend` default writes the slot and hands a
+  persist to `persist_slot_weight()`)
 - `can_set_tool_mapping()`, `set_tool_mapping_impl()` -- Tool mapping. `set_tool_mapping()` is non-virtual and calls them
 - `enable_bypass()`, `disable_bypass()`, `is_bypass_active()` -- Bypass mode
 
@@ -3720,7 +3690,8 @@ sidebar's legacy `AmsAction`-driven hardcoded step list, which is a valid choice
 only if your hardware model diverges:
 
 - `recovers_filament_on_resume` (`kTraits`) -- True when Resume itself re-feeds filament (Snapmaker U1 runs `AUTO_FEEDING` then `RESUME`). Such backends present Resume as the runout dialog's primary action and demote manual Load/Unload/Purge. Default false, which keeps Load prominent. That is correct for AFC, Happy Hare, and every basic runout sensor.
-- `supports_per_tool_spool_assignment()` -- Whether each tool owns its own spool assignment. Default is `is_tool_changer(get_type())`; no backend currently overrides it.
+- `supports_per_tool_spool_assignment()` -- Whether each tool has a lane of its own, so Moonraker's active spool links to the lane feeding the mounted tool. Default is `is_tool_changer(get_type())`; no backend currently overrides it.
+- `lane_record_is_only_identity()` -- Whether HelixScreen's lane record is a lane's only identity (tool changers incl. MedusaHC and INDX, OpenAMS without `[openams_spoolman]`, ACE without ACEPRO). Only there does **Keep Spool Info on Eject** apply and show: when a lane stops holding filament, `AmsState::sync_lanes_emptied()` calls `lane_emptied()`, which writes the record's `loaded: false` and keeps its identity (setting on) or clears it (off). Firmware that holds the spool decides an eject itself; AFC's `remember_spool` keeps its own switch.
 
 ### 4. Wire into the Factory
 

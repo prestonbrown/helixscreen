@@ -402,10 +402,11 @@ void SpoolmanPanel::populate_spool_list() {
         return;
     }
 
-    // Delegate to virtualized list view
+    // Show the list before populating it: a hidden list is left out of the flex layout and
+    // measures its full content height, which makes every row look visible.
+    show_spool_list();
     list_view_.populate(filtered_spools_, active_spool_id_, preserve_scroll_);
     preserve_scroll_ = false; // Reset after use
-    show_spool_list();
 
     spdlog::debug("[{}] Populated {} spool rows (filtered from {})", get_name(),
                   filtered_spools_.size(), cached_spools_.size());

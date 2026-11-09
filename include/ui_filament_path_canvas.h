@@ -93,6 +93,9 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
  */
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead);
 
+/// The unit merges its lanes inside: no selector or hub box, one line leaving it.
+void ui_filament_path_canvas_set_built_in_hub(lv_obj_t* obj, bool built_in);
+
 /**
  * @brief Whether the LINEAR/HUB path continues past the hub to a toolhead
  *
@@ -440,6 +443,23 @@ void ui_filament_path_canvas_set_lane_entry(lv_obj_t* obj, int32_t offset_from_s
  * @param active true when nozzle is heating, false otherwise
  */
 void ui_filament_path_canvas_set_heat_active(lv_obj_t* obj, bool active);
+
+/**
+ * @brief Show the manual Extrude / Retract that is running
+ *
+ * @p motion is a helix::FilamentMotion value (0 idle, 1 extrude, 2 retract).
+ * While it is not idle the flow chevrons stream along the active path, toward
+ * the nozzle on an extrude and back toward the spool on a retract; with
+ * animations off they stand still. XML binds it with
+ * bind_motion="filament_manual_motion".
+ */
+void ui_filament_path_canvas_set_manual_motion(lv_obj_t* obj, int motion);
+
+/// The manual motion last set (helix::FilamentMotion value).
+int ui_filament_path_canvas_get_manual_motion(lv_obj_t* obj);
+
+/// Whether the flow chevrons currently travel back toward the spool.
+bool ui_filament_path_canvas_flow_reversed(lv_obj_t* obj);
 
 /**
  * @brief Set buffer fault state for hub tinting

@@ -81,7 +81,7 @@ class PluginOverlayHost {
     bool is_live(int handle) const;
 
   private:
-    /// No-op lifecycle: plugin overlays have no activation work in this phase, but
+    /// No-op lifecycle: plugin overlays have no activation work, but
     /// every push needs a registered instance so deactivation dispatch finds one.
     struct OverlayLifecycle : IPanelLifecycle {
         void on_activate() override {}

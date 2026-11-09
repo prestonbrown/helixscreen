@@ -22,8 +22,16 @@ class WizardPrinterIdentifyStepTestAccess {
     /// Make the next init_subjects() treat the connection as a different
     /// printer. Also forgets the detected kinematics, which only a connected
     /// printer sets, so a later run without one lists every machine again.
-    static void forget_printer(WizardPrinterIdentifyStep& step) {
-        step.last_detected_url_ = "ws://previous-printer.invalid:7125";
+    /// With @p same_printer the step detects again for the printer it already
+    /// knows, the way its first open in a session does: the saved name and
+    /// type stay in the config.
+    static void forget_printer(WizardPrinterIdentifyStep& step, bool same_printer = false) {
+        if (same_printer) {
+            step.subjects_initialized_ = false;
+            step.last_detected_url_.clear();
+        } else {
+            step.last_detected_url_ = "ws://previous-printer.invalid:7125";
+        }
         step.detected_kinematics_.clear();
     }
 };

@@ -41,6 +41,9 @@ namespace helix {
 /// Default color for slots without filament info (medium gray)
 constexpr uint32_t kAmsDefaultSlotColor = 0x808080;
 
+/// The paint AmsState::current_color holds while no filament color is known.
+inline constexpr uint32_t kNoFilamentPaint = 0x505050;
+
 /// Units the AMS UI addresses. The overview's path canvas draws this many and
 /// AmsState allocates this many sets of per-unit subjects, so a unit the path
 /// shows always has a badge to bind; both caps derive from this one constant.

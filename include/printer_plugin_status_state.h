@@ -97,7 +97,6 @@ class PrinterPluginStatusState {
     PrinterPluginStatusState() = default;
     ~PrinterPluginStatusState() = default;
 
-    // Non-copyable
     PrinterPluginStatusState(const PrinterPluginStatusState&) = delete;
     PrinterPluginStatusState& operator=(const PrinterPluginStatusState&) = delete;
 

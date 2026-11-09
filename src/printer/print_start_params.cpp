@@ -2,6 +2,7 @@
 #include "print_start_params.h"
 
 #include "filament_mapper.h"
+#include "helix_plugin_features.h"
 #include "json_utils.h"
 #include "printer_discovery.h"
 
@@ -54,6 +55,10 @@ PrintStartParams start_request_params(const print_3mf::Route& route, PrintStartP
         tool_params["plateindex"] = std::to_string(route.plate);
     }
     return tool_params;
+}
+
+bool plugin_drops_tool_map(const PrintStartParams& params, PluginFeatureState plugin_start_tools) {
+    return params.count("tools") > 0 && plugin_start_tools != PluginFeatureState::Ready;
 }
 
 int mapped_backend(const std::vector<ToolMapping>& mappings) {

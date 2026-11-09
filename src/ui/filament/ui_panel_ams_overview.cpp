@@ -20,6 +20,7 @@
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -82,6 +83,36 @@ static constexpr int32_t kDetailZoomScaleMax = 256;
 // Global instance pointer for XML callback access (used by back button and animation callbacks)
 static std::atomic<AmsOverviewPanel*> g_overview_panel_instance{nullptr};
 
+int32_t helix::ui::overview_peek_card_width(int32_t row_width, int32_t gap,
+                                            const std::vector<int32_t>& min_widths) {
+    if (min_widths.empty())
+        return 0;
+    const int count = static_cast<int>(min_widths.size());
+    int32_t needed = (count - 1) * gap;
+    int32_t floor_width = 0;
+    for (int32_t w : min_widths) {
+        needed += w;
+        floor_width = LV_MAX(floor_width, w);
+    }
+    if (needed <= row_width)
+        return 0;
+
+    // k whole cards and gaps, then two fifths of the next: width = (row - k*gap) / (k + 2/5).
+    // The most cards that still clear every card's floor.
+    for (int k = count - 1; k >= 1; --k) {
+        const int32_t width = (row_width - k * gap) * 5 / (5 * k + 2);
+        if (width >= floor_width)
+            return width;
+    }
+    return floor_width;
+}
+
+// overflow_visible only widens the clip by the extended draw size, and the readout hangs past
+// the tile's corner by this much.
+static void tile_readout_ext_draw_cb(lv_event_t* e) {
+    lv_event_set_ext_draw_size(e, theme_manager_get_spacing("space_lg"));
+}
+
 /// Set a label to "N slots" / "N lanes" text, with null-safety
 static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int slot_count) {
     if (!label) {
@@ -89,6 +120,9 @@ static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int 
     }
     lv_label_set_text(label, helix::ui::lane_count_label(noun, slot_count).c_str());
 }
+
+/// A tile's art stands this tall against its width: the drawings run close to 4:3.
+static constexpr int32_t kTileArtHeightPct = 75;
 
 /// The measured width one mini bar gets for this container and lane count.
 /// Both create_mini_bars() and the update-path rebuild check recompute it, so
@@ -250,6 +284,8 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (!cards_row_) {
         return;
     }
+    lv_obj_add_event_cb(cards_row_, &AmsOverviewPanel::on_cards_row_resized, LV_EVENT_SIZE_CHANGED,
+                        this);
     lv_obj_add_event_cb(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled, LV_EVENT_SCROLL,
                         this);
 
@@ -412,7 +448,14 @@ void AmsOverviewPanel::refresh_units() {
     int new_unit_count = static_cast<int>(info.units.size());
     int old_unit_count = static_cast<int>(unit_cards_.size());
 
-    if (new_unit_count != old_unit_count) {
+    // A tile and a card are different components, so a unit that gains or loses its art
+    // rebuilds the row just as a change in the unit count does.
+    bool art_changed = false;
+    for (const auto& uc : unit_cards_) {
+        art_changed |= uc.has_art != unit_has_art(info, uc.unit_index);
+    }
+
+    if (new_unit_count != old_unit_count || art_changed) {
         // Unit count changed - rebuild all cards
         spdlog::debug("[{}] Unit count changed {} -> {}, rebuilding cards", get_name(),
                       old_unit_count, new_unit_count);
@@ -426,8 +469,80 @@ void AmsOverviewPanel::refresh_units() {
         }
     }
 
+    // Art flattens at its widget's size, so the row is sized first.
+    layout_unit_row();
+    for (auto& uc : unit_cards_) {
+        if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
+            apply_card_art(uc, info.units[uc.unit_index], info);
+    }
+
     // Update system path visualization
     refresh_system_path(info, current_slot);
+}
+
+bool AmsOverviewPanel::unit_has_art(const AmsSystemInfo& info, int unit_index) {
+    return helix::ui::unit_art_available(info, unit_index,
+                                         helix::ui::unit_reports_climate(unit_index));
+}
+
+void AmsOverviewPanel::apply_card_art(UnitCard& card, const AmsUnit& unit,
+                                      const AmsSystemInfo& info) {
+    if (card.has_art) {
+        helix::ui::unit_art_set_unit(card.art, info, card.unit_index,
+                                     helix::ui::unit_reports_climate(card.unit_index));
+    } else {
+        ams_draw::apply_logo(card.logo_image, unit, info);
+    }
+}
+
+// DECLARATIVE_OK: every width and height here comes from the measured row; the tokens that
+// bound them are the styles this reads back.
+void AmsOverviewPanel::layout_unit_row() {
+    if (!cards_row_ || unit_cards_.empty())
+        return;
+    lv_obj_update_layout(cards_row_);
+    const int32_t row_width = lv_obj_get_content_width(cards_row_);
+    if (row_width <= 0)
+        return;
+    laid_out_row_width_ = row_width;
+
+    std::vector<int32_t> min_widths;
+    for (const auto& uc : unit_cards_) {
+        if (uc.card)
+            min_widths.push_back(lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
+    }
+    const int32_t peek_width = helix::ui::overview_peek_card_width(
+        row_width, lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN), min_widths);
+
+    for (const auto& uc : unit_cards_) {
+        if (!uc.card)
+            continue;
+        if (peek_width > 0) {
+            lv_obj_set_flex_grow(uc.card, 0);
+            lv_obj_set_width(uc.card, peek_width);
+        } else {
+            lv_obj_remove_local_style_prop(uc.card, LV_STYLE_WIDTH, LV_PART_MAIN);
+            lv_obj_set_flex_grow(uc.card, 1);
+        }
+    }
+    lv_obj_update_layout(cards_row_);
+
+    for (const auto& uc : unit_cards_) {
+        if (uc.has_art && uc.art_stage)
+            lv_obj_set_height(uc.art_stage, lv_obj_get_width(uc.card) * kTileArtHeightPct / 100);
+    }
+    lv_obj_update_layout(cards_row_);
+}
+
+void AmsOverviewPanel::on_cards_row_resized(lv_event_t* e) {
+    // DECLARATIVE_OK: LV_EVENT_SIZE_CHANGED has no declarative equivalent. The row sizes its
+    // cards from its own width, and that cannot run inside the layout pass that reports it.
+    auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e));
+    if (!self || !self->cards_row_ || self->unit_view_active_)
+        return;
+    const int32_t width = lv_obj_get_content_width(self->cards_row_);
+    if (width > 0 && width != self->laid_out_row_width_)
+        self->on_state_changed("[AmsOverviewPanel] cards row resized");
 }
 
 void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::LaneNoun noun) {
@@ -474,10 +589,12 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         const std::string absent = AmsState::unit_absent_subject_name(i);
         const std::string disconnected = AmsState::unit_disconnected_subject_name(i);
         const std::string logo_color = AmsState::unit_logo_color_subject_name(i);
+        uc.has_art = unit_has_art(info, i);
+        // A tile takes the card's name: the tour and ctl recipes find a unit by it.
         const char* attrs[] = {"absent",
                                absent.c_str(),
-                               "logo_color",
-                               logo_color.c_str(),
+                               uc.has_art ? "name" : "logo_color",
+                               uc.has_art ? "ams_unit_card" : logo_color.c_str(),
                                "disconnected",
                                disconnected.c_str(),
                                "temp_text",
@@ -498,7 +615,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
                                s.drying_text.c_str(),
                                nullptr,
                                nullptr};
-        uc.card = static_cast<lv_obj_t*>(lv_xml_create(cards_row_, "ams_unit_card", attrs));
+        uc.card = static_cast<lv_obj_t*>(
+            lv_xml_create(cards_row_, uc.has_art ? "ams_unit_tile" : "ams_unit_card", attrs));
         if (!uc.card) {
             spdlog::error("[{}] Failed to create ams_unit_card XML for unit {}", get_name(), i);
             continue;
@@ -514,19 +632,33 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         lv_obj_add_event_cb(uc.card, on_unit_card_clicked, LV_EVENT_CLICKED, this);
 
         // Find child widgets declared in XML
-        uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
+        // required-names: ams_unit_tile ams_unit_card
         uc.name_label = helix::ui::find_required(uc.card, "unit_name", get_name());
-        uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
-        uc.slot_count_label = helix::ui::find_required(uc.card, "slot_count", get_name());
+        if (uc.has_art) {
+            // required-names: ams_unit_tile
+            uc.art_stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
+            for (lv_obj_t* clip : {uc.card, uc.art_stage}) {
+                // DECLARATIVE_OK: extended draw size has no XML form
+                lv_obj_add_event_cb(clip, tile_readout_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
+                                    nullptr);
+                lv_obj_refresh_ext_draw_size(clip);
+            }
+            // required-names: ams_unit_tile
+            uc.art = helix::ui::find_required(uc.card, "unit_art", get_name());
+        } else {
+            // required-names: ams_unit_card
+            uc.logo_image = helix::ui::find_required(uc.card, "unit_logo", get_name());
+            // required-names: ams_unit_card
+            uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+            // required-names: ams_unit_card
+            uc.slot_count_label = helix::ui::find_required(uc.card, "slot_count", get_name());
+        }
 
         // Stamp the unit index on the environment indicator so its click handler
         // knows which unit's overlay to open.
         if (lv_obj_t* ind = helix::ui::find_required(uc.card, "env_indicator", get_name())) {
             lv_obj_set_user_data(ind, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
         }
-
-        // Set logo image based on AMS system type
-        ams_draw::apply_logo(uc.logo_image, unit, info);
 
         // Set dynamic content only — unit name and slot count vary per unit
         uc.display_name = ams_draw::get_unit_display_name(unit, i);
@@ -653,7 +785,8 @@ void AmsOverviewPanel::push_unit_anchors(bool relayout) {
         lv_obj_get_coords(uc.card, &card_coords);
         int32_t center_x = (card_coords.x1 + card_coords.x2) / 2 - path_coords.x1;
         ui_system_path_canvas_set_unit_x(system_path_, uc.unit_index, center_x);
-        narrowest = LV_MIN(narrowest, lv_area_get_width(&card_coords));
+        if (!uc.has_art) // a tile has no logo to shed
+            narrowest = LV_MIN(narrowest, lv_area_get_width(&card_coords));
     }
 
     if (narrowest != LV_COORD_MAX) {
@@ -684,6 +817,8 @@ void AmsOverviewPanel::publish_cards_compact(int32_t narrowest_card_w) {
     int32_t widest_name = 0;
     int32_t logo_w = 0;
     for (const auto& uc : unit_cards_) {
+        if (uc.has_art)
+            continue;
         if (uc.name_label && !uc.display_name.empty()) {
             const lv_font_t* font = lv_obj_get_style_text_font(uc.name_label, LV_PART_MAIN);
             if (font) {
@@ -1455,6 +1590,7 @@ void AmsOverviewPanel::clear_panel_reference() {
     panel_ = nullptr;
     parent_screen_ = nullptr;
     cards_row_ = nullptr;
+    laid_out_row_width_ = 0;
     unit_cards_.clear();
 
     // Clear unit view state
@@ -1555,6 +1691,8 @@ static void ensure_overview_registered() {
     // registered above via ensure_ams_env_indicator_registered().
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_unit_card.xml").c_str());
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/ams_unit_tile.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/components/ams_sidebar.xml").c_str());
     lv_xml_register_component_from_file(
@@ -1785,6 +1923,7 @@ void AmsOverviewPanel::on_system_path_size_changed(lv_event_t* e) {
 void AmsOverviewPanel::detach_widget_hooks() {
     // These widgets can outlive this panel; their callbacks must not.
     helix::ui::remove_event_cb_if_alive(cards_row_, &AmsOverviewPanel::on_cards_row_scrolled, this);
+    helix::ui::remove_event_cb_if_alive(cards_row_, &AmsOverviewPanel::on_cards_row_resized, this);
     helix::ui::remove_event_cb_if_alive(system_path_,
                                         &AmsOverviewPanel::on_system_path_size_changed, this);
     helix::ui::remove_event_cb_if_alive(detail_container_, &AmsOverviewPanel::on_unit_view_gesture,

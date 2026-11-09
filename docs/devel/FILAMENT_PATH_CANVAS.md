@@ -41,7 +41,7 @@ AMS overview canvas.
 ### Key Design Goals
 
 1. **Per-frame animation never repaints tube geometry.** Topology is cached on
-   `lv_canvas` children; only flow dots / heat glow / a moving filament tip are
+   `lv_canvas` children; only flow chevrons / heat glow / a moving filament tip are
    redrawn every frame, on a cheap `DRAW_POST` pass.
 2. **Geometry is pure and testable.** All path math lives in
    `helix::ui::pathgeo`, float-based, LVGL-free, exercised by headless unit
@@ -122,7 +122,7 @@ struct LayerState {
    `render_overlay_content()`. LVGL composites it natively. Repainted only when
    filament/topology state changes — **not** every frame.
 
-2. **DRAW_POST pass** — flow dots, heat glow, and the moving segment-transition
+2. **DRAW_POST pass** — flow chevrons, heat glow, and the moving segment-transition
    filament tip. Painted directly on top of the cached canvas every frame by
    `filament_path_draw_cb()` → `render_animation_overlay()`. This is the only
    per-frame cost during animation; it touches no canvas buffer.
@@ -184,7 +184,7 @@ PathPoint path_point_at(const FilamentPath& p, float d, PathPoint* tangent_out =
 ```
 
 `path_point_at()` walks the path to arc-length `d` and optionally returns the
-unit tangent — this is how the animation overlay places flow dots and the
+unit tangent — this is how the animation overlay places flow chevrons and the
 moving tip along a cached path.
 
 ### Arc-fillet routing
@@ -515,8 +515,16 @@ transition, error pulse, heat pulse, flow, output-X slide). Each ticks
 (`render_animation_overlay()`) reads `AnimState` and paints on top of the cached
 canvas:
 
-- **Flow dots** — `path_point_at()` placing dots along the cached `path_cache`
-  at an animated offset.
+- **Flow chevrons** — `chevrons_along()` (`filament_path_geometry.h`) placing
+  chevrons along the cached `path_cache`, sized from the tube gauge, pointing
+  the way the filament travels, at an animated phase. They run during a
+  load/unload (`flow_active`) and during a manual Extrude / Retract
+  (`manual_motion`, bound with `bind_motion="filament_manual_motion"`, the
+  subject `FilamentPanel` publishes). The cache is in display coordinates
+  recorded with the widget's origin, so the pass shifts it by however far the
+  widget has moved since; chevrons skip runs hidden in a box (`seg_shown`)
+  and the hub and buffer boxes' hit rects. With animations off a manual move
+  shows still chevrons; a load/unload shows none.
 - **Heat glow** — a pulsing radial glow at the nozzle/sensor when heating.
 - **Segment-transition tip** — the moving leading edge of filament as it
   advances along the cached path between segments.

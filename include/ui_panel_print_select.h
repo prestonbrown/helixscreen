@@ -247,6 +247,9 @@ struct PrintSelectPanelTestAccess; // test-only friend (tests/test_helpers/)
  */
 class PrintSelectPanel : public PanelBase {
   public:
+    /// What on screen a plugin action waits behind (helix::decide_plugin_turn()).
+    static helix::PluginScreenState plugin_screen_state();
+
     /**
      * @brief Construct PrintSelectPanel with injected dependencies
      *
@@ -1040,9 +1043,6 @@ class PrintSelectPanel : public PanelBase {
     /// The startup repair of an installed plugin; after plugin_installer_, which it uses.
     helix::PluginSelfHeal plugin_self_heal_{printer_state_, plugin_installer_,
                                             []() { return plugin_screen_state(); }};
-
-    /// What on screen a plugin action waits behind (helix::decide_plugin_turn()).
-    static helix::PluginScreenState plugin_screen_state();
 
     /// The install modal, from the boot-time prompt or the card's Set up tap.
     /// A successful install restarts Moonraker so the plugin loads.

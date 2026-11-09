@@ -253,6 +253,14 @@ ScanTrigger classify_scan_reply(const std::string& reply) {
         return ScanTrigger::AlreadyBusy;
     return ScanTrigger::Failed;
 }
+
+CtrlRequestOutcome classify_ctrl_request(int wpa_ctrl_rc) {
+    if (wpa_ctrl_rc == 0)
+        return CtrlRequestOutcome::Reply;
+    if (wpa_ctrl_rc == -2)
+        return CtrlRequestOutcome::TimedOut;
+    return CtrlRequestOutcome::Failed;
+}
 } // namespace helix::wifi::detail
 
 /// The process table the daemon scans read. HELIX_WPA_PROC_ROOT is the test
@@ -481,6 +489,7 @@ WifiBackendWpaSupplicant::~WifiBackendWpaSupplicant() {
 }
 
 WiFiError WifiBackendWpaSupplicant::start() {
+    std::lock_guard<std::mutex> start_lock(start_mutex_);
     spdlog::debug("[WifiBackend] Starting wpa_supplicant backend...");
     shutdown_requested_ = false;
 
@@ -650,7 +659,7 @@ void WifiBackendWpaSupplicant::stop() {
     // with synchronization to ensure cleanup completes before stop() returns.
     //
     // The promise is held in a shared_ptr captured BY VALUE into the lambda. This
-    // closes a use-after-free race (bundle WWZE4K9T, v0.99.96/pi32) where stop()'s
+    // closes a use-after-free race where stop()'s
     // 2s wait_for times out — typically because the event loop is still inside a
     // prior init_wpa() blocked on wpa_ctrl_attach() for 5+ seconds — and the local
     // promise is destroyed before the queued cleanup lambda runs. The lambda would
@@ -796,10 +805,9 @@ WiFiError WifiBackendWpaSupplicant::check_wifi_hardware() {
     // Check for common WiFi interface patterns in /sys/class/net
     //
     // Collect them all rather than breaking on the first hit. directory_iterator
-    // order is filesystem order, so on a two-adapter device the old code logged
-    // whichever name the kernel happened to hand back first — the AD5X bundles
-    // report "interface present: wlan1" for a session that managed wlan0
-    // throughout, which reads as a mismatch that is not one. The managed
+    // order is filesystem order, so on a two-adapter device logging only the
+    // first hit names whichever adapter the kernel hands back first (wlan1 on
+    // an AD5X that manages wlan0), which reads as a mismatch that is not one. The managed
     // interface is resolve_and_store_interface()'s call; this check only decides
     // whether any wireless hardware exists at all.
     std::vector<std::string> wifi_ifaces;
@@ -978,15 +986,23 @@ void WifiBackendWpaSupplicant::init_wpa() {
     }
 
     // Open control connection (for sending commands)
-    if (conn == nullptr) {
-        conn = wpa_ctrl_open2(wpa_socket.c_str(), cli_dir);
+    bool ctrl_open = false;
+    {
+        std::lock_guard<std::mutex> lock(cmd_mutex_);
         if (conn == nullptr) {
-            LOG_ERROR_INTERNAL("Failed to open control connection to {}", wpa_socket);
-            dispatch_event("INIT_FAILED", "Failed to connect to wpa_supplicant");
-            signal_init_complete();
-            return;
+            conn = wpa_ctrl_open2(wpa_socket.c_str(), cli_dir);
+            if (conn != nullptr)
+                spdlog::debug("[WifiBackend] Opened control connection");
         }
-        spdlog::debug("[WifiBackend] Opened control connection");
+        ctrl_open = conn != nullptr;
+        ctrl_socket_path_ = wpa_socket;
+        ctrl_client_dir_ = cli_dir ? cli_dir : "";
+    }
+    if (!ctrl_open) {
+        LOG_ERROR_INTERNAL("Failed to open control connection to {}", wpa_socket);
+        dispatch_event("INIT_FAILED", "Failed to connect to wpa_supplicant");
+        signal_init_complete();
+        return;
     }
 
     // Check for shutdown before opening monitor connection
@@ -1163,8 +1179,7 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
         spdlog::debug("[WifiBackend] radio_enabled_ seeded from hardware: {}", hw_radio_enabled);
     }
 
-    // The reporter's AD5X is unreachable for the duration, and the bundles
-    // carry no process list — so log enough for the NEXT bundle to decide
+    // Debug bundles carry no process list, so log enough for a bundle to show
     // whether a second wpa_supplicant was the reason SAVE_CONFIG "failed".
     // Interface names and paths are not secrets; SSIDs and PSKs never appear.
     for (const auto& d : helix::wifi::detail::list_wpa_daemons(roots.proc)) {
@@ -1304,6 +1319,11 @@ void WifiBackendWpaSupplicant::_handle_wpa_events(hio_t* io, void* data, int rea
     }
 }
 
+/// Upper bound on stale datagrams discarded before one request. wpa_supplicant
+/// owes at most one reply per timed-out request, so a handful covers any real
+/// backlog; the bound keeps a misbehaving peer from holding the command lock.
+static constexpr int kMaxStaleReplies = 16;
+
 // Helper function to sanitize commands for logging (remove passwords)
 static std::string sanitize_command_for_log(const std::string& cmd) {
     // Check if command contains password
@@ -1312,6 +1332,23 @@ static std::string sanitize_command_for_log(const std::string& cmd) {
         return cmd.substr(0, psk_pos + 5) + "\"[REDACTED]\"";
     }
     return cmd;
+}
+
+void WifiBackendWpaSupplicant::reopen_ctrl_locked() {
+    if (ctrl_socket_path_.empty())
+        return;
+    const char* cli_dir = ctrl_client_dir_.empty() ? nullptr : ctrl_client_dir_.c_str();
+    struct wpa_ctrl* fresh = wpa_ctrl_open2(ctrl_socket_path_.c_str(), cli_dir);
+    if (fresh == nullptr) {
+        LOG_WARN_INTERNAL("Could not reopen the control connection to {} after a timeout: {}",
+                          ctrl_socket_path_, strerror(errno));
+        return;
+    }
+    if (conn)
+        wpa_ctrl_close(conn);
+    conn = fresh;
+    spdlog::info("[WifiBackend] Reopened the wpa_supplicant control connection after a "
+                 "timed-out request");
 }
 
 std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
@@ -1336,9 +1373,23 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
     std::string safe_cmd = sanitize_command_for_log(cmd);
     spdlog::trace("[WifiBackend] Sending command: {}", safe_cmd);
 
+    // Anything already queued on this connection was sent before this request,
+    // so it cannot be its reply: a late answer to an earlier request, or a
+    // stray datagram. Left in place, wpa_ctrl_request() would return it.
+    for (int dropped = 0; dropped < kMaxStaleReplies && wpa_ctrl_pending(conn) > 0; ++dropped) {
+        size_t stale_len = sizeof(resp) - 1;
+        if (wpa_ctrl_recv(conn, resp, &stale_len) != 0)
+            break;
+        spdlog::debug("[WifiBackend] Discarded a stale control reply ({} bytes) before {}",
+                      stale_len, safe_cmd);
+    }
+
     int result = wpa_ctrl_request(conn, cmd.c_str(), cmd.length(), resp, &len, nullptr);
-    if (result != 0) {
+    const auto outcome = helix::wifi::detail::classify_ctrl_request(result);
+    if (outcome != helix::wifi::detail::CtrlRequestOutcome::Reply) {
         LOG_ERROR_INTERNAL("Command failed: {} (error code: {})", safe_cmd, result);
+        if (outcome == helix::wifi::detail::CtrlRequestOutcome::TimedOut)
+            reopen_ctrl_locked();
         return "";
     }
 
@@ -1660,18 +1711,15 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
     spdlog::info("[WifiBackend] Connecting to network '{}'", helix::redact::ssid(clean_ssid));
 
     // Step 1: Reuse an existing saved entry for this SSID when one exists,
-    // otherwise add a new one. Every connect used to ADD_NETWORK
-    // unconditionally — a real user's wpa_supplicant had reached network id 7
-    // for a handful of networks, and duplicate all-enabled entries give
-    // wpa_supplicant more candidates to roam between after a reboot (a
-    // plausible contributor to an unwanted 5GHz reassociation after the user
-    // had explicitly forgotten that network).
+    // otherwise add a new one. An unconditional ADD_NETWORK on every connect
+    // piles up duplicate all-enabled entries, which give wpa_supplicant more
+    // candidates to roam between after a reboot (including back onto a
+    // network the user explicitly forgot).
     //
     // reused_existing tracks whether network_id was newly ADD_NETWORK'd by
     // THIS call. The failure-cleanup REMOVE_NETWORK calls below must only
     // fire when it was — removing a reused id would delete a network the
-    // user already had saved, which is worse than the duplicate-entry bug
-    // this reuse is fixing.
+    // user already had saved, which is worse than a duplicate entry.
     std::string network_id =
         helix::wifi::detail::find_network_id(send_command("LIST_NETWORKS"), clean_ssid);
     const bool reused_existing = !network_id.empty();

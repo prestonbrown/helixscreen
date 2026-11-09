@@ -325,13 +325,13 @@ libs-clean: libhv-clean sdl2-clean lvgl-clean libnl-clean wpa-clean
 # =============================================================================
 
 # Per-arch out-of-tree libhv objects + archive (prestonbrown/helixscreen#1058).
-# libhv used to compile objects IN-TREE (lib/libhv/base/hsocket.o etc.) and link
-# lib/libhv/lib/libhv.a, so native (x86_64) and cross (aarch64/arm/mips) builds
-# clobbered each other's .o AND the archive. We patched libhv's Makefile.in to
-# honor OBJDIR/LIBDIR, so each arch's objects land under its own $(BUILD_DIR):
-#   build/libhv-objs/ (native), build/pi/libhv-objs/ (pi), etc.
-# This makes the stomping structurally impossible and retires both the in-tree
-# clean step below and the cross-compile lock (mk/cross.mk).
+# libhv's own build compiles objects IN-TREE (lib/libhv/base/hsocket.o etc.) and
+# links lib/libhv/lib/libhv.a, so native (x86_64) and cross (aarch64/arm/mips)
+# builds would clobber each other's .o AND the archive. Our patch to libhv's
+# Makefile.in honors OBJDIR/LIBDIR, so each arch's objects land under its own
+# $(BUILD_DIR): build/libhv-objs/ (native), build/pi/libhv-objs/ (pi), etc.
+# That makes the stomping structurally impossible, with no in-tree clean step
+# or cross-compile lock needed.
 LIBHV_OBJDIR := $(abspath $(BUILD_DIR)/libhv-objs)
 
 # libhv's `make libhv` copies every header into include/hv/ on each run, and

@@ -6,15 +6,15 @@
 <!-- Emergency buttons pinned in non-scrolling bottom bar -->
 <!-- Features are conditionally shown based on printer capabilities -->
 <component>
-  <!-- Emergency bar orientation. Portrait is too narrow to seat E-Stop, Restart
-       Klipper and Firmware Restart in one row: each button gets a third of the
-       width and all three labels clip mid-word. Stacking them full-width keeps
-       the labels readable, and these are the three controls someone reaches for
-       when things are going wrong.
+  <!-- Emergency bar orientation. Landscape seats the four buttons two to a row:
+       min_width forces the wrap, because four in one row clip their labels even
+       at 800x480. Portrait is too narrow for two across, so they stack
+       full-width. These are the controls someone reaches for when things are
+       going wrong, and their labels have to stay readable.
 
        Only container flex direction and child sizing differ, so this is a
        bind_style_if toggle on ui_is_portrait rather than an if/else structural
-       branch. An if/else would have to duplicate all three buttons and their
+       branch. An if/else would have to duplicate all four buttons and their
        event_cb wiring inside one file, where no gate can see the copies drift
        apart (see the same reasoning in motion_panel.xml).
 
@@ -25,12 +25,12 @@
        layout="flex" is not redundant with flex_flow. The inline flex_flow=
        attribute routes through lv_obj_set_flex_flow(), which sets the layout
        AND the flow; a style sets only the property named. Without layout the
-       container runs no layout at all and all three buttons land on top of
+       container runs no layout at all and all four buttons land on top of
        each other at the same y. -->
   <styles>
     <style name="estop_bar_row" layout="flex" flex_flow="row_wrap"/>
     <style name="estop_bar_column" layout="flex" flex_flow="column"/>
-    <style name="estop_btn_inline" flex_grow="1" min_width="content" pad_hor="#space_sm"/>
+    <style name="estop_btn_inline" min_width="45%" flex_grow="1" pad_hor="#space_sm"/>
     <style name="estop_btn_stacked" width="100%" flex_grow="0"/>
   </styles>
   <view name="advanced_panel"
@@ -58,6 +58,11 @@
         <setting_action_row name="row_console"
                             label="G-code Console" icon="console" description="Send commands directly to printer">
           <event_cb trigger="clicked" callback="on_console_row_clicked"/>
+        </setting_action_row>
+        <!-- Guided cold pull (#2011) -->
+        <setting_action_row name="row_cold_pull"
+                            label="Cold Pull" icon="nozzle" description="Clean a clogged nozzle, step by step">
+          <event_cb trigger="clicked" callback="on_cold_pull_row_clicked"/>
         </setting_action_row>
         <!-- Print History -->
         <setting_action_row name="row_print_history"
@@ -363,6 +368,12 @@
         <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
         <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
         <event_cb trigger="clicked" callback="advanced_firmware_restart_clicked"/>
+      </ui_button>
+      <ui_button name="advanced_restart_moonraker_btn"
+                 height="#button_height_sm" icon="refresh" text="Restart Moonraker" variant="secondary">
+        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
+        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <event_cb trigger="clicked" callback="advanced_restart_moonraker_clicked"/>
       </ui_button>
     </lv_obj>
   </view>

@@ -40,6 +40,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -690,6 +691,15 @@ class PrinterState {
      */
     void set_macro_option_count(size_t count);
 
+    /**
+     * @brief Set which of the printer's declared options the detail view leaves out
+     *
+     * A declared option can still draw no row: the heat soak option when
+     * PRINT_START soaks on its own, say. The PRINT OPTIONS card counts only the
+     * rows that render. Main thread only; apply set_macro_option_count() after.
+     */
+    void set_hidden_option_ids(std::set<std::string> ids);
+
     /// A `_HELIX_PREP` skip was set and never consumed (main thread only).
     [[nodiscard]] bool skip_pending() const {
         return helix::skip_wrappers::any_skip_pending(skip_gates_);
@@ -971,7 +981,8 @@ class PrinterState {
 
     /// Auto-detected bed_moves value from kinematics (before user override)
     bool auto_detected_bed_moves_ = false;
-    size_t macro_option_count_ = 0; ///< See set_macro_option_count()
+    size_t macro_option_count_ = 0;           ///< See set_macro_option_count()
+    std::set<std::string> hidden_option_ids_; ///< See set_hidden_option_ids()
 
     /// Klipper pause_resume.is_paused: true when the print is paused via PAUSE gcode
     bool is_paused_ = false;

@@ -182,6 +182,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
     save_in_flight_ = false;
+    set_save_state(kSaveIdle);
     editor_entered_ = false;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
@@ -467,6 +468,9 @@ void AmsEditOverlay::init_subjects() {
         // editor view only; picker and color views hide it. Written
         // exclusively from set_view().
         UI_MANAGED_SUBJECT_INT(save_hidden_subject_, 0, "ams_edit_save_hidden", subjects_);
+        UI_MANAGED_SUBJECT_INT(save_state_subject_, kSaveIdle, "ams_edit_save_state", subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_error_subject_, save_error_buf_, "", "ams_edit_save_error",
+                                  subjects_);
 
         // Managed-vs-untracked signal: drives the header Spoolman badge, the
         // More section's Spoolman-owned fields and the Add-link's absence.
@@ -864,14 +868,18 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     helix::ui::safe_clean_children(spool_list);
 
     auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
-    // A lane's spool sits in ToolState under the tool the lane feeds, whose
-    // number need not match the lane's. The external spool feeds through no
-    // lane, so every lane's spool is taken.
-    int own_tool = -1;
-    if (AmsBackend* backend = slot_index_ >= 0 ? AmsState::instance().get_backend() : nullptr) {
-        own_tool = backend->get_slot_info(slot_index_).mapped_tool;
+    // Spools another lane links are taken. The external spool feeds through no
+    // lane, so every lane's spool is taken for it.
+    std::set<int> in_use;
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        const AmsSystemInfo info = backend->get_system_info();
+        for (int i = 0; i < info.total_slots; ++i) {
+            const SlotInfo* lane = info.get_slot_global(i);
+            if (lane && i != slot_index_ && lane->spoolman_id > 0) {
+                in_use.insert(lane->spoolman_id);
+            }
+        }
     }
-    auto in_use = ToolState::instance().assigned_spool_ids(own_tool);
 
     lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
     UiBreakpoint bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
@@ -1320,15 +1328,22 @@ void AmsEditOverlay::update_ui() {
                        (has_spoolman && working_info_.spoolman_id == 0) ? 1 : 0);
 
     // Clear acts on what the slot holds now, not on the edits staged over it.
-    lv_subject_set_int(&clear_visible_subject_,
-                       AmsContextMenu::should_show_clear_spool(original_info_) ? 1 : 0);
+    // A slot whose link another program owns has no Clear here; the slot menu
+    // greys its own with the reason.
+    const AmsBackend* clear_backend = AmsState::instance().get_backend();
+    const bool clear_refused = slot_index_ >= 0 && clear_backend &&
+                               !clear_backend->clear_spool_refusal(slot_index_).empty();
+    lv_subject_set_int(
+        &clear_visible_subject_,
+        AmsContextMenu::should_show_clear_spool(original_info_) && !clear_refused ? 1 : 0);
 
     // Title: the slot's own name in the backend's lane noun ("Gate 3").
     if (slot_index_ == -2) {
         snprintf(title_buf_, sizeof(title_buf_), "%s", lv_tr("External Filament"));
     } else {
-        snprintf(title_buf_, sizeof(title_buf_), "%s",
-                 helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
+        snprintf(
+            title_buf_, sizeof(title_buf_), "%s",
+            helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
     }
     lv_subject_copy_string(&title_subject_, title_buf_);
 
@@ -2018,7 +2033,7 @@ void AmsEditOverlay::handle_add_to_spoolman() {
     const helix::MissingFilamentFields missing =
         helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
     if (missing.any()) {
-        show_missing_filament_toast(missing);
+        report_save_problem(true, missing_filament_message(missing));
         return;
     }
     do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
@@ -2037,10 +2052,10 @@ void AmsEditOverlay::handle_save() {
 
     spdlog::info("[AmsEditOverlay] Saving edits for slot {}", slot_index_);
 
+    set_save_state(kSaveIdle);
     read_detail_fields();
     if (detail_working_.price < 0) {
-        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Values must not be negative"),
-                                      3000);
+        report_save_problem(true, lv_tr("Values must not be negative"));
         return;
     }
 
@@ -2070,9 +2085,8 @@ void AmsEditOverlay::handle_save() {
         // The record those fields edit has not arrived, so there is nothing to
         // diff them against. Keep them, ask for the record again, and say so
         // rather than closing on a Save that wrote them nowhere.
-        ToastManager::instance().show(
-            ToastSeverity::WARNING,
-            lv_tr("This spool's details haven't loaded from Spoolman yet. Try Save again."), 4000);
+        report_save_problem(
+            true, lv_tr("This spool's details haven't loaded from Spoolman yet. Try Save again."));
         if (!linked_fetch_pending_) {
             fetch_linked_spool();
         }
@@ -2139,10 +2153,11 @@ void AmsEditOverlay::handle_save() {
                 spdlog::error("[AmsEditOverlay] Logistics PATCH for spool {} failed: {}", spool_id,
                               err.message);
                 token.defer("AmsEditOverlay::logistics_error", [this, cap]() {
-                    ToastManager::instance().show(ToastSeverity::ERROR,
-                                                  lv_tr("Failed to save spool"), 3000);
                     if (cap.session == session_) {
                         save_in_flight_ = false;
+                    }
+                    report_save_problem(save_is_live(cap), lv_tr("Failed to save spool"));
+                    if (cap.session == session_) {
                         update_sync_button_state();
                     }
                     end_slot_save(cap.slot_index);
@@ -2213,17 +2228,13 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         details_color_ = working_info_.color_rgb;
         details_color_set_ = false;
         update_summary();
-        update_sync_button_state();
-        ToastManager::instance().show(
-            ToastSeverity::WARNING,
-            lv_tr("Saved. Spoolman is offline, so price, location, lot and notes stay here "
-                  "unsaved."),
-            4000);
+        report_save_problem(true, lv_tr("Saved. Spoolman is offline, so price, location, lot "
+                                        "and notes stay here unsaved."));
         return;
     }
     if (save_is_live(cap)) {
         working_info_ = committed;
-        close_editor(true);
+        commit_then_await(cap, committed);
         return;
     }
     if (cap.owed) {
@@ -2236,6 +2247,90 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         late.slot_info = committed;
         cap.owed(late);
     }
+}
+
+std::string AmsEditOverlay::not_saved_message(helix::ams::PendingOutcome outcome,
+                                              const std::string& reason) {
+    std::string why = reason;
+    if (why.empty()) {
+        why = outcome == helix::ams::PendingOutcome::TimedOut
+                  ? lv_tr("the printer did not confirm it")
+                  : lv_tr("the printer refused it");
+    }
+    return fmt::format(fmt::runtime(lv_tr("Not saved: {}. Try again.")), why);
+}
+
+void AmsEditOverlay::set_save_state(int state, const std::string& error) {
+    if (!subjects_initialized_) {
+        return;
+    }
+    snprintf(save_error_buf_, sizeof(save_error_buf_), "%s", error.c_str());
+    lv_subject_copy_string(&save_error_subject_, save_error_buf_);
+    lv_subject_set_int(&save_state_subject_, state);
+}
+
+void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& committed) {
+    // The caller's completion commits the edit; the editor stays until the lane
+    // holds it, so a write that does not stick leaves the user's values here.
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const helix::ams::LaneId lane =
+        backend ? backend->lane_id(cap.slot_index) : helix::ams::kInvalidLaneId;
+    const std::uint64_t filed_before = helix::ams::pending_filings(lane);
+    // Only a result the completion leaves is this save's: one an earlier
+    // caller left on the slot and never took says nothing about it.
+    (void)AmsState::instance().take_slot_edit_result(cap.slot_index);
+    if (cap.owed) {
+        EditResult result;
+        result.saved = true;
+        result.slot_index = cap.slot_index;
+        result.slot_info = committed;
+        cap.owed(result);
+    }
+    if (const std::optional<AmsError> err =
+            AmsState::instance().take_slot_edit_result(cap.slot_index);
+        err && !err->success() && !err->partially_applied) {
+        finish_awaited_save(cap, helix::ams::PendingOutcome::Failed, err->user_msg);
+        return;
+    }
+    save_in_flight_ = true;
+    set_save_state(kSaveWaiting);
+    update_sync_button_state();
+    begin_slot_save(cap.slot_index);
+    auto token = object_lifetime_.token();
+    // A write that fails at once (a refusal, a reply already in) has ended
+    // before this waits; filed_before lets the store report it.
+    helix::ams::await_pending(
+        lane, filed_before,
+        [this, token, cap](helix::ams::PendingOutcome outcome, const std::string& reason) {
+            token.defer("AmsEditOverlay::save_settled", [this, cap, outcome, reason]() {
+                end_slot_save(cap.slot_index);
+                finish_awaited_save(cap, outcome, reason);
+            });
+        });
+}
+
+void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
+                                         const std::string& reason) {
+    if (cap.session != session_ || completion_fired_) {
+        return;
+    }
+    save_in_flight_ = false;
+    if (outcome == helix::ams::PendingOutcome::Echoed) {
+        set_save_state(kSaveIdle);
+        // The callback already has the edit: close without firing it again.
+        completion_fired_ = true;
+        helix::nav::go_back();
+        return;
+    }
+    spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,
+                 reason.empty() ? "no echo" : reason);
+    // The lane shows what Moonraker holds again; the form keeps the user's
+    // values, so Save is live for a retry and Back asks before discarding.
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        original_info_ = backend->get_slot_info(cap.slot_index);
+    }
+    set_save_state(kSaveFailed, not_saved_message(outcome, reason));
+    update_sync_button_state();
 }
 
 void AmsEditOverlay::commit_and_close() {
@@ -2252,12 +2347,8 @@ void AmsEditOverlay::commit_capture(const SaveCapture& cap) {
     // slot claiming an identity the server never heard.
     if (identity_locked(original, saving, get_printer_state().is_spoolman_available()) &&
         (saving.brand != original.brand || saving.material != original.material)) {
-        ToastManager::instance().show(
-            ToastSeverity::ERROR,
-            lv_tr("Spoolman is offline, so brand and material can't be saved."), 3000);
-        if (live) {
-            stay_open_after_failed_save();
-        }
+        report_save_problem(live,
+                            lv_tr("Spoolman is offline, so brand and material can't be saved."));
         return;
     }
 
@@ -2294,18 +2385,29 @@ void AmsEditOverlay::stay_open_after_failed_save() {
     update_sync_button_state();
 }
 
-void AmsEditOverlay::show_missing_filament_toast(const helix::MissingFilamentFields& missing) {
-    const char* message = nullptr;
+const char* AmsEditOverlay::missing_filament_message(const helix::MissingFilamentFields& missing) {
     if (missing.brand) {
-        message = lv_tr("Spoolman needs a brand for this filament.");
-    } else if (missing.material) {
-        message = lv_tr("Spoolman needs a material for this filament.");
-    } else if (missing.color) {
-        message = lv_tr("Spoolman needs a color for this filament.");
+        return lv_tr("Spoolman needs a brand for this filament.");
     }
-    if (message) {
-        ToastManager::instance().show(ToastSeverity::ERROR, message, 3000);
+    if (missing.material) {
+        return lv_tr("Spoolman needs a material for this filament.");
     }
+    if (missing.color) {
+        return lv_tr("Spoolman needs a color for this filament.");
+    }
+    return nullptr;
+}
+
+void AmsEditOverlay::report_save_problem(bool live, const char* message) {
+    if (message == nullptr) {
+        return;
+    }
+    if (live) {
+        set_save_state(kSaveFailed, message);
+        update_sync_button_state();
+        return;
+    }
+    ToastManager::instance().show(ToastSeverity::WARNING, message, 4000);
 }
 
 void AmsEditOverlay::do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent intent) {
@@ -2353,10 +2455,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 if (result.missing.any()) {
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "
                                  "missing a field it is identified by");
-                    show_missing_filament_toast(result.missing);
-                    if (live) {
-                        stay_open_after_failed_save();
-                    }
+                    report_save_problem(live, missing_filament_message(result.missing));
                     end_slot_save(cap.slot_index);
                     return;
                 }
@@ -2366,18 +2465,14 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     // of it did land, and an editor that has closed keeps no
                     // edits, so both say so.
                     if (cap.more_saved) {
-                        ToastManager::instance().show(
-                            ToastSeverity::WARNING,
-                            lv_tr("Spoolman saved the price, location, lot and notes, but not the "
-                                  "rest. Nothing else changed on this printer."),
-                            4000);
+                        report_save_problem(
+                            live, lv_tr("Spoolman saved the price, location, lot and notes, but "
+                                        "not the rest. Nothing else changed on this printer."));
                     } else if (!live) {
-                        ToastManager::instance().show(
-                            ToastSeverity::INFO,
-                            lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."),
-                            4000);
-                    }
-                    if (live) {
+                        report_save_problem(
+                            live,
+                            lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."));
+                    } else {
                         stay_open_after_failed_save();
                     }
                     end_slot_save(cap.slot_index);
@@ -2386,17 +2481,13 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                 if (!result.success) {
                     spdlog::error("[AmsEditOverlay] Spoolman save failed; nothing written");
                     // A More PATCH that ran ahead of this save did land.
-                    ToastManager::instance().show(
-                        ToastSeverity::ERROR,
-                        cap.more_saved
-                            ? lv_tr("Spoolman saved the price, location, lot and notes, but "
-                                    "not the rest. Nothing else changed on this printer.")
-                            : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
-                                    "printer."),
-                        4000);
-                    if (live) {
-                        stay_open_after_failed_save();
-                    }
+                    report_save_problem(
+                        live, cap.more_saved
+                                  ? lv_tr("Spoolman saved the price, location, lot and notes, "
+                                          "but not the rest. Nothing else changed on this "
+                                          "printer.")
+                                  : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
+                                          "printer."));
                     end_slot_save(cap.slot_index);
                     return;
                 }

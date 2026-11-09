@@ -191,5 +191,40 @@ lv_color_t tube_accent() {
     return theme_manager_is_dark_mode() ? primary : tube_lighten(primary, 90);
 }
 
+void draw_flow_chevrons(lv_layer_t* layer, const pg::FilamentPath& path,
+                        const pg::ChevronSize& size, float phase, bool reverse, lv_color_t color,
+                        lv_opa_t opa, const bool* seg_shown, const pg::PathBox* avoid,
+                        int n_avoid) {
+    constexpr int kMaxChevrons = 48;
+    pg::Chevron chevrons[kMaxChevrons];
+    const int n = pg::chevrons_along(path, size, phase, reverse, chevrons, kMaxChevrons, seg_shown);
+    if (n <= 0)
+        return;
+
+    lv_draw_line_dsc_t dsc;
+    lv_draw_line_dsc_init(&dsc);
+    dsc.color = color;
+    dsc.opa = opa;
+    dsc.width = static_cast<int32_t>(size.stroke);
+    dsc.round_start = 1;
+    dsc.round_end = 1;
+    for (int i = 0; i < n; ++i) {
+        const pg::Chevron& c = chevrons[i];
+        bool covered = false;
+        for (int b = 0; b < n_avoid && !covered; ++b)
+            covered = pg::chevron_overlaps(c, avoid[b], size.stroke);
+        if (covered)
+            continue;
+        dsc.p1.x = c.left.x;
+        dsc.p1.y = c.left.y;
+        dsc.p2.x = c.tip.x;
+        dsc.p2.y = c.tip.y;
+        lv_draw_line(layer, &dsc);
+        dsc.p1.x = c.right.x;
+        dsc.p1.y = c.right.y;
+        lv_draw_line(layer, &dsc);
+    }
+}
+
 } // namespace ui
 } // namespace helix

@@ -159,9 +159,9 @@ TEST_CASE_METHOD(HelixTestFixture, "classify_primary_fans handles empty fan list
 // -----------------------------------------------------------------------------
 // #1124 — runtime-adaptive part-fan selection (Sovol SV08 regression)
 // -----------------------------------------------------------------------------
-// The e3f92c3f4 fallback promoted the front-most non-heater fan whenever .part
-// was the bare "fan", which stuck the SV08's real toolhead [fan] behind an idle
-// controller_fan / temperature_fan that sorted ahead of it. controller_fan and
+// Promoting the front-most non-heater fan whenever .part is the bare "fan"
+// sticks the SV08's real toolhead [fan] behind an idle controller_fan /
+// temperature_fan that sorts ahead of it. controller_fan and
 // temperature_fan are auto-controlled by Klipper and can never be the M106 part
 // fan, so they must never be promoted into .part.
 
@@ -209,7 +209,7 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "(#1124)",
                  "[fan_state][drift]") {
     // Stale-[fan] printer whose real part fan (output_pin) sorts AFTER the bare
-    // "fan" — the e3f92c3f4 front-most heuristic missed this order. While the
+    // "fan", which a front-most heuristic misses. While the
     // commandable fan is idle, keep the canonical "fan"; once it runs, it is the
     // real part fan.
     PrinterFanState state;

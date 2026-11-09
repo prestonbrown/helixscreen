@@ -144,7 +144,6 @@ void PrinterListOverlay::populate_printer_list() {
         // Tag with printer ID so callbacks can identify it
         lv_obj_set_name(row, id.c_str());
 
-        // Set printer name
         lv_obj_t* name_label = find_required(row, "printer_name", get_name());
         if (name_label) {
             lv_label_set_text(name_label, name.c_str());

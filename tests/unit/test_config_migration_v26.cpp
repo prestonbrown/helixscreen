@@ -8,10 +8,9 @@
 //   /completion_alert: true   ->  2 (Alert)
 //   /completion_alert: false  ->  0 (Off)
 //
-// A boolean here can only be the old fresh-config default (get_default_config()
-// used to write `completion_alert = true`) — the UI always persists an int via
-// AudioSettingsManager::set_completion_alert_mode() — so an explicit stored int
-// is left untouched: it is a real user choice, not the bug this migration fixes.
+// The UI always persists an int via AudioSettingsManager::set_completion_alert_mode(),
+// so a boolean here can only be a fresh-config default written as a bool, and an
+// explicit stored int is a real user choice the migration leaves untouched.
 
 #include "audio_settings_manager.h"
 #include "config.h"
@@ -36,42 +35,25 @@ TEST_CASE_METHOD(ConfigMigrationFixture, "v26 fresh config defaults completion_a
           static_cast<int>(helix::CompletionAlertMode::ALERT));
 }
 
-TEST_CASE_METHOD(ConfigMigrationFixture, "v26 migrates a stored true to Alert",
+TEST_CASE_METHOD(ConfigMigrationFixture,
+                 "v26 maps a stored boolean onto the alert mode and leaves a stored int alone",
                  "[config][migration]") {
+    struct Case {
+        json stored;
+        helix::CompletionAlertMode mode;
+    };
+    // 1 (Notification) is a choice made through the UI, never the boolean bug.
+    const auto c = GENERATE(Case{true, helix::CompletionAlertMode::ALERT},
+                            Case{false, helix::CompletionAlertMode::OFF},
+                            Case{1, helix::CompletionAlertMode::NOTIFICATION});
+    CAPTURE(c.stored.dump());
     write_and_init(json{{"config_version", 25},
                         {"active_printer_id", "voron"},
-                        {"completion_alert", true},
+                        {"completion_alert", c.stored},
                         {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
 
     REQUIRE(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-    CHECK(config.get<int>("/completion_alert", -1) ==
-          static_cast<int>(helix::CompletionAlertMode::ALERT));
-}
-
-TEST_CASE_METHOD(ConfigMigrationFixture, "v26 migrates a stored false to Off",
-                 "[config][migration]") {
-    write_and_init(json{{"config_version", 25},
-                        {"active_printer_id", "voron"},
-                        {"completion_alert", false},
-                        {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
-
-    REQUIRE(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-    CHECK(config.get<int>("/completion_alert", -1) ==
-          static_cast<int>(helix::CompletionAlertMode::OFF));
-}
-
-TEST_CASE_METHOD(ConfigMigrationFixture, "v26 leaves an explicit stored int alone",
-                 "[config][migration]") {
-    // 1 (Notification) is a real user choice made through the UI, which always
-    // persists an int. The migration must not treat it as the boolean bug.
-    write_and_init(json{{"config_version", 25},
-                        {"active_printer_id", "voron"},
-                        {"completion_alert", 1},
-                        {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
-
-    REQUIRE(config.get<int>("/config_version", 0) == helix::kCurrentConfigVersion);
-    CHECK(config.get<int>("/completion_alert", -1) ==
-          static_cast<int>(helix::CompletionAlertMode::NOTIFICATION));
+    CHECK(config.get<int>("/completion_alert", -1) == static_cast<int>(c.mode));
 }
 
 TEST_CASE_METHOD(ConfigMigrationFixture, "v26 leaves an absent completion_alert absent",

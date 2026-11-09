@@ -1245,17 +1245,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "Bouncing logo keeps its own colors; the print
     BouncingPrinterScreensaver printer;
     printer.start();
     REQUIRE(printer.is_active());
-    REQUIRE(BounceTestAccess::sprite(printer) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(printer), LV_PART_MAIN) >
-          LV_OPA_TRANSP);
+    REQUIRE(printer.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(printer.sprite(), LV_PART_MAIN) > LV_OPA_TRANSP);
     printer.stop();
 
     BouncingLogoScreensaver logo;
     logo.start();
     REQUIRE(logo.is_active());
-    REQUIRE(BounceTestAccess::sprite(logo) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(logo), LV_PART_MAIN) ==
-          LV_OPA_TRANSP);
+    REQUIRE(logo.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(logo.sprite(), LV_PART_MAIN) == LV_OPA_TRANSP);
     logo.stop();
 }
 
@@ -1395,23 +1393,21 @@ TEST_CASE("Bouncing printer: sprite leaves room to bounce at every breakpoint",
 TEST_CASE("Bouncing printer: a resize rescales the speed to the screen's narrow axis",
           "[screensaver][bounce_math]") {
     BouncingPrinterScreensaver ss;
+    // The path's speed after a resize to w x h.
+    const auto speed_at = [&ss](int w, int h) {
+        BounceTestAccess::rebase(ss, w, h);
+        return BounceTestAccess::speed(ss);
+    };
 
-    BounceTestAccess::rebase(ss, 480, 320);
-    const float small = BounceTestAccess::speed(ss);
+    const float small = speed_at(480, 320);
     REQUIRE(small > 0.0f);
-
     // The narrow axis sets the speed whichever side of the screen it is on.
-    BounceTestAccess::rebase(ss, 320, 480);
-    CHECK(BounceTestAccess::speed(ss) == Catch::Approx(small).epsilon(0.0001f));
-
+    CHECK(speed_at(320, 480) == Catch::Approx(small).epsilon(0.0001f));
     // A taller narrow axis speeds the path proportionally: 480 over 320.
-    BounceTestAccess::rebase(ss, 800, 480);
-    const float wide = BounceTestAccess::speed(ss);
+    const float wide = speed_at(800, 480);
     CHECK(wide == Catch::Approx(small * (480.0f / 320.0f)).epsilon(0.0001f));
-
     // Growing the long axis alone leaves the speed where it was.
-    BounceTestAccess::rebase(ss, 1024, 480);
-    CHECK(BounceTestAccess::speed(ss) == Catch::Approx(wide).epsilon(0.0001f));
+    CHECK(speed_at(1024, 480) == Catch::Approx(wide).epsilon(0.0001f));
 }
 
 TEST_CASE("Bouncing printer: the sprite box is the shape of the artwork",

@@ -424,7 +424,6 @@ ui_frequency_response_chart_t* ui_frequency_response_chart_create(lv_obj_t* pare
         chart->series[i].id = -1;
     }
 
-    // Create root container
     chart->root = lv_obj_create(parent);
     if (!chart->root) {
         spdlog::error("[FreqChart] Failed to create root container");
@@ -465,7 +464,6 @@ void ui_frequency_response_chart_destroy(ui_frequency_response_chart_t* chart) {
     // Transfer to RAII wrapper for automatic cleanup
     std::unique_ptr<ui_frequency_response_chart_t> chart_ptr(chart);
 
-    // Remove all series
     for (int i = 0; i < kMaxSeries; i++) {
         if (chart_ptr->series[i].id != -1 && chart_ptr->series[i].lv_series && chart_ptr->chart) {
             lv_chart_remove_series(chart_ptr->chart, chart_ptr->series[i].lv_series);
@@ -1874,7 +1872,6 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
                 chart->series[i].lv_series = nullptr;
             }
         }
-        // Delete chart widget
         lv_obj_del(chart->chart);
         chart->chart = nullptr;
     } else if (chart->chart_mode && chart->chart) {

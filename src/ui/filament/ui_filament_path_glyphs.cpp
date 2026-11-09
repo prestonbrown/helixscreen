@@ -4,7 +4,7 @@
 // Glyph drawing for the filament_path_canvas widget: the hub/selector box
 // (incl. its interactive gear badge),
 // the buffer ("BUF") box, the animated filament tip, the nozzle heat glow,
-// flow particles, tool badges, and the style-dispatched toolhead glyph.
+// flow chevrons, tool badges, and the style-dispatched toolhead glyph.
 // See ui_filament_path_internal.h for the widget architecture.
 
 #include "ui_filament_path_internal.h"
@@ -302,69 +302,33 @@ void draw_heat_glow(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t radius, l
 }
 
 // ============================================================================
-// Flow particles
+// Flow chevrons
 // ============================================================================
-// Small bright dots flowing along an active tube segment to indicate filament
-// motion during load/unload. Dots are spaced at kFlowDotSpacing and offset by
-// flow_offset for animation.
+// Chevrons streaming along an active tube to show filament moving: down toward
+// the nozzle on a load or extrude, back up on an unload or retract. Sized from
+// the tube gauge and phased by flow_offset for animation.
 
-// Draw flow dots along a straight line segment
-void draw_flow_dots_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
-                         lv_color_t color, int32_t flow_offset, bool reverse) {
-    int32_t dx = x2 - x1;
-    int32_t dy = y2 - y1;
-    float len = sqrtf((float)(dx * dx + dy * dy));
-    if (len < 1.0f)
-        return;
-
-    lv_color_t dot_color = ph_lighten(color, 70);
-    lv_draw_arc_dsc_t arc_dsc;
-    lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.start_angle = 0;
-    arc_dsc.end_angle = 360;
-    arc_dsc.radius = static_cast<uint16_t>(kFlowDotRadius);
-    arc_dsc.width = static_cast<uint16_t>(kFlowDotRadius * 2);
-    arc_dsc.color = dot_color;
-    arc_dsc.opa = kFlowDotOpa;
-
-    // Place dots along the line at kFlowDotSpacing intervals
-    int32_t offset = reverse ? (kFlowDotSpacing - flow_offset) : flow_offset;
-    for (float d = (float)offset; d < len; d += kFlowDotSpacing) {
-        float t = d / len;
-        arc_dsc.center.x = x1 + (int32_t)(dx * t);
-        arc_dsc.center.y = y1 + (int32_t)(dy * t);
-        lv_draw_arc(layer, &arc_dsc);
-    }
+pg::ChevronSize flow_chevron_size(const FilamentPathData& data) {
+    return pg::chevron_size_for_gauge(static_cast<float>(data.theme.tube_gauge));
 }
 
-// Draw flow dots along an entire FilamentPath as a continuous stream.
-// Dots are placed at kFlowDotSpacing intervals along the total path length,
-// with flow_offset providing animation. When reverse=true (unloading), dots
-// flow from nozzle toward entry.
-void draw_flow_dots_path(lv_layer_t* layer, const pg::FilamentPath& path, lv_color_t color,
-                         int32_t flow_offset, bool reverse) {
-    float total = pg::path_length(path);
-    if (path.count == 0 || total < 1.0f)
-        return;
+bool flow_visible(const FilamentPathData& data) {
+    return data.anim.flow_active || data.anim.manual_motion != helix::FilamentMotion::Idle;
+}
 
-    lv_color_t dot_color = ph_lighten(color, 70);
-    lv_draw_arc_dsc_t arc_dsc;
-    lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.start_angle = 0;
-    arc_dsc.end_angle = 360;
-    arc_dsc.radius = static_cast<uint16_t>(kFlowDotRadius);
-    arc_dsc.width = static_cast<uint16_t>(kFlowDotRadius * 2);
-    arc_dsc.color = dot_color;
-    arc_dsc.opa = kFlowDotOpa;
+bool flow_reversed(const FilamentPathData& data) {
+    if (data.anim.manual_motion != helix::FilamentMotion::Idle)
+        return data.anim.manual_motion == helix::FilamentMotion::Retract;
+    return data.anim.direction == AnimDirection::UNLOADING;
+}
 
-    float start_offset = (float)flow_offset;
-    for (float d = start_offset; d < total; d += kFlowDotSpacing) {
-        float pos = reverse ? (total - d) : d;
-        pg::PathPoint pt = pg::path_point_at(path, pos);
-        arc_dsc.center.x = (int32_t)lroundf(pt.x);
-        arc_dsc.center.y = (int32_t)lroundf(pt.y);
-        lv_draw_arc(layer, &arc_dsc);
-    }
+void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::FilamentPath& path,
+               lv_color_t filament, const bool* seg_shown, const pg::PathBox* avoid, int n_avoid) {
+    // Ink that reads against the filament the chevrons ride on, whatever its color.
+    const lv_color_t ink = theme_manager_get_contrast_color(filament);
+    helix::ui::draw_flow_chevrons(layer, path, flow_chevron_size(data),
+                                  static_cast<float>(data.anim.flow_offset), flow_reversed(data),
+                                  ink, kFlowChevronOpa, seg_shown, avoid, n_avoid);
 }
 
 // ============================================================================

@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -30,384 +31,235 @@ namespace helix::ams {
 //   - Lane: "laneN" (1-based, AFC/Happy Hare convention) — filament systems.
 //   - Tool: "T<n>"  (0-based, Orca/Mainsail tool convention) — tool changers.
 // A tool changer converging on the T<n> key style makes HelixScreen writes
-// overwrite Mainsail #2510's records instead of duplicating them (both readers
-// key off the inner "lane" field, so a shared outer key avoids Orca's no-dedup
-// collision). See docs/specs/filament_slots.md § "Interoperating readers and
-// writers".
+// overwrite Mainsail #2510's records instead of duplicating them. See
+// docs/specs/filament_slots.md § "Interoperating readers and writers".
 enum class LaneKeyStyle { Lane, Tool };
 
-// Maps an AmsType to its lane_data key style. Tool changers (Snapmaker, generic
-// TOOL_CHANGER) use T<n> keys; every filament-switching system uses laneN.
-// Deriving from is_tool_changer() keeps the policy in one place — never branch
-// on backend_id, and never use !is_filament_system() (it includes SNAPMAKER in
-// both lists, ams_types.h).
+// Maps an AmsType to its lane_data key style: tool changers use T<n> keys,
+// every filament-switching system laneN.
 inline LaneKeyStyle lane_key_style_for(AmsType t) {
     return is_tool_changer(t) ? LaneKeyStyle::Tool : LaneKeyStyle::Lane;
 }
 
-// Counts of lane_data records that are inconsistent or invisible to other
-// readers. Detected read-only at load and logged once — we do NOT auto-rewrite
-// third-party/corrupt records (that would vandalize a shared namespace); the
-// one-shot laneN->T<n> migration only ever touches keys HelixScreen authored.
-// Note: out-of-range slots are intentionally NOT counted — the store does not
-// know kNumPorts (the caller range-checks), so it cannot honestly detect them.
-struct LaneDataAnomalies {
-    int int_typed_lane = 0;     ///< inner "lane" is an int, not a string — OrcaSlicer drops these
-    int key_inner_mismatch = 0; ///< key looks like laneN/T<n> but disagrees with the inner index
-    int unparseable = 0;        ///< non-"seated" object carrying no valid "lane" field
-    int duplicate_slot = 0;     ///< more than one record resolving to the same slot index
-    [[nodiscard]] int total() const {
-        return int_typed_lane + key_inner_mismatch + unparseable + duplicate_slot;
-    }
-};
+/// The Lane Status Surface version and writer name HelixScreen's records carry
+/// (RFC 0001 §5).
+inline constexpr const char* kLaneDataLssVersion = "0.1";
+inline constexpr const char* kLaneDataWriter = "helixscreen";
 
-// Read-only scan of a raw lane_data namespace document. Pure: no DB access, no
-// mutation. Skips the "seated" sibling scalar. Used for the one-shot load-time
-// diagnostic; also unit-tested directly.
-[[nodiscard]] LaneDataAnomalies scan_lane_data_anomalies(const nlohmann::json& namespace_doc);
+/// The namespace every lane_data writer shares. A store on any other name holds
+/// HelixScreen's extras for a backend whose firmware owns lane_data.
+inline constexpr const char* kLaneDataNamespace = "lane_data";
 
-// Emit the lane_data document a stored override is written as.
-//
-// The wire-format emitter, and the inverse of from_lane_data_record below.
-// save_async is its production caller; it is declared here because the lock
-// keys and the declared set live on this document and nowhere else, so a
-// fixture seeding a stored override has to build the same document the store
-// would have written before anything can read authorship back off it. A record
-// classified against an empty document reads as one written before the
-// declared set existed.
-[[nodiscard]] nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o);
+/// The RFC 0001 §5 record HelixScreen writes for @p slot_index. Every RFC key
+/// is present; an unknown value is null, never a placeholder. Keys only
+/// HelixScreen reads carry the helix_ prefix.
+[[nodiscard]] nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o,
+                                                 LaneKeyStyle style = LaneKeyStyle::Lane);
 
-// Parse AFC-shaped record (+ our extensions) back into FilamentSlotOverride.
-// This is the wire-format parser: the shared shape read by scan_lane_data_anomalies,
-// the migration helpers, and load_blocking, and exercised directly by tests to
-// verify round-tripping without going through the full async load/save path.
-// Returns (slot_index, override), or nullopt if the record is malformed (non-object
-// or missing/invalid "lane" field).
+/// Parse a lane record, ours or another writer's, back into its slot index and
+/// fields. Reads the RFC spellings first and the legacy ones (`vendor`,
+/// `spool_name`, `helix_material`) after. nullopt for a record with no valid
+/// "lane" field.
 [[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
 from_lane_data_record(const nlohmann::json& j);
 
-/// A parsed lane_data record beside the object it came from.
-///
-/// The wire object travels with the record because sources_from_record() asks
-/// the document whether it carries a declared set at all: a record written
-/// before the set existed falls back to the legacy rule for its brand, spool
-/// name and vendor id, and the parsed struct cannot say which it was.
+/// Which of the fields a firmware may or may not hold an extras record keeps.
+/// The defaults are AFC's: its lane holds the weight, not the brand or name.
+struct ExtrasFields {
+    bool remaining_weight = false;
+    bool brand = true;
+    bool spool_name = true;
+};
+
+/// The record an extras namespace stores: only what the firmware cannot hold
+/// (colour name, catalog pick, total weight, and whichever of @p fields the
+/// firmware does not hold) and HelixScreen's bookkeeping. A spool id, material
+/// or colour in it is ignored on read and never written: the firmware's value
+/// is the lane's.
+[[nodiscard]] FilamentSlotOverride extras_only(const FilamentSlotOverride& o,
+                                               ExtrasFields fields = {});
+
+/// True when @p wire names a writer other than HelixScreen (RFC 0001 S2). A
+/// record with no writer is legacy and replaceable.
+[[nodiscard]] bool written_by_another_producer(const nlohmann::json& wire);
+
+/// The namespace HelixScreen's own plain keys live in (save_key_async()).
+inline constexpr const char* kHelixKeysNamespace = "helix-screen";
+
+/// One parsed record plus the JSON it came from.
 struct LaneDataRecord {
     FilamentSlotOverride record;
     nlohmann::json wire;
 };
 
-/// Parse a raw namespace document into per-slot records, reconciling duplicate
-/// slots in favour of the key canonical for @p key_style.
-///
-/// Pure: no DB access, no disk, no mutation. This is the read half of
-/// load_blocking() without its one-shot key migration, Orca heal and cache
-/// write, so a re-read can reach the same records without redoing init-time
-/// work. @p log_tag attributes the duplicate-slot warnings to a backend.
+/// Parse a whole namespace document, one record per slot. Records are matched
+/// by their inner `lane` field, never the key (RFC 0001 S3); when two records
+/// name one slot, the one under our canonical key wins. Non-object siblings
+/// (`seated`) are skipped, and a record that does not parse costs its slot
+/// only.
 [[nodiscard]] std::unordered_map<int, LaneDataRecord>
 parse_namespace_document(const nlohmann::json& namespace_doc, LaneKeyStyle key_style,
                          const std::string& log_tag = "shared");
 
-/// Process-wide fallback dir for the store's on-disk read-cache, consulted
-/// by cache_dir_effective() when an instance has no per-instance cache_dir_
-/// pinned. Production leaves it empty (instances then resolve
-/// helix::get_user_config_dir()). The shared test fixture points it at its
-/// per-PID sandbox before main() so AMS backend tests — which construct real
-/// backends, and thus real stores, without pinning a dir — cannot write
-/// filament_slot_overrides.json into the repo's config/ dir. Same role
-/// ToolState::set_config_dir() plays for tool_spools.json, and mutable for
-/// the same reason app_constants::update::detail::state_dir_ref() is.
-/// Write it before threads exist; afterwards it is read-only.
-namespace detail {
-inline std::string& slot_override_cache_dir_ref() {
-    static std::string dir;
-    return dir;
-}
-} // namespace detail
-
-/// @p live with the changes @p held makes to @p base, all three lane_data records:
-/// only a field that differs between @p base and @p held moves, so what the
-/// printer's record says beyond that survives a save built without seeing it. A
-/// colour or material @p live holds stays unless @p held declares it or links a
-/// different spool, declarations combine, and a marker unlinking the spool @p live
-/// links cuts that link. Pure.
-[[nodiscard]] nlohmann::json merge_held_save(const nlohmann::json& base, const nlohmann::json& held,
-                                             const nlohmann::json& live);
-
-/// Whether @p live, the printer's record now, changed since @p base on a field the
-/// held write changes: any field @p held (a lane_data record) sets differently
-/// from @p base, or, for a clear (@p held null), the identity (material, colour,
-/// spool). A write held across a restart gives way to such a record. Pure.
-[[nodiscard]] bool held_write_conflicts(const nlohmann::json& base, const nlohmann::json& held,
-                                        const nlohmann::json& live);
-
-/// How long a held write survives in the cache file before it is dropped unsent.
-inline constexpr std::chrono::hours kHeldWriteMaxAge{24};
-
+/// Reads and writes one backend's lane records in Moonraker's database. There
+/// is no local copy: what the last read returned is all it holds, and a write
+/// that fails is reported, never queued.
 class FilamentSlotOverrideStore {
   public:
-    // key_style defaults to Lane so the many lane-based construction sites and
-    // tests need no change. Production sites pass lane_key_style_for(get_type())
-    // so the correct style is derived from the backend's AmsType.
-    // ns selects the Moonraker DB namespace. It defaults to the shared
-    // "lane_data" for the backends that legitimately live there (IFS, ACE, CFS,
-    // Snapmaker). AFC and Happy Hare MUST pass a private namespace: their own
-    // Klipper plugins own lane_data, AFC deletes that whole namespace on every
-    // boot and full-POSTs each lane record, and load_blocking() would otherwise
-    // ingest those foreign records as if they were user overrides.
-    // migrates_legacy_namespace: the first load of an empty store copies slots forward from
-    // the pre-lane_data "helix-screen:<backend_id>_slot_overrides" blob. Only the backends that
-    // ever wrote that blob (ACE, CFS) set it.
     FilamentSlotOverrideStore(IMoonrakerAPI* api, std::string backend_id,
                               LaneKeyStyle key_style = LaneKeyStyle::Lane,
-                              std::string ns = "lane_data", bool migrates_legacy_namespace = false);
+                              std::string ns = kLaneDataNamespace);
 
-    /// Test-only view of the configured namespace.
-    [[nodiscard]] const std::string& namespace_for_test() const {
+    [[nodiscard]] const std::string& namespace_name() const {
         return namespace_;
     }
 
-    // Blocking load from Moonraker database (called only at backend init time).
-    // Falls back to the local read-cache when the DB round-trip fails.
-    //
-    // Never throws. lane_data is a namespace shared with AFC, Happy Hare,
-    // Mainsail and hand edits, so a malformed or null-bearing record is an
-    // expected input, not a bug — it costs at most the affected slots. See the
-    // exception-boundary comment on the definition.
-    std::unordered_map<int, FilamentSlotOverride> load_blocking();
-
-    using ReloadCallback = helix::SharedCallback<void(std::unordered_map<int, LaneDataRecord>)>;
-
-    /// Re-fetch this store's namespace and hand the parsed records to @p cb.
-    ///
-    /// Unlike load_blocking() this neither blocks nor runs any of the
-    /// init-time repair work, so a caller wanting a fresh view of a namespace
-    /// several writers share can ask for one at any time.
-    ///
-    /// @p cb is never called on failure: a re-read that could not reach the
-    /// database must leave what a lane already knows standing. @p on_failure,
-    /// when given, is called instead, for a caller holding work until the read
-    /// lands. Exactly one of the two runs, on the API's callback thread;
-    /// marshal from there.
-    void reload_async(ReloadCallback cb, helix::SharedCallback<void()> on_failure = nullptr);
-
-    using SaveCallback = helix::SharedCallback<void(bool success, std::string error)>;
-    /// While namespace_unread(), saves and clears are held rather than sent: a
-    /// record built without the live one would replace it wholesale. Held writes
-    /// stay in the local cache file, tagged with the active printer, until the
-    /// printer acknowledges them, so the load_blocking() after a restart picks them
-    /// up again: it holds them once more when the read fails, and merges and sends
-    /// them when it lands. A write from another printer, or older than
-    /// kHeldWriteMaxAge, is dropped, and one restored from the file gives way to a
-    /// record the printer changed since (held_write_conflicts()).
-    void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
-    void clear_async(int slot_index, SaveCallback cb);
-
-    /// load_blocking() got no answer from the database, so what it returned is at
-    /// best the local cache and says nothing about the records on the printer.
-    [[nodiscard]] bool namespace_unread() const {
-        return namespace_unread_.load();
+    /// True on an extras namespace (AFC, Happy Hare): records hold only what
+    /// extras_only() keeps.
+    [[nodiscard]] bool holds_extras_only() const {
+        return namespace_ != kLaneDataNamespace;
     }
 
-    /// What the caller still has to send once the namespace has been read.
-    struct HeldWrites {
-        std::unordered_map<int, FilamentSlotOverride> saves;
-        std::vector<int> clears;
+    /// On an extras namespace, which firmware-holdable fields the records
+    /// keep. A read already out is narrowed by the fields it was sent with.
+    void set_extras_fields(ExtrasFields fields) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        extras_fields_ = fields;
+    }
+
+    /// Refuse every write until the first read has been adopted: a record
+    /// nobody has seen would be replaced by one built from nothing. Set by a
+    /// backend that opens the store; a store a test builds writes at once.
+    void require_read_before_write() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        read_required_ = true;
+    }
+
+    /// Where the store's writes stood when a read was sent. A read whose
+    /// reply arrives after a write was in flight or landed may predate it.
+    struct ReadTicket {
+        std::uint64_t writes_landed = 0;
+        bool no_write_in_flight = true;
     };
+    [[nodiscard]] ReadTicket read_ticket() const;
+    /// True when no write was in flight when @p ticket was taken, none is in
+    /// flight now, and none has landed since.
+    [[nodiscard]] bool read_still_current(const ReadTicket& ticket) const;
+    [[nodiscard]] bool write_in_flight() const;
+    /// One database get for the whole namespace. @p cb receives the parsed
+    /// records (narrowed by extras_only() on an extras namespace) on the
+    /// requesting thread's callback; an absent namespace is an empty read. A
+    /// failed read calls @p on_failure. Callbacks capture nothing of the store.
+    using ReloadCallback = helix::SharedCallback<void(std::unordered_map<int, LaneDataRecord>)>;
+    void reload_async(ReloadCallback cb, helix::SharedCallback<void()> on_failure = nullptr);
 
-    /// The namespace has now been read as @p records. Held clears remove their
-    /// record, and each held save is merged onto the real one
-    /// (merge_held_save()); the result becomes last_lane_data_records() and writes
-    /// go out again. A save merging to no change is not returned.
-    [[nodiscard]] HeldWrites adopt_namespace_read(std::unordered_map<int, LaneDataRecord> records);
+    /// Called, on whatever thread the reply lands on, after each write or clear
+    /// the database accepted: the owner re-reads so the lane shows the echo.
+    void set_on_written(std::function<void()> on_written) {
+        on_written_ = std::move(on_written);
+    }
 
-    // Seated-lane persistence. Unlike the per-lane overrides above, this is a
-    // single scalar (the 0-based index of the lane currently loaded to the
-    // toolhead) stored under a sibling key "seated" in the same lane_data
-    // namespace. The value on disk is a plain JSON integer.
+    /// Called with the slot, after the save's own callback, whenever a save
+    /// fails or is refused: the owner repaints the lane from what is left.
+    void set_on_write_failed(std::function<void(int slot_index)> on_failed) {
+        on_write_failed_ = std::move(on_failed);
+    }
 
-    // Persist the 0-based seated lane index to lane_data/"seated".
-    // Fire-and-forget, mirrors save_async (dispatches via
-    // api_->database_post_item, does not block).
+    /// Remember what a read returned, for the writer rule. Main thread.
+    void adopt_read(const std::unordered_map<int, LaneDataRecord>& records);
+
+    using SaveCallback = helix::SharedCallback<void(bool success, std::string error)>;
+
+    /// Write @p override as slot @p slot_index's record. Refused, with an
+    /// error, when the record last read for the slot names another writer.
+    void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
+
+    /// Whether the record last read for @p slot_index names another writer, so
+    /// a save would be refused (RFC 0001 S2).
+    [[nodiscard]] bool written_by_another(int slot_index) const {
+        return !writer_refusal(slot_index).empty();
+    }
+
+    /// Delete slot @p slot_index's record, under the same writer rule.
+    void clear_async(int slot_index, SaveCallback cb);
+
+    /// Write @p key in kHelixKeysNamespace: one plain value of HelixScreen's
+    /// own (not a lane record), shared by every client on the printer. Kept out
+    /// of the lane namespace, whose every value other readers (OrcaSlicer)
+    /// take for a record.
+    void save_key_async(const std::string& key, nlohmann::json value, SaveCallback cb);
+    /// Delete @p key (see save_key_async()); a key already gone is success.
+    void clear_key_async(const std::string& key, SaveCallback cb);
+    /// Read @p key (see save_key_async()). @p cb receives the value, or null
+    /// when the key is absent; a failed read calls nothing.
+    void load_key_async(const std::string& key, std::function<void(nlohmann::json)> cb);
+
+    // The seated key, `<backend_id>_seated` (save_key_async()): the 0-based
+    // index of the lane loaded to the toolhead (AD5X IFS). A seated index a
+    // build kept in the lane namespace as `seated` moves there on load.
     void save_seated_slot_async(int slot_index, SaveCallback cb);
-
-    // Remove lane_data/"seated" (nothing currently seated). Mirrors clear_async.
     void clear_seated_slot_async(SaveCallback cb);
-
-    // Blocking read of lane_data/"seated" at init time (mirrors load_blocking's
-    // cv.wait_for pattern + load_timeout_). Returns nullopt if absent/unreachable
-    // or the stored value is not a valid 0-based lane index. The caller is
-    // responsible for range-checking against its own kNumPorts.
     std::optional<int> load_seated_slot_blocking();
 
     const std::string& backend_id() const {
         return backend_id_;
     }
 
-    /// The lane_data records this store's last load_blocking() parsed, each
-    /// paired with the raw document it came from. Migration classification
-    /// needs the document beside the parsed struct: whether a record carries a
-    /// declared set at all decides the legacy rule for its brand, and the
-    /// struct cannot say. Empty before the first load, and empty after a load that fell back
-    /// to the on-disk cache — that path has no wire document to classify
-    /// against.
-    [[nodiscard]] const std::unordered_map<int, LaneDataRecord>& last_lane_data_records() const {
-        return lane_data_records_;
-    }
-
-    /// Rewrite each record last_lane_data_records() holds through @p amend,
-    /// before anything classifies them; @p amend also gets the slot and the
-    /// raw document the record came from. Only this view changes: persisting
-    /// the repair is the caller's save.
-    void amend_loaded_records(const helix::Callback<void(int slot, FilamentSlotOverride&,
-                                                         const nlohmann::json& wire)>& amend) {
-        for (auto& [slot, entry] : lane_data_records_) {
-            amend(slot, entry.record, entry.wire);
-        }
-    }
-
   private:
-    // Test-only access to mutate load_timeout_ without exposing a public
-    // setter. Per L065, prefer friend-class over test-only public methods.
     friend class ::FilamentSlotOverrideStoreTestAccess;
 
-    // Real body of load_blocking(). Split out so load_blocking() itself is a
-    // thin never-throws boundary that no caller has to remember to guard.
-    std::unordered_map<int, FilamentSlotOverride> load_blocking_impl();
+    /// One database get, waited for up to load_timeout_. nullopt when the key
+    /// is absent or the read failed.
+    std::optional<nlohmann::json> get_item_blocking(const std::string& ns, const std::string& key);
 
-    // A load that read the namespace sends the writes a previous run held and
-    // could not send, merged onto the records it read, and files them into
-    // @p result.
-    void send_persisted_held_writes(std::unordered_map<int, FilamentSlotOverride>& result);
-    // held_writes_ to and from the local cache file. Call with held_mutex_ held.
-    void persist_held_locked() const;
-    void restore_held_locked();
-    struct HeldWrite;
-    void persist_held_locked(const std::unordered_map<int, HeldWrite>& held) const;
+    /// Why a write to @p slot_index is refused, or empty when it may go.
+    [[nodiscard]] std::string writer_refusal(int slot_index) const;
 
     IMoonrakerAPI* api_;
     std::string backend_id_;
-    // Outer-key style for this backend's lane_data records (laneN vs T<n>). Set
-    // once at construction from the backend's AmsType via lane_key_style_for().
     LaneKeyStyle key_style_;
-    // Adopts the AFC/OrcaSlicer lane_data Moonraker convention. Each slot is
-    // stored under key "laneN" where N is the 1-based slot index (lane1, lane2,
-    // ...), or "T<n>" (0-based) on tool changers. Slot index 0 maps to "lane1"
-    // (Lane style) or "T0" (Tool style) on disk. See format_lane_key in the
-    // .cpp for the exact rule.
-    std::string namespace_ = "lane_data";
-    bool migrates_legacy_namespace_ = false;
-    // Local timeout for load_blocking()'s cv.wait_for. Defaults to 5 seconds;
-    // overridable by FilamentSlotOverrideStoreTestAccess for timeout tests.
-    // Stored as milliseconds (not seconds) because tests need sub-second
-    // resolution — a chrono::seconds member would truncate 50ms to 0s.
+    std::string namespace_;
     std::chrono::milliseconds load_timeout_{5000};
-    // On-disk read-cache directory. Empty = use helix::get_user_config_dir().
-    // Overridable by FilamentSlotOverrideStoreTestAccess so tests write to a
-    // per-PID tmp dir instead of polluting the user's config. The cache is
-    // NEVER authoritative — the Moonraker DB on the printer is the source of
-    // truth. The cache exists only so the UI can show last-known metadata
-    // when Moonraker is unreachable at backend init.
-    std::string cache_dir_;
-    // Backing store for last_lane_data_records(). Cleared at the top of every
-    // load_blocking_impl() and populated only on the lane_data parse path, so
-    // a cache-fallback load leaves it empty rather than stale.
-    std::unordered_map<int, LaneDataRecord> lane_data_records_;
-    std::atomic<bool> namespace_unread_{false};
-    // A slot's writes made while the namespace is unread, in the order that
-    // matters: a clear, then whatever was saved after it.
-    struct HeldWrite {
-        bool cleared = false;
-        std::optional<FilamentSlotOverride> save;
-        std::chrono::system_clock::time_point held_at;
-        // Read back from the cache file: the printer's record may have moved on
-        // since, for as long as the app was down.
-        bool restored = false;
+
+    std::function<void()> on_written_;
+    std::function<void(int)> on_write_failed_;
+
+    mutable std::mutex mutex_;
+    /// The writer of each slot's record at the last read.
+    std::unordered_map<int, std::string> writers_;
+    bool read_required_ = false;
+    bool read_adopted_ = false;
+    ExtrasFields extras_fields_;
+
+    /// Shared with the write callbacks, which may outlive the store.
+    struct WriteClock {
+        std::atomic<int> in_flight{0};
+        std::atomic<std::uint64_t> landed{0};
     };
-    // The held writes, and the cache the failed load returned, which is what a
-    // held save changed from. namespace_unread_ changes and is tested under
-    // held_mutex_ too: a save can come from any thread.
-    std::mutex held_mutex_;
-    std::unordered_map<int, HeldWrite> held_writes_;
-    std::unordered_map<int, FilamentSlotOverride> unread_fallback_;
-    // The configured printer this store serves (Config's active printer id when it
-    // was built), stamped on every held write it persists.
-    std::string printer_id_;
-    // Absolute path to the cache JSON file. Computed from cache_dir_ (or
-    // get_user_config_dir() if empty). One file serves all backends; each
-    // backend's slots live under doc[backend_id]["slots"].
-    std::string cache_path() const;
-    // Absolute path to the directory used for on-disk caches. Same resolution
-    // as cache_path(): cache_dir_ if set, otherwise get_user_config_dir().
-    // Migration uses this to locate legacy "{backend_id}_slot_overrides.json"
-    // files that pre-date the unified filament_slot_overrides.json format.
-    std::string cache_dir_effective() const;
+    std::shared_ptr<WriteClock> clock_ = std::make_shared<WriteClock>();
+
+    /// Why no write may go yet, or empty. Takes mutex_.
+    [[nodiscard]] std::string write_gate(int slot_index) const;
 };
 
 // =============================================================================
 // Shared persist tail
 // =============================================================================
-//
-// A backend that just staged an override record persists it with the same tail
-// everywhere: snapshot the record out of the map under the lock, hand it to
-// save_async, and report a failure under the backend's log tag. The callback
-// captures nothing but its by-value arguments because it can fire long after
-// the caller returns (the Moonraker tracker holds it ~60s), and it must not
-// touch the backend: the backend may outlive its store, but the store
-// outlives the scheduled save by design.
 
-/// Schedule @p store's save of @p record for @p slot_index, warning with
-/// "<tag> <noun> persist failed for slot <n>: <err>" when it fails. @p noun
-/// names what was persisted ("Override", "weight", "lock release").
+/// Schedule @p store's save of @p record for @p slot_index. A failure is
+/// logged (naming @p noun) and withdraws @p lane's pending edit, so the lane
+/// falls back to what Moonraker holds.
 void save_override_async(FilamentSlotOverrideStore* store, int slot_index,
                          const FilamentSlotOverride& record, const std::string& tag,
-                         const char* noun);
-
-/// Send what adopt_namespace_read() returned: each clear not superseded by a
-/// save, then each save, warning under @p tag when one fails.
-void send_held_writes(FilamentSlotOverrideStore* store,
-                      const FilamentSlotOverrideStore::HeldWrites& writes, const std::string& tag);
+                         const char* noun, LaneId lane = kInvalidLaneId);
 
 /// Snapshot @p overrides' record for @p slot_index under @p mutex and persist
-/// it. A slot with no staged record saves nothing. This is the tail every
-/// apply_user_edit() ends with, after stage_user_override() staged the edit.
+/// it through save_override_async(). A slot with no staged record saves
+/// nothing.
 void persist_staged_override(FilamentSlotOverrideStore* store, std::mutex& mutex,
                              std::unordered_map<int, FilamentSlotOverride>& overrides,
-                             int slot_index, const std::string& tag, const char* noun);
-
-// =============================================================================
-// Shared construct-and-load
-// =============================================================================
-//
-// Every backend that persists user slot identity holds the same pair: a store
-// on its own namespace, and the map that store was loaded into. Building one
-// without loading it is not a state any backend wants, so this returns both or
-// neither and there is no way to spell the half-built version.
-
-struct LoadedOverrideStore {
-    /// Null when `api` was null (a backend constructed without a connection).
-    std::unique_ptr<FilamentSlotOverrideStore> store;
-    /// What the store held, keyed by global slot index. Empty when store is null.
-    std::unordered_map<int, FilamentSlotOverride> overrides;
-};
-
-/// Build the store for `backend_id` on namespace `ns` and load it.
-///
-/// `type` picks the outer key style via lane_key_style_for(), so a backend
-/// never restates that rule. `ns` defaults to the shared "lane_data"; a backend
-/// whose own Klipper plugin owns that namespace (AFC, Happy Hare) MUST name a
-/// private one, or the plugin's records load back as if the user authored them
-/// and ours are deleted on the plugin's next boot.
-///
-/// Call this with NO lock held: the DB round-trip blocks for up to 5s and the
-/// caller's status subscription may already be live, so holding the backend's
-/// mutex across it stalls the parse path (and self-deadlocks a caller that
-/// takes a non-recursive mutex before asking). Publish the result under the
-/// lock afterwards, which is one move of each field.
-[[nodiscard]] LoadedOverrideStore
-make_loaded_override_store(IMoonrakerAPI* api, std::string backend_id, AmsType type,
-                           const std::string& log_tag, std::string ns = "lane_data",
-                           bool migrates_legacy_namespace = false);
+                             int slot_index, const std::string& tag, const char* noun,
+                             LaneId lane = kInvalidLaneId);
 
 // =============================================================================
 // Shared firmware -> lane_data mirror helper
@@ -427,156 +279,86 @@ make_loaded_override_store(IMoonrakerAPI* api, std::string backend_id, AmsType t
 //
 //   - IFS: apply_user_edit writes to Adventurer5M.json — firmware re-reads it
 //     and reports the user's chosen color on the next status poll. The mirror
-//     can safely overwrite the override with firmware values (except a colour
-//     or material the record declares, per #965; see MirrorPolicy::OverwriteAlways
-//     below) because firmware-truth and user-truth converge.
+//     can safely overwrite the override with firmware values because
+//     firmware-truth and user-truth converge.
 //
-//   - CFS: apply_user_edit does NOT touch the firmware-side material_type /
-//     RFID values. If the mirror unconditionally overwrote ovr.color_rgb with
-//     firmware-truth, every status poll would erase the user's color
-//     override. So this backend uses FillUnsetOnly: only fill fields the
-//     user hasn't explicitly set. clear_slot_override resets the entry,
-//     after which auto-mirror takes over again.
+//   - CFS: apply_user_edit writes the colour to the box, but the material
+//     only when the box already reports a material code for it, and a linked
+//     spool's material never reaches the box. If the mirror overwrote the
+//     record with what the box reports, a poll would erase a material the box
+//     cannot hold. So this backend uses FillUnsetOnly: only fill fields the
+//     record does not state. clear_slot_override resets the entry, after
+//     which auto-mirror takes over again.
 enum class MirrorPolicy {
-    /// Overwrite ovr.color_rgb / ovr.material with firmware values, EXCEPT for
-    /// a colour or material the record declares (declares_color /
-    /// declares_material, see #965). Use when user edits propagate back to
-    /// firmware so the two views stay in sync (AD5X IFS, Snapmaker paxx12).
-    /// A field the caller reports as declared on the lane is left alone the
-    /// same way; see DeclaredOnLane.
+    /// Overwrite ovr.color_rgb / ovr.material with firmware values. Use when
+    /// user edits propagate back to firmware so the two views stay in sync
+    /// (AD5X IFS, Snapmaker paxx12).
     OverwriteAlways,
-    /// Only fill ovr.color_rgb / ovr.material when they're currently UNSET
-    /// (color_rgb == 0, empty material). Use when user edits don't reach
-    /// firmware (CFS).
+    /// Only fill ovr.color_rgb / ovr.material when they're currently UNSET.
+    /// Use when the record can hold a value firmware cannot restate (CFS).
     FillUnsetOnly,
 };
 
-/// Which of colour and material a declaring lane source holds: the lane's
-/// Spoolman record, or its LocalUser record, carrying a value for the field.
-///
-/// Neither reaches firmware, so firmware's reading does not stand for such a
-/// field, and every mirror policy leaves it in the override exactly as it
-/// leaves a field the record itself declares. Build one with declared_on_lane().
-struct DeclaredOnLane {
-    bool color = false;
-    bool material = false;
-};
-
-/// What @p lane's declaring sources hold, read from the lane source store.
-///
-/// With @p record, the lane's stored override, a value on the lane's user
-/// record counts only where @p record declares that field. The rest of that
-/// record is another tool's statement, filed on the user's rung at load
-/// (prestonbrown/helixscreen#1632): it yields to the next change on the lane
-/// rather than guarding the field against it.
-[[nodiscard]] DeclaredOnLane declared_on_lane(LaneId lane,
-                                              const FilamentSlotOverride* record = nullptr);
-
 /// Mirror firmware-detected color/material into `overrides[slot_index]` and
-/// fire `store->save_async` to push the resulting record to the lane_data
-/// namespace. Caller MUST hold the backend's mutex protecting `overrides`.
-///
-/// No-op (returns false without writing) when:
-///   - !slot_has_filament  (empty / unread slot — no signal)
-///   - the chosen policy leaves nothing to change (e.g. FillUnsetOnly when
-///     ovr already has both fields set, or OverwriteAlways when ovr already
-///     matches firmware)
-///
-/// Note: `firmware_color == 0` is NOT treated as "no signal" — pure black is
-/// a legitimate color the user can load. Backends whose parse path may run
-/// before colors are populated (e.g. AD5X IFS) must apply their own
-/// color-zero guard upstream of this helper.
-///
-/// `store` may be null (init-time race / test fixture without MR API) — the
-/// in-memory override is still updated, but no save_async is fired.
-///
-/// `log_tag` is included in the warn log on save failure so multi-backend
-/// logs stay attributable.
-///
-/// `declared` names the fields a declaring lane source holds; build it with
-/// declared_on_lane(). It has no default, so no caller can pass "nothing
-/// declared" by leaving it out.
-///
-/// Returns true iff `overrides[slot_index]` was actually mutated. Callers
-/// (e.g. IFS) use this to drive secondary side-effects like _IFS_VARS sync.
+/// save the resulting record. Caller MUST hold the backend's mutex protecting
+/// `overrides`. No-op (false) for an empty slot or when the policy leaves
+/// nothing to change. Pure black is a colour, not "no signal". `store` may be
+/// null, leaving only the in-memory record to move. Returns true iff the
+/// record changed.
 bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                                   std::unordered_map<int, FilamentSlotOverride>& overrides,
                                   int slot_index, uint32_t firmware_color,
                                   const std::string& firmware_material, bool slot_has_filament,
-                                  MirrorPolicy policy, const std::string& log_tag,
-                                  DeclaredOnLane declared);
+                                  MirrorPolicy policy, const std::string& log_tag);
 
-/// Discard a slot's stored override, in memory and on the printer.
-///
-/// The persisted half of a lane invalidation. Dropping a lane's declaring
-/// sources settles what the UI paints now; without this the same record is
-/// read back off the printer by ingest_legacy_records() at the next backend
-/// start and the identity returns. `overrides` also feeds AFC's spool-id
-/// re-assert, which would otherwise push an id for a spool that was swapped
-/// away.
-///
-/// No-op when the slot has no entry, which is also what keeps this from
-/// issuing a second DELETE for a record another path already cleared. Caller
-/// MUST hold the backend's mutex protecting `overrides`; `store` may be null
-/// (a test fixture with no Moonraker API), leaving the in-memory erase alone
-/// to happen. `log_tag` attributes the warn on a failed persist.
-///
-/// Returns true iff an entry was erased.
+/// Discard a slot's stored record, in memory and on the printer. No-op when
+/// the slot has no entry. Caller MUST hold the backend's mutex protecting
+/// `overrides`. Returns true iff an entry was erased.
 bool clear_persisted_override(FilamentSlotOverrideStore* store,
                               std::unordered_map<int, FilamentSlotOverride>& overrides,
                               int slot_index, const std::string& log_tag);
 
-/// Put a metered weight on a slot's stored override, in memory and on the
-/// printer.
-///
-/// The record half of a weight persist: stage_weight_override() moves the
-/// weights and nothing else, and the result is saved. Caller MUST hold the
-/// backend's mutex protecting `overrides`; `store` may be null (a test fixture
-/// with no Moonraker API), leaving the in-memory record alone to move.
-/// `log_tag` attributes the warn on a failed persist.
+/// Put a metered weight on a slot's stored record, in memory and on the
+/// printer. Caller MUST hold the backend's mutex protecting `overrides`.
 void persist_override_weight(FilamentSlotOverrideStore* store,
                              std::unordered_map<int, FilamentSlotOverride>& overrides,
                              int slot_index, float remaining_weight_g, float total_weight_g,
                              const std::string& log_tag);
 
-/// Amend a linked slot's stored record with what Spoolman now states.
-///
-/// Caller MUST hold the backend's mutex protecting `overrides`. Returns true
-/// when a field moved, which is also when the record is saved.
+/// Amend a linked slot's stored record with what Spoolman now states for the
+/// spool it links. Caller MUST hold the backend's mutex protecting
+/// `overrides`. Returns true when a field moved, which is also when the record
+/// is saved.
 bool persist_override_external_identity(FilamentSlotOverrideStore* store,
                                         std::unordered_map<int, FilamentSlotOverride>& overrides,
                                         int slot_index, const Observation& spoolman,
                                         const std::string& log_tag);
 
-/// Publish (or clear) the external / bypass spool as an extra lane one past
-/// the last physical slot, so slicers (OrcaSlicer's MoonrakerPrinterAgent)
-/// can select it as the "next tool over" (T4 beside T0-T3). The record rides
-/// the same lane_data format as every other lane; readers (Orca) key off the
-/// inner 0-based `lane` field, which is `lane_index`.
-///
-/// Who calls this: AmsBackend::publish_external_spool_lane overrides — the
-/// backend gates on its own supports_bypass + store, then hands off here.
-/// Backends whose firmware owns the lane_data namespace (AFC, Happy Hare)
-/// must pass a store constructed on the SHARED "lane_data" namespace, not
-/// their private override namespace.
-///
-/// `spool` null or identity-less (no Spoolman id, no material, default-gray
-/// color) CLEARS the lane instead of publishing an empty phantom. Pure black
-/// (0x000000) is a real pick and publishes.
-///
-/// Returns true if a record was published (false for the clear path).
-bool publish_external_lane(FilamentSlotOverrideStore* store, int lane_index, const SlotInfo* spool,
-                           const std::string& log_tag);
+// =============================================================================
+// The bypass spool's record
+// =============================================================================
+//
+// The bypass (external) spool is a lane record like any other, told apart by
+// its lane_name rather than by its index: the index is the lane one past the
+// backend's own (AmsSubscriptionBackend::bypass_lane_index_locked()), which
+// moves when the backend's lane count does.
 
-/// The marked lane_data record publish_external_lane() writes for @p spool.
+/// The lane_name of the bypass spool's record.
+inline constexpr const char* kBypassLaneName = "bypass";
+
+/// The record HelixScreen writes for the bypass spool @p spool.
 [[nodiscard]] FilamentSlotOverride external_lane_record(const SlotInfo& spool);
 
-/// Whether unmarked @p record is an external-spool mirror written before the
-/// `helix_external` mark existed: it names @p spool. The same Spoolman id when
-/// either side has one; otherwise the same material and colour, and the same
-/// brand when both carry one.
-[[nodiscard]] bool record_describes_spool(const FilamentSlotOverride& record,
-                                          const SlotInfo& spool);
+/// external_lane_record() run backwards: the bypass spool a record describes.
+[[nodiscard]] SlotInfo external_spool_from_record(const FilamentSlotOverride& record);
+
+/// The bypass spool's record in one namespace read, with the index it sits at.
+[[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
+find_bypass_record(const std::unordered_map<int, LaneDataRecord>& records);
+
+/// File @p record as the bypass lane's Record source, or drop that source when
+/// the read found none. Main thread.
+void file_bypass_record(const FilamentSlotOverride* record);
 
 // =============================================================================
 // Shared per-slot firmware-observation baseline tracker
@@ -594,73 +376,24 @@ enum class FingerprintEvent {
     Baseline,
     /// Identical to the baseline — the same physical spool re-observed.
     Unchanged,
-    /// Changed to exactly the value a prior expect() said to await, i.e. this
-    /// is the firmware echoing back a write HelixScreen itself made.
-    OwnWriteEcho,
-    /// Changed for some reason other than our own pending write — for the RFID
-    /// backends this means a physical spool swap.
+    /// Different from the baseline. Whether that is a physical spool swap or
+    /// the echo of a write of ours is the caller's call: a lane with an edit
+    /// of ours in flight (a Pending record) is hearing its own write.
     Changed,
 };
 
 /// Per-slot "what did firmware last report for this slot?" tracker, shared by
-/// the RFID-fingerprint backends (CFS, Snapmaker). It owns only the
+/// the RFID-fingerprint backends (CFS, QIDI, Snapmaker). It owns only the
 /// bookkeeping — deciding what a given event *means* (clear the override, sync
 /// lane_data, log) stays in each backend, so their policies can differ.
-///
-/// Beyond the plain baseline compare it carries an expectation set: a backend
-/// that writes a value back to firmware (CFS's BOX_MODIFY_TN_DATA identity
-/// push) registers the values it expects to see echoed, via expect_any_of().
-/// Because the write is asynchronous, firmware keeps reporting the OLD value
-/// for an unknown number of polls before the echo lands, so the expectation
-/// must SURVIVE those polls rather than overwrite the baseline immediately.
-/// Those intervening polls classify as Unchanged; the echo itself classifies
-/// as OwnWriteEcho.
-///
-/// Each expectation is single-shot per value: an exact match consumes only its
-/// own entry, and a change to a value no write asked for consumes them all, so
-/// a genuine physical swap that lands while a write is in flight is still
-/// reported as Changed and never permanently blinds swap detection for that
-/// slot.
-///
-/// A backend that writes TWO fields with one dispatch (CFS writes
-/// material_type then color_value in one script) can land a poll between the
-/// two echoes, observing an intermediate value neither write alone produces.
-/// `expect_any_of()` registers the full set of values the slot may transiently
-/// or finally report; each observed value consumes only its own entry, so the
-/// intermediate echo and the final echo both classify as OwnWriteEcho. A
-/// change to a value NOT in the set still consumes everything and reports
-/// Changed — the physical-swap guarantee above is unchanged.
 class SlotFingerprintTracker {
   public:
-    /// Feed one observation. When the result is OwnWriteEcho or Changed and
-    /// `previous` is non-null, it receives the superseded baseline value (for
-    /// logging). The baseline is advanced BEFORE returning a change event so a
-    /// caller whose follow-up action fails doesn't re-fire on every poll.
+    /// Feed one observation. When the result is Changed and `previous` is
+    /// non-null, it receives the superseded baseline value (for logging). The
+    /// baseline is advanced BEFORE returning a change event so a caller whose
+    /// follow-up action fails doesn't re-fire on every poll.
     FingerprintEvent observe(int slot_index, const std::string& observed,
                              std::string* previous = nullptr);
-
-    /// Register every value the slot may report between the first and last
-    /// echo of a multi-field write (the intermediate composites and the final
-    /// one). Values accumulate with any still pending from an earlier write on
-    /// the same slot: a second edit dispatched before the first echo lands
-    /// leaves both echoes expected, so neither is misread as a swap when it
-    /// arrives. Each value is consumed only by an exact match; any other
-    /// change clears them all. Empty strings are dropped;
-    /// forget_expected() is the explicit drop.
-    ///
-    /// Returns the values actually staged, for handing back to
-    /// forget_expected() when the write they were armed for fails to
-    /// dispatch. A value an earlier in-flight write also expects is staged
-    /// as a second claim on one entry, so that write's echo stays expected
-    /// after this one gives up.
-    std::vector<std::string> expect_any_of(int slot_index,
-                                           std::vector<std::string> expected_values);
-
-    /// Drop the claims one expect_any_of() call staged - that write failed
-    /// to dispatch, so its echo is never coming and the next change is
-    /// genuinely external. Values another in-flight write also expects
-    /// survive: each write holds its own claim.
-    void forget_expected(int slot_index, const std::vector<std::string>& staged_values);
 
     /// Current baseline for a slot, or nullopt when none observed yet.
     [[nodiscard]] std::optional<std::string> baseline(int slot_index) const;
@@ -676,9 +409,9 @@ class SlotFingerprintTracker {
     }
 
     /// Notified on every observation that establishes or confirms a baseline:
-    /// Baseline, Unchanged and OwnWriteEcho. Not NoSignal (nothing was
-    /// observed) and not Changed: the caller is about to erase the record the
-    /// fingerprint travels in, and a save racing that erase would resurrect it.
+    /// Baseline and Unchanged. Not NoSignal (nothing was observed) and not
+    /// Changed: the caller may be about to erase the record the fingerprint
+    /// travels in, and a save racing that erase would resurrect it.
     /// Unchanged firing is load-bearing: a record can come into existence
     /// after the Baseline event (the auto-mirror, a user edit), and the next
     /// confirming poll is what heals the fingerprint into it.
@@ -691,24 +424,15 @@ class SlotFingerprintTracker {
         baseline_sink_ = std::move(sink);
     }
 
-    /// Drop a slot's baseline, so its next observation is a first one. Pending
-    /// expectations are kept.
+    /// Drop a slot's baseline, so its next observation is a first one.
     void forget_baseline(int slot_index) {
         baseline_.erase(slot_index);
     }
-
-    /// Whether an unconsumed expectation is pending for a slot.
-    [[nodiscard]] bool has_expected(int slot_index) const;
 
     void clear();
 
   private:
     std::unordered_map<int, std::string> baseline_;
-    /// Pending expected values per slot, each paired with the number of
-    /// in-flight writes that expect it: the intermediate and final composites
-    /// expect_any_of() registered, claim-counted so one write's failed
-    /// dispatch drops only its own claim.
-    std::unordered_map<int, std::vector<std::pair<std::string, int>>> expected_;
     BaselineSink baseline_sink_;
 };
 

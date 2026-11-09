@@ -81,7 +81,7 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
           "row_screensaver_print_progress", "row_sleep_while_printing"}},
         {"settings_appearance_overlay",
          {"row_dark_mode", "row_theme_settings", "row_animations", "row_widget_labels",
-          "row_bed_mesh_mode"}},
+          "row_speed_flow_units", "row_bed_mesh_mode"}},
         {"settings_sound_overlay",
          {"row_sounds", "row_volume", "row_ui_sounds", "row_sound_theme", "row_audio_device",
           "row_preview_sounds", "row_test_tracker"}},
@@ -202,12 +202,15 @@ TEST_CASE_METHOD(PageRowsFixture,
     build("settings_appearance_overlay");
     CHECK(has("row_toolhead_style"));
     CHECK(has("row_gcode_mode"));
+    CHECK_FALSE(has("row_z_movement_style"));
+    build("motion_settings_overlay");
     CHECK(has("row_z_movement_style"));
     build("settings_printing_overlay");
     CHECK_FALSE(has("row_toolhead_style"));
     CHECK(has("row_allow_cold_extrude"));
     CHECK(has("row_filament_auto_cooldown"));
     CHECK(has("row_filament_auto_open_editor"));
+    CHECK(has("row_number_lanes_from_zero"));
     CHECK(has("row_ams_settings"));
     build("settings_safety_overlay");
     CHECK_FALSE(has("row_allow_cold_extrude"));

@@ -748,6 +748,28 @@ class TestPrintModifiedToolsMap:
         assert apis.run_gcode.await_count == 0
         assert (Path(temp_gcodes_dir) / ".helix_temp" / "mod_benchy.gcode").exists()
 
+    @pytest.mark.asyncio
+    async def test_status_says_whether_the_map_reaches_moonraker(
+        self, helix_print_component, mock_server
+    ):
+        await helix_print_component.component_init()
+        apis = mock_server.components["klippy_apis"]
+        status = mock_server.endpoints["/server/helix/status"]
+
+        self._tools_start_print(apis)
+        entry = (await status(MockWebRequest({})))["features"]["print_start_tools"]
+        assert entry["available"] is True
+        assert entry["enabled"] is True
+
+        async def start_print(filename, wait_klippy_started=False, user=None):
+            pass
+
+        apis.start_print = start_print
+        entry = (await status(MockWebRequest({})))["features"]["print_start_tools"]
+        assert entry["available"] is False
+        assert entry["enabled"] is False
+        assert entry["reason"] == "start_print_takes_no_tools"
+
 
 class TestSymlinkConflicts:
     """Tests for symlink conflict handling."""

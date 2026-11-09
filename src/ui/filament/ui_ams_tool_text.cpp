@@ -25,13 +25,13 @@ static void update_tool_badge(helix::ToolState* ts) {
     // entry per filament slot, and annotating the one hotend those slots
     // share with "0" says nothing. Only a printer with more than one nozzle
     // needs to name which is which.
-    const auto* tool = ts->names_mounted_nozzle() ? ts->active_tool() : nullptr;
+    const bool names_nozzle = ts->names_mounted_nozzle();
+    lv_subject_set_int(ts->get_names_mounted_nozzle_subject(), names_nozzle ? 1 : 0);
+    const auto* tool = names_nozzle ? ts->active_tool() : nullptr;
     if (tool) {
-        // 1-based number only ("1"), not the full tool name ("T0"). The badge
-        // is a bold subscript digit beside the nozzle glyph; digit-only is the
-        // display convention everywhere (the "T" spelling is the 0-based
-        // G-code form, see include/display_numbering.h).
-        const std::string label = helix::ui::lane_number_text(tool->index);
+        // The printer's own spelling of the tool: "1" or "T0" by its tool number
+        // style, or the name its owner gave it ("Left").
+        const std::string label = helix::ui::active_tool_badge_label(tool->name, tool->index);
         lv_subject_copy_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);
     } else {
@@ -47,7 +47,7 @@ static void update_toolchange_text(helix::AmsState* a) {
         // Backends store a 0-based index (-1 = none yet); display is 1-based.
         // Clamped to the total so a backend that over-reports cannot render a
         // nonsensical "162 / 161".
-        int raw_display = helix::ui::lane_number(current);
+        int raw_display = helix::ui::display_ordinal(current);
         int display_current = std::clamp(raw_display, 0, total);
         // The clamp is a display guard, not a correction: it turns an obviously
         // wrong "162 / 161" into a plausible "161 / 161" that then sits there for

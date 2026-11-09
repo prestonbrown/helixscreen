@@ -43,7 +43,7 @@ std::string zone_display_label(const helix::printer::EnvironmentZone& zone,
     if (zone.gates.size() == 1) {
         return lane_label(slot_noun, zone.gates.front());
     }
-    const int unit_number = lane_number(zone.unit_index);
+    const int unit_number = display_ordinal(zone.unit_index);
     if (unit_number < 0) {
         // The representative gate didn't resolve to a known unit (Happy Hare can
         // report this). Neither sentinel reads as a unit number a user would trust,

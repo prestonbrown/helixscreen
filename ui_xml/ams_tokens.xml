@@ -204,6 +204,15 @@
     <px name="ams_logo_size_xlarge" value="32"/>
     <px name="ams_logo_size_xxlarge" value="40"/>
 
+    <!-- The dryer page's unit picture, with the airflow drawn over it. Micro and Tiny
+         hide it (ams_environment_overlay.xml), so it needs no size there. -->
+    <px name="dryer_unit_art_size_small" value="96"/>
+    <px name="dryer_unit_art_size_medium" value="128"/>
+    <px name="dryer_unit_art_size_large" value="160"/>
+    <px name="dryer_unit_picture_size_small" value="40"/>
+    <px name="dryer_unit_picture_size_medium" value="56"/>
+    <px name="dryer_unit_picture_size_large" value="64"/>
+
     <!-- Mini status bars container height -->
     <px name="ams_bars_height_small" value="36"/>
     <px name="ams_bars_height_medium" value="48"/>
@@ -217,6 +226,19 @@
     <px name="ams_card_min_width_large" value="120"/>
     <px name="ams_card_min_width_xlarge" value="140"/>
     <px name="ams_card_min_width_xxlarge" value="180"/>
+
+    <!-- An art tile: the width it may shrink to before the row scrolls, and the tallest its
+         art may stand on a row with room to spare. -->
+    <px name="ams_tile_min_width_small" value="60"/>
+    <px name="ams_tile_min_width_medium" value="72"/>
+    <px name="ams_tile_min_width_large" value="96"/>
+    <px name="ams_tile_min_width_xlarge" value="120"/>
+    <px name="ams_tile_min_width_xxlarge" value="150"/>
+    <px name="ams_tile_art_max_h_small" value="64"/>
+    <px name="ams_tile_art_max_h_medium" value="104"/>
+    <px name="ams_tile_art_max_h_large" value="112"/>
+    <px name="ams_tile_art_max_h_xlarge" value="140"/>
+    <px name="ams_tile_art_max_h_xxlarge" value="190"/>
 
     <!-- Unit card title: ONE line of font_body, so long_mode="dots" ellipsizes
          rather than wrapping the card taller (which steals height from the path

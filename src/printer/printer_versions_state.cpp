@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_versions_state.cpp
- * @brief Software version state management extracted from PrinterState
+ * @brief Software version state management (a PrinterState sub-state)
  *
  * Manages Klipper and Moonraker version subjects for UI display in the
  * Settings panel About section.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_versions_state.h"

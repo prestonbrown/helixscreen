@@ -33,7 +33,7 @@ flowchart TB
     end
 
     subgraph MODALS["ModalStack - separate stack"]
-        MSHOW["Modal::show('component') static - no subclass<br/>or Modal subclass .show(parent)"]
+        MSHOW["ComponentModal::show_owned('component') - no subclass<br/>or Modal subclass .show(parent)"]
         MSTACK["backdrop + dialog per entry<br/>exit animation, ESC/backdrop close"]
     end
 
@@ -112,7 +112,7 @@ The dismiss-backdrop that dims behind the first overlay deserves its own paragra
 
 Two presentation details ride on the same stack. Transitions are uniformly a 200 ms slide with `nav_forward` / `nav_back` sounds, so the stack feels like one system rather than per-overlay improvisation; on the limited display tiers overlays open and close without the slide and fade, and an expensive build paints a "Loading..." pill first (`helix::nav::build_under_loading_pill()`). And `overlay_stack_names()` (`src/ui/ui_nav_manager.cpp#overlay_stack_names`) exposes the stack bottom-to-top as widget names; that is what the `helix-screen ctl` breadcrumb and the remote-control UI read to tell you where you are.
 
-Modals are not on this stack at all. `Modal::show("component_name")` creates a C++ backdrop plus dialog from an XML component and tracks the pair in `ModalStack` ([`include/ui_modal.h#ModalStack`](../../../include/ui_modal.h)) - its own z-ordered stack with entrance/exit animations, backdrop-click and ESC handling, and an `exiting` flag so a second `hide()` during the exit animation is ignored. An overlay can therefore sit under a modal under another modal without `NavigationManager` knowing anything changed.
+Modals are not on this stack at all. `ComponentModal::show_owned("component_name")` creates a C++ backdrop plus dialog from an XML component and tracks the pair in `ModalStack` ([`include/ui_modal.h#ModalStack`](../../../include/ui_modal.h)) - its own z-ordered stack with entrance/exit animations, backdrop-click and ESC handling, and an `exiting` flag so a second `hide()` during the exit animation is ignored. An overlay can therefore sit under a modal under another modal without `NavigationManager` knowing anything changed.
 
 ### The lifecycle contract, and why deactivation is the teardown
 
@@ -162,13 +162,13 @@ XML hot reload closes the loop on the same lifecycle hooks: on native dev builds
 
 ### Modals: three tiers of effort
 
-Tier 1, no subclass and no custom XML: `modal_confirm()` / `modal_alert()` ([`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h), [`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h)) configure severity, button text, and callbacks on the shared `modal_dialog` component. This is the right answer for most "are you sure?" moments - [`src/ui/controls/ui_panel_macros.cpp`](../../../src/ui/controls/ui_panel_macros.cpp) uses it for macro confirmation - and it is one call: title, message, severity, confirm text, callback, options struct (cancel callback, dismissal report, owner token). Tier 2, custom XML, no subclass: `Modal::show("print_cancel_confirm_modal")` returns a dialog pointer; wire buttons by name and `Modal::hide(dialog)` later; hold the pointer in a `helix::ui::WidgetRef` ([`include/ui_widget_ref.h`](../../../include/ui_widget_ref.h)), which reads `nullptr` once the dialog is deleted, whoever deleted it. Tier 3, subclass: extend `Modal`, implement the two pure virtuals `get_name()` (logging) and `component_name()` (the XML component), override `on_show()`/`on_ok()`/`on_cancel()` and the extra button hooks as needed - the hook ladder runs `on_tertiary()` through `on_senary()` because runout guidance grew to five buttons.
+Tier 1, no subclass and no custom XML: `modal_confirm()` / `modal_alert()` ([`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h), [`include/ui_modal.h#helix::ui`](../../../include/ui_modal.h)) configure severity, button text, and callbacks on the shared `modal_dialog` component. This is the right answer for most "are you sure?" moments - [`src/ui/controls/ui_panel_macros.cpp`](../../../src/ui/controls/ui_panel_macros.cpp) uses it for macro confirmation - and it is one call: title, message, severity, confirm text, callback, options struct (cancel callback, dismissal report, owner token). Tier 2, custom XML, no subclass: `helix::ui::ComponentModal::show_owned("fan_rename_modal")` returns a dialog pointer, its instance owned by `ModalStack`; its buttons are XML callbacks and `Modal::hide(dialog)` later; hold the pointer in a `helix::ui::WidgetRef` ([`include/ui_widget_ref.h`](../../../include/ui_widget_ref.h)), which reads `nullptr` once the dialog is deleted, whoever deleted it. Tier 3, subclass: extend `Modal`, implement the two pure virtuals `get_name()` (logging) and `component_name()` (the XML component), override `on_show()`/`on_ok()`/`on_cancel()` and the extra button hooks as needed - the hook ladder runs `on_tertiary()` through `on_senary()` because runout guidance grew to five buttons.
 
 The ladder measures effort, not safety. Tier 1 is backed by an internal `ConfirmationModal`
 instance, so its teardown, disarm and `on_hide()` all run: pass `on_dismiss` (and
 `owner_token` when the capture can outlive its owner) and a close by backdrop tap, ESC or
-hot-reload rebuild reports back. Tier 2's bare `Modal::show()` still pushes with **no
-owner**, so nothing observes that close at all - a tier-2 dialog whose caller holds a
+hot-reload rebuild reports back. Tier 2's `ComponentModal` has an owner, so its
+teardown runs, but it reports a close to no one - a tier-2 dialog whose caller holds a
 re-entry guard or a pending flag needs tier 3. [`MODAL_SYSTEM.md`](../MODAL_SYSTEM.md) has the full rule.
 
 [`include/ui_info_qr_modal.h`](../../../include/ui_info_qr_modal.h) + [`src/ui/components/ui_info_qr_modal.cpp`](../../../src/ui/components/ui_info_qr_modal.cpp) are the whole subclass pattern in 42 + 62 lines: constructor takes a `Config`, `show_modal(parent)` forwards the fields as XML attributes, `on_show()` wires the OK button and builds the QR, and `show_owned()` hands the instance to `ModalStack::assume_ownership()`, which frees it after the dialog closes: the owned-subclass idiom for modals created on demand. Base-class helpers do the rest of the wiring: `wire_ok_button()` / `wire_cancel_button()` find buttons by name and route their clicks to the virtual hooks, and `find_widget()` reaches into the dialog by widget name. [`docs/devel/MODAL_SYSTEM.md`](../MODAL_SYSTEM.md) owns all of this in depth, including `ui_dialog`, `modal_button_row`, and why `ModalStack` records an owner.

@@ -40,6 +40,7 @@
 #include "print_start_analyzer.h"
 #include "print_start_checks.h"
 #include "print_start_collector.h"
+#include "print_start_phase_label.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -2405,6 +2406,10 @@ TEST_CASE_METHOD(
 
     PrintPreparationManager manager;
     manager.set_dependencies(nullptr, &printer_state);
+    const auto ai_line = [&]() {
+        return line_containing(
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager), "LOAD_AI_RUN");
+    };
 
     SECTION("Provider says ENABLED -> SWITCH=1 emitted") {
         manager.set_option_state_provider([](const std::string& id) {
@@ -2413,8 +2418,7 @@ TEST_CASE_METHOD(
                 return 1;
             return -1;
         });
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=1");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=1");
     }
 
     SECTION("Provider says DISABLED -> SWITCH=0 emitted") {
@@ -2423,23 +2427,20 @@ TEST_CASE_METHOD(
                 return 0;
             return -1;
         });
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=0");
     }
 
     SECTION("No provider -> uses default_enabled (false) -> SWITCH=0") {
         // ai_detect default_enabled is false; with no UI binding it should still
         // emit SWITCH=0 because PreStartGcode emits regardless of state.
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=0");
     }
 
     SECTION("skipped entirely when the LOAD_AI_RUN macro is absent, even when enabled") {
         MacroParamCache::instance().clear();
         manager.set_option_state_provider(
             [](const std::string& id) { return id == "ai_detect" ? 1 : -1; });
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN").empty());
+        REQUIRE(ai_line().empty());
     }
 }
 
@@ -4520,4 +4521,129 @@ TEST_CASE_METHOD(
         CHECK(modified[0].extra_params == tools);
     }
     manager.set_dependencies(nullptr, nullptr);
+}
+
+// ============================================================================
+// Heat soak: the printer's soak macro, run ahead of the start when switched on
+// ============================================================================
+
+namespace {
+
+PrinterDiscovery hardware_with_objects(const std::vector<std::string>& names) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json(names));
+    return hw;
+}
+
+const std::vector<std::string> kSoakPrinter = {"gcode_macro PRINT_START", "gcode_macro HEAT_SOAK"};
+
+helix::PrintStartAnalysis start_macro_with(helix::OperationCategory category) {
+    helix::PrintStartAnalysis analysis;
+    analysis.found = true;
+    analysis.macro_name = "PRINT_START";
+    helix::PrintStartOperation op;
+    op.name = "STEP";
+    op.category = category;
+    analysis.operations = {op};
+    return analysis;
+}
+
+int card_shown(PrinterState& ps) {
+    helix::ui::UpdateQueue::instance().drain();
+    return lv_subject_get_int(
+        ps.composite_visibility_state().get_has_any_preprint_options_subject());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: offered only on a printer with a soak macro",
+                 "[print_preparation][preprint][heat_soak]") {
+    SECTION("no soak macro, no row") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro PRINT_START"}));
+        CHECK(fx.manager.get_option_state("heat_soak") == PrePrintOptionState::NOT_APPLICABLE);
+    }
+
+    SECTION("a detected soak macro gives a row that runs that macro") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro SOAK"}));
+        const PrePrintOptionSet displayed = fx.manager.displayed_options();
+        const PrePrintOption* soak = displayed.find("heat_soak");
+        REQUIRE(soak != nullptr);
+        CHECK(render_pre_start_gcode(*soak, true) == "SOAK");
+        CHECK(PrePrintOptionsRenderer::label_for(*soak) == "Heat soak");
+        CHECK(helix::print_start_phase_of_option("heat_soak") == helix::PrintStartPhase::SOAKING);
+    }
+
+    SECTION("a database option for the capability wins") {
+        PrePrintOptionSet db;
+        db.options.push_back(make_macro_param_opt("chamber_soak"));
+        db.options.back().capability = "heat_soak";
+        GateFixture fx(std::move(db));
+        fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+        CHECK(fx.ps.profile_state().pre_print_option_set().find("heat_soak") == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: what reaches the start for on and off",
+                 "[print_preparation][preprint][heat_soak]") {
+    GateFixture fx(PrePrintOptionSet{});
+    fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+    int state = -1;
+    fx.manager.set_option_state_provider(
+        [&](const std::string& id) { return id == "heat_soak" ? state : -1; });
+    const auto sends_soak = [&](const std::string& file_start = {}) {
+        const gcode::ScanResult scan = gcode::GCodeOpsDetector().scan_content(file_start);
+        const auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(
+            fx.manager, "part.gcode", &scan);
+        return std::find(lines.begin(), lines.end(), "HEAT_SOAK") != lines.end();
+    };
+
+    // Left at its default the macro is not run; switched on it is.
+    CHECK_FALSE(sends_soak());
+    state = 1;
+    CHECK(sends_soak());
+    // A file that soaks itself is not soaked twice.
+    CHECK_FALSE(sends_soak("HEAT_SOAK\nPRINT_START\n"));
+
+    SECTION("a queued job's saved choice reaches its start") {
+        state = -1;
+        fx.manager.set_start_option_override(
+            [](const std::string& id) { return id == "heat_soak" ? 1 : -1; });
+        CHECK(sends_soak());
+    }
+
+    SECTION("a PRINT_START that soaks on its own hides the row") {
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::CHAMBER_SOAK));
+        CHECK(fx.manager.get_option_state("heat_soak") == PrePrintOptionState::NOT_APPLICABLE);
+        CHECK(fx.manager.displayed_options().find("heat_soak") == nullptr);
+        CHECK_FALSE(sends_soak());
+    }
+
+    SECTION("a PRINT_START with other steps keeps the row") {
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::BED_MESH));
+        CHECK(fx.manager.displayed_options().find("heat_soak") != nullptr);
+        CHECK(sends_soak());
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Print options card: hidden when none of the declared rows would render",
+                 "[print_preparation][preprint][heat_soak][composite_visibility]") {
+    SECTION("the soak row hidden by a PRINT_START that soaks leaves no row") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+        REQUIRE(card_shown(fx.ps) == 1);
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::CHAMBER_SOAK));
+        CHECK(card_shown(fx.ps) == 0);
+    }
+
+    SECTION("a row whose required macro is missing is not a row") {
+        PrePrintOptionSet db;
+        db.options.push_back(make_pre_start_gcode_opt("ai_detect"));
+        db.options.back().requires_macro = "HELIX_TEST_NEVER_REGISTERED";
+        GateFixture fx(std::move(db));
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro PRINT_START"}));
+        CHECK(card_shown(fx.ps) == 0);
+    }
 }

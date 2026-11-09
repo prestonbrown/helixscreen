@@ -28,6 +28,8 @@
     <prop name="action_button_pad" type="string" default="#space_sm"/>
     <prop name="hide_action_button" type="string" default="true"/>
     <prop name="action_button_disabled_subject" type="string" default=""/>
+    <!-- header_bar's expression form, resolved when the view is created. -->
+    <prop name="action_button_disabled_cond" type="string" default="0"/>
     <prop name="action_button_hidden_subject" type="string" default=""/>
     <!-- Second action button (left of primary). min_width forwards header_bar's
          per-tier floor (header_slot2_min_width: 72 at 480x272, 90 elsewhere);
@@ -99,6 +101,7 @@
                 hide_action_button="$hide_action_button" action_button_callback="$action_button_callback"
                 action_button_height="$action_button_height" action_button_pad="$action_button_pad"
                 action_button_disabled_subject="$action_button_disabled_subject"
+                action_button_disabled_cond="$action_button_disabled_cond"
                 action_button_hidden_subject="$action_button_hidden_subject"
                 action_button_2_text="$action_button_2_text" action_button_2_text_tag="$action_button_2_text_tag"
                 action_button_2_bg_color="$action_button_2_bg_color" action_button_2_icon="$action_button_2_icon"

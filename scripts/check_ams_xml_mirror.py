@@ -38,6 +38,8 @@ import re
 import sys
 from pathlib import Path
 
+from source_strip import blank_cxx
+
 DEFAULT_FILE = "src/printer/ams_state_subjects.cpp"
 FIRST_INIT = "AmsState::init_subjects"
 MIRROR = "AmsState::register_xml_subject_names"
@@ -49,34 +51,6 @@ CALL_RE = re.compile(
 )
 SNPRINTF_RE = re.compile(r'snprintf\s*\(\s*name_buf\s*,[^,]*,\s*"([^"]+)"')
 FOR_RE = re.compile(r"\bfor\s*\(\s*int\s+i\s*=\s*0\s*;\s*i\s*<\s*(\w+)\s*;")
-
-
-def blank_comments(src: str) -> str:
-    """Replace comments with spaces, keeping string literals and offsets."""
-    out = []
-    i, n = 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == '"' or c == "'":
-            j = i + 1
-            while j < n and src[j] != c:
-                j += 2 if src[j] == "\\" else 1
-            out.append(src[i : j + 1])
-            i = j + 1
-        elif src.startswith("//", i):
-            j = src.find("\n", i)
-            j = n if j < 0 else j
-            out.append(" " * (j - i))
-            i = j
-        elif src.startswith("/*", i):
-            j = src.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append(re.sub(r"[^\n]", " ", src[i:j]))
-            i = j
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
 
 
 def match_close(src: str, open_pos: int, open_ch: str = "{", close_ch: str = "}") -> int:
@@ -190,7 +164,7 @@ def main() -> int:
     if not path.is_file():
         print(f"❌ {path}: no such file", file=sys.stderr)
         return 2
-    src = blank_comments(path.read_text())
+    src = blank_cxx(path.read_text(), strings="keep")
 
     failures: list[str] = []
     found: dict[str, set[tuple[str, str]]] = {}

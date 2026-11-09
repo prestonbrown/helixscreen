@@ -22,6 +22,9 @@
  * they keep their speed however often or unevenly the frame timer fires, and a level change
  * that changes the timer's period changes nothing on screen but the frame rate. The lowest
  * rung also flies fewer sprites.
+ *
+ * During a print the toast browns from light to dark as the print goes; a failed or cancelled
+ * print burns it black, and a finished one has a toaster pop a toast every few seconds.
  */
 class FlyingToasterScreensaver : public helix::ui::SaverBase {
   public:
@@ -31,6 +34,23 @@ class FlyingToasterScreensaver : public helix::ui::SaverBase {
 
     ScreensaverType type() const override {
         return ScreensaverType::FLYING_TOASTERS;
+    }
+
+    /// Browns the toast takes on, light to dark, as a print goes.
+    static constexpr int kToastShadeCount = 6;
+    /// The shade of a failed or cancelled print's toast.
+    static constexpr int kToastBurnt = kToastShadeCount;
+
+    /// Shade the toast shows: -1 in its own colours (no print), 0 to kToastShadeCount - 1
+    /// light to dark, or kToastBurnt.
+    int toast_shade() const {
+        return m_toast_shade;
+    }
+    /// The toast art for `shade` (as toast_shade()), or nullptr while stopped.
+    const lv_draw_buf_t* toast_art(int shade) const;
+    /// The toast a toaster pops on a finished print, or nullptr while stopped.
+    lv_obj_t* popped_toast() const {
+        return m_pop.get();
     }
 
   protected:
@@ -89,12 +109,32 @@ class FlyingToasterScreensaver : public helix::ui::SaverBase {
     /** @brief Free pre-decoded sprite buffers */
     void free_sprites();
 
+    /** @brief Tint the decoded toast into each shade's buffer */
+    void build_toast_shades();
+
+    /** @brief The buffer toast shows at `shade` (as toast_shade()) */
+    lv_draw_buf_t* toast_buffer(int shade) const;
+
+    /** @brief Points every toast at the shade the print reading calls for, when it changed */
+    void apply_toast_shade();
+
+    /** @brief Advances a finished print's pop: a toast rises out of a visible toaster and drops */
+    void step_pop(uint32_t dt_ms, int screen_w, int screen_h, int obj_size);
+
     std::vector<FlyingObject> m_objects;
     uint32_t m_elapsed_ms = 0; // time the saver has run
 
     // Pre-decoded sprite buffers (avoid per-frame PNG file I/O + decompression)
     lv_draw_buf_t* m_decoded_frames[4] = {}; // toaster_0..3
     lv_draw_buf_t* m_decoded_toast = nullptr;
+    lv_draw_buf_t* m_toast_shades[kToastShadeCount + 1] = {}; // light to dark, then burnt
+    int m_toast_shade = -1;
+
+    // A finished print's pop: one image, behind the flock, reused for every pop
+    helix::ui::WidgetRef m_pop;
+    int m_pop_from = -1;         // index of the toaster popping, -1 between pops
+    uint32_t m_pop_ms = 0;       // time into the current pop
+    uint32_t m_since_pop_ms = 0; // time since the last pop began
 };
 
 #endif // HELIX_ENABLE_SCREENSAVER

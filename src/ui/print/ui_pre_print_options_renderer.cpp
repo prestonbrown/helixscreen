@@ -129,6 +129,9 @@ std::string PrePrintOptionsRenderer::default_icon_for(const std::string& id) {
     if (id == "qgl" || id == "z_tilt") {
         return "spirit_level";
     }
+    if (id == helix::kHeatSoakOptionId) {
+        return "hourglass";
+    }
     return "tune";
 }
 

@@ -153,7 +153,12 @@ UnitDryer parse_dryer(const json& device) {
         number_member(*capabilities, "dryer_target_max_c").value_or(info.max_temp_c));
     info.max_duration_min = kMaxDryerSeconds / 60;
     if (const json* state = object_member(device, "dryer")) {
-        info.active = dryer_state_is_running(string_member(*state, "state"));
+        const std::string state_name = string_member(*state, "state");
+        info.active = dryer_state_is_running(state_name);
+        const std::string token = ams_normalize_state_token(state_name);
+        info.phase = token == "heating"   ? DryingPhase::Heating
+                     : token == "holding" ? DryingPhase::Holding
+                                          : DryingPhase::Unknown;
         info.target_temp_c =
             info.active ? static_cast<float>(number_member(*state, "target_c").value_or(0.0))
                         : 0.0f;

@@ -277,9 +277,9 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
     // SAVE_CONFIG's rpc is ALWAYS dropped by the restart it triggers, so the
     // mock fails it by design. That must not reach the user: reporting it cost
     // every successful save a red "Failed to save configuration"
-    // (prestonbrown/helixscreen#1359). This assertion is the regression -- it
-    // was previously a find_if that hunted for the initiation toast AMONG the
-    // failure toast, which tolerated exactly the bug.
+    // (prestonbrown/helixscreen#1359). Assert the absence of the failure
+    // directly: a find_if hunting for the initiation toast AMONG the failure
+    // toasts would tolerate exactly the bug.
     CHECK(no_failure_reported());
 
     // The initiation toast must be INFO - not the WARNING this flow used before

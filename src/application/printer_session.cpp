@@ -189,7 +189,6 @@ bool PrinterSession::init_panel_subjects() {
             });
     }
 
-    // Register notification callbacks
     helix::ui::notification_register_callbacks();
     ui_panel_screws_tilt_register_callbacks();
     ui_panel_input_shaper_register_callbacks();
@@ -254,10 +253,6 @@ bool PrinterSession::init_moonraker() {
         return false;
     }
 
-    // API is now injected at panel construction in init_panel_subjects()
-    // No need for deferred inject_api() call
-
-    // Register MoonrakerManager globally
     set_moonraker_manager(m_moonraker.get());
 
     // Discovery callbacks on the client update the API's hardware_ and run
@@ -277,7 +272,6 @@ bool PrinterSession::init_moonraker() {
     m_bed_occupancy_state->init_subjects();
     set_bed_occupancy_state(m_bed_occupancy_state.get());
 
-    // Create job queue state manager
     m_job_queue_state = std::make_unique<JobQueueState>(m_moonraker->api(), get_moonraker_client());
     m_job_queue_state->init_subjects();
     set_job_queue_state(m_job_queue_state.get());
@@ -296,7 +290,6 @@ bool PrinterSession::init_moonraker() {
         m_screen = active_screen;
     }
 
-    // Initialize memory stats overlay
     MemoryStatsOverlay::instance().init(m_screen, m_host.args.show_memory);
 
     spdlog::debug("[Application] Moonraker initialized");
@@ -676,6 +669,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     // Backends speak last while the client can still send: an operation left running
     // (a calibration holding the heaters) is ended on the printer, not abandoned there.
     AmsState::instance().before_disconnect();
+    if (m_subjects) {
+        m_subjects->before_disconnect();
+    }
 
     // Disconnect the WebSocket client FIRST to stop background threads (mock simulation,
     // WebSocket I/O). Otherwise a notification delivered mid-teardown can trigger new API

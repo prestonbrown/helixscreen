@@ -184,11 +184,14 @@ TEST_CASE("MoonrakerAPIMock - get_spoolman_status", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - get_spoolman_spools", "[filament][mock]") {
+/// The mock printer and the API the Spoolman calls go through.
+struct SpoolmanApiFixture {
     PrinterState state;
     MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+    MoonrakerAPIMock api{client, state};
+};
 
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - get_spoolman_spools", "[filament][mock]") {
     SECTION("Returns non-empty spool list") {
         bool callback_called = false;
         api.spoolman().get_spoolman_spools(
@@ -246,11 +249,7 @@ TEST_CASE("MoonrakerAPIMock - get_spoolman_spools", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - set_active_spool", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - set_active_spool", "[filament][mock]") {
     SECTION("Changes active spool") {
         bool success_called = false;
         api.spoolman().set_active_spool(
@@ -279,11 +278,8 @@ TEST_CASE("MoonrakerAPIMock - set_active_spool", "[filament][mock]") {
 // MoonrakerAPIMock - Spoolman CRUD Tests
 // ============================================================================
 
-TEST_CASE("MoonrakerAPIMock - get_spoolman_vendors", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - get_spoolman_vendors",
+                 "[filament][mock]") {
     SECTION("Returns vendor list derived from spools") {
         bool callback_called = false;
         api.spoolman().get_spoolman_vendors(
@@ -315,11 +311,8 @@ TEST_CASE("MoonrakerAPIMock - get_spoolman_vendors", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - get_spoolman_filaments", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - get_spoolman_filaments",
+                 "[filament][mock]") {
     SECTION("Returns filament list") {
         bool callback_called = false;
         api.spoolman().get_spoolman_filaments(
@@ -337,11 +330,8 @@ TEST_CASE("MoonrakerAPIMock - get_spoolman_filaments", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - create_spoolman_vendor", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - create_spoolman_vendor",
+                 "[filament][mock]") {
     SECTION("Creates vendor and returns it") {
         nlohmann::json data;
         data["name"] = "Test Vendor";
@@ -360,11 +350,8 @@ TEST_CASE("MoonrakerAPIMock - create_spoolman_vendor", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - create_spoolman_filament", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - create_spoolman_filament",
+                 "[filament][mock]") {
     SECTION("Creates filament and returns it") {
         nlohmann::json data;
         data["material"] = "PETG";
@@ -391,11 +378,8 @@ TEST_CASE("MoonrakerAPIMock - create_spoolman_filament", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - create_spoolman_spool", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - create_spoolman_spool",
+                 "[filament][mock]") {
     SECTION("Creates spool and adds to list") {
         size_t initial_count = 0;
         api.spoolman().get_spoolman_spools(
@@ -429,11 +413,8 @@ TEST_CASE("MoonrakerAPIMock - create_spoolman_spool", "[filament][mock]") {
     }
 }
 
-TEST_CASE("MoonrakerAPIMock - delete_spoolman_spool", "[filament][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "MoonrakerAPIMock - delete_spoolman_spool",
+                 "[filament][mock]") {
     SECTION("Deletes spool from list") {
         size_t initial_count = 0;
         api.spoolman().get_spoolman_spools(
@@ -785,11 +766,9 @@ TEST_CASE("parse_spool_info reads Spoolman's single nozzle and bed temperature",
     }
 }
 
-TEST_CASE("get_spoolman_filaments reads Spoolman's single temperature onto the range",
-          "[filament][parsing][spoolman]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
+TEST_CASE_METHOD(SpoolmanApiFixture,
+                 "get_spoolman_filaments reads Spoolman's single temperature onto the range",
+                 "[filament][parsing][spoolman]") {
     client.spoolman_mock().get_mock_spools().clear();
     client.spoolman_mock().add_vendor(1, "Polymaker");
     client.spoolman_mock().add_filament(100, 1, "PETG", "FF0000");
@@ -812,12 +791,9 @@ TEST_CASE("get_spoolman_filaments reads Spoolman's single temperature onto the r
     CHECK(got[0].bed_temp_max == 80);
 }
 
-TEST_CASE("mock Spoolman rejects a non-integer filament temperature like Spoolman",
-          "[filament][spoolman][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture,
+                 "mock Spoolman rejects a non-integer filament temperature like Spoolman",
+                 "[filament][spoolman][mock]") {
     int code = 0;
     api.spoolman().create_spoolman_filament(
         {{"vendor_id", 1},
@@ -1044,11 +1020,8 @@ TEST_CASE("SpoolInfo - location field parsed from JSON", "[filament][parsing]") 
     REQUIRE(created_location == "Shelf B");
 }
 
-TEST_CASE("SpoolInfo - location defaults to empty when null in JSON", "[filament][parsing]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "SpoolInfo - location defaults to empty when null in JSON",
+                 "[filament][parsing]") {
     // Create a spool without location — safe_string returns "" for missing keys
     nlohmann::json body;
     body["filament_id"] = 1;
@@ -1065,11 +1038,7 @@ TEST_CASE("SpoolInfo - location defaults to empty when null in JSON", "[filament
 // MoonrakerAPIMock - Filament Persistence & Patching Tests
 // ============================================================================
 
-TEST_CASE("Mock persists created filaments", "[spoolman][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "Mock persists created filaments", "[spoolman][mock]") {
     // Create a filament
     nlohmann::json filament_data;
     filament_data["material"] = "PETG";
@@ -1101,11 +1070,8 @@ TEST_CASE("Mock persists created filaments", "[spoolman][mock]") {
     REQUIRE(found);
 }
 
-TEST_CASE("Mock update_spoolman_spool supports filament_id patch", "[spoolman][mock]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "Mock update_spoolman_spool supports filament_id patch",
+                 "[spoolman][mock]") {
     auto& spools = client.spoolman_mock().get_mock_spools();
     int spool_id = spools[0].id;
     int original_filament_id = spools[0].filament_id;
@@ -1322,11 +1288,8 @@ TEST_CASE("parse_spool_info fallback: filament.weight for initial_weight", "[fil
     }
 }
 
-TEST_CASE("SpoolInfo vendor_id populated from mock spool", "[filament][spoolman]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture, "SpoolInfo vendor_id populated from mock spool",
+                 "[filament][spoolman]") {
     // Use unique ID to avoid collision with other tests' mock data
     auto& spools = client.spoolman_mock().get_mock_spools();
     SpoolInfo test_spool;
@@ -1596,12 +1559,9 @@ TEST_CASE("parse_external_filament reads Spoolman's ExternalFilament shape",
     }
 }
 
-TEST_CASE("search_spoolman_external_filaments searches the catalog through the proxy",
-          "[spoolman][spoolman_db]") {
-    PrinterState state;
-    MoonrakerClientMock client;
-    MoonrakerAPIMock api(client, state);
-
+TEST_CASE_METHOD(SpoolmanApiFixture,
+                 "search_spoolman_external_filaments searches the catalog through the proxy",
+                 "[spoolman][spoolman_db]") {
     auto search = [&](const std::string& query, int limit) {
         std::vector<ExternalFilament> got;
         bool ok = false;

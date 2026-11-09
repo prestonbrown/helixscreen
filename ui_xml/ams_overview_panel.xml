@@ -117,9 +117,9 @@
              which is why the canvas positions its own entry stems rather than
              tracking these cards. -->
         <lv_obj name="unit_cards_row"
-                width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_gap="#space_md"
-                flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start" scrollable="true"
-                scrollbar_mode="active">
+                width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_right="#space_lg"
+                style_pad_gap="#space_md" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start"
+                scrollable="true" scrollbar_mode="active">
           <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
           <!-- Unit cards created dynamically by AmsOverviewPanel::create_unit_cards() -->
         </lv_obj>
@@ -161,7 +161,8 @@
                   style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
             <bind_style_if_eq name="detail_path_landscape" subject="ui_is_portrait" ref_value="0"/>
             <bind_style_if_eq name="detail_path_portrait" subject="ui_is_portrait" ref_value="1"/>
-            <filament_path_canvas name="detail_path_canvas" width="100%" flex_grow="1"/>
+            <filament_path_canvas name="detail_path_canvas"
+                                  width="100%" flex_grow="1" bind_motion="filament_manual_motion"/>
             <lv_obj name="page_prev_button"
                     width="#ams_page_arrow_hit" height="#ams_page_arrow_hit" floating="true" clickable="true"
                     scrollable="false" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_radius="9999">

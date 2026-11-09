@@ -189,7 +189,8 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     pre_print_option_set_.options.erase(
         std::remove_if(pre_print_option_set_.options.begin(), pre_print_option_set_.options.end(),
                        [](const PrePrintOption& opt) {
-                           return opt.id == "timelapse" || skip_wrappers::is_wrapper_option(opt);
+                           return opt.id == "timelapse" || opt.id == kHeatSoakOptionId ||
+                                  skip_wrappers::is_wrapper_option(opt);
                        }),
         pre_print_option_set_.options.end());
 
@@ -263,6 +264,26 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
         cmd.command_disabled = "timelapse:off";
         tl.strategy = cmd;
         pre_print_option_set_.options.push_back(std::move(tl));
+    }
+
+    // Heat soak: the printer's soak macro, run ahead of the start macro with
+    // its own defaults. Off by default, since a soak adds minutes to a print
+    // the user did not ask to wait for. No off form: switched off, nothing is
+    // sent. A database option for the capability is the printer's own way to
+    // soak and wins.
+    if (!heat_soak_macro_.empty() &&
+        !pre_print_option_set_.declares_capability(kHeatSoakOptionId)) {
+        PrePrintOption soak;
+        soak.id = kHeatSoakOptionId;
+        soak.category = PrePrintCategory::Mechanical;
+        soak.order = -1; // the soak runs before any leveling step
+        soak.default_enabled = false;
+        soak.strategy_kind = PrePrintStrategyKind::PreStartGcode;
+        PrePrintStrategyPreStartGcode line;
+        line.gcode_template = heat_soak_macro_;
+        line.emit_when_disabled = false;
+        soak.strategy = std::move(line);
+        pre_print_option_set_.options.push_back(std::move(soak));
     }
 
     // Skip toggles for the leveling steps helix_skips.cfg wraps. A database

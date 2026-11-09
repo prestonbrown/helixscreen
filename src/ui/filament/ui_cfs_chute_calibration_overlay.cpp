@@ -164,9 +164,8 @@ lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
 
 void CfsChuteCalibrationOverlay::on_activate() {
     OverlayBase::on_activate();
-    if (suspended_) {
+    if (take_wake()) {
         // A wake, not a fresh open: the session carries on where it was.
-        suspended_ = false;
         return;
     }
     set_state(State::IDLE);
@@ -182,10 +181,8 @@ void CfsChuteCalibrationOverlay::on_deactivating(DeactivateReason reason) {
     // Nobody walked away from a blanked screen: the head stays where it is, and
     // a home under way carries on.
     if (reason == DeactivateReason::Suspended) {
-        suspended_ = true;
         return;
     }
-    suspended_ = false;
     // Leaving mid-flow must stop the step chain: the flag first, so a cancel
     // during the home is already visible when the home-done defer runs.
     cancel_requested_->store(true);
@@ -228,7 +225,9 @@ void CfsChuteCalibrationOverlay::start_calibration() {
     auto err = backend->start_chute_calibration(
         [this]() {
             // Armed only here: the prepare ack is what puts the head at park.
-            jog_guard_.arm(lv_tick_get());
+            auto* ready_backend = chute_backend();
+            jog_guard_.arm(lv_tick_get(),
+                           ready_backend ? ready_backend->chute_wiper() : std::nullopt);
             set_state(State::ADJUSTING);
         },
         [this](const std::string& klipper_msg) {

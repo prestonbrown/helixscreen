@@ -10,6 +10,7 @@
 #pragma once
 
 #include "core/observer_factory.h"
+#include "display_numbering.h"
 #include "system_settings_manager.h"
 
 #include <memory>
@@ -17,13 +18,40 @@
 namespace helix::ui {
 
 /**
- * @brief Re-render C++-formatted text after every language switch
+ * @brief Run @p on_change(panel) each time an int @p subject takes a new value.
+ *
+ * Not on registration, and not on a re-publish of the value already shown.
+ *
+ * @tparam Panel Owner class type
+ * @tparam OnChange Callable: void(Panel*)
+ */
+template <typename Panel, typename OnChange>
+ObserverGuard observe_int_change(lv_subject_t* subject, SubjectLifetime lifetime, Panel* panel,
+                                 OnChange&& on_change) {
+    // Held by pointer so the non-mutable handler can update it.
+    auto shown = std::make_shared<int>(lv_subject_get_int(subject));
+    return observe<int>(
+        subject, panel,
+        [shown, on_change = std::forward<OnChange>(on_change)](Panel* p, int value) {
+            if (value == *shown) {
+                return;
+            }
+            *shown = value;
+            on_change(p);
+        },
+        std::move(lifetime));
+}
+
+/**
+ * @brief Re-render C++-formatted text after a language switch or a renumbering
  *
  * XML re-translates what it bound through translation_tag. Text C++ produced
  * with lv_tr() was translated once, when it was set, and stays in the old
  * language until the owner formats it again: this is the trigger for that.
- * The handler runs deferred, so the new translation pack is already active,
- * and only on a real switch (not on registration).
+ * Lane numbers are formatted the same way, so the "number slots from 0" option
+ * re-renders through here too: SettingsManager notifies the language subject
+ * when it changes. The handler runs deferred, so the new translation pack is
+ * already active, and only on a real change (not on registration).
  *
  * @tparam Panel Owner class type
  * @tparam OnChange Callable: void(Panel*)
@@ -32,15 +60,21 @@ template <typename Panel, typename OnChange>
 ObserverGuard observe_language_change(Panel* panel, OnChange&& on_change) {
     auto& settings = SystemSettingsManager::instance();
     lv_subject_t* language = settings.subject_language();
+    struct Shown {
+        int language;
+        bool from_zero;
+    };
     // Held by pointer so the non-mutable handler can update it.
-    auto shown = std::make_shared<int>(lv_subject_get_int(language));
+    auto shown =
+        std::make_shared<Shown>(Shown{lv_subject_get_int(language), lane_numbering_from_zero()});
     return observe<int>(
         language, panel,
         [shown, on_change = std::forward<OnChange>(on_change)](Panel* p, int index) {
-            if (index == *shown) {
+            const bool from_zero = lane_numbering_from_zero();
+            if (index == shown->language && from_zero == shown->from_zero) {
                 return;
             }
-            *shown = index;
+            *shown = Shown{index, from_zero};
             on_change(p);
         },
         settings.get_subjects_lifetime());

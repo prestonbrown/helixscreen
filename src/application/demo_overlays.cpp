@@ -453,7 +453,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
     // modal. The cases above exist because they need state wired up first;
     // a plain dialog needs none, so screenshotting one should not require
     // adding an entry here. Unknown names return nullptr and fall through.
-    if (Modal::show(name.c_str()) != nullptr) {
+    if (helix::ui::ComponentModal::show_owned(name.c_str()) != nullptr) {
         spdlog::debug("[demo] shown as a plain modal component: {}", name);
         return true;
     }

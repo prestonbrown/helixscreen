@@ -18,8 +18,6 @@
  * - Header displays total symbol count
  * - Proper theming via globals.xml constants
  *
- * ## Migration Notes:
- * Second panel migrated to class-based architecture (Phase 2).
  * Display-only panel with no subjects or printer connectivity.
  *
  * @see PanelBase for base class documentation

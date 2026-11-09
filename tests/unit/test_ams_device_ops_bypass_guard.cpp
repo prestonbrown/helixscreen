@@ -280,7 +280,7 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     tap(toggle);
 
     // THE REGRESSION ASSERTION: the handler ran its own print guard, so nothing
-    // reached the firmware. Pre-fix this handler called enable_bypass() directly.
+    // reached the firmware: this handler must not call enable_bypass() directly.
     CHECK_FALSE(backend->is_bypass_active());
     // ...and the switch does not sit there claiming bypass is on.
     CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
@@ -312,8 +312,8 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
                  "Device Operations bypass switch unloads the lane before enabling",
                  "[ui_integration][ams][bypass-device-ops]") {
     // The mock boots with slot 0 loaded, and its enable_bypass() has no
-    // filament-loaded refusal of its own — the same shape as AD5X IFS. Pre-fix
-    // the tap below enabled bypass on the spot and left this lane's filament
+    // filament-loaded refusal of its own — the same shape as AD5X IFS. Enabling
+    // bypass on the spot for the tap below would leave this lane's filament
     // stranded behind the external feed, which is what the #1229 chaining
     // discipline exists to prevent.
     REQUIRE(backend->get_system_info().filament_loaded);

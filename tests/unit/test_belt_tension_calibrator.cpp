@@ -1078,11 +1078,10 @@ TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t
           "[belt_tension][fft][edge_case]") {
     // FLT_MAX (~3.4e38) exceeds SIZE_MAX on both 32-bit and 64-bit targets, so
     // casting an unclamped bandwidth*n/sample_rate product to size_t at this
-    // magnitude is undefined behaviour - the pre-fix code could have produced
-    // any result, not a specific known-bad one. This exercises the clamp on an
-    // input that was previously UB; it verifies that an absurd bandwidth
-    // request still yields a Nyquist-bounded bin count rather than reading
-    // past the array, not that it reproduces any particular old failure.
+    // magnitude is undefined behaviour, so an unclamped version could produce
+    // any result, not a specific known-bad one. This exercises the clamp on
+    // that input; it verifies that an absurd bandwidth request still yields a
+    // Nyquist-bounded bin count rather than reading past the array.
     const float sr = 1000.0f;
     const int n = 1000;
     std::vector<AccelSample> samples(static_cast<size_t>(n));

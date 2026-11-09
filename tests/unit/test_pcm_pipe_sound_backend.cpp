@@ -25,12 +25,17 @@
 
 namespace {
 
-std::string make_temp_dir() {
-    std::string tmpl = "/tmp/pcm_pipe_test_XXXXXX";
-    char* dir = mkdtemp(tmpl.data());
-    REQUIRE(dir != nullptr);
-    return dir;
-}
+/// A fresh directory for one case's fake players, removed however the case ends.
+/// It is the path itself, so it goes wherever a directory string does.
+struct TempDir : std::string {
+    TempDir() : std::string("/tmp/pcm_pipe_test_XXXXXX") {
+        REQUIRE(mkdtemp(data()) != nullptr);
+    }
+    ~TempDir() {
+        std::error_code ec;
+        std::filesystem::remove_all(static_cast<const std::string&>(*this), ec);
+    }
+};
 
 void write_executable(const std::string& path, const std::string& body) {
     {
@@ -102,10 +107,6 @@ NoteEvent tone(float freq, float ms) {
     return e;
 }
 
-void cleanup(const std::string& dir) {
-    std::filesystem::remove_all(dir);
-}
-
 } // namespace
 
 // ============================================================================
@@ -113,7 +114,7 @@ void cleanup(const std::string& dir) {
 // ============================================================================
 
 TEST_CASE("find_player: env override names the binary or disables", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
 
     CHECK(PcmPipeSoundBackend::find_player(player.c_str(), {}) == player);
@@ -121,12 +122,10 @@ TEST_CASE("find_player: env override names the binary or disables", "[sound][pcm
     CHECK(PcmPipeSoundBackend::find_player("off", {player}).empty());
     CHECK(PcmPipeSoundBackend::find_player("no", {player}).empty());
     CHECK(PcmPipeSoundBackend::find_player((dir + "/missing").c_str(), {player}).empty());
-
-    cleanup(dir);
 }
 
 TEST_CASE("find_player: no override takes the first executable candidate", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
     touch(dir + "/not-executable");
 
@@ -134,12 +133,10 @@ TEST_CASE("find_player: no override takes the first executable candidate", "[sou
               nullptr, {dir + "/missing", dir + "/not-executable", player}) == player);
     CHECK(PcmPipeSoundBackend::find_player("", {dir + "/missing"}).empty());
     CHECK(PcmPipeSoundBackend::find_player(nullptr, {}).empty());
-
-    cleanup(dir);
 }
 
 TEST_CASE("has_playback_device: only a pcmC*D*p node counts", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
 
     CHECK_FALSE(PcmPipeSoundBackend::has_playback_device(dir + "/absent"));
     CHECK_FALSE(PcmPipeSoundBackend::has_playback_device(dir));
@@ -150,8 +147,6 @@ TEST_CASE("has_playback_device: only a pcmC*D*p node counts", "[sound][pcmpipe]"
 
     touch(dir + "/pcmC0D0p");
     CHECK(PcmPipeSoundBackend::has_playback_device(dir));
-
-    cleanup(dir);
 }
 
 TEST_CASE("player_args: raw S16_LE mono at the render rate from stdin", "[sound][pcmpipe]") {
@@ -173,15 +168,13 @@ TEST_CASE("player_args: raw S16_LE mono at the render rate from stdin", "[sound]
 }
 
 TEST_CASE("initialize refuses a player that is not executable", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     touch(dir + "/plain");
 
     PcmPipeSoundBackend backend;
     CHECK_FALSE(backend.initialize(dir + "/plain"));
     CHECK_FALSE(backend.initialize(""));
     CHECK(backend.spawn_count() == 0);
-
-    cleanup(dir);
 }
 
 // ============================================================================
@@ -190,7 +183,7 @@ TEST_CASE("initialize refuses a player that is not executable", "[sound][pcmpipe
 
 TEST_CASE("a sound burst spawns the player once and streams the rendered tone",
           "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
 
     {
@@ -229,12 +222,10 @@ TEST_CASE("a sound burst spawns the player once and streams the rendered tone",
     CHECK(peak > 20000);
     // The idle grace after the note is silence.
     CHECK(pcm.back() == 0);
-
-    cleanup(dir);
 }
 
 TEST_CASE("resume within the idle grace reuses the live player", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
 
     PcmPipeSoundBackend backend;
@@ -256,12 +247,11 @@ TEST_CASE("resume within the idle grace reuses the live player", "[sound][pcmpip
     CHECK(backend.spawn_count() == 2);
 
     backend.shutdown();
-    cleanup(dir);
 }
 
 TEST_CASE("a player that keeps failing disables the backend instead of looping",
           "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     PcmPipeSoundBackend backend;
     backend.set_idle_grace_ms(50);
     backend.set_failure_timeouts_ms(100, 50);
@@ -296,11 +286,10 @@ TEST_CASE("a player that keeps failing disables the backend instead of looping",
     CHECK(backend.spawn_count() == expected_spawns);
 
     backend.shutdown();
-    cleanup(dir);
 }
 
 TEST_CASE("a stalled player fills the pipe without ever counting as healthy", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
 
     PcmPipeSoundBackend backend;
     backend.set_failure_timeouts_ms(100, 50);
@@ -315,11 +304,10 @@ TEST_CASE("a stalled player fills the pipe without ever counting as healthy", "[
     CHECK(backend.player_disabled());
 
     backend.shutdown();
-    cleanup(dir);
 }
 
 TEST_CASE("a long clean burst clears the failure count", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     // Fails its first run, then plays normally.
     std::string player = scripted_player(dir, "[ -f \"" + dir + "/ran\" ] || { touch \"" + dir +
                                                   "/ran\"; exit 1; }\ncat > /dev/null");
@@ -337,11 +325,10 @@ TEST_CASE("a long clean burst clears the failure count", "[sound][pcmpipe]") {
     REQUIRE(wait_until([&] { return backend.consecutive_failures() == 0; }, 5000));
 
     backend.shutdown();
-    cleanup(dir);
 }
 
 TEST_CASE("clear_render_source waits out a render call in flight", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
 
     PcmPipeSoundBackend backend;
@@ -365,13 +352,12 @@ TEST_CASE("clear_render_source waits out a render call in flight", "[sound][pcmp
     CHECK(calls.load() == calls_at_clear);
 
     backend.shutdown();
-    cleanup(dir);
 }
 
 #ifdef __linux__
 TEST_CASE("the pipe queues only a few chunks ahead of a player that is not reading",
           "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
 
     PcmPipeSoundBackend backend;
     backend.set_failure_timeouts_ms(2000, 50);
@@ -388,12 +374,11 @@ TEST_CASE("the pipe queues only a few chunks ahead of a player that is not readi
     CHECK(chunks.load() <= page / chunk_bytes + 2);
 
     backend.shutdown();
-    cleanup(dir);
 }
 #endif
 
 TEST_CASE("shutdown kills and reaps a player that ignores EOF", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string pid_file = dir + "/pid";
 
     {
@@ -410,12 +395,10 @@ TEST_CASE("shutdown kills and reaps a player that ignores EOF", "[sound][pcmpipe
     errno = 0;
     CHECK(kill(pid, 0) == -1);
     CHECK(errno == ESRCH);
-
-    cleanup(dir);
 }
 
 TEST_CASE("shutdown while a sound is streaming joins cleanly", "[sound][pcmpipe]") {
-    std::string dir = make_temp_dir();
+    TempDir dir;
     std::string player = fake_player(dir);
 
     {
@@ -428,5 +411,4 @@ TEST_CASE("shutdown while a sound is streaming joins cleanly", "[sound][pcmpipe]
     }
 
     CHECK(file_contents(dir + "/args").find("-t raw") != std::string::npos);
-    cleanup(dir);
 }

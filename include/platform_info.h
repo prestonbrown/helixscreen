@@ -22,9 +22,9 @@ bool platform_host_power_supported();
 /// The Snapmaker U1 is the case: the PAXX Extended Firmware ships HelixScreen as a
 /// selectable component, downloading a pinned, sha256-verified tarball into
 /// /oem/apps/helixscreen via extended-pkg. Self-updating there rewrites a package the
-/// firmware believes it owns. Suppression used to rely entirely on the firmware hook
-/// exporting HELIX_DISABLE_AUTO_UPDATES, which it never did — so every U1 install
-/// checked for updates and raised the update modal, which is the bug this closes.
+/// firmware believes it owns. The firmware hook does not export
+/// HELIX_DISABLE_AUTO_UPDATES, so without this default every U1 install would check
+/// for updates and raise the update modal.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,

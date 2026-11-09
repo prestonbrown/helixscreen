@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 
 namespace helix::printer {
 
@@ -142,6 +143,27 @@ std::optional<MotorControlDelta> parse_motor_control(const nlohmann::json& param
     return d;
 }
 
+std::optional<ChuteWiperLine> parse_chute_wiper(const nlohmann::json& configfile_settings) {
+    const nlohmann::json* box = json_util::find_member(configfile_settings, "box");
+    if (!box) {
+        return std::nullopt;
+    }
+    auto read = [box](const char* key) {
+        const nlohmann::json* v = json_util::find_member(*box, key);
+        return v ? json_util::as_double(*v, std::nan("")) : std::nan("");
+    };
+    const double left_x = read("clean_left_pos_x");
+    const double right_x = read("clean_right_pos_x");
+    const double left_y = read("clean_left_pos_y");
+    const double right_y = read("clean_right_pos_y");
+    if (!std::isfinite(left_x) || !std::isfinite(right_x) || !std::isfinite(left_y) ||
+        !std::isfinite(right_y)) {
+        return std::nullopt;
+    }
+    return ChuteWiperLine{std::min(left_x, right_x), std::max(left_x, right_x),
+                          std::min(left_y, right_y)};
+}
+
 bool has_registered_unit(const nlohmann::json& configfile_settings) {
     const nlohmann::json* section = json_util::find_member(configfile_settings, "auto_addr");
     const nlohmann::json* option =
@@ -177,6 +199,13 @@ bool is_material_code_sentinel(const std::string& v) {
     return v.empty() || v == "none" || v == "None" || v == "-1" || v == "unknown";
 }
 
+bool is_raw_tag_uid(const std::string& v) {
+    constexpr size_t kMinUidChars = 8;
+    return v.size() >= kMinUidChars &&
+           std::all_of(v.begin(), v.end(), [](unsigned char c) { return std::isxdigit(c) != 0; }) &&
+           std::any_of(v.begin(), v.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+}
+
 std::string brand_from_vender(const std::string& vender) {
     if (is_vender_sentinel(vender)) {
         return {};
@@ -189,11 +218,14 @@ std::string brand_from_vender(const std::string& vender) {
     if (creality) {
         return "Creality"; // i18n: do not translate - brand name
     }
-    return record ? std::string{} : vender;
+    return (record || is_raw_tag_uid(vender)) ? std::string{} : vender;
 }
 
 std::optional<int> tag_record_spoolman_id(std::string_view vender) {
-    if (!is_tag_record(vender)) {
+    // Only Creality's layout puts the serial at these offsets; CFTag writes
+    // that layout, supplier code included.
+    if (!is_tag_record(vender) ||
+        vender.substr(kTagSupplierOffset, kTagSupplierLength) != kCrealitySupplierCode) {
         return std::nullopt;
     }
     const std::string_view serial = vender.substr(kTagSerialOffset, kTagSerialLength);

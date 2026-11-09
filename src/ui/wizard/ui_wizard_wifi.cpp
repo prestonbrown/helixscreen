@@ -464,7 +464,7 @@ void WizardWifiStep::clear_network_list() {
     // reparents children to lv_layer_top() before async-delete, but indev's
     // cached scroll/press target still points at the about-to-be-freed child —
     // a SCROLL_THROW_BEGIN between reparent and async-delete hits freed memory
-    // (mirrors the NetworkSettingsOverlay fix for #850).
+    // (same guard as NetworkSettingsOverlay, #850).
     if (lv_indev_t* indev = lv_indev_active()) {
         lv_indev_reset(indev, network_list_container_);
     }
@@ -1144,7 +1144,7 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
                            "connect_callback",
                            "on_wizard_wifi_password_connect",
                            NULL};
-    password_modal_ = helix::ui::modal_show("wifi_password_modal", attrs);
+    password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", attrs);
 
     if (!password_modal_) {
         LOG_ERROR_INTERNAL("Failed to create password modal");

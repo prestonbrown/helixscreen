@@ -518,6 +518,82 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     }
 }
 
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a saved model settles a tie between that model's firmware "
+                 "variant and another model's",
+                 "[printer][detector][mismatch][k2][k2improvements]") {
+    // A K2 Plus on k2-improvements that declares no bed: the mod's definitive
+    // macro is the base score of both mod entries, the bonus caps, and the
+    // hostname that names the Plus is lost in the ceiling. Detection ties the
+    // Plus and the Pro mod entries while excluding the stock K2 Plus the user
+    // saved. The tie is about which model; both candidates agree on the
+    // firmware, and the saved type already answers the model.
+    PrinterHardwareData hardware{.heaters = {"extruder", "heater_bed"},
+                                 .sensors = {},
+                                 .fans = {},
+                                 .leds = {},
+                                 .hostname = "k2plus",
+                                 .printer_objects = {"motor_control", "fan_feedback", "load_ai",
+                                                     "gcode_macro _START_PRINT_VARS",
+                                                     "gcode_macro START_PRINT"},
+                                 .steppers = {},
+                                 .kinematics = "corexy",
+                                 .build_volume = {}};
+
+    const auto result = PrinterDetector::detect(hardware);
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin(), result.tied_count);
+    REQUIRE(result.confidence == 100);
+    REQUIRE(result.ambiguous());
+    REQUIRE(result.contenders.size() == 2);
+
+    using PD = PrinterDetector;
+    SECTION("the saved stock model is offered its own variant") {
+        CHECK(PD::mismatch_subject("Creality K2 Plus", result) ==
+              "Creality K2 Plus (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Plus", result, {}) ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("the other saved model is offered ITS variant, whichever entry won") {
+        CHECK(PD::mismatch_subject("Creality K2 Pro", result) ==
+              "Creality K2 Pro (k2-improvements)");
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro", result, {}) ==
+              PD::MismatchDecision::Warn);
+    }
+    SECTION("a saved type that is one of the tied candidates is confirmed") {
+        CHECK(PD::classify_type_mismatch("Creality K2 Pro (k2-improvements)", result, {}) ==
+              PD::MismatchDecision::MatchesSavedType);
+    }
+    SECTION("a saved model outside the tie leaves it ambiguous") {
+        CHECK(PD::mismatch_subject("Creality K2", result) == result.type_name);
+        CHECK(PD::classify_type_mismatch("Creality K2", result, {}) ==
+              PD::MismatchDecision::Ambiguous);
+        CHECK(PD::classify_type_mismatch("Voron 2.4", result, {}) ==
+              PD::MismatchDecision::Ambiguous);
+    }
+    SECTION("a dismissal for the saved type still holds") {
+        CHECK(PD::classify_type_mismatch(
+                  "Creality K2 Plus", result,
+                  {"Creality K2 Plus", "Creality K2 Plus (k2-improvements)"}) ==
+              PD::MismatchDecision::AlreadyDismissed);
+    }
+}
+
+TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
+          "[printer][detector][mismatch]") {
+    // The Neptune 4 line shares one image across four sizes. A Max tied with
+    // another machine is no evidence that a saved Pro is really a Max.
+    PrinterDetectionResult tied{"Elegoo Neptune 4 Max", 95, "tied"};
+    tied.runner_up_type_name = "Voron 2.4";
+    tied.runner_up_confidence = 95;
+    tied.contenders = {"Elegoo Neptune 4 Max", "Voron 2.4"};
+    REQUIRE(tied.ambiguous());
+
+    CHECK(PrinterDetector::mismatch_subject("Elegoo Neptune 4 Pro", tied) == tied.type_name);
+    CHECK(PrinterDetector::classify_type_mismatch("Elegoo Neptune 4 Pro", tied, {}) ==
+          PrinterDetector::MismatchDecision::Ambiguous);
+}
+
 // A corexy printer with the Qidi Max 4 footprint detects as Qidi Max 4, but the
 // same footprint on a cartesian machine must NOT — kinematics_exclude encodes the
 // hard rule that every Qidi is corexy (telemetry-confirmed). Guards against build
@@ -1102,7 +1178,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     // several equally-matched candidates sends the owner to correct a setting
     // that was already right (prestonbrown/helixscreen#1431).
     CHECK(PrinterDetector::classify_type_mismatch("Qidi Q2", result.type_name, result.confidence,
-                                                  "", result.margin()) ==
+                                                  {}, result.margin()) ==
           PrinterDetector::MismatchDecision::Ambiguous);
 }
 
@@ -1117,7 +1193,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     const auto tied = PrinterDetector::detect(qidi_q2_hardware());
     REQUIRE(tied.detected());
     REQUIRE(tied.margin() == 0);
-    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", tied, "") ==
+    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", tied, {}) ==
           PrinterDetector::MismatchDecision::Ambiguous);
 
     // The counterpart, so declining a tie does not become declining everything:
@@ -1126,12 +1202,12 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     identified_hw.hostname = "QIDI@Q2";
     const auto identified = PrinterDetector::detect(identified_hw);
     REQUIRE(identified.margin() >= PrinterDetector::kDetectMinMargin);
-    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", identified, "") ==
+    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", identified, {}) ==
           PrinterDetector::MismatchDecision::Warn);
 
     // A pass that identified nothing is not a contradiction of anything.
     PrinterDetectionResult undetected;
-    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", undetected, "") ==
+    CHECK(PrinterDetector::classify_type_mismatch("Qidi Max 4", undetected, {}) ==
           PrinterDetector::MismatchDecision::NoDetection);
 }
 
@@ -1319,6 +1395,36 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
 
     CAPTURE(full.confidence, without.confidence, without.type_name);
     CHECK(full.confidence > without.confidence);
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a Centauri Carbon 2 hostname identifies that model",
+                 "[printer][real_world][elegoo][cc2]") {
+    PrinterHardwareData hw;
+    hw.objects_reported = true;
+    hw.hostname = GENERATE(as<std::string>{}, "centauri-carbon-2", "elegoo_centauri_carbon_2",
+                           "CentauriCarbon2");
+
+    const auto result = PrinterDetector::detect(hw);
+
+    CAPTURE(hw.hostname, result.type_name, result.confidence, result.runner_up_type_name);
+    CHECK(result.type_name == "Elegoo Centauri Carbon 2");
+    CHECK(result.margin() >= PrinterDetector::kDetectMinMargin);
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: an original Centauri Carbon is never scored as a CC2",
+                 "[printer][real_world][elegoo][cc2]") {
+    // The hostname is user-editable: the second CC1 on a farm can be named this.
+    auto hw = elegoo_centauri_carbon_hardware();
+    hw.hostname = "centauri-carbon-2";
+
+    const auto result = PrinterDetector::detect(hw);
+
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence);
+    CHECK(result.type_name == "Elegoo Centauri Carbon");
+    CHECK(result.runner_up_type_name != "Elegoo Centauri Carbon 2");
 }
 
 // ============================================================================
@@ -1564,7 +1670,7 @@ TEST_CASE("PrinterDetector: telling a user their saved type is wrong needs at le
         INFO("confidence " << confidence);
         // Too weak to be written into an empty config, so too weak to tell
         // someone the type they chose is wrong.
-        CHECK(PrinterDetector::classify_type_mismatch("Voron 2.4", "Qidi Plus 4", confidence, "",
+        CHECK(PrinterDetector::classify_type_mismatch("Voron 2.4", "Qidi Plus 4", confidence, {},
                                                       PrinterDetector::kDetectMinMargin) ==
               MD::ConfidenceTooLow);
     }
@@ -1572,9 +1678,9 @@ TEST_CASE("PrinterDetector: telling a user their saved type is wrong needs at le
     // The bar moving up must not silence the warning altogether: a detection
     // strong enough to be persisted is strong enough to be raised.
     CHECK(PrinterDetector::classify_type_mismatch("Voron 2.4", "Qidi Plus 4",
-                                                  PrinterDetector::kAutosaveMinConfidence, "",
+                                                  PrinterDetector::kAutosaveMinConfidence, {},
                                                   PrinterDetector::kDetectMinMargin) == MD::Warn);
-    CHECK(PrinterDetector::classify_type_mismatch("Voron 2.4", "Qidi Plus 4", 100, "",
+    CHECK(PrinterDetector::classify_type_mismatch("Voron 2.4", "Qidi Plus 4", 100, {},
                                                   PrinterDetector::kDetectMinMargin) == MD::Warn);
 }
 
@@ -1658,7 +1764,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     // A common MCU alone must never reach a score the product would act on
     if (result.detected()) {
         REQUIRE_FALSE(PrinterDetector::meets_autosave_threshold(result));
-        REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, "") !=
+        REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, {}) !=
                 PrinterDetector::MismatchDecision::Warn);
     }
 }
@@ -3472,8 +3578,8 @@ namespace {
 /// The scalar decision for a detection that separated its rivals: what a
 /// caller holding a bare confidence and no candidate field passes.
 bool warns_when_separated(const std::string& saved, const std::string& detected, int confidence,
-                          const std::string& flag) {
-    return PrinterDetector::classify_type_mismatch(saved, detected, confidence, flag,
+                          const PrinterDetector::MismatchAnswer& answered) {
+    return PrinterDetector::classify_type_mismatch(saved, detected, confidence, answered,
                                                    PrinterDetector::kDetectMinMargin) ==
            PrinterDetector::MismatchDecision::Warn;
 }
@@ -3481,7 +3587,7 @@ bool warns_when_separated(const std::string& saved, const std::string& detected,
 
 TEST_CASE("classify_type_mismatch warn table", "[detector][mismatch]") {
     using PD = PrinterDetector;
-    const std::string none; // "" — flag never shown
+    const PD::MismatchAnswer none; // never answered
     const std::string ad5m = "FlashForge Adventurer 5M Pro";
     const std::string trident = "Voron Trident";
 
@@ -3503,11 +3609,51 @@ TEST_CASE("classify_type_mismatch warn table", "[detector][mismatch]") {
         REQUIRE_FALSE(warns_when_separated("Unknown", trident, 95, none));
         REQUIRE_FALSE(warns_when_separated("", trident, 95, none));
     }
-    SECTION("flag suppresses until the saved type changes") {
-        REQUIRE_FALSE(warns_when_separated(ad5m, trident, 85, ad5m));
+    SECTION("an answer suppresses until the saved or the detected type changes") {
+        REQUIRE_FALSE(warns_when_separated(ad5m, trident, 85, {ad5m, trident}));
         // User re-ran wizard and picked ANOTHER wrong type: re-arm once.
         const std::string k1max = "Creality K1 Max (with CFS)";
-        REQUIRE(warns_when_separated(k1max, trident, 85, ad5m));
+        REQUIRE(warns_when_separated(k1max, trident, 85, {ad5m, trident}));
+        // A later database detects a different machine: a new question.
+        REQUIRE(warns_when_separated(ad5m, k1max, 85, {ad5m, trident}));
+        // An answer recorded without its detected type covers no pair.
+        REQUIRE(warns_when_separated(ad5m, trident, 85, {ad5m, ""}));
+    }
+}
+
+// A Kobra X set up before the database knew it was saved as the Kobra 3 V2 it
+// shares a platform with. Connecting after an update that added the Kobra X
+// entry offers the switch, and only an answer for that exact pair silences it
+// (prestonbrown/helixscreen#2075).
+TEST_CASE("Type mismatch: a saved type is offered a stronger later database match",
+          "[detector][mismatch][2075]") {
+    using PD = PrinterDetector;
+    using MD = PD::MismatchDecision;
+    const std::string saved = "Anycubic Kobra 3 V2";
+    const std::string kobra_x = "Anycubic Kobra X";
+    const auto result = PD::detect(printer_capture("anycubic_kobra_x_kobrian"));
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name, result.margin());
+    REQUIRE(result.type_name == kobra_x);
+
+    SECTION("a strong match is offered") {
+        CHECK(PD::classify_type_mismatch(saved, result, {}) == MD::Warn);
+        CHECK(PD::mismatch_subject(saved, result) == kobra_x);
+    }
+    SECTION("a decline for an earlier detection does not cover the new one") {
+        CHECK(PD::classify_type_mismatch(saved, result, {saved, "Anycubic Kobra 3"}) == MD::Warn);
+    }
+    SECTION("a decline for this pair is never offered again") {
+        CHECK(PD::classify_type_mismatch(saved, result, {saved, kobra_x}) == MD::AlreadyDismissed);
+    }
+    SECTION("a decline for another saved type does not cover this one") {
+        CHECK(PD::classify_type_mismatch(saved, result, {"Anycubic Kobra 3", kobra_x}) == MD::Warn);
+    }
+    SECTION("a weak match is not offered") {
+        CHECK(PD::classify_type_mismatch(saved, kobra_x, PD::kMismatchMinConfidence - 1, {},
+                                         result.margin()) == MD::ConfidenceTooLow);
+    }
+    SECTION("the same type is not offered") {
+        CHECK(PD::classify_type_mismatch(kobra_x, result, {}) == MD::MatchesSavedType);
     }
 }
 
@@ -3541,7 +3687,7 @@ TEST_CASE("canonical_type_name resolves former database names", "[detector][mism
 TEST_CASE("a renamed entry does not warn once the saved name is canonicalised",
           "[detector][mismatch]") {
     using PD = PrinterDetector;
-    const std::string none;
+    const PD::MismatchAnswer none;
     const std::string legacy = "Voron 0.1";
     const std::string current = "Voron 0.2";
 
@@ -3577,7 +3723,7 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     // May still be suggested (corroborating signal), but never >=70 where it
     // would override the saved type or arm the mismatch warning.
     REQUIRE(result.confidence < kHeuristicClassCeiling);
-    REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, "") !=
+    REQUIRE(PrinterDetector::classify_type_mismatch("Voron 2.4", result, {}) !=
             PrinterDetector::MismatchDecision::Warn);
 }
 
@@ -4084,12 +4230,12 @@ TEST_CASE("PrinterDetector: type mismatch decline reasons are distinguishable", 
 
     SECTION("A high-confidence contradiction warns") {
         REQUIRE(PrinterDetector::classify_type_mismatch(
-                    "Voron Trident", "FlashForge Adventurer 5M Pro", 90, "",
+                    "Voron Trident", "FlashForge Adventurer 5M Pro", 90, {},
                     PrinterDetector::kDetectMinMargin) == MD::Warn);
     }
 
     SECTION("No detected type reports NoDetection, not a low score") {
-        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "", 0, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "", 0, {},
                                                         PrinterDetector::kDetectMinMargin) ==
                 MD::NoDetection);
     }
@@ -4097,38 +4243,38 @@ TEST_CASE("PrinterDetector: type mismatch decline reasons are distinguishable", 
     SECTION("A near-miss reports ConfidenceTooLow and names the gap it missed") {
         REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "Creality K2 Plus",
                                                         PrinterDetector::kMismatchMinConfidence - 1,
-                                                        "", PrinterDetector::kDetectMinMargin) ==
+                                                        {}, PrinterDetector::kDetectMinMargin) ==
                 MD::ConfidenceTooLow);
     }
 
     SECTION("A model that only tied its rivals reports Ambiguous, not a low score") {
         // Scoring well and scoring uniquely are different claims, and a bundle
         // has to say which one failed.
-        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "Qidi Plus 4", 92, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "Qidi Plus 4", 92, {},
                                                         /*detected_margin=*/0) == MD::Ambiguous);
     }
 
     SECTION("Agreement reports MatchesSavedType") {
-        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "Voron Trident", 95, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("Voron Trident", "Voron Trident", 95, {},
                                                         PrinterDetector::kDetectMinMargin) ==
                 MD::MatchesSavedType);
     }
 
     SECTION("An unset or deliberately generic saved type reports SavedTypeNotSpecific") {
-        REQUIRE(PrinterDetector::classify_type_mismatch("", "Creality K2 Plus", 95, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("", "Creality K2 Plus", 95, {},
                                                         PrinterDetector::kDetectMinMargin) ==
                 MD::SavedTypeNotSpecific);
-        REQUIRE(PrinterDetector::classify_type_mismatch("Custom/Other", "Creality K2 Plus", 95, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("Custom/Other", "Creality K2 Plus", 95, {},
                                                         PrinterDetector::kDetectMinMargin) ==
                 MD::SavedTypeNotSpecific);
-        REQUIRE(PrinterDetector::classify_type_mismatch("Unknown", "Creality K2 Plus", 95, "",
+        REQUIRE(PrinterDetector::classify_type_mismatch("Unknown", "Creality K2 Plus", 95, {},
                                                         PrinterDetector::kDetectMinMargin) ==
                 MD::SavedTypeNotSpecific);
     }
 
     SECTION("A previously answered prompt reports AlreadyDismissed") {
         REQUIRE(PrinterDetector::classify_type_mismatch(
-                    "Voron Trident", "Creality K2 Plus", 95, "Voron Trident",
+                    "Voron Trident", "Creality K2 Plus", 95, {"Voron Trident", "Creality K2 Plus"},
                     PrinterDetector::kDetectMinMargin) == MD::AlreadyDismissed);
     }
 
@@ -4180,6 +4326,78 @@ TEST_CASE_METHOD(helix::VariantPresetFixture,
     CHECK_FALSE(detected);
 
     CHECK(get_printer_state().profile_state().printer_type() == "Voron 2.4");
+
+    get_printer_state().set_printer_type_sync("");
+    TearDown();
+}
+
+// A Z-Mod AD5M Pro is typed as the stock 5M Pro, but was set up from
+// ad5m_pro_zmod. The boot migration has to read the preset that was installed,
+// or it unions the stock machine's fans and runout switch into the expected
+// hardware of a printer that has none of them (prestonbrown/helixscreen#2064).
+TEST_CASE_METHOD(helix::VariantPresetFixture,
+                 "auto_detect_and_save migrates a saved type from its installed variant preset",
+                 "[printer_detector][preset]") {
+    SetUp();
+    namespace fs = std::filesystem;
+    for (const char* name : {"ad5m_pro", "ad5m_pro_zmod"}) {
+        fs::copy_file(fs::current_path() / "assets/config/presets" / (std::string(name) + ".json"),
+                      temp_dir + "/assets/config/presets/" + name + ".json");
+    }
+
+    const std::string df = config.df();
+    config.set<std::string>(df + helix::wizard::PRINTER_TYPE, "FlashForge Adventurer 5M Pro");
+    config.set<bool>(df + "wizard_completed", true);
+    config.set<nlohmann::json>(
+        df + "hardware/expected",
+        nlohmann::json::array({"heater_bed", "extruder", "fan_generic fanM106"}));
+
+    helix::PrinterDiscovery hw;
+    hw.set_printer_objects({"extruder", "heater_bed", "fan_generic fanM106"});
+
+    const std::vector<std::string> stock_only = {
+        "fan", "heater_fan hotend_fan", "fan_generic internal_fan", "fan_generic external_fan",
+        "filament_switch_sensor runout_sensor"};
+    auto expected_has = [&](const std::string& name) {
+        const auto expected = config.get<nlohmann::json>(df + "hardware/expected");
+        return std::find(expected.begin(), expected.end(), name) != expected.end();
+    };
+
+    SECTION("The installed Z-Mod preset is the one migrated") {
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK_FALSE(expected_has(name));
+        }
+        CHECK(expected_has("filament_switch_sensor e0_sensor"));
+        CHECK_FALSE(config.exists(df + "fans/exhaust"));
+    }
+
+    SECTION("With no recorded preset the base preset is migrated") {
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        for (const auto& name : stock_only) {
+            CAPTURE(name);
+            CHECK(expected_has(name));
+        }
+    }
+
+    SECTION("An installed preset from another family falls back to the base") {
+        config.set_preset("ad5x");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
+
+    SECTION("An installed variant whose file is gone falls back to the base") {
+        fs::remove(temp_dir + "/assets/config/presets/ad5m_pro_zmod.json");
+        config.set_preset("ad5m_pro_zmod");
+        PrinterDetector::auto_detect_and_save(hw, &config);
+
+        CHECK(expected_has("filament_switch_sensor runout_sensor"));
+    }
 
     get_printer_state().set_printer_type_sync("");
     TearDown();

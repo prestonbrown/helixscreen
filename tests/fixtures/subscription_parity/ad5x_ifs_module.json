@@ -25,7 +25,8 @@
     "nozzle_volume_type"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_switch_sensor lane1": [
     "filament_detected",

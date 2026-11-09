@@ -45,22 +45,20 @@ std::string find_prerendered(const std::string& relative_path) {
 void show_splash_screen(int screen_width, int screen_height) {
     spdlog::debug("[Splash Screen] Showing splash screen ({}x{})", screen_width, screen_height);
 
-    // Get the active screen
     lv_obj_t* screen = lv_screen_active();
 
     // Apply theme background color (screen_bg runtime constant set by theme_manager_init)
     theme_manager_apply_bg_color(screen, "screen_bg", LV_PART_MAIN);
 
-    // Disable scrollbars on screen
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     // Try full-screen 3D splash first (theme-aware dark/light variant)
     bool dark_mode = theme_manager_is_dark_mode();
     const helix::SplashChoice choice =
         helix::choose_splash_asset(screen_width, screen_height, dark_mode, find_prerendered);
-    if (choice.canvas_too_tall) {
-        spdlog::debug("[Splash Screen] {} canvas exceeds screen height {}px, scaling instead",
-                      choice.size_class, screen_height);
+    if (choice.canvas_does_not_fit) {
+        spdlog::debug("[Splash Screen] {} canvas does not fit {}x{} screen, scaling instead",
+                      choice.size_class, screen_width, screen_height);
     }
 
     const std::string splash_3d_path =

@@ -117,6 +117,10 @@ bool ContextMenu::show_below_widget(lv_obj_t* parent, int item_index, lv_obj_t* 
     return show_impl(parent, item_index, anchor, AnchorMode::BelowAnchor, align);
 }
 
+bool ContextMenu::show_around_widget(lv_obj_t* parent, int item_index, lv_obj_t* anchor) {
+    return show_impl(parent, item_index, anchor, AnchorMode::AroundAnchor, AnchorAlign::Center);
+}
+
 bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
                             AnchorAlign align) {
     // Hide any existing menu first
@@ -513,7 +517,7 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
         // LVGL, so the 1px rule under the heading otherwise counts as an action and
         // keeps an empty column alive. The rules are also marked clickable="false" —
         // this is the belt to that pair of braces, so an unmarked divider added later
-        // cannot quietly resurrect the bug.
+        // cannot quietly keep an empty column alive.
         bool has_action = false;
         uint32_t row_cnt = lv_obj_get_child_count(col);
         for (uint32_t r = 0; r < row_cnt && !has_action; r++) {
@@ -562,11 +566,57 @@ void ContextMenu::tidy_column_groups(lv_obj_t* columns) {
 
 lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                          int32_t margin, int32_t gap, AnchorMode mode,
-                                         AnchorAlign align) {
+                                         AnchorAlign align, AnchorSide* side) {
     int32_t x = 0;
     int32_t y = 0;
+    if (side) {
+        *side = AnchorSide::Below;
+    }
 
-    if (mode == AnchorMode::BelowAnchor) {
+    if (mode == AnchorMode::AroundAnchor) {
+        // Anchor coordinates are inclusive, so a card gap px clear of the anchor
+        // starts one past its far edge.
+        const int32_t anchor_w = anchor.x2 - anchor.x1 + 1;
+        const int32_t anchor_h = anchor.y2 - anchor.y1 + 1;
+        const int32_t centre_x = anchor.x1 + anchor_w / 2 - card.x / 2;
+        const int32_t centre_y = anchor.y1 + anchor_h / 2 - card.y / 2;
+        const bool fits_across = card.x <= bounds.x - 2 * margin;
+        const bool fits_down = card.y <= bounds.y - 2 * margin;
+        const auto fits_y = [&](int32_t top) {
+            return fits_across && top >= margin && top + card.y <= bounds.y - margin;
+        };
+        const auto fits_x = [&](int32_t left) {
+            return fits_down && left >= margin && left + card.x <= bounds.x - margin;
+        };
+        const int32_t below_y = anchor.y2 + 1 + gap;
+        const int32_t above_y = anchor.y1 - gap - card.y;
+        const int32_t right_x = anchor.x2 + 1 + gap;
+        const int32_t left_x = anchor.x1 - gap - card.x;
+        AnchorSide chosen = AnchorSide::Over;
+        if (fits_y(below_y)) {
+            chosen = AnchorSide::Below;
+            x = centre_x;
+            y = below_y;
+        } else if (fits_y(above_y)) {
+            chosen = AnchorSide::Above;
+            x = centre_x;
+            y = above_y;
+        } else if (fits_x(right_x)) {
+            chosen = AnchorSide::Right;
+            x = right_x;
+            y = anchor.y1;
+        } else if (fits_x(left_x)) {
+            chosen = AnchorSide::Left;
+            x = left_x;
+            y = anchor.y1;
+        } else {
+            x = centre_x;
+            y = centre_y;
+        }
+        if (side) {
+            *side = chosen;
+        }
+    } else if (mode == AnchorMode::BelowAnchor) {
         x = (align == AnchorAlign::Center) ? (anchor.x1 + anchor.x2) / 2 - card.x / 2 : anchor.x1;
         y = anchor.y2 + gap;
         // Flip above the anchor rather than covering it. Only worth doing if there is
@@ -621,7 +671,7 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
 
     AnchorMode mode = anchor_mode_;
     lv_area_t anchor{};
-    if (mode == AnchorMode::BelowAnchor && anchor_widget_) {
+    if (mode != AnchorMode::ClickPoint && anchor_widget_) {
         lv_obj_get_coords(anchor_widget_, &anchor);
     } else {
         // No live anchor rect to hang off — fall back to the click point.
@@ -635,15 +685,20 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
 
     const lv_point_t card = {lv_obj_get_width(menu_card), lv_obj_get_height(menu_card)};
     const lv_point_t bounds = {lv_obj_get_width(backdrop), lv_obj_get_height(backdrop)};
+    AnchorSide side = AnchorSide::Below;
     const lv_point_t pos =
         compute_card_pos(card, anchor, bounds, theme_manager_get_spacing("space_md"),
-                         theme_manager_get_spacing("space_xs"), mode, anchor_align_);
+                         theme_manager_get_spacing("space_xs"), mode, anchor_align_, &side);
 
     lv_obj_set_pos(menu_card, pos.x, pos.y);
 
+    static constexpr const char* kSideNames[] = {"below", "above", "right", "left", "over"};
     spdlog::debug("[ContextMenu] {} anchor({},{})-({},{}) card {}x{} in {}x{} -> ({},{})",
-                  mode == AnchorMode::BelowAnchor ? "below" : "click", anchor.x1, anchor.y1,
-                  anchor.x2, anchor.y2, card.x, card.y, bounds.x, bounds.y, pos.x, pos.y);
+                  mode == AnchorMode::ClickPoint    ? "click"
+                  : mode == AnchorMode::BelowAnchor ? "below"
+                                                    : kSideNames[static_cast<int>(side)],
+                  anchor.x1, anchor.y1, anchor.x2, anchor.y2, card.x, card.y, bounds.x, bounds.y,
+                  pos.x, pos.y);
 }
 
 } // namespace helix::ui

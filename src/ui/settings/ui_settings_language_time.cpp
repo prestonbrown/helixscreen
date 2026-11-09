@@ -60,13 +60,20 @@ void LanguageTimeSettingsOverlay::init_language_dropdown() {
 }
 
 void LanguageTimeSettingsOverlay::init_timezone_dropdown() {
-    lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_timezone", get_name());
-    if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name())) {
+    populate_timezone_row(helix::ui::find_required(overlay_root_, "row_timezone", get_name()),
+                          get_name());
+}
+
+void populate_timezone_row(lv_obj_t* row, const char* owner) {
+    if (!row) {
+        return;
+    }
+    if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", owner)) {
         std::string options = DisplaySettingsManager::get_timezone_options();
         lv_dropdown_set_options(dropdown, options.c_str());
         int index = DisplaySettingsManager::instance().get_timezone_index();
         lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
-        spdlog::trace("[{}] Timezone dropdown initialized (index={}, tz={})", get_name(), index,
+        spdlog::trace("[{}] Timezone dropdown initialized (index={}, tz={})", owner, index,
                       DisplaySettingsManager::instance().get_timezone());
     }
 }

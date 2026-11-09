@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-// Forward declarations
 struct PrintFileData;
 struct CardDimensions;
 
