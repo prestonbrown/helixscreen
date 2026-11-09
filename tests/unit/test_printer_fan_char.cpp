@@ -1446,6 +1446,17 @@ TEST_CASE("Fan characterization: Klipper rpm field on tachometer fans (#2071)",
         REQUIRE_FALSE(fans[0].rpm.has_value());
     }
 
+    SECTION("fan_rpm_version ticks only when a reading changes") {
+        lv_subject_t* ver = state.fan_state().get_fan_rpm_version_subject();
+        const int v0 = lv_subject_get_int(ver);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", nullptr}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 2);
+    }
+
     SECTION("a non-numeric rpm is ignored") {
         state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
         state.update_from_status({{"fan", {{"rpm", "fast"}}}});

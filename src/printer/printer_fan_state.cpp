@@ -121,6 +121,7 @@ void PrinterFanState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(fan_speed, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(fans_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(primary_fans_version, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(fan_rpm_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterFanState] Subjects initialized successfully");
@@ -678,7 +679,10 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
 void PrinterFanState::update_fan_rpm(const std::string& object_name, std::optional<int> rpm) {
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {
-            fan.rpm = rpm;
+            if (fan.rpm != rpm) {
+                fan.rpm = rpm;
+                lv_subject_set_int(&fan_rpm_version_, lv_subject_get_int(&fan_rpm_version_) + 1);
+            }
             return;
         }
     }

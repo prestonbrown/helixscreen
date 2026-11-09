@@ -207,6 +207,12 @@ class PrinterFanState {
         return &fans_version_;
     }
 
+    /// Increments whenever any fan's tachometer reading changes. RPM moves at a
+    /// steady speed (spin-up), so a speed subject alone never redraws it.
+    lv_subject_t* get_fan_rpm_version_subject() {
+        return &fan_rpm_version_;
+    }
+
     /// Increments whenever the runtime-resolved primary fan roles change (e.g. a
     /// fan starts/stops and the part slot moves to it). The print-status compact
     /// row re-binds on this, distinct from fans_version which signals structural
@@ -323,6 +329,7 @@ class PrinterFanState {
     lv_subject_t fan_speed_{};            ///< Main part-cooling fan, 0-100%
     lv_subject_t fans_version_{};         ///< Increments on fan list (structural) changes
     lv_subject_t primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    lv_subject_t fan_rpm_version_{};      ///< Increments on any fan's rpm change (#2071)
 
     /// Object names exactly as discovery handed them over — before the bare-[fan]
     /// shadowing rule filters them into fans_. apply_roles() re-runs that filter,
