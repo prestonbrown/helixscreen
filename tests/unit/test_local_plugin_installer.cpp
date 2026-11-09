@@ -13,8 +13,12 @@
 #include "timelapse_host_mock.h"
 #include "timelapse_local_installer.h"
 
+#include <atomic>
+#include <chrono>
+#include <fcntl.h>
 #include <map>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -59,15 +63,13 @@ CommandResult exited(int code, std::string output = "") {
     return r;
 }
 
-const std::string kClone = "git clone https://github.com/mainsail-crew/moonraker-timelapse.git "
+const std::string kClone = "env GIT_TERMINAL_PROMPT=0 git -c http.lowSpeedLimit=1000 -c "
+                           "http.lowSpeedTime=30 clone "
+                           "https://github.com/mainsail-crew/moonraker-timelapse.git "
                            "/home/pi/moonraker-timelapse";
 const std::string kLink =
     "sh /opt/helix/moonraker-plugin/install.sh --link-timelapse /home/pi/moonraker-timelapse";
-const std::string kFindFfmpeg = "sh -c command -v ffmpeg";
-const std::string kSudoProbe = "sudo -n true";
-const std::string kAptUpdate = "sudo -n apt-get update";
-const std::string kAptInstall =
-    "sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg";
+const std::string kFindFfmpeg = "/bin/sh -c command -v \"$1\" sh ffmpeg";
 
 LocalPluginPlan fresh_plan() {
     LocalPluginPlan plan;
@@ -121,15 +123,16 @@ TEST_CASE("timelapse setup takes the local route only for a local Moonraker it c
 TEST_CASE("a fresh local install clones, links, and finds ffmpeg", "[timelapse][local_install]") {
     FakeRunner fake;
     std::vector<LocalPluginStage> stages;
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), 
-        fresh_plan(), fake.runner(), [&](LocalPluginStage s) { stages.push_back(s); });
+    const auto result =
+        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner(),
+                               [&](LocalPluginStage s) { stages.push_back(s); });
 
     CHECK(result.outcome == LocalPluginOutcome::Installed);
     CHECK(result.detail.empty());
     CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg});
     CHECK(stages == std::vector<LocalPluginStage>{LocalPluginStage::Fetch,
-                                                       LocalPluginStage::Install,
-                                                       LocalPluginStage::CheckDependency});
+                                                  LocalPluginStage::Install,
+                                                  LocalPluginStage::CheckDependency});
 }
 
 TEST_CASE("a local install reuses a checkout already there", "[timelapse][local_install]") {
@@ -148,7 +151,8 @@ TEST_CASE("a failed clone stops the install and names git's last line",
     fake.answers[kClone] =
         exited(128, "Cloning into 'x'...\nfatal: unable to access 'https://github.com/': "
                     "Could not resolve host: github.com\n");
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    const auto result =
+        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.failed_stage == LocalPluginStage::Fetch);
@@ -163,7 +167,8 @@ TEST_CASE("a clone that times out reports the timeout", "[timelapse][local_insta
     slow.started = true;
     slow.timed_out = true;
     fake.answers[kClone] = slow;
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    const auto result =
+        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.detail == "timed out");
@@ -173,7 +178,8 @@ TEST_CASE("a failed link stops the install before ffmpeg", "[timelapse][local_in
     FakeRunner fake;
     fake.answers[kLink] = exited(1, "\033[0;31m[ERROR]\033[0m Could not auto-detect Moonraker "
                                     "installation.\n");
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    const auto result =
+        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
 
     CHECK(result.outcome == LocalPluginOutcome::Failed);
     CHECK(result.failed_stage == LocalPluginStage::Install);
@@ -181,58 +187,28 @@ TEST_CASE("a failed link stops the install before ffmpeg", "[timelapse][local_in
     CHECK(fake.calls == std::vector<std::string>{kClone, kLink});
 }
 
-TEST_CASE("missing ffmpeg and a sudo that wants a password leave ffmpeg to the user",
+TEST_CASE("missing ffmpeg is left to the user: nothing is installed for it",
           "[timelapse][local_install]") {
     FakeRunner fake;
     fake.answers[kFindFfmpeg] = exited(1);
-    fake.answers[kSudoProbe] = exited(1, "sudo: a password is required\n");
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
+    std::vector<LocalPluginStage> stages;
+    const auto result =
+        install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner(),
+                               [&](LocalPluginStage s) { stages.push_back(s); });
 
     CHECK(result.outcome == LocalPluginOutcome::InstalledMissingDependency);
     CHECK(result.missing_dependency == "ffmpeg");
-    // Nothing is ever run through sudo without -n, so nothing can wait on a password.
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg, kSudoProbe});
-}
-
-TEST_CASE("missing ffmpeg is installed through passwordless sudo", "[timelapse][local_install]") {
-    FakeRunner fake;
-    int finds = 0;
-    auto base = fake.runner();
-    ProcessRunner runner = [&](const std::vector<std::string>& argv, int t) {
-        if (join(argv) == kFindFfmpeg) {
-            fake.calls.push_back(kFindFfmpeg);
-            // Missing before the install, there after it.
-            return exited(++finds == 1 ? 1 : 0);
-        }
-        return base(argv, t);
-    };
-    std::vector<LocalPluginStage> stages;
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), 
-        fresh_plan(), runner, [&](LocalPluginStage s) { stages.push_back(s); });
-
-    CHECK(result.outcome == LocalPluginOutcome::Installed);
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg, kSudoProbe, kAptUpdate,
-                                                 kAptInstall, kFindFfmpeg});
-    CHECK(stages.back() == LocalPluginStage::InstallDependency);
-}
-
-TEST_CASE("a failed apt install leaves ffmpeg to the user with apt's last line",
-          "[timelapse][local_install]") {
-    FakeRunner fake;
-    fake.answers[kFindFfmpeg] = exited(1);
-    fake.answers[kAptUpdate] = exited(100, "E: Could not get lock /var/lib/apt/lists/lock\n");
-    fake.answers[kAptInstall] = exited(100, "E: Unable to locate package ffmpeg\n");
-    const auto result = install_plugin_locally(timelapse_plugin_recipe(), fresh_plan(), fake.runner());
-
-    CHECK(result.outcome == LocalPluginOutcome::InstalledMissingDependency);
-    CHECK(result.detail == "E: Unable to locate package ffmpeg");
-    // A failed list refresh still tries the install.
-    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg, kSudoProbe, kAptUpdate,
-                                                 kAptInstall});
+    CHECK(fake.calls == std::vector<std::string>{kClone, kLink, kFindFfmpeg});
+    CHECK(stages.back() == LocalPluginStage::CheckDependency);
+    for (const auto& call : fake.calls) {
+        CHECK(call.find("sudo") == std::string::npos);
+        CHECK(call.find("apt") == std::string::npos);
+    }
 }
 
 TEST_CASE("make_timelapse_install_plan names the clone under home", "[timelapse][local_install]") {
-    const auto plan = make_local_plugin_plan(timelapse_plugin_recipe(), "/nonexistent-home", "/x/install.sh");
+    const auto plan =
+        make_local_plugin_plan(timelapse_plugin_recipe(), "/nonexistent-home", "/x/install.sh");
     CHECK(plan.repo_dir == "/nonexistent-home/moonraker-timelapse");
     CHECK(plan.install_script == "/x/install.sh");
     CHECK_FALSE(plan.repo_present);
@@ -252,8 +228,8 @@ TEST_CASE("HelixPrint's recipe runs only install.sh --auto: nothing to fetch, no
 
     const auto ok = install_plugin_locally(recipe, plan, fake.runner());
     CHECK(ok.outcome == LocalPluginOutcome::Installed);
-    CHECK(fake.calls ==
-          std::vector<std::string>{"sh /opt/helix/moonraker-plugin/install.sh --no-restart --auto"});
+    CHECK(fake.calls == std::vector<std::string>{
+                            "sh /opt/helix/moonraker-plugin/install.sh --no-restart --auto"});
 
     fake.calls.clear();
     fake.answers["sh /opt/helix/moonraker-plugin/install.sh --no-restart --auto"] =
@@ -275,6 +251,45 @@ TEST_CASE("HELIX_MOCK_TIMELAPSE values", "[timelapse][local_install]") {
     CHECK(mock::parse_timelapse_host("") == TimelapseHost::Present);
     CHECK(mock::parse_timelapse_host("absent") == TimelapseHost::Absent);
     CHECK(mock::parse_timelapse_host("no-ffmpeg") == TimelapseHost::NoFfmpeg);
-    CHECK(mock::parse_timelapse_host("no-sudo") == TimelapseHost::NoSudo);
+    CHECK(mock::parse_timelapse_host("no-sudo") == TimelapseHost::Present);
     CHECK(mock::parse_timelapse_host("bogus") == TimelapseHost::Present);
+}
+
+// ============================================================================
+// The real runner
+// ============================================================================
+
+#if defined(__linux__)
+TEST_CASE("run_process children read /dev/null and hold none of the app's descriptors",
+          "[timelapse][local_install][process_runner]") {
+    const auto stdin_target = run_process({"readlink", "/proc/self/fd/0"}, 10);
+    REQUIRE(stdin_target.succeeded());
+    CHECK(last_output_line(stdin_target.output) == "/dev/null");
+
+    // A descriptor the app holds without close-on-exec must not reach the child.
+    const int fd = open("/dev/null", O_RDONLY);
+    REQUIRE(fd > 2);
+    const std::string probe = "[ -e /proc/self/fd/" + std::to_string(fd) +
+                              " ] && echo open || "
+                              "echo closed";
+    const auto leaked = run_process({"/bin/sh", "-c", probe}, 10);
+    close(fd);
+    REQUIRE(leaked.succeeded());
+    CHECK(last_output_line(leaked.output) == "closed");
+}
+#endif
+
+TEST_CASE("a cancelled runner ends its command at once",
+          "[timelapse][local_install][process_runner]") {
+    std::atomic<bool> cancel{true};
+    const ProcessRunner run = cancellable_process_runner(cancel);
+    const auto start = std::chrono::steady_clock::now();
+    const auto r = run({"sleep", "30"}, 60);
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+    CHECK_FALSE(r.succeeded());
+    CHECK(r.timed_out);
+    CHECK(elapsed < std::chrono::seconds(5));
+
+    cancel.store(false);
+    CHECK(run({"true"}, 10).succeeded());
 }

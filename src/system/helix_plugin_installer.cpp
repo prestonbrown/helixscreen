@@ -22,12 +22,15 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <vector>
 
@@ -108,10 +111,12 @@ static void drain_output(int fd, std::string& out) {
  * @param operation_name Name for logging ("Installation" or "Uninstallation")
  * @param out_fd Non-blocking read end of the child's stdout/stderr, drained
  *               while waiting so a full pipe can never stall the child
+ * @param cancel When set and it turns true, the child is ended as at a timeout
  * @return WaitResult with exit code, captured output, or error info
  */
 static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
-                                              const char* operation_name, int out_fd) {
+                                              const char* operation_name, int out_fd,
+                                              const std::atomic<bool>* cancel) {
     constexpr auto kPollInterval = std::chrono::milliseconds(10);
     constexpr auto kTermGrace = std::chrono::milliseconds(500);
     WaitResult result;
@@ -120,7 +125,7 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
         pid, std::chrono::steady_clock::now() + std::chrono::seconds(timeout_seconds), kTermGrace,
         kPollInterval, [&] {
             drain_output(out_fd, result.output);
-            return true;
+            return cancel == nullptr || !cancel->load();
         });
     drain_output(out_fd, result.output);
 
@@ -129,9 +134,12 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
         result.exit_code = wait.exit_code();
         break;
     case ChildWaitOutcome::TimedOut:
-    case ChildWaitOutcome::Cancelled:
         spdlog::error("[PluginInstaller] {} timed out after {} seconds", operation_name,
                       timeout_seconds);
+        result.timed_out = true;
+        break;
+    case ChildWaitOutcome::Cancelled:
+        spdlog::warn("[PluginInstaller] {} stopped: the app is shutting down", operation_name);
         result.timed_out = true;
         break;
     case ChildWaitOutcome::WaitFailed:
@@ -151,16 +159,19 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
  * fork/exec instead of popen(): every word reaches sh as its own argument,
  * never as a command string, so nothing inside a path is interpreted. An
  * inherited HELIX_JOB_STATE is left out of the child's environment: install.sh
- * asks Moonraker for the print state itself.
+ * asks Moonraker for the print state itself. The child reads /dev/null and
+ * holds none of the app's other descriptors, so nothing it runs can wait on
+ * the terminal or keep one of the app's sockets open.
  */
 static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_seconds,
-                         const char* operation_name) {
+                         const char* operation_name, const std::atomic<bool>* cancel = nullptr) {
     WaitResult result;
 #if defined(ESP_PLATFORM)
     // No shell and no processes to spawn: the firmware cannot run commands.
     (void)sh_args;
     (void)timeout_seconds;
     (void)operation_name;
+    (void)cancel;
     result.error = result.spawn_failed = true;
     result.error_message = "not supported on this device";
     return result;
@@ -189,8 +200,20 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
         argv.push_back(arg.c_str());
     }
     argv.push_back(nullptr);
+    const long open_max = sysconf(_SC_OPEN_MAX);
+    const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
 
+    // Until exec the child is a copy of the app, handlers included: a SIGTERM
+    // that ends it early must not run the app's own handler in it. Signals stay
+    // blocked across the fork, and the child resets every handled one first.
+    sigset_t all_signals;
+    sigset_t old_mask;
+    sigfillset(&all_signals);
+    pthread_sigmask(SIG_SETMASK, &all_signals, &old_mask);
     pid_t pid = fork();
+    if (pid != 0) {
+        pthread_sigmask(SIG_SETMASK, &old_mask, nullptr);
+    }
     if (pid < 0) {
         result.error = result.spawn_failed = true;
         result.error_message = strerror(errno);
@@ -201,16 +224,30 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
     }
 
     if (pid == 0) {
+        for (int sig = 1; sig < NSIG; ++sig) {
+            struct sigaction current {};
+            if (sigaction(sig, nullptr, &current) == 0 && current.sa_handler != SIG_IGN) {
+                struct sigaction reset {};
+                reset.sa_handler = SIG_DFL;
+                sigaction(sig, &reset, nullptr);
+            }
+        }
+        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+        const int null_fd = open("/dev/null", O_RDONLY);
+        if (null_fd >= 0) {
+            dup2(null_fd, STDIN_FILENO);
+        }
         dup2(fds[1], STDOUT_FILENO);
         dup2(fds[1], STDERR_FILENO);
-        close(fds[0]);
-        close(fds[1]);
+        for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
+            close(fd);
+        }
         execve("/bin/sh", const_cast<char* const*>(argv.data()), envp.data());
         _exit(127);
     }
 
     close(fds[1]);
-    result = wait_for_child_with_timeout(pid, timeout_seconds, operation_name, fds[0]);
+    result = wait_for_child_with_timeout(pid, timeout_seconds, operation_name, fds[0], cancel);
     close(fds[0]);
     return result;
 #endif
@@ -235,7 +272,9 @@ static WaitResult run_install_script(const std::string& script_path, const char*
     return run_sh(args, timeout_seconds, operation_name);
 }
 
-CommandResult run_process(const std::vector<std::string>& argv, int timeout_seconds) {
+namespace {
+CommandResult run_process_until(const std::vector<std::string>& argv, int timeout_seconds,
+                                const std::atomic<bool>* cancel) {
     CommandResult out;
     if (argv.empty()) {
         return out;
@@ -243,7 +282,7 @@ CommandResult run_process(const std::vector<std::string>& argv, int timeout_seco
     // sh execs "$@": it looks the program up on PATH and passes each word as is.
     std::vector<std::string> args = {"-c", "exec \"$@\"", "sh"};
     args.insert(args.end(), argv.begin(), argv.end());
-    const WaitResult result = run_sh(args, timeout_seconds, argv.front().c_str());
+    const WaitResult result = run_sh(args, timeout_seconds, argv.front().c_str(), cancel);
     out.started = !result.spawn_failed;
     out.timed_out = result.timed_out;
     out.exit_code = result.timed_out || result.error ? -1 : result.exit_code;
@@ -252,6 +291,17 @@ CommandResult run_process(const std::vector<std::string>& argv, int timeout_seco
         out.error = result.error_message;
     }
     return out;
+}
+} // namespace
+
+CommandResult run_process(const std::vector<std::string>& argv, int timeout_seconds) {
+    return run_process_until(argv, timeout_seconds, nullptr);
+}
+
+ProcessRunner cancellable_process_runner(const std::atomic<bool>& cancel) {
+    return [&cancel](const std::vector<std::string>& argv, int timeout_seconds) {
+        return run_process_until(argv, timeout_seconds, &cancel);
+    };
 }
 
 std::string last_output_line(const std::string& output) {

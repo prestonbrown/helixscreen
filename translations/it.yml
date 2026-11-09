@@ -321,6 +321,7 @@ translations:
     di navigazione Android invece dei gesti
   Ambient Transfer: Trasferimento ambiente
   AmsIdentify: Identifica AMS
+  An earlier install is still finishing...: 'Un''installazione precedente è ancora in corso...'
   An API key is 32 characters, each 0-9 or a-f.: 'Una chiave API ha 32 caratteri, ciascuno 0-9 o a-f.'
   An accelerometer was detected on your printer.: È stato rilevato un accelerometro
     sulla stampante.
@@ -2116,7 +2117,6 @@ translations:
   Installation timed out. The script may be stuck.: Installazione scaduta. Lo script
     potrebbe essere bloccato.
   Installed: 'Installato'
-  Installing ffmpeg. This can take several minutes...: 'Installazione di ffmpeg. Può richiedere diversi minuti...'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'L''installazione riavvia Moonraker, quindi attende che la stampa sia finita o annullata.'
   Installing the timelapse plugin...: 'Installazione del plugin timelapse...'
   Installing...: Installazione in corso...
@@ -4430,9 +4430,9 @@ translations:
   The temperature was changed elsewhere.: "La temperatura è stata modificata altrove."
   The time, date, and system uptime: Ora, data e tempo di attività
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."
-  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
-  : 'Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che HelixScreen non è riuscito a installare senza password.'
   Timelapse or logs folder overlaps a protected one.: "La cartella timelapse o dei log si sovrappone a una protetta."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che non è installato su questa stampante.'
   The tool change under way finished, and the tool was not parked: 'Il cambio utensile in corso è terminato e l''utensile non è stato parcheggiato'
   The tool change under way finished, and {} was not put back on the carriage: 'Il cambio utensile in corso è terminato e {} non è stato rimesso sul carrello'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?

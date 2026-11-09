@@ -17,9 +17,9 @@
  *      or the plugin ships with this app.
  *   2. Install: install.sh in the recipe's mode. install.sh owns where Moonraker
  *      lives, the link pre-flights, and any config section it writes.
- *   3. Each dependency: probe for it; when missing, install its apt package
- *      only through passwordless sudo (`sudo -n`, so nothing waits on a
- *      password), else report it to the user.
+ *   3. Each dependency: probe for it, and report a missing one to the user.
+ *      The engine never installs packages: a package manager run from the UI
+ *      can leave the host's package database half-configured if it is stopped.
  *
  * Restarting Moonraker afterwards is the caller's: each plugin's UI already
  * owns when a restart may happen.
@@ -35,9 +35,8 @@ namespace helix {
 
 /// A program a plugin needs that is not part of it.
 struct LocalPluginDependency {
-    std::string name;        ///< what it is called on screen and in the log: "ffmpeg"
-    std::string program;     ///< what `command -v` looks for
-    std::string apt_package; ///< what apt-get installs it from
+    std::string name;    ///< what it is called on screen and in the log: "ffmpeg"
+    std::string program; ///< what `command -v` looks for
 };
 
 /// Install-recipe argument the engine replaces with the plan's repo_dir.
@@ -67,10 +66,9 @@ LocalPluginPlan make_local_plugin_plan(const LocalPluginRecipe& recipe, const st
 
 /// The step a local install is on, or the one it failed in.
 enum class LocalPluginStage {
-    Fetch,             ///< git clone of the repository
-    Install,           ///< install.sh in the recipe's mode
-    CheckDependency,   ///< looking for a dependency
-    InstallDependency, ///< apt-get through passwordless sudo
+    Fetch,           ///< git clone of the repository
+    Install,         ///< install.sh in the recipe's mode
+    CheckDependency, ///< looking for a dependency
 };
 
 enum class LocalPluginOutcome {
@@ -82,7 +80,7 @@ enum class LocalPluginOutcome {
 struct LocalPluginResult {
     LocalPluginOutcome outcome = LocalPluginOutcome::Failed;
     LocalPluginStage failed_stage = LocalPluginStage::Fetch;
-    /// The failing step's command result (for a missing dependency, apt's when it ran).
+    /// The failing step's command result.
     CommandResult failure;
     /// The failing command's last output line, or "timed out"; empty on success.
     std::string detail;
@@ -93,8 +91,8 @@ struct LocalPluginResult {
 /**
  * @brief Run a local install of @p recipe through @p run
  *
- * Blocks for as long as the commands take (an apt install can take minutes),
- * so it belongs on a worker thread. @p on_stage, when set, is called on that
+ * Blocks for as long as the commands take (a clone on a slow link can take
+ * minutes), so it belongs on a worker thread. @p on_stage, when set, is called on that
  * same thread as each step starts.
  */
 LocalPluginResult

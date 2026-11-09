@@ -323,6 +323,7 @@ translations:
     immer anzeigen statt Gesten zu nutzen
   Ambient Transfer: Umgebungswärmeübertragung
   AmsIdentify: AMS identifizieren
+  An earlier install is still finishing...: 'Eine frühere Installation läuft noch...'
   An API key is 32 characters, each 0-9 or a-f.: 'Ein API-Schlüssel hat 32 Zeichen, jeweils 0-9 oder a-f.'
   An accelerometer was detected on your printer.: Ein Beschleunigungssensor wurde
     an Ihrem Drucker erkannt.
@@ -2126,7 +2127,6 @@ translations:
   Installation timed out. The script may be stuck.: Installation – Zeitüberschreitung.
     Das Skript hängt möglicherweise.
   Installed: 'Installiert'
-  Installing ffmpeg. This can take several minutes...: 'ffmpeg wird installiert. Das kann einige Minuten dauern...'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'Die Installation startet Moonraker neu und wartet daher, bis der Druck beendet oder abgebrochen ist.'
   Installing the timelapse plugin...: 'Zeitraffer-Plugin wird installiert...'
   Installing...: Installiere...
@@ -4439,9 +4439,9 @@ translations:
   The temperature was changed elsewhere.: "Die Temperatur wurde anderswo geändert."
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
-  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
-  : 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das HelixScreen ohne Passwort nicht installieren konnte.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
   The tool change under way finished, and {} was not put back on the carriage: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und {} wurde nicht wieder auf den Wagen gesetzt'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?

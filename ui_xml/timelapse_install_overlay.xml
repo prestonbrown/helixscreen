@@ -44,7 +44,7 @@
         </lv_obj>
       </lv_obj>
 
-      <!-- ffmpeg command: the plugin is installed, ffmpeg needs a password -->
+      <!-- ffmpeg command: the plugin is installed, ffmpeg is missing -->
       <lv_obj name="ffmpeg_instructions_container"
               width="100%" height="content" style_pad_all="#space_md" style_bg_color="#card_bg"
               style_radius="#border_radius" style_bg_opa="255">

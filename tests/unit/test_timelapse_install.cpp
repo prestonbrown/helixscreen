@@ -4,6 +4,7 @@
 #include "ui_button.h"
 #include "ui_overlay_timelapse_install.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -12,7 +13,11 @@
 #include "moonraker_config_manager.h"
 #include "printer_state.h"
 
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -288,6 +293,174 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK_FALSE(lv_obj_has_flag(ssh, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(ffmpeg, LV_OBJ_FLAG_HIDDEN));
 
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+// ============================================================================
+// Local install: runs, reopens, prints
+// ============================================================================
+
+namespace {
+using helix::CommandResult;
+
+constexpr const char* kWaitsForPrint =
+    "Installing restarts Moonraker, so it waits until the print is finished or cancelled.";
+
+/// LVGL, the global PrinterState the wizard reads a job and Moonraker's host from,
+/// and a mock Moonraker whose plugin is absent, so an opened wizard reaches step 3.
+struct LocalInstallFixture : public LVGLTestFixture {
+    LocalInstallFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
+        const char* home = std::getenv("HOME");
+        had_home_ = home != nullptr;
+        saved_home_ = home ? home : "";
+        setenv("HOME", "/nonexistent-timelapse-home", 1);
+        get_printer_state().init_subjects(false);
+        get_printer_state().set_moonraker_is_remote(false);
+        set_job_holds(false);
+    }
+    ~LocalInstallFixture() override {
+        set_job_holds(false);
+        get_printer_state().clear_moonraker_locality();
+        if (had_home_) {
+            setenv("HOME", saved_home_.c_str(), 1);
+        } else {
+            unsetenv("HOME");
+        }
+    }
+    static void set_job_holds(bool holds) {
+        lv_subject_set_int(get_printer_state().print_state().get_job_holds_machine_subject(),
+                           holds ? 1 : 0);
+    }
+    static std::string status() {
+        return lv_subject_get_string(lv_xml_get_subject(nullptr, "timelapse_install_status"));
+    }
+    static int card() {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "timelapse_install_card"));
+    }
+    static bool action_visible() {
+        return lv_subject_get_int(
+                   lv_xml_get_subject(nullptr, "timelapse_install_action_visible")) != 0;
+    }
+    /// Drain the UI queue until @p done holds, for up to five seconds.
+    template <typename Pred> static bool settle_until(Pred done) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (std::chrono::steady_clock::now() < deadline) {
+            helix::ui::UpdateQueue::instance().drain();
+            if (done()) {
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+
+    MoonrakerClientMock client;
+
+  private:
+    bool had_home_ = false;
+    std::string saved_home_;
+};
+
+/// A runner whose every command blocks until released, then ends with @p exit_code.
+struct GatedRunner {
+    std::atomic<bool> released{false};
+    std::atomic<int> calls{0};
+    int exit_code = 0;
+
+    helix::ProcessRunner runner() {
+        return [this](const std::vector<std::string>&, int) {
+            ++calls;
+            while (!released.load()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            CommandResult done;
+            done.started = true;
+            done.exit_code = exit_code;
+            return done;
+        };
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LocalInstallFixture,
+                 "closing the wizard mid-install: a reopened run waits for it, then installs anew",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    overlay.set_process_runner(gate.runner());
+
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return gate.calls.load() == 1; }));
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return status() == "An earlier install is still finishing..."; }));
+    CHECK(action_visible());
+    CHECK(gate.calls.load() == 1);
+
+    // Only the reopened run's own install counts: the first run's result moves nothing.
+    gate.released.store(true);
+    REQUIRE(settle_until([&] { return gate.calls.load() > 1; }));
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "a print started during the install holds what comes next",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    overlay.set_process_runner(gate.runner());
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return gate.calls.load() == 1; }));
+
+    SECTION("configure waits, and Check Again keeps waiting while it prints") {
+        set_job_holds(true);
+        gate.released.store(true);
+        REQUIRE(settle_until([&] { return status() == kWaitsForPrint; }));
+        REQUIRE(action_visible());
+        overlay.press_action();
+        CHECK(status() == kWaitsForPrint);
+    }
+    SECTION("a Retry of a failed install waits too, and runs nothing") {
+        gate.exit_code = 1;
+        gate.released.store(true);
+        REQUIRE(settle_until([&] { return action_visible(); }));
+        const int calls = gate.calls.load();
+        set_job_holds(true);
+        overlay.press_action();
+        CHECK(status() == kWaitsForPrint);
+        CHECK(gate.calls.load() == calls);
+    }
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    overlay.cleanup();
+}
+
+TEST_CASE_METHOD(LocalInstallFixture, "no HOME to clone under takes the SSH route",
+                 "[timelapse][local_install_ui]") {
+    MoonrakerAPI api(client, get_printer_state());
+    TimelapseInstallOverlay overlay(&api);
+    overlay.init_subjects();
+    GatedRunner gate;
+    gate.released.store(true);
+    overlay.set_process_runner(gate.runner());
+
+    SECTION("unset") {
+        unsetenv("HOME");
+    }
+    SECTION("empty") {
+        setenv("HOME", "", 1);
+    }
+    overlay.on_activate();
+    REQUIRE(settle_until([&] { return card() == 1; })); // Card::Ssh
+    CHECK(gate.calls.load() == 0);
     overlay.on_deactivate(DeactivateReason::NavigateAway);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     overlay.cleanup();

@@ -23,11 +23,6 @@ std::atomic<bool>& linked() {
     return value;
 }
 
-std::atomic<bool>& ffmpeg_installed() {
-    static std::atomic<bool> value{false};
-    return value;
-}
-
 // Long enough to see each step's status on screen.
 constexpr auto kStepDelay = std::chrono::milliseconds(800);
 } // namespace
@@ -39,9 +34,6 @@ TimelapseHost parse_timelapse_host(const char* value) {
     }
     if (v == "no-ffmpeg") {
         return TimelapseHost::NoFfmpeg;
-    }
-    if (v == "no-sudo") {
-        return TimelapseHost::NoSudo;
     }
     return TimelapseHost::Present;
 }
@@ -64,17 +56,9 @@ ProcessRunner timelapse_host_runner() {
         std::this_thread::sleep_for(kStepDelay);
         if (cmd.find("--link-timelapse") != std::string::npos) {
             linked().store(true);
-        } else if (cmd == "sh -c command -v ffmpeg") {
-            const bool has = host == TimelapseHost::Absent || host == TimelapseHost::Present ||
-                             ffmpeg_installed().load();
-            r.exit_code = has ? 0 : 1;
-        } else if (cmd == "sudo -n true") {
-            r.exit_code = host == TimelapseHost::NoSudo ? 1 : 0;
-            if (r.exit_code != 0) {
-                r.output = "sudo: a password is required\n";
-            }
-        } else if (cmd.find("apt-get install") != std::string::npos) {
-            ffmpeg_installed().store(true);
+        } else if (cmd.find("command -v") != std::string::npos &&
+                   cmd.find("ffmpeg") != std::string::npos) {
+            r.exit_code = host == TimelapseHost::NoFfmpeg ? 1 : 0;
         }
         return r;
     };

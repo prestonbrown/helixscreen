@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
@@ -29,6 +30,10 @@ using ProcessRunner =
 /// The real runner: forks /bin/sh to exec @p argv, never interpreting its words,
 /// and captures the output while it waits. BLOCKING: never on the LVGL thread.
 CommandResult run_process(const std::vector<std::string>& argv, int timeout_seconds);
+
+/// run_process() that also ends the running command, as at a timeout, once
+/// @p cancel turns true. @p cancel must outlive every call through the runner.
+ProcessRunner cancellable_process_runner(const std::atomic<bool>& cancel);
 
 /// The last line of @p output with any text in it, color escapes removed.
 std::string last_output_line(const std::string& output);

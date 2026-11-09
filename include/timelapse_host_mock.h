@@ -15,8 +15,7 @@ namespace helix::mock {
 enum class TimelapseHost {
     Present,  ///< unset: the plugin answers
     Absent,   ///< "absent": no plugin; ffmpeg is installed
-    NoFfmpeg, ///< "no-ffmpeg": no plugin, no ffmpeg; passwordless sudo installs it
-    NoSudo,   ///< "no-sudo": no plugin, no ffmpeg; sudo needs a password
+    NoFfmpeg, ///< "no-ffmpeg": no plugin, no ffmpeg; the last screen shows its command
 };
 
 /// Parse a HELIX_MOCK_TIMELAPSE value; unset and unknown values are Present.

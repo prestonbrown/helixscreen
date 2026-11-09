@@ -366,6 +366,7 @@ translations:
     панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
   AmsIdentify: Определить AMS
+  An earlier install is still finishing...: 'Предыдущая установка ещё завершается...'
   An API key is 32 characters, each 0-9 or a-f.: 'API-ключ состоит из 32 символов, каждый 0-9 или a-f.'
   An accelerometer was detected on your printer.: На вашем принтере обнаружен акселерометр.
   An app on your network is asking to connect to this printer.: 'Приложение в вашей сети запрашивает подключение к этому принтеру.'
@@ -2163,7 +2164,6 @@ translations:
   Installation timed out. The script may be stuck.: Время установки истекло. Скрипт
     мог зависнуть.
   Installed: 'Установлено'
-  Installing ffmpeg. This can take several minutes...: 'Установка ffmpeg. Это может занять несколько минут...'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'Установка перезапускает Moonraker, поэтому ждёт, пока печать не завершится или не будет отменена.'
   Installing the timelapse plugin...: 'Установка плагина таймлапса...'
   Installing...: Установка...
@@ -4480,9 +4480,9 @@ translations:
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
-  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
-  : 'Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который HelixScreen не смог установить без пароля.'
   Timelapse or logs folder overlaps a protected one.: "Папка таймлапсов или журналов пересекается с защищённой."
+  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
+  : 'Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который не установлен на этом принтере.'
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
   The tool change under way finished, and {} was not put back on the carriage: 'Текущая смена инструмента завершена, {} не возвращён на каретку'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?

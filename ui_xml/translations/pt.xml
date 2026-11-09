@@ -309,6 +309,7 @@
   <translation tag="An accelerometer was detected on your printer." pt="Um acelerômetro foi detectado na sua impressora."/>
   <translation tag="An app on your network is asking to connect to this printer." pt="Um aplicativo na sua rede quer conectar-se a esta impressora."/>
   <translation tag="An earlier IPv4 change is still being undone. Try again shortly." pt="Uma alteração IPv4 anterior ainda está sendo desfeita. Tente novamente em instantes."/>
+  <translation tag="An earlier install is still finishing..." pt="Uma instalação anterior ainda está terminando..."/>
   <translation tag="An error occurred during calibration." pt="Ocorreu um erro durante a calibração."/>
   <translation tag="An error occurred during filament loading." pt="Ocorreu um erro durante o carregamento do filamento."/>
   <translation tag="An error occurred during probing." pt="Ocorreu um erro durante a sondagem."/>
@@ -1933,7 +1934,6 @@
   <translation tag="Installation timed out" pt="A instalação — tempo esgotado"/>
   <translation tag="Installation timed out. The script may be stuck." pt="A instalação — tempo esgotado. O script pode estar travado."/>
   <translation tag="Installed" pt="Instalado"/>
-  <translation tag="Installing ffmpeg. This can take several minutes..." pt="Instalando o ffmpeg. Isso pode levar alguns minutos..."/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." pt="A instalação reinicia o Moonraker, então aguarda até que a impressão termine ou seja cancelada."/>
   <translation tag="Installing the timelapse plugin..." pt="Instalando o plugin de timelapse..."/>
   <translation tag="Installing..." pt="Instalando..."/>
@@ -4063,7 +4063,7 @@
   <translation tag="The temperature was changed elsewhere." pt="A temperatura foi alterada em outro lugar."/>
   <translation tag="The time, date, and system uptime" pt="Hora, data e tempo ativo"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." pt="A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."/>
-  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password." pt="O plugin de timelapse está instalado. Para criar vídeos também é preciso o ffmpeg, que o HelixScreen não conseguiu instalar sem senha."/>
+  <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." pt="O plugin de timelapse está instalado. Para criar vídeos também é preciso o ffmpeg, que não está instalado nesta impressora."/>
   <translation tag="The tool change under way finished, and the tool was not parked" pt="A troca de ferramenta em andamento terminou e a ferramenta não foi estacionada"/>
   <translation tag="The tool change under way finished, and {} was not put back on the carriage" pt="A troca de ferramenta em andamento terminou e {} não foi devolvida ao carro"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" pt="O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?"/>

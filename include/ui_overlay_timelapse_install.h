@@ -7,8 +7,11 @@
 #include "subject_managed_panel.h"
 #include "timelapse_local_installer.h"
 
+#include <atomic>
 #include <functional>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 struct WebcamInfo;
@@ -61,6 +64,13 @@ class TimelapseInstallOverlay : public OverlayBase {
         api_ = api;
     }
 
+    /// Run the footer action, the same as tapping its button
+    void press_action();
+    /// Replace the commands a local install runs
+    void set_process_runner(helix::ProcessRunner runner) {
+        runner_override_ = std::move(runner);
+    }
+
     // Config file helpers (public for testability)
     static std::string append_timelapse_config(const std::string& content);
     static bool has_timelapse_section(const std::string& content);
@@ -102,9 +112,22 @@ class TimelapseInstallOverlay : public OverlayBase {
     /// Take the route decide_timelapse_setup_path() picks for an absent plugin
     void step_install_plugin();
 
-    /// Install the plugin on this host, off the main thread
+    /// Install the plugin on this host, on the install worker
     void step_install_locally();
+    /// Main thread: the worker started by run @p gen ended with @p result
+    void on_local_install_finished(unsigned gen, const helix::LocalPluginResult& result);
     void on_local_install_done(const helix::LocalPluginResult& result);
+    /// Join a worker that has ended; never waits on one still running
+    void join_finished_install_worker();
+    /// End the worker's command and join it: well under a second
+    void stop_install_worker();
+
+    /// Whether a reply for run @p gen at @p step still belongs to the run on screen
+    bool is_current(unsigned gen, Step step) const;
+
+    /// While a job holds the machine, say the wizard waits for it and offer
+    /// Check Again, which runs @p resume. Returns whether it is waiting.
+    bool show_wait_for_print(std::function<void()> resume);
 
     /// Re-check plugin after user runs SSH install commands
     void recheck_after_install();
@@ -140,8 +163,17 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     /// The local install left ffmpeg missing; the last screen says how to add it
     bool ffmpeg_missing_ = false;
-    /// A local install is running on a worker; a second tap must not start another
-    bool installing_ = false;
+
+    /// The local install's commands. Owned and joined here, never detached:
+    /// install_cancel_ ends its running command, so a join is short.
+    std::thread install_thread_;
+    /// Set by the worker itself, so no closed screen can leave it stuck true.
+    std::atomic<bool> install_running_{false};
+    std::atomic<bool> install_cancel_{false};
+    /// A run that found an earlier run's install going starts its own when that ends
+    bool waiting_on_earlier_install_ = false;
+    /// The commands a local install runs; tests set it, empty means the real runner
+    helix::ProcessRunner runner_override_;
 
     void on_ui_destroyed() override {
         step_progress_ = nullptr;
@@ -149,6 +181,8 @@ class TimelapseInstallOverlay : public OverlayBase {
 
     Step current_step_ = Step::CHECKING_WEBCAM;
     bool wizard_active_ = false;
+    /// Bumped by every start_wizard(); a reply from an earlier run carries an older one
+    unsigned run_generation_ = 0;
     std::function<void()> action_callback_;
 };
 

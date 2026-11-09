@@ -6,6 +6,8 @@
 #include "runtime_config.h"
 #include "timelapse_host_mock.h"
 
+#include <cstdlib>
+
 namespace helix {
 
 TimelapseSetupPath decide_timelapse_setup_path(const TimelapseSetupFacts& facts) {
@@ -28,18 +30,23 @@ const LocalPluginRecipe& timelapse_plugin_recipe() {
         r.install_args = {"--link-timelapse", kLocalPluginRepoDirArg};
         // install.sh walks /proc and the config; it never waits on Moonraker.
         r.install_timeout_seconds = 60;
-        r.dependencies = {{"ffmpeg", "ffmpeg", "ffmpeg"}};
+        r.dependencies = {{"ffmpeg", "ffmpeg"}};
         return r;
     }();
     return recipe;
 }
 
-ProcessRunner timelapse_install_runner() {
+std::string timelapse_install_home() {
+    const char* home = std::getenv("HOME");
+    return home ? home : "";
+}
+
+ProcessRunner timelapse_install_runner(const std::atomic<bool>& cancel) {
     // A mock Moonraker is not on this host: its install is simulated, never run here.
     if (get_runtime_config()->should_mock_moonraker()) {
         return mock::timelapse_host_runner();
     }
-    return run_process;
+    return cancellable_process_runner(cancel);
 }
 
 } // namespace helix
