@@ -894,6 +894,7 @@ static void setup_slot_observers(AmsSlotData* data) {
         const auto respin = [](lv_obj_t* o, int /*value*/) { apply_spool_spin(get_slot_data(o)); };
         PrinterState& printer = get_printer_state();
         const SubjectLifetime printer_subjects = printer.get_subjects_lifetime();
+        // RAW_PRINT_STATE_OK: wakes the same decision, which reads the job state above
         data->print_state_observer = observe<int>(
             printer.print_state().get_print_state_enum_subject(), obj, respin, printer_subjects);
         data->extruder_velocity_observer =
