@@ -76,7 +76,8 @@ cat /usr/data/.mod/.zmod/srv/helixscreen/config/settings.json
 │   ├── helix-splash
 │   ├── helix-watchdog
 │   └── helix-launcher.sh
-├── config/                   (writable; settings + telemetry land here)
+├── config/                   (packaged files, plus links to the user files in
+│   │                          /srv/helixscreen-state/config, made by the launcher)
 │   ├── .helix-screen.lock
 │   ├── .crash_restart_count  (watchdog crash counter)
 │   ├── settings.json

@@ -458,6 +458,62 @@ def check_state_outside_payload(manifest, f):
                 )
 
 
+def _user_config_pairs(storage):
+    """(label, payload root, user config dir) for each layout storage describes.
+
+    A firmware-keyed root without a matching user_config_dir pairs with None, so
+    a variant that gains a root cannot slip past by having no entry.
+    """
+    pairs = []
+    root = storage.get("root", "")
+    by_fw = storage.get("user_config_dir_by_firmware", {})
+    # With a firmware map, the per-firmware pairs below cover the plain root.
+    if root.startswith("/") and not by_fw:
+        pairs.append(("", root, storage.get("user_config_dir")))
+    for fw, fw_root in sorted(storage.get("root_by_firmware", {}).items()):
+        # Prose roots ("X if that dir exists, else Y") are not one path.
+        if fw_root.startswith("/") and " " not in fw_root:
+            pairs.append((f" ({fw})", fw_root, by_fw.get(fw)))
+    for fw, value in sorted(by_fw.items()):
+        if fw not in storage.get("root_by_firmware", {}) and root.startswith("/"):
+            pairs.append((f" ({fw})", root, value))
+    return pairs
+
+
+def check_user_config_outside_payload(manifest, f):
+    """The user's config files must live outside the payload, and the device must agree.
+
+    Same rmtree as check_state_outside_payload, with more at stake: a lost cache
+    is rebuilt, a lost tool_spools.json or telemetry_device.json is not. A
+    platform with no user_config_dir keeps its config at <root>/config, inside
+    the payload (#2085). Each declared directory must also be one that
+    config/restore-user-config.sh can resolve, since that script, not this
+    file, decides on the device.
+    """
+    restore = read("config/restore-user-config.sh")
+    for pid, entry in sorted(manifest["platforms"].items()):
+        for label, root, config_dir in _user_config_pairs(entry.get("storage", {})):
+            if not config_dir:
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: no user_config_dir, so user config stays in "
+                    f"{root}/config, which every update deletes",
+                )
+                continue
+            if _under(config_dir, root):
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: user_config_dir {config_dir} is inside the payload "
+                    f"root {root}, which every update deletes",
+                )
+            elif restore is not None and config_dir not in restore:
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: config/restore-user-config.sh never resolves "
+                    f"user_config_dir {config_dir}",
+                )
+
+
 def check_renders_exist(manifest, f, build_dir):
     """Derived classes must have a render under build/, when a build exists."""
     prerendered = os.path.join(ROOT, build_dir, "assets", "images", "prerendered")
@@ -505,6 +561,7 @@ def main():
     check_shell_roots(manifest, f)
     check_installer_branch_roots(manifest, f)
     check_state_outside_payload(manifest, f)
+    check_user_config_outside_payload(manifest, f)
     check_state_roots(manifest, f)
     check_cache_rungs(manifest, f)
     check_renders_exist(manifest, f, args.build_dir)
