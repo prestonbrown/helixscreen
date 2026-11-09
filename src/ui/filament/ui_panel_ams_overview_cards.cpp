@@ -21,6 +21,7 @@
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
 #include "printer_detector.h"
 #include "theme_manager.h"

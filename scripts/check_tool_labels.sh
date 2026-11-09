@@ -43,7 +43,7 @@
 #     in full, for shape 1 only - a T<n> built there is gcode sent to
 #     firmware, not a label. Shape 2 is not known to be wire-format-only in
 #     these files, so it stays in scope for them.
-#   - src/ui/display_numbering.cpp - the canonical implementation itself.
+#   - src/printer/display_numbering.cpp - the canonical implementation itself.
 #
 # Escape hatch for a genuine one-off: `// DISPLAY_NUMBERING_OK: <reason>` on
 # the offending line.

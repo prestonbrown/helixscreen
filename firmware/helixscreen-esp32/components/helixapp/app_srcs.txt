@@ -609,7 +609,8 @@ src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
 src/ui/ui_format_utils.cpp
-src/ui/display_numbering.cpp
+src/printer/display_numbering.cpp
+src/ui/lane_count_label.cpp
 src/ui/components/ui_gradient_canvas.cpp
 src/ui/controls/ui_heater_icon_binder.cpp
 src/ui/controls/ui_heating_animator.cpp
