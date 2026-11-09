@@ -718,7 +718,7 @@ void MoonrakerDiscoverySequence::on_server_info(uint64_t seq, const json& info_r
     // service_state the webcam decision cross-checks (#1351). A failed
     // query is fatal for neither — webcam detection still runs, with an
     // empty service_state that reads as "assume available".
-    query_system_info();
+    query_system_info(seq);
 
     // Fire-and-forget power device detection
     discover_power_devices();
@@ -810,7 +810,7 @@ void MoonrakerDiscoverySequence::apply_server_components(uint64_t seq, const jso
         // setting. The plugin has no per-print concept, so a
         // hardcoded-false default would silently disable a
         // user's global timelapse on print start (#1094).
-        query_timelapse_settings();
+        query_timelapse_settings(seq);
     }
 
     // Moonraker ships job_queue as an optional component
@@ -855,10 +855,12 @@ void MoonrakerDiscoverySequence::query_spoolman_status(uint64_t seq) {
         true); // silent — Spoolman not always configured
 }
 
-void MoonrakerDiscoverySequence::query_timelapse_settings() {
+void MoonrakerDiscoverySequence::query_timelapse_settings(uint64_t seq) {
     client_.send_jsonrpc(
         "machine.timelapse.get_settings", json::object(),
-        [](const json& response) {
+        [this, seq](const json& response) {
+            if (is_stale() || !is_current_sequence(seq))
+                return;
             bool enabled = false;
             if (response.contains("result")) {
                 enabled = response["result"].value("enabled", false);
@@ -875,15 +877,19 @@ void MoonrakerDiscoverySequence::query_timelapse_settings() {
         true); // silent — timelapse not always configured
 }
 
-void MoonrakerDiscoverySequence::query_system_info() {
+void MoonrakerDiscoverySequence::query_system_info(uint64_t seq) {
     const bool probe_local_cameras = helix::board::current_info().local_camera_probe_safe;
     client_.send_jsonrpc(
         "machine.system_info", json::object(),
-        [this, probe_local_cameras](const json& sys_response) {
+        [this, seq, probe_local_cameras](const json& sys_response) {
+            if (is_stale() || !is_current_sequence(seq))
+                return;
             parse_system_info(sys_response);
             detect_webcam(webcam::extract_service_state(sys_response), probe_local_cameras);
         },
-        [this, probe_local_cameras](const MoonrakerError& err) {
+        [this, seq, probe_local_cameras](const MoonrakerError& err) {
+            if (is_stale() || !is_current_sequence(seq))
+                return;
             spdlog::debug("[Moonraker Client] machine.system_info query failed, "
                           "continuing: {}",
                           err.message);
@@ -904,7 +910,7 @@ void MoonrakerDiscoverySequence::on_printer_info(uint64_t seq, const json& print
     // get_status() since they're on-demand calibration tools.
     // Must check configfile.config keys instead.
     // Also query configfile.settings for macro fan analysis (M106/M107/M141).
-    query_configfile();
+    query_configfile(seq);
 
     query_mcu_info(seq);
 }
@@ -960,11 +966,11 @@ void MoonrakerDiscoverySequence::publish_printer_info(const json& result) {
     }
 }
 
-void MoonrakerDiscoverySequence::query_configfile() {
+void MoonrakerDiscoverySequence::query_configfile(uint64_t seq) {
     client_.send_jsonrpc(
         "printer.objects.query",
         {{"objects", json::object({{"configfile", json::array({"config", "settings"})}})}},
-        [this](const json& config_response) { on_configfile(config_response); },
+        [this, seq](const json& config_response) { on_configfile(seq, config_response); },
         [](const MoonrakerError& err) {
             // Configfile query failed - not critical, continue with discovery
             spdlog::debug("[Moonraker Client] Configfile query failed, continuing: {}",
@@ -972,7 +978,9 @@ void MoonrakerDiscoverySequence::query_configfile() {
         });
 }
 
-void MoonrakerDiscoverySequence::on_configfile(const json& config_response) {
+void MoonrakerDiscoverySequence::on_configfile(uint64_t seq, const json& config_response) {
+    if (is_stale() || !is_current_sequence(seq))
+        return;
     if (config_response.contains("result") && config_response["result"].contains("status") &&
         config_response["result"]["status"].contains("configfile") &&
         config_response["result"]["status"]["configfile"].contains("config")) {
@@ -1220,12 +1228,7 @@ void MoonrakerDiscoverySequence::on_mcu_reply(uint64_t seq, const std::string& m
         }
     }
 
-    if (state->pending.fetch_sub(1) == 1) {
-        publish_mcu_results(*state);
-
-        // Continue to subscription step
-        complete_discovery_subscription(seq);
-    }
+    settle_mcu_query(seq, *state);
 }
 
 void MoonrakerDiscoverySequence::on_mcu_query_failed(uint64_t seq, const std::string& mcu_obj,
@@ -1236,10 +1239,15 @@ void MoonrakerDiscoverySequence::on_mcu_query_failed(uint64_t seq, const std::st
 
     spdlog::warn("[Moonraker Client] MCU query for '{}' failed: {}", mcu_obj, err.message);
 
-    // Check if all queries complete (even on error)
-    if (state->pending.fetch_sub(1) == 1) {
-        // Continue to subscription step even if some MCU queries
-        // failed
+    settle_mcu_query(seq, *state);
+}
+
+void MoonrakerDiscoverySequence::settle_mcu_query(uint64_t seq, McuQueryState& state) {
+    // fetch_sub hands exactly one reply the final count, whichever way that reply ended.
+    if (state.pending.fetch_sub(1) == 1) {
+        publish_mcu_results(state);
+
+        // Continue to subscription step even if some MCU queries failed
         complete_discovery_subscription(seq);
     }
 }

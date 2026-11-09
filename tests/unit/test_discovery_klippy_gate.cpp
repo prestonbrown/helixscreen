@@ -297,6 +297,14 @@ class HeldStepClient : public ClaimQueryClient {
             held_success.push_back(std::move(cb));
             return 1;
         }
+        if (method == "server.info") {
+            // The mock's component list has no timelapse, so its settings query never goes out.
+            cb = [inner = std::move(cb)](const json& response) {
+                json with_timelapse = response;
+                with_timelapse["result"]["components"].push_back("timelapse");
+                inner(with_timelapse);
+            };
+        }
         return MoonrakerClientMock::send_jsonrpc(method, params, std::move(cb));
     }
 
@@ -372,6 +380,16 @@ TEST_CASE("A discovery step acts on its reply only while its pass is current",
         {"mcu reply", "printer.objects.query", 0, true, false, false,
          json{{"result", {{"status", json::object()}}}}},
         {"mcu failure", "printer.objects.query", 0, true, false, true, json()},
+        {"configfile reply", "printer.objects.query", 0, false, false, false,
+         json{{"result",
+               {{"status",
+                 {{"configfile",
+                   {{"settings", {{"virtual_sdcard", {{"auto_creator5_start", true}}}}}}}}}}}}},
+        {"system_info reply", "machine.system_info", 0, false, false, false,
+         json{{"result", {{"system_info", {{"distribution", {{"name", "HeldOS"}}}}}}}}},
+        {"system_info failure", "machine.system_info", 0, false, false, true, json()},
+        {"timelapse settings reply", "machine.timelapse.get_settings", 0, false, false, false,
+         json{{"result", {{"enabled", true}}}}},
     }));
     const PassState pass = GENERATE(PassState::Live, PassState::Superseded, PassState::Reconnected);
     CAPTURE(step.name, static_cast<int>(pass));
@@ -399,11 +417,17 @@ TEST_CASE("A discovery step acts on its reply only while its pass is current",
     }
 
     get_printer_state().capabilities_state().set_spoolman_available(true);
+    get_printer_state().set_timelapse_default_enabled(false);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     const auto observe = [&]() {
         helix::ui::UpdateQueue::instance().drain_until_empty();
+        const helix::PrinterDiscovery hardware = client.hardware();
+        const auto* timelapse =
+            get_printer_state().profile_state().pre_print_option_set().find("timelapse");
         return std::make_tuple(client.rpcs, hardware_callbacks, failure_events,
-                               get_printer_state().is_spoolman_available());
+                               get_printer_state().is_spoolman_available(), hardware.os_version(),
+                               hardware.firmware_runs_start_macro_before_file(),
+                               timelapse && timelapse->default_enabled);
     };
     const auto before = observe();
 
@@ -424,6 +448,52 @@ TEST_CASE("A discovery step acts on its reply only while its pass is current",
     } else {
         CHECK(observe() == before);
     }
+}
+
+TEST_CASE("The last MCU reply publishes what the fan-out gathered, whichever way it ended",
+          "[discovery][klippy_gate][subscription]") {
+    LVGLTestFixture fixture;
+    get_printer_state().init_subjects(false);
+
+    enum class Ending { LastSucceeds, LastFails, AllFail };
+    const Ending ending = GENERATE(Ending::LastSucceeds, Ending::LastFails, Ending::AllFail);
+    CAPTURE(static_cast<int>(ending));
+
+    HeldStepClient client(
+        HeldStep{"mcu", "printer.objects.query", 0, true, false, false, json::object()});
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+
+    int completions = 0;
+    client.discover_printer_real([&completions]() { ++completions; }, [](const std::string&) {});
+    const std::vector<std::string> mcus = client.hardware().mcus();
+    REQUIRE(mcus.size() >= 2);
+    REQUIRE(client.held_success.size() == mcus.size());
+    REQUIRE(completions == 0);
+
+    MoonrakerError error;
+    error.message = "Request timed out";
+    std::vector<std::string> gathered;
+    for (size_t i = 0; i < mcus.size(); ++i) {
+        const bool last = i + 1 == mcus.size();
+        if (ending == Ending::AllFail || (ending == Ending::LastFails && last)) {
+            client.held_error[i](error);
+            continue;
+        }
+        const std::string chip = "held_chip_" + std::to_string(i);
+        gathered.push_back(chip);
+        client.held_success[i](json{
+            {"result",
+             {{"status",
+               {{mcus[i], {{"mcu_constants", {{"MCU", chip}}}, {"mcu_version", "v-held"}}}}}}}});
+        CHECK(completions == (last ? 1 : 0));
+    }
+
+    CHECK(completions == 1);
+    const helix::PrinterDiscovery hardware = client.hardware();
+    std::vector<std::string> published = hardware.mcu_list();
+    std::sort(published.begin(), published.end());
+    CHECK(published == gathered);
+    CHECK(hardware.mcu_versions().size() == gathered.size());
 }
 
 // ============================================================================
