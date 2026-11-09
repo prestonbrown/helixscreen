@@ -175,6 +175,9 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 spdlog::info("[ZOffsetCal] Manual probe active, entering adjustment phase "
                              "(was {})",
                              self->state_ == State::PROBING ? "PROBING" : "IDLE");
+                if (self->state_ == State::IDLE) {
+                    self->latch_run_strategy();
+                }
                 self->set_state(State::ADJUSTING);
 
                 // Populate saved z-offset display (snapshot value before calibration)
@@ -246,6 +249,7 @@ void ZOffsetCalibrationPanel::on_activate() {
         int z_microns =
             lv_subject_get_int(ps.calibration_state().get_manual_probe_z_position_subject());
         current_z_ = z_microns / 1000.0f;
+        latch_run_strategy();
         set_state(State::ADJUSTING);
         update_z_position(current_z_);
         return;
@@ -351,6 +355,9 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[ZOffsetCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     state_ = new_state;
+    if (new_state == State::IDLE || new_state == State::COMPLETE || new_state == State::ERROR) {
+        latched_strategy_.reset();
+    }
 
     // Manage operation timeout guard based on state transitions
     switch (new_state) {
@@ -629,6 +636,14 @@ void ZOffsetCalibrationPanel::begin_calibration() {
 }
 
 ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {
+    return latched_strategy_ ? *latched_strategy_ : resolve_run_strategy();
+}
+
+void ZOffsetCalibrationPanel::latch_run_strategy() {
+    latched_strategy_ = resolve_run_strategy();
+}
+
+ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::resolve_run_strategy() const {
     const auto sensors = helix::sensors::ProbeSensorManager::instance().get_sensors();
     const auto probe_type =
         sensors.empty() ? helix::sensors::ProbeSensorType::STANDARD : sensors[0].type;
@@ -637,6 +652,7 @@ ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {
 }
 
 void ZOffsetCalibrationPanel::begin_probe_sequence() {
+    latch_run_strategy();
     set_state(State::PROBING);
 
     PrinterState& ps = get_printer_state();
