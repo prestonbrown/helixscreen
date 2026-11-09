@@ -537,8 +537,10 @@ void FanControlOverlay::update_fan_speeds() {
                 if (card_info.arc) {
                     lv_arc_set_value(card_info.arc, fan.speed_percent);
                 }
-                // Update fan icon spin animation
-                update_auto_fan_animation(card_info, fan.speed_percent);
+                // fan_spin_start() restarts from 0 degrees, and an rpm change alone lands here.
+                if (fan.speed_percent != card_info.last_speed_pct) {
+                    update_auto_fan_animation(card_info, fan.speed_percent);
+                }
                 break;
             }
         }
