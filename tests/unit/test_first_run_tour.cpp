@@ -4,13 +4,13 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_select.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "first_run_tour.h"
 #include "printer_image_manager.h"
 #include "tour_overlay.h"
@@ -271,6 +271,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels 
     CHECK_FALSE(t.is_running());
     CHECK(nav.get_active() == helix::PanelId::Controls);
     CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
+    nav.shutdown();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
@@ -298,6 +299,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip 
     t.skip();
     CHECK(nav.get_active() == helix::PanelId::Home);
     CHECK_FALSE(t.is_running());
+    nav.shutdown();
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {
