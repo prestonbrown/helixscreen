@@ -7,6 +7,8 @@
 
 #include "print_history_data.h"
 
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace helix::ui {
@@ -82,6 +84,25 @@ struct HistoryListPanelTestAccess {
         p.sort_column_ = column;
         p.sort_direction_ = direction;
         p.apply_sort(jobs);
+    }
+
+    /// What the search box, the status dropdown and the sort dropdown leave
+    /// behind once the user has used them, re-filtered as their callbacks do.
+    static void set_view(HistoryListPanel& p, std::string query, HistoryStatusFilter status,
+                         HistorySortColumn column, HistorySortDirection direction) {
+        p.search_query_ = std::move(query);
+        p.status_filter_ = status;
+        p.sort_column_ = column;
+        p.sort_direction_ = direction;
+        p.apply_filters_and_sort();
+    }
+
+    static const std::string& search_query(HistoryListPanel& p) {
+        return p.search_query_;
+    }
+
+    static HistoryStatusFilter status_filter(HistoryListPanel& p) {
+        return p.status_filter_;
     }
 
     /// Give the panel the two containers create() would find in its XML, so

@@ -384,6 +384,19 @@ void PrintHistoryManager::forget_printer() {
     notify_observers();
 }
 
+void PrintHistoryManager::forget_job(const std::string& job_id) {
+    auto it = std::find_if(cached_jobs_.begin(), cached_jobs_.end(),
+                           [&job_id](const PrintHistoryJob& j) { return j.job_id == job_id; });
+    if (it == cached_jobs_.end()) {
+        return;
+    }
+    cached_jobs_.erase(it);
+    spdlog::debug("[HistoryManager] Forgot deleted job {} ({} cached)", job_id,
+                  cached_jobs_.size());
+    build_filename_stats();
+    notify_observers();
+}
+
 // ============================================================================
 // Observer Pattern
 // ============================================================================
