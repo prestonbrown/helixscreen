@@ -293,8 +293,8 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
 
     // The next change starts with no busy sighting of its own: the last
     // change's Printing says nothing about this one.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
+    backend.fire_status(change_macro_frame(99));
+    backend.fire_status(change_macro_frame(2));
     Ad5xIfsTestAccess::run_action_timeout(backend);
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
 }

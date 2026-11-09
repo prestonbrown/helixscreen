@@ -15,14 +15,14 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_probe_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_discovery.h"
 #include "probe_sensor_manager.h"
-#include "static_panel_registry.h"
 
 #include <array>
 
