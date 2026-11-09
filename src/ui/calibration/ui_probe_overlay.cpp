@@ -156,23 +156,15 @@ void ui_probe_overlay_register_callbacks() {
                                                lv_tr("Cartographer touch calibrate sent"));
              }
          }},
+        // A scan calibration opens a manual probe session; the Z-offset panel
+        // runs it with jog, Accept and Abort controls (#1994).
         {"on_carto_scan_cal",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("CARTOGRAPHER_SCAN_CALIBRATE",
-                                             "Cartographer Scan Calibrate")) {
-                 ToastManager::instance().show(
-                     ToastSeverity::INFO,
-                     lv_tr("Cartographer scan calibrate sent — use Z-Offset panel to adjust"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
 
         // Beacon controls
+        // BEACON_CALIBRATE is a paper test too: the Z-offset panel runs it.
         {"on_beacon_calibrate",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("BEACON_CALIBRATE", "Beacon Calibrate")) {
-                 ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Beacon calibrate sent"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_beacon_auto_cal",
          [](lv_event_t* /*e*/) {
              if (helix::ui::probe_send_gcode("BEACON_AUTO_CALIBRATE", "Beacon Auto-Calibrate")) {
@@ -188,8 +180,7 @@ void ui_probe_overlay_register_callbacks() {
          [](lv_event_t* /*e*/) { send_probe_gcode("DOCK_PROBE", "Klicky Dock"); }},
 
         // Eddy current probe controls (BTT Eddy, Mellow Fly Eddy, etc.)
-        // PROBE_EDDY_CURRENT_CALIBRATE opens a manual probe session that needs
-        // jog, Accept and Abort controls, so it runs from the Z-offset panel.
+        // PROBE_EDDY_CURRENT_CALIBRATE opens a manual probe session too.
         {"on_eddy_calibrate",
          [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_eddy_drive_current",
