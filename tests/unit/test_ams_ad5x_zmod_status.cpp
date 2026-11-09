@@ -15,6 +15,7 @@
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
+#include "test_helpers/log_capture.h"
 #include "test_helpers/toolchanger_test_helper.h"
 
 #include <string>
@@ -25,6 +26,7 @@
 using helix::Ad5xIfsTestAccess;
 using helix::AmsAction;
 using helix::AmsBackendAd5xIfs;
+using helix::LogCapture;
 
 using json = nlohmann::json;
 
@@ -247,11 +249,11 @@ struct ZmodChangeIdleFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(ZmodChangeIdleFixture,
                  "AD5X IFS releases a Z-Mod change once Klipper goes idle without finishing it",
                  "[ams][ad5x_ifs][zmod_status][2086]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
 
     set_idle_state("Printing");
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    backend.fire_status(change_macro_frame(1));
     REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
 
     // While the change chain runs, Klipper stays busy and the action holds.
@@ -266,19 +268,19 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     CHECK(backend.can_cancel_operation());
 
     // last_data.channel still names the abandoned change; it does not re-grab.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    backend.fire_status(change_macro_frame(1));
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
 }
 
 TEST_CASE_METHOD(ZmodChangeIdleFixture,
                  "AD5X IFS holds a Z-Mod change Klipper was never seen running",
                  "[ams][ad5x_ifs][zmod_status][2086]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
 
     // idle_timeout's Printing can land after the macro frame: an idle reading
     // before Klipper was seen busy proves nothing about the change.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
+    backend.fire_status(change_macro_frame(1));
     Ad5xIfsTestAccess::run_action_timeout(backend);
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
 
@@ -288,6 +290,26 @@ TEST_CASE_METHOD(ZmodChangeIdleFixture,
     set_idle_state("Ready");
     Ad5xIfsTestAccess::run_action_timeout(backend);
     CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+}
+
+// A successful change's last frame often carries END_CHANGE_FILAMENT's idle
+// channel and Klipper's idle together. That is the change finishing, not one
+// abandoned mid-chain, and the log must not say otherwise.
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS does not call a change that finished in the idle frame abandoned",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
+    set_idle_state("Printing");
+    backend.fire_status(change_macro_frame(2));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+
+    LogCapture log;
+    set_idle_state("Ready");
+    backend.fire_status(change_macro_frame(99));
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(log.count_containing("went idle mid-change") == 0);
+    CHECK(log.count_containing("filament change released") == 0);
 }
 
 TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
@@ -307,7 +329,7 @@ TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
 // slot as its 1-based IFS port (prestonbrown/helixscreen#2033).
 TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
           "[ams][ad5x_ifs][print_start_params][2033]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     helix::PrinterDiscovery hw;
     hw.parse_objects(json::array(
         {"zmod", "zmod_color", "zmod_ifs", "AFC", "AFC_IFS IFS", "AFC_lane lane1", "extruder"}));
@@ -324,7 +346,7 @@ TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
 
 TEST_CASE("AD5X IFS on Z-Mod without the built-in AFC keeps today's routing",
           "[ams][ad5x_ifs][print_start_params][2033]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     helix::PrinterDiscovery hw;
     hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"}));
     backend.set_discovery(hw);
@@ -336,7 +358,7 @@ TEST_CASE("AD5X IFS on Z-Mod without the built-in AFC keeps today's routing",
 
 TEST_CASE("AD5X IFS off Z-Mod starts the print with its filename alone",
           "[ams][ad5x_ifs][print_start_params][2033]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     helix::PrinterDiscovery hw;
     // The Forge-X standalone IFS module: no zmod_color.
     hw.parse_objects(json::array({"ifs", "ifs_materials", "extruder"}));
