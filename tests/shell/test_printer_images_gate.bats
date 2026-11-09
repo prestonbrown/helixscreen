@@ -18,13 +18,11 @@ setup() {
     mkdir -p "$WORK/scripts" "$WORK/assets/config" "$WORK/assets/images/printers"
     cp scripts/check_printer_images.py "$WORK/scripts/"
     touch "$WORK/assets/images/printers/voron-2.png" "$WORK/assets/images/printers/ender-3.png"
-    # The real KNOWN_MISSING entry, read from the gate so the fixture follows it.
-    KNOWN="$(python3 -c 'import ast,sys
-t = ast.parse(open(sys.argv[1]).read())
-for n in t.body:
-    if isinstance(n, ast.AnnAssign) and getattr(n.target, "id", "") == "KNOWN_MISSING":
-        print(sorted(ast.literal_eval(n.value))[0])' scripts/check_printer_images.py)"
-    [ -n "$KNOWN" ] || fail "could not read KNOWN_MISSING from the gate"
+    # The copy under test carries its own KNOWN_MISSING entry, so the fixture
+    # does not depend on whether the real list is empty.
+    KNOWN="known-missing-fixture.png"
+    sed -i -E "s/^KNOWN_MISSING: set\[str\] = .*/KNOWN_MISSING: set[str] = {\"$KNOWN\"}/" "$WORK/scripts/check_printer_images.py"
+    grep -q "$KNOWN" "$WORK/scripts/check_printer_images.py" || fail "could not seed KNOWN_MISSING in the gate copy"
 }
 
 db() {
