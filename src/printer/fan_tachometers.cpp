@@ -14,7 +14,7 @@ namespace {
 // Creality's fan_feedback module (K1 and K2 series klippy/extras/fan_feedback.py)
 // publishes fan0_speed..fan4_speed. Its fanN_pin options are tach inputs, so the
 // fan each slot measures comes from Creality's own config, not from pin matching.
-constexpr std::string_view kCrealityObject = "fan_feedback";
+constexpr std::string_view kFanFeedbackObject = "fan_feedback";
 
 enum class Role { None, Part, Hotend, ChamberHeater };
 
@@ -109,7 +109,7 @@ TachMap map_k2_series(const nlohmann::json& settings) {
     for (const auto& [field, role] : slots) {
         std::string fan = resolve_fan(settings, role);
         if (!fan.empty())
-            out.push_back({std::string(kCrealityObject), field, std::move(fan)});
+            out.push_back({std::string(kFanFeedbackObject), field, std::move(fan)});
     }
     return out;
 }
@@ -140,7 +140,7 @@ TachMap map_k1_series(const nlohmann::json& fb, const nlohmann::json& settings) 
         ++slot;
         std::string fan = resolve_fan(settings, k1_role_for_pin(normalize_pin(pins.front())));
         if (!fan.empty())
-            out.push_back({std::string(kCrealityObject), field, std::move(fan)});
+            out.push_back({std::string(kFanFeedbackObject), field, std::move(fan)});
     }
     return out;
 }
@@ -150,7 +150,7 @@ TachMap map_k1_series(const nlohmann::json& fb, const nlohmann::json& settings) 
 TachMap map_from_config(const nlohmann::json& settings) {
     if (!settings.is_object())
         return {};
-    auto it = settings.find(kCrealityObject);
+    auto it = settings.find(kFanFeedbackObject);
     if (it == settings.end() || !it->is_object())
         return {};
     // The K2 module requires fan1_pin and fan2_pin on the nozzle MCU and reads
