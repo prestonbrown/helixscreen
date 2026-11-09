@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """A per-test watchdog for the plugin suite.
 
-A test whose setup, call or teardown runs past HELIX_PLUGIN_TEST_TIMEOUT_S
-(default 300, 0 turns it off) ends the run: the watchdog prints the test's id
+A test whose setup, call and teardown together run past
+HELIX_PLUGIN_TEST_TIMEOUT_S (default 300, 0 turns it off) ends the run: the watchdog prints the test's id
 and every thread's stack, then exits 1. A hang in the event loop's teardown
 leaves the last line of -v output naming the test before it, so the id
 printed here is the one to read. pytest-timeout does the same, but is not in

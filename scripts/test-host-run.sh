@@ -690,8 +690,8 @@ SNIPPET
 # run's own reconnects to come back.
 watchdog_snippet() {
     cat <<'SNIPPET'
-helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client grace> <gone grace> <poll> [<tree lock>]
-    local job=$1 ctr=$2 tag=$3 dir=$4 kg=$5 cg=$6 gg=$7 poll=$8 lock=${9-} pid now hb gone why anchor=""
+helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client grace> <gone grace> <poll> [<tree lock> <its hold shell's pid>]
+    local job=$1 ctr=$2 tag=$3 dir=$4 kg=$5 cg=$6 gg=$7 poll=$8 lock=${9-} hold=${10-} pid now hb gone why anchor="" held
     while sleep "$poll"; do
         if [ -z "$anchor" ] && [ -s "$job/pooled" ]; then
             "$(cat "$job/pooled")" exec -- sh -c 'while kill -0 "$0" 2>/dev/null; do sleep 1; done' "$$" \
@@ -720,9 +720,14 @@ helix_job_watchdog() { # <job dir> <container> <tag> <dir> <kill grace> <client 
     done
     # The job is over and its wrapper has let go of the tree lock, so the
     # tree's next job may already be running in <dir>. A process there is
-    # this job's only while the lock is free; otherwise the tag alone says.
+    # this job's only while the lock is free, or still held by this job's own
+    # hold shell (the lock's line names its holder's pid), which keeps it
+    # until the run's client exits; otherwise the tag alone says.
     (
-        { [ -z "$lock" ] || flock -n 7; } || dir=""
+        if [ -n "$lock" ] && ! flock -n 7; then
+            held=$(sed -n 's/^held by pid \([0-9]*\):.*/\1/p' "$lock" 2>/dev/null)
+            { [ -n "$hold" ] && [ "$held" = "$hold" ] && kill -0 "$hold" 2>/dev/null; } || dir=""
+        fi
         helix_job_kill "$ctr" "$tag" "$dir" "$kg"
     ) 7>>"${lock:-/dev/null}" > /dev/null 2>&1
 }
@@ -797,7 +802,7 @@ hold() {
         # job's group kills it.
         (
             nohup \$_s bash -c "\$(declare -f helix_job_kill helix_job_watchdog)"'; helix_job_watchdog "\$@"' _ \
-                "$JOB_DIR" "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS $CLIENT_GRACE_SECS $CLIENT_GONE_SECS $WATCHDOG_POLL_SECS "\$LOCK" \
+                "$JOB_DIR" "$CONTAINER" "$JOB_TAG" "$RUNDIR" $KILL_GRACE_SECS $CLIENT_GRACE_SECS $CLIENT_GONE_SECS $WATCHDOG_POLL_SECS "\$LOCK" "\$\$" \
                 9>&- < /dev/null > /dev/null 2>&1 &
         )
         echo STARTED

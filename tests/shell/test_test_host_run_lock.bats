@@ -943,3 +943,29 @@ watchdog_fixture() { # <heartbeat age in seconds>
     [ "$spared" = 1 ]
     [ "$stopped" = 1 ]
 }
+
+@test "while this job's own hold shell keeps the tree lock, the last sweep still stops leftovers in the tree" {
+    watchdog_fixture 0
+    local tree="$BATS_TEST_TMPDIR/trees/tree-x" lock="$BATS_TEST_TMPDIR/tree-x.lock" hold left copy
+    mkdir -p "$tree" "$BATS_TEST_TMPDIR/trees/.tree-x.mutate-w1"
+    # This job's hold shell, as take_lock leaves it: it holds the lock until
+    # the run's client exits, and the lock's line names its own pid.
+    bash -c 'exec 9>>"$1"; flock 9; : > "$1"; printf "held by pid %s: this job\n" "$$" >&9
+             touch "$2"; exec sleep 300' _ "$lock" "$BATS_TEST_TMPDIR/ready" < /dev/null > /dev/null 2>&1 &
+    hold=$!
+    wait_for_file "$BATS_TEST_TMPDIR/ready"
+    # Leftovers whose environment lost the job's tag: in the tree, and in a mutate copy.
+    (cd "$tree" && exec env -u HELIX_TEST_JOB sleep 300) < /dev/null > /dev/null 2>&1 &
+    left=$!
+    (cd "$BATS_TEST_TMPDIR/trees/.tree-x.mutate-w1" && exec env -u HELIX_TEST_JOB sleep 300) < /dev/null > /dev/null 2>&1 &
+    copy=$!
+    echo 0 > "$JOB/rc"
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x "$3" 1 50 30 0.1 "$4" "$5"' \
+        _ "$FUNCS" "$JOB" "$tree" "$lock" "$hold"
+    local stopped=1
+    kill -0 "$left" 2>/dev/null && stopped=0
+    kill -0 "$copy" 2>/dev/null && stopped=0
+    kill "$left" "$copy" "$WRAPPER" "$hold" 2>/dev/null || true
+    [ "$status" -eq 0 ]
+    [ "$stopped" = 1 ]
+}
