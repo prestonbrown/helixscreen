@@ -15,6 +15,7 @@
 #include "helix_fs.h"
 #include "i_moonraker_api.h"
 #include "legacy_spool_import.h"
+#include "system/helix_paths.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -51,7 +52,12 @@ void AmsState::start_legacy_spool_import(const std::string& tool_spools_path) {
     // The 1.0 per-tool links: the Moonraker key wins, the local file stands in.
     legacy_import_.file_path = tool_spools_path;
     std::map<int, int> from_file;
-    if (fs::exists(legacy_import_.file_path)) {
+    const Config* config = Config::get_instance();
+    const bool file_imported =
+        config && config->get<bool>(config->df() + legacy::kLegacyToolImportDonePath, false);
+    if (file_imported) {
+        spdlog::debug("{} tool links already imported; {} ignored", kTag, legacy_import_.file_path);
+    } else if (fs::exists(legacy_import_.file_path)) {
         if (const auto text = text_io::read_file(legacy_import_.file_path)) {
             legacy_import_.file = nlohmann::json::parse(*text, nullptr, false);
             if (!legacy_import_.file.is_discarded()) {
@@ -207,7 +213,19 @@ void AmsState::finish_legacy_tool_import() {
                 text_io::write_file_atomic(legacy_import_.file_path, rest->dump(2));
             }
         } else {
+            // The file is a link into the user config store on most installs, and the
+            // restore script re-links any store copy that survives.
+            const std::string target = helix::paths::write_target(legacy_import_.file_path);
+            if (target != legacy_import_.file_path) {
+                fs::remove(target);
+            }
             fs::remove(legacy_import_.file_path);
+        }
+    }
+    if (owed.empty()) {
+        if (Config* config = Config::get_instance()) {
+            config->set<bool>(config->df() + legacy::kLegacyToolImportDonePath, true);
+            config->save();
         }
     }
 }
