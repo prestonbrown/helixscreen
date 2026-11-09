@@ -282,11 +282,14 @@ TEST_CASE("MacroManager - a printer with HELIX_READY gets the hidden pack plus f
                          name +
                          "\n"
                          "gcode:\n"
+                         "    RESPOND TYPE=command MSG=\"HELIX:ALIAS:" +
+                         name +
+                         "\"\n"
                          "    _" +
                          name + "\n") != std::string::npos);
-        // Outside its own header and description the visible spelling appears
-        // nowhere: every call in the pack goes to the hidden name.
-        CHECK(standalone_mentions(content, name) == 1);
+        // Outside its own header, description and announcement the visible
+        // spelling appears nowhere: every call in the pack goes to the hidden name.
+        CHECK(standalone_mentions(content, name) == 2);
     }
 }
 

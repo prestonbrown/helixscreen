@@ -52,10 +52,11 @@ The block has one section per aliased name, in this exact shape:
 [gcode_macro HELIX_READY]
 description: HelixScreen alias for _HELIX_READY
 gcode:
+    RESPOND TYPE=command MSG="HELIX:ALIAS:HELIX_READY"
     _HELIX_READY
 ```
 
-The `description` line is how a later scan tells our forwarder from a macro of the same name the
+The `RESPOND` line is how the app hears that something still calls the name (see Status, option B). The `description` line is how a later scan tells our forwarder from a macro of the same name the
 user wrote (`kAliasDescriptionPrefix`).
 
 ### D2. The scan reads the loaded config and errs toward keeping aliases
@@ -172,7 +173,7 @@ is removed from `include/macro_manager.h` and its test case is replaced.
 | Case | Expect |
 |---|---|
 | `kVisibleNames` against the bundled pack | every `[gcode_macro _HELIX_*]` in `assets/config/helix_macros.cfg` except `_HELIX_STATE` is `_` + a listed name, and every listed name has one; adding a signal without listing it goes red |
-| `alias_block({"HELIX_READY"})` | exactly the four-line section of D1, trailing newline |
+| `alias_block({"HELIX_READY"})` | exactly the five-line section of D1, trailing newline |
 | `alias_block` with names out of order and one unknown | sections in `kVisibleNames` order; the unknown name absent |
 | `alias_block({})` | empty string |
 | `macro_content_for`, printer with `HELIX_READY` | contains every `[gcode_macro _HELIX_*]` of the base pack unchanged, and one `[gcode_macro HELIX_X]` forwarder per name whose body is `_HELIX_X`; `MACRO=_HELIX_STATE` unchanged; no visible name appears anywhere except its own section header and description |
@@ -463,10 +464,9 @@ Where the open questions had no answer, the implementation takes the plan's reco
 - Q3: all eleven get a forwarder on any printer that had a visible name loaded (an earlier pack
   or our forwarders) or whose config calls one; a printer that never had them gets none. Only the
   called names would leave a sliced file that calls `HELIX_READY` answering `Unknown command`
-  once the update the OUTDATED status offers lands, and the scan cannot see sliced files. Phase 4's
-  record of names seen in sliced files is what could narrow this. Until then DropAliases is not
-  produced: a printer with forwarders keeps all eleven.
-- Q4: DropAliases sets OUTDATED when produced; while every printer with forwarders keeps all eleven (Q3) it is not.
+  once the update the OUTDATED status offers lands, and the scan cannot see sliced files. Option B
+  below narrows them after the forwarders have been heard from.
+- Q4: DropAliases sets OUTDATED, so the macros row offers the update that drops them.
 - Q5: nothing in the app treats firmware-managed packs differently, and phases 1-2 change neither
   `assets/config/helix_macros.cfg` nor how `load_macro_file` finds it. The question stays open for
   the plugin in phase 3.
@@ -499,10 +499,21 @@ of `text_small` at both (649 and 392 px wide).
 every console line through `unknown_signal_command`, records the name under the printer's
 `helix_macros/sliced_signal_names` setting, re-evaluates the macros status, and shows one toast
 per name per watcher. `macro_content_for` and `evaluate_status` read the recorded names as
-`extra_names`. The recording does not narrow the forwarders: any recorded name forwards all
-eleven, like a caller does (Q3 above), so recording only adds forwarders to a hidden-only
-printer. DropAliases is therefore not produced: a printer with forwarders keeps all eleven.
-Narrowing again is open question 6 (option B).
+`extra_names`. A recorded name forwards all eleven, like a caller does (Q3 above); option B then
+narrows them.
+
+Option B (2026-11-08) is implemented on the same branch. Each forwarder prints
+`HELIX:ALIAS:<name>` before calling the hidden macro. `SlicedSignalWatcher` hears those lines and,
+per printer under `helix_macros/alias_quiet_prints`, counts the completed prints each forwarder
+went unheard; `signal_macros::kAliasDropAfterPrints` (5) prints retire it, `drift` then returns
+DropAliases and the status goes OUTDATED. A print counts only if it completed, began within 60
+seconds of the app seeing it (a print joined part-way may have made its calls already), and had
+announcing forwarders loaded at its start (`SignalMacroScan::announcing`: the loaded body carries
+the announcement and the printer has `[respond]`, without which a forwarder cannot speak). A hit
+anywhere, a cancelled print included, clears the count. A config caller keeps a retired name, and
+an `Unknown command` for a dropped name clears its count, so the next update forwards it again.
+The console panel hides the announcement lines; Fluidd and Mainsail show them like the other
+`HELIX:` lines.
 
 Review fixes (2026-11-08):
 

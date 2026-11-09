@@ -60,6 +60,31 @@ inline constexpr std::array<std::string_view, kVisibleNames.size()> kPackDescrip
 /// a user macro of the same name.
 inline constexpr std::string_view kAliasDescriptionPrefix = "HelixScreen alias for ";
 
+/// A name with no hit over this many completed prints with the forwarders loaded
+/// leaves the pack at the next macro update.
+inline constexpr int kAliasDropAfterPrints = 5;
+
+/// What a forwarder prints before it calls the hidden macro, followed by its own
+/// name: the print-time record of which visible names anything still calls.
+inline constexpr std::string_view kAliasAnnouncePrefix = "HELIX:ALIAS:";
+
+/// The visible signal name a forwarder announced in @p line, or nullopt. Header-only:
+/// the console panel filters these lines and links where the scan does not.
+[[nodiscard]] inline std::optional<std::string> announced_alias(std::string_view line) {
+    const size_t start = line.find(kAliasAnnouncePrefix);
+    if (start == std::string_view::npos) {
+        return std::nullopt;
+    }
+    std::string_view rest = line.substr(start + kAliasAnnouncePrefix.size());
+    rest = rest.substr(0, rest.find_first_of(" \t\r\n"));
+    for (auto visible : kVisibleNames) {
+        if (rest == visible) {
+            return std::string(visible);
+        }
+    }
+    return std::nullopt;
+}
+
 [[nodiscard]] std::string hidden_name(std::string_view visible);
 
 /// One [gcode_macro <visible>] forwarder per name, in kVisibleNames order whatever
@@ -81,8 +106,10 @@ struct SignalMacroScan {
         aliases; ///< visible names defined by our forwarder (kAliasDescriptionPrefix)
     std::vector<std::string>
         foreign; ///< visible names defined by a section that is neither ours nor an alias
-    bool hidden_loaded = false;  ///< every hidden name is defined
-    bool visible_loaded = false; ///< a pack or our forwarder defines some visible name
+    std::vector<std::string> announcing; ///< forwarders whose loaded body announces itself, on a
+                                         ///< printer with [respond]; only these can be heard
+    bool hidden_loaded = false;          ///< every hidden name is defined
+    bool visible_loaded = false;         ///< a pack or our forwarder defines some visible name
 };
 
 /// Reads every string option of every section, so gcode in [delayed_gcode],
@@ -103,9 +130,12 @@ struct SignalMacroScan {
 /// Visible names to alias: all eleven when the visible names were loaded, a
 /// caller uses one, or `extra_names` holds one; none otherwise. Never a name in
 /// `foreign` (the user's own macro of that name wins, and a forwarder would merge
-/// into it). Sorted in kVisibleNames order.
+/// into it), and never a name in @p retired that the config does not call: a
+/// forwarder nothing has used over kAliasDropAfterPrints prints. Sorted in
+/// kVisibleNames order.
 [[nodiscard]] std::vector<std::string> names_to_alias(const SignalMacroScan& scan,
-                                                      const std::vector<std::string>& extra_names);
+                                                      const std::vector<std::string>& extra_names,
+                                                      const std::vector<std::string>& retired = {});
 
 enum class SignalNameDrift {
     None,         ///< what is loaded is what an update would stage
@@ -115,7 +145,8 @@ enum class SignalNameDrift {
 };
 
 [[nodiscard]] SignalNameDrift drift(const SignalMacroScan& scan,
-                                    const std::vector<std::string>& extra_names);
+                                    const std::vector<std::string>& extra_names,
+                                    const std::vector<std::string>& retired = {});
 
 /// What the helper-macros row says about the signal names; the row maps it to text.
 enum class SignalNamesLine {

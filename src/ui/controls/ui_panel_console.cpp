@@ -22,6 +22,7 @@
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "signal_macro_names.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -590,6 +591,10 @@ bool ConsolePanel::accepts(const GcodeEntry& entry,
 bool ConsolePanel::should_display(const std::string& message, bool is_temp, bool filter_temps,
                                   bool filter_firmware_noise,
                                   const helix::ui::ConsoleFilterEngine& firmware_filter) {
+    // A forwarder's announcement is bookkeeping for the app, not a message.
+    if (helix::signal_macros::announced_alias(message)) {
+        return false;
+    }
     if (filter_temps && is_temp) {
         return false;
     }

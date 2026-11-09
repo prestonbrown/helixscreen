@@ -18,6 +18,7 @@
 #include "sliced_signal_names.h"
 
 #include <algorithm>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -52,7 +53,8 @@ json macro(const std::string& gcode, const std::string& description = "G-Code ma
 
 /// The configfile.settings entry Klipper reports for one of our forwarders.
 json forwarder(const std::string& visible) {
-    return macro(sm::hidden_name(visible),
+    return macro("RESPOND TYPE=command MSG=\"" + std::string(sm::kAliasAnnouncePrefix) + visible +
+                     "\"\n" + sm::hidden_name(visible),
                  std::string(sm::kAliasDescriptionPrefix) + sm::hidden_name(visible));
 }
 
@@ -159,6 +161,8 @@ TEST_CASE("alias_block forwards one visible name to its hidden macro", "[signal_
     CHECK(sm::alias_block({"HELIX_READY"}) == "[gcode_macro HELIX_READY]\n"
                                               "description: HelixScreen alias for _HELIX_READY\n"
                                               "gcode:\n"
+                                              "    RESPOND TYPE=command "
+                                              "MSG=\"HELIX:ALIAS:HELIX_READY\"\n"
                                               "    _HELIX_READY\n");
 }
 
@@ -167,11 +171,13 @@ TEST_CASE("alias_block writes pack order and drops unknown names", "[signal_macr
           "[gcode_macro HELIX_ENDED]\n"
           "description: HelixScreen alias for _HELIX_ENDED\n"
           "gcode:\n"
+          "    RESPOND TYPE=command MSG=\"HELIX:ALIAS:HELIX_ENDED\"\n"
           "    _HELIX_ENDED\n"
           "\n"
           "[gcode_macro HELIX_PHASE_QGL]\n"
           "description: HelixScreen alias for _HELIX_PHASE_QGL\n"
           "gcode:\n"
+          "    RESPOND TYPE=command MSG=\"HELIX:ALIAS:HELIX_PHASE_QGL\"\n"
           "    _HELIX_PHASE_QGL\n");
 }
 
@@ -519,12 +525,16 @@ namespace {
 struct RecordedNamesScope {
     helix::Config* cfg = helix::Config::get_instance();
     std::string key = cfg->df() + "helix_macros/sliced_signal_names";
+    std::string quiet_key = cfg->df() + "helix_macros/alias_quiet_prints";
     json saved = cfg->get<json>(key, json());
+    json saved_quiet = cfg->get<json>(quiet_key, json());
     RecordedNamesScope() {
         cfg->set<json>(key, json::array());
+        cfg->set<json>(quiet_key, json::object());
     }
     ~RecordedNamesScope() {
         cfg->set<json>(key, saved);
+        cfg->set<json>(quiet_key, saved_quiet);
     }
 };
 
@@ -707,4 +717,200 @@ TEST_CASE("the macros row's signal line follows the scan and the plugin", "[sign
     status.set_signal_macro_scan(std::nullopt);
     CHECK(line() == sm::SignalNamesLine::None);
     status.deinit_subjects();
+}
+
+// ============================================================================
+// Narrowing the forwarders to the names something calls (#2006)
+// ============================================================================
+
+TEST_CASE("announced_alias reads a forwarder line and nothing else", "[signal_macros]") {
+    CHECK(sm::announced_alias("// HELIX:ALIAS:HELIX_READY") == "HELIX_READY");
+    CHECK(sm::announced_alias("HELIX:ALIAS:HELIX_PHASE_QGL") == "HELIX_PHASE_QGL");
+    CHECK_FALSE(sm::announced_alias("// HELIX:READY"));
+    CHECK_FALSE(sm::announced_alias("// HELIX:ALIAS:NOT_A_SIGNAL"));
+    CHECK_FALSE(sm::announced_alias("// HELIX:ALIAS:HELIX_READYX"));
+    CHECK_FALSE(sm::announced_alias("// HELIX:ALIAS:"));
+}
+
+TEST_CASE("scan lists a forwarder as announcing only when it can be heard", "[signal_macros]") {
+    json s = hidden_pack();
+    s["gcode_macro helix_ready"] = forwarder("HELIX_READY");
+    s["gcode_macro helix_ended"] =
+        macro("_HELIX_ENDED", std::string(sm::kAliasDescriptionPrefix) + "_HELIX_ENDED");
+
+    SECTION("printer has [respond]") {
+        s["respond"] = json::object();
+        CHECK(scan_of(s).announcing == std::vector<std::string>{"HELIX_READY"});
+        CHECK(scan_of(s).aliases == std::vector<std::string>{"HELIX_READY", "HELIX_ENDED"});
+    }
+    SECTION("printer lacks [respond]: its forwarders cannot speak") {
+        CHECK(scan_of(s).announcing.empty());
+    }
+}
+
+TEST_CASE("a retired name leaves the pack unless the config calls it", "[signal_macros]") {
+    json s = with_all_forwarders(hidden_pack());
+    SECTION("nothing calls it") {
+        CHECK(sm::names_to_alias(scan_of(s), {}, {"HELIX_ENDED"}) == all_but("HELIX_ENDED"));
+        CHECK(sm::drift(scan_of(s), {}, {"HELIX_ENDED"}) == SignalNameDrift::DropAliases);
+    }
+    SECTION("a config macro calls it") {
+        s["gcode_macro print_end"] = macro("HELIX_ENDED");
+        CHECK(sm::names_to_alias(scan_of(s), {}, {"HELIX_ENDED"}) == all_names());
+        CHECK(sm::drift(scan_of(s), {}, {"HELIX_ENDED"}) == SignalNameDrift::None);
+    }
+    SECTION("already dropped: nothing left to change") {
+        s.erase("gcode_macro helix_ended");
+        CHECK(sm::drift(scan_of(s), {}, {"HELIX_ENDED"}) == SignalNameDrift::None);
+    }
+}
+
+namespace {
+
+/// A watcher whose printer reports `loaded` forwarders at each print start.
+struct AliasWatcherRig {
+    LVGLTestFixture fixture;
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    std::vector<std::string> loaded{"HELIX_READY", "HELIX_ENDED"};
+    bool fresh = true;
+    bool completed = true;
+    int retired_calls = 0;
+    std::unique_ptr<helix::SlicedSignalWatcher> watcher;
+
+    AliasWatcherRig() {
+        restart_app();
+    }
+    /// A new watcher holds no counts: only what was saved in the settings carries over.
+    void restart_app() {
+        watcher.reset();
+        watcher = std::make_unique<helix::SlicedSignalWatcher>(
+            &client, [](const std::vector<std::string>&) {});
+        watcher->set_print_probes({[this] { return loaded; }, [this] { return fresh; },
+                                   [this] { return completed; }, [this] { ++retired_calls; }});
+    }
+    void say(const std::string& line) {
+        client.dispatch_method_callback("notify_gcode_response", {{"params", json::array({line})}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    void print(const std::vector<std::string>& lines = {}) {
+        watcher->on_print_active(true);
+        for (const auto& line : lines) {
+            say(line);
+        }
+        watcher->on_print_active(false);
+    }
+};
+
+const std::string kReadyHit = "// HELIX:ALIAS:HELIX_READY";
+
+} // namespace
+
+TEST_CASE("five completed prints without a hit retire a forwarder", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 1; ++i) {
+        rig.print();
+    }
+    CHECK(sm::retired_signal_names().empty());
+    CHECK(rig.retired_calls == 0);
+    rig.print();
+    CHECK(sm::retired_signal_names() == std::vector<std::string>{"HELIX_READY", "HELIX_ENDED"});
+    CHECK(rig.retired_calls == 1);
+}
+
+TEST_CASE("a name heard on the last counted print keeps its forwarder", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 1; ++i) {
+        rig.print();
+    }
+    rig.print({kReadyHit});
+    CHECK(sm::retired_signal_names() == std::vector<std::string>{"HELIX_ENDED"});
+}
+
+TEST_CASE("a hit clears a name's quiet count", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 1; ++i) {
+        rig.print();
+    }
+    rig.print({kReadyHit});
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 1; ++i) {
+        rig.print();
+    }
+    CHECK(sm::retired_signal_names() == std::vector<std::string>{"HELIX_ENDED"});
+}
+
+TEST_CASE("a print that proves nothing leaves the counts alone", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    SECTION("cancelled or failed") {
+        rig.completed = false;
+    }
+    SECTION("joined part-way through") {
+        rig.fresh = false;
+    }
+    SECTION("no announcing forwarders loaded when it started") {
+        rig.loaded.clear();
+    }
+    for (int i = 0; i < sm::kAliasDropAfterPrints + 1; ++i) {
+        rig.print();
+    }
+    CHECK(sm::retired_signal_names().empty());
+    CHECK(rig.retired_calls == 0);
+}
+
+TEST_CASE("a hit during a cancelled print still clears the count", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 1; ++i) {
+        rig.print();
+    }
+    rig.completed = false;
+    rig.print({kReadyHit});
+    rig.completed = true;
+    rig.print();
+    CHECK(sm::retired_signal_names() == std::vector<std::string>{"HELIX_ENDED"});
+}
+
+TEST_CASE("the quiet count survives an app restart", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints - 2; ++i) {
+        rig.print();
+    }
+    rig.restart_app();
+    rig.print();
+    CHECK(sm::retired_signal_names().empty());
+    rig.print();
+    CHECK(sm::retired_signal_names().size() == 2);
+}
+
+TEST_CASE("a dropped name a later file calls comes back", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    AliasWatcherRig rig;
+    for (int i = 0; i < sm::kAliasDropAfterPrints; ++i) {
+        rig.print();
+    }
+    REQUIRE(sm::retired_signal_names().size() == 2);
+
+    rig.loaded.clear();
+    rig.print({"// Unknown command:\"HELIX_READY\""});
+
+    CHECK(sm::retired_signal_names() == std::vector<std::string>{"HELIX_ENDED"});
+    CHECK(sm::recorded_signal_names() == std::vector<std::string>{"HELIX_READY"});
+    CHECK(sm::names_to_alias(scan_of(hidden_pack()), sm::recorded_signal_names(),
+                             sm::retired_signal_names()) == all_but("HELIX_ENDED"));
+}
+
+TEST_CASE("the macro status sees a retired name through the settings", "[signal_macros]") {
+    RecordedNamesScope recorded;
+    const auto hw = printer_with(with_all_forwarders(hidden_pack()), kCurrentPackObjects);
+    CHECK(helix::MacroManager::evaluate_status(hw) == helix::MacroInstallStatus::INSTALLED);
+    for (int i = 0; i < sm::kAliasDropAfterPrints; ++i) {
+        sm::note_alias_print({}, {"HELIX_ENDED"}, true);
+    }
+    CHECK(helix::MacroManager::evaluate_status(hw) == helix::MacroInstallStatus::OUTDATED);
+    CHECK(helix::MacroManager::macro_content_for(hw).find("[gcode_macro HELIX_ENDED]") ==
+          std::string::npos);
 }

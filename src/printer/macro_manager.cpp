@@ -306,7 +306,8 @@ MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardwar
     // visible pack, a called or recorded name with no definition, or a forwarder
     // nothing needs.
     const auto& scan = hardware.signal_macro_scan();
-    if (scan && signal_macros::drift(*scan, extra_names) != signal_macros::SignalNameDrift::None) {
+    if (scan && signal_macros::drift(*scan, extra_names, signal_macros::retired_signal_names()) !=
+                    signal_macros::SignalNameDrift::None) {
         return MacroInstallStatus::OUTDATED;
     }
 
@@ -478,9 +479,9 @@ std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware,
     }
     const auto& scan = hardware.signal_macro_scan();
     if (scan) {
-        return with_alias_block(
-            std::move(content),
-            signal_macros::alias_block(signal_macros::names_to_alias(*scan, extra_names)));
+        return with_alias_block(std::move(content),
+                                signal_macros::alias_block(signal_macros::names_to_alias(
+                                    *scan, extra_names, signal_macros::retired_signal_names())));
     }
     std::vector<std::string> all(signal_macros::kVisibleNames.begin(),
                                  signal_macros::kVisibleNames.end());

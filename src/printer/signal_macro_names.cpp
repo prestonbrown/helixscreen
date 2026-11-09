@@ -38,6 +38,15 @@ std::string macro_key(const std::string& name) {
     return "gcode_macro " + text_io::to_lower(name);
 }
 
+/// A forwarder that does not announce itself cannot be heard, so silence from it
+/// says nothing about whether anything calls the name.
+bool announces(const nlohmann::json& section, const std::string& visible) {
+    auto gcode = section.find("gcode");
+    return gcode != section.end() && gcode->is_string() &&
+           gcode->get_ref<const std::string&>().find(std::string(kAliasAnnouncePrefix) + visible) !=
+               std::string::npos;
+}
+
 enum class Definer { Alias, Pack, User };
 
 /// Who wrote a [gcode_macro <visible signal name>] section, read from its
@@ -95,7 +104,10 @@ std::string alias_block(const std::vector<std::string>& visible_names) {
         out += visible;
         out += "]\ndescription: ";
         out += kAliasDescriptionPrefix;
-        out += hidden + "\ngcode:\n    " + hidden + "\n";
+        out += hidden + "\ngcode:\n    RESPOND TYPE=command MSG=\"";
+        out += kAliasAnnouncePrefix;
+        out += visible;
+        out += "\"\n    " + hidden + "\n";
     }
     return out;
 }
@@ -113,6 +125,7 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
 
     std::array<bool, kVisibleNames.size()> alias{};
     std::array<bool, kVisibleNames.size()> foreign{};
+    std::array<bool, kVisibleNames.size()> announcing{};
     bool all_hidden = true;
     for (size_t i = 0; i < kVisibleNames.size(); ++i) {
         const std::string visible(kVisibleNames[i]);
@@ -124,6 +137,7 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
         switch (classify(*it, i)) {
         case Definer::Alias:
             alias[i] = true;
+            announcing[i] = announces(*it, visible) && config_settings.contains("respond");
             result.visible_loaded = true;
             break;
         case Definer::User:
@@ -157,6 +171,9 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
         if (alias[i]) {
             result.aliases.emplace_back(kVisibleNames[i]);
         }
+        if (announcing[i]) {
+            result.announcing.emplace_back(kVisibleNames[i]);
+        }
         if (foreign[i]) {
             result.foreign.emplace_back(kVisibleNames[i]);
         }
@@ -165,7 +182,8 @@ SignalMacroScan scan(const nlohmann::json& config_settings,
 }
 
 std::vector<std::string> names_to_alias(const SignalMacroScan& scan,
-                                        const std::vector<std::string>& extra_names) {
+                                        const std::vector<std::string>& extra_names,
+                                        const std::vector<std::string>& retired) {
     // A sliced file can call any signal name, and nothing in the config shows
     // which, so a printer with any visible name in play keeps all of them.
     const bool extra_signal =
@@ -176,18 +194,21 @@ std::vector<std::string> names_to_alias(const SignalMacroScan& scan,
         return names;
     }
     for (auto visible : kVisibleNames) {
-        if (!contains(scan.foreign, visible)) {
+        const bool called = std::any_of(scan.callers.begin(), scan.callers.end(),
+                                        [visible](const auto& c) { return c.name == visible; });
+        if (!contains(scan.foreign, visible) && (called || !contains(retired, visible))) {
             names.emplace_back(visible);
         }
     }
     return names;
 }
 
-SignalNameDrift drift(const SignalMacroScan& scan, const std::vector<std::string>& extra_names) {
+SignalNameDrift drift(const SignalMacroScan& scan, const std::vector<std::string>& extra_names,
+                      const std::vector<std::string>& retired) {
     if (!scan.hidden_loaded) {
         return SignalNameDrift::MoveToHidden;
     }
-    const auto wanted = names_to_alias(scan, extra_names);
+    const auto wanted = names_to_alias(scan, extra_names, retired);
     for (const auto& name : wanted) {
         if (!contains(scan.aliases, name)) {
             return SignalNameDrift::AddAliases;

@@ -160,6 +160,26 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
                 visible, status == MacroInstallStatus::OUTDATED);
             ToastManager::instance().show(ToastSeverity::WARNING, text.c_str(), 8000);
         });
+    m_sliced_signal_watcher->set_print_probes(
+        {[] {
+             const auto& scan = get_printer_state().get_discovery().signal_macro_scan();
+             return scan ? scan->announcing : std::vector<std::string>{};
+         },
+         [] {
+             constexpr int kFreshPrintSeconds = 60;
+             auto& print = get_printer_state().print_state();
+             return lv_subject_get_int(print.get_print_elapsed_subject()) <= kFreshPrintSeconds;
+         },
+         [] {
+             auto& print = get_printer_state().print_state();
+             return static_cast<PrintOutcome>(lv_subject_get_int(
+                        print.get_print_outcome_subject())) == PrintOutcome::COMPLETE;
+         },
+         [] {
+             auto& state = get_printer_state();
+             state.plugin_status_state().set_helix_macros_base_status(
+                 MacroManager::evaluate_status(state.get_discovery()));
+         }});
     m_sliced_signal_watcher->watch_print_active(
         get_printer_state().print_state().get_print_active_subject(),
         get_printer_state().print_state().get_static_subjects_lifetime());
