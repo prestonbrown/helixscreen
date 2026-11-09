@@ -20,6 +20,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "core/update_queue.h"
 #include "dryer_summary.h"
 #include "panel_widget_manager.h"
@@ -275,6 +276,13 @@ TEST_CASE_METHOD(DryerFixture, "dryer: drying draws the ring at Glance, Cell and
     CHECK(shown(part(h, "dryer_rh_detail")));
     CHECK(shown(part(h, "dryer_end")));
     CHECK_FALSE(shown(part(h, "dryer_count")));
+
+    // A box with no name of its own is counted, not a numbered position.
+    ScopedZeroLaneNumbering zero;
+    DryerSummaryInput nameless = one_box_drying();
+    nameless.zones[0].label.clear();
+    publish(nameless);
+    CHECK(subject_text("home_dryer_name_text") == "Box 1");
 }
 
 TEST_CASE_METHOD(DryerFixture, "dryer: the drying temperature fits its tile on one line",
