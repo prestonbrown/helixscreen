@@ -193,6 +193,12 @@
 # INCOMPLETE, never CLEAN, and the list says exactly what is left for a rerun
 # (--since the last proven commit, or --only).
 #
+# Each filter's baseline time is kept in build/mutate-baseline-secs.json, and a
+# baseline the deadline cut off is kept as a lower bound. A baseline whose kept
+# time is more than what is left of --max-minutes is not started: its hunks are
+# reported UNEXAMINED (unjudged in a pool) at once, so the fallback filter of a
+# large batch cannot spend the whole cap before any mutant runs.
+#
 # EXIT CODES
 #
 #   0  every changed hunk was examined and every mutant was killed
@@ -223,6 +229,7 @@ import argparse
 import contextlib
 import copy
 import io
+import json
 import os
 import re
 import select
@@ -1536,6 +1543,62 @@ class BaselineRefused(RuntimeError):
     """A filter's suites cannot judge a mutant: red, silent, or matching nothing."""
 
 
+class BaselineUnaffordable(BaselineRefused):
+    """A baseline took longer on an earlier run here than this run has left."""
+
+
+BASELINE_RECORD = 'build/mutate-baseline-secs.json'
+_BASELINE_RECORD_LOCK = threading.Lock()
+
+
+def baseline_record_key(suite, args):
+    """What a baseline's time is recorded under: the suite and the filter it ran."""
+    spec = {'catch2': args.tests, 'bats': args.shell_tests,
+            'pytest': args.python_tests}.get(suite, '')
+    return f'{suite} {spec}'
+
+
+def read_baseline_record(root):
+    """{key: seconds} from earlier runs in this checkout; {} when there is none."""
+    try:
+        data = json.loads((root / BASELINE_RECORD).read_text())
+    except (OSError, ValueError):
+        return {}
+    return {k: float(v) for k, v in data.items()
+            if isinstance(v, (int, float))} if isinstance(data, dict) else {}
+
+
+def write_baseline_record(root, key, secs, at_least=False):
+    """Keep `secs` for `key`. `at_least`: a lower bound, which never lowers a time kept."""
+    path = root / BASELINE_RECORD
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        if at_least and data.get(key, 0) >= secs:
+            return
+        data[key] = round(secs, 1)
+        try:
+            tmp = path.with_name(path.name + '.tmp')
+            tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + '\n')
+            tmp.replace(path)
+        except OSError:
+            pass                   # no build/ here: the next run just measures again
+
+
+def check_baseline_affordable(root, suite, args):
+    """Raise BaselineUnaffordable when the kept time for this baseline exceeds what is
+    left before the deadline. A run with no deadline, or no kept time, always starts it."""
+    if RUN_STATE.deadline_at is None:
+        return
+    kept = read_baseline_record(root).get(baseline_record_key(suite, args))
+    left = RUN_STATE.deadline_at - time.monotonic()
+    if kept is not None and kept >= left:
+        spec = baseline_record_key(suite, args).split(' ', 1)[1]
+        raise BaselineUnaffordable(
+            f'the {suite} baseline for {spec!r} took {kept:.0f}s on an earlier run here '
+            f'({BASELINE_RECORD}), more than the {max(left, 0):.0f}s left of --max-minutes; '
+            f'give those files a narrower --tests-for, or run them alone with --only')
+
+
 class BuildUnavailable(RuntimeError):
     """The Catch2 binary is not there, so no verdict about a mutant is possible.
 
@@ -1801,6 +1864,8 @@ class OutOfTime(RuntimeError):
 
 class _RunState:
     out_of_time = False
+    # time.monotonic() at which --max-minutes runs out, or None for no cap.
+    deadline_at = None
     # A stop signal is being handled: nothing new may start.
     stopping = False
     # Assertions this run stopped trusting; a group child leaves them in a file too.
@@ -2511,9 +2576,17 @@ def establish_baseline(suites, needed):
     every mutant read as killed, and one that cannot report judges nothing.
     """
     args = suites.args
+    started = {}
     if 'catch2' in needed:
+        # Counting the cases is part of what the catch2 baseline costs.
+        check_baseline_affordable(suites.root, 'catch2', args)
+        started['catch2'] = time.monotonic()
         suites.ensure_catch2_binary()
         matched = count_catch2_cases(suites.root, suites.catch2_bin, args.tests)
+        if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key('catch2', args),
+                                  time.monotonic() - started['catch2'], at_least=True)
+            raise OutOfTime()
         if matched is not None:
             try:
                 args.shards = fit_shards(args.shards, matched)
@@ -2526,8 +2599,13 @@ def establish_baseline(suites, needed):
             print(f'  catch2: {matched} case(s) match {args.tests!r}, '
                   f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
     for suite in sorted(needed):
+        if suite not in started:
+            check_baseline_affordable(suites.root, suite, args)
+            started[suite] = time.monotonic()
         state, why = suites.run(suite)
         if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key(suite, args),
+                                  time.monotonic() - started[suite], at_least=True)
             raise OutOfTime()
         if state == DETECTED and suite == 'catch2':
             # A wall-clock budget in a test can run out on a machine this run
@@ -2557,6 +2635,7 @@ def establish_baseline(suites, needed):
             raise BaselineRefused(f'baseline {suite} suite judged nothing - {why}. Every '
                                   f'mutant would be measured by a suite that cannot report. '
                                   f'See {args.log}')
+        write_baseline_record(suites.root, baseline_record_key(suite, args), suites.last_secs)
         lo, hi = suites.adopt_baseline(suite, suites.last_secs)
         span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
         per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
@@ -2587,6 +2666,9 @@ class FilterBaselines:
         suites = Suites(self.root, args, buf)
         try:
             establish_baseline(suites, self.needed_of[key])
+        except BaselineUnaffordable as e:
+            print(f'  not started for {describe_key(key)}: {e}', flush=True)
+            return e
         except BaselineRefused as e:
             print(f'  FAIL for {describe_key(key)}: {e}', flush=True)
             return e
@@ -2613,7 +2695,10 @@ class FilterBaselines:
         """The whole suite's baseline now, when any hunk or survivor will need it."""
         if self.args.confirm_survivors or any(self.key_of[h['file']] == self.whole_key
                                               for h in hunks):
-            self._established(self.whole_key)
+            try:
+                self._established(self.whole_key)
+            except BaselineUnaffordable:
+                pass              # named by _establish; its hunks read unjudged
 
     def wider_for(self, h, plan, tree_root, log):
         """() -> the whole suite's Suites in this tree, or None when `h` has it already.
@@ -2999,11 +3084,13 @@ def arm_deadline(seconds):
             signal_live_procs(signal.SIGKILL)
 
     signal.signal(signal.SIGALRM, on_deadline)
+    RUN_STATE.deadline_at = time.monotonic() + max(seconds, 0.001)
     signal.setitimer(signal.ITIMER_REAL, max(seconds, 0.001))
 
 
 def disarm_deadline():
     signal.setitimer(signal.ITIMER_REAL, 0)
+    RUN_STATE.deadline_at = None
 
 
 class RunBase:
@@ -4135,6 +4222,15 @@ def main():
                 guards.append(t.guard)
             print(f'  {len(trees)} workers, each in a copy of the tree '
                   f'({trees[0].root.parent}, {time.monotonic() - t0:.0f}s)')
+    except BaselineUnaffordable as e:
+        disarm_deadline()
+        print(f'\nbaseline not started: {e}')
+        for h in mutable:
+            print(f'  UNEXAMINED    {h["file"]}:{h["line"]}')
+        print(report_incomplete(uncovered, deferred, unexamined=len(mutable),
+                                stop_reason='its baseline would not fit in --max-minutes'))
+        remove_worker_trees(trees)
+        return 0 if args.allow_incomplete else 3
     except BaselineRefused as e:
         print(f'FAIL: {e}', file=sys.stderr)
         return 2

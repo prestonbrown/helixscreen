@@ -13,6 +13,7 @@ leaves a different binary behind, and the stub suite prints a Catch2 failure
 when the change's marker is gone.
 """
 
+import json
 import os
 import re
 import shutil
@@ -356,6 +357,53 @@ def test_max_minutes_stops_the_run_and_names_what_it_never_reached(tmp_path):
     for p, want in before.items():
         assert (work / p).read_bytes() == want, p
     assert not _alive(child), "the capped build's grandchild outlived the run"
+
+
+# A baseline suite that takes 30s while the change is in place, noting each start.
+SLOW_BASELINE_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+echo started >> .mutant-suite-starts
+grep -q NEW_BEHAVIOR src/feature.cpp && sleep 30
+exit 1
+"""
+BASELINE_RECORD = Path("build/mutate-baseline-secs.json")
+WHOLE_KEY = "catch2 ~[.]~[slow]"
+
+
+def test_a_baseline_the_cap_cut_off_is_not_started_again_when_it_cannot_fit(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(SLOW_BASELINE_SUITE)
+    first = _mutate(work, "--base", "main", "--max-minutes", "0.05")
+    assert first.returncode == 3, first.stdout
+    assert "during the baseline" in first.stdout
+    kept = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]
+    assert kept >= 2, kept
+    (work / ".mutant-suite-starts").unlink()
+    t0 = time.monotonic()
+    again = _mutate(work, "--base", "main", "--max-minutes", "0.04")
+    assert again.returncode == 3, again.stdout
+    assert time.monotonic() - t0 < 10, "a baseline known not to fit was started"
+    assert not (work / ".mutant-suite-starts").exists(), again.stdout
+    assert "baseline not started: the catch2 baseline for '~[.]~[slow]' took" in again.stdout
+    assert "UNEXAMINED    src/feature.cpp:1" in again.stdout
+    assert "VERDICT: INCOMPLETE" in again.stdout
+    # With room for it, the same baseline runs, and its green time replaces the bound.
+    (work / "build" / "bin" / "helix-tests").write_text(DETECTING_SUITE)
+    roomy = _mutate(work, "--base", "main", "--no-record")
+    assert roomy.returncode == 0, roomy.stdout
+    assert json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY] < kept
+
+
+@linux_only
+def test_a_pool_skips_a_whole_suite_baseline_that_cannot_fit_and_judges_the_rest(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / BASELINE_RECORD).write_text(json.dumps({WHOLE_KEY: 99999}))
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "not started for ~[.]~[slow]" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:1", r.stdout), r.stdout
+    assert re.search(r"src/other.cpp:1.*no baseline to judge it by", r.stdout), r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
 
 
 def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):

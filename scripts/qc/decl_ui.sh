@@ -369,40 +369,22 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🖥️  Checking DRM dumb-buffer mmap offset width..."
+echo -n "🖥️  Checking large-file (64-bit off_t) sites..."
 
-# DRM allocates dumb-buffer mmap offsets from 4 GiB upward, so a 32-bit off_t
-# truncates them and the mapping fails. HelixScreen then falls back to fbdev and
-# the KMS path is silently dead on every 32-bit device (pi32).
-if python3 scripts/check_drm_mmap_lfs.py >/tmp/drm_mmap_lfs.out 2>&1; then
+# Each site's sizeof(off_t) assertion fires only on a 32-bit build, and
+# pi32/ad5m/cc1/k1 are in release.yml's matrix rather than build.yml's, so a
+# dropped fix stays green here. DRM: dumb-buffer mmap offsets start at 4 GiB, a
+# 32-bit off_t truncates them, and the KMS path falls back to fbdev silently.
+# gcode: a dropped mk/rules.mk override makes seeks past 2 GB land wrong.
+if python3 scripts/check_lfs_sites.py >/tmp/lfs_sites.out 2>&1; then
   section_time $SECTION_START
   echo ""
-  echo "✅ DRM mmap uses a 64-bit file offset"
+  grep '^✓' /tmp/lfs_sites.out | sed 's/^✓/✅/'
 else
   section_time $SECTION_START
   echo ""
-  cat /tmp/drm_mmap_lfs.out
-  echo "   Run: python3 scripts/check_drm_mmap_lfs.py"
-  EXIT_CODE=1
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
-echo -n "📄 Checking gcode reader large-file support..."
-
-# The static_assert in gcode_data_source.cpp only fires on a 32-bit build, and
-# pi32/ad5m/cc1/k1 are in release.yml's matrix rather than build.yml's - so a
-# dropped mk/rules.mk override stays green here and detonates at release.
-if python3 scripts/check_gcode_lfs.py >/tmp/gcode_lfs.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  echo "✅ gcode reader builds with a 64-bit off_t"
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/gcode_lfs.out
-  echo "   Run: python3 scripts/check_gcode_lfs.py"
+  cat /tmp/lfs_sites.out
+  echo "   Run: python3 scripts/check_lfs_sites.py"
   EXIT_CODE=1
 fi
 
