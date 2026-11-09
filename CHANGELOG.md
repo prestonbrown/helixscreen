@@ -9,9 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fan RPM on standard Klipper** (#2071, #2082) - fans with a tachometer now show their speed in RPM on the Fan control screen, on the part cooling fan's dial as well as on the automatic fan cards. Before, only Creality's own fan feedback showed RPM.
+- **Portrait splash screens** (#2073) - Pi and desktop installs with a portrait display get a full-screen splash image drawn for that shape, instead of the logo scaled at startup.
+- **Anycubic Kobra X picture** (#2074) - the Kobra X now has its own printer image instead of a generic frame.
+- **Jacobean K2 Plus firmware** (#2087) - K2 Plus printers running Jacobean's Kalico-based firmware are recognised as such, with their own print-start progress, instead of being taken for k2-improvements.
+
 - **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt home screen, the new Print Status screen and the Filament and filament system screens, with your own printer's picture. A new install gets the full tour, and Help & About replays it.
 
 ### Fixed
+
+- **Dragging widgets near a page edge** (#2070) - in home screen edit mode, a widget dragged toward the next page waits longer before the page flips, and letting go during the wait keeps it on the page you see.
+- **Splash on portrait screens** (#2072) - a landscape splash image is no longer drawn past the sides of a portrait screen.
+- **Better printer matches after an update** (#2075) - when a newer release recognises your printer better, HelixScreen offers the better match once, even if you answered an earlier type question. If you declined the question before, you will be asked once more.
+- **Numbering slots from 0** (#2079) - with the option on, the spool strip badges, the tool changer's load prompt and multi-ACE error messages use the same numbers as the rest of the screen.
+- **Phantom fans on the K2** - a fan's separate enable pin is no longer offered as new hardware or put in a fan slot.
+- **Time left while preparing** - the Preparing column on the home print widget no longer cuts off the time remaining.
+- **Eddy, Beacon and Cartographer calibration** (#1994) - the probe screen's calibrate buttons open the Z-offset calibration screen, so you can jog, accept or abort on the printer. On printers with Creality Helper-Script or Z-Mod, an Eddy probe now runs its full calibration sweep instead of a plain Z-offset adjustment.
+- **Keeping your files across web updates on Z-Mod** (#2085) - updating HelixScreen from Fluidd or Mainsail on a Z-Mod printer no longer deletes tool spools, saved filaments or crash history. The update that installs this fix still loses them once, because the old version is what gets replaced. The telemetry device id now also survives web updates on every printer, though it changes once on the first update.
+- **Z-Mod AD5X filament changes** (#2086) - after a failed filament change, Unload and Cancel come back as soon as the printer goes idle instead of after three minutes. A new lane no longer shows "?" as its material or a false "Same spool?" prompt, and one failure shows one message.
+- **Plugin updates on Z-Mod** (#2086) - when the HelixPrint plugin needs a restart that only a reboot can give, the message now says to reboot the printer and stays in the notification history.
+- **Touch stops working on some Pi 5 screens** (#2069) - when a USB touch controller resets, as some HDMI touchscreens do when the picture changes, HelixScreen reopens it instead of losing touch until a restart.
+- **K2 "set up as stock" message** (#2087) - the type mismatch message now goes away once you change the printer type, instead of staying on screen.
+- **Re-apply on a spool** - Re-apply now takes the spool's name, and fixing only the colour keeps the spool's temperatures.
 
 - **Sensors in Settings no longer need a filament sensor** - the Sensors row under Hardware & Devices holds the temperature sensors and the chamber sensor and heater choices, but it only appeared on printers with a filament sensor. It now always appears.
 
