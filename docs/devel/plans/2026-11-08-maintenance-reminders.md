@@ -398,21 +398,17 @@ and Abandon do not.
 Screenshots at the finish: overlay at 800x480 and 480x272, one task page, the tile at 2x2 on
 both.
 
-## Open questions for Preston
+## Decisions (Preston, 2026-11-08)
 
-1. **Split or rename**: the plan keeps `rails` as XY (renamed on screen) and adds Z seeded from
-   it. Fine, or do you want Z to start at 0?
-2. **Filament length**: v1 has print hours plus an optional day limit, no filament counter.
-   Do you want a length limit too, and for which meters?
-3. **Multi-head printers**: one Nozzle and one Cold pull meter per printer, or one per head on
-   tool changers (Creator 5, U1, Prusa XL)? Per head needs per-tool print time, which nothing
-   counts today.
-4. **Prompt timing and weight**: toast plus history entry at print end, never mid-print. Or a
-   modal at print end? And do you want a "Remind me in 10 h" snooze?
-5. **Generic defaults** for the new meters: Z 500 h, Cold pull 200 h, Extruder 300 h,
-   Electronics fans 500 h, no day limits anywhere by default. Change any?
-6. **FlashForge numbers**: may a session read the Creator 5 Pro's stock firmware (on the test
-   device or from the 1.9.6+ image) for its seven intervals, to fill the five FlashForge
-   database rows?
-7. **Belts**: add an eighth meter, "Belt tension check", that opens the existing belt tension
-   calibration from its task page? Not on FlashForge's list, but we already have the tool.
+These override anything above that disagrees.
+
+- Z is a new meter seeded from the existing `rails` hours; `rails` stays as XY, renamed on screen.
+- No filament length limit.
+- One meter per printer, including tool changers.
+- A toast plus a history entry at print end, never mid-print, with no snooze.
+- Cold pull is emergency service, not suggested maintenance: the Cold pull meter is dropped, so
+  there are seven meters minus that one plus the belt check below.
+- The remaining generic intervals get checked against Bambu's published recommendations before
+  they ship.
+- A session may read the Creator 5 Pro's stock firmware for the FlashForge intervals.
+- The belt tension meter appears on Voron-style printers only.
