@@ -159,7 +159,7 @@ translations:
   A cold pull is already running.: A cold pull is already running.
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'A few minutes, nearly all of it heating. You judge nothing by eye.'
-  A folder name in moonraker.conf is unsafe, so cleanup is off.: A folder name in moonraker.conf is unsafe, so cleanup is off.
+  A folder name in moonraker.conf is unsafe.: "A folder name in moonraker.conf is unsafe."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.
@@ -3014,7 +3014,7 @@ translations:
   'Power was lost during the print; the printer stopped and saved its progress': 'Power was lost during the print; the printer stopped and saved its progress'
   Power was lost less than a minute ago.: Power was lost less than a minute ago.
   Power-loss recovery: Power-loss recovery
-  Power-loss recovery isn't supported on this printer yet.: Power-loss recovery isn't supported on this printer yet.
+  Not set up for this printer model yet.: "Not set up for this printer model yet."
   Pre-heat the extruder first: Pre-heat the extruder first
   'Pre-print command failed: {}': 'Pre-print command failed: {}'
   'Pre-print homing...': 'Pre-print homing...'
@@ -4256,7 +4256,7 @@ translations:
   The peak of {} moved out of the zone. Widening it.: The peak of {} moved out of the zone. Widening it.
   The plate and the spools are still hot. Use gloves.: The plate and the spools are still hot. Use gloves.
   The plate finishes its current move, but drying will not start.: The plate finishes its current move, but drying will not start.
-  The plugin can't reach the camera, so this screen takes the photos.: The plugin can't reach the camera, so this screen takes the photos.
+  Can't reach the camera, so this screen takes photos.: "Can't reach the camera, so this screen takes photos."
   The plugin can't save its recovery data to disk.: The plugin can't save its recovery data to disk.
   The plugin is turned off in moonraker.conf.: The plugin is turned off in moonraker.conf.
   The previous IPv4 settings come back when the print ends.: The previous IPv4 settings come back when the print ends.
@@ -4337,6 +4337,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
   ? The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
   : The timelapse plugin is installed. Making videos also needs ffmpeg, which HelixScreen could not install without a password.
+  Timelapse or logs folder overlaps a protected one.: "Timelapse or logs folder overlaps a protected one."
   The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
   The tool change under way finished, and {} was not put back on the carriage: The tool change under way finished, and {} was not put back on the carriage
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
@@ -4380,7 +4381,7 @@ translations:
   This AFC system does not support bypass mode: This AFC system does not support bypass mode
   This CFS firmware exposes no external spool slot: This CFS firmware exposes no external spool slot
   This Happy Hare system does not support bypass mode: This Happy Hare system does not support bypass mode
-  This Moonraker version can't hold uploads. Update Moonraker.: This Moonraker version can't hold uploads. Update Moonraker.
+  Needs a newer Moonraker to hold uploads.: "Needs a newer Moonraker to hold uploads."
   This button controls: This button controls
   This calibration uses the paper friction method to set your Z-offset.: This calibration
     uses the paper friction method to set your Z-offset.
@@ -4399,9 +4400,9 @@ translations:
   This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?: This doesn't match the linked Spoolman spool. Add it as a new spool, or update the linked one to match?
   This doesn't match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?: This doesn't match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?
   This dryer cannot run while filament from the unit is loaded: This dryer cannot run while filament from the unit is loaded
-  This feature failed to start. The Moonraker log says why.: This feature failed to start. The Moonraker log says why.
+  Failed to start. See the Moonraker log.: "Failed to start. See the Moonraker log."
   This feature requires different hardware or configuration: This feature requires different hardware or configuration
-  This feature stopped. Restart Moonraker to start it again.: This feature stopped. Restart Moonraker to start it again.
+  Stopped. Restart Moonraker to start it again.: "Stopped. Restart Moonraker to start it again."
   This filament system does not report buffer or flow data.: This filament system does not report buffer or flow data.
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.
@@ -4420,7 +4421,7 @@ translations:
   : This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   This looks like a {}, but it is set up as a {}: This looks like a {}, but it is set up as a {}
   This may take up to 30 seconds: This may take up to 30 seconds
-  This needs the plugin's file analysis, which isn't running.: This needs the plugin's file analysis, which isn't running.
+  Needs file analysis, which isn't running.: "Needs file analysis, which isn't running."
   This plugin asks for no special permissions.: This plugin asks for no special permissions.
   This plugin lets HelixScreen control print start options like bed mesh and QGL.: This plugin lets HelixScreen control print start options like bed mesh and QGL.
   This print called {}, which the printer no longer has.: This print called {}, which the printer no longer has.
@@ -5196,3 +5197,6 @@ translations:
   'Basic': 'Basic'
   'Recycled': 'Recycled'
   ~{:.1f} Hz / turn: ~{:.1f} Hz / turn
+  RUNNING: "RUNNING"
+  NOT AVAILABLE HERE: "NOT AVAILABLE HERE"
+  The plugin didn't say why.: "The plugin didn't say why."
