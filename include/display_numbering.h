@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "core/tool_number_style.h"
+
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -44,32 +46,6 @@ enum class LaneNoun : uint8_t {
  * @param gcode_tool 0-based tool index; negative yields an empty string
  */
 std::string tool_label(int gcode_tool);
-
-/**
- * @brief Whether @p name is the generated G-code identity, not a configured one.
- *
- * A Klipper tool carries either a name its owner chose ("Left", "Right") or the
- * "T<n>" form tool_label() produces when none was configured. Only the
- * generated form may be replaced by a display number; a chosen name is what
- * the machine is physically labeled with and is shown verbatim.
- */
-bool is_generated_tool_name(std::string_view name);
-
-/**
- * @brief How a printer numbers its tools where a number stands alone.
- *
- * Most machines are labeled from 1 ("Toolhead 1" on a U1, heads 1-4 on a
- * Creator 5), while a klipper-toolchanger rig is labeled with the G-code names
- * its owner wrote (`[tool T0]`, "T0" on the dock plate). The G-code name itself
- * (ToolLabelForm::Code, tool_label()) is the same in both styles.
- */
-enum class ToolNumberStyle : uint8_t {
-    Physical, ///< 1-based position: "Tool 1", badge "1". The default.
-    Gcode,    ///< The G-code name the machine is labeled with: "T0", badge "T0".
-};
-
-/// The persisted per-printer override. Values are the stored ints, so never reorder.
-enum class ToolNumberStyleSetting : uint8_t { Auto = 0, Physical = 1, Gcode = 2 };
 
 /**
  * @brief The number of the tool at @p index in @p style: "1", or "T0".
