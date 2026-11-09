@@ -486,6 +486,26 @@ TEST_CASE_METHOD(
     }
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "fan overlay: a dial built for a fan at a steady rpm shows it at once (#2082)",
+                 "[fan_overlay][rpm]") {
+    FreshOverlays fresh;
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "fan"}));
+    get_printer_state().set_hardware(hw);
+    state().fan_state().init_fans({"fan"});
+    get_printer_state().update_from_status(json{{"fan", {{"speed", 0.5}, {"rpm", 3200.0}}}});
+    seed_nav_panels(test_screen());
+
+    lv_obj_t* root = helix::open_fan_control_overlay(test_screen());
+    REQUIRE(root != nullptr);
+
+    // No queue drain and no further status: the reading comes from the dial's build.
+    lv_obj_t* part = dial_rpm_label(root, state().fan_state().get_fans().front().display_name);
+    REQUIRE(part != nullptr);
+    CHECK(shows(part, "3200 RPM"));
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "fan dial: an rpm reading leaves the speed display alone",
                  "[fan_overlay][rpm]") {
     FanDial dial(test_screen(), "Part Fan", "fan", 40);
