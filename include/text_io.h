@@ -53,8 +53,8 @@ enum class Durability {
 /// (`path.<pid>.<n>.tmp`), close, rename over `path`. Concurrent writers of one
 /// path each land whole; the last rename wins.
 /// On failure the tmp is removed, `path` is untouched, and errno holds the
-/// failing call's error. `path` is used as given; resolve symlinks
-/// (helix::paths::write_target) before calling if the caller needs that.
+/// failing call's error. A symlink at `path` is written through, not replaced:
+/// the save goes to helix::paths::write_target(path), so the link survives.
 bool write_file_atomic(const std::string& path, std::string_view data,
                        Durability durability = Durability::None);
 
